@@ -67,7 +67,7 @@ public class DDTracer implements io.opentracing.Tracer {
         if (trace.isEmpty()) {
             return;
         }
-        if (this.sampler.sample((DDSpan) trace.get(0))) {
+        if (this.sampler.sample(trace.get(0))) {
             this.writer.write(trace);
         }
     }
@@ -152,8 +152,10 @@ public class DDTracer implements io.opentracing.Tracer {
         }
 
         public Iterable<Map.Entry<String, String>> baggageItems() {
-            if (parent == null) {
-                return Collections.emptyList();
+            synchronized (this) {
+                if (parent == null) {
+                    return Collections.emptyList();
+                }
             }
             return parent.baggageItems();
         }
@@ -174,10 +176,12 @@ public class DDTracer implements io.opentracing.Tracer {
 
         // Private methods
         private DDTracer.DDSpanBuilder withTag(String tag, Object value) {
-            if (this.tags.isEmpty()){
-                this.tags = new HashMap<String, Object>();
+            synchronized (this) {
+                if (this.tags.isEmpty()) {
+                    this.tags = new HashMap<String, Object>();
+                }
+                this.tags.put(tag, value);
             }
-            this.tags.put(tag, value);
             return this;
         }
 
