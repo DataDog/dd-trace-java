@@ -89,6 +89,7 @@ public class DDSpanContext implements io.opentracing.SpanContext {
 
         this.tags = tags;
 
+
         if (trace == null) {
             this.trace = new ArrayList<Span>();
         } else {
@@ -128,10 +129,13 @@ public class DDSpanContext implements io.opentracing.SpanContext {
     }
 
     public void setBaggageItem(String key, String value) {
-        if (this.baggageItems.isEmpty()) {
-            this.baggageItems = new HashMap<String, String>();
+
+        synchronized (this) {
+            if (this.baggageItems.isEmpty()) {
+                this.baggageItems = new HashMap<String, String>();
+            }
+            this.baggageItems.put(key, value);
         }
-        this.baggageItems.put(key, value);
     }
 
     public String getBaggageItem(String key) {
@@ -167,10 +171,12 @@ public class DDSpanContext implements io.opentracing.SpanContext {
      * @return the builder instance
      */
     public void setTag(String tag, Object value) {
-        if (this.tags.isEmpty()) {
-            this.tags = new HashMap<String, Object>();
+        synchronized (this) {
+            if (this.tags.isEmpty()) {
+                this.tags = new HashMap<String, Object>();
+            }
+            this.tags.put(tag, value);
         }
-        this.tags.put(tag, value);
     }
 
     @Override
