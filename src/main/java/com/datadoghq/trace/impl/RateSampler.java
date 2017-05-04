@@ -1,8 +1,7 @@
 package com.datadoghq.trace.impl;
 
-
 import com.datadoghq.trace.Sampler;
-import io.opentracing.Span;
+import com.datadoghq.trace.impl.DDSpan;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +14,15 @@ import org.slf4j.LoggerFactory;
  */
 public class RateSampler implements Sampler {
 
+    /**
+     * Maximum value for the traceId. FIXME: should be real uint64.
+     */
+    private static final double MAX_TRACE_ID_DOUBLE = (double)Long.MAX_VALUE;
+
+    /**
+     * Internal constant specific to Dadadog sampling technique.
+     */
+    private static final long SAMPLER_HASHER = 1111111111111111111L;
 
     private final static Logger logger = LoggerFactory.getLogger(RateSampler.class);
     /**
@@ -42,9 +50,11 @@ public class RateSampler implements Sampler {
     }
 
     @Override
-    public boolean sample(Span span) {
-        boolean sample = Math.random() <= this.sampleRate;
-        logger.debug("{} - Span is sampled: {}", span, sample);
+    public boolean sample(DDSpan span) {
+        long traceId = span.getTraceId();
+        // Logical shift to move from signed to unsigned number. TODO: check that this is consistent with our Go implementation.
+        boolean sample = ((span.getTraceId() * RateSampler.SAMPLER_HASHER) >>> 1) < this.sampleRate*RateSampler.MAX_TRACE_ID_DOUBLE;
+        logger.debug("traceId: {} sampled: {}", traceId, sample);
         return sample;
     }
 
