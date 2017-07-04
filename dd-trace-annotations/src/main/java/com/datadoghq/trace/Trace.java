@@ -12,9 +12,9 @@ import java.lang.annotation.Target;
 @Retention(RUNTIME)
 @Target(METHOD)
 public @interface Trace {
-	
-	/**
-	 * The operation name to set. By default it takes the method's name
-	 */
-	String operationName() default "";
+
+    /**
+     * The operation name to set. By default it takes the method's name
+     */
+    String operationName() default "";
 }

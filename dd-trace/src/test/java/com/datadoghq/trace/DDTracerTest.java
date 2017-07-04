@@ -6,18 +6,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.junit.Test;
-
-import com.datadoghq.trace.DDSpan;
-import com.datadoghq.trace.DDTracer;
 import com.datadoghq.trace.sampling.RateSampler;
 import com.datadoghq.trace.writer.Writer;
-
-import io.opentracing.BaseSpan;
-import io.opentracing.Span;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.Test;
 
 
 public class DDTracerTest {

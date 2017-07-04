@@ -1,10 +1,9 @@
 package com.example.helloworld.client;
 
-import java.io.IOException;
-
 import com.datadoghq.trace.Trace;
 import io.opentracing.tag.StringTag;
 import io.opentracing.util.GlobalTracer;
+import java.io.IOException;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -17,24 +16,26 @@ import okhttp3.Response;
  */
 public class TracedClient {
 
-	
-	public static void main(String[] args) throws Exception{
-		executeCall();
-		System.out.println("After execute");
-	}
 
-	@Trace
-	private static void executeCall() throws IOException {
-		new StringTag("service-name").set(GlobalTracer.get().activeSpan(), "TracedClient");
-		OkHttpClient client = new OkHttpClient().newBuilder().build();
+    public static void main(String[] args) throws Exception {
+        executeCall();
+        System.out.println("After execute");
+    }
 
-		Request request = new Request.Builder()
-				.url("http://localhost:8080/demo/")
-				.build();
+    @Trace
+    private static void executeCall() throws IOException {
+        new StringTag("service-name").set(GlobalTracer.get().activeSpan(), "TracedClient");
+        OkHttpClient client = new OkHttpClient().newBuilder().build();
 
-		Response response = client.newCall(request).execute();
-		if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+        Request request = new Request.Builder()
+                .url("http://localhost:8080/demo/")
+                .build();
 
-		System.out.println(response.body().string());
-	}
+        Response response = client.newCall(request).execute();
+        if (!response.isSuccessful()) {
+            throw new IOException("Unexpected code " + response);
+        }
+
+        System.out.println(response.body().string());
+    }
 }

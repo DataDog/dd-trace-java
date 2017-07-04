@@ -1,23 +1,20 @@
 package com.datadoghq.trace;
 
+import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.opentracing.BaseSpan;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.annotation.JsonGetter;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import io.opentracing.BaseSpan;
 
 @SuppressWarnings("rawtypes")
 public abstract class DDBaseSpan<S extends BaseSpan> implements BaseSpan<S> {
 
-	 /**
+    /**
      * StartTime stores the creation time of the span in milliseconds
      */
     protected long startTimeMicro;
@@ -41,7 +38,7 @@ public abstract class DDBaseSpan<S extends BaseSpan> implements BaseSpan<S> {
      * Currently, users have
      *
      * @param timestampMicro if set, use this time instead of the auto-generated time
-     * @param context        the context
+     * @param context the context
      */
     protected DDBaseSpan(
             long timestampMicro,
@@ -84,7 +81,7 @@ public abstract class DDBaseSpan<S extends BaseSpan> implements BaseSpan<S> {
             List<DDBaseSpan<?>> spans = this.context().getTrace();
 
             for (DDBaseSpan<?> span : spans) {
-                if (((DDBaseSpan<?>) span).getDurationNano() == 0L) {
+                if (span.getDurationNano() == 0L) {
                     logger.warn("{} - The parent span is marked as finished but this span isn't. You have to close each children.", this);
                 }
             }
@@ -114,7 +111,7 @@ public abstract class DDBaseSpan<S extends BaseSpan> implements BaseSpan<S> {
      */
     @Override
     public final S setTag(String tag, String value) {
-        this.context().setTag(tag, (Object) value);
+        this.context().setTag(tag, value);
         return thisInstance();
     }
 
@@ -124,7 +121,7 @@ public abstract class DDBaseSpan<S extends BaseSpan> implements BaseSpan<S> {
      */
     @Override
     public final S setTag(String tag, boolean value) {
-        this.context().setTag(tag, (Object) value);
+        this.context().setTag(tag, value);
         return thisInstance();
     }
 
@@ -134,8 +131,8 @@ public abstract class DDBaseSpan<S extends BaseSpan> implements BaseSpan<S> {
      */
     @Override
     public final S setTag(String tag, Number value) {
-         this.context().setTag(tag, (Object) value);
-         return thisInstance();
+        this.context().setTag(tag, value);
+        return thisInstance();
     }
 
 
@@ -154,7 +151,7 @@ public abstract class DDBaseSpan<S extends BaseSpan> implements BaseSpan<S> {
     public final String getBaggageItem(String key) {
         return this.context.getBaggageItem(key);
     }
-    
+
     /* (non-Javadoc)
      * @see io.opentracing.BaseSpan#setBaggageItem(java.lang.String, java.lang.String)
      */
@@ -196,7 +193,7 @@ public abstract class DDBaseSpan<S extends BaseSpan> implements BaseSpan<S> {
      */
     @Override
     public final S log(String s) {
-        logger.debug("`log` method is not implemented. Provided log: {}",s);
+        logger.debug("`log` method is not implemented. Provided log: {}", s);
         return thisInstance();
     }
 
@@ -205,7 +202,7 @@ public abstract class DDBaseSpan<S extends BaseSpan> implements BaseSpan<S> {
      */
     @Override
     public final S log(long l, String s) {
-        logger.debug("`log` method is not implemented. Provided log: {}",s);
+        logger.debug("`log` method is not implemented. Provided log: {}", s);
         return thisInstance();
     }
 
@@ -215,7 +212,7 @@ public abstract class DDBaseSpan<S extends BaseSpan> implements BaseSpan<S> {
      */
     @Override
     public final S log(String s, Object o) {
-        logger.debug("`log` method is not implemented. Provided log: {}",s);
+        logger.debug("`log` method is not implemented. Provided log: {}", s);
         return thisInstance();
     }
 
@@ -224,7 +221,7 @@ public abstract class DDBaseSpan<S extends BaseSpan> implements BaseSpan<S> {
      */
     @Override
     public final S log(long l, String s, Object o) {
-        logger.debug("`log` method is not implemented. Provided log: {}",s);
+        logger.debug("`log` method is not implemented. Provided log: {}", s);
         return thisInstance();
     }
 
@@ -242,7 +239,7 @@ public abstract class DDBaseSpan<S extends BaseSpan> implements BaseSpan<S> {
         this.context().setSpanType(type);
         return thisInstance();
     }
-    
+
     protected abstract S thisInstance();
 
     //Getters and JSON serialisation instructions
@@ -308,6 +305,7 @@ public abstract class DDBaseSpan<S extends BaseSpan> implements BaseSpan<S> {
     public Map<String, Object> getTags() {
         return this.context().getTags();
     }
+
     @JsonGetter
     public String getType() {
         return context.getSpanType();
