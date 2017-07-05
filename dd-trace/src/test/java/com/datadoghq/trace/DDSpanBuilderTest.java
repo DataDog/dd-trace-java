@@ -1,16 +1,15 @@
 package com.datadoghq.trace;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class DDSpanBuilderTest {
 
@@ -36,76 +35,76 @@ public class DDSpanBuilderTest {
     }
 
     @Test
-	public void shouldBuildMoreComplexSpan() {
+    public void shouldBuildMoreComplexSpan() {
 
-		final String expectedName = "fakeName";
-		final Map tags = new HashMap<String, Object>() {
-			{
-				put("1", true);
-				put("2", "fakeString");
-				put("3", 42.0);
-			}
-		};
+        final String expectedName = "fakeName";
+        final Map tags = new HashMap<String, Object>() {
+            {
+                put("1", true);
+                put("2", "fakeString");
+                put("3", 42.0);
+            }
+        };
 
-		DDSpan span = tracer
-				.buildSpan(expectedName)
-				.withServiceName("foo")
-				.withTag("1", (Boolean) tags.get("1"))
-				.withTag("2", (String) tags.get("2"))
-				.withTag("3", (Number) tags.get("3"))
-				.start();
+        DDSpan span = tracer
+                .buildSpan(expectedName)
+                .withServiceName("foo")
+                .withTag("1", (Boolean) tags.get("1"))
+                .withTag("2", (String) tags.get("2"))
+                .withTag("3", (Number) tags.get("3"))
+                .start();
 
-		assertThat(span.getOperationName()).isEqualTo(expectedName);
-		assertThat(span.getTags()).containsAllEntriesOf(tags);
+        assertThat(span.getOperationName()).isEqualTo(expectedName);
+        assertThat(span.getTags()).containsAllEntriesOf(tags);
 
-		// with no tag provided
+        // with no tag provided
 
-		span = tracer
-				.buildSpan(expectedName)
-				.withServiceName("foo")
-				.start();
+        span = tracer
+                .buildSpan(expectedName)
+                .withServiceName("foo")
+                .start();
 
-		assertThat(span.getTags()).isNotNull();
-		assertThat(span.getTags().size()).isEqualTo(2);
+        assertThat(span.getTags()).isNotNull();
+        assertThat(span.getTags().size()).isEqualTo(2);
 
-		// with all custom fields provided
-		final String expectedResource = "fakeResource";
-		final String expectedService = "fakeService";
-		final String expectedType = "fakeType";
+        // with all custom fields provided
+        final String expectedResource = "fakeResource";
+        final String expectedService = "fakeService";
+        final String expectedType = "fakeType";
 
-		span = tracer
-				.buildSpan(expectedName)
-				.withServiceName("foo")
-				.withResourceName(expectedResource)
-				.withServiceName(expectedService)
-				.withErrorFlag()
-				.withSpanType(expectedType)
-				.start();
+        span = tracer
+                .buildSpan(expectedName)
+                .withServiceName("foo")
+                .withResourceName(expectedResource)
+                .withServiceName(expectedService)
+                .withErrorFlag()
+                .withSpanType(expectedType)
+                .start();
 
-		DDSpanContext actualContext = span.context();
+        DDSpanContext actualContext = span.context();
 
-		assertThat(actualContext.getResourceName()).isEqualTo(expectedResource);
-		assertThat(actualContext.getErrorFlag()).isTrue();
-		assertThat(actualContext.getServiceName()).isEqualTo(expectedService);
-		assertThat(actualContext.getSpanType()).isEqualTo(expectedType);
-		assertThat(actualContext.getTags().get(DDTags.THREAD_NAME)).isEqualTo(Thread.currentThread().getName());
-		assertThat(actualContext.getTags().get(DDTags.THREAD_ID)).isEqualTo(Thread.currentThread().getId());
+        assertThat(actualContext.getResourceName()).isEqualTo(expectedResource);
+        assertThat(actualContext.getErrorFlag()).isTrue();
+        assertThat(actualContext.getServiceName()).isEqualTo(expectedService);
+        assertThat(actualContext.getSpanType()).isEqualTo(expectedType);
+        assertThat(actualContext.getTags().get(DDTags.THREAD_NAME)).isEqualTo(Thread.currentThread().getName());
+        assertThat(actualContext.getTags().get(DDTags.THREAD_ID)).isEqualTo(Thread.currentThread().getId());
 
-	}
+    }
 
-	@Test
-	public void shouldAddLangMeta() {
+    @Test
+    public void shouldAddLangMeta() {
 
-		final String expectedName = "fakeName";
+        final String expectedName = "fakeName";
 
-		DDSpan span = tracer
-				.buildSpan(expectedName)
-				.withServiceName("foo")
-				.start();
+        DDSpan span = tracer
+                .buildSpan(expectedName)
+                .withServiceName("foo")
+                .start();
 
-		assertThat(span.getBaggageItem(DDSpanContext.LANGUAGE_FIELDNAME)).isEqualTo("java");
+        assertThat(span.getBaggageItem(DDSpanContext.LANGUAGE_FIELDNAME)).isEqualTo("java");
 
-	}
+    }
 
     @Test
     public void shouldBuildSpanTimestampInNano() {
@@ -143,7 +142,7 @@ public class DDSpanBuilderTest {
         final long expectedParentId = spanId;
 
         DDSpanContext mockedContext = mock(DDSpanContext.class);
-       
+
         when(mockedContext.getSpanId()).thenReturn(spanId);
         when(mockedContext.getServiceName()).thenReturn("foo");
 
@@ -226,10 +225,8 @@ public class DDSpanBuilderTest {
         DDSpan root = tracer.buildSpan("fake_O").withServiceName("foo").start();
         spans.add(root);
 
-
         Thread.sleep(200);
         long tickEnd = System.currentTimeMillis();
-
 
         for (int i = 1; i <= 10; i++) {
             spans.add(tracer.buildSpan("fake_" + i).withServiceName("foo").asChildOf(spans.get(i - 1)).start());

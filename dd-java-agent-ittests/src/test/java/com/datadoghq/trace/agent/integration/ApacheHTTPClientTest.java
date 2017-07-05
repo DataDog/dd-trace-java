@@ -1,18 +1,18 @@
 package com.datadoghq.trace.agent.integration;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.opentracing.contrib.apache.http.client.TracingHttpClientBuilder;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.junit.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 public class ApacheHTTPClientTest extends AAgentIntegration {
 
-	@Test
-	public void test() throws Exception {
+    @Test
+    public void test() throws Exception {
 
-		HttpClientBuilder builder = HttpClientBuilder.create();
-		assertThat(builder).isInstanceOf(TracingHttpClientBuilder.class);
+        HttpClientBuilder builder = HttpClientBuilder.create();
+        assertThat(builder).isInstanceOf(TracingHttpClientBuilder.class);
 
 //		HttpClient client = builder.build();
 //		HttpGet request = new HttpGet("http://apache.org");
@@ -33,6 +33,6 @@ public class ApacheHTTPClientTest extends AAgentIntegration {
 //		}
 
 //		assertThat(writer.firstTrace().size()).isEqualTo(2);
-	}
+    }
 
 }

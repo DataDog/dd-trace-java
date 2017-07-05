@@ -7,9 +7,9 @@ import com.datadoghq.trace.DDBaseSpan;
  */
 public class AllSampler extends AbstractSampler {
 
-	@Override
-	public boolean doSample(DDBaseSpan<?> span) {
-		return true;
-	}
+    @Override
+    public boolean doSample(DDBaseSpan<?> span) {
+        return true;
+    }
 
 }

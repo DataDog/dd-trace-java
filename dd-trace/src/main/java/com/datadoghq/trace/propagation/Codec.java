@@ -32,16 +32,12 @@ public interface Codec<T> {
 
     /**
      * Serialize the span context using the provided carrier
-     *
-     * @param context
-     * @param carrier
      */
     void inject(DDSpanContext context, T carrier);
 
     /**
      * Given a carrier, retrieve (rebuild) a span context. This context built will be use as the parent
      *
-     * @param carrier
      * @return the span context
      */
     DDSpanContext extract(T carrier);

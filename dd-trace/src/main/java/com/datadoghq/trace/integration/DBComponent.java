@@ -10,20 +10,20 @@ import io.opentracing.tag.Tags;
  */
 public class DBComponent extends DDSpanContextDecorator {
 
-	public DBComponent() {
-		super();
-		this.setMatchingTag(Tags.COMPONENT.getKey());
-		this.setSetTag(DDTags.SERVICE_NAME);
-	}
+    public DBComponent() {
+        super();
+        this.setMatchingTag(Tags.COMPONENT.getKey());
+        this.setSetTag(DDTags.SERVICE_NAME);
+    }
 
-	@Override
-	public boolean afterSetTag(DDSpanContext context, String tag, Object value) {
-		//Assign service name
-		if (super.afterSetTag(context, tag, value)) {
-			//Assign span type to DB
-			context.setSpanType("db");
-			return true;
-		}
-		return false;
-	}
+    @Override
+    public boolean afterSetTag(DDSpanContext context, String tag, Object value) {
+        //Assign service name
+        if (super.afterSetTag(context, tag, value)) {
+            //Assign span type to DB
+            context.setSpanType("db");
+            return true;
+        }
+        return false;
+    }
 }

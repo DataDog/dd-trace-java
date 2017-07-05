@@ -1,5 +1,7 @@
 package com.datadoghq.trace.writer;
 
+import com.datadoghq.trace.DDBaseSpan;
+import com.google.auto.service.AutoService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -8,12 +10,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.datadoghq.trace.DDBaseSpan;
-import com.google.auto.service.AutoService;
 
 /**
  * This writer write provided traces to the a DD agent which is most of time located on the same host.
@@ -87,14 +85,14 @@ public class DDAgentWriter implements Writer {
             logger.warn("Cannot add a trace of {} as the async queue is full. Queue max size: {}", trace.size(), DEFAULT_MAX_SPANS);
         }
     }
-    
+
     /* (non-Javadoc)
      * @see com.datadoghq.trace.writer.Writer#start()
      */
     @Override
-	public void start() {
-    	executor.submit(new SpansSendingTask());
-	}
+    public void start() {
+        executor.submit(new SpansSendingTask());
+    }
 
     /* (non-Javadoc)
      * @see com.datadoghq.trace.Writer#close()
@@ -143,8 +141,8 @@ public class DDAgentWriter implements Writer {
 
                     //The thread was interrupted, we break the LOOP
                     break;
-                } catch(Throwable e){
-                	logger.error("Unexpected error! Some traces may have been dropped.",e);
+                } catch (Throwable e) {
+                    logger.error("Unexpected error! Some traces may have been dropped.", e);
                 }
             }
         }

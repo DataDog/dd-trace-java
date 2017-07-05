@@ -15,17 +15,17 @@ public class DDSpan extends DDBaseSpan<Span> implements Span {
      * Currently, users have
      *
      * @param timestampMicro if set, use this time instead of the auto-generated time
-     * @param context        the context
+     * @param context the context
      */
     protected DDSpan(
             long timestampMicro,
             DDSpanContext context) {
-    	super(timestampMicro,context);
+        super(timestampMicro, context);
     }
 
 
-	@Override
-	protected DDSpan thisInstance() {
-		return this;
-	} 
+    @Override
+    protected DDSpan thisInstance() {
+        return this;
+    }
 }

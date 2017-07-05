@@ -1,7 +1,6 @@
 import com.datadoghq.trace.DDTracer;
 import com.datadoghq.trace.sampling.AllSampler;
 import com.datadoghq.trace.writer.LoggingWriter;
-
 import io.opentracing.Span;
 
 public class ExampleWithLoggingWriter {

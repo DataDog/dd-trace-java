@@ -2,14 +2,12 @@ package com.datadoghq.trace;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Maps;
 import java.util.HashMap;
 import java.util.Map;
-
-import com.google.common.collect.Maps;
 import org.junit.Before;
 import org.junit.Test;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class DDSpanSerializationTest {
 
@@ -17,7 +15,7 @@ public class DDSpanSerializationTest {
     ObjectMapper serializer;
     DDSpan span;
     DDActiveSpan activeSpan;
-    Map<String,Object> expected = Maps.newHashMap();
+    Map<String, Object> expected = Maps.newHashMap();
 
     @Before
     public void setUp() throws Exception {
@@ -38,7 +36,6 @@ public class DDSpanSerializationTest {
         expected.put("span_id", 2l);
         expected.put("parent_id", 0l);
         expected.put("trace_id", 1l);
-
 
         DDSpanContext context = new DDSpanContext(
                 1L,
@@ -61,8 +58,8 @@ public class DDSpanSerializationTest {
                 100L,
                 context);
         span.finish(133L);
-        
-        activeSpan = new DDActiveSpan(null,100L,context);
+
+        activeSpan = new DDActiveSpan(null, 100L, context);
         activeSpan.deactivate();
         serializer = new ObjectMapper();
     }

@@ -17,7 +17,6 @@
 package com.datadoghq.trace.agent;
 
 import io.opentracing.contrib.agent.OpenTracingAgent;
-
 import java.lang.instrument.Instrumentation;
 
 /**
