@@ -16,9 +16,6 @@ public class AAgentIntegration {
 	@Before
 	public void beforeTest() throws Exception {
 
-
-		GlobalTracer.register(new DDTracer());
-
 		try{
 			GlobalTracer.register(tracer);
 		}catch(Exception e){
