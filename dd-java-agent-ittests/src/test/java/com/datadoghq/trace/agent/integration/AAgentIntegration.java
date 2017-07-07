@@ -1,5 +1,6 @@
 package com.datadoghq.trace.agent.integration;
 
+import java.lang.reflect.Field;
 import org.junit.Before;
 
 import com.datadoghq.trace.DDTracer;
@@ -14,10 +15,17 @@ public class AAgentIntegration {
 
 	@Before
 	public void beforeTest() throws Exception {
+
+
+		GlobalTracer.register(new DDTracer());
+
 		try{
 			GlobalTracer.register(tracer);
 		}catch(Exception e){
-			//DO NOTHING IF ALREADY REGISTERED
+			// Force it using reflexion, I'm proud of this solution
+			final Field field = GlobalTracer.class.getDeclaredField("tracer");
+			field.setAccessible(true);
+			field.set(null, tracer);
 		}
 		writer.start();
 	}
