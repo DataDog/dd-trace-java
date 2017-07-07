@@ -15,7 +15,7 @@ public class TraceAnnotationsManagerTest extends AAgentIntegration{
 		super.beforeTest();
 	}
 
-	@Ignore("Test is failing in CI but not locally. :-(")
+//	@Ignore("Test is failing in CI but not locally. :-(")
 	@Test
 	public void testAnnotations() {
 		//Test single span in new trace
