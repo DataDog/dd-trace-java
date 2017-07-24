@@ -1,13 +1,16 @@
 package com.datadoghq.trace.agent;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.datadoghq.trace.agent.integration.AAgentIntegration;
+import com.datadoghq.trace.integration.ErrorFlag;
+import io.opentracing.tag.Tags;
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 public class TraceAnnotationsManagerTest extends AAgentIntegration {
 
+  @Override
   @Before
   public void beforeTest() throws Exception {
     super.beforeTest();
@@ -27,7 +30,7 @@ public class TraceAnnotationsManagerTest extends AAgentIntegration {
     //Test new trace with 2 children spans
     SayTracedHello.sayHELLOsayHA();
     assertThat(writer.firstTrace().size()).isEqualTo(3);
-    long parentId = writer.firstTrace().get(0).context().getTraceId();
+    final long parentId = writer.firstTrace().get(0).context().getTraceId();
 
     assertThat(writer.firstTrace().get(0).getOperationName()).isEqualTo("NEW_TRACE");
     assertThat(writer.firstTrace().get(0).getParentId()).isEqualTo(0); //ROOT / no parent
@@ -43,5 +46,20 @@ public class TraceAnnotationsManagerTest extends AAgentIntegration {
     assertThat(writer.firstTrace().get(2).context().getSpanType()).isEqualTo("DB");
 
     writer.start();
+
+    tracer.addDecorator(new ErrorFlag());
+
+    try {
+      SayTracedHello.sayERROR();
+    } catch (final Throwable ex) {
+      // DO NOTHING
+    }
+    assertThat(writer.firstTrace().get(0).getOperationName()).isEqualTo("ERROR");
+    assertThat(writer.firstTrace().get(0).getTags().get(Tags.ERROR.getKey())).isEqualTo("true");
+    assertThat(writer.firstTrace().get(0).getError()).isEqualTo(1);
+
+
   }
+
+
 }
