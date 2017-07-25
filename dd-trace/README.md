@@ -1,113 +1,6 @@
 # Datadog OpenTracing Tracer
 
-## Motivations
-
-The Datadog Tracer is an [OpenTracing](http://opentracing.io/) compatible tracer. It provides all resources needed to instrument your code
-and report each operation and each trace directly to a Datadog APM platform.
-
-
-OpenTracing uses the concept of spans and traces. A **span** is timed operation representing a bunch of work executed.
-Spans can be linked together. A **trace** is a collection of spans, related to the same top action/operation.
-
-Let's see an example. 
-
-For instance, a client requesting a resource through an HTTP endpoint.
-Look at the following workflow.
-
-````
-TRACE:
-
-   client ---> HTTP Endpoint ---> DB Query/Result ---> Custom processing ---> client
-  
-   SPAN 1 (Root Span) ................................................... (end)   - 200ms
-   |--------SPAN 2 (Child of 1).................................(end)             - 100ms
-            |-----------SPAN 3 (Child of 2).(end)                                 - 50 ms
-            |----------------------------------------SPAN 4 (Child of 2)..(end)   - 50 ms
-````
-
-OpenTracing provides a way for measuring the time consumed for each operation.
-As just described, the tracer produces a trace composed of 4 spans, each representing a specific action:
-
-1. Span1 is the time from doing the request to getting the response.
-2. Span2 is the Span1's first child, representing the amount of time to understand the query, and perform the query
-on the DB.
-3. Span3 is Span1's grandchild, represents the DB time used to retrieve the data
-4. Span4 is a child of Span2 and follows Span3. It represents a business/legacy operation.
-
-This is  a very simple example of how works [OpenTracing](http://opentracing.io/).
-For more information, see http://docs.datadoghq.com/tracing/terminology/ or http://opentracing.io/.
-
-
 ## How to instrument your application?
-
-In order to start to instrument your application, you need to:
-
-1. [Configure the Datadog Tracer](#config)
-2. Choose one of the 3 ways to instrument an application:
-    1. [Use dd-java-agent for supported frawemorks](#framework)
-    2. [Use the OpenTracing API in your code](#api)
-    3. [Use annotations](#annotation)
-
-### <a name="config"></a> Datadog Tracer configuration 
-
-The DDTracer is configured using a YAML file named `dd-trace.yaml` following the structure below.
- 
-By default, the DDTracer tries to reach a local Datadog Agent, but you can change the settings and use a different
-location. In order to do that, please, refer you to the latest configuration: [dd-trace.yaml](src/main/resources/dd-trace.yaml)
-
-*Make sure that file is present in your classpath*.
-
-```yaml
-# Service name used if none is provided in the app
-defaultServiceName: unnamed-java-app
-
-# The writer to use.
-# Could be: LoggingWritter or DDAgentWriter (default)
-writer:
-  # LoggingWriter: Spans are logged using the application configuration
-  # DDAgentWriter: Spans are forwarding to a Datadog Agent
-  #  - Param 'host': the hostname where the DD Agent running (default: localhost)
-  #  - Param 'port': the port to reach the DD Agent (default: 8126)
-  type: DDAgentWriter
-  host: localhost
-  port: 8126
-
-# The sampler to use.
-# Could be: AllSampler (default) or RateSampler
-sampler:
-  # AllSampler: all spans are reported to the writer
-  # RateSample: only a portion of spans are reported to the writer
-  #  - Param 'rate': the portion of spans to keep
-  type: AllSampler
-```
-
- 
-### <a name="framework"></a>Use the Datadog Java agent for well-known framework
-
-Datadog uses instrumentation contributed by [the community](https://github.com/opentracing-contrib) to instrument many frameworks: 
-SpringBoot, JDBC, Mongo, JMS, Tomcat, etc. By using [dd-java-agent](../dd-java-agent), you just need to follow few steps in order to get traces.
- 
- 
-Get the latest version of the Datadog Java agent (Do not forget to replace the version `${version}` by the appropriate one).
-
-*NOTE:* While in beta, the latest version is best found on the [Snapshot Repo](https://oss.jfrog.org/artifactory/oss-snapshot-local/com/datadoghq/). 
-
-```bash
-# download the latest published version:
-wget -O dd-java-agent.jar 'https://search.maven.org/remote_content?g=com.datadoghq&a=dd-java-agent&v=LATEST' 
-```
-Then, attach the Java agent to your JVM using th `javaagent` option.
-
-```bash 
-java -javaagent:/path/to/dd-java-agent.jar ...
-```
-
-If you have a local Datadog agent running on your host, traces are visible in your Datadog account.
-
-
-You can choose which framework you want to instrument, or sending traces to a remote Datadog agent by configuring the Datadog Java Agent YAML file. 
-Check the dedicated project for the full documentation: [dd-java-agent](../dd-java-agent)
-
 
 ### <a name="api"></a>Custom instrumentations using OpenTracing API
 
@@ -136,8 +29,7 @@ class InstrumentedClass {
         
         // Close the span, the trace will automatically reported to the writer configured
         span.finish();   
-    }	
-	
+    }
 }
 ``` 
 
@@ -236,21 +128,7 @@ Maven:
 Gradle:
 ```groovy
         compile group: 'com.datadoghq', name: 'dd-trace-annotations', version: "${dd-trace-java.version}"
-```        
+```
+
 **The annotations are resolved at the runtime by the Datadog Java agent. If you want to use the annotations,
 so you must run the Datadog Java Agent.**
-
-To run the agent, please refer to the Datadog Java agent documentation: [dd-java-agent](../dd-java-agent)
-
-## Other useful resources
-
-Before instrumenting your own project you might want to review the provided examples:
-
-- [Dropwizard/MongoDB & Cross process client calls](https://github.com/DataDog/dd-trace-java/blob/dev/dd-trace-examples/dropwizard-mongo-client/)
-- [Springboot & H2 over JDBC](https://github.com/DataDog/dd-trace-java/tree/dev/dd-trace-examples/spring-boot-jdbc)
-
-Other links that you might want to read:
-
-- Improve your APM experience for apps running on docker by enabling the [Docker Agent](https://app.datadoghq.com/apm/docs/tutorials/docker)
-- Datadog's APM [Terminology](https://app.datadoghq.com/apm/docs/tutorials/terminology)
-- [FAQ](https://app.datadoghq.com/apm/docs/tutorials/faq)
