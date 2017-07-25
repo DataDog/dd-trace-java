@@ -1,12 +1,12 @@
 package com.datadoghq.trace.agent;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.datadoghq.trace.agent.integration.AAgentIntegration;
 import com.datadoghq.trace.integration.ErrorFlag;
 import io.opentracing.tag.Tags;
 import org.junit.Before;
 import org.junit.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class TraceAnnotationsManagerTest extends AAgentIntegration {
 
@@ -57,9 +57,5 @@ public class TraceAnnotationsManagerTest extends AAgentIntegration {
     assertThat(writer.firstTrace().get(0).getOperationName()).isEqualTo("ERROR");
     assertThat(writer.firstTrace().get(0).getTags().get(Tags.ERROR.getKey())).isEqualTo("true");
     assertThat(writer.firstTrace().get(0).getError()).isEqualTo(1);
-
-
   }
-
-
 }

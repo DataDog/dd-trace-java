@@ -3,6 +3,17 @@ package com.datadoghq.trace.agent;
 import com.datadoghq.trace.Trace;
 import com.datadoghq.trace.resolver.DDTracerFactory;
 import com.datadoghq.trace.resolver.FactoryUtils;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.lang.reflect.Method;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtMethod;
@@ -16,18 +27,6 @@ import org.reflections.Reflections;
 import org.reflections.scanners.MethodAnnotationsScanner;
 import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.FilterBuilder;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.lang.reflect.Method;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * This manager is loaded at pre-main.
@@ -189,20 +188,19 @@ public class TraceAnnotationsManager {
                 EXIT_RULE);
         generatedScripts.append(script).append("\n");
 
-
         // AT EXCEPTION EXIT
         script =
-          createRuleScript(
-            "Close span in error ",
-            cc,
-            javassistMethod,
-            Location.create(LocationType.EXCEPTION_EXIT, ""),
-            EXCEPTION_EXIT_RULE);
+            createRuleScript(
+                "Close span in error ",
+                cc,
+                javassistMethod,
+                Location.create(LocationType.EXCEPTION_EXIT, ""),
+                EXCEPTION_EXIT_RULE);
         generatedScripts.append(script).append("\n");
 
       } catch (final Exception e) {
         log.warn(
-          "Could not create rule for method " + method + ". Proceed to next annoted method.", e);
+            "Could not create rule for method " + method + ". Proceed to next annoted method.", e);
       }
     }
     try {
@@ -277,10 +275,11 @@ public class TraceAnnotationsManager {
       "IF getTracer().activeSpan() != null\n" + "DO\n" + "getTracer().activeSpan().deactivate();\n";
 
   private static final String EXCEPTION_EXIT_RULE =
-    "BIND span:io.opentracing.ActiveSpan = getTracer().activeSpan()\n" +
-      "IF span != null\n" + "DO\n" +
-      "span.setTag(io.opentracing.tag.Tags.ERROR.getKey(),\"true\");\n" +
-      "span.deactivate();\n";
+      "BIND span:io.opentracing.ActiveSpan = getTracer().activeSpan()\n"
+          + "IF span != null\n"
+          + "DO\n"
+          + "span.setTag(io.opentracing.tag.Tags.ERROR.getKey(),\"true\");\n"
+          + "span.deactivate();\n";
 
   private static String buildSpan(final CtMethod javassistMethod) {
     try {
