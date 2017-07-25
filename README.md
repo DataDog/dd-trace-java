@@ -16,7 +16,7 @@ You need three things to trace Java applications:
 **[Datadog Java Agent](https://github.com/DataDog/dd-trace-java/tree/master/dd-java-agent)**: a Java Agent that, when passed to your application:
 1. Lets you instrument your Java code using the Datadog Tracer library
 2. Automatically traces many Java frameworks, servers, and databases via libraries from [opentracing-contrib](https://github.com/opentracing-contrib)
-3. Sends all trace data from **1** and **2** to the Datadog APM Agent
+3. Sends all trace data from 1 and 2 to the Datadog APM Agent
 
 **[Datadog APM Agent](https://github.com/DataDog/datadog-trace-agent)**: a (non-Java) service that runs on all your hosts, accepting trace data from the Datadog Java Agent and sending it to Datadog
 
@@ -87,8 +87,8 @@ Requests to any web frameworks that use these application servers—Dropwizard a
 
 | Database      | Versions           | Comments  |
 | ------------- |:-------------:| ----- |
-| Spring JDBC| 4.x | **NOT enabled automatically** – install [opentracing-contrib/java-jdbc]((https://github.com/opentracing-contrib/java-jdbc) |
-| Hibernate | 5.x | **NOT enabled automatically** – install [opentracing-contrib/java-jdbc]((https://github.com/opentracing-contrib/java-jdbc) |
+| Spring JDBC| 4.x | **NOT enabled automatically** – install [opentracing-contrib/java-jdbc](https://github.com/opentracing-contrib/java-jdbc) |
+| Hibernate | 5.x | **NOT enabled automatically** – install [opentracing-contrib/java-jdbc](https://github.com/opentracing-contrib/java-jdbc) |
 | [MongoDB](https://github.com/opentracing-contrib/java-mongo-driver) | 3.x | Intercepts all the calls from the MongoDB client |
 | [Cassandra](https://github.com/opentracing-contrib/java-cassandra-driver) | 3.2.x | Intercepts all the calls from the Cassandra client |
 
