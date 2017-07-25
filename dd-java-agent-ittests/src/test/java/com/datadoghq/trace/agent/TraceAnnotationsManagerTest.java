@@ -1,16 +1,15 @@
 package com.datadoghq.trace.agent;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.datadoghq.trace.DDTracer;
 import com.datadoghq.trace.integration.ErrorFlag;
 import com.datadoghq.trace.writer.ListWriter;
 import io.opentracing.tag.Tags;
 import io.opentracing.util.GlobalTracer;
+import java.lang.reflect.Field;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.lang.reflect.Field;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class TraceAnnotationsManagerTest {
 
@@ -38,7 +37,6 @@ public class TraceAnnotationsManagerTest {
     assertThat(writer.firstTrace().size()).isEqualTo(1);
     assertThat(writer.firstTrace().get(0).getOperationName()).isEqualTo("SAY_HELLO");
     assertThat(writer.firstTrace().get(0).getServiceName()).isEqualTo("test");
-
   }
 
   @Test
