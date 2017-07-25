@@ -1,23 +1,37 @@
 package com.datadoghq.trace.agent;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import com.datadoghq.trace.agent.integration.AAgentIntegration;
+import com.datadoghq.trace.DDTracer;
 import com.datadoghq.trace.integration.ErrorFlag;
+import com.datadoghq.trace.writer.ListWriter;
 import io.opentracing.tag.Tags;
+import io.opentracing.util.GlobalTracer;
 import org.junit.Before;
 import org.junit.Test;
 
-public class TraceAnnotationsManagerTest extends AAgentIntegration {
+import java.lang.reflect.Field;
 
-  @Override
+import static org.assertj.core.api.Assertions.assertThat;
+
+public class TraceAnnotationsManagerTest {
+
+  private final ListWriter writer = new ListWriter();
+  private final DDTracer tracer = new DDTracer(writer);
+
   @Before
   public void beforeTest() throws Exception {
-    super.beforeTest();
+    try {
+      GlobalTracer.register(tracer);
+    } catch (final Exception e) {
+      // Force it anyway using reflexion
+      final Field field = GlobalTracer.class.getDeclaredField("tracer");
+      field.setAccessible(true);
+      field.set(null, tracer);
+    }
+    writer.start();
   }
 
   @Test
-  public void testAnnotations() {
+  public void testSimpleCaseAnnotations() {
     //Test single span in new trace
     SayTracedHello.sayHello();
 
@@ -25,7 +39,10 @@ public class TraceAnnotationsManagerTest extends AAgentIntegration {
     assertThat(writer.firstTrace().get(0).getOperationName()).isEqualTo("SAY_HELLO");
     assertThat(writer.firstTrace().get(0).getServiceName()).isEqualTo("test");
 
-    writer.start();
+  }
+
+  @Test
+  public void testComplexCaseAnnotations() {
 
     //Test new trace with 2 children spans
     SayTracedHello.sayHELLOsayHA();
@@ -44,8 +61,10 @@ public class TraceAnnotationsManagerTest extends AAgentIntegration {
     assertThat(writer.firstTrace().get(2).getOperationName()).isEqualTo("SAY_HA");
     assertThat(writer.firstTrace().get(2).getParentId()).isEqualTo(parentId);
     assertThat(writer.firstTrace().get(2).context().getSpanType()).isEqualTo("DB");
+  }
 
-    writer.start();
+  @Test
+  public void testExceptionExit() {
 
     tracer.addDecorator(new ErrorFlag());
 
