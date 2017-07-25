@@ -36,7 +36,7 @@ $ wget -O dd-java-agent.jar 'https://oss.jfrog.org/artifactory/oss-snapshot-loca
 
 #### Configure it
 
-Create a file `dd-trace.yaml` anywhere in your application's classpath (or provide the path to it when launching the application via `-Ddd.trace.configurationFile`):
+Create a file `dd-trace.yaml` anywhere in your application's classpath (or provide the path to it via `-Ddd.trace.configurationFile` when starting the application):
 
 ```yaml
 # Main service name for the app
@@ -50,9 +50,6 @@ writer:
 sampler:
   type: AllSampler # Collect 100% of traces; only other option is RateSample
 # rate: 0.5        # if using type: RateSample, uncomment to collect only 50% of traces
-
-# Uncomment to skip traces whose root span tag values matches certain regexp
-# skipTagsPatterns: {"http.url": ".*/demo/add.*"}
 ```
 
 #### Use it
