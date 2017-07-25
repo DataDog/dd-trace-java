@@ -12,10 +12,12 @@ This repository contains the resources you need to trace Java applications. Two 
 You need three things to trace Java applications:
 
 **[Datadog Tracer](https://github.com/DataDog/dd-trace-java/tree/master/dd-trace)**: an OpenTracing-compatible library that lets you trace your Java code using annotations and/or more flexible instrumentation
+
 **[Datadog Java Agent](https://github.com/DataDog/dd-trace-java/tree/master/dd-java-agent)**: a Java Agent that, when passed to your application:
-  1. Lets you instrument your Java code using the Datadog Tracer library
-  2. Automatically traces many Java frameworks, servers, and databases via libraries from [opentracing-contrib](https://github.com/opentracing-contrib)
-  3. Sends all trace data from **1** and **2** to the Datadog APM Agent
+1. Lets you instrument your Java code using the Datadog Tracer library
+2. Automatically traces many Java frameworks, servers, and databases via libraries from [opentracing-contrib](https://github.com/opentracing-contrib)
+3. Sends all trace data from **1** and **2** to the Datadog APM Agent
+
 **[Datadog APM Agent](https://github.com/DataDog/datadog-trace-agent)**: a (non-Java) service that runs on all your hosts, accepting trace data from the Datadog Java Agent and sending it to Datadog
 
 Let's address these in reverse order.
@@ -134,7 +136,6 @@ For Maven, add this to pom.xml:
             <artifactId>dd-trace</artifactId>
             <version>${dd-trace-java.version}</version>
         </dependency>
-
 ```
 
 For gradle, add:
