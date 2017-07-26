@@ -247,13 +247,12 @@ public void myMethod() throws InterruptedException{
 
 When you don't pass an `operationName`, the Java Agent sets it to the method name.
 
-## Further Reading/Links/Examples
+## Further Reading
 
-- [Browse examples](dd-trace-examples) - See how to instrument legacy projects based on the most used technologies.
-- [Instrument with OpenTracing](https://github.com/opentracing/opentracing-java) - Datadog embraces the OpenTracing initiative. So feel free to use the Trace Java API to customize your instrumentation.
-- Improve your APM experience for apps running on docker by enabling the [Docker Agent](https://app.datadoghq.com/apm/docs/tutorials/docker)
-- Datadog's APM [Terminology](https://app.datadoghq.com/apm/docs/tutorials/terminology)
-- [FAQ](https://app.datadoghq.com/apm/docs/tutorials/faq)
+- Browse the [example applications](dd-trace-examples) in this repository to see Java tracing in action
+- Read [OpenTracing's documentation](https://github.com/opentracing/opentracing-java); feel free to use the Trace Java API to customize your instrumentation.
+- Brush up on [Datadog APM Terminology](https://docs.datadoghq.com/tracing/terminology/)
+- Read the [Datadog APM FAQ](https://docs.datadoghq.com/tracing/faq/)
 
 ## Get in touch
  
