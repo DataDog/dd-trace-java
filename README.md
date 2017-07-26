@@ -85,8 +85,8 @@ Requests to any web frameworks that use these application servers—Dropwizard a
 
 | Database      | Versions           | Comments  |
 | ------------- |:-------------:| ----- |
-| Spring JDBC| 4.x | **NOT enabled automatically** – install [opentracing-contrib/java-jdbc](https://github.com/opentracing-contrib/java-jdbc) |
-| Hibernate | 5.x | **NOT enabled automatically** – install [opentracing-contrib/java-jdbc](https://github.com/opentracing-contrib/java-jdbc) |
+| Spring JDBC| 4.x | **NOT traced automatically** – install [opentracing-contrib/java-jdbc](https://github.com/opentracing-contrib/java-jdbc) |
+| Hibernate | 5.x | **NOT traced automatically** – install [opentracing-contrib/java-jdbc](https://github.com/opentracing-contrib/java-jdbc) |
 | [MongoDB](https://github.com/opentracing-contrib/java-mongo-driver) | 3.x | Intercepts all the calls from the MongoDB client |
 | [Cassandra](https://github.com/opentracing-contrib/java-cassandra-driver) | 3.2.x | Intercepts all the calls from the Cassandra client |
 
