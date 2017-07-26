@@ -129,7 +129,7 @@ Then, in `dd-trace.yaml`, list any applications where you want to use `@Trace`:
 enableCustomAnnotationTracingOver: ["com.example.myapp"]`.
 ```
 
-The Java Agent lets you use `@Trace` not just for `com.example.myproject`, but also for any application whose name _begins_ like that, e.g. `com.example.myproject.foobar`. If you're tempted to list something like `["com", "io"]` to avoid having to fuss with this configuration as you add new projects, note that providing `@Trace` to too many applications could hurt your project's build time.
+The Java Agent lets you use `@Trace` not just for `com.example.myproject`, but also for any application whose name _begins_ like that, e.g. `com.example.myproject.foobar`. If you're tempted to list something like `["com", "io"]` to avoid having to fuss with this configuration as you add new projects, be careful; providing `@Trace`-ability to too many applications could hurt your project's build time.
 
 #### Example
 
