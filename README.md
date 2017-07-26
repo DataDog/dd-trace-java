@@ -12,12 +12,12 @@ This repository contains what you need to trace Java applications. Two quick not
 These three things help you instrument Java applications:
 
 **[Datadog Java Agent](https://github.com/DataDog/dd-trace-java/tree/master/dd-java-agent)**: a Java Agent that, when passed to your application:
-1. Automatically traces many Java frameworks, application servers, and databases using some of the libraries from [opentracing-contrib](https://github.com/opentracing-contrib)
-2. Lets you add annotations to your methods to easily trace their execution times
+1. Automatically traces many Java frameworks, application servers, and databases using some of the libraries from [opentracing-contrib](https://github.com/opentracing-contrib), and
+2. Lets you add annotations to your methods to easily trace their execution times.
 
-**[Datadog Tracer](https://github.com/DataDog/dd-trace-java/tree/master/dd-trace)**: an OpenTracing-compatible library that lets you trace any piece of your Java code, not just whole methods
+**[Datadog Tracer](https://github.com/DataDog/dd-trace-java/tree/master/dd-trace)**: an OpenTracing-compatible library that lets you trace any piece of your Java code, not just whole methods.
 
-**[Datadog APM Agent](https://github.com/DataDog/datadog-trace-agent)**: a (non-Java) service that runs on your application servers, accepting trace data from the Datadog Java Agent and/or Datadog Tracer and sending it to Datadog
+**[Datadog APM Agent](https://github.com/DataDog/datadog-trace-agent)**: a (non-Java) service that runs on your application servers, accepting trace data from the Datadog Java Agent and/or Datadog Tracer and sending it to Datadog.
 
 ## Getting Started
 
