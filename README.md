@@ -48,7 +48,8 @@ sampler:
   type: AllSampler # Collect 100% of traces; only other option is RateSample
 # rate: 0.5        # if using type: RateSample, uncomment to collect only 50% of traces
 
-# 
+# Skip traces whose root span tag values matches some these regexps
+# skipTagsPatterns: {"http.url": ".*/demo/add.*"}
 ```
 
 **Note:** this configuration file isn't just for the Java Agent; you'll also need one for [Manual Instrumentation](#manual-instrumentation) with the Datadog Tracer.
