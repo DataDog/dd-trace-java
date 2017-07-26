@@ -1,10 +1,10 @@
 package com.datadoghq.trace.agent.integration;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.opentracing.contrib.apache.http.client.TracingHttpClientBuilder;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.junit.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 public class ApacheHTTPClientTest {
 
