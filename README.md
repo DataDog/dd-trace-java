@@ -17,7 +17,7 @@ These three things help you instrument Java applications:
 
 **[Datadog Tracer](https://github.com/DataDog/dd-trace-java/tree/master/dd-trace)**: an OpenTracing-compatible library that lets you trace any piece of your Java code, not just whole methods.
 
-**[Datadog APM Agent](https://github.com/DataDog/datadog-trace-agent)**: a (non-Java) service that runs on your application servers, accepting trace data from the Datadog Java Agent and/or Datadog Tracer and sending it to Datadog. The APM Agent is not part of this repo; it's the same Agent that all Datadog tracers (Go, Python, etc) 
+**[Datadog APM Agent](https://github.com/DataDog/datadog-trace-agent)**: a (non-Java) service that runs on your application servers, accepting trace data from the Datadog Java Agent and/or Datadog Tracer and sending it to Datadog. (The APM Agent is not part of this repo; it's the same Agent to which all Datadog tracers—Go, Python, etc—send data)
 
 ## Getting Started
 
