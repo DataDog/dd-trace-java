@@ -52,7 +52,7 @@ sampler:
 # skipTagsPatterns: {"http.url": ".*/demo/add.*"}
 ```
 
-**Note:** this configuration file isn't just for the Java Agent; you'll also need one for [Manual Instrumentation](#manual-instrumentation) with the Datadog Tracer.
+**Note:** this configuration file is also required for [Manual Instrumentation](#manual-instrumentation) with the Datadog Tracer.
 
 Finally, add the following JVM argument when starting your application—in your IDE, your Maven or gradle application script, or your `java -jar` command:
 
