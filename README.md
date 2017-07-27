@@ -219,14 +219,12 @@ Let's look at a simple example.
 class InstrumentedClass {
     
     void method0() {
-        // Retrieve the tracer using the resolver provided
-        // Make sure you have :
-        //    1. added the agent to the jvm (-javaagent;/path/to/agent.jar)
-        //    2. a dd-trace.yaml file in your resources directory
+        // 1. Make sure dd-trace.yaml is in your resources directory
+        // 2. If using the Java Agent (-javaagent;/path/to/agent.jar), do not instantiate the GlobalTracer; the Agent instantiates it for you
         Tracer tracer = io.opentracing.util.GlobalTracer.get();
         
         Span span = tracer.buildSpan("operation-name").startActive();
-        new io.opentracing.tag.StringTag("service-name").set(span, "new-service-name"); 
+        new io.opentracing.tag.StringTag(DDTags.SERVICE_NAME).set(span, "my-new-service"); 
         
         // The code you're tracing
         Thread.sleep(1000);
@@ -246,7 +244,7 @@ class InstrumentedClass {
     	Tracer tracer = io.opentracing.util.GlobalTracer.get();
 
 		try (ActiveSpan activeSpan = tracer.buildSpan("operation-name").startActive()) {
-		  activeSpan.setTag('service-name', 'my-java-application');
+		  activeSpan.setTag(DDTags.SERVICE_NAME, 'my-new-service');
 		  Thread.sleep(1000);
 		}
 	}
