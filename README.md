@@ -142,7 +142,7 @@ compile group: 'com.datadoghq', name: 'dd-trace-annotations', version: {version}
 Then, in `dd-trace.yaml`, list any applications where you want to use `@Trace`:
 
 ```yaml
-enableCustomAnnotationTracingOver: ["com.example.myapp"]`.
+enableCustomAnnotationTracingOver: ["com.example.myproject"]`.
 ```
 
 The Java Agent lets you use `@Trace` not just for `com.example.myproject`, but also for any application whose name _begins_ like that, e.g. `com.example.myproject.foobar`. If you're tempted to list something like `["com", "io"]` to avoid having to fuss with this configuration as you add new projects, be careful; providing `@Trace`-ability to too many applications could hurt your package's build time.
@@ -158,7 +158,7 @@ public void myMethod() throws InterruptedException{
 }
 ```
 
-You can pass an `operationName` to tag the trace data as you want:
+You can pass an `operationName` to name the trace data as you want:
 
 ```java
 @Trace(operationName="database.before")
@@ -237,10 +237,26 @@ class InstrumentedClass {
 }
 ``` 
 
-The method above is now instrumented. As you can see, the tracer is retrieved from a global registry called `GlobalTracer`.
+Alternatively, you can wrap the code you want to trace in a `try-with-resources` block:
 
-The last thing you have to do is provide a configured tracer. This can be easily done by using the `TracerFactory` or manually
-in the bootstrap method (like the `main`).
+```java
+class InstrumentedClass {
+
+    void method0() {
+    	Tracer tracer = io.opentracing.util.GlobalTracer.get();
+
+		try (ActiveSpan activeSpan = tracer.buildSpan("operation-name").startActive()) {
+		  activeSpan.setTag('service-name', 'my-java-application');
+		  Thread.sleep(1000);
+		}
+	}
+}
+```
+
+In this case, you don't need to call `span.finish()`.
+
+Finally, you must provide a configured tracer. This can be easily done by using the `TracerFactory` or manually
+in the bootstrap method (i.e. `main`).
 
 ```java
 public class Application {
