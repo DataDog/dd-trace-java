@@ -85,8 +85,8 @@ Requests to any web frameworks that use these application servers—Dropwizard a
 
 | Database      | Versions           | Comments  |
 | ------------- |:-------------:| ----- |
-| Spring JDBC| 4.x | **NOT traced automatically** – install [opentracing-contrib/java-jdbc](https://github.com/opentracing-contrib/java-jdbc) |
-| Hibernate | 5.x | **NOT traced automatically** – install [opentracing-contrib/java-jdbc](https://github.com/opentracing-contrib/java-jdbc) |
+| Spring JDBC| 4.x | **NOT traced automatically**—see [JDBC instructions](#jdbc) |
+| Hibernate | 5.x | **NOT traced automatically**—see [JDBC instructions](#jdbc) |
 | [MongoDB](https://github.com/opentracing-contrib/java-mongo-driver) | 3.x | Intercepts all the calls from the MongoDB client |
 | [Cassandra](https://github.com/opentracing-contrib/java-cassandra-driver) | 3.2.x | Intercepts all the calls from the Cassandra client |
 
@@ -100,6 +100,22 @@ disabledInstrumentations: ["opentracing-apache-httpclient", "opentracing-mongo-d
 ```
 
 See [this YAML file](src/main/resources/dd-trace-supported-framework.yaml) for the proper names of all supported libraries (i.e. the names as you must list them in `disabledInstrumentations`).
+
+#### JDBC
+
+The Java Agent doesn't automatically trace requests to databases whose drivers are JDBC-based. For such databases, you must:
+
+1. Add the opentracing-jdbc dependency to your project, e.g. for Maven, add this to pom.xml:
+
+```
+<dependency>
+    <groupId>io.opentracing.contrib</groupId>
+    <artifactId>opentracing-jdbc</artifactId>
+    <version>0.0.3</version>
+</dependency>
+```
+
+2. Modify your code's database connection strings, e.g. for a connection string `jdbc:h2:mem:test`, make it `jdbc:tracing:h2:mem:test`.
 
 ### The `@Trace` Annotation
 
