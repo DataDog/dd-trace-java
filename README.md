@@ -235,7 +235,7 @@ class InstrumentedClass {
 }
 ``` 
 
-Alternatively, you can wrap the code you want to trace in a `try-with-resources` block:
+Alternatively, you can wrap the code you want to trace in a `try-with-resources` statement:
 
 ```java
 class InstrumentedClass {
