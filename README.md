@@ -17,7 +17,7 @@ These three things help you instrument Java applications:
 
 **[Datadog Tracer](https://github.com/DataDog/dd-trace-java/tree/master/dd-trace)**: an OpenTracing-compatible library that lets you trace any piece of your Java code, not just whole methods.
 
-**[Datadog APM Agent](https://github.com/DataDog/datadog-trace-agent)**: a (non-Java) service that runs on your application servers, accepting trace data from the Datadog Java Agent and/or Datadog Tracer and sending it to Datadog.
+**[Datadog APM Agent](https://github.com/DataDog/datadog-trace-agent)**: a (non-Java) service that runs on your application servers, accepting trace data from the Datadog Java Agent and/or Datadog Tracer and sending it to Datadog. The APM Agent is not part of this repo; it's the same Agent that all Datadog tracers (Go, Python, etc) 
 
 ## Getting Started
 
@@ -241,13 +241,13 @@ Alternatively, you can wrap the code you want to trace in a `try-with-resources`
 class InstrumentedClass {
 
     void method0() {
-    	Tracer tracer = io.opentracing.util.GlobalTracer.get();
+        Tracer tracer = io.opentracing.util.GlobalTracer.get();
 
-		try (ActiveSpan span = tracer.buildSpan("operation-name").startActive()) {
-		  span.setTag(DDTags.SERVICE_NAME, 'my-new-service');
-		  Thread.sleep(1000);
-		}
-	}
+        try (ActiveSpan span = tracer.buildSpan("operation-name").startActive()) {
+            span.setTag(DDTags.SERVICE_NAME, 'my-new-service');
+            Thread.sleep(1000);
+        }
+    }
 }
 ```
 
