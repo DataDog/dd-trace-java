@@ -224,7 +224,7 @@ class InstrumentedClass {
         Tracer tracer = io.opentracing.util.GlobalTracer.get();
         
         Span span = tracer.buildSpan("operation-name").startActive();
-        new io.opentracing.tag.StringTag(DDTags.SERVICE_NAME).set(span, "my-new-service"); 
+        span.setTag(DDTags.SERVICE_NAME, "my-new-service"); 
         
         // The code you're tracing
         Thread.sleep(1000);
@@ -243,8 +243,8 @@ class InstrumentedClass {
     void method0() {
     	Tracer tracer = io.opentracing.util.GlobalTracer.get();
 
-		try (ActiveSpan activeSpan = tracer.buildSpan("operation-name").startActive()) {
-		  activeSpan.setTag(DDTags.SERVICE_NAME, 'my-new-service');
+		try (ActiveSpan span = tracer.buildSpan("operation-name").startActive()) {
+		  span.setTag(DDTags.SERVICE_NAME, 'my-new-service');
 		  Thread.sleep(1000);
 		}
 	}
