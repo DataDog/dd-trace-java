@@ -48,13 +48,13 @@ sampler:
   type: AllSampler # Collect 100% of traces; only other option is RateSample
 # rate: 0.5        # if using type: RateSample, uncomment to collect only 50% of traces
 
-# Skip traces whose root span tag values matches some these regexps
+# Skip traces whose root span tag values matches some these regexps; useful if you want to skip health checks traces from your service stats
 # skipTagsPatterns: {"http.url": ".*/demo/add.*"}
 ```
 
 **Note:** this configuration file isn't just for the Java Agent; you'll also need one for [Manual Instrumentation](#manual-instrumentation) with the Datadog Tracer.
 
-Finally, the following JVM argument when starting your application—in your IDE, your Maven or gradle application script, or your `java -jar` command:
+Finally, add the following JVM argument when starting your application—in your IDE, your Maven or gradle application script, or your `java -jar` command:
 
 ```
 -javaagent:/path/to/the/dd-java-agent.jar
@@ -129,7 +129,7 @@ Then, in `dd-trace.yaml`, list any applications where you want to use `@Trace`:
 enableCustomAnnotationTracingOver: ["com.example.myapp"]`.
 ```
 
-The Java Agent lets you use `@Trace` not just for `com.example.myproject`, but also for any application whose name _begins_ like that, e.g. `com.example.myproject.foobar`. If you're tempted to list something like `["com", "io"]` to avoid having to fuss with this configuration as you add new projects, be careful; providing `@Trace`-ability to too many applications could hurt your project's build time.
+The Java Agent lets you use `@Trace` not just for `com.example.myproject`, but also for any application whose name _begins_ like that, e.g. `com.example.myproject.foobar`. If you're tempted to list something like `["com", "io"]` to avoid having to fuss with this configuration as you add new projects, be careful; providing `@Trace`-ability to too many applications could hurt your package's build time.
 
 #### Example
 
@@ -145,7 +145,7 @@ public void myMethod() throws InterruptedException{
 You can pass an `operationName` to tag the trace data as you want:
 
 ```java
-@Trace(operationName="Before DB")
+@Trace(operationName="database.before")
 public void myMethod() throws InterruptedException{
 	....
 }
@@ -186,7 +186,7 @@ For Maven, add this to pom.xml:
 
 For gradle, add:
 
-```groovy
+```
         compile group: 'io.opentracing', name: 'opentracing-api', version: "0.30.0"
         compile group: 'io.opentracing', name: 'opentracing-util', version: "0.30.0"
         compile group: 'com.datadoghq', name: 'dd-trace', version: "${dd-trace-java.version}"
@@ -214,7 +214,7 @@ class InstrumentedClass {
         
         
         //Do some thing here ...
-        Thread.sleep(1_000);
+        Thread.sleep(1000);
         
         // Close the span, the trace will automatically reported to the writer configured
         span.finish();   
