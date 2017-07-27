@@ -60,7 +60,7 @@ Finally, add the following JVM argument when starting your application—in your
 -javaagent:/path/to/the/dd-java-agent.jar
 ```
 
-With the Java Agent passed to your application, it automatically traces requests to many frameworks, application servers, and databases using various libraries from [opentracing-contrib](https://github.com/opentracing-contrib). In most cases you don't need to install or configure anything; trace data will automatically show up in your Datadog dashboards. The exception is [any database library that uses JDBC](#jdbc).
+The Java Agent—once passed to your application—automatically traces requests to many frameworks, application servers, and databases using various libraries from [opentracing-contrib](https://github.com/opentracing-contrib). In most cases you don't need to install or configure anything; trace data will automatically show up in your Datadog dashboards. The exception is [any database library that uses JDBC](#jdbc).
 
 #### Frameworks
 
