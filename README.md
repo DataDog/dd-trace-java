@@ -228,11 +228,10 @@ class InstrumentedClass {
         Span span = tracer.buildSpan("operation-name").startActive();
         new io.opentracing.tag.StringTag("service-name").set(span, "new-service-name"); 
         
-        
-        //Do some thing here ...
+        // The code you're tracing
         Thread.sleep(1000);
         
-        // Close the span, the trace will automatically reported to the writer configured
+        // If you don't call finish(), the span data will NOT make it to Datadog!
         span.finish();   
     }
 }
