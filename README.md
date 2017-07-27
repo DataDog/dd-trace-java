@@ -244,7 +244,7 @@ class InstrumentedClass {
         Tracer tracer = io.opentracing.util.GlobalTracer.get();
 
         try (ActiveSpan span = tracer.buildSpan("operation-name").startActive()) {
-            span.setTag(DDTags.SERVICE_NAME, 'my-new-service');
+            span.setTag(DDTags.SERVICE_NAME, "my-new-service");
             Thread.sleep(1000);
         }
     }
@@ -261,12 +261,11 @@ public class Application {
 
     public static void main(String[] args) {
 	
-        // Init the tracer from the configuration file      
+        // Initialize the tracer from the configuration file      
         Tracer tracer = DDTracerFactory.createFromConfigurationFile();
         io.opentracing.util.GlobalTracer.register(tracer);
         
-        // OR
-        // Init the tracer from the API
+        // OR from the API
         Writer writer = new com.datadoghq.trace.writer.DDAgentWriter();
         Sampler sampler = new com.datadoghq.trace.sampling.AllSampler();
         Tracer tracer = new com.datadoghq.trace.DDTracer(writer, sampler);
