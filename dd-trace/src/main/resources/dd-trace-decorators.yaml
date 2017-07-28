@@ -8,5 +8,5 @@ decorators:
     matchingValue: java-aws-sdk
     setValue: aws-client
   - type: ErrorFlag
-  - type: BDTypeDecorator
+  - type: DBTypeDecorator
   - type: OperationDecorator
