@@ -3,9 +3,7 @@ package com.datadoghq.trace.integration;
 import com.datadoghq.trace.DDTags;
 import io.opentracing.tag.Tags;
 
-/**
- * This span decorator protect against spam on the resource name
- */
+/** This span decorator protect against spam on the resource name */
 public class Status404Decorator extends AbstractDecorator {
 
   public Status404Decorator() {
