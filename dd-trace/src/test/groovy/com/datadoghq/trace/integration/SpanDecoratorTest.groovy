@@ -83,6 +83,47 @@ class SpanDecoratorTest extends Specification {
 
   }
 
+  def "set 404 as a resource on a 404 issue"() {
+    setup:
+    def tracer = new DDTracer()
+    def span = SpanFactory.newSpanOf(tracer)
+    tracer.addDecorator(new Status404Decorator())
+
+    when:
+    Tags.HTTP_STATUS.set(span, 404)
+
+    then:
+    span.getResourceName() == "404"
+
+  }
+
+  def "set url as a resource only for the servlet integration"() {
+    setup:
+    def tracer = new DDTracer()
+    def span = SpanFactory.newSpanOf(tracer)
+    tracer.addDecorator(new URLAsResourceName())
+
+    when:
+    span.setResourceName("change-me")
+    Tags.COMPONENT.set(span, "java-web-servlet")
+    Tags.HTTP_URL.set(span, something)
+
+    then:
+    span.getResourceName() == something
+
+    when:
+    span.setResourceName("change-me")
+    Tags.COMPONENT.set(span, "other-contrib")
+    Tags.HTTP_URL.set(span, something)
+
+    then:
+    span.getResourceName() == "change-me"
+
+
+    where:
+    something = "fake"
+  }
+
   def "DBStatementAsResource should not interact on Mongo queries"() {
     setup:
     def tracer = new DDTracer()
