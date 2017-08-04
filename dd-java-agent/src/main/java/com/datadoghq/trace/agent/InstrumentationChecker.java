@@ -2,10 +2,11 @@ package com.datadoghq.trace.agent;
 
 import com.datadoghq.trace.resolver.FactoryUtils;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
@@ -18,10 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 public class InstrumentationChecker {
 
   private static final String CONFIG_FILE = "dd-trace-supported-framework";
+  private static InstrumentationChecker INSTANCE;
   private final Map<String, List<Map<String, String>>> rules;
   private final Map<String, String> frameworks;
-
-  private static InstrumentationChecker INSTANCE;
 
   /* For testing purpose */
   InstrumentationChecker(
@@ -50,40 +50,6 @@ public class InstrumentationChecker {
     return INSTANCE.doGetUnsupportedRules();
   }
 
-  private List<String> doGetUnsupportedRules() {
-
-    final List<String> unsupportedRules = new ArrayList<>();
-    for (final String rule : rules.keySet()) {
-
-      // Check rules
-      boolean supported = false;
-      for (final Map<String, String> check : rules.get(rule)) {
-        if (frameworks.containsKey(check.get("artifact"))) {
-          final boolean matched =
-              Pattern.matches(
-                  check.get("supported_version"), frameworks.get(check.get("artifact")));
-          if (!matched) {
-            log.debug(
-                "Library conflict: supported_version={}, actual_version={}",
-                check.get("supported_version"),
-                frameworks.get(check.get("artifact")));
-            supported = false;
-            break;
-          }
-          supported = true;
-          log.trace("Instrumentation rule={} is supported", rule);
-        }
-      }
-
-      if (!supported) {
-        log.info("Instrumentation rule={} is not supported", rule);
-        unsupportedRules.add(rule);
-      }
-    }
-
-    return unsupportedRules;
-  }
-
   private static Map<String, String> scanLoadedLibraries() {
 
     final Map<String, String> frameworks = new HashMap<>();
@@ -103,6 +69,37 @@ public class InstrumentationChecker {
         // Store it
         frameworks.put(artifactId, version);
       }
+    }
+
+    // add maven shaded jar
+    final Properties properties = new Properties();
+    try {
+      Files.walkFileTree(
+          Paths.get("META_INF/maven"),
+          new SimpleFileVisitor<Path>() {
+
+            @Override
+            public FileVisitResult preVisitDirectory(
+                final Path dir, final BasicFileAttributes attrs) {
+              return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs)
+                throws IOException {
+              file.endsWith(".properties");
+
+              // load a properties file
+              System.out.println(properties);
+              properties.load(new FileInputStream(file.toFile()));
+              frameworks.put(
+                  properties.getProperty("artifactId", null),
+                  properties.getProperty("version", null));
+              return FileVisitResult.CONTINUE;
+            }
+          });
+    } catch (final Throwable ex) {
+      // do nothing
     }
 
     return frameworks;
@@ -139,5 +136,39 @@ public class InstrumentationChecker {
     } else {
       return null;
     }
+  }
+
+  private List<String> doGetUnsupportedRules() {
+
+    final List<String> unsupportedRules = new ArrayList<>();
+    for (final String rule : rules.keySet()) {
+
+      // Check rules
+      boolean supported = false;
+      for (final Map<String, String> check : rules.get(rule)) {
+        if (frameworks.containsKey(check.get("artifact"))) {
+          final boolean matched =
+              Pattern.matches(
+                  check.get("supported_version"), frameworks.get(check.get("artifact")));
+          if (!matched) {
+            log.debug(
+                "Library conflict: supported_version={}, actual_version={}",
+                check.get("supported_version"),
+                frameworks.get(check.get("artifact")));
+            supported = false;
+            break;
+          }
+          supported = true;
+          log.trace("Instrumentation rule={} is supported", rule);
+        }
+      }
+
+      if (!supported) {
+        log.info("Instrumentation rule={} is not supported", rule);
+        unsupportedRules.add(rule);
+      }
+    }
+
+    return unsupportedRules;
   }
 }
