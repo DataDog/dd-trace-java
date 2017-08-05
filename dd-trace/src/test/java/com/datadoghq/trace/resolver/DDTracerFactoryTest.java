@@ -3,7 +3,7 @@ package com.datadoghq.trace.resolver;
 import static org.assertj.core.api.Java6Assertions.assertThat;
 
 import com.datadoghq.trace.sampling.AllSampler;
-import com.datadoghq.trace.sampling.RateSampler;
+import com.datadoghq.trace.sampling.RandomSampler;
 import com.datadoghq.trace.writer.DDAgentWriter;
 import org.junit.Test;
 
@@ -44,7 +44,7 @@ public class DDTracerFactoryTest {
     assertThat(tracerConfig.getWriter().getHost("localhost")).isEqualTo("localhost");
     assertThat(tracerConfig.getWriter().getPort(8126)).isEqualTo(8126);
     assertThat(tracerConfig.getWriter().getType()).isEqualTo(DDAgentWriter.class.getSimpleName());
-    assertThat(tracerConfig.getSampler().getType()).isEqualTo(RateSampler.class.getSimpleName());
+    assertThat(tracerConfig.getSampler().getType()).isEqualTo(RandomSampler.class.getSimpleName());
     assertThat(tracerConfig.getSampler().getRate()).isEqualTo(0.4);
   }
 }

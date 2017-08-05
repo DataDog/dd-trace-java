@@ -2,5 +2,5 @@ defaultServiceName: java-app
 writer:
   type: DDAgentWriter
 sampler:
-  type: RateSampler
+  type: RandomSampler
   rate: 0.4

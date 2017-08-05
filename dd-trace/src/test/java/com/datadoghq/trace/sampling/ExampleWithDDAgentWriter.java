@@ -7,21 +7,22 @@ import io.opentracing.Span;
 
 public class ExampleWithDDAgentWriter {
 
-  public static void main(String[] args) throws Exception {
+  public static void main(final String[] args) throws Exception {
 
     // Instantiate the DDWriter
     // By default, traces are written to localhost:8126 (the ddagent)
-    Writer writer = new DDAgentWriter();
+    final Writer writer = new DDAgentWriter();
 
     // Instantiate the proper Sampler
-    // - RateSampler if you want to keep `ratio` traces
+    // - RandomSampler if you want to keep `percentage` traces
+    // - RateSampler if you want to set upper limit on flow
     // - AllSampler to keep all traces
-    Sampler sampler = new AllSampler();
+    final Sampler sampler = new AllSampler();
 
     // Create the tracer
-    DDTracer tracer = new DDTracer(writer, sampler);
+    final DDTracer tracer = new DDTracer(writer, sampler);
 
-    Span parent =
+    final Span parent =
         tracer
             .buildSpan("hello-world")
             .withServiceName("service-name")
@@ -32,7 +33,7 @@ public class ExampleWithDDAgentWriter {
 
     parent.setBaggageItem("a-baggage", "value");
 
-    Span child =
+    final Span child =
         tracer
             .buildSpan("hello-world")
             .asChildOf(parent)

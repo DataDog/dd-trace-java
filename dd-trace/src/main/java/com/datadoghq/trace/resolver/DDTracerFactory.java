@@ -4,6 +4,7 @@ import com.datadoghq.trace.DDTracer;
 import com.datadoghq.trace.integration.AbstractDecorator;
 import com.datadoghq.trace.sampling.AbstractSampler;
 import com.datadoghq.trace.sampling.AllSampler;
+import com.datadoghq.trace.sampling.RandomSampler;
 import com.datadoghq.trace.sampling.RateSampler;
 import com.datadoghq.trace.sampling.Sampler;
 import com.datadoghq.trace.writer.DDAgentWriter;
@@ -25,6 +26,7 @@ public class DDTracerFactory {
   private static final String DD_AGENT_WRITER_TYPE = DDAgentWriter.class.getSimpleName();
   private static final String LOGGING_WRITER_TYPE = LoggingWriter.class.getSimpleName();
   private static final String ALL_SAMPLER_TYPE = AllSampler.class.getSimpleName();
+  private static final String RANDOM_SAMPLER_TYPE = RandomSampler.class.getSimpleName();
   private static final String RATE_SAMPLER_TYPE = RateSampler.class.getSimpleName();
 
   /**
@@ -63,14 +65,15 @@ public class DDTracerFactory {
     final Sampler sampler;
 
     if (config.getSampler() != null) {
-      if (RATE_SAMPLER_TYPE.equals(config.getSampler().getType())) {
-        sampler = new RateSampler(config.getSampler().getRate());
-      } else if (ALL_SAMPLER_TYPE.equals(config.getSampler().getType())) {
+      if (ALL_SAMPLER_TYPE.equals(config.getSampler().getType())) {
         sampler = new AllSampler();
+      } else if (RATE_SAMPLER_TYPE.equals(config.getSampler().getType())) {
+        sampler = new RateSampler(config.getSampler().getRate());
+      } else if (RANDOM_SAMPLER_TYPE.equals(config.getSampler().getType())) {
+        sampler = new RandomSampler(config.getSampler().getRate());
       } else {
         sampler = DDTracer.UNASSIGNED_SAMPLER;
       }
-
     } else {
       sampler = DDTracer.UNASSIGNED_SAMPLER;
     }
