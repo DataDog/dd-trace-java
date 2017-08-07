@@ -48,7 +48,7 @@ jobs:
           name: Publish master to Artifactory
           command: |
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
-              ./gradlew -Psigning.keyId=${PGP_KEY_ID} \
+              ./gradlew --rerun-tasks -Psigning.keyId=${PGP_KEY_ID} \
                 -Psigning.password=${PGP_KEY_PASS} \
                 -Psigning.secretKeyRingFile=/home/circleci/dd-trace-java/.circleci/secring.gpg \
                 -PbintrayUser=${BINTRAY_USER} \
