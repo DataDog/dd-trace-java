@@ -6,7 +6,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.datadoghq.trace.sampling.RateSampler;
+import com.datadoghq.trace.sampling.RandomSampler;
 import com.datadoghq.trace.writer.Writer;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -19,7 +19,7 @@ public class DDTracerTest {
   public void write() throws Exception {
 
     final Writer writer = mock(Writer.class);
-    final RateSampler sampler = mock(RateSampler.class);
+    final RandomSampler sampler = mock(RandomSampler.class);
     final DDSpan span = mock(DDSpan.class);
 
     // Rate 0.5

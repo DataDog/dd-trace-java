@@ -2,7 +2,7 @@
 ### Syntax:
 ###   <rulename>:                   # the rule name defined in the otarules.btm
 ###     - check:                    # a list of tests, if one not matched, thus the rule is removed
-###       articfact: <artifactId>   # the artifact name to be tested
+###       artifact: <artifactId>   # the artifact name to be tested
 ###       supported_version:        # a regex expression to express the version required by the rule
 ###     - check: ...
 

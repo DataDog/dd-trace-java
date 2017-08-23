@@ -47,8 +47,14 @@ writer:
   port: 8126          # port where Datadog Trace Agent listens
 
 sampler:
-  type: AllSampler # Collect 100% of traces; only other option is RateSample
-# rate: 0.5        # if using type: RateSample, uncomment to collect only 50% of traces
+  type: AllSampler # Collect 100% of traces
+# or...
+# type: RandomSampler
+# rate: 0.5        # Collect only 50% of traces
+# or...
+# type: RateSampler
+# rate: 10.0       # Collect only 10 traces per second
+
 
 # Skip traces whose root span tag values matches some these regexps; useful if you want to skip health checks traces from your service stats
 # skipTagsPatterns: {"http.url": ".*/demo/add.*"}
