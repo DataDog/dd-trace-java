@@ -10,15 +10,14 @@ apply from: "${rootDir}/gradle/jacoco.gradle"
 jacocoTestReport.dependsOn ':dd-java-agent-ittests:test'
 
 whitelistedInstructionClasses += whitelistedBranchClasses += [
-  "com.datadoghq.trace.agent.integration.*",
-  'com.datadoghq.trace.agent.AnnotationsTracingAgent',
-  'com.datadoghq.trace.agent.AgentTracerConfig',
-  'com.datadoghq.trace.agent.TraceAnnotationsManager',
-  'com.datadoghq.trace.agent.InstrumentationChecker',
-  'com.datadoghq.trace.agent.DDJavaAgentInfo',
-  'io.opentracing.contrib.mongo.TracingCommandListenerFactory',
-  'com.datadoghq.trace.agent.InstrumentationChecker.1',
-  'com.datadoghq.trace.agent.InstrumentationChecker.ArtifactSupport',
+  'com.datadoghq.trace.agent.TracingAgent',
+  'com.datadoghq.trace.agent.OpenTracingHelper*',
+  'com.datadoghq.trace.agent.*Config',
+  'com.datadoghq.trace.agent.*Info',
+  'com.datadoghq.trace.agent.*ArtifactSupport',
+  'com.datadoghq.trace.agent.integration.*',
+  'io.opentracing.contrib.*',
+  'com.datadoghq.trace.agent.*',
 ]
 
 dependencies {
