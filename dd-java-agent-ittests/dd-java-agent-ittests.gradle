@@ -43,7 +43,9 @@ configurations.all {
 test {
   jvmArgs "-Ddd.trace.configurationFile=${project.buildDir}/resources/test/dd-trace.yaml"
   jvmArgs "-javaagent:${project(':dd-java-agent').buildDir}/libs/dd-java-agent-${project.version}.jar"
-  jvmArgs "-Ddd.deps.org.slf4j.simpleLogger.defaultLogLevel=debug"
+  jvmArgs "-Ddd.slf4j.simpleLogger.defaultLogLevel=debug"
+  jvmArgs "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
+  jvmArgs "-Ddd.deps.org.jboss.byteman.verbose=true"
   jvmArgs "-Dorg.jboss.byteman.verbose=true"
 
   if (project.hasProperty("disableShadowRelocate") && disableShadowRelocate) {

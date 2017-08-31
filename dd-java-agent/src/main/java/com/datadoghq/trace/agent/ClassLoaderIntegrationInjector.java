@@ -19,18 +19,29 @@ public class ClassLoaderIntegrationInjector {
   public void inject(ClassLoader cl) {
     try {
       Method inovcationPoint = getInovcationPoint(cl);
-      for (Map.Entry<ZipEntry, byte[]> entry : entries.entrySet()) {
-        String name = entry.getKey().getName();
-        if (!name.endsWith(".class")) {
-          continue;
+      Map<ZipEntry, byte[]> toInject = Maps.newHashMap(entries);
+      Map<ZipEntry, byte[]> injectedEntries = Maps.newHashMap();
+      boolean successfulyAdded = true;
+      while (!toInject.isEmpty() && successfulyAdded) {
+        log.debug("Attempting to inject {} entries into {}", toInject.size(), cl);
+        successfulyAdded = false;
+        for (Map.Entry<ZipEntry, byte[]> entry : toInject.entrySet()) {
+          String name = entry.getKey().getName();
+          if (!name.endsWith(".class")) {
+            continue;
+          }
+          byte[] bytes = entry.getValue();
+          try {
+            inovcationPoint.invoke(cl, bytes, 0, bytes.length);
+            injectedEntries.put(entry.getKey(), entry.getValue());
+            successfulyAdded = true;
+          } catch (InvocationTargetException e) {
+            log.debug("Error calling 'defineClass' method on {} for entry {}", cl, entry);
+          }
         }
-        byte[] bytes = entry.getValue();
-        try {
-          inovcationPoint.invoke(cl, bytes, 0, bytes.length);
-        } catch (InvocationTargetException e) {
-          log.error("Error calling 'defineClass' method on {} for entry {}", cl, entry);
-        }
+        toInject.keySet().removeAll(injectedEntries.keySet());
       }
+
     } catch (NoSuchMethodException e) {
       log.error("Error getting 'defineClass' method from {}", cl);
     } catch (IllegalAccessException e) {

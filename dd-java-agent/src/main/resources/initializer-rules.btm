@@ -1,20 +1,21 @@
 
 
 # Instrument Apache HTTP Client
+# This rule isn't working because HttpClientBuilder doesn't have any static fields, thus no static initializer.
 # =============================
-RULE HttpClientBuilder-clinit
-CLASS org.apache.http.impl.client.HttpClientBuilder
-METHOD <init>
-AT EXIT
-IF TRUE
-DO
-  com.datadoghq.trace.agent.InstrumentationRulesManager.registerClassLoad($0);
-ENDRULE
+#RULE HttpClientBuilder-clinit
+#CLASS org.apache.http.impl.client.HttpClientBuilder
+#METHOD <clinit>
+#AT EXIT
+#IF TRUE
+#DO
+#  com.datadoghq.trace.agent.InstrumentationRulesManager.registerClassLoad($0);
+#ENDRULE
 
 
 # Instrument AWS SDK client
 # ==========================
-RULE AwsClientBuilder-clinit
+RULE AwsClientBuilder-init
 CLASS ^com.amazonaws.client.builder.AwsClientBuilder
 METHOD <init>
 AT EXIT
@@ -26,7 +27,7 @@ ENDRULE
 
 # Instrument Cassandra client
 # ===========================
-RULE Cluster$Manager-clinit
+RULE Cluster$Manager-init
 CLASS com.datastax.driver.core.Cluster$Manager
 METHOD <init>
 AT EXIT
@@ -38,7 +39,7 @@ ENDRULE
 
 # Instrument JMS
 # ===========================
-RULE Session-clinit
+RULE Session-init
 INTERFACE javax.jms.Session
 METHOD <init>
 AT EXIT
@@ -50,7 +51,7 @@ ENDRULE
 
 # Instrument Mongo client
 # ========================
-RULE MongoClientOptions$Builder-clinit
+RULE MongoClientOptions$Builder-init
 CLASS com.mongodb.MongoClientOptions$Builder
 METHOD <init>
 AT EXIT
@@ -59,7 +60,7 @@ DO
   com.datadoghq.trace.agent.InstrumentationRulesManager.registerClassLoad($0);
 ENDRULE
 
-RULE TracingCommandListener-clinit
+RULE TracingCommandListener-init
 CLASS io.opentracing.contrib.mongo.TracingCommandListener
 METHOD <init>
 AT EXIT
@@ -71,7 +72,7 @@ ENDRULE
 
 # Instrument OkHttp
 # ===========================
-RULE OkHttpClient$Builder-clinit
+RULE OkHttpClient$Builder-init
 CLASS okhttp3.OkHttpClient$Builder
 METHOD <init>
 AT EXIT
@@ -85,11 +86,11 @@ ENDRULE
 # ===========================
 RULE ServletContextHandler-clinit
 CLASS org.eclipse.jetty.servlet.ServletContextHandler
-METHOD <init>
+METHOD <clinit>
 AT EXIT
 IF TRUE
 DO
-  com.datadoghq.trace.agent.InstrumentationRulesManager.registerClassLoad($0);
+  com.datadoghq.trace.agent.InstrumentationRulesManager.registerClassLoad();
 ENDRULE
 
 
@@ -97,9 +98,9 @@ ENDRULE
 # ===========================
 RULE ApplicationContext-clinit
 CLASS org.apache.catalina.core.ApplicationContext
-METHOD <init>
+METHOD <clinit>
 AT EXIT
 IF TRUE
 DO
-  com.datadoghq.trace.agent.InstrumentationRulesManager.registerClassLoad($0);
+  com.datadoghq.trace.agent.InstrumentationRulesManager.registerClassLoad();
 ENDRULE

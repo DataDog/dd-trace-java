@@ -69,6 +69,11 @@ public class InstrumentationRulesManager {
     injector = new ClassLoaderIntegrationInjector(helperEntries);
   }
 
+  public static void registerClassLoad() {
+    log.debug("Register called by class initializer.");
+    registerClassLoad(Thread.currentThread().getContextClassLoader());
+  }
+
   public static void registerClassLoad(Object obj) {
     log.info("Calling initialize with {}", obj);
     ClassLoader cl;
