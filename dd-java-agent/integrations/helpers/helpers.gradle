@@ -1,0 +1,70 @@
+//plugins {
+//  id "com.github.johnrengelman.shadow" version "2.0.1"
+//}
+
+apply plugin: "com.github.johnrengelman.shadow"
+apply from: "${rootDir}/gradle/java.gradle"
+
+configurations.compile {
+  transitive = false
+}
+
+dependencies {
+  compileOnly project(':dd-trace')
+  compileOnly project(':dd-trace-annotations')
+  compileOnly group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+
+  compileOnly group: 'org.jboss.byteman', name: 'byteman', version: '4.0.0-BETA5'
+
+  compile(group: 'io.opentracing.contrib', name: 'opentracing-web-servlet-filter', version: '0.0.9') {
+    exclude(group: 'org.eclipse.jetty', module: 'jetty-servlet')
+  }
+  compile(group: 'io.opentracing.contrib', name: 'opentracing-mongo-driver', version: '0.0.3') {
+    exclude(group: 'org.mongodb', module: 'mongodb-driver-async')
+    exclude(group: 'org.mongodb', module: 'mongo-java-driver')
+  }
+  compile(group: 'io.opentracing.contrib', name: 'opentracing-okhttp3', version: '0.0.5') {
+    exclude(group: 'com.squareup.okhttp3', module: 'okhttp')
+  }
+  compile(group: 'io.opentracing.contrib', name: 'opentracing-jms-common', version: '0.0.3')
+  compile(group: 'io.opentracing.contrib', name: 'opentracing-jms-2', version: '0.0.3') {
+    exclude(group: 'javax.jms', module: 'javax.jms-api')
+  }
+  compile(group: 'io.opentracing.contrib', name: 'opentracing-aws-sdk', version: '0.0.2') {
+    exclude(group: 'com.amazonaws', module: 'aws-java-sdk')
+  }
+  compile(group: 'io.opentracing.contrib', name: 'opentracing-cassandra-driver', version: '0.0.2') {
+    exclude(group: 'com.datastax.cassandra', module: 'cassandra-driver-core')
+  }
+  compile(group: 'io.opentracing.contrib', name: 'opentracing-apache-httpclient', version: '0.0.2') {
+    exclude(group: 'org.apache.httpcomponents', module: 'httpclient')
+  }
+
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-util', version: '9.3.6.v20151106'
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.3.6.v20151106'
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.3.6.v20151106'
+  compileOnly group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '9.0.0.M1'
+  compileOnly group: 'org.mongodb', name: 'mongo-java-driver', version: '3.4.2'
+  compileOnly group: 'org.mongodb', name: 'mongodb-driver-async', version: '3.4.2'
+  compileOnly group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
+  compileOnly group: 'javax.jms', name: 'javax.jms-api', version: '2.0.1'
+  compileOnly group: 'com.amazonaws', name: 'aws-java-sdk-core', version: '1.11.119'
+  compileOnly group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.2.0'
+  compileOnly group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.3'
+}
+
+jar {
+  classifier = 'unbundled'
+}
+
+shadowJar {
+  classifier null
+  configurations = [project.configurations.compile]
+
+  dependencies {
+    exclude(dependency(group: 'io.opentracing.contrib', name: 'opentracing-agent', version: '0.1.0'))
+    exclude(dependency('org.projectlombok:lombok:1.16.18'))
+  }
+}
+
+
