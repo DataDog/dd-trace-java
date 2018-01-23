@@ -83,6 +83,7 @@ shadowJar {
       // This is used in the Cassandra Cluster.connectAsync signature so we can't relocate it. :fingers_crossed:
       exclude 'com.google.common.util.concurrent.ListenableFuture'
     }
+    relocate 'afu', 'datadog.trace.agent.deps.afu'
   }
 
   dependencies {
