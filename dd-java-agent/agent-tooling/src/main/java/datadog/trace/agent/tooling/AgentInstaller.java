@@ -1,9 +1,7 @@
 package datadog.trace.agent.tooling;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.classLoaderWithName;
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.isReflectionClassLoader;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.skipClassLoader;
 import static net.bytebuddy.matcher.ElementMatchers.any;
-import static net.bytebuddy.matcher.ElementMatchers.isBootstrapClassLoader;
 import static net.bytebuddy.matcher.ElementMatchers.nameContains;
 import static net.bytebuddy.matcher.ElementMatchers.nameMatches;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
@@ -27,12 +25,6 @@ public class AgentInstaller {
    * @return the agent's class transformer
    */
   public static ResettableClassFileTransformer installBytebuddyAgent(final Instrumentation inst) {
-    // Classloader notes:
-
-    // 1. Skip classloaders which don't delegate to bootstrap
-
-    // 2. Skip incompatible versions of OpenTracing
-
     AgentBuilder agentBuilder =
         new AgentBuilder.Default()
             .disableClassFormatChanges()
@@ -52,13 +44,7 @@ public class AgentInstaller {
             .or(nameContains("javassist"))
             .or(nameContains(".asm."))
             .or(nameMatches("com\\.mchange\\.v2\\.c3p0\\..*Proxy"))
-            .ignore(
-                any(),
-                isBootstrapClassLoader()
-                    .or(isReflectionClassLoader())
-                    .or(
-                        classLoaderWithName(
-                            "org.codehaus.groovy.runtime.callsite.CallSiteClassLoader")));
+            .ignore(any(), skipClassLoader());
     int numInstrumenters = 0;
     for (final Instrumenter instrumenter : ServiceLoader.load(Instrumenter.class)) {
       log.debug("Loading instrumentation {}", instrumenter);
