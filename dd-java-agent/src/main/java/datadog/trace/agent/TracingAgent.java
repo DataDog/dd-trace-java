@@ -18,7 +18,10 @@ package datadog.trace.agent;
 
 import java.io.*;
 import java.lang.instrument.Instrumentation;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URL;
 import java.util.jar.JarFile;
 
 /** Entry point for initializing the agent. */
@@ -37,51 +40,78 @@ public class TracingAgent {
   private static synchronized void startAgent(final String agentArgs, final Instrumentation inst)
       throws Exception {
     if (null == AGENT_CLASSLOADER) {
-      final JarFile toolingJar =
-          new JarFile(
-              extractToTmpFile(
-                  TracingAgent.class.getClassLoader(),
-                  "agent-tooling-and-instrumentation.jar.zip",
-                  "agent-tooling-and-instrumentation.jar"));
-      final JarFile bootStrapJar =
-          new JarFile(
-              extractToTmpFile(
-                  TracingAgent.class.getClassLoader(),
-                  "agent-bootstrap.jar.zip",
-                  "agent-bootstrap.jar"));
+      final File toolingJar =
+          extractToTmpFile(
+              TracingAgent.class.getClassLoader(),
+              "agent-tooling-and-instrumentation.jar.zip",
+              "agent-tooling-and-instrumentation.jar");
+      final File bootstrapJar =
+          extractToTmpFile(
+              TracingAgent.class.getClassLoader(),
+              "agent-bootstrap.jar.zip",
+              "agent-bootstrap.jar");
 
-      final ClassLoader agentClassLoader = TracingAgent.class.getClassLoader();
+      // bootstrap jar must be appended before agent classloader is created.
+      inst.appendToBootstrapClassLoaderSearch(new JarFile(bootstrapJar));
+      final ClassLoader agentClassLoader = createDatadogClassLoader(bootstrapJar, toolingJar);
 
-      inst.appendToSystemClassLoaderSearch(bootStrapJar);
-      inst.appendToSystemClassLoaderSearch(toolingJar);
+      final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+      try {
+        Thread.currentThread().setContextClassLoader(agentClassLoader);
 
-      { // install agent
-        final Class<?> agentInstallerClass =
-            agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
-        final Method agentInstallerMethod =
-            agentInstallerClass.getMethod("installBytebuddyAgent", Instrumentation.class);
-        agentInstallerMethod.invoke(null, inst);
+        { // install agent
+          final Class<?> agentInstallerClass =
+              agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
+          final Method agentInstallerMethod =
+              agentInstallerClass.getMethod("installBytebuddyAgent", Instrumentation.class);
+          agentInstallerMethod.invoke(null, inst);
+        }
+        { // install global tracer
+          final Class<?> tracerInstallerClass =
+              agentClassLoader.loadClass("datadog.trace.agent.tooling.TracerInstaller");
+          final Method tracerInstallerMethod =
+              tracerInstallerClass.getMethod("installGlobalTracer");
+          tracerInstallerMethod.invoke(null);
+          final Method logVersionInfoMethod = tracerInstallerClass.getMethod("logVersionInfo");
+          logVersionInfoMethod.invoke(null);
+        }
+
+        AGENT_CLASSLOADER = agentClassLoader;
+      } finally {
+        Thread.currentThread().setContextClassLoader(contextLoader);
       }
-      { // install global tracer
-        final Class<?> tracerInstallerClass =
-            agentClassLoader.loadClass("datadog.trace.agent.tooling.TracerInstaller");
-        final Method tracerInstallerMethod = tracerInstallerClass.getMethod("installGlobalTracer");
-        tracerInstallerMethod.invoke(null);
-        // TODO
-        // - assert global tracer class is on bootstrap
-        // - assert global tracer impl class is on agent classloader
-        final Method logVersionInfoMethod = tracerInstallerClass.getMethod("logVersionInfo");
-        logVersionInfoMethod.invoke(null);
-      }
-
-      AGENT_CLASSLOADER = agentClassLoader;
     }
   }
 
   /**
-   * Extract {@param loader}'s resource, {@param sourcePath}, to a temporary file named {@param
-   * destName}.
+   * Create the datadog classloader. This must be called after the bootstrap jar has been appened to
+   * the bootstrap classpath.
+   *
+   * @param bootstrapJar datadog bootstrap jar which has been appended to the bootstrap loader
+   * @param toolingJar jar to use for the classpath of the datadog classloader
+   * @return Datadog Classloader
    */
+  private static ClassLoader createDatadogClassLoader(File bootstrapJar, File toolingJar)
+      throws Exception {
+    final ClassLoader agentParent;
+    final String javaVersion = System.getProperty("java.version");
+    if (javaVersion.startsWith("1.7") || javaVersion.startsWith("1.8")) {
+      agentParent = null; // bootstrap
+    } else {
+      // platform classloader is parent of system in java 9+
+      agentParent = getPlatformClassLoader();
+    }
+    Class<?> loaderClass =
+        ClassLoader.getSystemClassLoader()
+            .loadClass("datadog.trace.agent.bootstrap.DatadogClassLoader");
+    Constructor constructor =
+        loaderClass.getDeclaredConstructor(URL.class, URL.class, ClassLoader.class);
+    return (ClassLoader)
+        constructor.newInstance(
+            bootstrapJar.toURI().toURL(), toolingJar.toURI().toURL(), agentParent);
+  }
+
+  /** Extract sourcePath out of loader to a temporary file named destName. */
   private static File extractToTmpFile(ClassLoader loader, String sourcePath, String destName)
       throws Exception {
     final String destPrefix;
@@ -122,6 +152,13 @@ public class TracingAgent {
         outputStream.close();
       }
     }
+  }
+
+  private static ClassLoader getPlatformClassLoader()
+      throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    // must invoke ClassLoader.getPlatformClassLoader by reflection to remain compatible with java 7 + 8.
+    final Method method = ClassLoader.class.getDeclaredMethod("getPlatformClassLoader");
+    return (ClassLoader) method.invoke(null);
   }
 
   public static void main(final String... args) {

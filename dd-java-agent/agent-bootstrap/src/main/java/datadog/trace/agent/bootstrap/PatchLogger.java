@@ -1,4 +1,4 @@
-package datadog.trace.agent;
+package datadog.trace.agent.bootstrap;
 
 import java.util.ResourceBundle;
 import java.util.logging.Level;

@@ -1,5 +1,6 @@
 package datadog.trace.agent.test
 
+import datadog.trace.agent.bootstrap.ExceptionLogger
 import datadog.trace.agent.tooling.ExceptionHandlers
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.dynamic.ClassFileLocator
@@ -37,7 +38,7 @@ class ExceptionHandlerTest extends Specification {
     ByteBuddyAgent.install()
     builder.installOn(ByteBuddyAgent.getInstrumentation())
 
-    final Logger logger = (Logger) LoggerFactory.getLogger(ExceptionHandlers)
+    final Logger logger = (Logger) LoggerFactory.getLogger(ExceptionLogger)
     testAppender.setContext(logger.getLoggerContext())
     logger.addAppender(testAppender)
     testAppender.start()
@@ -57,7 +58,7 @@ class ExceptionHandlerTest extends Specification {
     // Make sure the log event came from our error handler.
     // If the log message changes in the future, it's fine to just
     // update the test's hardcoded message
-    testAppender.list.get(testAppender.list.size() - 1).getMessage() == "exception in instrumentation"
+    testAppender.list.get(testAppender.list.size() - 1).getMessage() == "Failed to handle exception in instrumentation"
   }
 
   def "exception on non-delegating classloader" () {
