@@ -5,6 +5,8 @@ import datadog.opentracing.decorators.AbstractDecorator;
 import datadog.opentracing.decorators.DDDecoratorsFactory;
 import datadog.opentracing.propagation.Codec;
 import datadog.opentracing.propagation.HTTPCodec;
+import datadog.opentracing.scopemanager.ContextualScopeManager;
+import datadog.opentracing.scopemanager.ScopeContext;
 import datadog.trace.api.DDTags;
 import datadog.trace.common.DDTraceConfig;
 import datadog.trace.common.Service;
@@ -20,7 +22,6 @@ import io.opentracing.ScopeManager;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.propagation.Format;
-import io.opentracing.util.ThreadLocalScopeManager;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,6 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,10 +48,13 @@ public class DDTracer implements io.opentracing.Tracer {
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
   final Sampler sampler;
   /** Scope manager is in charge of managing the scopes from which spans are created */
-  final ScopeManager scopeManager;
+  final ContextualScopeManager scopeManager = new ContextualScopeManager();
 
   /** Span context decorators */
-  private final Map<String, List<AbstractDecorator>> spanContextDecorators = new HashMap<>();
+  private final Map<String, List<AbstractDecorator>> spanContextDecorators =
+      new ConcurrentHashMap<>();
+
+  private final Set<ScopeContext> contextualScopeManagers = new ConcurrentSkipListSet<>();
 
   private final CodecRegistry registry;
   private final Map<String, Service> services = new HashMap<>();
@@ -77,19 +84,10 @@ public class DDTracer implements io.opentracing.Tracer {
   }
 
   public DDTracer(final String serviceName, final Writer writer, final Sampler sampler) {
-    this(serviceName, writer, sampler, new ThreadLocalScopeManager());
-  }
-
-  public DDTracer(
-      final String serviceName,
-      final Writer writer,
-      final Sampler sampler,
-      final ScopeManager scopeManager) {
     this.serviceName = serviceName;
     this.writer = writer;
     this.writer.start();
     this.sampler = sampler;
-    this.scopeManager = scopeManager;
     registry = new CodecRegistry();
     registry.register(Format.Builtin.HTTP_HEADERS, new HTTPCodec());
     registry.register(Format.Builtin.TEXT_MAP, new HTTPCodec());
@@ -129,8 +127,12 @@ public class DDTracer implements io.opentracing.Tracer {
     spanContextDecorators.put(decorator.getMatchingTag(), list);
   }
 
+  public void addScopeContext(final ScopeContext context) {
+    scopeManager.addScopeContext(context);
+  }
+
   @Override
-  public ScopeManager scopeManager() {
+  public ContextualScopeManager scopeManager() {
     return scopeManager;
   }
 
@@ -255,6 +257,7 @@ public class DDTracer implements io.opentracing.Tracer {
     private boolean errorFlag;
     private String spanType;
     private boolean ignoreScope = false;
+    private boolean useRefCounting = false;
 
     public DDSpanBuilder(final String operationName, final ScopeManager scopeManager) {
       this.operationName = operationName;
@@ -316,7 +319,11 @@ public class DDTracer implements io.opentracing.Tracer {
 
     @Override
     public DDSpanBuilder withTag(final String tag, final boolean bool) {
-      return withTag(tag, (Object) bool);
+      if (bool && tag.equals("dd.use.ref.counting")) {
+        return withReferenceCounting();
+      } else {
+        return withTag(tag, (Object) bool);
+      }
     }
 
     @Override
@@ -337,6 +344,11 @@ public class DDTracer implements io.opentracing.Tracer {
 
     public DDSpanBuilder withErrorFlag() {
       this.errorFlag = true;
+      return this;
+    }
+
+    public DDSpanBuilder withReferenceCounting() {
+      this.useRefCounting = true;
       return this;
     }
 
@@ -447,7 +459,8 @@ public class DDTracer implements io.opentracing.Tracer {
               spanType,
               this.tags,
               parentTrace,
-              DDTracer.this);
+              DDTracer.this,
+              useRefCounting);
 
       return context;
     }
