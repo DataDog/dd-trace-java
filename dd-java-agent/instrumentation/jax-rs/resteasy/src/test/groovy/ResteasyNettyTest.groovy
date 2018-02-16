@@ -21,12 +21,15 @@ class ResteasyNettyTest extends AgentTestRunner {
     deployment.setActualProviderClasses(Collections.singletonList(OpenTracingFilter))
     NettyContainer.start(deployment)
 
-    def invocation = ClientBuilder.newClient()
-      .target("http://localhost:${port}/test/hello/bob")
-      .request()
-      .accept("application/json")
-      .buildPost(Entity.entity("junk", "text/plain"))
-    def response = invocation.invoke().readEntity(String)
+    // Make the connection without using Resteasy's client builder to preserve Java 7 support
+    def url = new URL("http://localhost:${port}/test/hello/bob")
+    def connection = url.openConnection()
+    def response = null
+    connection.with {
+      doOutput = true
+      requestMethod = 'POST'
+      response = content.text
+    }
 
     expect:
     response == "Hello bob!"
