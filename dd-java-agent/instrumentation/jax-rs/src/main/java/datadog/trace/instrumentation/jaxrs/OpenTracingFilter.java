@@ -17,10 +17,10 @@ public final class OpenTracingFilter implements ContainerRequestFilter, Containe
 
   @Override
   public void filter(ContainerRequestContext containerRequestContext) {
-    Tracer tracer = GlobalTracer.get();
-    Scope scope = tracer.scopeManager().active();
+    final Tracer tracer = GlobalTracer.get();
+    final Scope scope = tracer.scopeManager().active();
     if (scope == null) {
-      Span span = tracer.buildSpan("request-parent").start();
+      final Span span = tracer.buildSpan("request-parent").start();
       tracer.scopeManager().activate(span, true);
       containerRequestContext.setProperty(SPAN_KEY, span);
     }
@@ -28,7 +28,7 @@ public final class OpenTracingFilter implements ContainerRequestFilter, Containe
 
   @Override
   public void filter(ContainerRequestContext containerRequestContext, ContainerResponseContext containerResponseContext) {
-    Object property = containerRequestContext.getProperty(SPAN_KEY);
+    final Object property = containerRequestContext.getProperty(SPAN_KEY);
     if (property != null && property instanceof Span) {
       ((Span) property).finish();
     }
