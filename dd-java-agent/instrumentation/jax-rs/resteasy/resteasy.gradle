@@ -1,0 +1,9 @@
+apply from: "${rootDir}/gradle/java.gradle"
+
+dependencies {
+  testCompile project(':dd-java-agent:instrumentation:jax-rs')
+  testCompile project(':dd-java-agent:testing')
+  testCompile group: 'org.jboss.resteasy', name: 'resteasy-jaxrs', version: '3.0.24.Final'
+  testCompile group: 'org.jboss.resteasy', name: 'resteasy-netty4', version: '3.0.24.Final'
+  testCompile group: 'org.jboss.resteasy', name: 'resteasy-client', version: '3.0.24.Final'
+}
