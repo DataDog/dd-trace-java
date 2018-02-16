@@ -4,7 +4,6 @@ import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
-
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.ContainerResponseContext;
@@ -27,7 +26,9 @@ public final class OpenTracingFilter implements ContainerRequestFilter, Containe
   }
 
   @Override
-  public void filter(ContainerRequestContext containerRequestContext, ContainerResponseContext containerResponseContext) {
+  public void filter(
+      ContainerRequestContext containerRequestContext,
+      ContainerResponseContext containerResponseContext) {
     final Object property = containerRequestContext.getProperty(SPAN_KEY);
     if (property != null && property instanceof Span) {
       ((Span) property).finish();
