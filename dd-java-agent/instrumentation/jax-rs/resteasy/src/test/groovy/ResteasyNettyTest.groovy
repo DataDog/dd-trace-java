@@ -4,9 +4,6 @@ import org.jboss.resteasy.plugins.server.netty.NettyContainer
 import org.jboss.resteasy.spi.ResteasyDeployment
 import org.jboss.resteasy.test.TestPortProvider
 
-import javax.ws.rs.client.ClientBuilder
-import javax.ws.rs.client.Entity
-
 class ResteasyNettyTest extends AgentTestRunner {
 
   static {
