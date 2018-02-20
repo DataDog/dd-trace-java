@@ -1,0 +1,10 @@
+apply from: "${rootDir}/gradle/java.gradle"
+
+dependencies {
+  testCompile project(':dd-java-agent:instrumentation:jax-rs')
+  testCompile project(':dd-java-agent:testing')
+  testCompile group: 'com.sun.jersey', name: 'jersey-core', version: '1.19.4'
+  testCompile group: 'com.sun.jersey', name: 'jersey-servlet', version: '1.19.4'
+  testCompile group: 'io.dropwizard', name: 'dropwizard-testing', version: '0.7.1'
+  testCompile group: 'javax.xml.bind', name: 'jaxb-api', version: '2.2.3'
+}

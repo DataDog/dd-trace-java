@@ -14,6 +14,7 @@ include ':dd-java-agent:instrumentation:apache-httpclient-4.3'
 include ':dd-java-agent:instrumentation:aws-sdk'
 include ':dd-java-agent:instrumentation:datastax-cassandra-3.2'
 include ':dd-java-agent:instrumentation:jax-rs'
+include ':dd-java-agent:instrumentation:jax-rs:jersey-dropwizard'
 include ':dd-java-agent:instrumentation:jboss-classloading'
 include ':dd-java-agent:instrumentation:jdbc'
 include ':dd-java-agent:instrumentation:jms-1'
@@ -35,6 +36,9 @@ if (JavaVersion.current().isJava8Compatible()) {
   include ':dd-java-agent:benchmark'
   include ':dd-java-agent:benchmark-integration'
   include ':dd-java-agent:benchmark-integration:jetty-perftest'
+
+  // Resteasy integration test requires Java 8+
+  include ':dd-java-agent:instrumentation:jax-rs:resteasy'
 
   // examples
   include ':examples:dropwizard-mongo-client'
