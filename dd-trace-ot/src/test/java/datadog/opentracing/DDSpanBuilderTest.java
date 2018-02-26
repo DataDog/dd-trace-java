@@ -60,10 +60,10 @@ public class DDSpanBuilderTest {
 
     // with no tag provided
 
-    span = tracer.buildSpan(expectedName).withServiceName("foo").startManual();
+    span = tracer.buildSpan(expectedName).withServiceName("foo").start();
 
     assertThat(span.getTags()).isNotNull();
-    assertThat(span.getTags().size()).isEqualTo(3);
+    assertThat(span.getTags().size()).isEqualTo(2);
 
     // with all custom fields provided
     final String expectedResource = "fakeResource";
@@ -128,15 +128,12 @@ public class DDSpanBuilderTest {
 
     when(mockedContext.getSpanId()).thenReturn(spanId);
     when(mockedContext.getServiceName()).thenReturn("foo");
+    when(mockedContext.getTrace()).thenReturn(new TraceCollection(tracer));
 
     final String expectedName = "fakeName";
 
     final DDSpan span =
-        tracer
-            .buildSpan(expectedName)
-            .withServiceName("foo")
-            .asChildOf(mockedContext)
-            .startManual();
+        tracer.buildSpan(expectedName).withServiceName("foo").asChildOf(mockedContext).start();
 
     final DDSpanContext actualContext = span.context();
 
