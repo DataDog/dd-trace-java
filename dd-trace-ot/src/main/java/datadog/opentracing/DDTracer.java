@@ -29,9 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
 
@@ -53,8 +51,6 @@ public class DDTracer implements io.opentracing.Tracer {
   /** Span context decorators */
   private final Map<String, List<AbstractDecorator>> spanContextDecorators =
       new ConcurrentHashMap<>();
-
-  private final Set<ScopeContext> contextualScopeManagers = new ConcurrentSkipListSet<>();
 
   private final CodecRegistry registry;
   private final Map<String, Service> services = new HashMap<>();
@@ -424,7 +420,7 @@ public class DDTracer implements io.opentracing.Tracer {
         traceId = ddsc.getTraceId();
         parentSpanId = ddsc.getSpanId();
         baggage = ddsc.getBaggage();
-        parentTrace = new TraceCollection(DDTracer.this);
+        parentTrace = new TraceCollection(DDTracer.this, traceId);
         samplingPriority = ddsc.getSamplingPriority();
 
         // Start a new trace
@@ -432,7 +428,7 @@ public class DDTracer implements io.opentracing.Tracer {
         traceId = generateNewId();
         parentSpanId = 0L;
         baggage = null;
-        parentTrace = new TraceCollection(DDTracer.this);
+        parentTrace = new TraceCollection(DDTracer.this, traceId);
         samplingPriority = PrioritySampling.UNSET;
       }
 
