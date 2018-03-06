@@ -1,6 +1,9 @@
 package datadog.opentracing.scopemanager
 
+import datadog.opentracing.DDSpan
+import datadog.opentracing.DDSpanContext
 import datadog.opentracing.DDTracer
+import datadog.opentracing.PendingTrace
 import datadog.trace.common.writer.ListWriter
 import io.opentracing.Scope
 import io.opentracing.Span
@@ -40,7 +43,7 @@ class ScopeManagerTest extends Specification {
     def scope = builder.startActive(finishSpan)
 
     then:
-    !spanReported(scope.span())
+    !spanFinished(scope.span())
     scopeManager.active() == scope
     scope instanceof ContinuableScope
     writer.empty
@@ -49,7 +52,7 @@ class ScopeManagerTest extends Specification {
     scope.close()
 
     then:
-    spanReported(scope.span()) == finishSpan
+    spanFinished(scope.span()) == finishSpan
     writer == [[scope.span()]] || !finishSpan
     scopeManager.active() == null
 
@@ -72,16 +75,16 @@ class ScopeManagerTest extends Specification {
 
     then:
     scopeManager.active() == parentScope
-    spanReported(childScope.span()) == finishSpan
-    !spanReported(parentScope.span())
+    spanFinished(childScope.span()) == finishSpan
+    !spanFinished(parentScope.span())
     writer == []
 
     when:
     parentScope.close()
 
     then:
-    spanReported(childScope.span()) == finishSpan
-    spanReported(parentScope.span()) == finishSpan
+    spanFinished(childScope.span()) == finishSpan
+    spanFinished(parentScope.span()) == finishSpan
     writer == [[parentScope.span(), childScope.span()]] || !finishSpan
     scopeManager.active() == null
 
@@ -93,10 +96,10 @@ class ScopeManagerTest extends Specification {
     setup:
     def builder = tracer.buildSpan("test")
     def scope = (ContinuableScope) builder.startActive(true)
-    def continuation = scope.capture()
+    def continuation = scope.capture(true)
 
     expect:
-    !spanReported(scope.span())
+    !spanFinished(scope.span())
     scopeManager.active() == scope
     scope instanceof ContinuableScope
     writer.empty
@@ -105,23 +108,77 @@ class ScopeManagerTest extends Specification {
     scope.close()
 
     then:
-    !spanReported(scope.span())
+    !spanFinished(scope.span())
     scopeManager.active() == null
     writer.empty
 
     when:
     continuation.activate()
+    if (forceGC) {
+      continuation = null // Continuation references also hold up traces.
+      PendingTrace.awaitGC()
+      ((DDSpanContext) scope.span().context()).trace.clean()
+    }
+    if (autoClose) {
+      if (continuation != null) {
+        continuation.close()
+      }
+    }
 
     then:
     scopeManager.active() != null
 
     when:
     scopeManager.active().close()
+    writer.waitForTraces(1)
 
     then:
     scopeManager.active() == null
-    spanReported(scope.span())
+    spanFinished(scope.span())
     writer == [[scope.span()]]
+
+    where:
+    autoClose | forceGC
+    true      | true
+    true      | false
+    false     | true
+  }
+
+  def "hard reference on continuation prevents trace from reporting"() {
+    setup:
+    def builder = tracer.buildSpan("test")
+    def scope = (ContinuableScope) builder.startActive(false)
+    def span = scope.span()
+    def continuation = scope.capture(true)
+    scope.close()
+    span.finish()
+
+    expect:
+    scopeManager.active() == null
+    spanFinished(span)
+    writer == []
+
+    when:
+    if (forceGC) {
+      continuation = null // Continuation references also hold up traces.
+      PendingTrace.awaitGC()
+      ((DDSpanContext) span.context()).trace.clean()
+      writer.waitForTraces(1)
+    }
+    if (autoClose) {
+      if (continuation != null) {
+        continuation.close()
+      }
+    }
+
+    then:
+    writer == [[span]]
+
+    where:
+    autoClose | forceGC
+    true      | true
+    true      | false
+    false     | true
   }
 
   def "continuation restores trace"() {
@@ -131,14 +188,14 @@ class ScopeManagerTest extends Specification {
     ContinuableScope childScope = (ContinuableScope) tracer.buildSpan("parent").startActive(true)
     def childSpan = childScope.span()
 
-    def cont = childScope.capture()
+    def continuation = childScope.capture(true)
     childScope.close()
 
     expect:
     parentSpan.context().trace == childSpan.context().trace
     scopeManager.active() == parentScope
-    !spanReported(childSpan)
-    !spanReported(parentSpan)
+    !spanFinished(childSpan)
+    !spanFinished(parentSpan)
 
     when:
     parentScope.close()
@@ -146,19 +203,19 @@ class ScopeManagerTest extends Specification {
 
     then:
     scopeManager.active() == null
-    !spanReported(childSpan)
-    spanReported(parentSpan)
+    !spanFinished(childSpan)
+    spanFinished(parentSpan)
     writer == []
 
     when:
-    def newScope = cont.activate()
+    def newScope = continuation.activate()
 
     then:
-    scopeManager.active() == newScope
+    scopeManager.active() == newScope.wrapped
     newScope != childScope && newScope != parentScope
     newScope.span() == childSpan
-    !spanReported(childSpan)
-    spanReported(parentSpan)
+    !spanFinished(childSpan)
+    spanFinished(parentSpan)
     writer == []
 
     when:
@@ -166,9 +223,56 @@ class ScopeManagerTest extends Specification {
 
     then:
     scopeManager.active() == null
-    spanReported(childSpan)
-    spanReported(parentSpan)
+    spanFinished(childSpan)
+    spanFinished(parentSpan)
     writer == [[childSpan, parentSpan]]
+  }
+
+  def "continuation allows adding spans even after other spans were completed"() {
+    setup:
+    def builder = tracer.buildSpan("test")
+    def scope = (ContinuableScope) builder.startActive(false)
+    def span = scope.span()
+    def continuation = scope.capture(false)
+    scope.close()
+    span.finish()
+
+    def newScope = continuation.activate()
+
+    expect:
+    newScope != scope
+    scopeManager.active() == newScope.wrapped
+    spanFinished(span)
+    writer == []
+
+    when:
+    def childScope = tracer.buildSpan("child").startActive(true)
+    def childSpan = childScope.span()
+    childScope.close()
+    scopeManager.active().close()
+
+    then:
+    scopeManager.active() == null
+    spanFinished(childSpan)
+    childSpan.context().parentId == span.context().spanId
+    writer == []
+
+    when:
+    if (closeScope) {
+      newScope.close()
+    }
+    if (closeContinuation) {
+      continuation.close()
+    }
+
+    then:
+    writer == [[childSpan, span]]
+
+    where:
+    closeScope | closeContinuation
+    true       | false
+    false      | true
+    true       | true
   }
 
   @Unroll
@@ -231,7 +335,7 @@ class ScopeManagerTest extends Specification {
     scopeManager.tlsScope.get() == scope
 
     when:
-    def cont = scope.capture()
+    def cont = scope.capture(true)
     scope.close()
 
     then:
@@ -285,8 +389,8 @@ class ScopeManagerTest extends Specification {
     [new AtomicReferenceScope(true), new AtomicReferenceScope(true)] | _
   }
 
-  boolean spanReported(Span span) {
-    return span.durationNano != 0
+  boolean spanFinished(Span span) {
+    return ((DDSpan) span).isFinished()
   }
 
   class AtomicReferenceScope extends AtomicReference<Span> implements ScopeContext, Scope {
