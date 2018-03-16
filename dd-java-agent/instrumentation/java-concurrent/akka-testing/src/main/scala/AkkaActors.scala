@@ -20,13 +20,21 @@ object AkkaActors {
     system.actorOf(Greeter.props("Hello", printer), "helloGreeter")
   val goodDayGreeter: ActorRef =
     system.actorOf(Greeter.props("Good day", printer), "goodDayGreeter")
+
+  @Trace
+  def tracedChild(opName: String): Unit = {
+    GlobalTracer.get().activeSpan().setOperationName(opName)
+  }
 }
 
 class AkkaActors {
+  import AkkaActors._
   import Greeter._
 
+  @Trace
   def basicGreeting() : Unit = {
-
+    howdyGreeter ! WhoToGreet("Akka")
+    howdyGreeter ! Greet
   }
 
 
@@ -44,10 +52,6 @@ class AkkaActors {
   goodDayGreeter ! Greet
   */
 
-  @Trace
-  def tracedChild(opName: String): Unit = {
-    GlobalTracer.get().activeSpan().setOperationName(opName)
-  }
 }
 
 object Greeter {
@@ -80,6 +84,6 @@ class Printer extends Actor with ActorLogging {
 
   def receive = {
     case Greeting(greeting) =>
-      log.info(s"Greeting received (from ${sender()}): $greeting")
+      AkkaActors.tracedChild(greeting)
   }
 }
