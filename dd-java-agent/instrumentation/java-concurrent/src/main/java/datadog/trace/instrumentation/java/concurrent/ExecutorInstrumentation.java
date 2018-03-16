@@ -139,7 +139,8 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
       final Scope scope = GlobalTracer.get().scopeManager().active();
       if (scope instanceof TraceScope && task != null && !(task instanceof DatadogWrapper)) {
         task = new RunnableWrapper(task, (TraceScope) scope);
-        return (DatadogWrapper) task;
+        // FIXME: Casting to DatadogWrapper is not working
+        return (RunnableWrapper) task;
       }
       return null;
     }
@@ -160,7 +161,8 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
       final Scope scope = GlobalTracer.get().scopeManager().active();
       if (scope instanceof TraceScope && task != null && !(task instanceof DatadogWrapper)) {
         task = new CallableWrapper(task, (TraceScope) scope);
-        return (DatadogWrapper) task;
+        // FIXME: Casting to DatadogWrapper is not working
+        return (CallableWrapper) task;
       }
       return null;
     }
