@@ -56,11 +56,6 @@ class AkkaActorTest extends AgentTestRunner {
     trace[0].getOperationName() == "AkkaActors.basicForward"
     findSpan(trace, "Hello, Akka").context().getParentId() == trace[0].getSpanId()
   }
-  // forward
-
-  // TODO: Test akka throughput
-  // An actor may process more than one message before releasing the thread.
-  // Not sure how to test this yet...
 
   private DDSpan findSpan(List<DDSpan> trace, String opName) {
     for (DDSpan span : trace) {

@@ -139,13 +139,6 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
       final Scope scope = GlobalTracer.get().scopeManager().active();
       if (scope instanceof TraceScope && task != null && !(task instanceof DatadogWrapper)) {
         task = new RunnableWrapper(task, (TraceScope) scope);
-        // FIXME remove vv
-        try {
-          throw new Exception("----WRAPPING----");
-        } catch (Exception e) {
-          // org.slf4j.LoggerFactory.getLogger("wrapper").error("FINDME logged", e);
-        }
-        // FIXME: Casting to DatadogWrapper is not working
         return (RunnableWrapper) task;
       }
       return null;
@@ -167,7 +160,6 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
       final Scope scope = GlobalTracer.get().scopeManager().active();
       if (scope instanceof TraceScope && task != null && !(task instanceof DatadogWrapper)) {
         task = new CallableWrapper(task, (TraceScope) scope);
-        // FIXME: Casting to DatadogWrapper is not working
         return (CallableWrapper) task;
       }
       return null;

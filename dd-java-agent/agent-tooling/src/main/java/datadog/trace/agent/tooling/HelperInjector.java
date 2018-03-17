@@ -84,15 +84,15 @@ public class HelperInjector implements Transformer {
                   .inject(helperMap);
             } else {
               // TODO: optimize and test. We want to inject if the child does not delegate
-              ClassLoader parent = classLoader.getParent();
+              ClassLoader parent = classLoader;
               boolean doInject = true;
-              do {
+              while (parent != null) {
+                parent = parent.getParent();
                 if (injectedClassLoaders.contains(parent)) {
                   doInject = false;
                   break;
                 }
-                if (null != parent) parent = parent.getParent();
-              } while (parent != BOOTSTRAP_CLASSLOADER);
+              }
               if (doInject) {
                 new ClassInjector.UsingReflection(classLoader).inject(helperMap);
               }
