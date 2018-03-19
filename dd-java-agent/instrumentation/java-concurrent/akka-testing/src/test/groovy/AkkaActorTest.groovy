@@ -1,5 +1,7 @@
 import datadog.opentracing.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
+import spock.lang.Unroll
+
 // import spock.lang.Unroll
 
 class AkkaActorTest extends AgentTestRunner {
@@ -12,10 +14,11 @@ class AkkaActorTest extends AgentTestRunner {
     // Ignore failures to instrument sun proxy classes
   }
 
-  def "tell message"() {
+  @Unroll
+  def "akka #testMethod" () {
     setup:
     AkkaActors akkaTester = new AkkaActors()
-    akkaTester.basicTell()
+    akkaTester."$testMethod"()
 
     TEST_WRITER.waitForTraces(1)
     List<DDSpan> trace = TEST_WRITER.get(0)
@@ -23,38 +26,14 @@ class AkkaActorTest extends AgentTestRunner {
     expect:
     TEST_WRITER.size() == 1
     trace.size() == 2
-    trace[0].getOperationName() == "AkkaActors.basicTell"
-    findSpan(trace, "Howdy, Akka").context().getParentId() == trace[0].getSpanId()
-  }
+    trace[0].getOperationName() == "AkkaActors.$testMethod"
+    findSpan(trace, "$expectedGreeting, Akka").context().getParentId() == trace[0].getSpanId()
 
-  def "ask message"() {
-    setup:
-    AkkaActors akkaTester = new AkkaActors()
-    akkaTester.basicAsk()
-
-    TEST_WRITER.waitForTraces(1)
-    List<DDSpan> trace = TEST_WRITER.get(0)
-
-    expect:
-    TEST_WRITER.size() == 1
-    trace.size() == 2
-    trace[0].getOperationName() == "AkkaActors.basicAsk"
-    findSpan(trace, "Howdy, Akka").context().getParentId() == trace[0].getSpanId()
-  }
-
-  def "forward message"() {
-    setup:
-    AkkaActors akkaTester = new AkkaActors()
-    akkaTester.basicForward()
-
-    TEST_WRITER.waitForTraces(1)
-    List<DDSpan> trace = TEST_WRITER.get(0)
-
-    expect:
-    TEST_WRITER.size() == 1
-    trace.size() == 2
-    trace[0].getOperationName() == "AkkaActors.basicForward"
-    findSpan(trace, "Hello, Akka").context().getParentId() == trace[0].getSpanId()
+    where:
+    testMethod         | expectedGreeting
+    "basicTell"        | "Howdy"
+    "basicAsk"         | "Howdy"
+    "basicForward"     | "Hello"
   }
 
   private DDSpan findSpan(List<DDSpan> trace, String opName) {
