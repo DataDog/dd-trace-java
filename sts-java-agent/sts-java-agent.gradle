@@ -7,7 +7,7 @@ description = 'sts-java-agent'
 apply from: "${rootDir}/gradle/java.gradle"
 apply from: "${rootDir}/gradle/publish.gradle"
 apply from: "${rootDir}/gradle/jacoco.gradle"
-//jacocoTestReport.dependsOn ':dd-java-agent-ittests:test'
+jacocoTestReport.dependsOn ':sts-java-agent-ittests:test'
 
 whitelistedInstructionClasses += whitelistedBranchClasses += [
   'stackstate.agent.*',
