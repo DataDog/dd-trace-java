@@ -61,14 +61,14 @@ public class TracingAgent {
 
         { // install agent
           final Class<?> agentInstallerClass =
-              agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
+              agentClassLoader.loadClass("stackstate.trace.agent.tooling.AgentInstaller");
           final Method agentInstallerMethod =
               agentInstallerClass.getMethod("installBytebuddyAgent", Instrumentation.class);
           agentInstallerMethod.invoke(null, inst);
         }
         { // install global tracer
           final Class<?> tracerInstallerClass =
-              agentClassLoader.loadClass("datadog.trace.agent.tooling.TracerInstaller");
+              agentClassLoader.loadClass("stackstate.trace.agent.tooling.TracerInstaller");
           final Method tracerInstallerMethod =
               tracerInstallerClass.getMethod("installGlobalTracer");
           tracerInstallerMethod.invoke(null);
@@ -102,7 +102,8 @@ public class TracingAgent {
       agentParent = getPlatformClassLoader();
     }
     Class<?> loaderClass =
-        ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.DatadogClassLoader");
+        ClassLoader.getSystemClassLoader()
+            .loadClass("stackstate.trace.bootstrap.DatadogClassLoader");
     Constructor constructor =
         loaderClass.getDeclaredConstructor(URL.class, URL.class, ClassLoader.class);
     return (ClassLoader)
@@ -155,7 +156,8 @@ public class TracingAgent {
 
   private static ClassLoader getPlatformClassLoader()
       throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-    // must invoke ClassLoader.getPlatformClassLoader by reflection to remain compatible with java 7 + 8.
+    // must invoke ClassLoader.getPlatformClassLoader by reflection to remain compatible with java 7
+    // + 8.
     final Method method = ClassLoader.class.getDeclaredMethod("getPlatformClassLoader");
     return (ClassLoader) method.invoke(null);
   }
