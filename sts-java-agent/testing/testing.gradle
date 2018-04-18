@@ -1,0 +1,16 @@
+apply from: "${rootDir}/gradle/java.gradle"
+
+dependencies {
+  compile deps.bytebuddy
+  compile deps.bytebuddyagent
+  compile deps.slf4j
+  compile deps.opentracing
+  compile deps.spock
+  compile deps.testLogging
+
+  compile project(':dd-trace-ot')
+  compile project(':sts-java-agent:agent-tooling')
+
+  // test instrumenting java 1.1 bytecode
+  testCompile group: 'net.sf.jt400', name: 'jt400', version: '6.1'
+}

@@ -26,7 +26,7 @@ bootRun {
   if (project.hasProperty('javaagent')) {
     jvmArgs = ["-javaagent:$javaagent", "-Ddd.service.name=spring-boot-jdbc-redis"]
   } else {
-    jvmArgs = ["-javaagent:${project(':dd-java-agent').tasks.shadowJar.outputs.files.getFiles().iterator().next()}", "-Ddd.service.name=spring-boot-jdbc-redis"]
+    jvmArgs = ["-javaagent:${project(':sts-java-agent').tasks.shadowJar.outputs.files.getFiles().iterator().next()}", "-Ddd.service.name=spring-boot-jdbc-redis"]
   }
 }
 

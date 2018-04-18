@@ -1,0 +1,9 @@
+apply from: "${rootDir}/gradle/java.gradle"
+
+dependencies {
+  compile project(':sts-java-agent:agent-tooling')
+
+  compile deps.bytebuddy
+  compile deps.opentracing
+  compile deps.autoservice
+}
