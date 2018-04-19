@@ -10,8 +10,8 @@ Mongo calls are part of the Spark trace.
 
 #### Prerequisites
 
-Be sure to build the project so that the latest version of ``dd-trace-java`` components are used. You can build
-all libraries and examples launching from the ``dd-trace-java`` root folder:
+Be sure to build the project so that the latest version of ``sts-trace-java`` components are used. You can build
+all libraries and examples launching from the ``sts-trace-java`` root folder:
 ```bash
 ./gradlew clean shadowJar
 ```
@@ -33,7 +33,7 @@ A valid ``DD_API_KEY`` is required to post collected traces to the Datadog backe
 
 Launch the application using the run wrapper you've built during the ``installDist`` step:
 ```bash
-JAVA_OPTS=-javaagent:../../dd-java-agent/build/libs/dd-java-agent-{version}.jar -Ddd.service.name=rest-spark build/install/rest-spark/bin/rest-spark
+JAVA_OPTS=-javaagent:../../sts-java-agent/build/libs/sts-java-agent-{version}.jar -Ddd.service.name=rest-spark build/install/rest-spark/bin/rest-spark
 ```
 
 ``0.2.0-SNAPSHOT`` is an example of what ``{version}`` looks like.
@@ -52,7 +52,7 @@ Then get back to Datadog and wait a bit to see a trace coming.
 [2]: http://localhost:4567/key/something
 [3]: http://localhost:4567/key/something_else
 
-#### Auto-instrumentation with the `dd-trace-agent`
+#### Auto-instrumentation with the `sts-trace-agent`
 
 The instrumentation is entirely done by the Java Agent which embed a set of rules that automatically recognizes &
 instruments:

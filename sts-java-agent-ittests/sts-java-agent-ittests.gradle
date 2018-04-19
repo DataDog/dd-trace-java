@@ -17,7 +17,7 @@ if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
 }
 
 dependencies {
-  testCompile project(':dd-trace-api')
+  testCompile project(':sts-trace-api')
   testCompile project(':sts-trace-ot')
 
   testCompile deps.opentracingMock

@@ -4,7 +4,7 @@ apply from: "${rootDir}/gradle/test-with-scala.gradle"
 dependencies {
   compileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.6.0'
 
-  compile project(':dd-trace-api')
+  compile project(':sts-trace-api')
   compile project(':sts-java-agent:agent-tooling')
   compile deps.bytebuddy
   compile deps.opentracing

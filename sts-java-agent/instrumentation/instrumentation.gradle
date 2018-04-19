@@ -32,7 +32,7 @@ configurations {
 shadowJar {
   dependencies {
     exclude(project(':sts-java-agent:agent-bootstrap'))
-    exclude(project(':dd-trace-api'))
+    exclude(project(':sts-trace-api'))
   }
 }
 

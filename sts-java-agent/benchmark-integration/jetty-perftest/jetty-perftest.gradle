@@ -1,5 +1,5 @@
 dependencies {
-  compile project(':dd-trace-api')
+  compile project(':sts-trace-api')
   compile project(':sts-java-agent:benchmark-integration')
   compile deps.opentracing
   

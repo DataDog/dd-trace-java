@@ -2,7 +2,7 @@ apply from: "${rootDir}/gradle/java.gradle"
 apply plugin: 'scala'
 
 dependencies {
-  compile project(':dd-trace-api')
+  compile project(':sts-trace-api')
   compile project(':sts-trace-ot')
   compile group: 'org.scala-lang', name: 'scala-library', version: '2.11.12'
 

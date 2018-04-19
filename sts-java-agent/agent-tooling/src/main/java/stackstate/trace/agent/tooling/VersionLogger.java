@@ -9,14 +9,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class VersionLogger {
 
-  /** Log version strings for sts-trace-ot, dd-trace-pai, and sts-java-agent */
+  /** Log version strings for sts-trace-ot, sts-trace-api, and sts-java-agent */
   public static void logAllVersions() {
     log.info(
         "sts-trace-ot - version: {}",
         getVersionString(Utils.getAgentClassLoader().getResourceAsStream("sts-trace-ot.version")));
     log.info(
-        "dd-trace-api - version: {}",
-        getVersionString(Utils.getAgentClassLoader().getResourceAsStream("dd-trace-api.version")));
+        "sts-trace-api - version: {}",
+        getVersionString(Utils.getAgentClassLoader().getResourceAsStream("sts-trace-api.version")));
     log.info(
         "sts-java-agent - version: {}",
         getVersionString(

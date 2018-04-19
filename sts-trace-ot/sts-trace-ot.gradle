@@ -35,7 +35,7 @@ testSets {
 }
 
 dependencies {
-  compile project(':dd-trace-api')
+  compile project(':sts-trace-api')
   compile deps.opentracing
   compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 

@@ -6,7 +6,7 @@ include ':sts-java-agent:agent-bootstrap'
 include ':sts-java-agent:agent-tooling'
 include ':sts-java-agent:testing'
 include ':sts-java-agent-ittests'
-include ':dd-trace-api'
+include ':sts-trace-api'
 
 
 // instrumentation:

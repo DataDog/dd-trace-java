@@ -1,6 +1,6 @@
 package stackstate.trace.context;
 
-/** An object when can propagate a datadog trace across multiple threads. */
+/** An object when can propagate a stackstate trace across multiple threads. */
 public interface TraceScope {
   /**
    * Prevent the trace attached to this TraceScope from reporting until the returned Continuation

@@ -6,7 +6,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
-/** Set this annotation to a method so the dd-java-agent considers it for tracing. */
+/** Set this annotation to a method so the sts-java-agent considers it for tracing. */
 @Retention(RUNTIME)
 @Target(METHOD)
 public @interface Trace {

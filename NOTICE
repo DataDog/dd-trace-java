@@ -1,4 +1,5 @@
-Datadog dd-trace-java
+Datadog sts-trace-java
+Copyright 2018 StackState
 Copyright 2017 Datadog, Inc.
 
 This product includes software developed at Datadog (https://www.datadoghq.com/).

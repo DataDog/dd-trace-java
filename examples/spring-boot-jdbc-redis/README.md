@@ -9,8 +9,8 @@ to trace the endpoints.
 
 #### Prerequisites
 
-Be sure to build the project so that the latest version of ``dd-trace-java`` components are used. You can build
-all libraries and examples launching from the ``dd-trace-java`` root folder:
+Be sure to build the project so that the latest version of ``sts-trace-java`` components are used. You can build
+all libraries and examples launching from the ``sts-trace-java`` root folder:
 ```bash
 ./gradlew clean shadowJar bootRepackage
 ```
@@ -36,7 +36,7 @@ stop it.*
 
 Or as an executable jar:
 ```bash
-java -javaagent:../../dd-java-agent/build/libs/dd-java-agent-{version}.jar -Ddd.service.name=spring-boot-jdbc-redis -jar build/libs/spring-boot-jdbc-redis-demo.jar
+java -javaagent:../../sts-java-agent/build/libs/sts-java-agent-{version}.jar -Ddd.service.name=spring-boot-jdbc-redis -jar build/libs/spring-boot-jdbc-redis-demo.jar
 ```
 
 ### Generate traces
@@ -49,7 +49,7 @@ Once the Gradle task is running. Go to the following urls:
 
 Then get back to Datadog and wait a bit to see a trace coming.
 
-#### Auto-instrumentation with the `dd-trace-agent`
+#### Auto-instrumentation with the `sts-trace-agent`
 
 The instrumentation is entirely done by the datadog agent which embed a set of rules that automatically recognizes &
 instruments:

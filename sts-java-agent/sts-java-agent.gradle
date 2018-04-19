@@ -13,7 +13,7 @@ whitelistedInstructionClasses += whitelistedBranchClasses += [
   'stackstate.agent.*',
   'stackstate.agent.decorators.*',
   'io.opentracing.contrib.*',
-  'dd.opentracing.contrib.*',
+  'stackstate.opentracing.contrib.*',
 ]
 
 /*
