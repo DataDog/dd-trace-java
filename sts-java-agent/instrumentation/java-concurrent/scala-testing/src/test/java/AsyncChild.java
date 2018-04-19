@@ -1,7 +1,7 @@
-import datadog.trace.api.Trace;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import stackstate.trace.api.Trace;
 
 public class AsyncChild implements Runnable, Callable {
   private final AtomicBoolean blockThread;

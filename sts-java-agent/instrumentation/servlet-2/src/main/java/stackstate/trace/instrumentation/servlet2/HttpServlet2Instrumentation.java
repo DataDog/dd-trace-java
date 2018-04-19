@@ -11,8 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.api.DDSpanTypes;
-import datadog.trace.api.DDTags;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -31,6 +29,8 @@ import stackstate.trace.agent.tooling.DDAdvice;
 import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.api.DDSpanTypes;
+import stackstate.trace.api.DDTags;
 
 @AutoService(Instrumenter.class)
 public final class HttpServlet2Instrumentation extends Instrumenter.Configurable {

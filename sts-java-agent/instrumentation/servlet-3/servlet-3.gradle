@@ -19,7 +19,7 @@ dependencies {
     transitive = false
   }
 
-  compile project(':dd-trace-ot')
+  compile project(':sts-trace-ot')
   compile project(':sts-java-agent:agent-tooling')
 
   compile deps.bytebuddy

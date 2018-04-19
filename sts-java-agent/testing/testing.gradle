@@ -8,7 +8,7 @@ dependencies {
   compile deps.spock
   compile deps.testLogging
 
-  compile project(':dd-trace-ot')
+  compile project(':sts-trace-ot')
   compile project(':sts-java-agent:agent-tooling')
 
   // test instrumenting java 1.1 bytecode

@@ -1,4 +1,4 @@
-import datadog.opentracing.DDSpanContext
+import stackstate.opentracing.DDSpanContext
 import io.opentracing.util.GlobalTracer
 import spock.lang.Timeout
 import spock.lang.Unroll

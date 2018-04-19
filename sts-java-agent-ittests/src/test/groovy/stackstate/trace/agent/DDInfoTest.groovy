@@ -1,7 +1,7 @@
 package stackstate.trace.agent
 
-import datadog.opentracing.DDTraceOTInfo
-import datadog.trace.api.DDTraceApiInfo
+import stackstate.opentracing.DDTraceOTInfo
+import stackstate.trace.api.DDTraceApiInfo
 
 class DDInfoTest {
   def "info accessible from api"() {

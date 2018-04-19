@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.api.DDTags;
 import io.opentracing.Scope;
 import io.opentracing.tag.Tags;
 import io.opentracing.util.GlobalTracer;
@@ -21,6 +20,7 @@ import net.bytebuddy.asm.Advice;
 import stackstate.trace.agent.tooling.DDAdvice;
 import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.api.DDTags;
 
 @AutoService(Instrumenter.class)
 public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Configurable {

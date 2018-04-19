@@ -1,7 +1,5 @@
 package stackstate.trace.instrumentation.jaxrs;
 
-import datadog.trace.api.DDSpanTypes;
-import datadog.trace.api.DDTags;
 import io.opentracing.Span;
 import io.opentracing.propagation.Format;
 import io.opentracing.tag.Tags;
@@ -14,6 +12,8 @@ import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.client.ClientResponseContext;
 import javax.ws.rs.client.ClientResponseFilter;
 import lombok.extern.slf4j.Slf4j;
+import stackstate.trace.api.DDSpanTypes;
+import stackstate.trace.api.DDTags;
 
 @Slf4j
 @Priority(Priorities.HEADER_DECORATOR)

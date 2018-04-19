@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.util.GlobalTracer;
 import java.lang.reflect.Field;
@@ -27,6 +26,7 @@ import stackstate.trace.agent.tooling.DDAdvice;
 import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.context.TraceScope;
 
 @Slf4j
 @AutoService(Instrumenter.class)

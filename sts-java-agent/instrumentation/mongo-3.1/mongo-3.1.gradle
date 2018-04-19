@@ -20,6 +20,6 @@ dependencies {
   compile deps.bytebuddy
   compile deps.opentracing
 
-  testCompile project(':dd-trace-ot')
+  testCompile project(':sts-trace-ot')
   testCompile group: 'org.mongodb', name: 'mongo-java-driver', version: '3.4.2'
 }

@@ -1,6 +1,6 @@
 package stackstate.benchmark.classes;
 
-import datadog.trace.api.Trace;
+import stackstate.trace.api.Trace;
 
 public class TracedClass extends UntracedClass {
   @Trace

@@ -6,11 +6,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isSubTypeOf;
 import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 
 import com.google.auto.service.AutoService;
-import datadog.opentracing.DDTracer;
 import io.opentracing.util.GlobalTracer;
 import java.lang.reflect.Field;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
+import stackstate.opentracing.DDTracer;
 import stackstate.trace.agent.tooling.DDAdvice;
 import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;

@@ -4,7 +4,7 @@ import play.api.mvc.Action
 import play.api.routing.Router
 import play.api.mvc._
 import play.api.routing.sird._
-import datadog.trace.api.Trace
+import stackstate.trace.api.Trace
 import play.inject.DelegateInjector
 
 import scala.concurrent.{Await, Future}

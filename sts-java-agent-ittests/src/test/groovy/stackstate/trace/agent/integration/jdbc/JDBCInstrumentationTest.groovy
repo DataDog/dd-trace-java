@@ -1,7 +1,7 @@
 package stackstate.trace.agent.integration.jdbc
 
-import datadog.opentracing.DDTracer
-import datadog.trace.common.writer.ListWriter
+import stackstate.opentracing.DDTracer
+import stackstate.trace.common.writer.ListWriter
 import org.apache.derby.jdbc.EmbeddedDriver
 import org.h2.Driver
 import org.hsqldb.jdbc.JDBCDriver

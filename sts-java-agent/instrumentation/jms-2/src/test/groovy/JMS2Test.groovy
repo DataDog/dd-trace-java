@@ -1,5 +1,5 @@
 import com.google.common.io.Files
-import datadog.trace.api.DDSpanTypes
+import stackstate.trace.api.DDSpanTypes
 import org.hornetq.api.core.TransportConfiguration
 import org.hornetq.api.core.client.HornetQClient
 import org.hornetq.api.jms.HornetQJMSClient

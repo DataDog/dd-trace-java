@@ -11,7 +11,7 @@ public class DDJavaAgentInfo {
     String v;
     try {
       Class<?> tracingAgentClass =
-          ClassLoader.getSystemClassLoader().loadClass("datadog.trace.agent.TracingAgent");
+          ClassLoader.getSystemClassLoader().loadClass("stackstate.trace.agent.TracingAgent");
       Method getAgentVersionMethod = tracingAgentClass.getMethod("getAgentVersion");
       v = (String) getAgentVersionMethod.invoke(null);
     } catch (final Exception e) {

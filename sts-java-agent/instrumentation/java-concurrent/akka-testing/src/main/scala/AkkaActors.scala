@@ -1,4 +1,4 @@
-import datadog.trace.api.Trace
+import stackstate.trace.api.Trace
 import akka.pattern.ask
 import io.opentracing.util.GlobalTracer
 

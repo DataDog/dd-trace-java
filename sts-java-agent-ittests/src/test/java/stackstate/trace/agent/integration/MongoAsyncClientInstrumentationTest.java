@@ -8,9 +8,6 @@ import com.mongodb.async.SingleResultCallback;
 import com.mongodb.async.client.MongoClient;
 import com.mongodb.async.client.MongoClients;
 import com.mongodb.async.client.MongoDatabase;
-import datadog.opentracing.DDSpan;
-import datadog.opentracing.DDTracer;
-import datadog.trace.common.writer.ListWriter;
 import io.opentracing.tag.Tags;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.bson.Document;
@@ -18,7 +15,10 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import stackstate.opentracing.DDSpan;
+import stackstate.opentracing.DDTracer;
 import stackstate.trace.agent.test.IntegrationTestUtils;
+import stackstate.trace.common.writer.ListWriter;
 
 public class MongoAsyncClientInstrumentationTest {
   private static MongoClient client;

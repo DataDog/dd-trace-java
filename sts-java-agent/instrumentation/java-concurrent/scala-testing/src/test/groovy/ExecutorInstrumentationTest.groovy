@@ -1,5 +1,5 @@
-import datadog.opentracing.DDSpan
-import datadog.trace.api.Trace
+import stackstate.opentracing.DDSpan
+import stackstate.trace.api.Trace
 import spock.lang.Shared
 import spock.lang.Unroll
 import stackstate.trace.agent.test.AgentTestRunner

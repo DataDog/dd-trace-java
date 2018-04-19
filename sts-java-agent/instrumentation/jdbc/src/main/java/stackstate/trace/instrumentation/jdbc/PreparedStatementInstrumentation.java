@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.api.DDTags;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.noop.NoopScopeManager;
@@ -24,6 +23,7 @@ import net.bytebuddy.asm.Advice;
 import stackstate.trace.agent.tooling.DDAdvice;
 import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.api.DDTags;
 import stackstate.trace.bootstrap.JDBCMaps;
 
 @AutoService(Instrumenter.class)

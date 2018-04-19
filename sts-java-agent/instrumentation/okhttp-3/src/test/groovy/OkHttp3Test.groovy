@@ -1,4 +1,4 @@
-import datadog.trace.api.DDTags
+import stackstate.trace.api.DDTags
 import io.opentracing.tag.Tags
 import okhttp3.OkHttpClient
 import okhttp3.Request

@@ -1,7 +1,7 @@
-import datadog.opentracing.DDSpan
-import datadog.opentracing.DDTracer
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.common.writer.ListWriter
+import stackstate.opentracing.DDSpan
+import stackstate.opentracing.DDTracer
+import stackstate.trace.api.DDSpanTypes
+import stackstate.trace.common.writer.ListWriter
 import io.opentracing.util.GlobalTracer
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient

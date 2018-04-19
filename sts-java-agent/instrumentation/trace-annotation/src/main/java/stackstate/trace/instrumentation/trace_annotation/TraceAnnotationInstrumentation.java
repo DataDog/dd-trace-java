@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.hasSuperType;
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.api.Trace;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.tag.Tags;
@@ -19,6 +18,7 @@ import net.bytebuddy.asm.Advice;
 import stackstate.trace.agent.tooling.DDAdvice;
 import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.api.Trace;
 
 @AutoService(Instrumenter.class)
 public final class TraceAnnotationInstrumentation extends Instrumenter.Configurable {

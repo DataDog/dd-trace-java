@@ -1,7 +1,7 @@
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.Session
-import datadog.opentracing.DDSpan
-import datadog.trace.api.DDTags
+import stackstate.opentracing.DDSpan
+import stackstate.trace.api.DDTags
 import io.opentracing.tag.Tags
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper
 import spock.lang.Timeout

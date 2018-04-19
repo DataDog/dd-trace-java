@@ -3,9 +3,6 @@ package stackstate.trace.agent.integration;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import datadog.opentracing.DDSpan;
-import datadog.opentracing.DDTracer;
-import datadog.trace.common.writer.ListWriter;
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.MongodStarter;
@@ -21,7 +18,10 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import stackstate.opentracing.DDSpan;
+import stackstate.opentracing.DDTracer;
 import stackstate.trace.agent.test.IntegrationTestUtils;
+import stackstate.trace.common.writer.ListWriter;
 
 public class MongoClientInstrumentationTest {
   public static final String MONGO_DB_NAME = "embedded";

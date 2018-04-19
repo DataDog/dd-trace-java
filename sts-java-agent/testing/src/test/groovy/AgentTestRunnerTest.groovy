@@ -25,7 +25,7 @@ class AgentTestRunnerTest extends AgentTestRunner {
     !AGENT_INSTALLED_IN_CLINIT
     getTestTracer() == TestUtils.getUnderlyingGlobalTracer()
     getAgentTransformer() != null
-    datadog.trace.api.Trace.getClassLoader() == BOOTSTRAP_CLASSLOADER
+    stackstate.trace.api.Trace.getClassLoader() == BOOTSTRAP_CLASSLOADER
   }
 
   def "logging works"() {

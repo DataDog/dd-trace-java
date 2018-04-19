@@ -1,9 +1,9 @@
 package stackstate.trace.agent.integration.httpclient
 
-import datadog.opentracing.DDSpan
-import datadog.opentracing.DDTracer
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.common.writer.ListWriter
+import stackstate.opentracing.DDSpan
+import stackstate.opentracing.DDTracer
+import stackstate.trace.api.DDSpanTypes
+import stackstate.trace.common.writer.ListWriter
 import io.opentracing.tag.Tags
 import org.apache.http.HttpResponse
 import org.apache.http.client.HttpClient

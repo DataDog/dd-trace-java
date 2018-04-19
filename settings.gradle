@@ -1,6 +1,6 @@
 rootProject.name = 'sts-trace-java'
 
-include ':dd-trace-ot'
+include ':sts-trace-ot'
 include ':sts-java-agent'
 include ':sts-java-agent:agent-bootstrap'
 include ':sts-java-agent:agent-tooling'

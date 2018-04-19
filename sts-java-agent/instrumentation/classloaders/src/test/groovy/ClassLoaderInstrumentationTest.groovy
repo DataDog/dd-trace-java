@@ -1,4 +1,4 @@
-import datadog.opentracing.DDTracer
+import stackstate.opentracing.DDTracer
 import stackstate.trace.agent.test.AgentTestRunner
 import stackstate.trace.agent.test.TestUtils
 

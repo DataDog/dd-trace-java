@@ -15,7 +15,7 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 dependencies {
-  compile project(':dd-trace-ot')
+  compile project(':sts-trace-ot')
 
   compile 'com.sparkjava:spark-core:2.6.0'
   compile 'org.mongodb:mongodb-driver:3.4.2'

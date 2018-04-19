@@ -7,8 +7,6 @@ import com.mongodb.connection.ClusterId;
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.connection.ServerId;
 import com.mongodb.event.CommandStartedEvent;
-import datadog.opentracing.DDSpan;
-import datadog.opentracing.DDTracer;
 import io.opentracing.tag.Tags;
 import java.util.Arrays;
 import java.util.List;
@@ -16,6 +14,8 @@ import org.bson.BsonArray;
 import org.bson.BsonDocument;
 import org.bson.BsonString;
 import org.junit.Test;
+import stackstate.opentracing.DDSpan;
+import stackstate.opentracing.DDTracer;
 
 public class MongoClientInstrumentationTest {
 

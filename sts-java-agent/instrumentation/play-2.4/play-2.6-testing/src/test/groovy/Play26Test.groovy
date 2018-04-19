@@ -1,4 +1,4 @@
-import datadog.opentracing.DDSpan
+import stackstate.opentracing.DDSpan
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import play.api.test.TestServer

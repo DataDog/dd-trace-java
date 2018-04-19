@@ -9,8 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.api.DDSpanTypes;
-import datadog.trace.api.DDTags;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.propagation.Format;
@@ -24,6 +22,8 @@ import stackstate.trace.agent.tooling.DDAdvice;
 import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.api.DDSpanTypes;
+import stackstate.trace.api.DDTags;
 
 @AutoService(Instrumenter.class)
 public final class KafkaConsumerInstrumentation extends Instrumenter.Configurable {

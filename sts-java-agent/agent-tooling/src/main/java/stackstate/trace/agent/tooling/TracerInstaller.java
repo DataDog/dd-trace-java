@@ -1,9 +1,9 @@
 package stackstate.trace.agent.tooling;
 
-import datadog.opentracing.DDTracer;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
 import lombok.extern.slf4j.Slf4j;
+import stackstate.opentracing.DDTracer;
 
 @Slf4j
 public class TracerInstaller {

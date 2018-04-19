@@ -1,4 +1,4 @@
-import datadog.trace.api.DDSpanTypes
+import stackstate.trace.api.DDSpanTypes
 import org.apache.activemq.ActiveMQConnectionFactory
 import org.apache.activemq.ActiveMQMessageConsumer
 import org.apache.activemq.ActiveMQMessageProducer

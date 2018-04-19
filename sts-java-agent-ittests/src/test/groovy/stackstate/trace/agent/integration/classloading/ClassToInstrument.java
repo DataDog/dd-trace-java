@@ -1,6 +1,6 @@
 package stackstate.trace.agent.integration.classloading;
 
-import datadog.trace.api.Trace;
+import stackstate.trace.api.Trace;
 
 class ClassToInstrument {
   @Trace

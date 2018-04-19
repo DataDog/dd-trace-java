@@ -2,8 +2,6 @@ package stackstate.trace.instrumentation.apachehttpclient;
 
 import static io.opentracing.log.Fields.ERROR_OBJECT;
 
-import datadog.trace.api.DDSpanTypes;
-import datadog.trace.api.DDTags;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
@@ -25,6 +23,8 @@ import org.apache.http.client.methods.HttpRequestWrapper;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.conn.routing.HttpRoute;
 import org.apache.http.impl.execchain.ClientExecChain;
+import stackstate.trace.api.DDSpanTypes;
+import stackstate.trace.api.DDTags;
 
 /**
  * Tracing is added before {@link org.apache.http.impl.execchain.ProtocolExec} which is invoked as

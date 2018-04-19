@@ -1,6 +1,6 @@
 package stackstate.trace.agent.integration.classloading
 
-import datadog.trace.api.Trace
+import stackstate.trace.api.Trace
 import spock.lang.Specification
 import spock.lang.Timeout
 import stackstate.trace.agent.test.IntegrationTestUtils

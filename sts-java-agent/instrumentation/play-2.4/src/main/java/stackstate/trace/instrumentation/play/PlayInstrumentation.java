@@ -6,8 +6,6 @@ import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasCl
 
 import akka.japi.JavaPartialFunction;
 import com.google.auto.service.AutoService;
-import datadog.trace.api.DDSpanTypes;
-import datadog.trace.api.DDTags;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -27,6 +25,8 @@ import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Future;
 import stackstate.trace.agent.tooling.*;
+import stackstate.trace.api.DDSpanTypes;
+import stackstate.trace.api.DDTags;
 
 @Slf4j
 @AutoService(Instrumenter.class)

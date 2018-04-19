@@ -12,8 +12,6 @@ import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasCl
 import static stackstate.trace.instrumentation.jms.util.JmsUtil.toResourceName;
 
 import com.google.auto.service.AutoService;
-import datadog.trace.api.DDSpanTypes;
-import datadog.trace.api.DDTags;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.propagation.Format;
@@ -29,6 +27,8 @@ import net.bytebuddy.asm.Advice;
 import stackstate.trace.agent.tooling.DDAdvice;
 import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.api.DDSpanTypes;
+import stackstate.trace.api.DDTags;
 import stackstate.trace.instrumentation.jms.util.MessagePropertyTextMap;
 
 @AutoService(Instrumenter.class)

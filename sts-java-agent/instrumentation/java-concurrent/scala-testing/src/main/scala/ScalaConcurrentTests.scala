@@ -1,4 +1,4 @@
-import datadog.trace.api.Trace
+import stackstate.trace.api.Trace
 import io.opentracing.util.GlobalTracer
 
 import scala.concurrent.duration._

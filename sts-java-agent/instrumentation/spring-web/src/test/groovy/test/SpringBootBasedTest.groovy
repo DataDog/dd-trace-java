@@ -1,6 +1,6 @@
 package test
 
-import datadog.trace.api.DDSpanTypes
+import stackstate.trace.api.DDSpanTypes
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.embedded.LocalServerPort
 import org.springframework.boot.test.context.SpringBootTest

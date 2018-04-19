@@ -2,17 +2,17 @@ package stackstate.trace.agent.instrumentation.annotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import datadog.opentracing.DDSpan;
-import datadog.opentracing.DDTracer;
-import datadog.opentracing.decorators.ErrorFlag;
-import datadog.trace.common.writer.ListWriter;
 import io.opentracing.util.GlobalTracer;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import org.junit.Before;
 import org.junit.Test;
+import stackstate.opentracing.DDSpan;
+import stackstate.opentracing.DDTracer;
+import stackstate.opentracing.decorators.ErrorFlag;
 import stackstate.trace.agent.test.IntegrationTestUtils;
 import stackstate.trace.agent.test.SayTracedHello;
+import stackstate.trace.common.writer.ListWriter;
 
 public class TraceAnnotationsTest {
   private final ListWriter writer = new ListWriter();

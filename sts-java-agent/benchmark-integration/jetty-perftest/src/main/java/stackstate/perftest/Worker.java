@@ -1,9 +1,9 @@
 package stackstate.perftest;
 
-import datadog.trace.api.Trace;
 import io.opentracing.Span;
 import io.opentracing.util.GlobalTracer;
 import java.util.concurrent.TimeUnit;
+import stackstate.trace.api.Trace;
 
 public class Worker {
 

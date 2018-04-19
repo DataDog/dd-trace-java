@@ -1,9 +1,9 @@
 package stackstate.trace.agent.test;
 
-import datadog.trace.api.DDTags;
-import datadog.trace.api.Trace;
 import io.opentracing.tag.StringTag;
 import io.opentracing.util.GlobalTracer;
+import stackstate.trace.api.DDTags;
+import stackstate.trace.api.Trace;
 
 public class SayTracedHello {
 

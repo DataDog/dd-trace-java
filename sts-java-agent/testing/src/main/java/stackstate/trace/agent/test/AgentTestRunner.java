@@ -2,10 +2,6 @@ package stackstate.trace.agent.test;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
-import datadog.opentracing.DDSpan;
-import datadog.opentracing.DDTracer;
-import datadog.trace.common.writer.ListWriter;
-import datadog.trace.common.writer.Writer;
 import io.opentracing.Tracer;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -25,8 +21,12 @@ import org.junit.runner.RunWith;
 import org.slf4j.LoggerFactory;
 import org.spockframework.runtime.model.SpecMetadata;
 import spock.lang.Specification;
+import stackstate.opentracing.DDSpan;
+import stackstate.opentracing.DDTracer;
 import stackstate.trace.agent.tooling.AgentInstaller;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.common.writer.ListWriter;
+import stackstate.trace.common.writer.Writer;
 
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace

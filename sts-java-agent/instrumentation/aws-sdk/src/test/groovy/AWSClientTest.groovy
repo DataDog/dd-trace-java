@@ -7,7 +7,7 @@ import com.amazonaws.handlers.RequestHandler2
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import datadog.trace.api.DDTags
+import stackstate.trace.api.DDTags
 import io.opentracing.tag.Tags
 import ratpack.http.Headers
 import spock.lang.Timeout

@@ -1,5 +1,5 @@
-import datadog.opentracing.DDSpan
-import datadog.trace.api.DDTags
+import stackstate.opentracing.DDSpan
+import stackstate.trace.api.DDTags
 import io.opentracing.tag.Tags
 import redis.clients.jedis.Jedis
 import redis.embedded.RedisServer
