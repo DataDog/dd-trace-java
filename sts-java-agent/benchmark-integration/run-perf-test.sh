@@ -26,7 +26,7 @@ if [ "$agent_pid" = "" ]; then
     writer_type="LoggingWriter"
 else
     echo "sending traces to local trace agent: $agent_pid"
-    writer_type="DDAgentWriter"
+    writer_type="STSAgentWriter"
 fi
 
 if [ -f perf-test-settings.rc ]; then
@@ -47,7 +47,7 @@ function start_server {
     agent_jar="$1"
     javaagent_arg=""
     if [ "$agent_jar" != "" -a -f "$agent_jar" ]; then
-        javaagent_arg="-javaagent:$agent_jar -Ddatadog.slf4j.simpleLogger.defaultLogLevel=off -Ddd.writer.type=$writer_type -Ddd.service.name=perf-test-app"
+        javaagent_arg="-javaagent:$agent_jar -Dstackstate.slf4j.simpleLogger.defaultLogLevel=off -Dsts.writer.type=$writer_type -Dsts.service.name=perf-test-app"
     fi
     echo "starting server: java $javaagent_arg -jar $server_jar"
     { /usr/bin/time -l java $javaagent_arg -Xms256m -Xmx256m -jar $server_jar ; } 2> $server_output  &

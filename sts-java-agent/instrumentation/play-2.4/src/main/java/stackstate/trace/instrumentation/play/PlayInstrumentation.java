@@ -25,8 +25,8 @@ import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Future;
 import stackstate.trace.agent.tooling.*;
-import stackstate.trace.api.DDSpanTypes;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
 
 @Slf4j
 @AutoService(Instrumenter.class)
@@ -63,9 +63,9 @@ public final class PlayInstrumentation extends Instrumenter.Configurable {
             declaresMethod(
                 named("executionContext").and(returns(named("scala.concurrent.ExecutionContext")))))
         .transform(PLAY_HELPERS)
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     named("apply")
                         .and(takesArgument(0, named("play.api.mvc.Request")))
@@ -112,12 +112,12 @@ public final class PlayInstrumentation extends Instrumenter.Configurable {
         final String path = (String) pathOption.get();
         scope.span().setTag(Tags.HTTP_URL.getKey(), path);
         scope.span().setOperationName(path);
-        scope.span().setTag(DDTags.RESOURCE_NAME, req.method() + " " + path);
+        scope.span().setTag(STSTags.RESOURCE_NAME, req.method() + " " + path);
       }
 
       scope.span().setTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER);
       scope.span().setTag(Tags.HTTP_METHOD.getKey(), req.method());
-      scope.span().setTag(DDTags.SPAN_TYPE, DDSpanTypes.WEB_SERVLET);
+      scope.span().setTag(STSTags.SPAN_TYPE, STSSpanTypes.WEB_SERVLET);
       scope.span().setTag(Tags.COMPONENT.getKey(), "play-action");
 
       if (throwable == null) {

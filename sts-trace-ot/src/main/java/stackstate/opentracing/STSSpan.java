@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.api.STSTags;
 import stackstate.trace.api.interceptor.MutableSpan;
 import stackstate.trace.common.sampling.PrioritySampling;
 import stackstate.trace.common.util.Clock;
@@ -23,14 +23,14 @@ import stackstate.trace.common.util.Clock;
 /**
  * Represents a period of time. Associated information is stored in the SpanContext.
  *
- * <p>Spans are created by the {@link DDTracer#buildSpan}. This implementation adds some features
+ * <p>Spans are created by the {@link STSTracer#buildSpan}. This implementation adds some features
  * according to the STS agent.
  */
 @Slf4j
-public class DDSpan implements Span, MutableSpan {
+public class STSSpan implements Span, MutableSpan {
 
   /** The context attached to the span */
-  private final DDSpanContext context;
+  private final STSSpanContext context;
 
   /** Creation time of the span in microseconds. Must be greater than zero. */
   private final long startTimeMicro;
@@ -45,7 +45,7 @@ public class DDSpan implements Span, MutableSpan {
   private final AtomicLong durationNano = new AtomicLong();
 
   /** Implementation detail. Stores the weak reference to this span. Used by TraceCollection. */
-  volatile WeakReference<DDSpan> ref;
+  volatile WeakReference<STSSpan> ref;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -53,7 +53,7 @@ public class DDSpan implements Span, MutableSpan {
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  DDSpan(final long timestampMicro, final DDSpanContext context) {
+  STSSpan(final long timestampMicro, final STSSpanContext context) {
 
     this.context = context;
 
@@ -111,7 +111,7 @@ public class DDSpan implements Span, MutableSpan {
   }
 
   @Override
-  public DDSpan setError(final boolean error) {
+  public STSSpan setError(final boolean error) {
     context.setErrorFlag(true);
     return this;
   }
@@ -119,12 +119,12 @@ public class DDSpan implements Span, MutableSpan {
   public void setErrorMeta(final Throwable error) {
     setError(true);
 
-    setTag(DDTags.ERROR_MSG, error.getMessage());
-    setTag(DDTags.ERROR_TYPE, error.getClass().getName());
+    setTag(STSTags.ERROR_MSG, error.getMessage());
+    setTag(STSTags.ERROR_TYPE, error.getClass().getName());
 
     final StringWriter errorString = new StringWriter();
     error.printStackTrace(new PrintWriter(errorString));
-    setTag(DDTags.ERROR_STACK, errorString.toString());
+    setTag(STSTags.ERROR_STACK, errorString.toString());
   }
 
   private boolean extractError(final Map<String, ?> map) {
@@ -140,7 +140,7 @@ public class DDSpan implements Span, MutableSpan {
    * @see io.opentracing.BaseSpan#setTag(java.lang.String, java.lang.String)
    */
   @Override
-  public final DDSpan setTag(final String tag, final String value) {
+  public final STSSpan setTag(final String tag, final String value) {
     this.context().setTag(tag, (Object) value);
     return this;
   }
@@ -149,7 +149,7 @@ public class DDSpan implements Span, MutableSpan {
    * @see io.opentracing.BaseSpan#setTag(java.lang.String, boolean)
    */
   @Override
-  public final DDSpan setTag(final String tag, final boolean value) {
+  public final STSSpan setTag(final String tag, final boolean value) {
     this.context().setTag(tag, (Object) value);
     return this;
   }
@@ -158,7 +158,7 @@ public class DDSpan implements Span, MutableSpan {
    * @see io.opentracing.BaseSpan#setTag(java.lang.String, java.lang.Number)
    */
   @Override
-  public final DDSpan setTag(final String tag, final Number value) {
+  public final STSSpan setTag(final String tag, final Number value) {
     this.context().setTag(tag, (Object) value);
     return this;
   }
@@ -167,7 +167,7 @@ public class DDSpan implements Span, MutableSpan {
    * @see io.opentracing.BaseSpan#context()
    */
   @Override
-  public final DDSpanContext context() {
+  public final STSSpanContext context() {
     return this.context;
   }
 
@@ -183,7 +183,7 @@ public class DDSpan implements Span, MutableSpan {
    * @see io.opentracing.BaseSpan#setBaggageItem(java.lang.String, java.lang.String)
    */
   @Override
-  public final DDSpan setBaggageItem(final String key, final String value) {
+  public final STSSpan setBaggageItem(final String key, final String value) {
     this.context.setBaggageItem(key, value);
     return this;
   }
@@ -192,7 +192,7 @@ public class DDSpan implements Span, MutableSpan {
    * @see io.opentracing.BaseSpan#setOperationName(java.lang.String)
    */
   @Override
-  public final DDSpan setOperationName(final String operationName) {
+  public final STSSpan setOperationName(final String operationName) {
     this.context().setOperationName(operationName);
     return this;
   }
@@ -201,7 +201,7 @@ public class DDSpan implements Span, MutableSpan {
    * @see io.opentracing.BaseSpan#log(java.util.Map)
    */
   @Override
-  public final DDSpan log(final Map<String, ?> map) {
+  public final STSSpan log(final Map<String, ?> map) {
     if (!extractError(map)) {
       log.debug("`log` method is not implemented. Doing nothing");
     }
@@ -212,7 +212,7 @@ public class DDSpan implements Span, MutableSpan {
    * @see io.opentracing.BaseSpan#log(long, java.util.Map)
    */
   @Override
-  public final DDSpan log(final long l, final Map<String, ?> map) {
+  public final STSSpan log(final long l, final Map<String, ?> map) {
     if (!extractError(map)) {
       log.debug("`log` method is not implemented. Doing nothing");
     }
@@ -223,7 +223,7 @@ public class DDSpan implements Span, MutableSpan {
    * @see io.opentracing.BaseSpan#log(java.lang.String)
    */
   @Override
-  public final DDSpan log(final String s) {
+  public final STSSpan log(final String s) {
     log.debug("`log` method is not implemented. Provided log: {}", s);
     return this;
   }
@@ -232,19 +232,19 @@ public class DDSpan implements Span, MutableSpan {
    * @see io.opentracing.BaseSpan#log(long, java.lang.String)
    */
   @Override
-  public final DDSpan log(final long l, final String s) {
+  public final STSSpan log(final long l, final String s) {
     log.debug("`log` method is not implemented. Provided log: {}", s);
     return this;
   }
 
   @Override
-  public final DDSpan setServiceName(final String serviceName) {
+  public final STSSpan setServiceName(final String serviceName) {
     this.context().setServiceName(serviceName);
     return this;
   }
 
   @Override
-  public final DDSpan setResourceName(final String resourceName) {
+  public final STSSpan setResourceName(final String resourceName) {
     this.context().setResourceName(resourceName);
     return this;
   }
@@ -255,13 +255,13 @@ public class DDSpan implements Span, MutableSpan {
    * <p>Has no effect if the span priority has been propagated (injected or extracted).
    */
   @Override
-  public final DDSpan setSamplingPriority(final int newPriority) {
+  public final STSSpan setSamplingPriority(final int newPriority) {
     this.context().setSamplingPriority(newPriority);
     return this;
   }
 
   @Override
-  public final DDSpan setSpanType(final String type) {
+  public final STSSpan setSpanType(final String type) {
     this.context().setSpanType(type);
     return this;
   }

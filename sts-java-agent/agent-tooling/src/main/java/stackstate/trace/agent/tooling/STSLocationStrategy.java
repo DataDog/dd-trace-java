@@ -11,7 +11,7 @@ import net.bytebuddy.utility.JavaModule;
  * resource, check up the classloader hierarchy until a resource is found or the bootstrap loader is
  * reached.
  */
-public class DDLocationStrategy implements AgentBuilder.LocationStrategy {
+public class STSLocationStrategy implements AgentBuilder.LocationStrategy {
   private static final ClassLoader BOOTSTRAP_RESOURCE_LOCATOR = new ClassLoader(null) {};
 
   @Override

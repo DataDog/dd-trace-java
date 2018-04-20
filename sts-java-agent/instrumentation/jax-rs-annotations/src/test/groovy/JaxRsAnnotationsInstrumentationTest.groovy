@@ -1,4 +1,4 @@
-import stackstate.opentracing.DDSpanContext
+import stackstate.opentracing.STSSpanContext
 import io.opentracing.util.GlobalTracer
 import spock.lang.Timeout
 import spock.lang.Unroll
@@ -13,7 +13,7 @@ class JaxRsAnnotationsInstrumentationTest extends AgentTestRunner {
   def "span named '#resourceName' from annotations on class"() {
     setup:
     def scope = GlobalTracer.get().buildSpan("test").startActive(false)
-    DDSpanContext spanContext = scope.span().context()
+    STSSpanContext spanContext = scope.span().context()
     obj.call()
 
     expect:

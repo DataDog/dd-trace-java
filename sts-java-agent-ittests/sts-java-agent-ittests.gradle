@@ -38,7 +38,7 @@ dependencies {
 }
 
 test {
-  jvmArgs "-Ddd.writer.type=LogWriter", "-Ddd.service.name=java-app"
+  jvmArgs "-Dsts.writer.type=LogWriter", "-Dsts.service.name=java-app"
   jvmArgs "-Dstackstate.slf4j.simpleLogger.defaultLogLevel=debug"
   jvmArgs "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
 

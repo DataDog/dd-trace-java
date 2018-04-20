@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
-import stackstate.opentracing.DDSpan;
+import stackstate.opentracing.STSSpan;
 
 public abstract class AbstractSampler implements Sampler {
 
@@ -12,7 +12,7 @@ public abstract class AbstractSampler implements Sampler {
   protected Map<String, Pattern> skipTagsPatterns = new HashMap<>();
 
   @Override
-  public boolean sample(final DDSpan span) {
+  public boolean sample(final STSSpan span) {
 
     // Filter by tag values
     for (final Entry<String, Pattern> entry : skipTagsPatterns.entrySet()) {
@@ -39,5 +39,5 @@ public abstract class AbstractSampler implements Sampler {
     skipTagsPatterns.put(tag, skipPattern);
   }
 
-  protected abstract boolean doSample(DDSpan span);
+  protected abstract boolean doSample(STSSpan span);
 }

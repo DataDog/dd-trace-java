@@ -14,8 +14,8 @@ import org.bson.BsonArray;
 import org.bson.BsonDocument;
 import org.bson.BsonString;
 import org.junit.Test;
-import stackstate.opentracing.DDSpan;
-import stackstate.opentracing.DDTracer;
+import stackstate.opentracing.STSSpan;
+import stackstate.opentracing.STSTracer;
 
 public class MongoClientInstrumentationTest {
 
@@ -28,8 +28,8 @@ public class MongoClientInstrumentationTest {
     final CommandStartedEvent cmd =
         new CommandStartedEvent(1, makeConnection(), "databasename", "query", new BsonDocument());
 
-    final DDSpan span = new DDTracer().buildSpan("foo").start();
-    DDTracingCommandListener.decorate(span, cmd);
+    final STSSpan span = new STSTracer().buildSpan("foo").start();
+    STSTracingCommandListener.decorate(span, cmd);
 
     assertThat(span.context().getSpanType()).isEqualTo("mongodb");
     assertThat(span.context().getResourceName())
@@ -50,8 +50,8 @@ public class MongoClientInstrumentationTest {
       final CommandStartedEvent cmd =
           new CommandStartedEvent(1, makeConnection(), "databasename", "query", query);
 
-      final DDSpan span = new DDTracer().buildSpan("foo").start();
-      DDTracingCommandListener.decorate(span, cmd);
+      final STSSpan span = new STSTracer().buildSpan("foo").start();
+      STSTracingCommandListener.decorate(span, cmd);
 
       assertThat(span.getTags().get(Tags.DB_STATEMENT.getKey()))
           .isEqualTo(query.toString().replaceAll("secret", "?"));

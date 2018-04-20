@@ -17,12 +17,12 @@ import lombok.extern.slf4j.Slf4j;
 import stackstate.opentracing.scopemanager.ContinuableScope;
 
 @Slf4j
-public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
+public class PendingTrace extends ConcurrentLinkedDeque<STSSpan> {
   static {
     SpanCleaner.start();
   }
 
-  private final DDTracer tracer;
+  private final STSTracer tracer;
   private final long traceId;
 
   private final ReferenceQueue referenceQueue = new ReferenceQueue();
@@ -33,20 +33,20 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
   /** Ensure a trace is never written multiple times */
   private final AtomicBoolean isWritten = new AtomicBoolean(false);
 
-  PendingTrace(final DDTracer tracer, final long traceId) {
+  PendingTrace(final STSTracer tracer, final long traceId) {
     this.tracer = tracer;
     this.traceId = traceId;
     SpanCleaner.pendingTraces.add(this);
   }
 
-  public void registerSpan(final DDSpan span) {
+  public void registerSpan(final STSSpan span) {
     if (span.context().getTraceId() != traceId) {
       log.warn("{} - span registered for wrong trace ({})", span, traceId);
       return;
     }
     synchronized (span) {
       if (null == span.ref) {
-        span.ref = new WeakReference<DDSpan>(span, referenceQueue);
+        span.ref = new WeakReference<STSSpan>(span, referenceQueue);
         weakReferences.add(span.ref);
         final int count = pendingReferenceCount.incrementAndGet();
         log.debug("traceId: {} -- registered span {}. count = {}", traceId, span, count);
@@ -56,7 +56,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
     }
   }
 
-  private void expireSpan(final DDSpan span) {
+  private void expireSpan(final STSSpan span) {
     if (span.context().getTraceId() != traceId) {
       log.warn("{} - span expired for wrong trace ({})", span, traceId);
       return;
@@ -73,7 +73,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
     }
   }
 
-  public void addSpan(final DDSpan span) {
+  public void addSpan(final STSSpan span) {
     if (span.getDurationNano() == 0) {
       log.warn("{} - added to trace, but not complete.", span);
       return;
@@ -172,7 +172,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
   private static class SpanCleaner implements Runnable {
     private static final long CLEAN_FREQUENCY = 1;
     private static final ThreadFactory FACTORY =
-        new ThreadFactoryBuilder().setNameFormat("dd-span-cleaner-%d").setDaemon(true).build();
+        new ThreadFactoryBuilder().setNameFormat("sts-span-cleaner-%d").setDaemon(true).build();
 
     private static final ScheduledExecutorService EXECUTOR_SERVICE =
         Executors.newScheduledThreadPool(1, FACTORY);

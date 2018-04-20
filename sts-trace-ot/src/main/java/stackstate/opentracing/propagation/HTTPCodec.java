@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.opentracing.DDSpanContext;
+import stackstate.opentracing.STSSpanContext;
 import stackstate.trace.common.sampling.PrioritySampling;
 
 /** A codec designed for HTTP transport via headers */
@@ -16,12 +16,12 @@ import stackstate.trace.common.sampling.PrioritySampling;
 public class HTTPCodec implements Codec<TextMap> {
 
   private static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
-  private static final String TRACE_ID_KEY = "x-datadog-trace-id";
-  private static final String SPAN_ID_KEY = "x-datadog-parent-id";
-  private static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
+  private static final String TRACE_ID_KEY = "x-stackstate-trace-id";
+  private static final String SPAN_ID_KEY = "x-stackstate-parent-id";
+  private static final String SAMPLING_PRIORITY_KEY = "x-stackstate-sampling-priority";
 
   @Override
-  public void inject(final DDSpanContext context, final TextMap carrier) {
+  public void inject(final STSSpanContext context, final TextMap carrier) {
     carrier.put(TRACE_ID_KEY, String.valueOf(context.getTraceId()));
     carrier.put(SPAN_ID_KEY, String.valueOf(context.getSpanId()));
     if (context.lockSamplingPriority()) {

@@ -1,11 +1,11 @@
 package stackstate.trace
 
-import stackstate.opentracing.DDTracer
+import stackstate.opentracing.STSTracer
 import stackstate.trace.common.Service
 import stackstate.trace.common.sampling.AllSampler
-import stackstate.trace.common.writer.DDAgentWriter
 import spock.lang.Specification
 import spock.lang.Timeout
+import stackstate.trace.common.writer.STSAgentWriter
 
 import static org.mockito.ArgumentMatchers.any
 import static org.mockito.Mockito.*
@@ -42,7 +42,7 @@ class ServiceTest extends Specification {
   def "add extra info about a specific service"() {
 
     setup:
-    def tracer = new DDTracer()
+    def tracer = new STSTracer()
     def service = new Service("api-intake", "kafka", Service.AppType.CUSTOM)
 
     when:
@@ -57,8 +57,8 @@ class ServiceTest extends Specification {
   def "add a extra info is reported to the writer"() {
 
     setup:
-    def writer = spy(new DDAgentWriter())
-    def tracer = new DDTracer(DDTracer.UNASSIGNED_DEFAULT_SERVICE_NAME, writer, new AllSampler())
+    def writer = spy(new STSAgentWriter())
+    def tracer = new STSTracer(STSTracer.UNASSIGNED_DEFAULT_SERVICE_NAME, writer, new AllSampler())
 
 
     when:

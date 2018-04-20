@@ -1,8 +1,8 @@
 package stackstate.opentracing.propagation
 
-import stackstate.opentracing.DDSpanContext
-import stackstate.opentracing.DDTracer
+import stackstate.opentracing.STSSpanContext
 import stackstate.opentracing.PendingTrace
+import stackstate.opentracing.STSTracer
 import stackstate.trace.common.sampling.PrioritySampling
 import stackstate.trace.common.writer.ListWriter
 import io.opentracing.propagation.TextMapExtractAdapter
@@ -17,19 +17,19 @@ class HTTPCodecTest extends Specification {
   @Shared
   private static final String OT_BAGGAGE_PREFIX = "ot-baggage-"
   @Shared
-  private static final String TRACE_ID_KEY = "x-datadog-trace-id"
+  private static final String TRACE_ID_KEY = "x-stackstate-trace-id"
   @Shared
-  private static final String SPAN_ID_KEY = "x-datadog-parent-id"
+  private static final String SPAN_ID_KEY = "x-stackstate-parent-id"
   @Shared
-  private static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority"
+  private static final String SAMPLING_PRIORITY_KEY = "x-stackstate-sampling-priority"
 
   @Unroll
   def "inject http headers"() {
     setup:
     def writer = new ListWriter()
-    def tracer = new DDTracer(writer)
-    final DDSpanContext mockedContext =
-      new DDSpanContext(
+    def tracer = new STSTracer(writer)
+    final STSSpanContext mockedContext =
+      new STSSpanContext(
         1L,
         2L,
         0L,

@@ -15,9 +15,9 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
 import stackstate.trace.bootstrap.CallDepthThreadLocalMap;
 import stackstate.trace.bootstrap.JDBCMaps;
 
@@ -32,16 +32,16 @@ public final class ConnectionInstrumentation extends Instrumenter.Configurable {
   public AgentBuilder apply(final AgentBuilder agentBuilder) {
     return agentBuilder
         .type(not(isInterface()).and(failSafe(isSubTypeOf(Connection.class))))
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     nameStartsWith("prepare")
                         .and(takesArgument(0, String.class))
                         .and(returns(PreparedStatement.class)),
                     ConnectionPrepareAdvice.class.getName()))
         .transform(
-            DDAdvice.create().advice(isConstructor(), ConnectionConstructorAdvice.class.getName()))
+            STSAdvice.create().advice(isConstructor(), ConnectionConstructorAdvice.class.getName()))
         .asDecorator();
   }
 

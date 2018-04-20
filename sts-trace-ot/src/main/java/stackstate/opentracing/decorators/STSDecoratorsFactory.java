@@ -3,8 +3,8 @@ package stackstate.opentracing.decorators;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Create DDSpanDecorators */
-public class DDDecoratorsFactory {
+/** Create STSSpanDecorators */
+public class STSDecoratorsFactory {
   public static List<AbstractDecorator> createBuiltinDecorators() {
     List<AbstractDecorator> builtin = new ArrayList<AbstractDecorator>(8);
     {

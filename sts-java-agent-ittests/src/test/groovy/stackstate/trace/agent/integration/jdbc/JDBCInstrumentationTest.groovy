@@ -1,6 +1,6 @@
 package stackstate.trace.agent.integration.jdbc
 
-import stackstate.opentracing.DDTracer
+import stackstate.opentracing.STSTracer
 import stackstate.trace.common.writer.ListWriter
 import org.apache.derby.jdbc.EmbeddedDriver
 import org.h2.Driver
@@ -20,7 +20,7 @@ import java.sql.Statement
 class JDBCInstrumentationTest extends Specification {
 
   final ListWriter writer = new ListWriter()
-  final DDTracer tracer = new DDTracer(writer)
+  final STSTracer tracer = new STSTracer(writer)
 
   @Shared
   private Map<String, Connection> connections

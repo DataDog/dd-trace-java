@@ -1,8 +1,8 @@
 package stackstate.trace.agent.test
 
-import stackstate.trace.bootstrap.DatadogClassLoader
 import stackstate.trace.agent.tooling.ClassLoaderMatcher
 import spock.lang.Specification
+import stackstate.trace.bootstrap.StackStateClassLoader
 
 
 class ClassLoaderMatcherTest extends Specification {
@@ -17,7 +17,7 @@ class ClassLoaderMatcherTest extends Specification {
   def "skips agent classloader"() {
     setup:
     URL root = new URL("file://")
-    final URLClassLoader agentLoader = new DatadogClassLoader(root, root, null)
+    final URLClassLoader agentLoader = new StackStateClassLoader(root, root, null)
     expect:
     ClassLoaderMatcher.skipClassLoader().matches(agentLoader)
   }

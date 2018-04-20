@@ -2,7 +2,7 @@ package stackstate.opentracing
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.collect.Maps
-import stackstate.trace.api.DDTags
+import stackstate.trace.api.STSTags
 import stackstate.trace.common.sampling.PrioritySampling
 import stackstate.trace.common.writer.ListWriter
 import spock.lang.Specification
@@ -10,7 +10,7 @@ import spock.lang.Timeout
 import spock.lang.Unroll
 
 @Timeout(5)
-class DDSpanSerializationTest extends Specification {
+class STSSpanSerializationTest extends Specification {
 
   @Unroll
   def "serialize spans"() throws Exception {
@@ -37,9 +37,9 @@ class DDSpanSerializationTest extends Specification {
     expected.put("trace_id", 1l)
 
     def writer = new ListWriter()
-    def tracer = new DDTracer(writer)
-    final DDSpanContext context =
-      new DDSpanContext(
+    def tracer = new STSTracer(writer)
+    final STSSpanContext context =
+      new STSSpanContext(
         1L,
         2L,
         0L,
@@ -54,11 +54,11 @@ class DDSpanSerializationTest extends Specification {
         new PendingTrace(tracer, 1L),
         tracer)
 
-    baggage.put(DDTags.THREAD_NAME, Thread.currentThread().getName())
-    baggage.put(DDTags.THREAD_ID, String.valueOf(Thread.currentThread().getId()))
-    baggage.put(DDTags.SPAN_TYPE, context.getSpanType())
+    baggage.put(STSTags.THREAD_NAME, Thread.currentThread().getName())
+    baggage.put(STSTags.THREAD_ID, String.valueOf(Thread.currentThread().getId()))
+    baggage.put(STSTags.SPAN_TYPE, context.getSpanType())
 
-    DDSpan span = new DDSpan(100L, context)
+    STSSpan span = new STSSpan(100L, context)
     span.finish(133L)
     ObjectMapper serializer = new ObjectMapper()
 

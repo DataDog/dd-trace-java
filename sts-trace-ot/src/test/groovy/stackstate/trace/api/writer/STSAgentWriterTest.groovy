@@ -1,8 +1,8 @@
 package stackstate.trace.api.writer
 
-import stackstate.opentracing.DDSpan
-import stackstate.trace.common.writer.DDAgentWriter
-import stackstate.trace.common.writer.DDApi
+import stackstate.opentracing.STSSpan
+import stackstate.trace.common.writer.STSAgentWriter
+import stackstate.trace.common.writer.STSApi
 import stackstate.trace.common.writer.WriterQueue
 import spock.lang.Specification
 import spock.lang.Timeout
@@ -12,14 +12,14 @@ import static org.mockito.Mockito.mock
 import static org.mockito.Mockito.verifyNoMoreInteractions
 
 @Timeout(10)
-class DDAgentWriterTest extends Specification {
+class STSAgentWriterTest extends Specification {
 
 
   def "calls to the API are scheduled"() {
 
     setup:
-    def api = Mock(DDApi)
-    def writer = new DDAgentWriter(api)
+    def api = Mock(STSApi)
+    def writer = new STSAgentWriter(api)
 
     when:
     writer.start()
@@ -39,15 +39,15 @@ class DDAgentWriterTest extends Specification {
 
     where:
     trace = [newSpanOf(0)]
-    flush_time_wait = (int) (1.2 * (DDAgentWriter.FLUSH_TIME_SECONDS * 1_000))
+    flush_time_wait = (int) (1.2 * (STSAgentWriter.FLUSH_TIME_SECONDS * 1_000))
     tick << [1, 3]
   }
 
   def "check if trace has been added by force"() {
 
     setup:
-    def traces = new WriterQueue<List<DDSpan>>(capacity)
-    def writer = new DDAgentWriter(Mock(DDApi), traces)
+    def traces = new WriterQueue<List<STSSpan>>(capacity)
+    def writer = new STSAgentWriter(Mock(STSApi), traces)
 
     when:
     for (def i = 0; i < capacity; i++) {
@@ -74,8 +74,8 @@ class DDAgentWriterTest extends Specification {
   def "check that are no interactions after close"() {
 
     setup:
-    def api = mock(DDApi)
-    def writer = new DDAgentWriter(api)
+    def api = mock(STSApi)
+    def writer = new STSAgentWriter(api)
     writer.start()
 
     when:
@@ -87,6 +87,6 @@ class DDAgentWriterTest extends Specification {
     verifyNoMoreInteractions(api)
 
     where:
-    flush_time_wait = (int) (1.2 * (DDAgentWriter.FLUSH_TIME_SECONDS * 1_000))
+    flush_time_wait = (int) (1.2 * (STSAgentWriter.FLUSH_TIME_SECONDS * 1_000))
   }
 }

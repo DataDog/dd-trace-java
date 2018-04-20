@@ -14,9 +14,9 @@ import java.util.Collections;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
 
 @AutoService(Instrumenter.class)
 public final class MongoAsyncClientInstrumentation extends Instrumenter.Configurable {
@@ -42,9 +42,9 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Configur
                                         Collections.<TypeDescription.Generic>emptyList())))
                             .and(isPublic()))))
         .transform(MongoClientInstrumentation.MONGO_HELPER_INJECTOR)
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     isMethod().and(isPublic()).and(named("build")).and(takesArguments(0)),
                     MongoAsyncClientAdvice.class.getName()))
@@ -58,7 +58,7 @@ public final class MongoAsyncClientInstrumentation extends Instrumenter.Configur
       // referencing "this" in the method args causes the class to load under a transformer.
       // This bypasses the Builder instrumentation. Casting as a workaround.
       final MongoClientSettings.Builder builder = (MongoClientSettings.Builder) dis;
-      final DDTracingCommandListener listener = new DDTracingCommandListener(GlobalTracer.get());
+      final STSTracingCommandListener listener = new STSTracingCommandListener(GlobalTracer.get());
       builder.addCommandListener(listener);
     }
   }

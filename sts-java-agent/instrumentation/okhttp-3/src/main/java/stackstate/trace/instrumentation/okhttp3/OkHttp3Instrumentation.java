@@ -14,10 +14,10 @@ import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
 
 @AutoService(Instrumenter.class)
 public class OkHttp3Instrumentation extends Instrumenter.Configurable {
@@ -48,9 +48,9 @@ public class OkHttp3Instrumentation extends Instrumenter.Configurable {
                 "io.opentracing.contrib.okhttp3.TracingCallFactory",
                 "io.opentracing.contrib.okhttp3.TracingCallFactory$NetworkInterceptor",
                 "io.opentracing.contrib.okhttp3.TracingCallFactory$1"))
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     isConstructor().and(takesArgument(0, named("okhttp3.OkHttpClient$Builder"))),
                     OkHttp3Advice.class.getName()))

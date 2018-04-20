@@ -6,8 +6,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.opentracing.DDSpan;
-import stackstate.trace.common.writer.DDApi.ResponseListener;
+import stackstate.opentracing.STSSpan;
+import stackstate.trace.common.writer.STSApi.ResponseListener;
 
 /**
  * A rate sampler which maintains different sample rates per service+env name.
@@ -24,14 +24,14 @@ public class RateByServiceSampler implements Sampler, ResponseListener {
   private final Map<String, RateSampler> serviceRates = new HashMap<String, RateSampler>();
 
   @Override
-  public synchronized boolean sample(DDSpan span) {
+  public synchronized boolean sample(STSSpan span) {
     // Priority sampling sends all traces to the core agent, including traces marked dropped.
     // This allows the core agent to collect stats on all traces.
     return true;
   }
 
   /** If span is a root span, set the span context samplingPriority to keep or drop */
-  public void initializeSamplingPriority(DDSpan span) {
+  public void initializeSamplingPriority(STSSpan span) {
     if (span.isRootSpan()) {
       // Run the priority sampler on the new span
       setSamplingPriorityOnSpanContext(span);
@@ -42,7 +42,7 @@ public class RateByServiceSampler implements Sampler, ResponseListener {
     }
   }
 
-  private synchronized void setSamplingPriorityOnSpanContext(DDSpan span) {
+  private synchronized void setSamplingPriorityOnSpanContext(STSSpan span) {
     final String serviceName = span.getServiceName();
     final String env = getSpanEnv(span);
     final String key = "service:" + serviceName + ",env:" + env;
@@ -59,7 +59,7 @@ public class RateByServiceSampler implements Sampler, ResponseListener {
     }
   }
 
-  private static String getSpanEnv(DDSpan span) {
+  private static String getSpanEnv(STSSpan span) {
     return null == span.getTags().get("env") ? "" : String.valueOf(span.getTags().get("env"));
   }
 
@@ -122,7 +122,7 @@ public class RateByServiceSampler implements Sampler, ResponseListener {
     }
 
     @Override
-    public boolean doSample(final DDSpan span) {
+    public boolean doSample(final STSSpan span) {
       final boolean sample = Math.random() <= this.sampleRate;
       log.debug("{} - Span is sampled: {}", span, sample);
       return sample;

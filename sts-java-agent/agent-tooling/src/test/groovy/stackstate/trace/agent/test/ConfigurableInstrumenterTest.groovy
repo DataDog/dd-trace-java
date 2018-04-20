@@ -15,8 +15,8 @@ class ConfigurableInstrumenterTest extends Specification {
   public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
 
   def setup() {
-    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
-    assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+    assert System.getenv().findAll { it.key.startsWith("STS_") }.isEmpty()
+    assert System.getProperties().findAll { it.key.toString().startsWith("sts.") }.isEmpty()
   }
 
   def "default enabled"() {
@@ -53,7 +53,7 @@ class ConfigurableInstrumenterTest extends Specification {
 
   def "default disabled can override to enabled"() {
     setup:
-    System.setProperty("dd.integration.test.enabled", "$enabled")
+    System.setProperty("sts.integration.test.enabled", "$enabled")
     def target = new TestConfigurableInstrumenter("test") {
       @Override
       protected boolean defaultEnabled() {
@@ -73,7 +73,7 @@ class ConfigurableInstrumenterTest extends Specification {
   @Unroll
   def "configure default sys prop as #value"() {
     setup:
-    System.setProperty("dd.integrations.enabled", value)
+    System.setProperty("sts.integrations.enabled", value)
     def target = new TestConfigurableInstrumenter("test")
 
     expect:
@@ -91,7 +91,7 @@ class ConfigurableInstrumenterTest extends Specification {
   @Unroll
   def "configure default env var as #value"() {
     setup:
-    environmentVariables.set("DD_INTEGRATIONS_ENABLED", value)
+    environmentVariables.set("STS_INTEGRATIONS_ENABLED", value)
     def target = new TestConfigurableInstrumenter("test")
 
     expect:
@@ -109,8 +109,8 @@ class ConfigurableInstrumenterTest extends Specification {
   @Unroll
   def "configure sys prop enabled for #value when default is disabled"() {
     setup:
-    System.setProperty("dd.integrations.enabled", "false")
-    System.setProperty("dd.integration.${value}.enabled", "true")
+    System.setProperty("sts.integrations.enabled", "false")
+    System.setProperty("sts.integration.${value}.enabled", "true")
     def target = new TestConfigurableInstrumenter(name, altName)
 
     expect:
@@ -132,12 +132,12 @@ class ConfigurableInstrumenterTest extends Specification {
   @Unroll
   def "configure env var enabled for #value when default is disabled"() {
     setup:
-    environmentVariables.set("DD_INTEGRATIONS_ENABLED", "false")
-    environmentVariables.set("DD_INTEGRATION_${value}_ENABLED", "true")
+    environmentVariables.set("STS_INTEGRATIONS_ENABLED", "false")
+    environmentVariables.set("STS_INTEGRATION_${value}_ENABLED", "true")
     def target = new TestConfigurableInstrumenter(name, altName)
 
     expect:
-    System.getenv("DD_INTEGRATION_${value}_ENABLED") == "true"
+    System.getenv("STS_INTEGRATION_${value}_ENABLED") == "true"
     target.instrument(null) == null
     target.enabled == enabled
     target.applyCalled == enabled

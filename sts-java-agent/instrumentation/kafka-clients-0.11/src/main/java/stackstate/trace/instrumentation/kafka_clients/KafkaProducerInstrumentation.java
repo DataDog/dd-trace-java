@@ -19,18 +19,18 @@ import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.api.DDSpanTypes;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
 
 @AutoService(Instrumenter.class)
 public final class KafkaProducerInstrumentation extends Instrumenter.Configurable {
   public static final HelperInjector HELPER_INJECTOR =
       new HelperInjector(
-          "datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter",
+          "stackstate.trace.instrumentation.kafka_clients.TextMapInjectAdapter",
           KafkaProducerInstrumentation.class.getName() + "$ProducerCallback");
 
   private static final String OPERATION = "kafka.produce";
@@ -48,9 +48,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Configurabl
             classLoaderHasClasses(
                 "org.apache.kafka.common.header.Header", "org.apache.kafka.common.header.Headers"))
         .transform(HELPER_INJECTOR)
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     isMethod()
                         .and(isPublic())
@@ -81,9 +81,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Configurabl
       Tags.COMPONENT.set(span, COMPONENT_NAME);
       Tags.SPAN_KIND.set(span, Tags.SPAN_KIND_PRODUCER);
 
-      span.setTag(DDTags.RESOURCE_NAME, "Produce Topic " + topic);
-      span.setTag(DDTags.SPAN_TYPE, DDSpanTypes.MESSAGE_PRODUCER);
-      span.setTag(DDTags.SERVICE_NAME, "kafka");
+      span.setTag(STSTags.RESOURCE_NAME, "Produce Topic " + topic);
+      span.setTag(STSTags.SPAN_TYPE, STSSpanTypes.MESSAGE_PRODUCER);
+      span.setTag(STSTags.SERVICE_NAME, "kafka");
 
       try {
         GlobalTracer.get()

@@ -21,10 +21,10 @@ import org.bson.BsonArray;
 import org.bson.BsonDocument;
 import org.bson.BsonString;
 import org.bson.BsonValue;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.api.STSTags;
 
 @Slf4j
-public class DDTracingCommandListener implements CommandListener {
+public class STSTracingCommandListener implements CommandListener {
   /**
    * The values of these mongo fields will not be scrubbed out. This allows the non-sensitive
    * collection names to be captured.
@@ -41,7 +41,7 @@ public class DDTracingCommandListener implements CommandListener {
   /** requestID -> span */
   private final Map<Integer, Span> cache = new ConcurrentHashMap<>();
 
-  public DDTracingCommandListener(final Tracer tracer) {
+  public STSTracingCommandListener(final Tracer tracer) {
     this.tracer = tracer;
   }
 
@@ -105,10 +105,10 @@ public class DDTracingCommandListener implements CommandListener {
     Tags.PEER_PORT.set(span, event.getConnectionDescription().getServerAddress().getPort());
     Tags.DB_TYPE.set(span, "mongo");
 
-    // dd-specific tags
-    span.setTag(DDTags.RESOURCE_NAME, mongoCmd);
-    span.setTag(DDTags.SPAN_TYPE, "mongodb");
-    span.setTag(DDTags.SERVICE_NAME, "mongo");
+    // sts-specific tags
+    span.setTag(STSTags.RESOURCE_NAME, mongoCmd);
+    span.setTag(STSTags.SPAN_TYPE, "mongodb");
+    span.setTag(STSTags.SERVICE_NAME, "mongo");
   }
 
   private static BsonDocument scrub(final BsonDocument origin) {

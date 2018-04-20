@@ -9,7 +9,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import stackstate.opentracing.decorators.AbstractDecorator;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.api.STSTags;
 import stackstate.trace.common.sampling.PrioritySampling;
 
 /**
@@ -17,15 +17,15 @@ import stackstate.trace.common.sampling.PrioritySampling;
  * boundaries.
  *
  * <p>SpanContext is logically divided into two pieces: (1) the user-level "Baggage" that propagates
- * across Span boundaries and (2) any Datadog fields that are needed to identify or contextualize
+ * across Span boundaries and (2) any StackState fields that are needed to identify or contextualize
  * the associated Span instance
  */
 @Slf4j
-public class DDSpanContext implements io.opentracing.SpanContext {
+public class STSSpanContext implements io.opentracing.SpanContext {
 
   // Shared with other span contexts
   /** For technical reasons, the ref to the original tracer */
-  private final DDTracer tracer;
+  private final STSTracer tracer;
 
   /** The collection of all span related to this one */
   private final PendingTrace trace;
@@ -47,7 +47,7 @@ public class DDSpanContext implements io.opentracing.SpanContext {
   private volatile String resourceName;
   /** Each span have an operation name describing the current span */
   private volatile String operationName;
-  /** The type of the span. If null, the Datadog Agent will report as a custom */
+  /** The type of the span. If null, the StackState Agent will report as a custom */
   private volatile String spanType;
   /** True indicates that the span reports an error */
   private volatile boolean errorFlag;
@@ -60,7 +60,7 @@ public class DDSpanContext implements io.opentracing.SpanContext {
   private final String threadName = Thread.currentThread().getName();
   private final long threadId = Thread.currentThread().getId();
 
-  public DDSpanContext(
+  public STSSpanContext(
       final long traceId,
       final long spanId,
       final long parentId,
@@ -73,7 +73,7 @@ public class DDSpanContext implements io.opentracing.SpanContext {
       final String spanType,
       final Map<String, Object> tags,
       final PendingTrace trace,
-      final DDTracer tracer) {
+      final STSTracer tracer) {
 
     assert tracer != null;
     assert trace != null;
@@ -222,7 +222,7 @@ public class DDSpanContext implements io.opentracing.SpanContext {
   }
 
   @JsonIgnore
-  public DDTracer getTracer() {
+  public STSTracer getTracer() {
     return this.tracer;
   }
 
@@ -238,13 +238,13 @@ public class DDSpanContext implements io.opentracing.SpanContext {
       return;
     }
 
-    if (tag.equals(DDTags.SERVICE_NAME)) {
+    if (tag.equals(STSTags.SERVICE_NAME)) {
       setServiceName(value.toString());
       return;
-    } else if (tag.equals(DDTags.RESOURCE_NAME)) {
+    } else if (tag.equals(STSTags.RESOURCE_NAME)) {
       setResourceName(value.toString());
       return;
-    } else if (tag.equals(DDTags.SPAN_TYPE)) {
+    } else if (tag.equals(STSTags.SPAN_TYPE)) {
       setSpanType(value.toString());
       return;
     }
@@ -273,11 +273,11 @@ public class DDSpanContext implements io.opentracing.SpanContext {
   }
 
   public synchronized Map<String, Object> getTags() {
-    tags.put(DDTags.THREAD_NAME, threadName);
-    tags.put(DDTags.THREAD_ID, threadId);
+    tags.put(STSTags.THREAD_NAME, threadName);
+    tags.put(STSTags.THREAD_ID, threadId);
     final String spanType = getSpanType();
     if (spanType != null) {
-      tags.put(DDTags.SPAN_TYPE, spanType);
+      tags.put(STSTags.SPAN_TYPE, spanType);
     }
     return Collections.unmodifiableMap(tags);
   }

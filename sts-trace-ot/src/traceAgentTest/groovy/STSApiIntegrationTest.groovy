@@ -1,12 +1,12 @@
 import com.fasterxml.jackson.databind.JsonNode
-import stackstate.opentracing.DDSpan
-import stackstate.opentracing.DDSpanContext
-import stackstate.opentracing.DDTracer
+import stackstate.opentracing.STSSpan
+import stackstate.opentracing.STSSpanContext
 import stackstate.opentracing.PendingTrace
+import stackstate.opentracing.STSTracer
 import stackstate.trace.common.Service
 import stackstate.trace.common.sampling.PrioritySampling
-import stackstate.trace.common.writer.DDAgentWriter
-import stackstate.trace.common.writer.DDApi
+import stackstate.trace.common.writer.STSAgentWriter
+import stackstate.trace.common.writer.STSApi
 import stackstate.trace.common.writer.ListWriter
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -14,11 +14,11 @@ import spock.lang.Unroll
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-class DDApiIntegrationTest {
-  static class DDApiIntegrationV4Test extends Specification {
+class STSApiIntegrationTest {
+  static class STSApiIntegrationV4Test extends Specification {
     static final WRITER = new ListWriter()
-    static final TRACER = new DDTracer(WRITER)
-    static final CONTEXT = new DDSpanContext(
+    static final TRACER = new STSTracer(WRITER)
+    static final CONTEXT = new STSSpanContext(
       1L,
       1L,
       0L,
@@ -33,12 +33,12 @@ class DDApiIntegrationTest {
       new PendingTrace(TRACER, 1L),
       TRACER)
 
-    def api = new DDApi(DDAgentWriter.DEFAULT_HOSTNAME, DDAgentWriter.DEFAULT_PORT, v4())
+    def api = new STSApi(STSAgentWriter.DEFAULT_HOSTNAME, STSAgentWriter.DEFAULT_PORT, v4())
 
     def endpoint = new AtomicReference<String>(null)
     def agentResponse = new AtomicReference<String>(null)
 
-    DDApi.ResponseListener responseListener = { String receivedEndpoint, JsonNode responseJson ->
+    STSApi.ResponseListener responseListener = { String receivedEndpoint, JsonNode responseJson ->
       endpoint.set(receivedEndpoint)
       agentResponse.set(responseJson.toString())
     }
@@ -61,11 +61,11 @@ class DDApiIntegrationTest {
       }
 
       where:
-      traces                                                                              | test
-      []                                                                                  | 1
-      [[], []]                                                                            | 2
-      [[new DDSpan(1, CONTEXT)]]                                                          | 3
-      [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4
+      traces                                                                               | test
+      []                                                                                   | 1
+      [[], []]                                                                             | 2
+      [[new STSSpan(1, CONTEXT)]]                                                          | 3
+      [[new STSSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4
     }
 
     def "Sending services succeeds"() {
@@ -94,7 +94,7 @@ class DDApiIntegrationTest {
     }
   }
 
-  static class DDApiIntegrationV3Test extends DDApiIntegrationV4Test {
+  static class STSApiIntegrationV3Test extends STSApiIntegrationV4Test {
     boolean v4() {
       return false
     }

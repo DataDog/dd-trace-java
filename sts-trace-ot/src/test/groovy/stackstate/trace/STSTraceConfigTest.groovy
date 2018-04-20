@@ -1,9 +1,8 @@
 package stackstate.trace
 
-import stackstate.opentracing.DDTracer
-import stackstate.trace.common.DDTraceConfig
+import stackstate.opentracing.STSTracer
+import stackstate.trace.common.STSTraceConfig
 import stackstate.trace.common.sampling.AllSampler
-import stackstate.trace.common.writer.DDAgentWriter
 import stackstate.trace.common.writer.ListWriter
 import stackstate.trace.common.writer.LoggingWriter
 import org.junit.Rule
@@ -12,11 +11,12 @@ import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Specification
 import spock.lang.Timeout
 import spock.lang.Unroll
+import stackstate.trace.common.writer.STSAgentWriter
 
-import static stackstate.trace.common.DDTraceConfig.*
+import static stackstate.trace.common.STSTraceConfig.*
 
 @Timeout(1)
-class DDTraceConfigTest extends Specification {
+class STSTraceConfigTest extends Specification {
   @Rule
   public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
   @Rule
@@ -32,20 +32,20 @@ class DDTraceConfigTest extends Specification {
 
   def "verify defaults"() {
     when:
-    def config = new DDTraceConfig()
+    def config = new STSTraceConfig()
 
     then:
     config.getProperty(SERVICE_NAME) == "unnamed-java-app"
-    config.getProperty(WRITER_TYPE) == "DDAgentWriter"
+    config.getProperty(WRITER_TYPE) == "STSAgentWriter"
     config.getProperty(AGENT_HOST) == "localhost"
     config.getProperty(AGENT_PORT) == "8126"
 
     when:
-    config = new DDTraceConfig("A different service name")
+    config = new STSTraceConfig("A different service name")
 
     then:
     config.getProperty(SERVICE_NAME) == "A different service name"
-    config.getProperty(WRITER_TYPE) == "DDAgentWriter"
+    config.getProperty(WRITER_TYPE) == "STSAgentWriter"
     config.getProperty(AGENT_HOST) == "localhost"
     config.getProperty(AGENT_PORT) == "8126"
   }
@@ -54,7 +54,7 @@ class DDTraceConfigTest extends Specification {
     when:
     System.setProperty(PREFIX + SERVICE_NAME, "something else")
     System.setProperty(PREFIX + WRITER_TYPE, LoggingWriter.simpleName)
-    def tracer = new DDTracer()
+    def tracer = new STSTracer()
 
     then:
     tracer.serviceName == "something else"
@@ -65,7 +65,7 @@ class DDTraceConfigTest extends Specification {
     when:
     environmentVariables.set(propToEnvName(PREFIX + SERVICE_NAME), "still something else")
     environmentVariables.set(propToEnvName(PREFIX + WRITER_TYPE), LoggingWriter.simpleName)
-    def tracer = new DDTracer()
+    def tracer = new STSTracer()
 
     then:
     tracer.serviceName == "still something else"
@@ -79,25 +79,25 @@ class DDTraceConfigTest extends Specification {
     environmentVariables.set(propToEnvName(PREFIX + WRITER_TYPE), ListWriter.simpleName)
 
     System.setProperty(PREFIX + SERVICE_NAME, "what we actually want")
-    System.setProperty(PREFIX + WRITER_TYPE, DDAgentWriter.simpleName)
+    System.setProperty(PREFIX + WRITER_TYPE, STSAgentWriter.simpleName)
     System.setProperty(PREFIX + AGENT_HOST, "somewhere")
     System.setProperty(PREFIX + AGENT_PORT, "9999")
 
-    def tracer = new DDTracer()
+    def tracer = new STSTracer()
 
     then:
     tracer.serviceName == "what we actually want"
-    tracer.writer.toString() == "DDAgentWriter { api=DDApi { tracesEndpoint=http://somewhere:9999/v0.3/traces } }"
+    tracer.writer.toString() == "STSAgentWriter { api=STSApi { tracesEndpoint=http://somewhere:9999/v0.3/traces } }"
   }
 
   def "verify defaults on tracer"() {
     when:
-    def tracer = new DDTracer()
+    def tracer = new STSTracer()
 
     then:
     tracer.serviceName == "unnamed-java-app"
     tracer.sampler instanceof AllSampler
-    tracer.writer.toString() == "DDAgentWriter { api=DDApi { tracesEndpoint=http://localhost:8126/v0.3/traces } }"
+    tracer.writer.toString() == "STSAgentWriter { api=STSApi { tracesEndpoint=http://localhost:8126/v0.3/traces } }"
 
     tracer.spanContextDecorators.size() == 6
   }
@@ -107,7 +107,7 @@ class DDTraceConfigTest extends Specification {
   def "verify single override on #source for #key"() {
     when:
     System.setProperty(PREFIX + key, value)
-    def tracer = new DDTracer()
+    def tracer = new STSTracer()
 
     then:
     tracer."$source".toString() == expected
@@ -115,15 +115,15 @@ class DDTraceConfigTest extends Specification {
     where:
 
     source    | key            | value           | expected
-    "writer"  | "default"      | "default"       | "DDAgentWriter { api=DDApi { tracesEndpoint=http://localhost:8126/v0.3/traces } }"
+    "writer"  | "default"      | "default"       | "STSAgentWriter { api=STSApi { tracesEndpoint=http://localhost:8126/v0.3/traces } }"
     "writer"  | "writer.type"  | "LoggingWriter" | "LoggingWriter { }"
-    "writer"  | "agent.host"   | "somethingelse" | "DDAgentWriter { api=DDApi { tracesEndpoint=http://somethingelse:8126/v0.3/traces } }"
-    "writer"  | "agent.port"   | "9999"          | "DDAgentWriter { api=DDApi { tracesEndpoint=http://localhost:9999/v0.3/traces } }"
+    "writer"  | "agent.host"   | "somethingelse" | "STSAgentWriter { api=STSApi { tracesEndpoint=http://somethingelse:8126/v0.3/traces } }"
+    "writer"  | "agent.port"   | "9999"          | "STSAgentWriter { api=STSApi { tracesEndpoint=http://localhost:9999/v0.3/traces } }"
   }
 
   def "parsing valid string returns a map"() {
     expect:
-    DDTraceConfig.parseMap(str) == map
+    STSTraceConfig.parseMap(str) == map
 
     where:
     str                               | map
@@ -136,7 +136,7 @@ class DDTraceConfigTest extends Specification {
 
   def "parsing an invalid string returns an empty map"() {
     expect:
-    DDTraceConfig.parseMap(str) == map
+    STSTraceConfig.parseMap(str) == map
 
     where:
     str         | map

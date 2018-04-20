@@ -1,8 +1,8 @@
 package stackstate.trace.agent.integration.httpclient
 
-import stackstate.opentracing.DDSpan
-import stackstate.opentracing.DDTracer
-import stackstate.trace.api.DDSpanTypes
+import stackstate.opentracing.STSSpan
+import stackstate.opentracing.STSTracer
+import stackstate.trace.api.STSSpanTypes
 import stackstate.trace.common.writer.ListWriter
 import io.opentracing.tag.Tags
 import org.apache.http.HttpResponse
@@ -22,7 +22,7 @@ class ApacheHttpClientTest extends Specification {
   @Shared
   def writer = new ListWriter()
   @Shared
-  def tracer = new DDTracer(writer)
+  def tracer = new STSTracer(writer)
 
   def setupSpec() {
     IntegrationTestUtils.registerOrReplaceGlobalTracer(tracer)
@@ -56,21 +56,21 @@ class ApacheHttpClientTest extends Specification {
     expect:
     // one trace on the server, one trace on the client
     writer.size() == 2
-    final List<DDSpan> serverTrace = writer.get(0)
+    final List<STSSpan> serverTrace = writer.get(0)
     serverTrace.size() == 1
 
-    final List<DDSpan> clientTrace = writer.get(1)
+    final List<STSSpan> clientTrace = writer.get(1)
     clientTrace.size() == 3
     clientTrace.get(0).getOperationName() == "someTrace"
     // our instrumentation makes 2 spans for apache-httpclient
-    final DDSpan localSpan = clientTrace.get(1)
+    final STSSpan localSpan = clientTrace.get(1)
     localSpan.getType() == null
     localSpan.getTags()[Tags.COMPONENT.getKey()] == "apache-httpclient"
     localSpan.getOperationName() == "GET"
 
-    final DDSpan clientSpan = clientTrace.get(2)
+    final STSSpan clientSpan = clientTrace.get(2)
     clientSpan.getOperationName() == "GET"
-    clientSpan.getType() == DDSpanTypes.HTTP_CLIENT
+    clientSpan.getType() == STSSpanTypes.HTTP_CLIENT
     clientSpan.getTags()[Tags.HTTP_METHOD.getKey()] == "GET"
     clientSpan.getTags()[Tags.HTTP_STATUS.getKey()] == 200
     clientSpan.getTags()[Tags.HTTP_URL.getKey()] == "http://localhost:" + TestHttpServer.getPort()
@@ -94,7 +94,7 @@ class ApacheHttpClientTest extends Specification {
       try {
         HttpGet request = new HttpGet(new URI("http://localhost:"
           + TestHttpServer.getPort()))
-        request.addHeader(new BasicHeader(TestHttpServer.IS_DD_SERVER, "false"))
+        request.addHeader(new BasicHeader(TestHttpServer.IS_STS_SERVER, "false"))
         HttpResponse response = client.execute(request)
         assert response.getStatusLine().getStatusCode() == 200
       } catch (Exception e) {
@@ -105,15 +105,15 @@ class ApacheHttpClientTest extends Specification {
     expect:
     // only one trace (client).
     writer.size() == 1
-    final List<DDSpan> clientTrace = writer.get(0)
+    final List<STSSpan> clientTrace = writer.get(0)
     clientTrace.size() == 3
     clientTrace.get(0).getOperationName() == "someTrace"
     // our instrumentation makes 2 spans for apache-httpclient
-    final DDSpan localSpan = clientTrace.get(1)
+    final STSSpan localSpan = clientTrace.get(1)
     localSpan.getTags()[Tags.COMPONENT.getKey()] == "apache-httpclient"
     localSpan.getOperationName() == "GET"
 
-    final DDSpan clientSpan = clientTrace.get(2)
+    final STSSpan clientSpan = clientTrace.get(2)
     clientSpan.getOperationName() == "GET"
     clientSpan.getTags()[Tags.HTTP_METHOD.getKey()] == "GET"
     clientSpan.getTags()[Tags.HTTP_STATUS.getKey()] == 200

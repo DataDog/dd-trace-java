@@ -1,5 +1,5 @@
-# Datadog Java Agent Performance Tests
-Integration level performance tests for the Datadog Java Agent.
+# StackState Java Agent Performance Tests
+Integration level performance tests for the StackState Java Agent.
 
 ## Perf Script Dependencies
 
@@ -16,8 +16,8 @@ Integration level performance tests for the Datadog Java Agent.
 
 ### Example
 ```
-./gradlew dd-java-agent:benchmark-integration:jetty-perftest:shadowJar
+./gradlew sts-java-agent:benchmark-integration:jetty-perftest:shadowJar
 # Compare a baseline (no agent) to the 0.2.10 and 0.2.9 releases.
-/usr/local/bin/bash ./run-perf-test.sh jetty-perftest/build/libs/jetty-perftest-*-all.jar NoAgent ../benchmark/releases/dd-java-agent-0.2.10.jar ../benchmark/releases/dd-java-agent-0.2.9.jar
+/usr/local/bin/bash ./run-perf-test.sh jetty-perftest/build/libs/jetty-perftest-*-all.jar NoAgent ../benchmark/releases/sts-java-agent-0.2.10.jar ../benchmark/releases/sts-java-agent-0.2.9.jar
 cp /tmp/perf_results.csv ~/somewhere_else/
 ```

@@ -19,14 +19,14 @@ dependencies {
 }
 
 bootRepackage {
-  mainClass = 'datadog.examples.Application'
+  mainClass = 'stackstate.examples.Application'
 }
 
 bootRun {
   if (project.hasProperty('javaagent')) {
-    jvmArgs = ["-javaagent:$javaagent", "-Ddd.service.name=spring-boot-jdbc-redis"]
+    jvmArgs = ["-javaagent:$javaagent", "-Dsts.service.name=spring-boot-jdbc-redis"]
   } else {
-    jvmArgs = ["-javaagent:${project(':sts-java-agent').tasks.shadowJar.outputs.files.getFiles().iterator().next()}", "-Ddd.service.name=spring-boot-jdbc-redis"]
+    jvmArgs = ["-javaagent:${project(':sts-java-agent').tasks.shadowJar.outputs.files.getFiles().iterator().next()}", "-Dsts.service.name=spring-boot-jdbc-redis"]
   }
 }
 

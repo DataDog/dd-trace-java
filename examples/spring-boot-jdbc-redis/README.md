@@ -15,13 +15,13 @@ all libraries and examples launching from the ``sts-trace-java`` root folder:
 ./gradlew clean shadowJar bootRepackage
 ```
 
-Then you can launch the Datadog agent and a Redis instance as follows:
+Then you can launch the StackState agent and a Redis instance as follows:
 ```bash
 cd examples/spring-boot-jdbc-redis
-DD_API_KEY=<your_datadog_api_key> docker-compose up -d
+STS_API_KEY=<your_stackstate_api_key> docker-compose up -d
 ```
 
-A valid ``DD_API_KEY`` is required to post collected traces to the Datadog backend.
+A valid ``STS_API_KEY`` is required to post collected traces to the StackState backend.
 
 #### Run the application
 
@@ -36,7 +36,7 @@ stop it.*
 
 Or as an executable jar:
 ```bash
-java -javaagent:../../sts-java-agent/build/libs/sts-java-agent-{version}.jar -Ddd.service.name=spring-boot-jdbc-redis -jar build/libs/spring-boot-jdbc-redis-demo.jar
+java -javaagent:../../sts-java-agent/build/libs/sts-java-agent-{version}.jar -Dsts.service.name=spring-boot-jdbc-redis -jar build/libs/spring-boot-jdbc-redis-demo.jar
 ```
 
 ### Generate traces
@@ -47,11 +47,11 @@ Once the Gradle task is running. Go to the following urls:
 * [http://localhost:8080/user/all](http://localhost:8080/user/all)
 * [http://localhost:8080/user/all](http://localhost:8080/user/random)
 
-Then get back to Datadog and wait a bit to see a trace coming.
+Then get back to StackState and wait a bit to see a trace coming.
 
 #### Auto-instrumentation with the `sts-trace-agent`
 
-The instrumentation is entirely done by the datadog agent which embed a set of rules that automatically recognizes &
+The instrumentation is entirely done by the stackstate agent which embed a set of rules that automatically recognizes &
 instruments:
 
 - The java servlet filters

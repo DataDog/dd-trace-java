@@ -1,5 +1,5 @@
-import stackstate.opentracing.DDSpan
-import stackstate.trace.api.DDTags
+import stackstate.opentracing.STSSpan
+import stackstate.trace.api.STSTags
 import io.opentracing.tag.Tags
 import redis.clients.jedis.Jedis
 import redis.embedded.RedisServer
@@ -45,14 +45,14 @@ class JedisClientTest extends AgentTestRunner {
     TEST_WRITER.size() == 1
     def trace = TEST_WRITER.firstTrace()
     trace.size() == 1
-    final DDSpan setTrace = trace.get(0)
+    final STSSpan setTrace = trace.get(0)
     setTrace.getServiceName() == JedisInstrumentation.SERVICE_NAME
     setTrace.getOperationName() == "redis.query"
     setTrace.getResourceName() == "SET"
     setTrace.getTags().get(Tags.COMPONENT.getKey()) == JedisInstrumentation.COMPONENT_NAME
     setTrace.getTags().get(Tags.DB_TYPE.getKey()) == JedisInstrumentation.SERVICE_NAME
     setTrace.getTags().get(Tags.SPAN_KIND.getKey()) == Tags.SPAN_KIND_CLIENT
-    setTrace.getTags().get(DDTags.SPAN_TYPE) == JedisInstrumentation.SERVICE_NAME
+    setTrace.getTags().get(STSTags.SPAN_TYPE) == JedisInstrumentation.SERVICE_NAME
   }
 
   def "get command"() {
@@ -64,14 +64,14 @@ class JedisClientTest extends AgentTestRunner {
     TEST_WRITER.size() == 2
     def trace = TEST_WRITER.get(1)
     trace.size() == 1
-    final DDSpan getSpan = trace.get(0)
+    final STSSpan getSpan = trace.get(0)
     getSpan.getServiceName() == JedisInstrumentation.SERVICE_NAME
     getSpan.getOperationName() == "redis.query"
     getSpan.getResourceName() == "GET"
     getSpan.getTags().get(Tags.COMPONENT.getKey()) == JedisInstrumentation.COMPONENT_NAME
     getSpan.getTags().get(Tags.DB_TYPE.getKey()) == JedisInstrumentation.SERVICE_NAME
     getSpan.getTags().get(Tags.SPAN_KIND.getKey()) == Tags.SPAN_KIND_CLIENT
-    getSpan.getTags().get(DDTags.SPAN_TYPE) == JedisInstrumentation.SERVICE_NAME
+    getSpan.getTags().get(STSTags.SPAN_TYPE) == JedisInstrumentation.SERVICE_NAME
   }
 
   def "command with no arguments"() {
@@ -83,13 +83,13 @@ class JedisClientTest extends AgentTestRunner {
     TEST_WRITER.size() == 2
     def trace = TEST_WRITER.get(1)
     trace.size() == 1
-    final DDSpan randomKeySpan = trace.get(0)
+    final STSSpan randomKeySpan = trace.get(0)
     randomKeySpan.getServiceName() == JedisInstrumentation.SERVICE_NAME
     randomKeySpan.getOperationName() == "redis.query"
     randomKeySpan.getResourceName() == "RANDOMKEY"
     randomKeySpan.getTags().get(Tags.COMPONENT.getKey()) == JedisInstrumentation.COMPONENT_NAME
     randomKeySpan.getTags().get(Tags.DB_TYPE.getKey()) == JedisInstrumentation.SERVICE_NAME
     randomKeySpan.getTags().get(Tags.SPAN_KIND.getKey()) == Tags.SPAN_KIND_CLIENT
-    randomKeySpan.getTags().get(DDTags.SPAN_TYPE) == JedisInstrumentation.SERVICE_NAME
+    randomKeySpan.getTags().get(STSTags.SPAN_TYPE) == JedisInstrumentation.SERVICE_NAME
   }
 }

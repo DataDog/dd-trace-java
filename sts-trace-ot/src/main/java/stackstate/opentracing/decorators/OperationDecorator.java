@@ -3,7 +3,7 @@ package stackstate.opentracing.decorators;
 import io.opentracing.tag.Tags;
 import java.util.HashMap;
 import java.util.Map;
-import stackstate.opentracing.DDSpanContext;
+import stackstate.opentracing.STSSpanContext;
 
 /**
  * This span decorator is a simple mapping to override the operation DB tags. The operation name of
@@ -30,7 +30,7 @@ public class OperationDecorator extends AbstractDecorator {
   }
 
   @Override
-  public boolean afterSetTag(final DDSpanContext context, final String tag, final Object value) {
+  public boolean afterSetTag(final STSSpanContext context, final String tag, final Object value) {
 
     if (MAPPINGS.containsKey(String.valueOf(value))) {
       context.setOperationName(MAPPINGS.get(String.valueOf(value)));

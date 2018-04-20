@@ -3,14 +3,14 @@ package stackstate.trace.agent.tooling;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.opentracing.DDTracer;
+import stackstate.opentracing.STSTracer;
 
 @Slf4j
 public class TracerInstaller {
   /** Register a global tracer if no global tracer is already registered. */
   public static synchronized void installGlobalTracer() {
     if (!GlobalTracer.isRegistered()) {
-      final Tracer resolved = new DDTracer();
+      final Tracer resolved = new STSTracer();
       try {
         GlobalTracer.register(resolved);
       } catch (final RuntimeException re) {

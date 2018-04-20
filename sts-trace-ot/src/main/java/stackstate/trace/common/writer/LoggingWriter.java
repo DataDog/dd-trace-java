@@ -5,7 +5,7 @@ import com.google.auto.service.AutoService;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.opentracing.DDSpan;
+import stackstate.opentracing.STSSpan;
 import stackstate.trace.common.Service;
 
 @Slf4j
@@ -14,7 +14,7 @@ public class LoggingWriter implements Writer {
   private final ObjectMapper serializer = new ObjectMapper();
 
   @Override
-  public void write(final List<DDSpan> trace) {
+  public void write(final List<STSSpan> trace) {
     try {
       log.info("write(trace): {}", serializer.writeValueAsString(trace));
     } catch (Exception e) {

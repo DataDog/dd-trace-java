@@ -24,16 +24,16 @@ cd examples/rest-spark
 
 Then you can start all services via Docker:
 ```bash
-DD_API_KEY=<your_datadog_api_key> docker-compose up -d
+STS_API_KEY=<your_stackstate_api_key> docker-compose up -d
 ```
 
-A valid ``DD_API_KEY`` is required to post collected traces to the Datadog backend.
+A valid ``STS_API_KEY`` is required to post collected traces to the StackState backend.
 
 #### Run the application
 
 Launch the application using the run wrapper you've built during the ``installDist`` step:
 ```bash
-JAVA_OPTS=-javaagent:../../sts-java-agent/build/libs/sts-java-agent-{version}.jar -Ddd.service.name=rest-spark build/install/rest-spark/bin/rest-spark
+JAVA_OPTS=-javaagent:../../sts-java-agent/build/libs/sts-java-agent-{version}.jar -Dsts.service.name=rest-spark build/install/rest-spark/bin/rest-spark
 ```
 
 ``0.2.0-SNAPSHOT`` is an example of what ``{version}`` looks like.
@@ -47,7 +47,7 @@ Once the application runs. Go to the following url:
 * [http://localhost:4567/key/something][2]
 * [http://localhost:4567/key/something_else][3]
 
-Then get back to Datadog and wait a bit to see a trace coming.
+Then get back to StackState and wait a bit to see a trace coming.
 
 [2]: http://localhost:4567/key/something
 [3]: http://localhost:4567/key/something_else

@@ -7,11 +7,11 @@ import com.amazonaws.handlers.RequestHandler2
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
-import stackstate.trace.api.DDTags
 import io.opentracing.tag.Tags
 import ratpack.http.Headers
 import spock.lang.Timeout
 import stackstate.trace.agent.test.AgentTestRunner
+import stackstate.trace.api.STSTags
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -129,8 +129,8 @@ class AWSClientTest extends AgentTestRunner {
     tags2[Tags.HTTP_URL.key] == "http://localhost:$server.address.port/testbucket/"
     tags2[Tags.PEER_HOSTNAME.key] == "localhost"
     tags2[Tags.PEER_PORT.key] == server.address.port
-    tags2[DDTags.THREAD_NAME] != null
-    tags2[DDTags.THREAD_ID] != null
+    tags2[STSTags.THREAD_NAME] != null
+    tags2[STSTags.THREAD_ID] != null
     tags2.size() == 9
 
     and:
@@ -164,8 +164,8 @@ class AWSClientTest extends AgentTestRunner {
     tags["thread.id"] != null
     tags.size() == 13
 
-    receivedHeaders.get().get("x-datadog-trace-id") == "$span.traceId"
-    receivedHeaders.get().get("x-datadog-parent-id") == "$span.spanId"
+    receivedHeaders.get().get("x-stackstate-trace-id") == "$span.traceId"
+    receivedHeaders.get().get("x-stackstate-parent-id") == "$span.spanId"
 
     cleanup:
     server.close()

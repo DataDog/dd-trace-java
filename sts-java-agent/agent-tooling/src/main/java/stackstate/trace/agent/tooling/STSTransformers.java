@@ -6,7 +6,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.utility.JavaModule;
 
-public class DDTransformers {
+public class STSTransformers {
 
   private static final AgentBuilder.Transformer CONSTANT_ADJUSTER =
       new AgentBuilder.Transformer() {

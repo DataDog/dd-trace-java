@@ -17,11 +17,11 @@ import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
 import stackstate.trace.instrumentation.java.concurrent.ExecutorInstrumentation.ConcurrentUtils;
-import stackstate.trace.instrumentation.java.concurrent.ExecutorInstrumentation.DatadogWrapper;
+import stackstate.trace.instrumentation.java.concurrent.ExecutorInstrumentation.StackStateWrapper;
 
 @Slf4j
 @AutoService(Instrumenter.class)
@@ -90,9 +90,9 @@ public final class FutureInstrumentation extends Instrumenter.Configurable {
               }
             })
         .transform(ExecutorInstrumentation.EXEC_HELPER_INJECTOR)
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     named("cancel").and(returns(boolean.class)),
                     CanceledFutureAdvice.class.getName()))
@@ -101,13 +101,13 @@ public final class FutureInstrumentation extends Instrumenter.Configurable {
 
   public static class CanceledFutureAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static DatadogWrapper findWrapper(@Advice.This Future<?> future) {
-      return ConcurrentUtils.getDatadogWrapper(future);
+    public static StackStateWrapper findWrapper(@Advice.This Future<?> future) {
+      return ConcurrentUtils.getStackStateWrapper(future);
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void abortTracing(
-        @Advice.Enter final DatadogWrapper wrapper, @Advice.Return boolean canceled) {
+        @Advice.Enter final StackStateWrapper wrapper, @Advice.Return boolean canceled) {
       if (canceled && null != wrapper) {
         wrapper.cancel();
       }

@@ -17,10 +17,10 @@ import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
+import stackstate.trace.api.STSTags;
 
 @AutoService(Instrumenter.class)
 public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Configurable {
@@ -39,9 +39,9 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Configur
                         failSafe(
                             hasSuperType(
                                 declaresMethod(isAnnotatedWith(named("javax.ws.rs.Path"))))))))
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     isAnnotatedWith(
                         named("javax.ws.rs.Path")
@@ -93,7 +93,7 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Configur
 
       final Scope scope = GlobalTracer.get().scopeManager().active();
       if (scope != null && !resourceName.isEmpty()) {
-        scope.span().setTag(DDTags.RESOURCE_NAME, resourceName);
+        scope.span().setTag(STSTags.RESOURCE_NAME, resourceName);
         Tags.COMPONENT.set(scope.span(), "jax-rs");
       }
     }

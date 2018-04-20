@@ -171,7 +171,7 @@ public class SpockRunner extends Sputnik {
         }
 
         /*
-        if (!name.startsWith("datadog.trace.agent.test.")) {
+        if (!name.startsWith("stackstate.trace.agent.test.")) {
           for (int i = 0; i < AGENT_PACKAGE_PREFIXES.length; ++i) {
             if (name.startsWith(AGENT_PACKAGE_PREFIXES[i])) {
               throw new ClassNotFoundException(

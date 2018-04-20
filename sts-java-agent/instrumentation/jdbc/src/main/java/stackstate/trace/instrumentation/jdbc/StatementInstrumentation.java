@@ -20,10 +20,10 @@ import java.sql.Statement;
 import java.util.Collections;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
+import stackstate.trace.api.STSTags;
 import stackstate.trace.bootstrap.JDBCMaps;
 
 @AutoService(Instrumenter.class)
@@ -37,9 +37,9 @@ public final class StatementInstrumentation extends Instrumenter.Configurable {
   public AgentBuilder apply(final AgentBuilder agentBuilder) {
     return agentBuilder
         .type(not(isInterface()).and(failSafe(isSubTypeOf(Statement.class))))
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     nameStartsWith("execute").and(takesArgument(0, String.class)).and(isPublic()),
                     StatementAdvice.class.getName()))
@@ -73,9 +73,9 @@ public final class StatementInstrumentation extends Instrumenter.Configurable {
       Tags.SPAN_KIND.set(span, Tags.SPAN_KIND_CLIENT);
       Tags.COMPONENT.set(span, "java-jdbc-statement");
 
-      span.setTag(DDTags.SERVICE_NAME, dbInfo.getType());
-      span.setTag(DDTags.RESOURCE_NAME, sql);
-      span.setTag(DDTags.SPAN_TYPE, "sql");
+      span.setTag(STSTags.SERVICE_NAME, dbInfo.getType());
+      span.setTag(STSTags.RESOURCE_NAME, sql);
+      span.setTag(STSTags.SPAN_TYPE, "sql");
       span.setTag("span.origin.type", statement.getClass().getName());
       span.setTag("db.jdbc.url", dbInfo.getUrl());
 

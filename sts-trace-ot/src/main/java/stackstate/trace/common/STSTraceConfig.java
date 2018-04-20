@@ -5,8 +5,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.opentracing.DDTracer;
-import stackstate.trace.common.writer.DDAgentWriter;
+import stackstate.opentracing.STSTracer;
+import stackstate.trace.common.writer.STSAgentWriter;
 import stackstate.trace.common.writer.Writer;
 
 /**
@@ -15,13 +15,13 @@ import stackstate.trace.common.writer.Writer;
  *
  * <p>
  *
- * <p>System properties are {@link DDTraceConfig#PREFIX}'ed. Environment variables are the same as
+ * <p>System properties are {@link STSTraceConfig#PREFIX}'ed. Environment variables are the same as
  * the system property, but uppercased with '.' -> '_'.
  */
 @Slf4j
-public class DDTraceConfig extends Properties {
+public class STSTraceConfig extends Properties {
   /** Config keys below */
-  private static final String PREFIX = "dd.";
+  private static final String PREFIX = "sts.";
 
   public static final String SERVICE_NAME = "service.name";
   public static final String WRITER_TYPE = "writer.type";
@@ -37,14 +37,14 @@ public class DDTraceConfig extends Properties {
   private final String prioritySampling = getPropOrEnv(PREFIX + PRIORITY_SAMPLING);
   private final String spanTags = getPropOrEnv(PREFIX + SPAN_TAGS);
 
-  public DDTraceConfig() {
+  public STSTraceConfig() {
     super();
 
     final Properties defaults = new Properties();
-    defaults.setProperty(SERVICE_NAME, DDTracer.UNASSIGNED_DEFAULT_SERVICE_NAME);
-    defaults.setProperty(WRITER_TYPE, Writer.DD_AGENT_WRITER_TYPE);
-    defaults.setProperty(AGENT_HOST, DDAgentWriter.DEFAULT_HOSTNAME);
-    defaults.setProperty(AGENT_PORT, String.valueOf(DDAgentWriter.DEFAULT_PORT));
+    defaults.setProperty(SERVICE_NAME, STSTracer.UNASSIGNED_DEFAULT_SERVICE_NAME);
+    defaults.setProperty(WRITER_TYPE, Writer.STS_AGENT_WRITER_TYPE);
+    defaults.setProperty(AGENT_HOST, STSAgentWriter.DEFAULT_HOSTNAME);
+    defaults.setProperty(AGENT_PORT, String.valueOf(STSAgentWriter.DEFAULT_PORT));
     super.defaults = defaults;
 
     setIfNotNull(SERVICE_NAME, serviceName);
@@ -55,7 +55,7 @@ public class DDTraceConfig extends Properties {
     setIfNotNull(SPAN_TAGS, spanTags);
   }
 
-  public DDTraceConfig(final String serviceName) {
+  public STSTraceConfig(final String serviceName) {
     this();
     put(SERVICE_NAME, serviceName);
   }

@@ -1,7 +1,7 @@
 package stackstate.opentracing.decorators
 
-import stackstate.opentracing.DDSpanContext
-import stackstate.opentracing.DDTracer
+import stackstate.opentracing.STSSpanContext
+import stackstate.opentracing.STSTracer
 import stackstate.opentracing.SpanFactory
 import stackstate.trace.common.writer.LoggingWriter
 import io.opentracing.tag.StringTag
@@ -14,11 +14,11 @@ class SpanDecoratorTest extends Specification {
 
   def "adding span personalisation using Decorators"() {
     setup:
-    def tracer = new DDTracer(new LoggingWriter())
+    def tracer = new STSTracer(new LoggingWriter())
     def decorator = new AbstractDecorator() {
 
       @Override
-      boolean afterSetTag(DDSpanContext context, String tag, Object value) {
+      boolean afterSetTag(STSSpanContext context, String tag, Object value) {
         return super.afterSetTag(context, tag, value)
       }
 
@@ -43,7 +43,7 @@ class SpanDecoratorTest extends Specification {
   def "override operation with OperationDecorator"() {
 
     setup:
-    def tracer = new DDTracer(new LoggingWriter())
+    def tracer = new STSTracer(new LoggingWriter())
     def span = SpanFactory.newSpanOf(tracer)
     tracer.addDecorator(new OperationDecorator())
 
@@ -64,7 +64,7 @@ class SpanDecoratorTest extends Specification {
   def "override operation with DBTypeDecorator"() {
 
     setup:
-    def tracer = new DDTracer(new LoggingWriter())
+    def tracer = new STSTracer(new LoggingWriter())
     def span = SpanFactory.newSpanOf(tracer)
     tracer.addDecorator(new DBTypeDecorator())
 
@@ -92,7 +92,7 @@ class SpanDecoratorTest extends Specification {
 
   def "DBStatementAsResource should not interact on Mongo queries"() {
     setup:
-    def tracer = new DDTracer(new LoggingWriter())
+    def tracer = new STSTracer(new LoggingWriter())
     def span = SpanFactory.newSpanOf(tracer)
     tracer.addDecorator(new DBStatementAsResourceName())
 
@@ -122,7 +122,7 @@ class SpanDecoratorTest extends Specification {
 
   def "set 404 as a resource on a 404 issue"() {
     setup:
-    def tracer = new DDTracer(new LoggingWriter())
+    def tracer = new STSTracer(new LoggingWriter())
     def span = SpanFactory.newSpanOf(tracer)
     tracer.addDecorator(new Status404Decorator())
 

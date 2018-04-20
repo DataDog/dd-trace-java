@@ -1,4 +1,4 @@
-import stackstate.opentracing.DDSpan
+import stackstate.opentracing.STSSpan
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import play.api.test.TestServer
@@ -9,8 +9,8 @@ import stackstate.trace.agent.test.TestUtils
 
 class Play26Test extends AgentTestRunner {
   static {
-    System.setProperty("dd.integration.java_concurrent.enabled", "true")
-    System.setProperty("dd.integration.play.enabled", "true")
+    System.setProperty("sts.integration.java_concurrent.enabled", "true")
+    System.setProperty("sts.integration.play.enabled", "true")
   }
 
   @Shared
@@ -37,14 +37,14 @@ class Play26Test extends AgentTestRunner {
     OkHttpClient client = new OkHttpClient.Builder().build()
     def request = new Request.Builder()
       .url("http://localhost:$port/helloplay/spock")
-      .header("x-datadog-trace-id", "123")
-      .header("x-datadog-parent-id", "456")
+      .header("x-stackstate-trace-id", "123")
+      .header("x-stackstate-parent-id", "456")
       .get()
       .build()
     def response = client.newCall(request).execute()
     TEST_WRITER.waitForTraces(1)
-    DDSpan[] playTrace = TEST_WRITER.get(0)
-    DDSpan root = playTrace[0]
+    STSSpan[] playTrace = TEST_WRITER.get(0)
+    STSSpan root = playTrace[0]
 
     expect:
     testServer != null
@@ -77,8 +77,8 @@ class Play26Test extends AgentTestRunner {
       .build()
     def response = client.newCall(request).execute()
     TEST_WRITER.waitForTraces(1)
-    DDSpan[] playTrace = TEST_WRITER.get(0)
-    DDSpan root = playTrace[0]
+    STSSpan[] playTrace = TEST_WRITER.get(0)
+    STSSpan root = playTrace[0]
 
     expect:
     testServer != null
@@ -104,8 +104,8 @@ class Play26Test extends AgentTestRunner {
       .build()
     def response = client.newCall(request).execute()
     TEST_WRITER.waitForTraces(1)
-    DDSpan[] playTrace = TEST_WRITER.get(0)
-    DDSpan root = playTrace[0]
+    STSSpan[] playTrace = TEST_WRITER.get(0)
+    STSSpan root = playTrace[0]
 
     expect:
     testServer != null
@@ -134,8 +134,8 @@ class Play26Test extends AgentTestRunner {
       .build()
     def response = client.newCall(request).execute()
     TEST_WRITER.waitForTraces(1)
-    DDSpan[] playTrace = TEST_WRITER.get(0)
-    DDSpan root = playTrace[0]
+    STSSpan[] playTrace = TEST_WRITER.get(0)
+    STSSpan root = playTrace[0]
 
     expect:
     testServer != null

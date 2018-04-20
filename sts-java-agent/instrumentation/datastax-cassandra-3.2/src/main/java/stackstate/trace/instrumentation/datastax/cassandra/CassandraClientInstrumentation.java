@@ -13,10 +13,10 @@ import io.opentracing.util.GlobalTracer;
 import java.lang.reflect.Constructor;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
 
 @AutoService(Instrumenter.class)
 public class CassandraClientInstrumentation extends Instrumenter.Configurable {
@@ -52,9 +52,9 @@ public class CassandraClientInstrumentation extends Instrumenter.Configurable {
                 "io.opentracing.contrib.cassandra.TracingSession$2",
                 "io.opentracing.contrib.cassandra.TracingCluster",
                 "io.opentracing.contrib.cassandra.TracingCluster$1"))
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     isMethod().and(isPrivate()).and(named("newSession")).and(takesArguments(0)),
                     CassandraClientAdvice.class.getName()))

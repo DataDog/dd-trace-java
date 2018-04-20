@@ -18,8 +18,8 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import stackstate.opentracing.DDSpan;
-import stackstate.opentracing.DDTracer;
+import stackstate.opentracing.STSSpan;
+import stackstate.opentracing.STSTracer;
 import stackstate.trace.agent.test.IntegrationTestUtils;
 import stackstate.trace.common.writer.ListWriter;
 
@@ -32,7 +32,7 @@ public class MongoClientInstrumentationTest {
 
   private static MongoClient client;
   private static final ListWriter writer = new ListWriter();
-  private static final DDTracer tracer = new DDTracer(writer);
+  private static final STSTracer tracer = new STSTracer(writer);
 
   public static void startLocalMongo() throws Exception {
     final MongodStarter starter = MongodStarter.getDefaultInstance();
@@ -79,7 +79,7 @@ public class MongoClientInstrumentationTest {
   public void syncClientHasListener() {
     Assert.assertEquals(1, client.getMongoClientOptions().getCommandListeners().size());
     Assert.assertEquals(
-        "DDTracingCommandListener",
+        "STSTracingCommandListener",
         client.getMongoClientOptions().getCommandListeners().get(0).getClass().getSimpleName());
   }
 
@@ -98,7 +98,7 @@ public class MongoClientInstrumentationTest {
 
     final String createCollectionQuery =
         "{ \"create\" : \"testCollection\", \"autoIndexId\" : \"?\", \"capped\" : \"?\" }";
-    final DDSpan trace0 = writer.get(0).get(0);
+    final STSSpan trace0 = writer.get(0).get(0);
     Assert.assertEquals("mongo.query", trace0.getOperationName());
     Assert.assertEquals(createCollectionQuery, trace0.getResourceName());
     Assert.assertEquals("mongodb", trace0.getType());

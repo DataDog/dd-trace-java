@@ -3,8 +3,8 @@ package stackstate.opentracing.decorators;
 import io.opentracing.tag.Tags;
 import java.net.MalformedURLException;
 import java.util.regex.Pattern;
-import stackstate.opentracing.DDSpanContext;
-import stackstate.trace.api.DDTags;
+import stackstate.opentracing.STSSpanContext;
+import stackstate.trace.api.STSTags;
 
 /** Decorator for servlet contrib */
 public class URLAsResourceName extends AbstractDecorator {
@@ -18,11 +18,11 @@ public class URLAsResourceName extends AbstractDecorator {
   public URLAsResourceName() {
     super();
     this.setMatchingTag(Tags.HTTP_URL.getKey());
-    this.setSetTag(DDTags.RESOURCE_NAME);
+    this.setSetTag(STSTags.RESOURCE_NAME);
   }
 
   @Override
-  public boolean afterSetTag(final DDSpanContext context, final String tag, final Object value) {
+  public boolean afterSetTag(final STSSpanContext context, final String tag, final Object value) {
     try {
       final String statusCode = String.valueOf(context.getTags().get(Tags.HTTP_STATUS.getKey()));
       // do nothing if the status code is already set and equals to 404.

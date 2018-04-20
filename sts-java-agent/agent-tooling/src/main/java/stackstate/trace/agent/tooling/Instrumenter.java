@@ -27,7 +27,7 @@ public interface Instrumenter {
       boolean anyEnabled = defaultEnabled;
       for (final String name : instrumentationNames) {
         final boolean configEnabled =
-            getConfigEnabled("dd.integration." + name + ".enabled", defaultEnabled);
+            getConfigEnabled("sts.integration." + name + ".enabled", defaultEnabled);
         if (defaultEnabled) {
           anyEnabled &= configEnabled;
         } else {
@@ -38,7 +38,7 @@ public interface Instrumenter {
     }
 
     protected boolean defaultEnabled() {
-      return getConfigEnabled("dd.integrations.enabled", true);
+      return getConfigEnabled("sts.integrations.enabled", true);
     }
 
     @Override

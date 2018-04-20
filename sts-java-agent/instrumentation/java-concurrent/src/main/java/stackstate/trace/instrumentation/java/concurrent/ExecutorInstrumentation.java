@@ -22,10 +22,10 @@ import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
 import stackstate.trace.context.TraceScope;
 
 @Slf4j
@@ -35,7 +35,7 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
   public static final HelperInjector EXEC_HELPER_INJECTOR =
       new HelperInjector(
           ExecutorInstrumentation.class.getName() + "$ConcurrentUtils",
-          ExecutorInstrumentation.class.getName() + "$DatadogWrapper",
+          ExecutorInstrumentation.class.getName() + "$StackStateWrapper",
           ExecutorInstrumentation.class.getName() + "$CallableWrapper",
           ExecutorInstrumentation.class.getName() + "$RunnableWrapper");
 
@@ -107,28 +107,28 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
               }
             })
         .transform(EXEC_HELPER_INJECTOR)
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     named("execute").and(takesArgument(0, Runnable.class)),
                     WrapRunnableAdvice.class.getName()))
         .asDecorator()
         .type(not(isInterface()).and(hasSuperType(named(ExecutorService.class.getName()))))
         .transform(EXEC_HELPER_INJECTOR)
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     named("submit").and(takesArgument(0, Runnable.class)),
                     WrapRunnableAdvice.class.getName()))
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     named("submit").and(takesArgument(0, Callable.class)),
                     WrapCallableAdvice.class.getName()))
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     nameMatches("invoke(Any|All)$").and(takesArgument(0, Callable.class)),
                     WrapCallableCollectionAdvice.class.getName()))
@@ -137,10 +137,10 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
 
   public static class WrapRunnableAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static DatadogWrapper wrapJob(
+    public static StackStateWrapper wrapJob(
         @Advice.Argument(value = 0, readOnly = false) Runnable task) {
       final Scope scope = GlobalTracer.get().scopeManager().active();
-      if (scope instanceof TraceScope && task != null && !(task instanceof DatadogWrapper)) {
+      if (scope instanceof TraceScope && task != null && !(task instanceof StackStateWrapper)) {
         task = new RunnableWrapper(task, (TraceScope) scope);
         return (RunnableWrapper) task;
       }
@@ -149,7 +149,7 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void checkCancel(
-        @Advice.Enter final DatadogWrapper wrapper, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final StackStateWrapper wrapper, @Advice.Thrown final Throwable throwable) {
       if (null != wrapper && null != throwable) {
         wrapper.cancel();
       }
@@ -158,10 +158,10 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
 
   public static class WrapCallableAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static DatadogWrapper wrapJob(
+    public static StackStateWrapper wrapJob(
         @Advice.Argument(value = 0, readOnly = false) Callable task) {
       final Scope scope = GlobalTracer.get().scopeManager().active();
-      if (scope instanceof TraceScope && task != null && !(task instanceof DatadogWrapper)) {
+      if (scope instanceof TraceScope && task != null && !(task instanceof StackStateWrapper)) {
         task = new CallableWrapper(task, (TraceScope) scope);
         return (CallableWrapper) task;
       }
@@ -170,7 +170,7 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void checkCancel(
-        @Advice.Enter final DatadogWrapper wrapper, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final StackStateWrapper wrapper, @Advice.Thrown final Throwable throwable) {
       if (null != wrapper && null != throwable) {
         wrapper.cancel();
       }
@@ -203,8 +203,8 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
         @Advice.Enter final Collection<?> wrappedJobs, @Advice.Thrown final Throwable throwable) {
       if (null != wrappedJobs && null != throwable) {
         for (Object wrapper : wrappedJobs) {
-          if (wrapper instanceof DatadogWrapper) {
-            ((DatadogWrapper) wrapper).cancel();
+          if (wrapper instanceof StackStateWrapper) {
+            ((StackStateWrapper) wrapper).cancel();
           }
         }
       }
@@ -213,10 +213,10 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
 
   /** Marker interface for tasks which are wrapped to propagate the trace context. */
   @Slf4j
-  public abstract static class DatadogWrapper {
+  public abstract static class StackStateWrapper {
     protected final TraceScope.Continuation continuation;
 
-    public DatadogWrapper(TraceScope scope) {
+    public StackStateWrapper(TraceScope scope) {
       continuation = scope.capture(true);
       log.debug("created continuation {} from scope {}", continuation, scope);
     }
@@ -230,7 +230,7 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
   }
 
   @Slf4j
-  public static class RunnableWrapper extends DatadogWrapper implements Runnable {
+  public static class RunnableWrapper extends StackStateWrapper implements Runnable {
     private final Runnable delegatee;
 
     public RunnableWrapper(Runnable toWrap, TraceScope scope) {
@@ -250,7 +250,7 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
   }
 
   @Slf4j
-  public static class CallableWrapper<T> extends DatadogWrapper implements Callable<T> {
+  public static class CallableWrapper<T> extends StackStateWrapper implements Callable<T> {
     private final Callable<T> delegatee;
 
     public CallableWrapper(Callable<T> toWrap, TraceScope scope) {
@@ -269,16 +269,16 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
     }
   }
 
-  /** Utils for pulling DatadogWrapper out of Future instances. */
+  /** Utils for pulling StackStateWrapper out of Future instances. */
   public static class ConcurrentUtils {
     private static Map<Class<?>, Field> fieldCache = new ConcurrentHashMap<>();
     private static String[] wrapperFields = {"runnable", "callable"};
 
     public static boolean safeToWrap(Future<?> f) {
-      return null != getDatadogWrapper(f);
+      return null != getStackStateWrapper(f);
     }
 
-    public static DatadogWrapper getDatadogWrapper(Future<?> f) {
+    public static StackStateWrapper getStackStateWrapper(Future<?> f) {
       final Field field;
       if (fieldCache.containsKey(f.getClass())) {
         field = fieldCache.get(f.getClass());
@@ -291,8 +291,8 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
         try {
           field.setAccessible(true);
           Object o = field.get(f);
-          if (o instanceof DatadogWrapper) {
-            return (DatadogWrapper) o;
+          if (o instanceof StackStateWrapper) {
+            return (StackStateWrapper) o;
           }
         } catch (IllegalArgumentException | IllegalAccessException e) {
         } finally {

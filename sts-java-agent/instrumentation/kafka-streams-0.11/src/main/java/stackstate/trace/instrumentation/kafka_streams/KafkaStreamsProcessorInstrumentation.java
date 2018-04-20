@@ -20,19 +20,19 @@ import java.util.Collections;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.api.DDSpanTypes;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
 
 public class KafkaStreamsProcessorInstrumentation {
   // These two instrumentations work together to apply StreamTask.process.
   // The combination of these are needed because there's not a good instrumentation point.
 
   public static final HelperInjector HELPER_INJECTOR =
-      new HelperInjector("datadog.trace.instrumentation.kafka_streams.TextMapExtractAdapter");
+      new HelperInjector("stackstate.trace.instrumentation.kafka_streams.TextMapExtractAdapter");
 
   @AutoService(Instrumenter.class)
   public static class StartInstrumentation extends Instrumenter.Configurable {
@@ -48,9 +48,9 @@ public class KafkaStreamsProcessorInstrumentation {
               named("org.apache.kafka.streams.processor.internals.PartitionGroup"),
               classLoaderHasClasses("org.apache.kafka.streams.state.internals.KeyValueIterators"))
           .transform(HELPER_INJECTOR)
-          .transform(DDTransformers.defaultTransformers())
+          .transform(STSTransformers.defaultTransformers())
           .transform(
-              DDAdvice.create()
+              STSAdvice.create()
                   .advice(
                       isMethod()
                           .and(isPackagePrivate())
@@ -79,9 +79,9 @@ public class KafkaStreamsProcessorInstrumentation {
         GlobalTracer.get()
             .buildSpan("kafka.consume")
             .asChildOf(extractedContext)
-            .withTag(DDTags.SERVICE_NAME, "kafka")
-            .withTag(DDTags.RESOURCE_NAME, "Consume Topic " + record.topic())
-            .withTag(DDTags.SPAN_TYPE, DDSpanTypes.MESSAGE_CONSUMER)
+            .withTag(STSTags.SERVICE_NAME, "kafka")
+            .withTag(STSTags.RESOURCE_NAME, "Consume Topic " + record.topic())
+            .withTag(STSTags.SPAN_TYPE, STSSpanTypes.MESSAGE_CONSUMER)
             .withTag(Tags.COMPONENT.getKey(), "java-kafka")
             .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CONSUMER)
             .withTag("partition", record.partition())
@@ -107,9 +107,9 @@ public class KafkaStreamsProcessorInstrumentation {
                   "org.apache.kafka.common.header.Header",
                   "org.apache.kafka.common.header.Headers"))
           .transform(HELPER_INJECTOR)
-          .transform(DDTransformers.defaultTransformers())
+          .transform(STSTransformers.defaultTransformers())
           .transform(
-              DDAdvice.create()
+              STSAdvice.create()
                   .advice(
                       isMethod().and(isPublic()).and(named("process")).and(takesArguments(0)),
                       StartSpanAdvice.class.getName()))

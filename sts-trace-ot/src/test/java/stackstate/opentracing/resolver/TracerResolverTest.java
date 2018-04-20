@@ -8,7 +8,7 @@ import io.opentracing.noop.NoopTracerFactory;
 import io.opentracing.util.GlobalTracer;
 import java.lang.reflect.Field;
 import org.junit.Test;
-import stackstate.opentracing.DDTracer;
+import stackstate.opentracing.STSTracer;
 
 public class TracerResolverTest {
 
@@ -23,7 +23,7 @@ public class TracerResolverTest {
     final Tracer tracer = TracerResolver.resolveTracer();
 
     assertThat(GlobalTracer.isRegistered()).isFalse();
-    assertThat(tracer).isInstanceOf(DDTracer.class);
+    assertThat(tracer).isInstanceOf(STSTracer.class);
   }
 
   @Test
@@ -34,10 +34,10 @@ public class TracerResolverTest {
 
     assertThat(GlobalTracer.isRegistered()).isFalse();
 
-    DDTracerResolver.registerTracer();
+    STSTracerResolver.registerTracer();
 
     assertThat(GlobalTracer.isRegistered()).isTrue();
-    assertThat(tracerField.get(null)).isInstanceOf(DDTracer.class);
+    assertThat(tracerField.get(null)).isInstanceOf(STSTracer.class);
 
     tracerField.set(null, NoopTracerFactory.create());
   }

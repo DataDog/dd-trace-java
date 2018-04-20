@@ -6,8 +6,8 @@ import stackstate.trace.common.writer.ListWriter
 class SpanFactory {
   static newSpanOf(long timestampMicro) {
     def writer = new ListWriter()
-    def tracer = new DDTracer(writer)
-    def context = new DDSpanContext(
+    def tracer = new STSTracer(writer)
+    def context = new STSSpanContext(
       1L,
       1L,
       0L,
@@ -21,11 +21,11 @@ class SpanFactory {
       Collections.emptyMap(),
       new PendingTrace(tracer, 1L),
       tracer)
-    return new DDSpan(timestampMicro, context)
+    return new STSSpan(timestampMicro, context)
   }
 
-  static newSpanOf(DDTracer tracer) {
-    def context = new DDSpanContext(
+  static newSpanOf(STSTracer tracer) {
+    def context = new STSSpanContext(
       1L,
       1L,
       0L,
@@ -39,11 +39,11 @@ class SpanFactory {
       Collections.emptyMap(),
       new PendingTrace(tracer, 1L),
       tracer)
-    return new DDSpan(1, context)
+    return new STSSpan(1, context)
   }
 
   static newSpanOf(PendingTrace trace) {
-    def context = new DDSpanContext(
+    def context = new STSSpanContext(
       trace.traceId,
       1L,
       0L,
@@ -57,13 +57,13 @@ class SpanFactory {
       Collections.emptyMap(),
       trace,
       trace.tracer)
-    return new DDSpan(1, context)
+    return new STSSpan(1, context)
   }
 
-  static DDSpan newSpanOf(String serviceName, String envName) {
+  static STSSpan newSpanOf(String serviceName, String envName) {
     def writer = new ListWriter()
-    def tracer = new DDTracer(writer)
-    def context = new DDSpanContext(
+    def tracer = new STSTracer(writer)
+    def context = new STSSpanContext(
       1L,
       1L,
       0L,
@@ -78,6 +78,6 @@ class SpanFactory {
       new PendingTrace(tracer, 1L),
       tracer)
     context.setTag("env", envName)
-    return new DDSpan(0l, context)
+    return new STSSpan(0l, context)
   }
 }

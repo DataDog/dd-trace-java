@@ -31,8 +31,8 @@ The tracer instantiation depends of the implementation you chose. For instance, 
 to send the traces to a logger or directly to a running Datadog agent.
 
 ```java
-  // Initialize the Datadog Java Tracer to write traces to the log:
-  Tracer tracer = new DDTracer();
+  // Initialize the StackState Java Tracer to write traces to the log:
+  Tracer tracer = new STSTracer();
 ```
 
 After a tracer is created, you will usually want to register it with the `GlobalTracer`

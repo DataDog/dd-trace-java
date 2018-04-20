@@ -4,8 +4,8 @@ import io.opentracing.util.GlobalTracer;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.matcher.ElementMatcher;
-import stackstate.trace.bootstrap.DatadogClassLoader;
 import stackstate.trace.bootstrap.PatchLogger;
+import stackstate.trace.bootstrap.StackStateClassLoader;
 
 @Slf4j
 public class ClassLoaderMatcher {
@@ -47,7 +47,7 @@ public class ClassLoaderMatcher {
       final Set<String> classesToSkip = new HashSet<String>();
       classesToSkip.add("org.codehaus.groovy.runtime.callsite.CallSiteClassLoader");
       classesToSkip.add("sun.reflect.DelegatingClassLoader");
-      classesToSkip.add(DatadogClassLoader.class.getName());
+      classesToSkip.add(StackStateClassLoader.class.getName());
       CLASSLOADER_CLASSES_TO_SKIP = Collections.unmodifiableSet(classesToSkip);
     }
 
@@ -93,7 +93,7 @@ public class ClassLoaderMatcher {
         delegates = false;
       }
       if (!loadsExpectedClass(loader, PatchLogger.class)) {
-        log.debug("loader {} failed to delegate bootstrap datadog class", loader);
+        log.debug("loader {} failed to delegate bootstrap stackstate class", loader);
         delegates = false;
       }
       return delegates;

@@ -24,11 +24,11 @@ import javax.jms.Message;
 import javax.jms.MessageProducer;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.api.DDSpanTypes;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
 import stackstate.trace.instrumentation.jms.util.MessagePropertyTextMap;
 
 @AutoService(Instrumenter.class)
@@ -45,9 +45,9 @@ public final class JMS2MessageProducerInstrumentation extends Instrumenter.Confi
             not(isInterface()).and(failSafe(hasSuperType(named("javax.jms.MessageProducer")))),
             classLoaderHasClasses("javax.jms.JMSContext", "javax.jms.CompletionListener"))
         .transform(JMS2MessageConsumerInstrumentation.JMS2_HELPER_INJECTOR)
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     named("send").and(takesArgument(0, named("javax.jms.Message"))).and(isPublic()),
                     ProducerAdvice.class.getName())
@@ -74,10 +74,10 @@ public final class JMS2MessageProducerInstrumentation extends Instrumenter.Confi
       final Scope scope =
           GlobalTracer.get()
               .buildSpan("jms.produce")
-              .withTag(DDTags.SERVICE_NAME, "jms")
-              .withTag(DDTags.SPAN_TYPE, DDSpanTypes.MESSAGE_PRODUCER)
+              .withTag(STSTags.SERVICE_NAME, "jms")
+              .withTag(STSTags.SPAN_TYPE, STSSpanTypes.MESSAGE_PRODUCER)
               .withTag(
-                  DDTags.RESOURCE_NAME,
+                  STSTags.RESOURCE_NAME,
                   "Produced for " + toResourceName(message, defaultDestination))
               .withTag(Tags.COMPONENT.getKey(), "jms2")
               .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_PRODUCER)
@@ -116,9 +116,10 @@ public final class JMS2MessageProducerInstrumentation extends Instrumenter.Confi
       final Scope scope =
           GlobalTracer.get()
               .buildSpan("jms.produce")
-              .withTag(DDTags.SERVICE_NAME, "jms")
-              .withTag(DDTags.SPAN_TYPE, DDSpanTypes.MESSAGE_PRODUCER)
-              .withTag(DDTags.RESOURCE_NAME, "Produced for " + toResourceName(message, destination))
+              .withTag(STSTags.SERVICE_NAME, "jms")
+              .withTag(STSTags.SPAN_TYPE, STSSpanTypes.MESSAGE_PRODUCER)
+              .withTag(
+                  STSTags.RESOURCE_NAME, "Produced for " + toResourceName(message, destination))
               .withTag(Tags.COMPONENT.getKey(), "jms2")
               .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_PRODUCER)
               .withTag("span.origin.type", producer.getClass().getName())

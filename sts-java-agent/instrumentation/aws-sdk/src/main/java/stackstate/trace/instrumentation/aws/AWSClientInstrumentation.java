@@ -12,10 +12,10 @@ import io.opentracing.util.GlobalTracer;
 import java.util.List;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
 
 @AutoService(Instrumenter.class)
 public final class AWSClientInstrumentation extends Instrumenter.Configurable {
@@ -40,10 +40,10 @@ public final class AWSClientInstrumentation extends Instrumenter.Configurable {
                 "com.amazonaws.handlers.HandlerContextKey"))
         .transform(
             new HelperInjector(
-                "datadog.trace.instrumentation.aws.TracingRequestHandler",
-                "datadog.trace.instrumentation.aws.SpanDecorator"))
-        .transform(DDTransformers.defaultTransformers())
-        .transform(DDAdvice.create().advice(isConstructor(), AWSClientAdvice.class.getName()))
+                "stackstate.trace.instrumentation.aws.TracingRequestHandler",
+                "stackstate.trace.instrumentation.aws.SpanDecorator"))
+        .transform(STSTransformers.defaultTransformers())
+        .transform(STSAdvice.create().advice(isConstructor(), AWSClientAdvice.class.getName()))
         .asDecorator();
   }
 
@@ -51,14 +51,14 @@ public final class AWSClientInstrumentation extends Instrumenter.Configurable {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addHandler(
         @Advice.FieldValue("requestHandler2s") final List<RequestHandler2> handlers) {
-      boolean hasDDHandler = false;
+      boolean hasSTSHandler = false;
       for (final RequestHandler2 handler : handlers) {
         if (handler instanceof TracingRequestHandler) {
-          hasDDHandler = true;
+          hasSTSHandler = true;
           break;
         }
       }
-      if (!hasDDHandler) {
+      if (!hasSTSHandler) {
         handlers.add(new TracingRequestHandler(GlobalTracer.get()));
       }
     }

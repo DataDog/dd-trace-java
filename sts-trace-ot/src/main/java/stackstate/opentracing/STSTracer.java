@@ -24,28 +24,28 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
 import stackstate.opentracing.decorators.AbstractDecorator;
-import stackstate.opentracing.decorators.DDDecoratorsFactory;
+import stackstate.opentracing.decorators.STSDecoratorsFactory;
 import stackstate.opentracing.propagation.Codec;
 import stackstate.opentracing.propagation.ExtractedContext;
 import stackstate.opentracing.propagation.HTTPCodec;
 import stackstate.opentracing.scopemanager.ContextualScopeManager;
 import stackstate.opentracing.scopemanager.ScopeContext;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.api.STSTags;
 import stackstate.trace.api.interceptor.MutableSpan;
 import stackstate.trace.api.interceptor.TraceInterceptor;
-import stackstate.trace.common.DDTraceConfig;
+import stackstate.trace.common.STSTraceConfig;
 import stackstate.trace.common.Service;
 import stackstate.trace.common.sampling.AllSampler;
 import stackstate.trace.common.sampling.PrioritySampling;
 import stackstate.trace.common.sampling.RateByServiceSampler;
 import stackstate.trace.common.sampling.Sampler;
-import stackstate.trace.common.writer.DDAgentWriter;
-import stackstate.trace.common.writer.DDApi;
+import stackstate.trace.common.writer.STSAgentWriter;
+import stackstate.trace.common.writer.STSApi;
 import stackstate.trace.common.writer.Writer;
 
-/** DDTracer makes it easy to send traces and span to STS using the OpenTracing API. */
+/** STSTracer makes it easy to send traces and span to STS using the OpenTracing API. */
 @Slf4j
-public class DDTracer implements io.opentracing.Tracer {
+public class STSTracer implements io.opentracing.Tracer {
 
   public static final String UNASSIGNED_DEFAULT_SERVICE_NAME = "unnamed-java-app";
 
@@ -77,28 +77,28 @@ public class DDTracer implements io.opentracing.Tracer {
   private final Map<String, Service> services = new HashMap<>();
 
   /** By default, report to local agent and collect all traces. */
-  public DDTracer() {
-    this(new DDTraceConfig());
+  public STSTracer() {
+    this(new STSTraceConfig());
   }
 
-  public DDTracer(final String serviceName) {
-    this(new DDTraceConfig(serviceName));
+  public STSTracer(final String serviceName) {
+    this(new STSTraceConfig(serviceName));
   }
 
-  public DDTracer(final Properties config) {
+  public STSTracer(final Properties config) {
     this(
-        config.getProperty(DDTraceConfig.SERVICE_NAME),
+        config.getProperty(STSTraceConfig.SERVICE_NAME),
         Writer.Builder.forConfig(config),
         Sampler.Builder.forConfig(config),
-        DDTraceConfig.parseMap(config.getProperty(DDTraceConfig.SPAN_TAGS)));
+        STSTraceConfig.parseMap(config.getProperty(STSTraceConfig.SPAN_TAGS)));
     log.debug("Using config: {}", config);
   }
 
-  public DDTracer(final String serviceName, final Writer writer, final Sampler sampler) {
+  public STSTracer(final String serviceName, final Writer writer, final Sampler sampler) {
     this(serviceName, writer, sampler, Collections.<String, Object>emptyMap());
   }
 
-  public DDTracer(
+  public STSTracer(
       final String serviceName,
       final Writer writer,
       final Sampler sampler,
@@ -112,14 +112,14 @@ public class DDTracer implements io.opentracing.Tracer {
     registry = new CodecRegistry();
     registry.register(Format.Builtin.HTTP_HEADERS, new HTTPCodec());
     registry.register(Format.Builtin.TEXT_MAP, new HTTPCodec());
-    if (this.writer instanceof DDAgentWriter && sampler instanceof DDApi.ResponseListener) {
-      final DDApi api = ((DDAgentWriter) this.writer).getApi();
-      api.addResponseListener((DDApi.ResponseListener) this.sampler);
+    if (this.writer instanceof STSAgentWriter && sampler instanceof STSApi.ResponseListener) {
+      final STSApi api = ((STSAgentWriter) this.writer).getApi();
+      api.addResponseListener((STSApi.ResponseListener) this.sampler);
     }
 
     registerClassLoader(ClassLoader.getSystemClassLoader());
 
-    final List<AbstractDecorator> decorators = DDDecoratorsFactory.createBuiltinDecorators();
+    final List<AbstractDecorator> decorators = STSDecoratorsFactory.createBuiltinDecorators();
     for (final AbstractDecorator decorator : decorators) {
       log.debug("Loading decorator: {}", decorator.getClass().getSimpleName());
       addDecorator(decorator);
@@ -128,12 +128,12 @@ public class DDTracer implements io.opentracing.Tracer {
     log.info("New instance: {}", this);
   }
 
-  public DDTracer(final Writer writer) {
+  public STSTracer(final Writer writer) {
     this(
         UNASSIGNED_DEFAULT_SERVICE_NAME,
         writer,
         new AllSampler(),
-        DDTraceConfig.parseMap(new DDTraceConfig().getProperty(DDTraceConfig.SPAN_TAGS)));
+        STSTraceConfig.parseMap(new STSTraceConfig().getProperty(STSTraceConfig.SPAN_TAGS)));
   }
 
   /**
@@ -205,8 +205,8 @@ public class DDTracer implements io.opentracing.Tracer {
   }
 
   @Override
-  public DDSpanBuilder buildSpan(final String operationName) {
-    return new DDSpanBuilder(operationName, scopeManager);
+  public STSSpanBuilder buildSpan(final String operationName) {
+    return new STSSpanBuilder(operationName, scopeManager);
   }
 
   @Override
@@ -216,7 +216,7 @@ public class DDTracer implements io.opentracing.Tracer {
     if (codec == null) {
       log.warn("Unsupported format for propagation - {}", format.getClass().getName());
     } else {
-      codec.inject((DDSpanContext) spanContext, carrier);
+      codec.inject((STSSpanContext) spanContext, carrier);
     }
   }
 
@@ -241,7 +241,7 @@ public class DDTracer implements io.opentracing.Tracer {
     if (trace.isEmpty()) {
       return;
     }
-    final ArrayList<DDSpan> writtenTrace;
+    final ArrayList<STSSpan> writtenTrace;
     if (interceptors.isEmpty()) {
       writtenTrace = Lists.newArrayList(trace);
     } else {
@@ -251,8 +251,8 @@ public class DDTracer implements io.opentracing.Tracer {
       }
       writtenTrace = Lists.newArrayListWithExpectedSize(interceptedTrace.size());
       for (final MutableSpan span : interceptedTrace) {
-        if (span instanceof DDSpan) {
-          writtenTrace.add((DDSpan) span);
+        if (span instanceof STSSpan) {
+          writtenTrace.add((STSSpan) span);
         }
       }
     }
@@ -267,7 +267,7 @@ public class DDTracer implements io.opentracing.Tracer {
 
   @Override
   public String toString() {
-    return "DDTracer-"
+    return "STSTracer-"
         + Integer.toHexString(hashCode())
         + "{ service-name="
         + serviceName
@@ -281,8 +281,8 @@ public class DDTracer implements io.opentracing.Tracer {
   }
 
   /**
-   * Register additional information about a service. Service additional information are a Datadog
-   * feature only. Services are reported through a specific Datadog endpoint.
+   * Register additional information about a service. Service additional information are a StackState
+   * feature only. Services are reported through a specific StackState endpoint.
    *
    * @param service additional service information
    */
@@ -321,7 +321,7 @@ public class DDTracer implements io.opentracing.Tracer {
   }
 
   /** Spans are built using this builder */
-  public class DDSpanBuilder implements SpanBuilder {
+  public class STSSpanBuilder implements SpanBuilder {
     private final ScopeManager scopeManager;
 
     /** Each span must have an operationName according to the opentracing specification */
@@ -338,7 +338,7 @@ public class DDTracer implements io.opentracing.Tracer {
     private String spanType;
     private boolean ignoreScope = false;
 
-    public DDSpanBuilder(final String operationName, final ScopeManager scopeManager) {
+    public STSSpanBuilder(final String operationName, final ScopeManager scopeManager) {
       this.operationName = operationName;
       this.scopeManager = scopeManager;
     }
@@ -349,17 +349,17 @@ public class DDTracer implements io.opentracing.Tracer {
       return this;
     }
 
-    private DDSpan startSpan() {
-      final DDSpan span = new DDSpan(this.timestampMicro, buildSpanContext());
-      if (DDTracer.this.sampler instanceof RateByServiceSampler) {
-        ((RateByServiceSampler) DDTracer.this.sampler).initializeSamplingPriority(span);
+    private STSSpan startSpan() {
+      final STSSpan span = new STSSpan(this.timestampMicro, buildSpanContext());
+      if (STSTracer.this.sampler instanceof RateByServiceSampler) {
+        ((RateByServiceSampler) STSTracer.this.sampler).initializeSamplingPriority(span);
       }
       return span;
     }
 
     @Override
     public Scope startActive(final boolean finishSpanOnClose) {
-      final DDSpan span = startSpan();
+      final STSSpan span = startSpan();
       final Scope scope = scopeManager.activate(span, finishSpanOnClose);
       log.debug("Starting a new active span: {}", span);
       return scope;
@@ -367,29 +367,29 @@ public class DDTracer implements io.opentracing.Tracer {
 
     @Override
     @Deprecated
-    public DDSpan startManual() {
+    public STSSpan startManual() {
       return start();
     }
 
     @Override
-    public DDSpan start() {
-      final DDSpan span = startSpan();
+    public STSSpan start() {
+      final STSSpan span = startSpan();
       log.debug("Starting a new span: {}", span);
       return span;
     }
 
     @Override
-    public DDSpanBuilder withTag(final String tag, final Number number) {
+    public STSSpanBuilder withTag(final String tag, final Number number) {
       return withTag(tag, (Object) number);
     }
 
     @Override
-    public DDSpanBuilder withTag(final String tag, final String string) {
-      if (tag.equals(DDTags.SERVICE_NAME)) {
+    public STSSpanBuilder withTag(final String tag, final String string) {
+      if (tag.equals(STSTags.SERVICE_NAME)) {
         return withServiceName(string);
-      } else if (tag.equals(DDTags.RESOURCE_NAME)) {
+      } else if (tag.equals(STSTags.RESOURCE_NAME)) {
         return withResourceName(string);
-      } else if (tag.equals(DDTags.SPAN_TYPE)) {
+      } else if (tag.equals(STSTags.SPAN_TYPE)) {
         return withSpanType(string);
       } else {
         return withTag(tag, (Object) string);
@@ -397,32 +397,32 @@ public class DDTracer implements io.opentracing.Tracer {
     }
 
     @Override
-    public DDSpanBuilder withTag(final String tag, final boolean bool) {
+    public STSSpanBuilder withTag(final String tag, final boolean bool) {
       return withTag(tag, (Object) bool);
     }
 
     @Override
-    public DDSpanBuilder withStartTimestamp(final long timestampMicroseconds) {
+    public STSSpanBuilder withStartTimestamp(final long timestampMicroseconds) {
       this.timestampMicro = timestampMicroseconds;
       return this;
     }
 
-    public DDSpanBuilder withServiceName(final String serviceName) {
+    public STSSpanBuilder withServiceName(final String serviceName) {
       this.serviceName = serviceName;
       return this;
     }
 
-    public DDSpanBuilder withResourceName(final String resourceName) {
+    public STSSpanBuilder withResourceName(final String resourceName) {
       this.resourceName = resourceName;
       return this;
     }
 
-    public DDSpanBuilder withErrorFlag() {
+    public STSSpanBuilder withErrorFlag() {
       this.errorFlag = true;
       return this;
     }
 
-    public DDSpanBuilder withSpanType(final String spanType) {
+    public STSSpanBuilder withSpanType(final String spanType) {
       this.spanType = spanType;
       return this;
     }
@@ -435,24 +435,24 @@ public class DDTracer implements io.opentracing.Tracer {
     }
 
     @Override
-    public DDSpanBuilder asChildOf(final Span span) {
+    public STSSpanBuilder asChildOf(final Span span) {
       return asChildOf(span == null ? null : span.context());
     }
 
     @Override
-    public DDSpanBuilder asChildOf(final SpanContext spanContext) {
+    public STSSpanBuilder asChildOf(final SpanContext spanContext) {
       this.parent = spanContext;
       return this;
     }
 
     @Override
-    public DDSpanBuilder addReference(final String referenceType, final SpanContext spanContext) {
+    public STSSpanBuilder addReference(final String referenceType, final SpanContext spanContext) {
       log.debug("`addReference` method is not implemented. Doing nothing");
       return this;
     }
 
     // Private methods
-    private DDSpanBuilder withTag(final String tag, final Object value) {
+    private STSSpanBuilder withTag(final String tag, final Object value) {
       if (this.tags.isEmpty()) {
         this.tags = Maps.newHashMap();
       }
@@ -471,7 +471,7 @@ public class DDTracer implements io.opentracing.Tracer {
      *
      * @return the context
      */
-    private DDSpanContext buildSpanContext() {
+    private STSSpanContext buildSpanContext() {
       final long traceId;
       final long spanId = generateNewId();
       final long parentSpanId;
@@ -479,7 +479,7 @@ public class DDTracer implements io.opentracing.Tracer {
       final PendingTrace parentTrace;
       final int samplingPriority;
 
-      final DDSpanContext context;
+      final STSSpanContext context;
       SpanContext parentContext = this.parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
@@ -488,36 +488,36 @@ public class DDTracer implements io.opentracing.Tracer {
       }
 
       // Propagate internal trace
-      if (parentContext instanceof DDSpanContext) {
-        final DDSpanContext ddsc = (DDSpanContext) parentContext;
-        traceId = ddsc.getTraceId();
-        parentSpanId = ddsc.getSpanId();
-        baggage = ddsc.getBaggageItems();
-        parentTrace = ddsc.getTrace();
-        samplingPriority = ddsc.getSamplingPriority();
-        if (this.serviceName == null) this.serviceName = ddsc.getServiceName();
-        if (this.spanType == null) this.spanType = ddsc.getSpanType();
+      if (parentContext instanceof STSSpanContext) {
+        final STSSpanContext stssc = (STSSpanContext) parentContext;
+        traceId = stssc.getTraceId();
+        parentSpanId = stssc.getSpanId();
+        baggage = stssc.getBaggageItems();
+        parentTrace = stssc.getTrace();
+        samplingPriority = stssc.getSamplingPriority();
+        if (this.serviceName == null) this.serviceName = stssc.getServiceName();
+        if (this.spanType == null) this.spanType = stssc.getSpanType();
 
         // Propagate external trace
       } else if (parentContext instanceof ExtractedContext) {
-        final ExtractedContext ddsc = (ExtractedContext) parentContext;
-        traceId = ddsc.getTraceId();
-        parentSpanId = ddsc.getSpanId();
-        baggage = ddsc.getBaggage();
-        parentTrace = new PendingTrace(DDTracer.this, traceId);
-        samplingPriority = ddsc.getSamplingPriority();
+        final ExtractedContext stssc = (ExtractedContext) parentContext;
+        traceId = stssc.getTraceId();
+        parentSpanId = stssc.getSpanId();
+        baggage = stssc.getBaggage();
+        parentTrace = new PendingTrace(STSTracer.this, traceId);
+        samplingPriority = stssc.getSamplingPriority();
 
         // Start a new trace
       } else {
         traceId = generateNewId();
         parentSpanId = 0L;
         baggage = null;
-        parentTrace = new PendingTrace(DDTracer.this, traceId);
+        parentTrace = new PendingTrace(STSTracer.this, traceId);
         samplingPriority = PrioritySampling.UNSET;
       }
 
       if (serviceName == null) {
-        serviceName = DDTracer.this.serviceName;
+        serviceName = STSTracer.this.serviceName;
       }
 
       final String operationName =
@@ -525,7 +525,7 @@ public class DDTracer implements io.opentracing.Tracer {
 
       // some attributes are inherited from the parent
       context =
-          new DDSpanContext(
+          new STSSpanContext(
               traceId,
               spanId,
               parentSpanId,
@@ -538,7 +538,7 @@ public class DDTracer implements io.opentracing.Tracer {
               spanType,
               this.tags,
               parentTrace,
-              DDTracer.this);
+              STSTracer.this);
 
       return context;
     }

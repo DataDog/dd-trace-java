@@ -1,5 +1,4 @@
 import com.google.common.io.Files
-import stackstate.trace.api.DDSpanTypes
 import org.hornetq.api.core.TransportConfiguration
 import org.hornetq.api.core.client.HornetQClient
 import org.hornetq.api.jms.HornetQJMSClient
@@ -17,6 +16,7 @@ import spock.lang.Shared
 import spock.lang.Timeout
 import spock.lang.Unroll
 import stackstate.trace.agent.test.AgentTestRunner
+import stackstate.trace.api.STSSpanTypes
 
 import javax.jms.Session
 import javax.jms.TextMessage
@@ -87,7 +87,7 @@ class JMS2Test extends AgentTestRunner {
     producerSpan.context().operationName == "jms.produce"
     producerSpan.serviceName == "jms"
     producerSpan.resourceName == "Produced for $resourceName"
-    producerSpan.type == DDSpanTypes.MESSAGE_PRODUCER
+    producerSpan.type == STSSpanTypes.MESSAGE_PRODUCER
     !producerSpan.context().getErrorFlag()
     producerSpan.context().parentId == 0
 
@@ -111,7 +111,7 @@ class JMS2Test extends AgentTestRunner {
     consumerSpan.context().operationName == "jms.consume"
     consumerSpan.serviceName == "jms"
     consumerSpan.resourceName == "Consumed from $resourceName"
-    consumerSpan.type == DDSpanTypes.MESSAGE_CONSUMER
+    consumerSpan.type == STSSpanTypes.MESSAGE_CONSUMER
     !consumerSpan.context().getErrorFlag()
     consumerSpan.context().parentId == producerSpan.context().spanId
 
@@ -168,7 +168,7 @@ class JMS2Test extends AgentTestRunner {
     producerSpan.context().operationName == "jms.produce"
     producerSpan.serviceName == "jms"
     producerSpan.resourceName == "Produced for $resourceName"
-    producerSpan.type == DDSpanTypes.MESSAGE_PRODUCER
+    producerSpan.type == STSSpanTypes.MESSAGE_PRODUCER
     !producerSpan.context().getErrorFlag()
     producerSpan.context().parentId == 0
 
@@ -192,7 +192,7 @@ class JMS2Test extends AgentTestRunner {
     consumerSpan.context().operationName == "jms.onMessage"
     consumerSpan.serviceName == "jms"
     consumerSpan.resourceName == "Received from $resourceName"
-    consumerSpan.type == DDSpanTypes.MESSAGE_CONSUMER
+    consumerSpan.type == STSSpanTypes.MESSAGE_CONSUMER
     !consumerSpan.context().getErrorFlag()
     consumerSpan.context().parentId == producerSpan.context().spanId
 

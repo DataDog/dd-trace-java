@@ -13,13 +13,13 @@ import java.lang.reflect.Field
 class ShadowPackageRenamingTest extends Specification {
   def "agent dependencies renamed"() {
     setup:
-    final Class<?> ddClass =
+    final Class<?> stsClass =
       IntegrationTestUtils.getAgentClassLoader()
         .loadClass("stackstate.trace.agent.tooling.AgentInstaller")
     final String userGuava =
       MapMaker.getProtectionDomain().getCodeSource().getLocation().getFile()
     final String agentGuavaDep =
-      ddClass
+      stsClass
         .getClassLoader()
         .loadClass("stackstate.trace.agent.deps.google.common.collect.MapMaker")
         .getProtectionDomain()
@@ -27,7 +27,7 @@ class ShadowPackageRenamingTest extends Specification {
         .getLocation()
         .getFile()
     final String agentSource =
-      ddClass.getProtectionDomain().getCodeSource().getLocation().getFile()
+      stsClass.getProtectionDomain().getCodeSource().getLocation().getFile()
 
     expect:
     agentSource.matches(".*/agent-tooling-and-instrumentation[^/]*.jar")

@@ -1,6 +1,6 @@
-import stackstate.opentracing.DDSpan
-import stackstate.opentracing.DDTracer
-import stackstate.trace.api.DDSpanTypes
+import stackstate.opentracing.STSSpan
+import stackstate.opentracing.STSTracer
+import stackstate.trace.api.STSSpanTypes
 import stackstate.trace.common.writer.ListWriter
 import io.opentracing.util.GlobalTracer
 import okhttp3.Interceptor
@@ -44,12 +44,12 @@ class JettyServletTest extends AgentTestRunner {
 
   ListWriter writer = new ListWriter() {
     @Override
-    void write(final List<DDSpan> trace) {
+    void write(final List<STSSpan> trace) {
       add(trace)
       JettyServletTest.latch.countDown()
     }
   }
-  DDTracer tracer = new DDTracer(writer)
+  STSTracer tracer = new STSTracer(writer)
 
   def setup() {
     jettyServer = new Server(PORT)
@@ -101,7 +101,7 @@ class JettyServletTest extends AgentTestRunner {
     span.context().serviceName == "unnamed-java-app"
     span.context().operationName == "servlet.request"
     span.context().resourceName == "GET /$path"
-    span.context().spanType == DDSpanTypes.WEB_SERVLET
+    span.context().spanType == STSSpanTypes.WEB_SERVLET
     !span.context().getErrorFlag()
     span.context().parentId != 0 // parent should be the okhttp call.
     span.context().tags["http.url"] == "http://localhost:$PORT/$path"
@@ -138,7 +138,7 @@ class JettyServletTest extends AgentTestRunner {
     span.context().serviceName == "unnamed-java-app"
     span.context().operationName == "servlet.request"
     span.context().resourceName == "GET /$path"
-    span.context().spanType == DDSpanTypes.WEB_SERVLET
+    span.context().spanType == STSSpanTypes.WEB_SERVLET
     span.context().getErrorFlag()
     span.context().parentId != 0 // parent should be the okhttp call.
     span.context().tags["http.url"] == "http://localhost:$PORT/$path"
@@ -179,7 +179,7 @@ class JettyServletTest extends AgentTestRunner {
     span.context().serviceName == "unnamed-java-app"
     span.context().operationName == "servlet.request"
     span.context().resourceName == "GET /$path"
-    span.context().spanType == DDSpanTypes.WEB_SERVLET
+    span.context().spanType == STSSpanTypes.WEB_SERVLET
     span.context().getErrorFlag()
     span.context().parentId != 0 // parent should be the okhttp call.
     span.context().tags["http.url"] == "http://localhost:$PORT/$path"

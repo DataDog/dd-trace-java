@@ -22,7 +22,7 @@ class TestHttpServer {
    * By default the test server will mock a stackstate traced server. Set this header to a value of
    * false to disable.
    */
-  public static final String IS_DD_SERVER = "is-dd-server"
+  public static final String IS_STS_SERVER = "is-sts-server"
 
   private static GroovyEmbeddedApp server = null
   private static int port = 0
@@ -45,11 +45,11 @@ class TestHttpServer {
         handlers {
           get {
             String msg = "<html><body><h1>Hello test.</h1>\n"
-            boolean isDDServer = true
-            if (context.request.getHeaders().contains(IS_DD_SERVER)) {
-              isDDServer = Boolean.parseBoolean(context.request.getHeaders().get(IS_DD_SERVER))
+            boolean isSTSServer = true
+            if (context.request.getHeaders().contains(IS_STS_SERVER)) {
+              isSTSServer = Boolean.parseBoolean(context.request.getHeaders().get(IS_STS_SERVER))
             }
-            if (isDDServer) {
+            if (isSTSServer) {
               final SpanContext extractedContext =
                 GlobalTracer.get()
                   .extract(Format.Builtin.HTTP_HEADERS, new RatpackResponseAdapter(context))

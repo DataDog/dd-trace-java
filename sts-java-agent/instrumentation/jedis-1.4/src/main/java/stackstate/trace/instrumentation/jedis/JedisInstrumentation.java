@@ -15,10 +15,10 @@ import java.util.Collections;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import redis.clients.jedis.Protocol.Command;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
+import stackstate.trace.api.STSTags;
 
 @AutoService(Instrumenter.class)
 public final class JedisInstrumentation extends Instrumenter.Configurable {
@@ -36,9 +36,9 @@ public final class JedisInstrumentation extends Instrumenter.Configurable {
         .type(
             named("redis.clients.jedis.Protocol"),
             classLoaderHasClasses("redis.clients.jedis.Protocol$Command"))
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     isMethod()
                         .and(isPublic())
@@ -60,9 +60,9 @@ public final class JedisInstrumentation extends Instrumenter.Configurable {
       Tags.SPAN_KIND.set(span, Tags.SPAN_KIND_CLIENT);
       Tags.COMPONENT.set(span, COMPONENT_NAME);
 
-      span.setTag(DDTags.RESOURCE_NAME, command.name());
-      span.setTag(DDTags.SERVICE_NAME, SERVICE_NAME);
-      span.setTag(DDTags.SPAN_TYPE, SERVICE_NAME);
+      span.setTag(STSTags.RESOURCE_NAME, command.name());
+      span.setTag(STSTags.SERVICE_NAME, SERVICE_NAME);
+      span.setTag(STSTags.SPAN_TYPE, SERVICE_NAME);
 
       return scope;
     }

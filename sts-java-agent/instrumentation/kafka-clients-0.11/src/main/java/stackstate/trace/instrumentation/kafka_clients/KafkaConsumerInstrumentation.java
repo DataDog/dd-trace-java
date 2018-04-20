@@ -18,22 +18,22 @@ import java.util.Iterator;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.api.DDSpanTypes;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
 
 @AutoService(Instrumenter.class)
 public final class KafkaConsumerInstrumentation extends Instrumenter.Configurable {
   public static final HelperInjector HELPER_INJECTOR =
       new HelperInjector(
-          "datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter",
-          "datadog.trace.instrumentation.kafka_clients.TracingIterable",
-          "datadog.trace.instrumentation.kafka_clients.TracingIterable$TracingIterator",
-          "datadog.trace.instrumentation.kafka_clients.TracingIterable$SpanBuilderDecorator",
-          "datadog.trace.instrumentation.kafka_clients.KafkaConsumerInstrumentation$ConsumeScopeAction");
+          "stackstate.trace.instrumentation.kafka_clients.TextMapExtractAdapter",
+          "stackstate.trace.instrumentation.kafka_clients.TracingIterable",
+          "stackstate.trace.instrumentation.kafka_clients.TracingIterable$TracingIterator",
+          "stackstate.trace.instrumentation.kafka_clients.TracingIterable$SpanBuilderDecorator",
+          "stackstate.trace.instrumentation.kafka_clients.KafkaConsumerInstrumentation$ConsumeScopeAction");
 
   public KafkaConsumerInstrumentation() {
     super("kafka");
@@ -47,9 +47,9 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Configurabl
             classLoaderHasClasses(
                 "org.apache.kafka.common.header.Header", "org.apache.kafka.common.header.Headers"))
         .transform(HELPER_INJECTOR)
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     isMethod()
                         .and(isPublic())
@@ -97,9 +97,9 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Configurabl
               .extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(record.headers()));
       spanBuilder
           .asChildOf(spanContext)
-          .withTag(DDTags.SERVICE_NAME, "kafka")
-          .withTag(DDTags.RESOURCE_NAME, "Consume Topic " + topic)
-          .withTag(DDTags.SPAN_TYPE, DDSpanTypes.MESSAGE_CONSUMER)
+          .withTag(STSTags.SERVICE_NAME, "kafka")
+          .withTag(STSTags.RESOURCE_NAME, "Consume Topic " + topic)
+          .withTag(STSTags.SPAN_TYPE, STSSpanTypes.MESSAGE_CONSUMER)
           .withTag(Tags.COMPONENT.getKey(), "java-kafka")
           .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CONSUMER)
           .withTag("partition", record.partition())

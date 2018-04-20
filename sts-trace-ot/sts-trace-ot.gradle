@@ -14,7 +14,7 @@ whitelistedInstructionClasses += whitelistedBranchClasses += [
   'stackstate.opentracing.decorators.*',
   'stackstate.trace.common.writer.ListWriter',
   'stackstate.trace.common.util.Clock',
-  'stackstate.trace.api.DDTags',
+  'stackstate.trace.api.STSTags',
   'stackstate.trace.common.util.ConfigUtils',
   'stackstate.trace.common.sampling.PrioritySampling'
 ]
@@ -24,7 +24,7 @@ if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
     test {
       groovy {
         // These classes use Ratpack which requires Java 8. (Currently also incompatible with Java 9.)
-        exclude 'stackstate/trace/api/writer/DDApiTest.groovy'
+        exclude 'stackstate/trace/api/writer/STSApiTest.groovy'
       }
     }
   }

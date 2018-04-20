@@ -1,7 +1,7 @@
 package stackstate.opentracing.decorators
 
-import stackstate.opentracing.DDSpanContext
-import stackstate.opentracing.DDTracer
+import stackstate.opentracing.STSSpanContext
+import stackstate.opentracing.STSTracer
 import stackstate.opentracing.PendingTrace
 import stackstate.trace.common.sampling.PrioritySampling
 import stackstate.trace.common.writer.ListWriter
@@ -13,7 +13,7 @@ import spock.lang.Timeout
 @Timeout(1)
 class URLAsResourceNameTest extends Specification {
   def writer = new ListWriter()
-  def tracer = new DDTracer(writer)
+  def tracer = new STSTracer(writer)
 
   @Subject
   def decorator = new URLAsResourceName()
@@ -87,8 +87,8 @@ class URLAsResourceNameTest extends Specification {
 
   def "sets the resource name"() {
     when:
-    final DDSpanContext context =
-      new DDSpanContext(
+    final STSSpanContext context =
+      new STSSpanContext(
         1L,
         1L,
         0L,

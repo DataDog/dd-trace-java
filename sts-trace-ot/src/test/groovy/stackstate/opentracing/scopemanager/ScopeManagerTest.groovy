@@ -1,8 +1,8 @@
 package stackstate.opentracing.scopemanager
 
-import stackstate.opentracing.DDSpan
-import stackstate.opentracing.DDSpanContext
-import stackstate.opentracing.DDTracer
+import stackstate.opentracing.STSSpan
+import stackstate.opentracing.STSSpanContext
+import stackstate.opentracing.STSTracer
 import stackstate.opentracing.PendingTrace
 import stackstate.trace.common.writer.ListWriter
 import io.opentracing.Scope
@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicReference
 @Timeout(1)
 class ScopeManagerTest extends Specification {
   def writer = new ListWriter()
-  def tracer = new DDTracer(writer)
+  def tracer = new STSTracer(writer)
 
   @Subject
   def scopeManager = tracer.scopeManager()
@@ -117,7 +117,7 @@ class ScopeManagerTest extends Specification {
     if (forceGC) {
       continuation = null // Continuation references also hold up traces.
       PendingTrace.awaitGC()
-      ((DDSpanContext) scope.span().context()).trace.clean()
+      ((STSSpanContext) scope.span().context()).trace.clean()
     }
     if (autoClose) {
       if (continuation != null) {
@@ -162,7 +162,7 @@ class ScopeManagerTest extends Specification {
     if (forceGC) {
       continuation = null // Continuation references also hold up traces.
       PendingTrace.awaitGC()
-      ((DDSpanContext) span.context()).trace.clean()
+      ((STSSpanContext) span.context()).trace.clean()
       writer.waitForTraces(1)
     }
     if (autoClose) {
@@ -394,7 +394,7 @@ class ScopeManagerTest extends Specification {
   }
 
   boolean spanFinished(Span span) {
-    return ((DDSpan) span).isFinished()
+    return ((STSSpan) span).isFinished()
   }
 
   class AtomicReferenceScope extends AtomicReference<Span> implements ScopeContext, Scope {

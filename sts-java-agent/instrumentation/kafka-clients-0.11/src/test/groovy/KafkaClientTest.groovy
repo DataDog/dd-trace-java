@@ -120,8 +120,8 @@ class KafkaClientTest extends AgentTestRunner {
 
     def headers = received.headers()
     headers.iterator().hasNext()
-    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "$t1span1.traceId"
-    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "$t1span1.spanId"
+    new String(headers.headers("x-stackstate-trace-id").iterator().next().value()) == "$t1span1.traceId"
+    new String(headers.headers("x-stackstate-parent-id").iterator().next().value()) == "$t1span1.spanId"
 
 
     cleanup:

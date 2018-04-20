@@ -7,14 +7,14 @@ import spock.lang.Subject
 
 class PendingTraceTest extends Specification {
   def writer = new ListWriter()
-  def tracer = new DDTracer(writer)
+  def tracer = new STSTracer(writer)
 
   def traceId = System.identityHashCode(this)
 
   @Subject
   PendingTrace trace = new PendingTrace(tracer, traceId)
 
-  DDSpan rootSpan = SpanFactory.newSpanOf(trace)
+  STSSpan rootSpan = SpanFactory.newSpanOf(trace)
 
   def setup() {
     assert trace.size() == 0
@@ -123,7 +123,7 @@ class PendingTraceTest extends Specification {
   def "register span to wrong trace fails"() {
     setup:
     def otherTrace = new PendingTrace(tracer, traceId - 10)
-    otherTrace.registerSpan(new DDSpan(0, rootSpan.context()))
+    otherTrace.registerSpan(new STSSpan(0, rootSpan.context()))
 
     expect:
     otherTrace.pendingReferenceCount.get() == 0

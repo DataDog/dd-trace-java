@@ -1,12 +1,12 @@
 package stackstate.trace
 
 import stackstate.opentracing.SpanFactory
-import stackstate.trace.api.DDTags
+import stackstate.trace.api.STSTags
 import spock.lang.Specification
 import spock.lang.Timeout
 
 @Timeout(1)
-class DDSpanContextTest extends Specification {
+class STSSpanContextTest extends Specification {
 
   def "null values for tags delete existing tags"() {
     setup:
@@ -23,11 +23,11 @@ class DDSpanContextTest extends Specification {
     context.toString() == "Span [ t_id=1, s_id=1, p_id=0] trace=fakeService/fakeOperation/fakeResource *errored* tags={${extra}span.type=${context.getSpanType()}, thread.id=${Thread.currentThread().id}, thread.name=${Thread.currentThread().name}}"
 
     where:
-    name                 | extra             | tags
-    DDTags.SERVICE_NAME  | "some.tag=asdf, " | ["some.tag": "asdf", (DDTags.SPAN_TYPE):"fakeType", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
-    DDTags.RESOURCE_NAME | "some.tag=asdf, " | ["some.tag": "asdf", (DDTags.SPAN_TYPE):"fakeType", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
-    DDTags.SPAN_TYPE     | "some.tag=asdf, " | ["some.tag": "asdf", (DDTags.SPAN_TYPE):"fakeType", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
-    "some.tag"           | ""                | [ (DDTags.SPAN_TYPE):"fakeType", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
+    name                  | extra             | tags
+    STSTags.SERVICE_NAME  | "some.tag=asdf, " | ["some.tag": "asdf", (STSTags.SPAN_TYPE):"fakeType", (STSTags.THREAD_NAME): Thread.currentThread().name, (STSTags.THREAD_ID): Thread.currentThread().id]
+    STSTags.RESOURCE_NAME | "some.tag=asdf, " | ["some.tag": "asdf", (STSTags.SPAN_TYPE):"fakeType", (STSTags.THREAD_NAME): Thread.currentThread().name, (STSTags.THREAD_ID): Thread.currentThread().id]
+    STSTags.SPAN_TYPE     | "some.tag=asdf, " | ["some.tag": "asdf", (STSTags.SPAN_TYPE):"fakeType", (STSTags.THREAD_NAME): Thread.currentThread().name, (STSTags.THREAD_ID): Thread.currentThread().id]
+    "some.tag"            | ""                | [(STSTags.SPAN_TYPE):"fakeType", (STSTags.THREAD_NAME): Thread.currentThread().name, (STSTags.THREAD_ID): Thread.currentThread().id]
   }
 
   def "special tags set certain values"() {
@@ -36,7 +36,7 @@ class DDSpanContextTest extends Specification {
     context.setTag(name, value)
     def thread = Thread.currentThread()
 
-    def expectedTags = [(DDTags.THREAD_NAME): thread.name, (DDTags.THREAD_ID): thread.id, (DDTags.SPAN_TYPE): context.getSpanType()]
+    def expectedTags = [(STSTags.THREAD_NAME): thread.name, (STSTags.THREAD_ID): thread.id, (STSTags.SPAN_TYPE): context.getSpanType()]
     def expectedTrace = "Span [ t_id=1, s_id=1, p_id=0] trace=$details tags={span.type=${context.getSpanType()}, thread.id=$thread.id, thread.name=$thread.name}"
 
     expect:
@@ -45,10 +45,10 @@ class DDSpanContextTest extends Specification {
     context.toString() == expectedTrace
 
     where:
-    name                 | value                | method         | details
-    DDTags.SERVICE_NAME  | "different service"  | "serviceName"  | "different service/fakeOperation/fakeResource"
-    DDTags.RESOURCE_NAME | "different resource" | "resourceName" | "fakeService/fakeOperation/different resource"
-    DDTags.SPAN_TYPE     | "different type"     | "spanType"     | "fakeService/fakeOperation/fakeResource"
+    name                  | value                | method         | details
+    STSTags.SERVICE_NAME  | "different service"  | "serviceName"  | "different service/fakeOperation/fakeResource"
+    STSTags.RESOURCE_NAME | "different resource" | "resourceName" | "fakeService/fakeOperation/different resource"
+    STSTags.SPAN_TYPE     | "different type"     | "spanType"     | "fakeService/fakeOperation/fakeResource"
   }
 
   def "tags can be added to the context"() {
@@ -59,10 +59,10 @@ class DDSpanContextTest extends Specification {
 
     expect:
     context.getTags() == [
-      (name)              : value,
-      (DDTags.SPAN_TYPE)  : context.getSpanType(),
-      (DDTags.THREAD_NAME): thread.name,
-      (DDTags.THREAD_ID)  : thread.id
+      (name)               : value,
+      (STSTags.SPAN_TYPE)  : context.getSpanType(),
+      (STSTags.THREAD_NAME): thread.name,
+      (STSTags.THREAD_ID)  : thread.id
     ]
     context.toString() == "Span [ t_id=1, s_id=1, p_id=0] trace=fakeService/fakeOperation/fakeResource tags={span.type=${context.getSpanType()}, $name=$value, thread.id=$thread.id, thread.name=$thread.name}"
 

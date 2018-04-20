@@ -1,7 +1,7 @@
 package stackstate.opentracing.decorators;
 
 import io.opentracing.tag.Tags;
-import stackstate.opentracing.DDSpanContext;
+import stackstate.opentracing.STSSpanContext;
 
 public class ErrorFlag extends AbstractDecorator {
   public ErrorFlag() {
@@ -10,7 +10,7 @@ public class ErrorFlag extends AbstractDecorator {
   }
 
   @Override
-  public boolean afterSetTag(final DDSpanContext context, final String tag, final Object value) {
+  public boolean afterSetTag(final STSSpanContext context, final String tag, final Object value) {
     // Assign resource name
     try {
       context.setErrorFlag(Boolean.parseBoolean(String.valueOf(value)));

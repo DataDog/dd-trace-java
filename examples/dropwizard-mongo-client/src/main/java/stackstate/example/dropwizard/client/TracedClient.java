@@ -7,7 +7,7 @@ import java.io.IOException;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.api.STSTags;
 import stackstate.trace.api.Trace;
 
 /**
@@ -26,7 +26,7 @@ public class TracedClient {
   private static void executeCall() throws IOException {
     final Tracer tracer = GlobalTracer.get();
     final Scope scope = tracer.scopeManager().active();
-    scope.span().setTag(DDTags.SERVICE_NAME, "http.client");
+    scope.span().setTag(STSTags.SERVICE_NAME, "http.client");
 
     final OkHttpClient client = new OkHttpClient().newBuilder().build();
     final Request request = new Request.Builder().url("http://localhost:8080/demo/").build();

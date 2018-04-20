@@ -7,19 +7,19 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import stackstate.opentracing.DDSpan;
+import stackstate.opentracing.STSSpan;
 import stackstate.trace.common.Service;
 
 /** List writer used by tests mostly */
-public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Writer {
+public class ListWriter extends CopyOnWriteArrayList<List<STSSpan>> implements Writer {
   private final List<CountDownLatch> latches = new LinkedList<>();
 
-  public List<DDSpan> firstTrace() {
+  public List<STSSpan> firstTrace() {
     return get(0);
   }
 
   @Override
-  public void write(final List<DDSpan> trace) {
+  public void write(final List<STSSpan> trace) {
     synchronized (latches) {
       add(trace);
       for (final CountDownLatch latch : latches) {

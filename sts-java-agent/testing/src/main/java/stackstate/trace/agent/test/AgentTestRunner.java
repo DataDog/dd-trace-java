@@ -21,8 +21,8 @@ import org.junit.runner.RunWith;
 import org.slf4j.LoggerFactory;
 import org.spockframework.runtime.model.SpecMetadata;
 import spock.lang.Specification;
-import stackstate.opentracing.DDSpan;
-import stackstate.opentracing.DDTracer;
+import stackstate.opentracing.STSSpan;
+import stackstate.opentracing.STSTracer;
 import stackstate.trace.agent.tooling.AgentInstaller;
 import stackstate.trace.agent.tooling.Instrumenter;
 import stackstate.trace.common.writer.ListWriter;
@@ -68,19 +68,19 @@ public abstract class AgentTestRunner extends Specification {
     instrumentation = ByteBuddyAgent.getInstrumentation();
 
     ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.WARN);
-    ((Logger) LoggerFactory.getLogger("datadog")).setLevel(Level.DEBUG);
+    ((Logger) LoggerFactory.getLogger("stackstate")).setLevel(Level.DEBUG);
 
     WRITER_PHASER.register();
     TEST_WRITER =
         new ListWriter() {
           @Override
-          public boolean add(final List<DDSpan> trace) {
+          public boolean add(final List<STSSpan> trace) {
             final boolean result = super.add(trace);
             WRITER_PHASER.arrive();
             return result;
           }
         };
-    TEST_TRACER = new DDTracer(TEST_WRITER);
+    TEST_TRACER = new STSTracer(TEST_WRITER);
     TestUtils.registerOrReplaceGlobalTracer((Tracer) TEST_TRACER);
   }
 

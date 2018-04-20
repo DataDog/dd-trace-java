@@ -1,8 +1,8 @@
 package stackstate.opentracing.decorators;
 
 import io.opentracing.tag.Tags;
-import stackstate.opentracing.DDSpanContext;
-import stackstate.trace.api.DDTags;
+import stackstate.opentracing.STSSpanContext;
+import stackstate.trace.api.STSTags;
 
 /**
  * This span decorator leverages DB tags. It allows the dev to define a custom service name and
@@ -13,11 +13,11 @@ public class DBTypeDecorator extends AbstractDecorator {
   public DBTypeDecorator() {
     super();
     this.setMatchingTag(Tags.DB_TYPE.getKey());
-    this.setSetTag(DDTags.SERVICE_NAME);
+    this.setSetTag(STSTags.SERVICE_NAME);
   }
 
   @Override
-  public boolean afterSetTag(final DDSpanContext context, final String tag, final Object value) {
+  public boolean afterSetTag(final STSSpanContext context, final String tag, final Object value) {
 
     // Assign service name
     if (super.afterSetTag(context, tag, value)) {

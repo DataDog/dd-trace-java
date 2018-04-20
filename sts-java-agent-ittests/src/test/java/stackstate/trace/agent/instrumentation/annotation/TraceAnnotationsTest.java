@@ -7,8 +7,8 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import org.junit.Before;
 import org.junit.Test;
-import stackstate.opentracing.DDSpan;
-import stackstate.opentracing.DDTracer;
+import stackstate.opentracing.STSSpan;
+import stackstate.opentracing.STSTracer;
 import stackstate.opentracing.decorators.ErrorFlag;
 import stackstate.trace.agent.test.IntegrationTestUtils;
 import stackstate.trace.agent.test.SayTracedHello;
@@ -16,7 +16,7 @@ import stackstate.trace.common.writer.ListWriter;
 
 public class TraceAnnotationsTest {
   private final ListWriter writer = new ListWriter();
-  private final DDTracer tracer = new DDTracer(writer);
+  private final STSTracer tracer = new STSTracer(writer);
 
   @Before
   public void beforeTest() throws Exception {
@@ -73,7 +73,7 @@ public class TraceAnnotationsTest {
     final StringWriter errorString = new StringWriter();
     error.printStackTrace(new PrintWriter(errorString));
 
-    final DDSpan span = writer.firstTrace().get(0);
+    final STSSpan span = writer.firstTrace().get(0);
     assertThat(span.getOperationName()).isEqualTo("ERROR");
     assertThat(span.getTags().get("error")).isEqualTo(true);
     assertThat(span.getTags().get("error.msg")).isEqualTo(error.getMessage());

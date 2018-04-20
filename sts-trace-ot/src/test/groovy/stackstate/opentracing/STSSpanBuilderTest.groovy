@@ -1,6 +1,6 @@
 package stackstate.opentracing
 
-import stackstate.trace.api.DDTags
+import stackstate.trace.api.STSTags
 import stackstate.trace.common.writer.ListWriter
 import spock.lang.Specification
 
@@ -8,13 +8,13 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static org.mockito.Mockito.mock
 import static org.mockito.Mockito.when
 
-class DDSpanBuilderTest extends Specification {
+class STSSpanBuilderTest extends Specification {
   def writer = new ListWriter()
-  def tracer = new DDTracer(writer)
+  def tracer = new STSTracer(writer)
 
   def "build simple span"() {
     setup:
-    final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
+    final STSSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
 
     expect:
     span.operationName == "op name"
@@ -29,7 +29,7 @@ class DDSpanBuilderTest extends Specification {
       "3": 42.0,
     ]
 
-    DDTracer.DDSpanBuilder builder = tracer
+    STSTracer.STSSpanBuilder builder = tracer
       .buildSpan(expectedName)
       .withServiceName("foo")
     tags.each {
@@ -37,7 +37,7 @@ class DDSpanBuilderTest extends Specification {
     }
 
     when:
-    DDSpan span = builder.start()
+    STSSpan span = builder.start()
 
     then:
     span.getOperationName() == expectedName
@@ -49,8 +49,8 @@ class DDSpanBuilderTest extends Specification {
 
     then:
     span.getTags() == [
-      (DDTags.THREAD_NAME): Thread.currentThread().getName(),
-      (DDTags.THREAD_ID)  : Thread.currentThread().getId(),
+      (STSTags.THREAD_NAME): Thread.currentThread().getName(),
+      (STSTags.THREAD_ID)  : Thread.currentThread().getId(),
     ]
 
     when:
@@ -69,7 +69,7 @@ class DDSpanBuilderTest extends Specification {
         .withSpanType(expectedType)
         .start()
 
-    final DDSpanContext context = span.context()
+    final STSSpanContext context = span.context()
 
     then:
     context.getResourceName() == expectedResource
@@ -77,8 +77,8 @@ class DDSpanBuilderTest extends Specification {
     context.getServiceName() == expectedService
     context.getSpanType() == expectedType
 
-    context.tags[DDTags.THREAD_NAME] == Thread.currentThread().getName()
-    context.tags[DDTags.THREAD_ID] == Thread.currentThread().getId()
+    context.tags[STSTags.THREAD_NAME] == Thread.currentThread().getName()
+    context.tags[STSTags.THREAD_ID] == Thread.currentThread().getId()
   }
 
   def "should build span timestamp in nano"() {
@@ -87,7 +87,7 @@ class DDSpanBuilderTest extends Specification {
     final long expectedTimestamp = 487517802L * 1000 * 1000L
     final String expectedName = "fakeName"
 
-    DDSpan span =
+    STSSpan span =
       tracer
         .buildSpan(expectedName)
         .withServiceName("foo")
@@ -115,7 +115,7 @@ class DDSpanBuilderTest extends Specification {
     final long spanId = 1L
     final long expectedParentId = spanId
 
-    final DDSpanContext mockedContext = mock(DDSpanContext)
+    final STSSpanContext mockedContext = mock(STSSpanContext)
 
     when(mockedContext.getSpanId()).thenReturn(spanId)
     when(mockedContext.getServiceName()).thenReturn("foo")
@@ -123,20 +123,20 @@ class DDSpanBuilderTest extends Specification {
 
     final String expectedName = "fakeName"
 
-    final DDSpan span =
+    final STSSpan span =
       tracer
         .buildSpan(expectedName)
         .withServiceName("foo")
         .asChildOf(mockedContext)
         .start()
 
-    final DDSpanContext actualContext = span.context()
+    final STSSpanContext actualContext = span.context()
 
     expect:
     actualContext.getParentId() == expectedParentId
   }
 
-  def "should inherit the DD parent attributes"() {
+  def "should inherit the STS parent attributes"() {
     setup:
     def expectedName = "fakeName"
     def expectedParentServiceName = "fakeServiceName"
@@ -148,7 +148,7 @@ class DDSpanBuilderTest extends Specification {
     def expectedBaggageItemKey = "fakeKey"
     def expectedBaggageItemValue = "fakeValue"
 
-    final DDSpan parent =
+    final STSSpan parent =
       tracer
         .buildSpan(expectedName)
         .withServiceName("foo")
@@ -159,7 +159,7 @@ class DDSpanBuilderTest extends Specification {
     parent.setBaggageItem(expectedBaggageItemKey, expectedBaggageItemValue)
 
     // ServiceName and SpanType are always set by the parent  if they are not present in the child
-    DDSpan span =
+    STSSpan span =
       tracer
         .buildSpan(expectedName)
         .withServiceName(expectedParentServiceName)
@@ -194,7 +194,7 @@ class DDSpanBuilderTest extends Specification {
 
   def "should track all spans in trace"() {
     setup:
-    List<DDSpan> spans = []
+    List<STSSpan> spans = []
     final int nbSamples = 10
 
     // root (aka spans[0]) is the parent
@@ -224,19 +224,19 @@ class DDSpanBuilderTest extends Specification {
 
   def "global span tags populated on each span"() {
     setup:
-    System.setProperty("dd.trace.span.tags", tagString)
-    tracer = new DDTracer(writer)
+    System.setProperty("sts.trace.span.tags", tagString)
+    tracer = new STSTracer(writer)
     def span = tracer.buildSpan("op name").withServiceName("foo").start()
     tags.putAll([
-      (DDTags.THREAD_NAME): Thread.currentThread().getName(),
-      (DDTags.THREAD_ID)  : Thread.currentThread().getId(),
+      (STSTags.THREAD_NAME): Thread.currentThread().getName(),
+      (STSTags.THREAD_ID)  : Thread.currentThread().getId(),
     ])
 
     expect:
     span.tags == tags
 
     cleanup:
-    System.clearProperty("dd.trace.span.tags")
+    System.clearProperty("sts.trace.span.tags")
 
     where:
     tagString     | tags

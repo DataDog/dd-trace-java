@@ -30,7 +30,7 @@ public class HelperInjector implements Transformer {
    * Construct HelperInjector.
    *
    * @param helperClassNames binary names of the helper classes to inject. These class names must be
-   *     resolvable by the classloader returned by DDAdvice#getAgentClassLoader(). Classes are
+   *     resolvable by the classloader returned by STSAdvice#getAgentClassLoader(). Classes are
    *     injected in the order provided. This is important if there is interdependency between
    *     helper classes that requires them to be injected in a specific order.
    */

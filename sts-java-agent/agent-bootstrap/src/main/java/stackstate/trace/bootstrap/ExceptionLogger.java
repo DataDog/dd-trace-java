@@ -3,6 +3,6 @@ package stackstate.trace.bootstrap;
 /**
  * Class used for exception handler logging.
  *
- * <p>See datadog.trace.agent.tooling.ExceptionHandlers
+ * <p>See stackstate.trace.agent.tooling.ExceptionHandlers
  */
 public class ExceptionLogger {}

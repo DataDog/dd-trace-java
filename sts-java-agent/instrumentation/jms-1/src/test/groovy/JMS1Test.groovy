@@ -1,4 +1,4 @@
-import stackstate.trace.api.DDSpanTypes
+import stackstate.trace.api.STSSpanTypes
 import org.apache.activemq.ActiveMQConnectionFactory
 import org.apache.activemq.ActiveMQMessageConsumer
 import org.apache.activemq.ActiveMQMessageProducer
@@ -54,7 +54,7 @@ class JMS1Test extends AgentTestRunner {
     span0.context().operationName == "jms.produce"
     span0.serviceName == "jms"
     span0.resourceName == "Produced for $resourceName"
-    span0.type == DDSpanTypes.MESSAGE_PRODUCER
+    span0.type == STSSpanTypes.MESSAGE_PRODUCER
     !span0.context().getErrorFlag()
     span0.context().parentId == 0
 
@@ -75,7 +75,7 @@ class JMS1Test extends AgentTestRunner {
     span1.context().operationName == "jms.produce"
     span1.serviceName == "jms"
     span1.resourceName == "Produced for $resourceName"
-    span1.type == DDSpanTypes.MESSAGE_PRODUCER
+    span1.type == STSSpanTypes.MESSAGE_PRODUCER
     !span1.context().getErrorFlag()
     span1.context().parentId == span0.context().spanId
 
@@ -96,7 +96,7 @@ class JMS1Test extends AgentTestRunner {
     span2.context().operationName == "jms.produce"
     span2.serviceName == "jms"
     span2.resourceName == "Produced for $resourceName"
-    span2.type == DDSpanTypes.MESSAGE_PRODUCER
+    span2.type == STSSpanTypes.MESSAGE_PRODUCER
     !span2.context().getErrorFlag()
     span2.context().parentId == span1.context().spanId
 
@@ -120,7 +120,7 @@ class JMS1Test extends AgentTestRunner {
     consumerSpan.context().operationName == "jms.consume"
     consumerSpan.serviceName == "jms"
     consumerSpan.resourceName == "Consumed from $resourceName"
-    consumerSpan.type == DDSpanTypes.MESSAGE_CONSUMER
+    consumerSpan.type == STSSpanTypes.MESSAGE_CONSUMER
     !consumerSpan.context().getErrorFlag()
     consumerSpan.context().parentId == span2.context().spanId
 
@@ -178,7 +178,7 @@ class JMS1Test extends AgentTestRunner {
     span0.context().operationName == "jms.produce"
     span0.serviceName == "jms"
     span0.resourceName == "Produced for $resourceName"
-    span0.type == DDSpanTypes.MESSAGE_PRODUCER
+    span0.type == STSSpanTypes.MESSAGE_PRODUCER
     !span0.context().getErrorFlag()
     span0.context().parentId == 0
 
@@ -199,7 +199,7 @@ class JMS1Test extends AgentTestRunner {
     span1.context().operationName == "jms.produce"
     span1.serviceName == "jms"
     span1.resourceName == "Produced for $resourceName"
-    span1.type == DDSpanTypes.MESSAGE_PRODUCER
+    span1.type == STSSpanTypes.MESSAGE_PRODUCER
     !span1.context().getErrorFlag()
     span1.context().parentId == span0.context().spanId
 
@@ -220,7 +220,7 @@ class JMS1Test extends AgentTestRunner {
     span2.context().operationName == "jms.produce"
     span2.serviceName == "jms"
     span2.resourceName == "Produced for $resourceName"
-    span2.type == DDSpanTypes.MESSAGE_PRODUCER
+    span2.type == STSSpanTypes.MESSAGE_PRODUCER
     !span2.context().getErrorFlag()
     span2.context().parentId == span1.context().spanId
 
@@ -244,7 +244,7 @@ class JMS1Test extends AgentTestRunner {
     consumerSpan.context().operationName == "jms.onMessage"
     consumerSpan.serviceName == "jms"
     consumerSpan.resourceName == "Received from $resourceName"
-    consumerSpan.type == DDSpanTypes.MESSAGE_CONSUMER
+    consumerSpan.type == STSSpanTypes.MESSAGE_CONSUMER
     !consumerSpan.context().getErrorFlag()
     consumerSpan.context().parentId == span2.context().spanId
 

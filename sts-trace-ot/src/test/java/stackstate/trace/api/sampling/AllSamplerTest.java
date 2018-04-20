@@ -9,12 +9,12 @@ import java.util.Map;
 import java.util.regex.Pattern;
 import org.junit.Test;
 import org.mockito.Mock;
-import stackstate.opentracing.DDSpan;
+import stackstate.opentracing.STSSpan;
 import stackstate.trace.common.sampling.AllSampler;
 
 public class AllSamplerTest {
 
-  @Mock DDSpan mockSpan;
+  @Mock STSSpan mockSpan;
 
   private final AllSampler sampler = new AllSampler();
 
@@ -30,7 +30,7 @@ public class AllSamplerTest {
   public void testSkipTagPatternSampler() {
 
     final Map<String, Object> tags = new HashMap<>();
-    mockSpan = mock(DDSpan.class);
+    mockSpan = mock(STSSpan.class);
     when(mockSpan.getTags()).thenReturn(tags).thenReturn(tags);
 
     sampler.addSkipTagPattern("http.url", Pattern.compile(".*/hello"));

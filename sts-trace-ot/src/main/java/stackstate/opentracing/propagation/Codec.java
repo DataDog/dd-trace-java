@@ -21,7 +21,7 @@
  */
 package stackstate.opentracing.propagation;
 
-import stackstate.opentracing.DDSpanContext;
+import stackstate.opentracing.STSSpanContext;
 
 /** A codec is a simple object that can encode and decode a span context through a carrier */
 public interface Codec<T> {
@@ -32,7 +32,7 @@ public interface Codec<T> {
    * @param context
    * @param carrier
    */
-  void inject(DDSpanContext context, T carrier);
+  void inject(STSSpanContext context, T carrier);
 
   /**
    * Given a carrier, retrieve (rebuild) a span context. This context built will be use as the

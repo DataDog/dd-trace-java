@@ -1,4 +1,4 @@
-import stackstate.opentracing.DDTracer
+import stackstate.opentracing.STSTracer
 import stackstate.trace.agent.test.AgentTestRunner
 import stackstate.trace.agent.test.TestUtils
 
@@ -6,10 +6,10 @@ import java.security.SecureClassLoader
 
 class ClassLoaderInstrumentationTest extends AgentTestRunner {
   static {
-    System.setProperty("dd.integration.classloader.enabled", "true")
+    System.setProperty("sts.integration.classloader.enabled", "true")
   }
 
-  DDTracer tracer = Mock()
+  STSTracer tracer = Mock()
 
   def setup() {
     TestUtils.registerOrReplaceGlobalTracer(tracer)

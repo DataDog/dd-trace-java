@@ -25,11 +25,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.api.DDSpanTypes;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
 
 @AutoService(Instrumenter.class)
 public final class FilterChain2Instrumentation extends Instrumenter.Configurable {
@@ -49,9 +49,9 @@ public final class FilterChain2Instrumentation extends Instrumenter.Configurable
                     classLoaderHasClasses(
                         "javax.servlet.ServletContextEvent", "javax.servlet.ServletRequest")))
         .transform(HttpServlet2Instrumentation.SERVLET2_HELPER_INJECTOR)
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     named("doFilter")
                         .and(takesArgument(0, named("javax.servlet.ServletRequest")))
@@ -82,7 +82,7 @@ public final class FilterChain2Instrumentation extends Instrumenter.Configurable
               .buildSpan(FILTER_CHAIN_OPERATION_NAME)
               .asChildOf(extractedContext)
               .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
-              .withTag(DDTags.SPAN_TYPE, DDSpanTypes.WEB_SERVLET)
+              .withTag(STSTags.SPAN_TYPE, STSSpanTypes.WEB_SERVLET)
               .startActive(true);
 
       ServletFilterSpanDecorator.STANDARD_TAGS.onRequest((HttpServletRequest) req, scope.span());

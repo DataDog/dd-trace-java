@@ -9,10 +9,10 @@ import com.google.auto.service.AutoService;
 import javax.ws.rs.client.ClientBuilder;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
 
 @AutoService(Instrumenter.class)
 public final class JaxRsClientInstrumentation extends Instrumenter.Configurable {
@@ -32,11 +32,11 @@ public final class JaxRsClientInstrumentation extends Instrumenter.Configurable 
         .type(failSafe(hasSuperType(named("javax.ws.rs.client.ClientBuilder"))))
         .transform(
             new HelperInjector(
-                "datadog.trace.instrumentation.jaxrs.ClientTracingFeature",
-                "datadog.trace.instrumentation.jaxrs.ClientTracingFilter"))
-        .transform(DDTransformers.defaultTransformers())
+                "stackstate.trace.instrumentation.jaxrs.ClientTracingFeature",
+                "stackstate.trace.instrumentation.jaxrs.ClientTracingFilter"))
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     named("build").and(returns(hasSuperType(named("javax.ws.rs.client.Client")))),
                     ClientBuilderAdvice.class.getName()))

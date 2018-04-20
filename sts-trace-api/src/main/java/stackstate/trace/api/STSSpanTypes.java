@@ -1,6 +1,6 @@
 package stackstate.trace.api;
 
-public class DDSpanTypes {
+public class STSSpanTypes {
   public static final String HTTP_CLIENT = "http";
   public static final String WEB_SERVLET = "web";
 

@@ -5,7 +5,7 @@ import java.io.InputStreamReader;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class DDTraceApiInfo {
+public class STSTraceApiInfo {
   public static final String VERSION;
 
   static {
@@ -16,7 +16,7 @@ public class DDTraceApiInfo {
       final BufferedReader br =
           new BufferedReader(
               new InputStreamReader(
-                  DDTraceApiInfo.class.getResourceAsStream("/sts-trace-api.version"), "UTF-8"));
+                  STSTraceApiInfo.class.getResourceAsStream("/sts-trace-api.version"), "UTF-8"));
       for (int c = br.read(); c != -1; c = br.read()) sb.append((char) c);
 
       v = sb.toString().trim();

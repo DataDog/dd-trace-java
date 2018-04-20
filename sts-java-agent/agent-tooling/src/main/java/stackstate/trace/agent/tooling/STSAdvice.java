@@ -5,7 +5,7 @@ import net.bytebuddy.agent.builder.AgentBuilder.LocationStrategy;
 import net.bytebuddy.dynamic.ClassFileLocator;
 
 /** A bytebuddy advice builder with default DataDog settings. */
-public class DDAdvice extends AgentBuilder.Transformer.ForAdvice {
+public class STSAdvice extends AgentBuilder.Transformer.ForAdvice {
   private static final ClassFileLocator AGENT_CLASS_LOCATOR =
       ClassFileLocator.ForClassLoader.of(Utils.getAgentClassLoader());
   /** Location strategy for resolving classes in the agent's jar. */
@@ -22,12 +22,12 @@ public class DDAdvice extends AgentBuilder.Transformer.ForAdvice {
   }
 
   public static AgentBuilder.Transformer.ForAdvice create(final boolean includeExceptionHandler) {
-    ForAdvice advice = new DDAdvice().with(AGENT_CLASS_LOCATION_STRATEGY);
+    ForAdvice advice = new STSAdvice().with(AGENT_CLASS_LOCATION_STRATEGY);
     if (includeExceptionHandler) {
       advice = advice.withExceptionHandler(ExceptionHandlers.defaultExceptionHandler());
     }
     return advice;
   }
 
-  private DDAdvice() {}
+  private STSAdvice() {}
 }

@@ -23,8 +23,8 @@ import org.apache.http.client.methods.HttpRequestWrapper;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.conn.routing.HttpRoute;
 import org.apache.http.impl.execchain.ClientExecChain;
-import stackstate.trace.api.DDSpanTypes;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
 
 /**
  * Tracing is added before {@link org.apache.http.impl.execchain.ProtocolExec} which is invoked as
@@ -32,21 +32,21 @@ import stackstate.trace.api.DDTags;
  * so this exec has to deal with redirects.
  */
 @Slf4j
-public class DDTracingClientExec implements ClientExecChain {
+public class STSTracingClientExec implements ClientExecChain {
   private static final String COMPONENT_NAME = "apache-httpclient";
   /**
    * Id of {@link HttpClientContext#setAttribute(String, Object)} representing span associated with
    * the current client processing. Referenced span is local span not a span representing HTTP
    * communication.
    */
-  private static final String ACTIVE_SPAN = DDTracingClientExec.class.getName() + ".activeSpan";
+  private static final String ACTIVE_SPAN = STSTracingClientExec.class.getName() + ".activeSpan";
   /**
    * Tracing {@link ClientExecChain} is executed after redirect exec, so on redirects it is called
    * multiple times. This is used as an id for {@link HttpClientContext#setAttribute(String,
    * Object)} to store number of redirects.
    */
   private static final String REDIRECT_COUNT =
-      DDTracingClientExec.class.getName() + ".redirectCount";
+      STSTracingClientExec.class.getName() + ".redirectCount";
 
   private final RedirectStrategy redirectStrategy;
   private final ClientExecChain requestExecutor;
@@ -54,7 +54,7 @@ public class DDTracingClientExec implements ClientExecChain {
 
   private final Tracer tracer;
 
-  public DDTracingClientExec(
+  public STSTracingClientExec(
       final ClientExecChain clientExecChain,
       final RedirectStrategy redirectStrategy,
       final boolean redirectHandlingDisabled,
@@ -135,7 +135,7 @@ public class DDTracingClientExec implements ClientExecChain {
             tracer
                 .buildSpan(request.getMethod())
                 .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
-                .withTag(DDTags.SPAN_TYPE, DDSpanTypes.HTTP_CLIENT)
+                .withTag(STSTags.SPAN_TYPE, STSSpanTypes.HTTP_CLIENT)
                 .asChildOf(parentScope.span())
                 .startActive(true);
         networkSpan = networkScope.span();

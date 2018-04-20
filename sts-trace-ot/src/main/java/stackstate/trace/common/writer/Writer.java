@@ -4,13 +4,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.opentracing.DDSpan;
-import stackstate.trace.common.DDTraceConfig;
+import stackstate.opentracing.STSSpan;
+import stackstate.trace.common.STSTraceConfig;
 import stackstate.trace.common.Service;
 
 /** A writer is responsible to send collected spans to some place */
 public interface Writer {
-  static final String DD_AGENT_WRITER_TYPE = DDAgentWriter.class.getSimpleName();
+  static final String STS_AGENT_WRITER_TYPE = STSAgentWriter.class.getSimpleName();
   static final String LOGGING_WRITER_TYPE = LoggingWriter.class.getSimpleName();
 
   /**
@@ -18,7 +18,7 @@ public interface Writer {
    *
    * @param trace the list of spans to write
    */
-  void write(List<DDSpan> trace);
+  void write(List<STSSpan> trace);
 
   /**
    * Report additional service information to the endpoint
@@ -42,29 +42,29 @@ public interface Writer {
       final Writer writer;
 
       if (config != null) {
-        final String configuredType = config.getProperty(DDTraceConfig.WRITER_TYPE);
-        if (DD_AGENT_WRITER_TYPE.equals(configuredType)) {
+        final String configuredType = config.getProperty(STSTraceConfig.WRITER_TYPE);
+        if (STS_AGENT_WRITER_TYPE.equals(configuredType)) {
           writer =
-              new DDAgentWriter(
-                  new DDApi(
-                      config.getProperty(DDTraceConfig.AGENT_HOST),
-                      Integer.parseInt(config.getProperty(DDTraceConfig.AGENT_PORT))));
+              new STSAgentWriter(
+                  new STSApi(
+                      config.getProperty(STSTraceConfig.AGENT_HOST),
+                      Integer.parseInt(config.getProperty(STSTraceConfig.AGENT_PORT))));
         } else if (LOGGING_WRITER_TYPE.equals(configuredType)) {
           writer = new LoggingWriter();
         } else {
           log.warn(
-              "Writer type not configured correctly: Type {} not recognized. Defaulting to DDAgentWriter.",
+              "Writer type not configured correctly: Type {} not recognized. Defaulting to STSAgentWriter.",
               configuredType);
           writer =
-              new DDAgentWriter(
-                  new DDApi(
-                      config.getProperty(DDTraceConfig.AGENT_HOST),
-                      Integer.parseInt(config.getProperty(DDTraceConfig.AGENT_PORT))));
+              new STSAgentWriter(
+                  new STSApi(
+                      config.getProperty(STSTraceConfig.AGENT_HOST),
+                      Integer.parseInt(config.getProperty(STSTraceConfig.AGENT_PORT))));
         }
       } else {
         log.warn(
-            "Writer type not configured correctly: No config provided! Defaulting to DDAgentWriter.");
-        writer = new DDAgentWriter();
+            "Writer type not configured correctly: No config provided! Defaulting to STSAgentWriter.");
+        writer = new STSAgentWriter();
       }
 
       return writer;

@@ -1,5 +1,3 @@
-import stackstate.trace.api.DDSpanTypes
-import stackstate.trace.api.DDTags
 import io.opentracing.tag.Tags
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl
 import org.glassfish.jersey.client.JerseyClientBuilder
@@ -7,6 +5,8 @@ import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder
 import ratpack.http.Headers
 import spock.lang.Unroll
 import stackstate.trace.agent.test.AgentTestRunner
+import stackstate.trace.api.STSSpanTypes
+import stackstate.trace.api.STSTags
 
 import javax.ws.rs.client.AsyncInvoker
 import javax.ws.rs.client.Client
@@ -21,7 +21,7 @@ import static ratpack.groovy.test.embed.GroovyEmbeddedApp.ratpack
 //@Timeout(10)
 class JaxRsClientTest extends AgentTestRunner {
   static {
-    System.setProperty("dd.integration.jax-rs.enabled", "true")
+    System.setProperty("sts.integration.jax-rs.enabled", "true")
   }
 
   def receivedHeaders = new AtomicReference<Headers>()
@@ -73,13 +73,13 @@ class JaxRsClientTest extends AgentTestRunner {
     tags[Tags.HTTP_METHOD.key] == "GET"
     tags[Tags.HTTP_STATUS.key] == 200
     tags[Tags.HTTP_URL.key] == "http://localhost:$server.address.port/ping"
-    tags[DDTags.SPAN_TYPE] == DDSpanTypes.HTTP_CLIENT
-    tags[DDTags.THREAD_NAME] != null
-    tags[DDTags.THREAD_ID] != null
+    tags[STSTags.SPAN_TYPE] == STSSpanTypes.HTTP_CLIENT
+    tags[STSTags.THREAD_NAME] != null
+    tags[STSTags.THREAD_ID] != null
     tags.size() == 8
 
-    receivedHeaders.get().get("x-datadog-trace-id") == "$span.traceId"
-    receivedHeaders.get().get("x-datadog-parent-id") == "$span.spanId"
+    receivedHeaders.get().get("x-stackstate-trace-id") == "$span.traceId"
+    receivedHeaders.get().get("x-stackstate-parent-id") == "$span.spanId"
 
     cleanup:
     server.close()

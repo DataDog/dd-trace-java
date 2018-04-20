@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * A bounded queue implementation compatible with the Datadog agent behavior. The class is
+ * A bounded queue implementation compatible with the StackState agent behavior. The class is
  * thread-safe and can be used with concurrency.
  *
  * <p>

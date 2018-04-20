@@ -15,15 +15,15 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import stackstate.opentracing.DDSpan;
-import stackstate.opentracing.DDTracer;
+import stackstate.opentracing.STSSpan;
+import stackstate.opentracing.STSTracer;
 import stackstate.trace.agent.test.IntegrationTestUtils;
 import stackstate.trace.common.writer.ListWriter;
 
 public class MongoAsyncClientInstrumentationTest {
   private static MongoClient client;
   private static final ListWriter writer = new ListWriter();
-  private static final DDTracer tracer = new DDTracer(writer);
+  private static final STSTracer tracer = new STSTracer(writer);
 
   @BeforeClass
   public static void setup() throws Exception {
@@ -45,7 +45,7 @@ public class MongoAsyncClientInstrumentationTest {
   public void asyncClientHasListener() {
     Assert.assertEquals(1, client.getSettings().getCommandListeners().size());
     Assert.assertEquals(
-        "DDTracingCommandListener",
+        "STSTracingCommandListener",
         client.getSettings().getCommandListeners().get(0).getClass().getSimpleName());
   }
 
@@ -101,7 +101,7 @@ public class MongoAsyncClientInstrumentationTest {
 
     final String createCollectionQuery =
         "{ \"create\" : \"asyncCollection\", \"autoIndexId\" : \"?\", \"capped\" : \"?\" }";
-    final DDSpan trace0 = writer.get(0).get(0);
+    final STSSpan trace0 = writer.get(0).get(0);
     Assert.assertEquals("mongo.query", trace0.getOperationName());
     Assert.assertEquals(createCollectionQuery, trace0.getResourceName());
     Assert.assertEquals("mongodb", trace0.getType());

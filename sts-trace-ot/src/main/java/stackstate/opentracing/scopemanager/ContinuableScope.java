@@ -8,8 +8,8 @@ import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.opentracing.DDSpanContext;
 import stackstate.opentracing.PendingTrace;
+import stackstate.opentracing.STSSpanContext;
 import stackstate.trace.context.TraceScope;
 
 @Slf4j
@@ -77,8 +77,8 @@ public class ContinuableScope implements Scope, TraceScope {
     private Continuation(final boolean finishOnClose) {
       this.finishSpanOnClose = finishOnClose;
       refCount.incrementAndGet();
-      if (wrapped.context() instanceof DDSpanContext) {
-        final DDSpanContext context = (DDSpanContext) wrapped.context();
+      if (wrapped.context() instanceof STSSpanContext) {
+        final STSSpanContext context = (STSSpanContext) wrapped.context();
         trace = context.getTrace();
         trace.registerContinuation(this);
       } else {

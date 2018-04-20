@@ -1,7 +1,7 @@
 package stackstate.opentracing.decorators;
 
-import stackstate.opentracing.DDSpanContext;
-import stackstate.trace.api.DDTags;
+import stackstate.opentracing.STSSpanContext;
+import stackstate.trace.api.STSTags;
 
 /**
  * Span decorators are called when new tags are written and proceed to various remappings and
@@ -17,16 +17,16 @@ public abstract class AbstractDecorator {
 
   private String setValue;
 
-  public boolean afterSetTag(final DDSpanContext context, final String tag, final Object value) {
+  public boolean afterSetTag(final STSSpanContext context, final String tag, final Object value) {
     if (this.getMatchingValue() == null || this.getMatchingValue().equals(value)) {
       final String targetTag = getSetTag() == null ? tag : getSetTag();
       final String targetValue = getSetValue() == null ? String.valueOf(value) : getSetValue();
 
-      if (targetTag.equals(DDTags.SERVICE_NAME)) {
+      if (targetTag.equals(STSTags.SERVICE_NAME)) {
         context.setServiceName(targetValue);
-      } else if (targetTag.equals(DDTags.RESOURCE_NAME)) {
+      } else if (targetTag.equals(STSTags.RESOURCE_NAME)) {
         context.setResourceName(targetValue);
-      } else if (targetTag.equals(DDTags.SPAN_TYPE)) {
+      } else if (targetTag.equals(STSTags.SPAN_TYPE)) {
         context.setSpanType(targetValue);
       } else {
         context.setTag(targetTag, targetValue);

@@ -3,9 +3,9 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import com.google.auto.service.AutoService;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
 
 @AutoService(Instrumenter.class)
 public class IBMResourceLevelInstrumentation extends Instrumenter.Configurable {
@@ -17,8 +17,8 @@ public class IBMResourceLevelInstrumentation extends Instrumenter.Configurable {
   protected AgentBuilder apply(AgentBuilder agentBuilder) {
     return agentBuilder
         .type(named("com.ibm.as400.resource.ResourceLevel"))
-        .transform(DDTransformers.defaultTransformers())
-        .transform(DDAdvice.create().advice(named("toString"), ToStringAdvice.class.getName()))
+        .transform(STSTransformers.defaultTransformers())
+        .transform(STSAdvice.create().advice(named("toString"), ToStringAdvice.class.getName()))
         .asDecorator();
   }
 

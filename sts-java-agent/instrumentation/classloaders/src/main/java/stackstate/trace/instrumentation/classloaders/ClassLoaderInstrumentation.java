@@ -10,10 +10,10 @@ import io.opentracing.util.GlobalTracer;
 import java.lang.reflect.Field;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.opentracing.DDTracer;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
+import stackstate.opentracing.STSTracer;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
 import stackstate.trace.bootstrap.CallDepthThreadLocalMap;
 
 @AutoService(Instrumenter.class)
@@ -34,8 +34,8 @@ public final class ClassLoaderInstrumentation extends Instrumenter.Configurable 
         .type(
             failSafe(isSubTypeOf(ClassLoader.class)),
             classLoaderHasClasses("io.opentracing.util.GlobalTracer"))
-        .transform(DDTransformers.defaultTransformers())
-        .transform(DDAdvice.create().advice(isConstructor(), ClassloaderAdvice.class.getName()))
+        .transform(STSTransformers.defaultTransformers())
+        .transform(STSAdvice.create().advice(isConstructor(), ClassloaderAdvice.class.getName()))
         .asDecorator();
   }
 
@@ -60,8 +60,8 @@ public final class ClassLoaderInstrumentation extends Instrumenter.Configurable 
           field.setAccessible(true);
 
           final Object o = field.get(null);
-          if (o instanceof DDTracer) {
-            final DDTracer tracer = (DDTracer) o;
+          if (o instanceof STSTracer) {
+            final STSTracer tracer = (STSTracer) o;
             tracer.registerClassLoader(cl);
           }
         } catch (final Throwable e) {

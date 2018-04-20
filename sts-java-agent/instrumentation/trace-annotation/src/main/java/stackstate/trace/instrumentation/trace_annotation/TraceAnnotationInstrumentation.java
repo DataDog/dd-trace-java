@@ -15,9 +15,9 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
 import stackstate.trace.api.Trace;
 
 @AutoService(Instrumenter.class)
@@ -31,9 +31,9 @@ public final class TraceAnnotationInstrumentation extends Instrumenter.Configura
   public AgentBuilder apply(final AgentBuilder agentBuilder) {
     return agentBuilder
         .type(failSafe(hasSuperType(declaresMethod(isAnnotatedWith(Trace.class)))))
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create().advice(isAnnotatedWith(Trace.class), TraceAdvice.class.getName()))
+            STSAdvice.create().advice(isAnnotatedWith(Trace.class), TraceAdvice.class.getName()))
         .asDecorator();
   }
 

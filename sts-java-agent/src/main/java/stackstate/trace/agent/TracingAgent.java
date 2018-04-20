@@ -53,7 +53,7 @@ public class TracingAgent {
 
       // bootstrap jar must be appended before agent classloader is created.
       inst.appendToBootstrapClassLoaderSearch(new JarFile(bootstrapJar));
-      final ClassLoader agentClassLoader = createDatadogClassLoader(bootstrapJar, toolingJar);
+      final ClassLoader agentClassLoader = createStackStateClassLoader(bootstrapJar, toolingJar);
 
       final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
       try {
@@ -84,14 +84,14 @@ public class TracingAgent {
   }
 
   /**
-   * Create the datadog classloader. This must be called after the bootstrap jar has been appened to
+   * Create the stackstate classloader. This must be called after the bootstrap jar has been appened to
    * the bootstrap classpath.
    *
-   * @param bootstrapJar datadog bootstrap jar which has been appended to the bootstrap loader
-   * @param toolingJar jar to use for the classpath of the datadog classloader
-   * @return Datadog Classloader
+   * @param bootstrapJar stackstate bootstrap jar which has been appended to the bootstrap loader
+   * @param toolingJar jar to use for the classpath of the stackstate classloader
+   * @return StackState Classloader
    */
-  private static ClassLoader createDatadogClassLoader(File bootstrapJar, File toolingJar)
+  private static ClassLoader createStackStateClassLoader(File bootstrapJar, File toolingJar)
       throws Exception {
     final ClassLoader agentParent;
     final String javaVersion = System.getProperty("java.version");
@@ -103,7 +103,7 @@ public class TracingAgent {
     }
     Class<?> loaderClass =
         ClassLoader.getSystemClassLoader()
-            .loadClass("stackstate.trace.bootstrap.DatadogClassLoader");
+            .loadClass("stackstate.trace.bootstrap.StackStateClassLoader");
     Constructor constructor =
         loaderClass.getDeclaredConstructor(URL.class, URL.class, ClassLoader.class);
     return (ClassLoader)

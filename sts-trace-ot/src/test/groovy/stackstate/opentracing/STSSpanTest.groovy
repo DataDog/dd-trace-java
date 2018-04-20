@@ -8,14 +8,14 @@ import spock.lang.Timeout
 import java.util.concurrent.TimeUnit
 
 @Timeout(10)
-class DDSpanTest extends Specification {
+class STSSpanTest extends Specification {
   def writer = new ListWriter()
-  def tracer = new DDTracer(writer)
+  def tracer = new STSTracer(writer)
 
   def "getters and setters"() {
     setup:
-    final DDSpanContext context =
-      new DDSpanContext(
+    final STSSpanContext context =
+      new STSSpanContext(
         1L,
         1L,
         0L,
@@ -30,7 +30,7 @@ class DDSpanTest extends Specification {
         new PendingTrace(tracer, 1L),
         tracer)
 
-    final DDSpan span = new DDSpan(1L, context)
+    final STSSpan span = new STSSpan(1L, context)
 
     when:
     span.setServiceName("service")
@@ -72,18 +72,18 @@ class DDSpanTest extends Specification {
   def "resource name equals operation name if null"() {
     setup:
     final String opName = "operationName"
-    DDSpan span
+    STSSpan span
 
     when:
     span = tracer.buildSpan(opName).start()
     then:
     span.getResourceName() == opName
-    span.getServiceName() == DDTracer.UNASSIGNED_DEFAULT_SERVICE_NAME
+    span.getServiceName() == STSTracer.UNASSIGNED_DEFAULT_SERVICE_NAME
 
     when:
     final String resourceName = "fake"
     final String serviceName = "myService"
-    span = new DDTracer()
+    span = new STSTracer()
       .buildSpan(opName)
       .withResourceName(resourceName)
       .withServiceName(serviceName)

@@ -1,6 +1,6 @@
 package stackstate.trace.agent.test
 
-import stackstate.trace.agent.tooling.DDLocationStrategy
+import stackstate.trace.agent.tooling.STSLocationStrategy
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.dynamic.ClassFileLocator
 import spock.lang.Specification
@@ -17,7 +17,7 @@ class ResourceLocatingTest extends Specification {
         return findResource(name)
       }
     }
-    ClassFileLocator locator = new DDLocationStrategy().classFileLocator(childLoader, null)
+    ClassFileLocator locator = new STSLocationStrategy().classFileLocator(childLoader, null)
     ClassFileLocator defaultLocator = AgentBuilder.LocationStrategy.ForClassLoader.STRONG.classFileLocator(childLoader, null)
 
     expect:

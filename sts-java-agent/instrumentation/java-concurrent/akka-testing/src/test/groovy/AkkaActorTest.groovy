@@ -1,10 +1,10 @@
-import stackstate.opentracing.DDSpan
+import stackstate.opentracing.STSSpan
 import spock.lang.Unroll
 import stackstate.trace.agent.test.AgentTestRunner
 
 class AkkaActorTest extends AgentTestRunner {
   static {
-    System.setProperty("dd.integration.java_concurrent.enabled", "true")
+    System.setProperty("sts.integration.java_concurrent.enabled", "true")
   }
 
   @Override
@@ -19,7 +19,7 @@ class AkkaActorTest extends AgentTestRunner {
     akkaTester."$testMethod"()
 
     TEST_WRITER.waitForTraces(1)
-    List<DDSpan> trace = TEST_WRITER.get(0)
+    List<STSSpan> trace = TEST_WRITER.get(0)
 
     expect:
     TEST_WRITER.size() == 1
@@ -34,8 +34,8 @@ class AkkaActorTest extends AgentTestRunner {
     "basicForward"     | "Hello"
   }
 
-  private DDSpan findSpan(List<DDSpan> trace, String opName) {
-    for (DDSpan span : trace) {
+  private STSSpan findSpan(List<STSSpan> trace, String opName) {
+    for (STSSpan span : trace) {
       if (span.getOperationName() == opName) {
         return span
       }

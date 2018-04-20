@@ -6,11 +6,11 @@ import io.opentracing.contrib.tracerresolver.TracerResolver;
 import io.opentracing.noop.NoopTracerFactory;
 import io.opentracing.util.GlobalTracer;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.opentracing.DDTracer;
+import stackstate.opentracing.STSTracer;
 
 @Slf4j
 @AutoService(TracerResolver.class)
-public class DDTracerResolver extends TracerResolver {
+public class STSTracerResolver extends TracerResolver {
 
   public static Tracer registerTracer() {
     final Tracer tracer = TracerResolver.resolveTracer();
@@ -27,8 +27,8 @@ public class DDTracerResolver extends TracerResolver {
 
   @Override
   protected Tracer resolve() {
-    log.info("Creating the Datadog Tracer from the resolver");
+    log.info("Creating the StackState Tracer from the resolver");
 
-    return new DDTracer();
+    return new STSTracer();
   }
 }

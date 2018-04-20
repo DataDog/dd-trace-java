@@ -13,11 +13,11 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.opentracing.DDSpan;
+import stackstate.opentracing.STSSpan;
 import stackstate.trace.common.Service;
 
 /**
- * This writer write provided traces to the a DD agent which is most of time located on the same
+ * This writer write provided traces to the a STS agent which is most of time located on the same
  * host.
  *
  * <p>
@@ -28,9 +28,9 @@ import stackstate.trace.common.Service;
  */
 @Slf4j
 @AutoService(Writer.class)
-public class DDAgentWriter implements Writer {
+public class STSAgentWriter implements Writer {
 
-  /** Default location of the DD agent */
+  /** Default location of the STS agent */
   public static final String DEFAULT_HOSTNAME = "localhost";
 
   public static final int DEFAULT_PORT = 8126;
@@ -45,7 +45,7 @@ public class DDAgentWriter implements Writer {
   static final long FLUSH_TIME_SECONDS = 1;
 
   private final ThreadFactory agentWriterThreadFactory =
-      new ThreadFactoryBuilder().setNameFormat("dd-agent-writer-%d").setDaemon(true).build();
+      new ThreadFactoryBuilder().setNameFormat("sts-agent-writer-%d").setDaemon(true).build();
 
   /** Scheduled thread pool, acting like a cron */
   private final ScheduledExecutorService scheduledExecutor =
@@ -55,34 +55,34 @@ public class DDAgentWriter implements Writer {
   private final ExecutorService executor =
       Executors.newSingleThreadExecutor(agentWriterThreadFactory);
 
-  /** The DD agent api */
-  private final DDApi api;
+  /** The STS agent api */
+  private final STSApi api;
 
   /** In memory collection of traces waiting for departure */
-  private final WriterQueue<List<DDSpan>> traces;
+  private final WriterQueue<List<STSSpan>> traces;
 
   private boolean queueFullReported = false;
 
-  public DDAgentWriter() {
-    this(new DDApi(DEFAULT_HOSTNAME, DEFAULT_PORT));
+  public STSAgentWriter() {
+    this(new STSApi(DEFAULT_HOSTNAME, DEFAULT_PORT));
   }
 
-  public DDAgentWriter(final DDApi api) {
-    this(api, new WriterQueue<List<DDSpan>>(DEFAULT_MAX_TRACES));
+  public STSAgentWriter(final STSApi api) {
+    this(api, new WriterQueue<List<STSSpan>>(DEFAULT_MAX_TRACES));
   }
 
-  public DDAgentWriter(final DDApi api, final WriterQueue<List<DDSpan>> queue) {
+  public STSAgentWriter(final STSApi api, final WriterQueue<List<STSSpan>> queue) {
     super();
     this.api = api;
     traces = queue;
   }
 
   /* (non-Javadoc)
-   * @see datadog.trace.Writer#write(java.util.List)
+   * @see stackstate.trace.Writer#write(java.util.List)
    */
   @Override
-  public void write(final List<DDSpan> trace) {
-    final List<DDSpan> removed = traces.add(trace);
+  public void write(final List<STSSpan> trace) {
+    final List<STSSpan> removed = traces.add(trace);
     if (removed != null && !queueFullReported) {
       log.debug("Queue is full, traces will be discarded, queue size: {}", DEFAULT_MAX_TRACES);
       queueFullReported = true;
@@ -92,7 +92,7 @@ public class DDAgentWriter implements Writer {
   }
 
   /* (non-Javadoc)
-   * @see datadog.trace.Writer#writeServices(java.util.List)
+   * @see stackstate.trace.Writer#writeServices(java.util.List)
    */
   @Override
   public void writeServices(final Map<String, Service> services) {
@@ -123,7 +123,7 @@ public class DDAgentWriter implements Writer {
   }
 
   /* (non-Javadoc)
-   * @see datadog.trace.Writer#close()
+   * @see stackstate.trace.Writer#close()
    */
   @Override
   public void close() {
@@ -144,10 +144,10 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public String toString() {
-    return "DDAgentWriter { api=" + api + " }";
+    return "STSAgentWriter { api=" + api + " }";
   }
 
-  public DDApi getApi() {
+  public STSApi getApi() {
     return api;
   }
 
@@ -177,7 +177,7 @@ public class DDAgentWriter implements Writer {
           return 0L;
         }
 
-        final List<List<DDSpan>> payload = traces.getAll();
+        final List<List<STSSpan>> payload = traces.getAll();
 
         if (log.isDebugEnabled()) {
           int nbSpans = 0;

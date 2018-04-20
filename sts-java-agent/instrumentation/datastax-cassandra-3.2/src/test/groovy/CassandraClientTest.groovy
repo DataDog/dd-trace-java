@@ -1,7 +1,7 @@
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.Session
-import stackstate.opentracing.DDSpan
-import stackstate.trace.api.DDTags
+import stackstate.opentracing.STSSpan
+import stackstate.trace.api.STSTags
 import io.opentracing.tag.Tags
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper
 import spock.lang.Timeout
@@ -35,7 +35,7 @@ class CassandraClientTest extends AgentTestRunner {
     expect:
     session.getClass().getName().endsWith("contrib.cassandra.TracingSession")
     TEST_WRITER.size() == 5
-    final DDSpan selectTrace = TEST_WRITER.get(TEST_WRITER.size() - 1).get(0)
+    final STSSpan selectTrace = TEST_WRITER.get(TEST_WRITER.size() - 1).get(0)
 
     selectTrace.getServiceName() == "cassandra"
     selectTrace.getOperationName() == "cassandra.query"
@@ -48,7 +48,7 @@ class CassandraClientTest extends AgentTestRunner {
     selectTrace.getTags().get(Tags.PEER_HOST_IPV4.getKey()) == 2130706433
     selectTrace.getTags().get(Tags.PEER_PORT.getKey()) == 9142
     selectTrace.getTags().get(Tags.SPAN_KIND.getKey()) == "client"
-    selectTrace.getTags().get(DDTags.SPAN_TYPE) == "cassandra"
+    selectTrace.getTags().get(STSTags.SPAN_TYPE) == "cassandra"
   }
 
   def "async traces"() {
@@ -73,7 +73,7 @@ class CassandraClientTest extends AgentTestRunner {
 
     expect:
     session.getClass().getName().endsWith("contrib.cassandra.TracingSession")
-    final DDSpan selectTrace = TEST_WRITER.get(TEST_WRITER.size() - 1).get(0)
+    final STSSpan selectTrace = TEST_WRITER.get(TEST_WRITER.size() - 1).get(0)
 
     selectTrace.getServiceName() == "cassandra"
     selectTrace.getOperationName() == "cassandra.query"
@@ -86,6 +86,6 @@ class CassandraClientTest extends AgentTestRunner {
     selectTrace.getTags().get(Tags.PEER_HOST_IPV4.getKey()) == 2130706433
     selectTrace.getTags().get(Tags.PEER_PORT.getKey()) == 9142
     selectTrace.getTags().get(Tags.SPAN_KIND.getKey()) == "client"
-    selectTrace.getTags().get(DDTags.SPAN_TYPE) == "cassandra"
+    selectTrace.getTags().get(STSTags.SPAN_TYPE) == "cassandra"
   }
 }

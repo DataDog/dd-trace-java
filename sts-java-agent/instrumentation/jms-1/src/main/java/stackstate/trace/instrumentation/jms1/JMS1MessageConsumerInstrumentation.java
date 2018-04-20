@@ -24,20 +24,20 @@ import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.api.DDSpanTypes;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
 import stackstate.trace.instrumentation.jms.util.MessagePropertyTextMap;
 
 @AutoService(Instrumenter.class)
 public final class JMS1MessageConsumerInstrumentation extends Instrumenter.Configurable {
   public static final HelperInjector JMS1_HELPER_INJECTOR =
       new HelperInjector(
-          "datadog.trace.instrumentation.jms.util.JmsUtil",
-          "datadog.trace.instrumentation.jms.util.MessagePropertyTextMap");
+          "stackstate.trace.instrumentation.jms.util.JmsUtil",
+          "stackstate.trace.instrumentation.jms.util.MessagePropertyTextMap");
 
   public JMS1MessageConsumerInstrumentation() {
     super("jms", "jms-1");
@@ -50,9 +50,9 @@ public final class JMS1MessageConsumerInstrumentation extends Instrumenter.Confi
             not(isInterface()).and(failSafe(hasSuperType(named("javax.jms.MessageConsumer")))),
             not(classLoaderHasClasses("javax.jms.JMSContext", "javax.jms.CompletionListener")))
         .transform(JMS1_HELPER_INJECTOR)
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     named("receive").and(takesArguments(0)).and(isPublic()),
                     ConsumerAdvice.class.getName())
@@ -83,8 +83,8 @@ public final class JMS1MessageConsumerInstrumentation extends Instrumenter.Confi
           GlobalTracer.get()
               .buildSpan("jms.consume")
               .asChildOf(extractedContext)
-              .withTag(DDTags.SERVICE_NAME, "jms")
-              .withTag(DDTags.SPAN_TYPE, DDSpanTypes.MESSAGE_CONSUMER)
+              .withTag(STSTags.SERVICE_NAME, "jms")
+              .withTag(STSTags.SPAN_TYPE, STSSpanTypes.MESSAGE_CONSUMER)
               .withTag(Tags.COMPONENT.getKey(), "jms1")
               .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CONSUMER)
               .withTag("span.origin.type", consumer.getClass().getName())
@@ -96,7 +96,7 @@ public final class JMS1MessageConsumerInstrumentation extends Instrumenter.Confi
         Tags.ERROR.set(span, Boolean.TRUE);
         span.log(Collections.singletonMap(ERROR_OBJECT, throwable));
       }
-      span.setTag(DDTags.RESOURCE_NAME, "Consumed from " + toResourceName(message, null));
+      span.setTag(STSTags.RESOURCE_NAME, "Consumed from " + toResourceName(message, null));
       scope.close();
     }
   }

@@ -16,13 +16,13 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
-import stackstate.opentracing.DDSpan;
-import stackstate.opentracing.DDTraceOTInfo;
+import stackstate.opentracing.STSSpan;
+import stackstate.opentracing.STSTraceOTInfo;
 import stackstate.trace.common.Service;
 
-/** The API pointing to a DD agent */
+/** The API pointing to a STS agent */
 @Slf4j
-public class DDApi {
+public class STSApi {
 
   private static final String TRACES_ENDPOINT_V3 = "/v0.3/traces";
   private static final String SERVICES_ENDPOINT_V3 = "/v0.3/services";
@@ -39,7 +39,7 @@ public class DDApi {
 
   private static final ObjectMapper objectMapper = new ObjectMapper(new MessagePackFactory());
 
-  public DDApi(final String host, final int port) {
+  public STSApi(final String host, final int port) {
     this(
         host,
         port,
@@ -47,7 +47,7 @@ public class DDApi {
             && serviceEndpointAvailable("http://" + host + ":" + port + SERVICES_ENDPOINT_V4));
   }
 
-  DDApi(final String host, final int port, final boolean v4EndpointsAvailable) {
+  STSApi(final String host, final int port, final boolean v4EndpointsAvailable) {
     if (v4EndpointsAvailable) {
       this.tracesEndpoint = "http://" + host + ":" + port + TRACES_ENDPOINT_V4;
       this.servicesEndpoint = "http://" + host + ":" + port + SERVICES_ENDPOINT_V4;
@@ -65,12 +65,12 @@ public class DDApi {
   }
 
   /**
-   * Send traces to the DD agent
+   * Send traces to the STS agent
    *
    * @param traces the traces to be sent
    * @return the staus code returned
    */
-  public boolean sendTraces(final List<List<DDSpan>> traces) {
+  public boolean sendTraces(final List<List<STSSpan>> traces) {
     return putContent("traces", tracesEndpoint, traces, traces.size());
   }
 
@@ -121,14 +121,14 @@ public class DDApi {
       if (responseCode != 200) {
         if (log.isDebugEnabled()) {
           log.debug(
-              "Error while sending {} {} to the DD agent. Status: {}, ResponseMessage: ",
+              "Error while sending {} {} to the STS agent. Status: {}, ResponseMessage: ",
               size,
               type,
               responseCode,
               httpCon.getResponseMessage());
         } else if (loggingRateLimiter.tryAcquire()) {
           log.warn(
-              "Error while sending {} {} to the DD agent. Status: {} (going silent for {} seconds)",
+              "Error while sending {} {} to the STS agent. Status: {} (going silent for {} seconds)",
               size,
               type,
               responseCode,
@@ -138,7 +138,7 @@ public class DDApi {
         return false;
       }
 
-      log.debug("Succesfully sent {} {} to the DD agent.", size, type);
+      log.debug("Succesfully sent {} {} to the STS agent.", size, type);
 
       try {
         if (null != responseString
@@ -150,16 +150,16 @@ public class DDApi {
           }
         }
       } catch (final IOException e) {
-        log.debug("failed to parse DD agent response: " + responseString, e);
+        log.debug("failed to parse STS agent response: " + responseString, e);
       }
       return true;
 
     } catch (final IOException e) {
       if (log.isDebugEnabled()) {
-        log.debug("Error while sending " + size + " " + type + " to the DD agent.", e);
+        log.debug("Error while sending " + size + " " + type + " to the STS agent.", e);
       } else if (loggingRateLimiter.tryAcquire()) {
         log.warn(
-            "Error while sending {} {} to the DD agent. {}: {} (going silent for {} seconds)",
+            "Error while sending {} {} to the STS agent. {}: {} (going silent for {} seconds)",
             size,
             type,
             e.getClass().getName(),
@@ -208,16 +208,16 @@ public class DDApi {
     httpCon.setDoInput(true);
     httpCon.setRequestMethod("PUT");
     httpCon.setRequestProperty("Content-Type", "application/msgpack");
-    httpCon.setRequestProperty("Datadog-Meta-Lang", "java");
-    httpCon.setRequestProperty("Datadog-Meta-Lang-Version", DDTraceOTInfo.JAVA_VERSION);
-    httpCon.setRequestProperty("Datadog-Meta-Lang-Interpreter", DDTraceOTInfo.JAVA_VM_NAME);
-    httpCon.setRequestProperty("Datadog-Meta-Tracer-Version", DDTraceOTInfo.VERSION);
+    httpCon.setRequestProperty("StackState-Meta-Lang", "java");
+    httpCon.setRequestProperty("StackState-Meta-Lang-Version", STSTraceOTInfo.JAVA_VERSION);
+    httpCon.setRequestProperty("StackState-Meta-Lang-Interpreter", STSTraceOTInfo.JAVA_VM_NAME);
+    httpCon.setRequestProperty("StackState-Meta-Tracer-Version", STSTraceOTInfo.VERSION);
     return httpCon;
   }
 
   @Override
   public String toString() {
-    return "DDApi { tracesEndpoint=" + tracesEndpoint + " }";
+    return "STSApi { tracesEndpoint=" + tracesEndpoint + " }";
   }
 
   public static interface ResponseListener {

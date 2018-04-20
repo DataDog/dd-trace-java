@@ -5,8 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import stackstate.opentracing.SpanFactory
 import stackstate.trace.common.Service
-import stackstate.trace.common.writer.DDApi
-import stackstate.trace.common.writer.DDApi.ResponseListener
+import stackstate.trace.common.writer.STSApi.ResponseListener
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import ratpack.exec.Blocking
 import ratpack.http.Headers
@@ -14,13 +13,14 @@ import ratpack.http.MediaType
 import spock.lang.Specification
 import spock.lang.Timeout
 import spock.lang.Unroll
+import stackstate.trace.common.writer.STSApi
 
 import java.util.concurrent.atomic.AtomicReference
 
 import static ratpack.groovy.test.embed.GroovyEmbeddedApp.ratpack
 
 @Timeout(1)
-class DDApiTest extends Specification {
+class STSApiTest extends Specification {
   static mapper = new ObjectMapper(new MessagePackFactory())
 
   @Timeout(10)
@@ -39,7 +39,7 @@ class DDApiTest extends Specification {
         }
       }
     }
-    def client = new DDApi("localhost", agent.address.port)
+    def client = new STSApi("localhost", agent.address.port)
 
     expect:
     client.tracesEndpoint == "http://localhost:${agent.address.port}/v0.4/traces"
@@ -63,7 +63,7 @@ class DDApiTest extends Specification {
         }
       }
     }
-    def client = new DDApi("localhost", agent.address.port)
+    def client = new STSApi("localhost", agent.address.port)
 
     expect:
     client.tracesEndpoint == "http://localhost:${agent.address.port}/v0.3/traces"
@@ -95,16 +95,16 @@ class DDApiTest extends Specification {
         }
       }
     }
-    def client = new DDApi("localhost", agent.address.port)
+    def client = new STSApi("localhost", agent.address.port)
 
     expect:
     client.tracesEndpoint == "http://localhost:${agent.address.port}/v0.4/traces"
     client.servicesEndpoint == "http://localhost:${agent.address.port}/v0.4/services"
     client.sendTraces(traces)
     requestContentType.get().type == "application/msgpack"
-    requestHeaders.get().get("Datadog-Meta-Lang") == "java"
-    requestHeaders.get().get("Datadog-Meta-Lang-Version") == System.getProperty("java.version", "unknown")
-    requestHeaders.get().get("Datadog-Meta-Tracer-Version") == "Stubbed-Test-Version"
+    requestHeaders.get().get("StackState-Meta-Lang") == "java"
+    requestHeaders.get().get("StackState-Meta-Lang-Version") == System.getProperty("java.version", "unknown")
+    requestHeaders.get().get("StackState-Meta-Tracer-Version") == "Stubbed-Test-Version"
     convertList(requestBody.get()) == expectedRequestBody
 
     cleanup:
@@ -157,7 +157,7 @@ class DDApiTest extends Specification {
         }
       }
     }
-    def client = new DDApi("localhost", agent.address.port)
+    def client = new STSApi("localhost", agent.address.port)
 
     expect:
     client.tracesEndpoint == "http://localhost:${agent.address.port}/v0.4/traces"
@@ -181,7 +181,7 @@ class DDApiTest extends Specification {
         }
       }
     }
-    def client = new DDApi("localhost", agent.address.port)
+    def client = new STSApi("localhost", agent.address.port)
 
     expect:
     client.tracesEndpoint == "http://localhost:${agent.address.port}/v0.3/traces"
@@ -213,16 +213,16 @@ class DDApiTest extends Specification {
         }
       }
     }
-    def client = new DDApi("localhost", agent.address.port)
+    def client = new STSApi("localhost", agent.address.port)
 
     expect:
     client.tracesEndpoint == "http://localhost:${agent.address.port}/v0.4/traces"
     client.servicesEndpoint == "http://localhost:${agent.address.port}/v0.4/services"
     client.sendServices(services)
     requestContentType.get().type == "application/msgpack"
-    requestHeaders.get().get("Datadog-Meta-Lang") == "java"
-    requestHeaders.get().get("Datadog-Meta-Lang-Version") == System.getProperty("java.version", "unknown")
-    requestHeaders.get().get("Datadog-Meta-Tracer-Version") == "Stubbed-Test-Version"
+    requestHeaders.get().get("StackState-Meta-Lang") == "java"
+    requestHeaders.get().get("StackState-Meta-Lang-Version") == System.getProperty("java.version", "unknown")
+    requestHeaders.get().get("StackState-Meta-Tracer-Version") == "Stubbed-Test-Version"
     convertMap(requestBody.get()) == expectedRequestBody
 
     cleanup:
@@ -261,7 +261,7 @@ class DDApiTest extends Specification {
         }
       }
     }
-    def client = new DDApi("localhost", agent.address.port)
+    def client = new STSApi("localhost", agent.address.port)
     client.addResponseListener(responseListener)
     def services = ["my-service-name": new Service("my-service-name", "my-app-name", Service.AppType.CUSTOM)]
 
@@ -296,7 +296,7 @@ class DDApiTest extends Specification {
         }
       }
     }
-    def client = new DDApi("localhost", v3Agent.address.port)
+    def client = new STSApi("localhost", v3Agent.address.port)
 
     expect:
     client.tracesEndpoint == "http://localhost:${v3Agent.address.port}/v0.3/traces"
@@ -340,7 +340,7 @@ class DDApiTest extends Specification {
       }
     }
     def port = badPort ? 999 : agent.address.port
-    def client = new DDApi("localhost", port)
+    def client = new STSApi("localhost", port)
 
     expect:
     client.tracesEndpoint == "http://localhost:${port}/$endpointVersion/traces"

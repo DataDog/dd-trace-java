@@ -8,8 +8,8 @@ apply from: "${rootDir}/gradle/jacoco.gradle"
 
 version = 'demo'
 description = 'dropwizard-mongo-client'
-mainClassName = 'datadog.example.dropwizard.BookApplication'
-applicationDefaultJvmArgs = ["-Ddd.service.name=dropwizard-example"]
+mainClassName = 'stackstate.example.dropwizard.BookApplication'
+applicationDefaultJvmArgs = ["-Dsts.service.name=dropwizard-example"]
 
 
 sourceCompatibility = 1.8
@@ -28,7 +28,7 @@ dependencies {
 
 jar {
   manifest {
-    attributes 'Main-Class': 'datadog.example.dropwizard.BookApplication'
+    attributes 'Main-Class': 'stackstate.example.dropwizard.BookApplication'
   }
 }
 

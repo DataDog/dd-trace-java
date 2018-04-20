@@ -1,4 +1,4 @@
-import stackstate.trace.api.DDTags
+import stackstate.trace.api.STSTags
 import io.opentracing.tag.Tags
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -74,12 +74,12 @@ class OkHttp3Test extends AgentTestRunner {
     tags2[Tags.PEER_HOSTNAME.key] == "localhost"
     tags2[Tags.PEER_PORT.key] == server.address.port
     tags2[Tags.PEER_HOST_IPV4.key] != null
-    tags2[DDTags.THREAD_NAME] != null
-    tags2[DDTags.THREAD_ID] != null
+    tags2[STSTags.THREAD_NAME] != null
+    tags2[STSTags.THREAD_ID] != null
     tags2.size() == 11
 
-    receivedHeaders.get().get("x-datadog-trace-id") == "$span2.traceId"
-    receivedHeaders.get().get("x-datadog-parent-id") == "$span2.spanId"
+    receivedHeaders.get().get("x-stackstate-trace-id") == "$span2.traceId"
+    receivedHeaders.get().get("x-stackstate-parent-id") == "$span2.spanId"
 
     cleanup:
     server.close()

@@ -12,8 +12,8 @@ import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.client.ClientResponseContext;
 import javax.ws.rs.client.ClientResponseFilter;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.trace.api.DDSpanTypes;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
 
 @Slf4j
 @Priority(Priorities.HEADER_DECORATOR)
@@ -30,8 +30,8 @@ public class ClientTracingFilter implements ClientRequestFilter, ClientResponseF
             .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
             .withTag(Tags.HTTP_METHOD.getKey(), requestContext.getMethod())
             .withTag(Tags.HTTP_URL.getKey(), requestContext.getUri().toString())
-            .withTag(DDTags.SPAN_TYPE, DDSpanTypes.HTTP_CLIENT)
-            .withTag(DDTags.RESOURCE_NAME, requestContext.getMethod() + " jax-rs.client.call")
+            .withTag(STSTags.SPAN_TYPE, STSSpanTypes.HTTP_CLIENT)
+            .withTag(STSTags.RESOURCE_NAME, requestContext.getMethod() + " jax-rs.client.call")
             .start();
 
     log.debug("{} - client span started", span);

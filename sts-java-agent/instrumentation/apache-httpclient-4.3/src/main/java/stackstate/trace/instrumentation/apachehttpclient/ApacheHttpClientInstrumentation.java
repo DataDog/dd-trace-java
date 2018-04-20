@@ -10,10 +10,10 @@ import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
 import org.apache.http.impl.execchain.ClientExecChain;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
 
 @AutoService(Instrumenter.class)
 public class ApacheHttpClientInstrumentation extends Instrumenter.Configurable {
@@ -39,11 +39,11 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Configurable {
                 "org.apache.http.impl.execchain.ClientExecChain"))
         .transform(
             new HelperInjector(
-                "datadog.trace.instrumentation.apachehttpclient.DDTracingClientExec",
-                "datadog.trace.instrumentation.apachehttpclient.DDTracingClientExec$HttpHeadersInjectAdapter"))
-        .transform(DDTransformers.defaultTransformers())
+                "stackstate.trace.instrumentation.apachehttpclient.STSTracingClientExec",
+                "stackstate.trace.instrumentation.apachehttpclient.STSTracingClientExec$HttpHeadersInjectAdapter"))
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create()
+            STSAdvice.create()
                 .advice(
                     isMethod().and(named("decorateProtocolExec")),
                     ApacheHttpClientAdvice.class.getName()))
@@ -55,7 +55,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Configurable {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addTracingExec(@Advice.Return(readOnly = false) ClientExecChain execChain) {
       execChain =
-          new DDTracingClientExec(
+          new STSTracingClientExec(
               execChain, DefaultRedirectStrategy.INSTANCE, false, GlobalTracer.get());
     }
   }

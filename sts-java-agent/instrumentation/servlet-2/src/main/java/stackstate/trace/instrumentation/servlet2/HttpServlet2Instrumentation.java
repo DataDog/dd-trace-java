@@ -25,12 +25,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.DDAdvice;
-import stackstate.trace.agent.tooling.DDTransformers;
 import stackstate.trace.agent.tooling.HelperInjector;
 import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.api.DDSpanTypes;
-import stackstate.trace.api.DDTags;
+import stackstate.trace.agent.tooling.STSAdvice;
+import stackstate.trace.agent.tooling.STSTransformers;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
 
 @AutoService(Instrumenter.class)
 public final class HttpServlet2Instrumentation extends Instrumenter.Configurable {
@@ -39,8 +39,8 @@ public final class HttpServlet2Instrumentation extends Instrumenter.Configurable
       new HelperInjector(
           "io.opentracing.contrib.web.servlet.filter.HttpServletRequestExtractAdapter",
           "io.opentracing.contrib.web.servlet.filter.HttpServletRequestExtractAdapter$MultivaluedMapFlatIterator",
-          "datadog.trace.instrumentation.servlet2.ServletFilterSpanDecorator",
-          "datadog.trace.instrumentation.servlet2.ServletFilterSpanDecorator$1");
+          "stackstate.trace.instrumentation.servlet2.ServletFilterSpanDecorator",
+          "stackstate.trace.instrumentation.servlet2.ServletFilterSpanDecorator$1");
 
   public HttpServlet2Instrumentation() {
     super("servlet", "servlet-2");
@@ -56,9 +56,9 @@ public final class HttpServlet2Instrumentation extends Instrumenter.Configurable
                     classLoaderHasClasses(
                         "javax.servlet.ServletContextEvent", "javax.servlet.FilterChain")))
         .transform(SERVLET2_HELPER_INJECTOR)
-        .transform(DDTransformers.defaultTransformers())
+        .transform(STSTransformers.defaultTransformers())
         .transform(
-            DDAdvice.create(false) // Can't use the error handler for pre 1.5 classes...
+            STSAdvice.create(false) // Can't use the error handler for pre 1.5 classes...
                 .advice(
                     named("service")
                         .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
@@ -89,7 +89,7 @@ public final class HttpServlet2Instrumentation extends Instrumenter.Configurable
               .buildSpan(SERVLET_OPERATION_NAME)
               .asChildOf(extractedContext)
               .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
-              .withTag(DDTags.SPAN_TYPE, DDSpanTypes.WEB_SERVLET)
+              .withTag(STSTags.SPAN_TYPE, STSSpanTypes.WEB_SERVLET)
               .startActive(true);
 
       ServletFilterSpanDecorator.STANDARD_TAGS.onRequest((HttpServletRequest) req, scope.span());
