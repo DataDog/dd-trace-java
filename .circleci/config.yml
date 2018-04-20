@@ -1,7 +1,7 @@
 version: 2
 
 defaults: &defaults
-  working_directory: ~/dd-trace-java
+  working_directory: ~/sts-trace-java
   resource_class: large
   docker:
     - image: circleci/openjdk:8
@@ -9,10 +9,10 @@ defaults: &defaults
 cache_keys: &cache_keys
   # Reset the cache approx every release
   keys:
-    - dd-trace-java-{{ checksum "dd-trace-java.gradle" }}-{{ .Branch }}-{{ .Revision }}
-    - dd-trace-java-{{ checksum "dd-trace-java.gradle" }}-{{ .Branch }}
-    - dd-trace-java-{{ checksum "dd-trace-java.gradle" }}
-    - dd-trace-java
+    - sts-trace-java-{{ checksum "sts-trace-java.gradle" }}-{{ .Branch }}-{{ .Revision }}
+    - sts-trace-java-{{ checksum "sts-trace-java.gradle" }}-{{ .Branch }}
+    - sts-trace-java-{{ checksum "sts-trace-java.gradle" }}
+    - sts-trace-java
 
 test_job: &test_job
   steps:
@@ -62,7 +62,7 @@ jobs:
           command: GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx2G -Xms512M" ./gradlew clean check -x test --parallel --stacktrace --no-daemon --max-workers=6
 
       - save_cache:
-          key: dd-trace-java-{{ checksum "dd-trace-java.gradle" }}-{{ .Branch }}-{{ .Revision }}
+          key: sts-trace-java-{{ checksum "sts-trace-java.gradle" }}-{{ .Branch }}-{{ .Revision }}
           paths: ~/.gradle
           background: true
 
@@ -99,10 +99,10 @@ jobs:
       - restore_cache:
           # Reset the cache approx every release
           keys:
-            - dd-trace-java-{{ checksum "dd-trace-java.gradle" }}-{{ .Branch }}-{{ .Revision }}
-            - dd-trace-java-{{ checksum "dd-trace-java.gradle" }}-{{ .Branch }}
-            - dd-trace-java-{{ checksum "dd-trace-java.gradle" }}
-            - dd-trace-java
+            - sts-trace-java-{{ checksum "sts-trace-java.gradle" }}-{{ .Branch }}-{{ .Revision }}
+            - sts-trace-java-{{ checksum "sts-trace-java.gradle" }}-{{ .Branch }}
+            - sts-trace-java-{{ checksum "sts-trace-java.gradle" }}
+            - sts-trace-java
 
       - run:
           name: Run Trace Agent Tests
@@ -124,8 +124,8 @@ jobs:
       - restore_cache:
           # Reset the cache approx every release
           keys:
-            - dd-trace-java-version-scan-{{ checksum "dd-trace-java.gradle" }}
-            - dd-trace-java-version-scan
+            - sts-trace-java-version-scan-{{ checksum "sts-trace-java.gradle" }}
+            - sts-trace-java-version-scan
 
       - run:
           name: Verify Version Scan
@@ -143,7 +143,7 @@ jobs:
           path: build
 
       - save_cache:
-          key: dd-trace-java-version-scan-{{ checksum "dd-trace-java.gradle" }}
+          key: sts-trace-java-version-scan-{{ checksum "sts-trace-java.gradle" }}
           paths: ~/.gradle
 
   publish: &publish
@@ -156,14 +156,14 @@ jobs:
 
       - run:
           name: Decode Signing Key
-          command: echo $PGP_KEY_FILE | base64 --decode > /home/circleci/dd-trace-java/.circleci/secring.gpg
+          command: echo $PGP_KEY_FILE | base64 --decode > /home/circleci/sts-trace-java/.circleci/secring.gpg
 
       - deploy:
           name: Publish master to Artifactory
           command: |
             ./gradlew -Psigning.keyId=${PGP_KEY_ID} \
               -Psigning.password=${PGP_KEY_PASS} \
-              -Psigning.secretKeyRingFile=/home/circleci/dd-trace-java/.circleci/secring.gpg \
+              -Psigning.secretKeyRingFile=/home/circleci/sts-trace-java/.circleci/secring.gpg \
               -PbintrayUser=${BINTRAY_USER} \
               -PbintrayApiKey=${BINTRAY_API_KEY} \
               -PbuildInfo.build.number=${CIRCLE_BUILD_NUM} \

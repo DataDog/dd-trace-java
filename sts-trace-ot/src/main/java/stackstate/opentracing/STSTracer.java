@@ -281,8 +281,8 @@ public class STSTracer implements io.opentracing.Tracer {
   }
 
   /**
-   * Register additional information about a service. Service additional information are a StackState
-   * feature only. Services are reported through a specific StackState endpoint.
+   * Register additional information about a service. Service additional information are a
+   * StackState feature only. Services are reported through a specific StackState endpoint.
    *
    * @param service additional service information
    */

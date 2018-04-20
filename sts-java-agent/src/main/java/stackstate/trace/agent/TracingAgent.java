@@ -84,8 +84,8 @@ public class TracingAgent {
   }
 
   /**
-   * Create the stackstate classloader. This must be called after the bootstrap jar has been appened to
-   * the bootstrap classpath.
+   * Create the stackstate classloader. This must be called after the bootstrap jar has been appened
+   * to the bootstrap classpath.
    *
    * @param bootstrapJar stackstate bootstrap jar which has been appended to the bootstrap loader
    * @param toolingJar jar to use for the classpath of the stackstate classloader
