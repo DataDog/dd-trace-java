@@ -7,7 +7,7 @@ This document is a kind of a "quick start" for the official specification: https
 There are several concepts exposed by the OpenTracing API:
 
 * The core API used for instrumenting the code
-* The tracer implementations are in charge of capturing and reporting the traces. For instance `sts-trace` generates and reports traces to the Datadog trace agent.
+* The tracer implementations are in charge of capturing and reporting the traces. For instance `sts-trace` generates and reports traces to the StackState trace agent.
 * In-process trace propagation for trace consistency in a concurrent/asynchronous request context.
 * Distributed trace propagation for when receiving a request and making external calls.
 
@@ -28,7 +28,7 @@ The core API exposes 3 main objects:
 The tracer is in charge of instantiating new spans for a given context, and sending them to the appropriate sink when complete.
 
 The tracer instantiation depends of the implementation you chose. For instance, `sts-trace` allows you
-to send the traces to a logger or directly to a running Datadog agent.
+to send the traces to a logger or directly to a running StackState agent.
 
 ```java
   // Initialize the StackState Java Tracer to write traces to the log:
