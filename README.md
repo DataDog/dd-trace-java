@@ -1,3 +1,3 @@
-# Datadog Java APM
+# StackState Java APM
 
-To use and configure Datadog Java APM, see [https://docs.datadoghq.com/tracing/languages/java](https://docs.datadoghq.com/tracing/languages/java)
+To use and configure StackState Java APM, see [https://docs.stackstate.com/tracing/languages/java](https://docs.stackstate.com/tracing/languages/java)
