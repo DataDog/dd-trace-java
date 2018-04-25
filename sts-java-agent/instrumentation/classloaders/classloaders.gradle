@@ -1,0 +1,12 @@
+apply from: "${rootDir}/gradle/java.gradle"
+
+dependencies {
+  compile project(':sts-trace-ot')
+  compile project(':sts-java-agent:agent-tooling')
+
+  compile deps.bytebuddy
+  compile deps.opentracing
+  compile deps.autoservice
+  
+  testCompile project(':sts-java-agent:testing')
+}

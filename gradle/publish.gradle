@@ -138,16 +138,16 @@ bintray {
 
   //Package configuration. The plugin will use the repo and name properties to check if the package already exists. In that case, there's no need to configure the other package properties (like userOrg, desc, etc).
   pkg {
-    repo = 'datadog-maven'
-    name = 'dd-trace-java'
-    userOrg = 'datadog' //An optional organization name when the repo belongs to one of the user's orgs
-    desc = 'Client libraries for Datadog APM'
-    websiteUrl = 'https://github.com/datadog/dd-trace-java'
-    issueTrackerUrl = 'https://github.com/datadog/dd-trace-java/issues'
-    vcsUrl = 'https://github.com/datadog/dd-trace-java.git'
+    repo = 'stackstate-maven'
+    name = 'sts-trace-java'
+    userOrg = 'stackstate' //An optional organization name when the repo belongs to one of the user's orgs
+    desc = 'Client libraries for StackState APM'
+    websiteUrl = 'https://github.com/StackVista/sts-trace-java'
+    issueTrackerUrl = 'https://github.com/StackVista/sts-trace-java/issues'
+    vcsUrl = 'https://github.com/StackVista/sts-trace-java.git'
     licenses = ['Apache-2.0']
 
-    githubRepo = 'datadog/dd-trace-java' //Optional Github repository
+    githubRepo = 'StackVista/sts-trace-java' //Optional Github repository
     githubReleaseNotesFile = 'README.md' //Optional Github readme file
   }
 }

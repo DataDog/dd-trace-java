@@ -8,16 +8,16 @@ apply from: "${rootDir}/gradle/jacoco.gradle"
 
 version = 'demo'
 description = 'dropwizard-mongo-client'
-mainClassName = 'datadog.example.dropwizard.BookApplication'
-applicationDefaultJvmArgs = ["-Ddd.service.name=dropwizard-example"]
+mainClassName = 'stackstate.example.dropwizard.BookApplication'
+applicationDefaultJvmArgs = ["-Dsts.service.name=dropwizard-example"]
 
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 dependencies {
-  compile project(':dd-trace-ot')
-  compile project(':dd-trace-api')
+  compile project(':sts-trace-ot')
+  compile project(':sts-trace-api')
 
   compile deps.opentracing
 
@@ -28,7 +28,7 @@ dependencies {
 
 jar {
   manifest {
-    attributes 'Main-Class': 'datadog.example.dropwizard.BookApplication'
+    attributes 'Main-Class': 'stackstate.example.dropwizard.BookApplication'
   }
 }
 

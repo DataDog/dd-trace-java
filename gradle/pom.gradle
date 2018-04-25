@@ -39,7 +39,7 @@ modifyPom {
   project {
     name project.name
     description project.description
-    url "https://github.com/datadog/dd-trace-java"
+    url "https://github.com/StackVista/sts-trace-java"
     licenses {
       license {
         name "The Apache Software License, Version 2.0"
@@ -48,14 +48,14 @@ modifyPom {
       }
     }
     scm {
-      connection "scm:https://datadog@github.com/datadog/dd-trace-java"
-      developerConnection "scm:git@github.com:datadog/dd-trace-java.git"
-      url "https://github.com/datadog/dd-trace-java"
+      connection "scm:https://stackvista@github.com/stackvista/sts-trace-java"
+      developerConnection "scm:git@github.com:stackvista/sts-trace-java.git"
+      url "https://github.com/stackvista/sts-trace-java"
     }
     developers {
       developer {
-        id "datadog"
-        name "Datadog"
+        id "stackvista"
+        name "StackState"
       }
     }
   }

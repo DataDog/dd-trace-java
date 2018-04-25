@@ -9,8 +9,8 @@ auto-instrumentation for all endpoints. Manual instrumentation has been added as
 
 #### Prerequisites
 
-Be sure to build the project so that the latest version of ``dd-trace-java`` components are used. You can build
-all libraries and examples launching from the ``dd-trace-java`` root folder:
+Be sure to build the project so that the latest version of ``sts-trace-java`` components are used. You can build
+all libraries and examples launching from the ``sts-trace-java`` root folder:
 ```bash
 ./gradlew clean shadowJar installDist
 ```
@@ -18,21 +18,21 @@ all libraries and examples launching from the ``dd-trace-java`` root folder:
 Then you can start all services via Docker:
 ```bash
 cd examples/dropwizard-mongo-client
-DD_API_KEY=<your_datadog_api_key> docker-compose up -d
+STS_API_KEY=<your_stackstate_api_key> docker-compose up -d
 ```
 
-A valid ``DD_API_KEY`` is required to post collected traces to the Datadog backend.
+A valid ``STS_API_KEY`` is required to post collected traces to the StackState backend.
 
 #### Run the application
 
 Launch the application using the run wrapper you've built during the ``installDist`` step:
 ```bash
-JAVA_OPTS="-javaagent:../../dd-java-agent/build/libs/dd-java-agent-{version}.jar -Ddd.service.name=dropwizard-example" build/install/dropwizard-mongo-client/bin/dropwizard-mongo-client server
+JAVA_OPTS="-javaagent:../../sts-java-agent/build/libs/sts-java-agent-{version}.jar -Dsts.service.name=dropwizard-example" build/install/dropwizard-mongo-client/bin/dropwizard-mongo-client server
 ```
 
 Or as an executable jar:
 ```bash
-java -javaagent:../../dd-java-agent/build/libs/dd-java-agent-{version}.jar -Ddd.service.name=dropwizard-example -jar build/libs/dropwizard-mongo-client-demo-all.jar server
+java -javaagent:../../sts-java-agent/build/libs/sts-java-agent-{version}.jar -Dsts.service.name=dropwizard-example -jar build/libs/dropwizard-mongo-client-demo-all.jar server
 ```
 
 ``0.2.0-SNAPSHOT`` is an example of what ``{version}`` looks like.
@@ -49,7 +49,7 @@ Once the application runs. Go to the following url:
 [1]: http://localhost:8080/demo/add?title=some-book-title&isbn=1234&page=42
 [2]: http://localhost:8080/demo/
 
-Then get back to Datadog and wait a bit to see a trace coming.
+Then get back to StackState and wait a bit to see a trace coming.
 
 #### Cross process tracing: with the provided `TracedClient` class
 
@@ -59,7 +59,7 @@ the tracing cross process.
 
 To run the distributed example, first start the dropwizard app, the mongo db and finally run the `main` from `com.example.helloworld.client.TracedClient` 
 
-#### Auto-instrumentation with the `dd-trace-agent`
+#### Auto-instrumentation with the `sts-trace-agent`
 
 The instrumentation is entirely done by the Java Agent which embed a set of rules that automatically recognizes & 
 instruments:

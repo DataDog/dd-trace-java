@@ -8,14 +8,14 @@ apply from: "${rootDir}/gradle/jacoco.gradle"
 
 version = 'demo'
 description = 'rest-spark'
-mainClassName = 'datadog.example.restspark.SparkApplication'
-applicationDefaultJvmArgs = ["-Ddd.service.name=rest-spark"]
+mainClassName = 'stackstate.example.restspark.SparkApplication'
+applicationDefaultJvmArgs = ["-Dsts.service.name=rest-spark"]
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 dependencies {
-  compile project(':dd-trace-ot')
+  compile project(':sts-trace-ot')
 
   compile 'com.sparkjava:spark-core:2.6.0'
   compile 'org.mongodb:mongodb-driver:3.4.2'
@@ -29,7 +29,7 @@ dependencies {
 
 jar {
   manifest {
-    attributes 'Main-Class': 'datadog.example.restspark.SparkApplication'
+    attributes 'Main-Class': 'stackstate.example.restspark.SparkApplication'
   }
 }
 

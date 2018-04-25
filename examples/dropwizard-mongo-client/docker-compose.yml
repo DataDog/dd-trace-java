@@ -6,7 +6,7 @@ mongo:
 ddagent:
     image: datadog/docker-dd-agent
     environment:
-        - DD_BIND_HOST=0.0.0.0
-        - DD_API_KEY
+        - STS_BIND_HOST=0.0.0.0
+        - STS_API_KEY
     ports:
         - "127.0.0.1:8126:8126"

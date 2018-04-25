@@ -30,17 +30,17 @@ function save_libs () {
     fi
 }
 
-save_reports dd-java-agent
-save_reports dd-java-agent/tooling
-save_reports dd-java-agent/testing
+save_reports sts-java-agent
+save_reports sts-java-agent/tooling
+save_reports sts-java-agent/testing
 # Save reports for all instrumentation projects
-for integration_path in dd-java-agent/instrumentation/*; do
+for integration_path in sts-java-agent/instrumentation/*; do
     save_reports $integration_path
 done
-save_reports dd-java-agent-ittests
-save_reports dd-trace-api
-save_reports dd-trace-ot
+save_reports sts-java-agent-ittests
+save_reports sts-trace-api
+save_reports sts-trace-ot
 
-save_libs dd-java-agent
-save_libs dd-trace-api
-save_libs dd-trace-ot
+save_libs sts-java-agent
+save_libs sts-trace-api
+save_libs sts-trace-ot
