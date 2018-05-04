@@ -4,13 +4,7 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.BOOTSTRAP_CLASSLOAD
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder.Transformer;
 import net.bytebuddy.description.type.TypeDescription;
@@ -77,11 +71,15 @@ public class HelperInjector implements Transformer {
               }
             }
             if (classLoader == BOOTSTRAP_CLASSLOADER) {
-              ClassInjector.UsingInstrumentation.of(
-                      new File(System.getProperty("java.io.tmpdir")),
-                      ClassInjector.UsingInstrumentation.Target.BOOTSTRAP,
-                      AgentInstaller.getInstrumentation())
-                  .inject(helperMap);
+              Map<TypeDescription, Class<?>> injected =
+                  ClassInjector.UsingInstrumentation.of(
+                          new File(System.getProperty("java.io.tmpdir")),
+                          ClassInjector.UsingInstrumentation.Target.BOOTSTRAP,
+                          AgentInstaller.getInstrumentation())
+                      .inject(helperMap);
+              for (TypeDescription desc : injected.keySet()) {
+                Class.forName(desc.getName(), false, Utils.getBootstrapProxy());
+              }
             } else {
               new ClassInjector.UsingReflection(classLoader).inject(helperMap);
             }
