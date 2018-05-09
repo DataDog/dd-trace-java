@@ -18,6 +18,7 @@ public class MuzzleGradlePlugin implements Plugin {
   //   - Cache safe and unsafe classloaders
   //   - Do reference checking at compile time
   //   - lazy-load reference muzzle field
+  //   - Also match interfaces which extend Instrumenter
   // - Additional references to check
   //   - Fields
   //   - methods

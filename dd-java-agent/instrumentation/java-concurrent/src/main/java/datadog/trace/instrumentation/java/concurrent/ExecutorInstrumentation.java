@@ -12,7 +12,6 @@ import datadog.trace.agent.tooling.DDAdvice;
 import datadog.trace.agent.tooling.DDTransformers;
 import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.util.GlobalTracer;
@@ -132,8 +131,6 @@ public final class ExecutorInstrumentation extends Instrumenter.Configurable {
                 .advice(
                     nameMatches("invoke(Any|All)$").and(takesArgument(0, Callable.class)),
                     WrapCallableCollectionAdvice.class.getName()))
-        .transform(
-            new ReferenceMatcher().assertSafeTransformation(WrapRunnableAdvice.class.getName()))
         .asDecorator();
   }
 
