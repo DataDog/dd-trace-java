@@ -5,6 +5,9 @@ description = 'dd-java-agent-ittests'
 evaluationDependsOn(':dd-java-agent:agent-tooling')
 compileTestJava.dependsOn tasks.getByPath(':dd-java-agent:agent-tooling:testClasses')
 
+// These classes use Ratpack which requires Java 8. (Currently also incompatible with Java 9.)
+testJava8Only += ['**/ratpack/*.class']
+
 dependencies {
   testCompile project(':dd-trace-api')
   testCompile project(':dd-trace-ot')
@@ -19,12 +22,14 @@ dependencies {
 
   testCompile group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.3'
   testCompile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
+  testCompile group: 'com.h2database', name: 'h2', version: '1.4.197'
 }
 
 tasks.withType(Test) {
   jvmArgs "-Ddd.writer.type=LogWriter", "-Ddd.service.name=java-app"
   jvmArgs "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug"
   jvmArgs "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
+  jvmArgs "-Ddd.integration.ratpack.enabled=true"
 
   doFirst {
     // Defining here to allow jacoco to be first on the command line.
