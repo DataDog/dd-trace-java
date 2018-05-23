@@ -28,10 +28,15 @@ public class RatpackServerAdvice {
                   .add(HandlerDecorator.prepend(new TracingHandler()))
                   .build());
 
+      System.out.println("RATPACK: Checking Global Tracer");
       if (GlobalTracer.isRegistered()) {
+        System.out.println("RATPACK: Global Tracer Registered");
         if (GlobalTracer.get().scopeManager() instanceof ContextualScopeManager) {
+          System.out.println("RATPACK: Contextual Tracer Registered");
           ((ContextualScopeManager) GlobalTracer.get().scopeManager())
               .addScopeContext(ratpackScopeManager);
+        } else {
+          System.out.println("RATPACK: Not a ContextualScopeManager");
         }
       } else {
         log.warn("No GlobalTracer registered");
