@@ -51,9 +51,11 @@ class OkHttp3Test extends AgentTestRunner {
 
     def tags1 = span1.context().tags
     tags1["component"] == "okhttp"
+    tags1["span.hostname"] != null
+    tags1["span.pid"] != 0l
     tags1["thread.name"] != null
     tags1["thread.id"] != null
-    tags1.size() == 3
+    tags1.size() == 5
 
     and: // span 1
     def span2 = trace[1]
@@ -74,9 +76,11 @@ class OkHttp3Test extends AgentTestRunner {
     tags2[Tags.PEER_HOSTNAME.key] == "localhost"
     tags2[Tags.PEER_PORT.key] == server.address.port
     tags2[Tags.PEER_HOST_IPV4.key] != null
+    tags2[STSTags.SPAN_HOSTNAME] != ""
+    tags2[STSTags.SPAN_PID] != 0l
     tags2[STSTags.THREAD_NAME] != null
     tags2[STSTags.THREAD_ID] != null
-    tags2.size() == 11
+    tags2.size() == 13
 
     receivedHeaders.get().get("x-stackstate-trace-id") == "$span2.traceId"
     receivedHeaders.get().get("x-stackstate-parent-id") == "$span2.spanId"

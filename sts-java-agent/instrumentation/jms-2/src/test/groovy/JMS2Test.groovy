@@ -97,10 +97,11 @@ class JMS2Test extends AgentTestRunner {
     producerTags["component"] == "jms2"
 
     producerTags["span.origin.type"] == HornetQMessageProducer.name
-
+    producerTags["span.hostname"] != null
+    producerTags["span.pid"] != 0l
     producerTags["thread.name"] != null
     producerTags["thread.id"] != null
-    producerTags.size() == 6
+    producerTags.size() == 8
 
     and: // consumer trace
     def consumerTrace = TEST_WRITER.get(1)
@@ -121,10 +122,11 @@ class JMS2Test extends AgentTestRunner {
     consumerTags["component"] == "jms2"
 
     consumerTags["span.origin.type"] == HornetQMessageConsumer.name
-
+    consumerTags["span.hostname"] != null
+    consumerTags["span.pid"] != 0l
     consumerTags["thread.name"] != null
     consumerTags["thread.id"] != null
-    consumerTags.size() == 6
+    consumerTags.size() == 8
 
     cleanup:
     producer.close()
@@ -179,9 +181,11 @@ class JMS2Test extends AgentTestRunner {
 
     producerTags["span.origin.type"] == HornetQMessageProducer.name
 
+    producerTags["span.hostname"] != null
+    producerTags["span.pid"] != 0l
     producerTags["thread.name"] != null
     producerTags["thread.id"] != null
-    producerTags.size() == 6
+    producerTags.size() == 8
 
     and: // consumer trace
     def consumerTrace = TEST_WRITER.get(1)
@@ -203,9 +207,11 @@ class JMS2Test extends AgentTestRunner {
 
     consumerTags["span.origin.type"] != null
 
+    consumerTags["span.hostname"] != null
+    consumerTags["span.pid"] != 0l
     consumerTags["thread.name"] != null
     consumerTags["thread.id"] != null
-    consumerTags.size() == 6
+    consumerTags.size() == 8
 
     cleanup:
     producer.close()

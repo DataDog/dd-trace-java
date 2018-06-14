@@ -119,9 +119,11 @@ class KafkaStreamsTest extends AgentTestRunner {
     t1tags1["component"] == "java-kafka"
     t1tags1["span.kind"] == "producer"
     t1tags1["span.type"] == "queue"
+    t1tags1["span.hostname"] != null
+    t1tags1["span.pid"] != 0l
     t1tags1["thread.name"] != null
     t1tags1["thread.id"] != null
-    t1tags1.size() == 5
+    t1tags1.size() == 7
 
     and: // STREAMING span 0
     def t2span1 = t2[0]
@@ -136,9 +138,11 @@ class KafkaStreamsTest extends AgentTestRunner {
     t2tags1["component"] == "java-kafka"
     t2tags1["span.kind"] == "producer"
     t2tags1["span.type"] == "queue"
+    t2tags1["span.hostname"] != null
+    t2tags1["span.pid"] != 0l
     t2tags1["thread.name"] != null
     t2tags1["thread.id"] != null
-    t2tags1.size() == 5
+    t2tags1.size() == 7
 
     and: // STREAMING span 1
     def t2span2 = t2[1]
@@ -157,10 +161,12 @@ class KafkaStreamsTest extends AgentTestRunner {
     t1tags1["span.type"] == "queue"
     t2tags2["partition"] >= 0
     t2tags2["offset"] == 0
+    t2tags2["span.hostname"] != null
+    t2tags2["span.pid"] != 0l
     t2tags2["thread.name"] != null
     t2tags2["thread.id"] != null
     t2tags2["asdf"] == "testing"
-    t2tags2.size() == 8
+    t2tags2.size() == 10
 
     and: // CONSUMER span 0
     def t3span1 = t3[0]
@@ -178,10 +184,12 @@ class KafkaStreamsTest extends AgentTestRunner {
     t2tags2["span.type"] == "queue"
     t3tags1["partition"] >= 0
     t3tags1["offset"] == 0
+    t3tags1["span.hostname"] != null
+    t3tags1["span.pid"] != 0l
     t3tags1["thread.name"] != null
     t3tags1["thread.id"] != null
     t3tags1["testing"] == 123
-    t3tags1.size() == 8
+    t3tags1.size() == 10
 
     def headers = received.headers()
     headers.iterator().hasNext()

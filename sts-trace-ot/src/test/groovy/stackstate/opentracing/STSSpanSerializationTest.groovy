@@ -15,6 +15,8 @@ class STSSpanSerializationTest extends Specification {
   @Unroll
   def "serialize spans"() throws Exception {
     setup:
+    def fakePidProvider = [getPid: {-> return (Long)42}] as ISTSSpanContextPidProvider
+    def fakeHostNameProvider = [getHostName: {-> return "fakehost"}] as ISTSSpanContextHostNameProvider
     final Map<String, String> baggage = new HashMap<>()
     baggage.put("a-baggage", "value")
     final Map<String, Object> tags = new HashMap<>()
@@ -53,7 +55,10 @@ class STSSpanSerializationTest extends Specification {
         tags,
         new PendingTrace(tracer, 1L),
         tracer)
-
+    context.setHostNameProvider(fakeHostNameProvider)
+    context.setPidProvider(fakePidProvider)
+    baggage.put(STSTags.SPAN_HOSTNAME, "fakehost")
+    baggage.put(STSTags.SPAN_PID, "42")
     baggage.put(STSTags.THREAD_NAME, Thread.currentThread().getName())
     baggage.put(STSTags.THREAD_ID, String.valueOf(Thread.currentThread().getId()))
     baggage.put(STSTags.SPAN_TYPE, context.getSpanType())

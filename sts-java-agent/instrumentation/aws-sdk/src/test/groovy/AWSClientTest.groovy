@@ -110,7 +110,7 @@ class AWSClientTest extends AgentTestRunner {
     tags1["component"] == "apache-httpclient"
     tags1["thread.name"] != null
     tags1["thread.id"] != null
-    tags1.size() == 3
+    tags1.size() == 5
 
     and: // span 1 - from aws instrumentation
     def span2 = trace[1]
@@ -131,7 +131,7 @@ class AWSClientTest extends AgentTestRunner {
     tags2[Tags.PEER_PORT.key] == server.address.port
     tags2[STSTags.THREAD_NAME] != null
     tags2[STSTags.THREAD_ID] != null
-    tags2.size() == 9
+    tags2.size() == 11
 
     and:
 
@@ -162,7 +162,7 @@ class AWSClientTest extends AgentTestRunner {
     tags["span.type"] == "web"
     tags["thread.name"] != null
     tags["thread.id"] != null
-    tags.size() == 13
+    tags.size() == 15
 
     receivedHeaders.get().get("x-stackstate-trace-id") == "$span.traceId"
     receivedHeaders.get().get("x-stackstate-parent-id") == "$span.spanId"

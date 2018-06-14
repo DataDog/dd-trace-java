@@ -2,6 +2,8 @@ package stackstate.trace.api;
 
 public class STSTags {
   public static final String SPAN_TYPE = "span.type";
+  public static final String SPAN_HOSTNAME = "span.hostname";
+  public static final String SPAN_PID = "span.pid";
   public static final String SERVICE_NAME = "service.name";
   public static final String RESOURCE_NAME = "resource.name";
   public static final String THREAD_NAME = "thread.name";

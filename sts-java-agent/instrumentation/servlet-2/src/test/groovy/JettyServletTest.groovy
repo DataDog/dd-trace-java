@@ -108,9 +108,11 @@ class JettyServletTest extends AgentTestRunner {
     span.context().tags["span.kind"] == "server"
     span.context().tags["component"] == "java-web-servlet"
     span.context().tags["http.status_code"] == null // sadly servlet 2.x doesn't expose it generically.
+    span.context().tags["span.hostname"] != null
+    span.context().tags["span.pid"] != 0l
     span.context().tags["thread.name"] != null
     span.context().tags["thread.id"] != null
-    span.context().tags.size() == 7
+    span.context().tags.size() == 9
 
     where:
     path   | expectedResponse
@@ -143,13 +145,15 @@ class JettyServletTest extends AgentTestRunner {
     span.context().tags["span.kind"] == "server"
     span.context().tags["component"] == "java-web-servlet"
     span.context().tags["http.status_code"] == null // sadly servlet 2.x doesn't expose it generically.
+    span.context().tags["span.hostname"] != null
+    span.context().tags["span.pid"] != 0l
     span.context().tags["thread.name"] != null
     span.context().tags["thread.id"] != null
     span.context().tags["error"] == true
     span.context().tags["error.msg"] == "some $path error"
     span.context().tags["error.type"] == RuntimeException.getName()
     span.context().tags["error.stack"] != null
-    span.context().tags.size() == 11
+    span.context().tags.size() == 13
 
     where:
     path   | expectedResponse

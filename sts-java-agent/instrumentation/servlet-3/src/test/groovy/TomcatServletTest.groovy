@@ -108,9 +108,11 @@ class TomcatServletTest extends AgentTestRunner {
     span.context().tags["span.kind"] == "server"
     span.context().tags["component"] == "java-web-servlet"
     span.context().tags["http.status_code"] == 200
+    span.context().tags["span.hostname"] != null
+    span.context().tags["span.pid"] != 0l
     span.context().tags["thread.name"] != null
     span.context().tags["thread.id"] != null
-    span.context().tags.size() == 8
+    span.context().tags.size() == 10
 
     where:
     path    | expectedResponse
@@ -145,13 +147,15 @@ class TomcatServletTest extends AgentTestRunner {
     span.context().tags["span.kind"] == "server"
     span.context().tags["component"] == "java-web-servlet"
     span.context().tags["http.status_code"] == 500
+    span.context().tags["span.hostname"] != null
+    span.context().tags["span.pid"] != 0l
     span.context().tags["thread.name"] != null
     span.context().tags["thread.id"] != null
     span.context().tags["error"] == true
     span.context().tags["error.msg"] == "some $path error"
     span.context().tags["error.type"] == RuntimeException.getName()
     span.context().tags["error.stack"] != null
-    span.context().tags.size() == 12
+    span.context().tags.size() == 14
 
     where:
     path   | expectedResponse
@@ -186,13 +190,15 @@ class TomcatServletTest extends AgentTestRunner {
     span.context().tags["span.kind"] == "server"
     span.context().tags["component"] == "java-web-servlet"
     span.context().tags["http.status_code"] == 500
+    span.context().tags["span.hostname"] != null
+    span.context().tags["span.pid"] != 0l
     span.context().tags["thread.name"] != null
     span.context().tags["thread.id"] != null
     span.context().tags["error"] == true
     span.context().tags["error.msg"] == null
     span.context().tags["error.type"] == null
     span.context().tags["error.stack"] == null
-    span.context().tags.size() == 9
+    span.context().tags.size() == 11
 
     where:
     path   | expectedResponse

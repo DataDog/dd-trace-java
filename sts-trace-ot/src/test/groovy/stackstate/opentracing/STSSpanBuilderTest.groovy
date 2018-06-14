@@ -12,6 +12,10 @@ class STSSpanBuilderTest extends Specification {
   def writer = new ListWriter()
   def tracer = new STSTracer(writer)
 
+  def fakePidProvider = [getPid: {-> return (Long)42}] as ISTSSpanContextPidProvider
+  def fakeHostNameProvider = [getHostName: {-> return "fakehost"}] as ISTSSpanContextHostNameProvider
+
+
   def "build simple span"() {
     setup:
     final STSSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
@@ -32,6 +36,8 @@ class STSSpanBuilderTest extends Specification {
     STSTracer.STSSpanBuilder builder = tracer
       .buildSpan(expectedName)
       .withServiceName("foo")
+      .withHostNameProvider(fakeHostNameProvider)
+      .withPidProvider(fakePidProvider)
     tags.each {
       builder = builder.withTag(it.key, it.value)
     }
@@ -45,12 +51,19 @@ class STSSpanBuilderTest extends Specification {
 
 
     when:
-    span = tracer.buildSpan(expectedName).withServiceName("foo").start()
+    span = tracer
+      .buildSpan(expectedName)
+      .withServiceName("foo")
+      .withHostNameProvider(fakeHostNameProvider)
+      .withPidProvider(fakePidProvider)
+      .start()
 
     then:
     span.getTags() == [
       (STSTags.THREAD_NAME): Thread.currentThread().getName(),
       (STSTags.THREAD_ID)  : Thread.currentThread().getId(),
+      (STSTags.SPAN_HOSTNAME): fakeHostNameProvider.getHostName(),
+      (STSTags.SPAN_PID): fakePidProvider.getPid()
     ]
 
     when:
@@ -67,9 +80,13 @@ class STSSpanBuilderTest extends Specification {
         .withServiceName(expectedService)
         .withErrorFlag()
         .withSpanType(expectedType)
+        .withHostNameProvider(fakeHostNameProvider)
+        .withPidProvider(fakePidProvider)
         .start()
 
     final STSSpanContext context = span.context()
+    context.setHostNameProvider(fakeHostNameProvider)
+    context.setPidProvider(fakePidProvider)
 
     then:
     context.getResourceName() == expectedResource
@@ -226,10 +243,18 @@ class STSSpanBuilderTest extends Specification {
     setup:
     System.setProperty("sts.trace.span.tags", tagString)
     tracer = new STSTracer(writer)
-    def span = tracer.buildSpan("op name").withServiceName("foo").start()
+    def fakePidProvider = [getPid: {-> return (Long)42}] as ISTSSpanContextPidProvider
+    def fakeHostNameProvider = [getHostName: {-> return "fakehost"}] as ISTSSpanContextHostNameProvider
+    def span = tracer.buildSpan("op name")
+      .withServiceName("foo")
+      .withPidProvider(fakePidProvider)
+      .withHostNameProvider(fakeHostNameProvider)
+      .start()
     tags.putAll([
       (STSTags.THREAD_NAME): Thread.currentThread().getName(),
       (STSTags.THREAD_ID)  : Thread.currentThread().getId(),
+      (STSTags.SPAN_HOSTNAME): "fakehost",
+      (STSTags.SPAN_PID)  : (Long) 42
     ])
 
     expect:

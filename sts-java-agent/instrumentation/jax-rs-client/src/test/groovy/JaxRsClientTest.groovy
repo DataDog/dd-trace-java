@@ -76,7 +76,9 @@ class JaxRsClientTest extends AgentTestRunner {
     tags[STSTags.SPAN_TYPE] == STSSpanTypes.HTTP_CLIENT
     tags[STSTags.THREAD_NAME] != null
     tags[STSTags.THREAD_ID] != null
-    tags.size() == 8
+    tags[STSTags.SPAN_PID] != 0
+    tags[STSTags.SPAN_HOSTNAME] != ""
+    tags.size() == 10
 
     receivedHeaders.get().get("x-stackstate-trace-id") == "$span.traceId"
     receivedHeaders.get().get("x-stackstate-parent-id") == "$span.spanId"

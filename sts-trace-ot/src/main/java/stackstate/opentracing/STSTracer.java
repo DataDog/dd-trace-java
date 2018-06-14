@@ -331,6 +331,8 @@ public class STSTracer implements io.opentracing.Tracer {
     private Map<String, Object> tags =
         spanTags.isEmpty() ? Collections.<String, Object>emptyMap() : Maps.newHashMap(spanTags);
     private long timestampMicro;
+    private ISTSSpanContextPidProvider pidProvider;
+    private ISTSSpanContextHostNameProvider hostNameProvider;
     private SpanContext parent;
     private String serviceName;
     private String resourceName;
@@ -409,6 +411,22 @@ public class STSTracer implements io.opentracing.Tracer {
 
     public STSSpanBuilder withServiceName(final String serviceName) {
       this.serviceName = serviceName;
+      return this;
+    }
+
+    public STSSpanBuilder withPidProvider(final ISTSSpanContextPidProvider provider) {
+      this.pidProvider = provider;
+      if (this.parent instanceof STSSpanContext) {
+        ((STSSpanContext) this.parent).setPidProvider(provider);
+      }
+      return this;
+    }
+
+    public STSSpanBuilder withHostNameProvider(final ISTSSpanContextHostNameProvider provider) {
+      this.hostNameProvider = provider;
+      if (this.parent instanceof STSSpanContext) {
+        ((STSSpanContext) this.parent).setHostNameProvider(provider);
+      }
       return this;
     }
 
@@ -497,7 +515,6 @@ public class STSTracer implements io.opentracing.Tracer {
         samplingPriority = stssc.getSamplingPriority();
         if (this.serviceName == null) this.serviceName = stssc.getServiceName();
         if (this.spanType == null) this.spanType = stssc.getSpanType();
-
         // Propagate external trace
       } else if (parentContext instanceof ExtractedContext) {
         final ExtractedContext stssc = (ExtractedContext) parentContext;
@@ -539,6 +556,14 @@ public class STSTracer implements io.opentracing.Tracer {
               this.tags,
               parentTrace,
               STSTracer.this);
+
+      if (this.pidProvider != null) {
+        context.setPidProvider(this.pidProvider);
+      }
+
+      if (this.hostNameProvider != null) {
+        context.setHostNameProvider(this.hostNameProvider);
+      }
 
       return context;
     }

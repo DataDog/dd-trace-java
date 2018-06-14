@@ -1,5 +1,6 @@
 package stackstate.opentracing
 
+import stackstate.trace.api.STSTags
 import stackstate.trace.api.interceptor.MutableSpan
 import stackstate.trace.api.interceptor.TraceInterceptor
 import stackstate.trace.common.writer.ListWriter
@@ -144,6 +145,8 @@ class TraceInterceptorTest extends Specification {
     tags["span.type"] == "modifiedST-null"
     tags["thread.name"] != null
     tags["thread.id"] != null
-    tags.size() == 6
+    tags[STSTags.SPAN_PID] != 0
+    tags[STSTags.SPAN_HOSTNAME] != ""
+    tags.size() == 8
   }
 }

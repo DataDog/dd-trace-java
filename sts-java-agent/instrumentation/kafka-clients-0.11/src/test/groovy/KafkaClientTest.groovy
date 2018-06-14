@@ -94,9 +94,11 @@ class KafkaClientTest extends AgentTestRunner {
     t1tags1["component"] == "java-kafka"
     t1tags1["span.kind"] == "producer"
     t1tags1["span.type"] == "queue"
+    t1tags1["span.hostname"] != null
+    t1tags1["span.pid"] != 0l
     t1tags1["thread.name"] != null
     t1tags1["thread.id"] != null
-    t1tags1.size() == 5
+    t1tags1.size() == 7
 
     and: // CONSUMER span 0
     def t2span1 = t2[0]
@@ -114,9 +116,11 @@ class KafkaClientTest extends AgentTestRunner {
     t1tags1["span.type"] == "queue"
     t2tags1["partition"] >= 0
     t2tags1["offset"] == 0
+    t2tags1["span.hostname"] != null
+    t2tags1["span.pid"] != 0l
     t2tags1["thread.name"] != null
     t2tags1["thread.id"] != null
-    t2tags1.size() == 7
+    t2tags1.size() == 9
 
     def headers = received.headers()
     headers.iterator().hasNext()
