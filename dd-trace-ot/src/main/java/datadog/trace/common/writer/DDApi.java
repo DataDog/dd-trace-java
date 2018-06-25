@@ -6,6 +6,7 @@ import datadog.opentracing.DDSpan;
 import datadog.opentracing.DDTraceOTInfo;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -96,6 +97,8 @@ public class DDApi {
         responseString = sb.toString();
       }
 
+      skipAllContent(httpCon);
+
       final int responseCode = httpCon.getResponseCode();
       if (responseCode != 200) {
         if (log.isDebugEnabled()) {
@@ -161,10 +164,6 @@ public class DDApi {
     return endpointAvailable(endpoint, Collections.emptyList(), true);
   }
 
-  private static boolean serviceEndpointAvailable(final String endpoint) {
-    return endpointAvailable(endpoint, Collections.emptyMap(), true);
-  }
-
   private static boolean endpointAvailable(
       final String endpoint, final Object data, final boolean retry) {
     try {
@@ -202,6 +201,32 @@ public class DDApi {
     httpCon.setRequestProperty(DATADOG_META_TRACER_VERSION, DDTraceOTInfo.VERSION);
 
     return httpCon;
+  }
+
+  /* Ensure we read the full response (so the connection can be returned to the keepalive pool).
+   * Borrowed from https://github.com/openzipkin/zipkin-reporter-java/blob/2eb169e/urlconnection/src/main/java/zipkin2/reporter/urlconnection/URLConnectionSender.java#L231-L252
+   */
+  private void skipAllContent(final HttpURLConnection connection) throws IOException {
+    final InputStream in = connection.getInputStream();
+    final IOException thrown = skipAndSuppress(in);
+    if (thrown == null) return;
+    final InputStream err = connection.getErrorStream();
+    if (err != null) skipAndSuppress(err); // null is possible, if the connection was dropped
+    throw thrown;
+  }
+
+  private IOException skipAndSuppress(final InputStream in) {
+    try {
+      while (in.read() != -1) ; // skip
+      return null;
+    } catch (final IOException e) {
+      return e;
+    } finally {
+      try {
+        in.close();
+      } catch (final IOException suppressed) {
+      }
+    }
   }
 
   @Override
