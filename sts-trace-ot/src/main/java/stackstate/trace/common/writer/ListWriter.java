@@ -1,18 +1,16 @@
 package stackstate.trace.common.writer;
 
-import java.util.LinkedList;
+import stackstate.opentracing.STSSpan;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import stackstate.opentracing.STSSpan;
-import stackstate.trace.common.Service;
 
 /** List writer used by tests mostly */
-public class ListWriter extends CopyOnWriteArrayList<List<STSSpan>> implements Writer {
-  private final List<CountDownLatch> latches = new LinkedList<>();
+public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Writer {
+  private final List<CountDownLatch> latches = new ArrayList<>();
 
   public List<STSSpan> firstTrace() {
     return get(0);
@@ -40,14 +38,10 @@ public class ListWriter extends CopyOnWriteArrayList<List<STSSpan>> implements W
       }
       latches.add(latch);
     }
-    if (!latch.await(5, TimeUnit.SECONDS)) {
-      throw new TimeoutException("Timeout waiting for " + number + " trace(s).");
+    if (!latch.await(20, TimeUnit.SECONDS)) {
+      throw new TimeoutException(
+          "Timeout waiting for " + number + " trace(s). ListWriter.size() == " + size());
     }
-  }
-
-  @Override
-  public void writeServices(final Map<String, Service> services) {
-    throw new UnsupportedOperationException();
   }
 
   @Override

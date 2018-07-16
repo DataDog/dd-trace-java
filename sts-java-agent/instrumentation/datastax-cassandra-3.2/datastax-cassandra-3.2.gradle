@@ -8,52 +8,41 @@ versionScan {
   group = "com.datastax.cassandra"
   module = "cassandra-driver-core"
   versions = "[3.2.0,)"
-//  verifyPresent = [
-//    // class we're advising
-//    'com.datastax.driver.core.Cluster$Manager'          : null,
-//    // used by TracingSession
-//    'com.datastax.driver.core.BoundStatement'           : null,
-//    'com.datastax.driver.core.BoundStatement'           : null,
-//    'com.datastax.driver.core.CloseFuture'              : null,
-//    'com.datastax.driver.core.Cluster'                  : null,
-//    'com.datastax.driver.core.Host'                     : null,
-//    'com.datastax.driver.core.PreparedStatement'        : null,
-//    'com.datastax.driver.core.RegularStatement'         : null,
-//    'com.datastax.driver.core.ResultSet'                : null,
-//    'com.datastax.driver.core.ResultSetFuture'          : null,
-//    'com.datastax.driver.core.Session'                  : null,
-//    'com.datastax.driver.core.Statement'                : null,
-//    'com.google.common.base.Function'                   : null,
-//    'com.google.common.util.concurrent.Futures'         : null,
-//    'com.google.common.util.concurrent.ListenableFuture': null
-//  ]
+  verifyPresent = [
+    "com.datastax.driver.core.Duration": null,
+  ]
 }
 
 apply from: "${rootDir}/gradle/java.gradle"
 
-if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
-  sourceSets {
-    test {
-      groovy {
-        // These classes use Cassandra 3 which requires Java 8. (Currently incompatible with Java 9.)
-        exclude '**/CassandraClientTest.groovy'
-      }
-    }
+// These classes use Cassandra 3 which requires Java 8. (Currently incompatible with Java 9.)
+testJava8Only += '**/CassandraClientTest.class'
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
   }
 }
 
 dependencies {
   compileOnly group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.2.0'
-  compile('io.opentracing.contrib:opentracing-cassandra-driver:0.0.3') {
-    transitive = false
-  }
 
   compile project(':sts-java-agent:agent-tooling')
 
   compile deps.bytebuddy
   compile deps.opentracing
+  annotationProcessor deps.autoservice
+  implementation deps.autoservice
 
   testCompile project(':sts-java-agent:testing')
   testCompile group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.2.0'
-  testCompile(group: 'org.cassandraunit', name: 'cassandra-unit', version: '3.1.3.2')
+  testCompile group: 'org.cassandraunit', name: 'cassandra-unit', version: '3.1.3.2'
+}
+
+configurations.latestDepTestCompile {
+  resolutionStrategy {
+    force group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '+'
+  }
 }

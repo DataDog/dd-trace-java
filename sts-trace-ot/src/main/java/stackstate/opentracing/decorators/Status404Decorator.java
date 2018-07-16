@@ -1,7 +1,8 @@
 package stackstate.opentracing.decorators;
 
-import io.opentracing.tag.Tags;
+import stackstate.opentracing.STSSpanContext;
 import stackstate.trace.api.STSTags;
+import io.opentracing.tag.Tags;
 
 /** This span decorator protect against spam on the resource name */
 public class Status404Decorator extends AbstractDecorator {
@@ -10,7 +11,13 @@ public class Status404Decorator extends AbstractDecorator {
     super();
     this.setMatchingTag(Tags.HTTP_STATUS.getKey());
     this.setMatchingValue(404);
-    this.setSetTag(STSTags.RESOURCE_NAME);
-    this.setSetValue("404");
+    this.setReplacementTag(STSTags.RESOURCE_NAME);
+    this.setReplacementValue("404");
+  }
+
+  @Override
+  public boolean shouldSetTag(final STSSpanContext context, final String tag, final Object value) {
+    super.shouldSetTag(context, tag, value);
+    return true;
   }
 }

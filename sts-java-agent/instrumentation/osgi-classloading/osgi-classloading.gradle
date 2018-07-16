@@ -3,7 +3,8 @@ apply from: "${rootDir}/gradle/java.gradle"
 dependencies {
   compile project(':sts-java-agent:agent-tooling')
   compile deps.bytebuddy
-  compile deps.autoservice
+  annotationProcessor deps.autoservice
+  implementation deps.autoservice
 
   testCompile group: 'org.osgi', name: 'org.osgi.core', version: '4.0.0'
   testCompile project(':sts-java-agent:testing')

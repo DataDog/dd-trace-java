@@ -1,8 +1,7 @@
 package stackstate.trace.bootstrap;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.WeakHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Utility to track nested instrumentation.
@@ -11,36 +10,27 @@ import java.util.concurrent.atomic.AtomicInteger;
  * #incrementCallDepth at the beginning of each constructor.
  */
 public class CallDepthThreadLocalMap {
-  private static final ThreadLocal<Map<Object, CallDepthThreadLocalMap>> INSTANCES =
-      new ThreadLocal<>();
+  private static final ThreadLocal<Map<Object, Integer>> TLS =
+      new ThreadLocal<Map<Object, Integer>>() {
+        @Override
+        public Map<Object, Integer> initialValue() {
+          return new HashMap<>();
+        }
+      };
 
-  public static CallDepthThreadLocalMap get(Object o) {
-    if (INSTANCES.get() == null) {
-      INSTANCES.set(new WeakHashMap<Object, CallDepthThreadLocalMap>());
-    }
-    if (!INSTANCES.get().containsKey(o)) {
-      INSTANCES.get().put(o, new CallDepthThreadLocalMap());
-    }
-    return INSTANCES.get().get(o);
-  }
-
-  private final ThreadLocal<AtomicInteger> tls = new ThreadLocal<>();
-
-  private CallDepthThreadLocalMap() {}
-
-  public int incrementCallDepth() {
-    AtomicInteger depth = tls.get();
+  public static int incrementCallDepth(final Object k) {
+    final Map<Object, Integer> map = TLS.get();
+    Integer depth = map.get(k);
     if (depth == null) {
-      depth = new AtomicInteger(0);
-      tls.set(depth);
-      return 0;
+      depth = 0;
     } else {
-      return depth.incrementAndGet();
+      depth += 1;
     }
+    map.put(k, depth);
+    return depth;
   }
 
-  public void reset() {
-    tls.remove();
-    INSTANCES.get().remove(this);
+  public static void reset(final Object k) {
+    TLS.get().remove(k);
   }
 }

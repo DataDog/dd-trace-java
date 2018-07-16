@@ -1,13 +1,11 @@
 package stackstate.trace.agent.integration.classloading
 
+import stackstate.trace.agent.test.IntegrationTestUtils
 import stackstate.trace.api.Trace
 import spock.lang.Specification
-import spock.lang.Timeout
-import stackstate.trace.agent.test.IntegrationTestUtils
 
 import static stackstate.trace.agent.test.IntegrationTestUtils.createJarWithClasses
 
-@Timeout(1)
 class ClassLoadingTest extends Specification {
 
   /** Assert that we can instrument classloaders which cannot resolve agent advice classes. */

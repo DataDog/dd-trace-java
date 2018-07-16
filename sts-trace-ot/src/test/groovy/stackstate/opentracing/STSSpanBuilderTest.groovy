@@ -1,5 +1,6 @@
 package stackstate.opentracing
 
+import stackstate.opentracing.propagation.ExtractedContext
 import stackstate.trace.api.STSTags
 import stackstate.trace.common.writer.ListWriter
 import spock.lang.Specification
@@ -237,6 +238,24 @@ class STSSpanBuilderTest extends Specification {
     root.context().getTrace().size() == nbSamples + 1
     root.context().getTrace().containsAll(spans)
     spans[(int) (Math.random() * nbSamples)].context.trace.containsAll(spans)
+  }
+
+  def "ExtractedContext should populate new span details"() {
+    setup:
+    final DDSpan span = tracer.buildSpan("op name")
+      .asChildOf(extractedContext).start()
+
+    expect:
+    span.traceId == extractedContext.traceId
+    span.parentId == extractedContext.spanId
+    span.samplingPriority == extractedContext.samplingPriority
+    span.context().baggageItems == extractedContext.baggage
+    span.context().@tags == extractedContext.tags
+
+    where:
+    extractedContext                                                  | _
+    new ExtractedContext(1, 2, 0, [:], [:])                           | _
+    new ExtractedContext(3, 4, 1, ["asdf": "qwer"], ["zxcv": "1234"]) | _
   }
 
   def "global span tags populated on each span"() {

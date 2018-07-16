@@ -1,25 +1,28 @@
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
-import net.bytebuddy.agent.builder.AgentBuilder;
-import net.bytebuddy.asm.Advice;
 import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.agent.tooling.STSAdvice;
-import stackstate.trace.agent.tooling.STSTransformers;
+import java.util.HashMap;
+import java.util.Map;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class IBMResourceLevelInstrumentation extends Instrumenter.Configurable {
+public class IBMResourceLevelInstrumentation extends Instrumenter.Default {
   public IBMResourceLevelInstrumentation() {
     super(IBMResourceLevelInstrumentation.class.getName());
   }
 
   @Override
-  protected AgentBuilder apply(AgentBuilder agentBuilder) {
-    return agentBuilder
-        .type(named("com.ibm.as400.resource.ResourceLevel"))
-        .transform(STSTransformers.defaultTransformers())
-        .transform(STSAdvice.create().advice(named("toString"), ToStringAdvice.class.getName()))
-        .asDecorator();
+  public ElementMatcher typeMatcher() {
+    return named("com.ibm.as400.resource.ResourceLevel");
+  }
+
+  @Override
+  public Map<ElementMatcher, String> transformers() {
+    Map<ElementMatcher, String> transformers = new HashMap<>();
+    transformers.put(named("toString"), ToStringAdvice.class.getName());
+    return transformers;
   }
 
   public static class ToStringAdvice {

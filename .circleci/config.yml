@@ -4,7 +4,7 @@ defaults: &defaults
   working_directory: ~/sts-trace-java
   resource_class: large
   docker:
-    - image: circleci/openjdk:8
+    - image: &default_container circleci/openjdk:8
 
 cache_keys: &cache_keys
   # Reset the cache approx every release
@@ -14,36 +14,6 @@ cache_keys: &cache_keys
     - sts-trace-java-{{ checksum "sts-trace-java.gradle" }}
     - sts-trace-java
 
-test_job: &test_job
-  steps:
-    - checkout
-
-    - restore_cache:
-        <<: *cache_keys
-
-    - run:
-        name: Fix EC parameters error # (ref https://github.com/travis-ci/travis-ci/issues/8503)
-        command: |
-            if [ "${CIRCLE_JOB}" == "test_7" ]; then
-              wget "https://downloads.bouncycastle.org/java/bcprov-ext-jdk15on-158.jar" -O "${JAVA_HOME}"/jre/lib/ext/bcprov-ext-jdk15on-158.jar && \
-              perl -pi.bak -e 's/^(security\.provider\.)([0-9]+)/$1.($2+1)/ge' /etc/java-7-openjdk/security/java.security && \
-              echo "security.provider.1=org.bouncycastle.jce.provider.BouncyCastleProvider" | tee -a /etc/java-7-openjdk/security/java.security
-            fi
-
-    - run:
-        name: Run Tests
-        command: GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx2G -Xms512M" ./gradlew compileJava compileScala compileGroovy compileTestJava compileTestScala compileTestGroovy shadowJar --stacktrace --no-daemon && GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx2G -Xms512M" ./gradlew test --parallel --stacktrace --no-daemon --max-workers=3
-
-    - run:
-        name: Save Artifacts to (project-root)/build
-        when: always
-        command: .circleci/save_artifacts.sh
-
-    - store_test_results:
-        path: build/test-results
-
-    - store_artifacts:
-        path: build
 
 jobs:
   build:
@@ -59,42 +29,123 @@ jobs:
 
       - run:
           name: Build Project
-          command: GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx2G -Xms512M" ./gradlew clean check -x test --parallel --stacktrace --no-daemon --max-workers=6
+          command: GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx2G -Xms512M" ./gradlew clean :dd-java-agent:shadowJar compileTestGroovy compileTestScala compileTestJava check -x test -x traceAgentTest --build-cache --parallel --stacktrace --no-daemon --max-workers=4
+
+      - run:
+          name: Collect Libs
+          when: always
+          command: .circleci/collect_libs.sh
+
+      - store_artifacts:
+          path: ./libs
+
+      - run:
+          name: Collect Reports
+          when: always
+          command: .circleci/collect_reports.sh
+
+      - store_artifacts:
+          path: ./reports
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - workspace
 
       - save_cache:
           key: sts-trace-java-{{ checksum "sts-trace-java.gradle" }}-{{ .Branch }}-{{ .Revision }}
           paths: ~/.gradle
           background: true
 
-  test_7:
+
+  default_test_job: &default_test_job
     <<: *defaults
-    <<: *test_job
+
     docker:
-      - image: openjdk:7-jdk
+      - image: *default_container
+        # This is used by spymemcached instrumentation tests
+      - image: memcached
+
+    steps:
+      - checkout
+
+      - run:
+          name: Install Additional JVM
+          command: |
+            if [ "${INSTALL_ZULU}" != "" ]; then
+              sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0x219BD9C9
+              echo 'deb http://repos.azulsystems.com/debian stable main' | sudo tee -a /etc/apt/sources.list.d/zulu.list
+              sudo apt-get update
+              sudo apt-get install $INSTALL_ZULU
+            fi
+
+      - attach_workspace:
+          at: .
+
+      - restore_cache:
+          <<: *cache_keys
+
+      - run:
+          name: Run Tests
+          command: GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx2G -Xms512M" ./gradlew $TEST_TASK --build-cache --parallel --stacktrace --no-daemon --max-workers=3
+
+      - run:
+          name: Collect Reports
+          when: always
+          command: .circleci/collect_reports.sh
+
+      - store_artifacts:
+          path: ./reports
+
+      - run:
+          name: Collect Test Results
+          when: always
+          command: .circleci/collect_results.sh
+
+      - store_test_results:
+          path: ./results
+
+  test_7:
+    <<: *default_test_job
+    environment:
+      - JAVA7_HOME: /usr/lib/jvm/zulu-7-amd64
+      - TEST_TASK: testJava7 jacocoTestReport jacocoTestCoverageVerification
+      - INSTALL_ZULU: zulu-7
 
   test_8:
-    <<: *defaults
-    <<: *test_job
-    docker:
-      - image: circleci/openjdk:8-jdk
+    <<: *default_test_job
+    environment:
+      - JAVA8_HOME: /usr/lib/jvm/java-8-openjdk-amd64
+      - TEST_TASK: test latestDepTest jacocoTestReport jacocoTestCoverageVerification
 
   test_9:
-    <<: *defaults
-    <<: *test_job
-    docker:
-      - image: circleci/openjdk:9-jdk
+    <<: *default_test_job
+    environment:
+      - JAVA9_HOME: /usr/lib/jvm/zulu-9-amd64
+      - TEST_TASK: testJava9 latestDepTestJava9 jacocoTestReport jacocoTestCoverageVerification
+      - INSTALL_ZULU: zulu-9
+
+  test_10:
+    <<: *default_test_job
+    environment:
+      - JAVA10_HOME: /usr/lib/jvm/zulu-10-amd64
+      - TEST_TASK: testJava10 latestDepTestJava10 jacocoTestReport jacocoTestCoverageVerification
+      - INSTALL_ZULU: zulu-10
 
   agent_integration_tests:
     <<: *defaults
     docker:
       - image: circleci/openjdk:8-jdk
       - image: datadog/docker-dd-agent
-        env:
+        environment:
           - DD_APM_ENABLED=true
           - DD_BIND_HOST=0.0.0.0
           - DD_API_KEY=invalid_key_but_this_is_fine
     steps:
       - checkout
+
+      - attach_workspace:
+          at: .
 
       - restore_cache:
           # Reset the cache approx every release
@@ -106,15 +157,23 @@ jobs:
 
       - run:
           name: Run Trace Agent Tests
-          command: ./gradlew traceAgentTest --parallel --stacktrace --no-daemon --max-workers=6
+          command: ./gradlew traceAgentTest --build-cache --parallel --stacktrace --no-daemon --max-workers=6
 
       - run:
-          name: Save Artifacts to (project-root)/build
+          name: Collect Reports
           when: always
-          command: .circleci/save_artifacts.sh
+          command: .circleci/collect_reports.sh
+
+      - store_artifacts:
+          path: ./reports
+
+      - run:
+          name: Collect Test Results
+          when: always
+          command: .circleci/collect_results.sh
 
       - store_test_results:
-          path: build/test-results
+          path: ./results
 
   scan_versions:
     <<: *defaults
@@ -128,19 +187,8 @@ jobs:
             - sts-trace-java-version-scan
 
       - run:
-          name: Verify Version Scan
-          command: ./gradlew verifyVersionScan --parallel --stacktrace --no-daemon --max-workers=6
-
-      - run:
-          name: Save Artifacts to (project-root)/build
-          when: always
-          command: .circleci/save_artifacts.sh
-
-      - store_test_results:
-          path: build/test-results
-
-      - store_artifacts:
-          path: build
+          name: Verify Version Scan and Muzzle
+          command: ./gradlew verifyVersionScan muzzle --parallel --stacktrace --no-daemon --max-workers=6
 
       - save_cache:
           key: sts-trace-java-version-scan-{{ checksum "sts-trace-java.gradle" }}
@@ -150,6 +198,9 @@ jobs:
     <<: *defaults
     steps:
       - checkout
+
+      - attach_workspace:
+          at: .
 
       - restore_cache:
           <<: *cache_keys
@@ -167,7 +218,7 @@ jobs:
               -PbintrayUser=${BINTRAY_USER} \
               -PbintrayApiKey=${BINTRAY_API_KEY} \
               -PbuildInfo.build.number=${CIRCLE_BUILD_NUM} \
-              artifactoryPublish --max-workers=1 --stacktrace --no-daemon
+              artifactoryPublish --max-workers=1 --build-cache --stacktrace --no-daemon
 
   publish_master:
     <<: *publish
@@ -201,6 +252,12 @@ workflows:
           filters:
             tags:
               only: /.*/
+      - test_10:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /.*/
 
       - agent_integration_tests:
           requires:
@@ -221,6 +278,7 @@ workflows:
             - test_7
             - test_8
             - test_9
+            - test_10
             - agent_integration_tests
           filters:
             branches:
@@ -233,6 +291,7 @@ workflows:
             - test_7
             - test_8
             - test_9
+            - test_10
             - agent_integration_tests
           filters:
             branches:

@@ -1,12 +1,10 @@
 package stackstate.trace.common.writer;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import lombok.extern.slf4j.Slf4j;
 import stackstate.opentracing.STSSpan;
 import stackstate.trace.common.STSTraceConfig;
-import stackstate.trace.common.Service;
+import java.util.List;
+import java.util.Properties;
+import lombok.extern.slf4j.Slf4j;
 
 /** A writer is responsible to send collected spans to some place */
 public interface Writer {
@@ -19,13 +17,6 @@ public interface Writer {
    * @param trace the list of spans to write
    */
   void write(List<STSSpan> trace);
-
-  /**
-   * Report additional service information to the endpoint
-   *
-   * @param services a list of extra information about services
-   */
-  void writeServices(Map<String, Service> services);
 
   /** Start the writer */
   void start();

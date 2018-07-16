@@ -1,5 +1,7 @@
 package stackstate.trace.common.sampling;
 
+/** @deprecated Replaced by {@link datadog.trace.api.sampling.PrioritySampling} . */
+@Deprecated
 public class PrioritySampling {
   /**
    * Implementation detail of the client. will not be sent to the agent or propagated.

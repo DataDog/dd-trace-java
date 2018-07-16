@@ -1,11 +1,15 @@
 package stackstate.trace.instrumentation.play;
 
-import static net.bytebuddy.matcher.ElementMatchers.*;
 import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClassWithMethod;
 import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
+import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import akka.japi.JavaPartialFunction;
 import com.google.auto.service.AutoService;
+import stackstate.trace.agent.tooling.*;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
+import stackstate.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -15,8 +19,8 @@ import io.opentracing.tag.Tags;
 import io.opentracing.util.GlobalTracer;
 import java.util.*;
 import lombok.extern.slf4j.Slf4j;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.slf4j.LoggerFactory;
 import play.api.mvc.Action;
 import play.api.mvc.Request;
@@ -24,62 +28,56 @@ import play.api.mvc.Result;
 import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Future;
-import stackstate.trace.agent.tooling.*;
-import stackstate.trace.api.STSSpanTypes;
-import stackstate.trace.api.STSTags;
 
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class PlayInstrumentation extends Instrumenter.Configurable {
-  private static final HelperInjector PLAY_HELPERS =
-      new HelperInjector(
-          PlayInstrumentation.class.getName() + "$RequestCallback",
-          PlayInstrumentation.class.getName() + "$RequestError",
-          PlayInstrumentation.class.getName() + "$PlayHeaders");
+public final class PlayInstrumentation extends Instrumenter.Default {
 
   public PlayInstrumentation() {
     super("play");
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return false;
+  public ElementMatcher typeMatcher() {
+    return hasSuperType(named("play.api.mvc.Action"));
   }
 
   @Override
-  public AgentBuilder apply(final AgentBuilder agentBuilder) {
-    return agentBuilder
-        .type(
-            hasSuperType(named("play.api.mvc.Action")),
-            classLoaderHasClasses(
-                    "akka.japi.JavaPartialFunction",
-                    "play.api.mvc.Action",
-                    "play.api.mvc.Result",
-                    "scala.Option",
-                    "scala.Tuple2",
-                    "scala.concurrent.Future")
-                .and(classLoaderHasClassWithMethod("play.api.mvc.Request", "tags")))
-        .and(
-            declaresMethod(
-                named("executionContext").and(returns(named("scala.concurrent.ExecutionContext")))))
-        .transform(PLAY_HELPERS)
-        .transform(STSTransformers.defaultTransformers())
-        .transform(
-            STSAdvice.create()
-                .advice(
-                    named("apply")
-                        .and(takesArgument(0, named("play.api.mvc.Request")))
-                        .and(returns(named("scala.concurrent.Future"))),
-                    PlayAdvice.class.getName()))
-        .asDecorator();
+  public ElementMatcher<? super ClassLoader> classLoaderMatcher() {
+    return classLoaderHasClasses(
+            "akka.japi.JavaPartialFunction",
+            "play.api.mvc.Action",
+            "play.api.mvc.Result",
+            "scala.Option",
+            "scala.Tuple2",
+            "scala.concurrent.Future")
+        .and(classLoaderHasClassWithMethod("play.api.mvc.Request", "tags"));
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      PlayInstrumentation.class.getName() + "$RequestCallback",
+      PlayInstrumentation.class.getName() + "$RequestError",
+      PlayInstrumentation.class.getName() + "$PlayHeaders"
+    };
+  }
+
+  @Override
+  public Map<ElementMatcher, String> transformers() {
+    Map<ElementMatcher, String> transformers = new HashMap<>();
+    transformers.put(
+        named("apply")
+            .and(takesArgument(0, named("play.api.mvc.Request")))
+            .and(returns(named("scala.concurrent.Future"))),
+        PlayAdvice.class.getName());
+    return transformers;
   }
 
   public static class PlayAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static Scope startSpan(@Advice.Argument(0) final Request req) {
-      // TODO
-      // begin tracking across threads
-
+      final Scope scope;
       if (GlobalTracer.get().activeSpan() == null) {
         final SpanContext extractedContext;
         if (GlobalTracer.get().scopeManager().active() == null) {
@@ -88,15 +86,21 @@ public final class PlayInstrumentation extends Instrumenter.Configurable {
         } else {
           extractedContext = null;
         }
-        return GlobalTracer.get()
-            .buildSpan("play.request")
-            .asChildOf(extractedContext)
-            .startActive(false);
+        scope =
+            GlobalTracer.get()
+                .buildSpan("play.request")
+                .asChildOf(extractedContext)
+                .startActive(false);
       } else {
         // An upstream framework (e.g. akka-http, netty) has already started the span.
         // Do not extract the context.
-        return GlobalTracer.get().buildSpan("play.request").startActive(false);
+        scope = GlobalTracer.get().buildSpan("play.request").startActive(false);
       }
+
+      if (GlobalTracer.get().scopeManager().active() instanceof TraceScope) {
+        ((TraceScope) GlobalTracer.get().scopeManager().active()).setAsyncPropagation(true);
+      }
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -111,7 +115,6 @@ public final class PlayInstrumentation extends Instrumenter.Configurable {
       if (!pathOption.isEmpty()) {
         final String path = (String) pathOption.get();
         scope.span().setTag(Tags.HTTP_URL.getKey(), path);
-        scope.span().setOperationName(path);
         scope.span().setTag(STSTags.RESOURCE_NAME, req.method() + " " + path);
       }
 
@@ -131,6 +134,13 @@ public final class PlayInstrumentation extends Instrumenter.Configurable {
         scope.span().finish();
       }
       scope.close();
+
+      final Span rootSpan = GlobalTracer.get().activeSpan();
+      if (rootSpan != null && !pathOption.isEmpty()) {
+        // set the resource name on the upstream akka/netty span
+        final String path = (String) pathOption.get();
+        rootSpan.setTag(STSTags.RESOURCE_NAME, req.method() + " " + path);
+      }
     }
   }
 
@@ -169,6 +179,9 @@ public final class PlayInstrumentation extends Instrumenter.Configurable {
     @Override
     public Object apply(Throwable t, boolean isCheck) throws Exception {
       try {
+        if (GlobalTracer.get().scopeManager().active() instanceof TraceScope) {
+          ((TraceScope) GlobalTracer.get().scopeManager().active()).setAsyncPropagation(false);
+        }
         onError(span, t);
       } catch (Throwable t2) {
         LoggerFactory.getLogger(RequestCallback.class).debug("error in play instrumentation", t);
@@ -192,9 +205,11 @@ public final class PlayInstrumentation extends Instrumenter.Configurable {
       this.span = span;
     }
 
+    @Override
     public Result apply(Result result) {
-      // TODO
-      // stop tracking across threads
+      if (GlobalTracer.get().scopeManager().active() instanceof TraceScope) {
+        ((TraceScope) GlobalTracer.get().scopeManager().active()).setAsyncPropagation(false);
+      }
       try {
         Tags.HTTP_STATUS.set(span, result.header().status());
       } catch (Throwable t) {

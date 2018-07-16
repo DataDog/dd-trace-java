@@ -2,10 +2,20 @@ package stackstate.trace.agent.test;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import com.google.common.collect.Sets;
+import stackstate.opentracing.STSSpan;
+import stackstate.opentracing.STSTracer;
+import stackstate.trace.agent.tooling.AgentInstaller;
+import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.common.writer.ListWriter;
+import stackstate.trace.common.writer.Writer;
 import io.opentracing.Tracer;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
-import java.util.*;
+import java.util.List;
+import java.util.ServiceLoader;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.bytebuddy.agent.ByteBuddyAgent;
@@ -21,12 +31,6 @@ import org.junit.runner.RunWith;
 import org.slf4j.LoggerFactory;
 import org.spockframework.runtime.model.SpecMetadata;
 import spock.lang.Specification;
-import stackstate.opentracing.STSSpan;
-import stackstate.opentracing.STSTracer;
-import stackstate.trace.agent.tooling.AgentInstaller;
-import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.common.writer.ListWriter;
-import stackstate.trace.common.writer.Writer;
 
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
@@ -56,8 +60,11 @@ public abstract class AgentTestRunner extends Specification {
   // having a reference to io.opentracing.Tracer in test field
   // loads opentracing before bootstrap classpath is setup
   // so we declare tracer as an object and cast when needed.
-  private static final Object TEST_TRACER;
+  protected static final Object TEST_TRACER;
+
+  protected static final Set<String> TRANSFORMED_CLASSES = Sets.newConcurrentHashSet();
   private static final AtomicInteger INSTRUMENTATION_ERROR_COUNT = new AtomicInteger();
+  private static final ErrorCountingListener ERROR_LISTENER = new ErrorCountingListener();
 
   private static final Instrumentation instrumentation;
   private static volatile ClassFileTransformer activeTransformer = null;
@@ -92,6 +99,25 @@ public abstract class AgentTestRunner extends Specification {
     return TEST_WRITER;
   }
 
+  /**
+   * Invoked when Bytebuddy encounters an instrumentation error. Fails the test by default.
+   *
+   * <p>Override to skip specific expected errors.
+   *
+   * @return true if the test should fail because of this error.
+   */
+  protected boolean onInstrumentationError(
+      final String typeName,
+      final ClassLoader classLoader,
+      final JavaModule module,
+      final boolean loaded,
+      final Throwable throwable) {
+    System.err.println(
+        "Unexpected instrumentation error when instrumenting " + typeName + " on " + classLoader);
+    throwable.printStackTrace();
+    return true;
+  }
+
   @BeforeClass
   public static synchronized void agentSetup() throws Exception {
     if (null != activeTransformer) {
@@ -101,8 +127,8 @@ public abstract class AgentTestRunner extends Specification {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       Thread.currentThread().setContextClassLoader(AgentTestRunner.class.getClassLoader());
-      activeTransformer =
-          AgentInstaller.installBytebuddyAgent(instrumentation, new ErrorCountingListener());
+      assert ServiceLoader.load(Instrumenter.class).iterator().hasNext();
+      activeTransformer = AgentInstaller.installBytebuddyAgent(instrumentation, ERROR_LISTENER);
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
@@ -112,16 +138,18 @@ public abstract class AgentTestRunner extends Specification {
   public void beforeTest() {
     TEST_WRITER.start();
     INSTRUMENTATION_ERROR_COUNT.set(0);
+    ERROR_LISTENER.activateTest(this);
     assert getTestTracer().activeSpan() == null;
   }
 
   @After
   public void afterTest() {
+    ERROR_LISTENER.deactivateTest(this);
     assert INSTRUMENTATION_ERROR_COUNT.get() == 0;
   }
 
   @AfterClass
-  public static synchronized void agentClenup() {
+  public static synchronized void agentCleanup() {
     if (null != activeTransformer) {
       instrumentation.removeTransformer(activeTransformer);
       activeTransformer = null;
@@ -129,6 +157,16 @@ public abstract class AgentTestRunner extends Specification {
   }
 
   public static class ErrorCountingListener implements AgentBuilder.Listener {
+    private static final List<AgentTestRunner> activeTests = new CopyOnWriteArrayList<>();
+
+    public void activateTest(AgentTestRunner testRunner) {
+      activeTests.add(testRunner);
+    }
+
+    public void deactivateTest(AgentTestRunner testRunner) {
+      activeTests.remove(testRunner);
+    }
+
     @Override
     public void onDiscovery(
         final String typeName,
@@ -142,7 +180,9 @@ public abstract class AgentTestRunner extends Specification {
         final ClassLoader classLoader,
         final JavaModule module,
         final boolean loaded,
-        final DynamicType dynamicType) {}
+        final DynamicType dynamicType) {
+      TRANSFORMED_CLASSES.add(typeDescription.getActualName());
+    }
 
     @Override
     public void onIgnored(
@@ -158,9 +198,12 @@ public abstract class AgentTestRunner extends Specification {
         final JavaModule module,
         final boolean loaded,
         final Throwable throwable) {
-      // System.err.println("failed to instrument " + typeName);
-      // throwable.printStackTrace();
-      INSTRUMENTATION_ERROR_COUNT.incrementAndGet();
+      for (AgentTestRunner testRunner : activeTests) {
+        if (testRunner.onInstrumentationError(typeName, classLoader, module, loaded, throwable)) {
+          INSTRUMENTATION_ERROR_COUNT.incrementAndGet();
+          break;
+        }
+      }
     }
 
     @Override

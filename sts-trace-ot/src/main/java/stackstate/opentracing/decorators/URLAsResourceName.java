@@ -1,10 +1,10 @@
 package stackstate.opentracing.decorators;
 
+import stackstate.opentracing.STSSpanContext;
+import stackstate.trace.api.STSTags;
 import io.opentracing.tag.Tags;
 import java.net.MalformedURLException;
 import java.util.regex.Pattern;
-import stackstate.opentracing.STSSpanContext;
-import stackstate.trace.api.STSTags;
 
 /** Decorator for servlet contrib */
 public class URLAsResourceName extends AbstractDecorator {
@@ -18,40 +18,37 @@ public class URLAsResourceName extends AbstractDecorator {
   public URLAsResourceName() {
     super();
     this.setMatchingTag(Tags.HTTP_URL.getKey());
-    this.setSetTag(STSTags.RESOURCE_NAME);
+    this.setReplacementTag(STSTags.RESOURCE_NAME);
   }
 
   @Override
-  public boolean afterSetTag(final STSSpanContext context, final String tag, final Object value) {
-    try {
-      final String statusCode = String.valueOf(context.getTags().get(Tags.HTTP_STATUS.getKey()));
-      // do nothing if the status code is already set and equals to 404.
-      // TODO: it assumes that Status404Decorator is active. If it's not, it will lead to unexpected behaviors
-      if (statusCode != null && statusCode.equals("404")) {
-        return true;
-      }
-
-      // Get the path without host:port
-      String path = String.valueOf(value);
-
-      try {
-        path = new java.net.URL(path).getPath();
-      } catch (final MalformedURLException e) {
-        // do nothing, use the value instead of the path
-      }
-      // normalize the path
-      path = norm(path);
-
-      // if the verb (GET, POST ...) is present, add it
-      final String verb = (String) context.getTags().get(Tags.HTTP_METHOD.getKey());
-      if (verb != null && !verb.isEmpty()) {
-        path = verb + " " + path;
-      }
-
-      context.setResourceName(path);
-    } catch (final Throwable e) {
-      return false;
+  public boolean shouldSetTag(final STSSpanContext context, final String tag, final Object value) {
+    final String statusCode = String.valueOf(context.getTags().get(Tags.HTTP_STATUS.getKey()));
+    // do nothing if the status code is already set and equals to 404.
+    // TODO: it assumes that Status404Decorator is active. If it's not, it will lead to unexpected
+    // behaviors
+    if (statusCode != null && statusCode.equals("404")) {
+      return true;
     }
+
+    // Get the path without host:port
+    String path = String.valueOf(value);
+
+    try {
+      path = new java.net.URL(path).getPath();
+    } catch (final MalformedURLException e) {
+      // do nothing, use the value instead of the path
+    }
+    // normalize the path
+    path = norm(path);
+
+    // if the verb (GET, POST ...) is present, add it
+    final String verb = (String) context.getTags().get(Tags.HTTP_METHOD.getKey());
+    if (verb != null && !verb.isEmpty()) {
+      path = verb + " " + path;
+    }
+
+    context.setResourceName(path);
     return true;
   }
 

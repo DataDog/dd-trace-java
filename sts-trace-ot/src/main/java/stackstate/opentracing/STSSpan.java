@@ -4,8 +4,10 @@ import static io.opentracing.log.Fields.ERROR_OBJECT;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import stackstate.trace.api.STSTags;
+import stackstate.trace.api.interceptor.MutableSpan;
+import stackstate.trace.api.sampling.PrioritySampling;
+import stackstate.trace.common.util.Clock;
 import io.opentracing.Span;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -15,10 +17,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.trace.api.STSTags;
-import stackstate.trace.api.interceptor.MutableSpan;
-import stackstate.trace.common.sampling.PrioritySampling;
-import stackstate.trace.common.util.Clock;
 
 /**
  * Represents a period of time. Associated information is stored in the SpanContext.
@@ -32,10 +30,17 @@ public class STSSpan implements Span, MutableSpan {
   /** The context attached to the span */
   private final STSSpanContext context;
 
-  /** Creation time of the span in microseconds. Must be greater than zero. */
+  /**
+   * Creation time of the span in microseconds provided by external clock. Must be greater than
+   * zero.
+   */
   private final long startTimeMicro;
 
-  /** Creation time of span in system relative nanotime (may be negative) */
+  /**
+   * Creation time of span in nanoseconds. We use combination of millisecond-precision clock and
+   * nanosecond-precision offset from start of the trace. See {@link PendingTrace} for details. Must
+   * be greater than zero.
+   */
   private final long startTimeNano;
 
   /**
@@ -54,19 +59,19 @@ public class STSSpan implements Span, MutableSpan {
    * @param context the context used for the span
    */
   STSSpan(final long timestampMicro, final STSSpanContext context) {
-
     this.context = context;
 
-    // record the start time in nano (current milli + nano delta)
     if (timestampMicro <= 0L) {
-      this.startTimeMicro = Clock.currentMicroTime();
-      this.startTimeNano = Clock.currentNanoTicks();
+      // record the start time
+      startTimeMicro = Clock.currentMicroTime();
+      startTimeNano = context.getTrace().getCurrentTimeNano();
     } else {
-      this.startTimeMicro = timestampMicro;
-      // timestamp might have come from an external clock, so don't bother with nanotime.
-      this.startTimeNano = 0;
+      startTimeMicro = timestampMicro;
+      // Timestamp have come from an external clock, so use startTimeNano as a flag
+      startTimeNano = 0;
     }
-    this.context.getTrace().registerSpan(this);
+
+    context.getTrace().registerSpan(this);
   }
 
   @JsonIgnore
@@ -74,16 +79,20 @@ public class STSSpan implements Span, MutableSpan {
     return durationNano.get() != 0;
   }
 
+  private void finishAndAddToTrace(final long durationNano) {
+    // ensure a min duration of 1
+    if (this.durationNano.compareAndSet(0, Math.max(1, durationNano))) {
+      context.getTrace().addSpan(this);
+    } else {
+      log.debug("{} - already finished!", this);
+    }
+  }
+
   @Override
   public final void finish() {
-    if (startTimeNano != 0) {
-      // no external clock was used, so we can rely on nanotime, but still ensure a min duration of 1.
-      if (this.durationNano.compareAndSet(
-          0, Math.max(1, Clock.currentNanoTicks() - startTimeNano))) {
-        context.getTrace().addSpan(this);
-      } else {
-        log.debug("{} - already finished!", this);
-      }
+    if (startTimeNano > 0) {
+      // no external clock was used, so we can rely on nano time
+      finishAndAddToTrace(context.getTrace().getCurrentTimeNano() - startTimeNano);
     } else {
       finish(Clock.currentMicroTime());
     }
@@ -91,13 +100,7 @@ public class STSSpan implements Span, MutableSpan {
 
   @Override
   public final void finish(final long stoptimeMicros) {
-    // Ensure that duration is at least 1.  Less than 1 is possible due to our use of system clock instead of nano time.
-    if (this.durationNano.compareAndSet(
-        0, Math.max(1, TimeUnit.MICROSECONDS.toNanos(stoptimeMicros - this.startTimeMicro)))) {
-      context.getTrace().addSpan(this);
-    } else {
-      log.debug("{} - already finished!", this);
-    }
+    finishAndAddToTrace(TimeUnit.MICROSECONDS.toNanos(stoptimeMicros - startTimeMicro));
   }
 
   /**
@@ -250,7 +253,7 @@ public class STSSpan implements Span, MutableSpan {
   }
 
   /**
-   * Set the sampling priority of the span.
+   * Set the sampling priority of the root span of this span's trace
    *
    * <p>Has no effect if the span priority has been propagated (injected or extracted).
    */
@@ -285,10 +288,20 @@ public class STSSpan implements Span, MutableSpan {
     return meta;
   }
 
+  /**
+   * Span metrics.
+   *
+   * @return metrics for this span
+   */
+  @JsonGetter
+  public Map<String, Number> getMetrics() {
+    return context.getMetrics();
+  }
+
   @Override
   @JsonGetter("start")
   public long getStartTime() {
-    return startTimeMicro * 1000L;
+    return startTimeNano > 0 ? startTimeNano : TimeUnit.MICROSECONDS.toNanos(startTimeMicro);
   }
 
   @Override
@@ -331,8 +344,7 @@ public class STSSpan implements Span, MutableSpan {
   }
 
   @Override
-  @JsonGetter("sampling_priority")
-  @JsonInclude(Include.NON_NULL)
+  @JsonIgnore
   public Integer getSamplingPriority() {
     final int samplingPriority = context.getSamplingPriority();
     if (samplingPriority == PrioritySampling.UNSET) {

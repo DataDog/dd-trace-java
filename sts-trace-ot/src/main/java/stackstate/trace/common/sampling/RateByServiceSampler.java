@@ -2,12 +2,14 @@
 package stackstate.trace.common.sampling;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import stackstate.opentracing.STSSpan;
+import stackstate.opentracing.STSSpanContext;
+import stackstate.trace.api.sampling.PrioritySampling;
+import stackstate.trace.common.writer.STSApi.ResponseListener;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.opentracing.STSSpan;
-import stackstate.trace.common.writer.STSApi.ResponseListener;
 
 /**
  * A rate sampler which maintains different sample rates per service+env name.
@@ -46,17 +48,18 @@ public class RateByServiceSampler implements Sampler, ResponseListener {
     final String serviceName = span.getServiceName();
     final String env = getSpanEnv(span);
     final String key = "service:" + serviceName + ",env:" + env;
-    boolean agentSample;
+    final RateSampler sampler;
     if (serviceRates.containsKey(key)) {
-      agentSample = serviceRates.get(key).sample(span);
+      sampler = serviceRates.get(key);
     } else {
-      agentSample = baseSampler.sample(span);
+      sampler = baseSampler;
     }
-    if (agentSample) {
+    if (sampler.sample(span)) {
       span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
     } else {
       span.setSamplingPriority(PrioritySampling.SAMPLER_DROP);
     }
+    span.context().setMetric(STSSpanContext.SAMPLE_RATE_KEY, sampler.getSampleRate());
   }
 
   private static String getSpanEnv(STSSpan span) {

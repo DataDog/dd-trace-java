@@ -1,23 +1,31 @@
+import stackstate.trace.agent.test.AgentTestRunner
+import stackstate.trace.agent.test.ListWriterAssert
 import stackstate.trace.api.STSSpanTypes
+import stackstate.trace.api.STSTags
+import io.opentracing.tag.Tags
 import org.apache.activemq.ActiveMQConnectionFactory
 import org.apache.activemq.ActiveMQMessageConsumer
 import org.apache.activemq.ActiveMQMessageProducer
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
 import spock.lang.Shared
-import spock.lang.Timeout
-import spock.lang.Unroll
-import stackstate.trace.agent.test.AgentTestRunner
 
 import javax.jms.Connection
+import javax.jms.Message
+import javax.jms.MessageListener
 import javax.jms.Session
 import javax.jms.TextMessage
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 
-@Timeout(1)
+import static datadog.trace.agent.test.ListWriterAssert.assertTraces
+
 class JMS1Test extends AgentTestRunner {
   @Shared
-  static Session session
+  String messageText = "a message"
+  @Shared
+  Session session
+
+  def message = session.createTextMessage(messageText)
 
   def setupSpec() {
     EmbeddedActiveMQBroker broker = new EmbeddedActiveMQBroker()
@@ -29,256 +37,254 @@ class JMS1Test extends AgentTestRunner {
     session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE)
   }
 
-  @Unroll
-  def "sending a message to #resourceName generates spans"() {
+  def "sending a message to #jmsResourceName generates spans"() {
     setup:
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
-    def message = session.createTextMessage("a message")
 
     producer.send(message)
 
     TextMessage receivedMessage = consumer.receive()
 
     expect:
-    receivedMessage.text == "a message"
-    TEST_WRITER.size() == 2
+    receivedMessage.text == messageText
+    assertTraces(TEST_WRITER, 2) {
+      producerTrace(it, 0, jmsResourceName)
+      trace(1, 1) { // Consumer trace
+        span(0) {
+          childOf TEST_WRITER.firstTrace().get(2)
+          serviceName "jms"
+          operationName "jms.consume"
+          resourceName "Consumed from $jmsResourceName"
+          spanType DDSpanTypes.MESSAGE_PRODUCER
+          errored false
 
-    and: // producer trace
-    def trace = TEST_WRITER.firstTrace()
-    trace.size() == 3
-
-    and: // span 0
-    def span0 = trace[0]
-
-    span0.context().operationName == "jms.produce"
-    span0.serviceName == "jms"
-    span0.resourceName == "Produced for $resourceName"
-    span0.type == STSSpanTypes.MESSAGE_PRODUCER
-    !span0.context().getErrorFlag()
-    span0.context().parentId == 0
-
-
-    def tags0 = span0.context().tags
-    tags0["span.kind"] == "producer"
-    tags0["component"] == "jms1"
-
-    tags0["span.origin.type"] == ActiveMQMessageProducer.name
-
-    tags0["span.hostname"] != null
-    tags0["span.pid"] != 0l
-    tags0["thread.name"] != null
-    tags0["thread.id"] != null
-    tags0.size() == 8
-
-    and: // span 1
-    def span1 = trace[1]
-
-    span1.context().operationName == "jms.produce"
-    span1.serviceName == "jms"
-    span1.resourceName == "Produced for $resourceName"
-    span1.type == STSSpanTypes.MESSAGE_PRODUCER
-    !span1.context().getErrorFlag()
-    span1.context().parentId == span0.context().spanId
-
-
-    def tags1 = span1.context().tags
-    tags1["span.kind"] == "producer"
-    tags1["component"] == "jms1"
-
-    tags1["span.origin.type"] == ActiveMQMessageProducer.name
-
-    tags1["span.hostname"] != null
-    tags1["span.pid"] != 0l
-    tags1["thread.name"] != null
-    tags1["thread.id"] != null
-    tags1.size() == 8
-
-    and: // span 2
-    def span2 = trace[2]
-
-    span2.context().operationName == "jms.produce"
-    span2.serviceName == "jms"
-    span2.resourceName == "Produced for $resourceName"
-    span2.type == STSSpanTypes.MESSAGE_PRODUCER
-    !span2.context().getErrorFlag()
-    span2.context().parentId == span1.context().spanId
-
-
-    def tags2 = span2.context().tags
-    tags2["span.kind"] == "producer"
-    tags2["component"] == "jms1"
-
-    tags2["span.origin.type"] == ActiveMQMessageProducer.name
-
-    tags2["span.hostname"] != null
-    tags2["span.pid"] != 0l
-    tags2["thread.name"] != null
-    tags2["thread.id"] != null
-    tags2.size() == 8
-
-    and: // consumer trace
-    def consumerTrace = TEST_WRITER.get(1)
-    consumerTrace.size() == 1
-
-    def consumerSpan = consumerTrace[0]
-
-    consumerSpan.context().operationName == "jms.consume"
-    consumerSpan.serviceName == "jms"
-    consumerSpan.resourceName == "Consumed from $resourceName"
-    consumerSpan.type == STSSpanTypes.MESSAGE_CONSUMER
-    !consumerSpan.context().getErrorFlag()
-    consumerSpan.context().parentId == span2.context().spanId
-
-
-    def consumerTags = consumerSpan.context().tags
-    consumerTags["span.kind"] == "consumer"
-    consumerTags["component"] == "jms1"
-
-    consumerTags["span.origin.type"] == ActiveMQMessageConsumer.name
-
-    consumerTags["thread.name"] != null
-    consumerTags["thread.id"] != null
-    consumerTags.size() == 8
+          tags {
+            defaultTags()
+            "${DDTags.SPAN_TYPE}" DDSpanTypes.MESSAGE_CONSUMER
+            "${Tags.COMPONENT.key}" "jms1"
+            "${Tags.SPAN_KIND.key}" "consumer"
+            "span.origin.type" ActiveMQMessageConsumer.name
+          }
+        }
+      }
+    }
 
     cleanup:
     producer.close()
     consumer.close()
 
     where:
-    destination                      | resourceName
+    destination                      | jmsResourceName
     session.createQueue("someQueue") | "Queue someQueue"
     session.createTopic("someTopic") | "Topic someTopic"
     session.createTemporaryQueue()   | "Temporary Queue"
     session.createTemporaryTopic()   | "Temporary Topic"
   }
 
-  @Unroll
-  def "sending to a MessageListener on #resourceName generates a span"() {
+  def "sending to a MessageListener on #jmsResourceName generates a span"() {
     setup:
     def lock = new CountDownLatch(1)
     def messageRef = new AtomicReference<TextMessage>()
     def producer = session.createProducer(destination)
     def consumer = session.createConsumer(destination)
-    consumer.setMessageListener { message ->
-      lock.await() // ensure the producer trace is reported first.
-      messageRef.set(message)
+    consumer.setMessageListener new MessageListener() {
+      @Override
+      void onMessage(Message message) {
+        lock.await() // ensure the producer trace is reported first.
+        messageRef.set(message)
+      }
     }
 
-    def message = session.createTextMessage("a message")
     producer.send(message)
     lock.countDown()
-    TEST_WRITER.waitForTraces(2)
 
     expect:
-    messageRef.get().text == "a message"
-    TEST_WRITER.size() == 2
+    assertTraces(TEST_WRITER, 2) {
+      producerTrace(it, 0, jmsResourceName)
+      trace(1, 1) { // Consumer trace
+        span(0) {
+          childOf TEST_WRITER.firstTrace().get(2)
+          serviceName "jms"
+          operationName "jms.onMessage"
+          resourceName "Received from $jmsResourceName"
+          spanType DDSpanTypes.MESSAGE_PRODUCER
+          errored false
 
-    and: // producer trace
-    def trace = TEST_WRITER.firstTrace()
-    trace.size() == 3
-
-    and: // span 0
-    def span0 = trace[0]
-
-    span0.context().operationName == "jms.produce"
-    span0.serviceName == "jms"
-    span0.resourceName == "Produced for $resourceName"
-    span0.type == STSSpanTypes.MESSAGE_PRODUCER
-    !span0.context().getErrorFlag()
-    span0.context().parentId == 0
-
-
-    def tags0 = span0.context().tags
-    tags0["span.kind"] == "producer"
-    tags0["component"] == "jms1"
-
-    tags0["span.origin.type"] == ActiveMQMessageProducer.name
-
-    tags0["span.hostname"] != null
-    tags0["span.pid"] != 0l
-    tags0["thread.name"] != null
-    tags0["thread.id"] != null
-    tags0.size() == 8
-
-    and: // span 1
-    def span1 = trace[1]
-
-    span1.context().operationName == "jms.produce"
-    span1.serviceName == "jms"
-    span1.resourceName == "Produced for $resourceName"
-    span1.type == STSSpanTypes.MESSAGE_PRODUCER
-    !span1.context().getErrorFlag()
-    span1.context().parentId == span0.context().spanId
-
-
-    def tags1 = span1.context().tags
-    tags1["span.kind"] == "producer"
-    tags1["component"] == "jms1"
-
-    tags1["span.origin.type"] == ActiveMQMessageProducer.name
-    tags1["span.hostname"] != null
-    tags1["span.pid"] != 0l
-    tags1["thread.name"] != null
-    tags1["thread.id"] != null
-    tags1.size() == 8
-
-    and: // span 2
-    def span2 = trace[2]
-
-    span2.context().operationName == "jms.produce"
-    span2.serviceName == "jms"
-    span2.resourceName == "Produced for $resourceName"
-    span2.type == STSSpanTypes.MESSAGE_PRODUCER
-    !span2.context().getErrorFlag()
-    span2.context().parentId == span1.context().spanId
-
-
-    def tags2 = span2.context().tags
-    tags2["span.kind"] == "producer"
-    tags2["component"] == "jms1"
-
-    tags2["span.origin.type"] == ActiveMQMessageProducer.name
-    tags2["span.hostname"] != null
-    tags2["span.pid"] != 0l
-    tags2["thread.name"] != null
-    tags2["thread.id"] != null
-    tags2.size() == 8
-
-    and: // consumer trace
-    def consumerTrace = TEST_WRITER.get(1)
-    consumerTrace.size() == 1
-
-    def consumerSpan = consumerTrace[0]
-
-    consumerSpan.context().operationName == "jms.onMessage"
-    consumerSpan.serviceName == "jms"
-    consumerSpan.resourceName == "Received from $resourceName"
-    consumerSpan.type == STSSpanTypes.MESSAGE_CONSUMER
-    !consumerSpan.context().getErrorFlag()
-    consumerSpan.context().parentId == span2.context().spanId
-
-
-    def consumerTags = consumerSpan.context().tags
-    consumerTags["span.kind"] == "consumer"
-    consumerTags["component"] == "jms1"
-
-    consumerTags["span.origin.type"] != null
-    consumerTags["span.hostname"] != null
-    consumerTags["span.pid"] != 0l
-    consumerTags["thread.name"] != null
-    consumerTags["thread.id"] != null
-    consumerTags.size() == 8
+          tags {
+            defaultTags()
+            "${DDTags.SPAN_TYPE}" DDSpanTypes.MESSAGE_CONSUMER
+            "${Tags.COMPONENT.key}" "jms1"
+            "${Tags.SPAN_KIND.key}" "consumer"
+            "span.origin.type" { t -> t.contains("JMS1Test") }
+          }
+        }
+      }
+    }
+    // This check needs to go after all traces have been accounted for
+    messageRef.get().text == messageText
 
     cleanup:
     producer.close()
     consumer.close()
 
     where:
-    destination                      | resourceName
+    destination                      | jmsResourceName
     session.createQueue("someQueue") | "Queue someQueue"
     session.createTopic("someTopic") | "Topic someTopic"
     session.createTemporaryQueue()   | "Temporary Queue"
     session.createTemporaryTopic()   | "Temporary Topic"
+  }
+
+  def "failing to receive message with receiveNoWait on #jmsResourceName works"() {
+    setup:
+    def consumer = session.createConsumer(destination)
+
+    // Receive with timeout
+    TextMessage receivedMessage = consumer.receiveNoWait()
+
+    expect:
+    receivedMessage == null
+    assertTraces(TEST_WRITER, 1) {
+      trace(0, 1) { // Consumer trace
+        span(0) {
+          parent()
+          serviceName "jms"
+          operationName "jms.consume"
+          resourceName "JMS receiveNoWait"
+          spanType STSSpanTypes.MESSAGE_PRODUCER
+          errored false
+
+          tags {
+            defaultTags()
+            "${STSTags.SPAN_TYPE}" STSSpanTypes.MESSAGE_CONSUMER
+            "${Tags.COMPONENT.key}" "jms1"
+            "${Tags.SPAN_KIND.key}" "consumer"
+            "span.origin.type" ActiveMQMessageConsumer.name
+          }
+        }
+      }
+    }
+
+    cleanup:
+    consumer.close()
+
+    where:
+    destination                      | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+  }
+
+  def "failing to receive message with wait(timeout) on #jmsResourceName works"() {
+    setup:
+    def consumer = session.createConsumer(destination)
+
+    // Receive with timeout
+    TextMessage receivedMessage = consumer.receive(100)
+
+    expect:
+    receivedMessage == null
+    assertTraces(TEST_WRITER, 1) {
+      trace(0, 1) { // Consumer trace
+        span(0) {
+          parent()
+          serviceName "jms"
+          operationName "jms.consume"
+          resourceName "JMS receive"
+          spanType STSSpanTypes.MESSAGE_PRODUCER
+          errored false
+
+          tags {
+            defaultTags()
+            "${STSTags.SPAN_TYPE}" STSSpanTypes.MESSAGE_CONSUMER
+            "${Tags.COMPONENT.key}" "jms1"
+            "${Tags.SPAN_KIND.key}" "consumer"
+            "span.origin.type" ActiveMQMessageConsumer.name
+          }
+        }
+      }
+    }
+
+    cleanup:
+    consumer.close()
+
+    where:
+    destination                      | jmsResourceName
+    session.createQueue("someQueue") | "Queue someQueue"
+    session.createTopic("someTopic") | "Topic someTopic"
+  }
+
+  def producerTrace(ListWriterAssert writer, int index, String jmsResourceName) {
+    writer.trace(index, 3) {
+      span(0) {
+        parent()
+        serviceName "jms"
+        operationName "jms.produce"
+        resourceName "Produced for $jmsResourceName"
+        spanType STSSpanTypes.MESSAGE_PRODUCER
+        errored false
+
+        tags {
+          defaultTags()
+          "${STSTags.SPAN_TYPE}" STSSpanTypes.MESSAGE_PRODUCER
+          "${Tags.COMPONENT.key}" "jms1"
+          "${Tags.SPAN_KIND.key}" "producer"
+          "span.origin.type" ActiveMQMessageProducer.name
+        }
+      }
+      span(1) {
+        childOf span(0)
+        serviceName "jms"
+        operationName "jms.produce"
+        resourceName "Produced for $jmsResourceName"
+        spanType STSSpanTypes.MESSAGE_PRODUCER
+        errored false
+
+        tags {
+          defaultTags()
+          "${STSTags.SPAN_TYPE}" STSSpanTypes.MESSAGE_PRODUCER
+          "${Tags.COMPONENT.key}" "jms1"
+          "${Tags.SPAN_KIND.key}" "producer"
+          "span.origin.type" ActiveMQMessageProducer.name
+        }
+      }
+      span(2) {
+        childOf span(1)
+        serviceName "jms"
+        operationName "jms.produce"
+        resourceName "Produced for $jmsResourceName"
+        spanType STSSpanTypes.MESSAGE_PRODUCER
+        errored false
+
+        tags {
+          defaultTags()
+          "${STSTags.SPAN_TYPE}" STSSpanTypes.MESSAGE_PRODUCER
+          "${Tags.COMPONENT.key}" "jms1"
+          "${Tags.SPAN_KIND.key}" "producer"
+          "span.origin.type" ActiveMQMessageProducer.name
+        }
+      }
+    }
+  }
+
+  def consumerTrace(ListWriterAssert writer, int index, String jmsResourceName, origin) {
+    writer.trace(index, 1) {
+      span(0) {
+        childOf TEST_WRITER.firstTrace().get(2)
+        serviceName "jms"
+        operationName "jms.onMessage"
+        resourceName "Received from $jmsResourceName"
+        spanType STSSpanTypes.MESSAGE_PRODUCER
+        errored false
+
+        tags {
+          defaultTags()
+          "${STSTags.SPAN_TYPE}" STSSpanTypes.MESSAGE_CONSUMER
+          "${Tags.COMPONENT.key}" "jms1"
+          "${Tags.SPAN_KIND.key}" "consumer"
+          "span.origin.type" origin
+        }
+      }
+    }
   }
 }

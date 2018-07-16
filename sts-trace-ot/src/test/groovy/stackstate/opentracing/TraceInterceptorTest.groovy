@@ -5,7 +5,6 @@ import stackstate.trace.api.interceptor.MutableSpan
 import stackstate.trace.api.interceptor.TraceInterceptor
 import stackstate.trace.common.writer.ListWriter
 import spock.lang.Specification
-import spock.lang.Unroll
 
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -66,7 +65,6 @@ class TraceInterceptorTest extends Specification {
     1     | true
   }
 
-  @Unroll
   def "interceptor can discard a trace (p=#score)"() {
     setup:
     def called = new AtomicBoolean(false)
@@ -97,7 +95,6 @@ class TraceInterceptorTest extends Specification {
     1     | _
   }
 
-  @Unroll
   def "interceptor can modify a span"() {
     setup:
     tracer.interceptors.add(new TraceInterceptor() {

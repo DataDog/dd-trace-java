@@ -5,13 +5,11 @@ import stackstate.trace.common.writer.STSAgentWriter
 import stackstate.trace.common.writer.STSApi
 import stackstate.trace.common.writer.WriterQueue
 import spock.lang.Specification
-import spock.lang.Timeout
 
 import static stackstate.opentracing.SpanFactory.newSpanOf
 import static org.mockito.Mockito.mock
 import static org.mockito.Mockito.verifyNoMoreInteractions
 
-@Timeout(10)
 class STSAgentWriterTest extends Specification {
 
 

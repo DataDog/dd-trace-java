@@ -1,8 +1,8 @@
 package stackstate.opentracing.decorators;
 
-import io.opentracing.tag.Tags;
 import stackstate.opentracing.STSSpanContext;
 import stackstate.trace.api.STSTags;
+import io.opentracing.tag.Tags;
 
 /**
  * This span decorator leverages HTTP tags. It allows the dev to define a custom service name and
@@ -13,18 +13,17 @@ public class HTTPComponent extends AbstractDecorator {
   public HTTPComponent() {
     super();
     this.setMatchingTag(Tags.COMPONENT.getKey());
-    this.setSetTag(STSTags.SERVICE_NAME);
+    this.setReplacementTag(STSTags.SERVICE_NAME);
   }
 
   @Override
-  public boolean afterSetTag(final STSSpanContext context, final String tag, final Object value) {
-    // Assign service name
-    if (super.afterSetTag(context, tag, value)) {
+  public boolean shouldSetTag(final STSSpanContext context, final String tag, final Object value) {
+    if (getMatchingValue().equals(value)) {
+      // Assign service name
+      super.shouldSetTag(context, tag, value);
       // Assign span type to WEB
       context.setSpanType("web");
-      return true;
-    } else {
-      return false;
     }
+    return true;
   }
 }

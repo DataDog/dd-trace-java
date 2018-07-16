@@ -1,18 +1,15 @@
 package stackstate.opentracing.propagation
 
 import stackstate.opentracing.STSSpanContext
-import stackstate.opentracing.PendingTrace
 import stackstate.opentracing.STSTracer
-import stackstate.trace.common.sampling.PrioritySampling
+import stackstate.opentracing.PendingTrace
+import stackstate.trace.api.sampling.PrioritySampling
 import stackstate.trace.common.writer.ListWriter
 import io.opentracing.propagation.TextMapExtractAdapter
 import io.opentracing.propagation.TextMapInjectAdapter
 import spock.lang.Shared
 import spock.lang.Specification
-import spock.lang.Timeout
-import spock.lang.Unroll
 
-@Timeout(1)
 class HTTPCodecTest extends Specification {
   @Shared
   private static final String OT_BAGGAGE_PREFIX = "ot-baggage-"
@@ -23,7 +20,8 @@ class HTTPCodecTest extends Specification {
   @Shared
   private static final String SAMPLING_PRIORITY_KEY = "x-stackstate-sampling-priority"
 
-  @Unroll
+  HTTPCodec codec = new HTTPCodec(["SOME_HEADER": "some-tag"])
+
   def "inject http headers"() {
     setup:
     def writer = new ListWriter()
@@ -51,7 +49,6 @@ class HTTPCodecTest extends Specification {
 
     final Map<String, String> carrier = new HashMap<>()
 
-    final HTTPCodec codec = new HTTPCodec()
     codec.inject(mockedContext, new TextMapInjectAdapter(carrier))
 
     expect:
@@ -67,7 +64,6 @@ class HTTPCodecTest extends Specification {
     PrioritySampling.SAMPLER_KEEP | _
   }
 
-  @Unroll
   def "extract http headers"() {
     setup:
     final Map<String, String> actual = [
@@ -75,13 +71,13 @@ class HTTPCodecTest extends Specification {
       (SPAN_ID_KEY.toUpperCase())             : "2",
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k1"): "v1",
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
+      SOME_HEADER                             : "my-interesting-info",
     ]
 
     if (samplingPriority != PrioritySampling.UNSET) {
       actual.put(SAMPLING_PRIORITY_KEY, String.valueOf(samplingPriority))
     }
 
-    final HTTPCodec codec = new HTTPCodec()
     final ExtractedContext context = codec.extract(new TextMapExtractAdapter(actual))
 
     expect:
@@ -89,6 +85,7 @@ class HTTPCodecTest extends Specification {
     context.getSpanId() == 2l
     context.getBaggage().get("k1") == "v1"
     context.getBaggage().get("k2") == "v2"
+    context.getTags() == ["some-tag": "my-interesting-info"]
     context.getSamplingPriority() == samplingPriority
 
     where:

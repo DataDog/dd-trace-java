@@ -3,17 +3,13 @@ package stackstate.opentracing
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.collect.Maps
 import stackstate.trace.api.STSTags
-import stackstate.trace.common.sampling.PrioritySampling
+import stackstate.trace.api.sampling.PrioritySampling
 import stackstate.trace.common.writer.ListWriter
 import spock.lang.Specification
-import spock.lang.Timeout
-import spock.lang.Unroll
 
-@Timeout(5)
 class STSSpanSerializationTest extends Specification {
 
-  @Unroll
-  def "serialize spans"() throws Exception {
+  def "serialize spans with sampling #samplingPriority"() throws Exception {
     setup:
     def fakePidProvider = [getPid: {-> return (Long)42}] as ISTSSpanContextPidProvider
     def fakeHostNameProvider = [getHostName: {-> return "fakehost"}] as ISTSSpanContextHostNameProvider
@@ -30,9 +26,12 @@ class STSSpanSerializationTest extends Specification {
     expected.put("name", "operation")
     expected.put("duration", 33000)
     expected.put("resource", "operation")
+    final Map<String, Number> metrics = new HashMap<>()
     if (samplingPriority != PrioritySampling.UNSET) {
-      expected.put("sampling_priority", samplingPriority)
+      metrics.put("_sampling_priority_v1", Integer.valueOf(samplingPriority))
+      metrics.put("_sample_rate", Double.valueOf(1.0))
     }
+    expected.put("metrics", metrics)
     expected.put("start", 100000)
     expected.put("span_id", 2l)
     expected.put("parent_id", 0l)
@@ -64,6 +63,9 @@ class STSSpanSerializationTest extends Specification {
     baggage.put(STSTags.SPAN_TYPE, context.getSpanType())
 
     STSSpan span = new STSSpan(100L, context)
+    if (samplingPriority != PrioritySampling.UNSET) {
+      span.context().setMetric("_sample_rate", Double.valueOf(1.0))
+    }
     span.finish(133L)
     ObjectMapper serializer = new ObjectMapper()
 
@@ -71,8 +73,8 @@ class STSSpanSerializationTest extends Specification {
     serializer.readTree(serializer.writeValueAsString(span)) == serializer.readTree(serializer.writeValueAsString(expected))
 
     where:
-    samplingPriority               | _
-    PrioritySampling.SAMPLER_KEEP  | _
-    PrioritySampling.UNSET         | _
+    samplingPriority              | _
+    PrioritySampling.SAMPLER_KEEP | _
+    PrioritySampling.UNSET        | _
   }
 }

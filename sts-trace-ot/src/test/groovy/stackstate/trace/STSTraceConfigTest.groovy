@@ -1,21 +1,27 @@
 package stackstate.trace
 
 import stackstate.opentracing.STSTracer
+import stackstate.opentracing.decorators.ServiceNameDecorator
 import stackstate.trace.common.STSTraceConfig
 import stackstate.trace.common.sampling.AllSampler
+import stackstate.trace.common.writer.STSAgentWriter
 import stackstate.trace.common.writer.ListWriter
 import stackstate.trace.common.writer.LoggingWriter
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Specification
-import spock.lang.Timeout
-import spock.lang.Unroll
-import stackstate.trace.common.writer.STSAgentWriter
 
-import static stackstate.trace.common.STSTraceConfig.*
+import static stackstate.trace.common.STSTraceConfig.AGENT_HOST
+import static stackstate.trace.common.STSTraceConfig.AGENT_PORT
+import static stackstate.trace.common.STSTraceConfig.HEADER_TAGS
+import static stackstate.trace.common.STSTraceConfig.PREFIX
+import static stackstate.trace.common.STSTraceConfig.SERVICE_MAPPING
+import static stackstate.trace.common.STSTraceConfig.SERVICE_NAME
+import static stackstate.trace.common.STSTraceConfig.SPAN_TAGS
+import static stackstate.trace.common.STSTraceConfig.WRITER_TYPE
+import static stackstate.trace.common.STSTraceConfig.propToEnvName
 
-@Timeout(1)
 class STSTraceConfigTest extends Specification {
   @Rule
   public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
@@ -36,18 +42,22 @@ class STSTraceConfigTest extends Specification {
 
     then:
     config.getProperty(SERVICE_NAME) == "unnamed-java-app"
+    config.getProperty(SERVICE_MAPPING) == null
     config.getProperty(WRITER_TYPE) == "STSAgentWriter"
     config.getProperty(AGENT_HOST) == "localhost"
     config.getProperty(AGENT_PORT) == "8126"
+    config.getProperty(SPAN_TAGS) == null
 
     when:
     config = new STSTraceConfig("A different service name")
 
     then:
     config.getProperty(SERVICE_NAME) == "A different service name"
+    config.getProperty(SERVICE_MAPPING) == null
     config.getProperty(WRITER_TYPE) == "STSAgentWriter"
     config.getProperty(AGENT_HOST) == "localhost"
     config.getProperty(AGENT_PORT) == "8126"
+    config.getProperty(SPAN_TAGS) == null
   }
 
   def "specify overrides via system properties"() {
@@ -72,7 +82,6 @@ class STSTraceConfigTest extends Specification {
     tracer.writer instanceof LoggingWriter
   }
 
-  @Timeout(5)
   def "sys props override env vars"() {
     when:
     environmentVariables.set(propToEnvName(PREFIX + SERVICE_NAME), "still something else")
@@ -99,11 +108,33 @@ class STSTraceConfigTest extends Specification {
     tracer.sampler instanceof AllSampler
     tracer.writer.toString() == "STSAgentWriter { api=STSApi { tracesEndpoint=http://localhost:8126/v0.3/traces } }"
 
-    tracer.spanContextDecorators.size() == 6
+    tracer.spanContextDecorators.size() == 10
   }
 
-  @Timeout(5)
-  @Unroll
+  def "verify mapping configs on tracer"() {
+    setup:
+    System.setProperty(PREFIX + SERVICE_MAPPING, mapString)
+    System.setProperty(PREFIX + SPAN_TAGS, mapString)
+    System.setProperty(PREFIX + HEADER_TAGS, mapString)
+
+    when:
+    def tracer = new STSTracer()
+    ServiceNameDecorator decorator = tracer.spanContextDecorators.values().flatten().find {
+      it instanceof ServiceNameDecorator
+    }
+    def taggedHeaders = tracer.registry.codecs.values().first().taggedHeaders
+
+    then:
+    tracer.spanTags == map
+    decorator.mappings == map
+    taggedHeaders == map
+
+    where:
+    mapString       | map
+    "a:1, a:2, a:3" | [a: "3"]
+    "a:b,c:d"       | [a: "b", c: "d"]
+  }
+
   def "verify single override on #source for #key"() {
     when:
     System.setProperty(PREFIX + key, value)
@@ -114,11 +145,11 @@ class STSTraceConfigTest extends Specification {
 
     where:
 
-    source    | key            | value           | expected
-    "writer"  | "default"      | "default"       | "STSAgentWriter { api=STSApi { tracesEndpoint=http://localhost:8126/v0.3/traces } }"
-    "writer"  | "writer.type"  | "LoggingWriter" | "LoggingWriter { }"
-    "writer"  | "agent.host"   | "somethingelse" | "STSAgentWriter { api=STSApi { tracesEndpoint=http://somethingelse:8126/v0.3/traces } }"
-    "writer"  | "agent.port"   | "9999"          | "STSAgentWriter { api=STSApi { tracesEndpoint=http://localhost:9999/v0.3/traces } }"
+    source   | key           | value           | expected
+    "writer" | "default"     | "default"       | "STSAgentWriter { api=STSApi { tracesEndpoint=http://localhost:8126/v0.3/traces } }"
+    "writer" | "writer.type" | "LoggingWriter" | "LoggingWriter { }"
+    "writer" | "agent.host"  | "somethingelse" | "STSAgentWriter { api=STSApi { tracesEndpoint=http://somethingelse:8126/v0.3/traces } }"
+    "writer" | "agent.port"  | "9999"          | "STSAgentWriter { api=STSApi { tracesEndpoint=http://localhost:9999/v0.3/traces } }"
   }
 
   def "parsing valid string returns a map"() {
@@ -136,19 +167,19 @@ class STSTraceConfigTest extends Specification {
 
   def "parsing an invalid string returns an empty map"() {
     expect:
-    STSTraceConfig.parseMap(str) == map
+    STSTraceConfig.parseMap(str) == [:]
 
     where:
-    str         | map
-    null        | [:]
-    ""          | [:]
-    "1"         | [:]
-    "a"         | [:]
-    "a:"        | [:]
-    "a,1"       | [:]
-    "in:val:id" | [:]
-    "a:b:c:d"   | [:]
-    "a:b,c,d"   | [:]
-    "!a"        | [:]
+    str         | _
+    null        | _
+    ""          | _
+    "1"         | _
+    "a"         | _
+    "a:"        | _
+    "a,1"       | _
+    "in:val:id" | _
+    "a:b:c:d"   | _
+    "a:b,c,d"   | _
+    "!a"        | _
   }
 }

@@ -5,17 +5,6 @@ description = 'sts-java-agent-ittests'
 evaluationDependsOn(':sts-java-agent:agent-tooling')
 compileTestJava.dependsOn tasks.getByPath(':sts-java-agent:agent-tooling:testClasses')
 
-if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
-  sourceSets {
-    test {
-      groovy {
-        // These classes use Ratpack which requires Java 8. (Currently also incompatible with Java 9.)
-        exclude '**/TestHttpServer.groovy', '**/ApacheHttpClientTest.groovy'
-      }
-    }
-  }
-}
-
 dependencies {
   testCompile project(':sts-trace-api')
   testCompile project(':sts-trace-ot')
@@ -30,14 +19,9 @@ dependencies {
 
   testCompile group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.3'
   testCompile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
-
-  // JDBC tests:
-  testCompile group: 'com.h2database', name: 'h2', version: '1.4.196'
-  testCompile group: 'org.hsqldb', name: 'hsqldb', version: '2.3.+'
-  testCompile group: 'org.apache.derby', name: 'derby', version: '10.12.1.1'
 }
 
-test {
+tasks.withType(Test) {
   jvmArgs "-Dsts.writer.type=LogWriter", "-Dsts.service.name=java-app"
   jvmArgs "-Dstackstate.slf4j.simpleLogger.defaultLogLevel=debug"
   jvmArgs "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
@@ -54,14 +38,10 @@ test {
   if (project.hasProperty("disableShadowRelocate") && disableShadowRelocate) {
     exclude 'stackstate/trace/agent/integration/classloading/ShadowPackageRenamingTest.class'
   }
-}
 
-test.dependsOn project(':sts-java-agent').shadowJar
+  dependsOn project(':sts-java-agent').shadowJar
+}
 
 parent.subprojects.collect { it.tasks.withType(Test) } each {
   test.shouldRunAfter it
 }
-
-// Jacoco must be applied after the test javaagent config block above,
-// otherwise the javaagent args conflict. (It's order dependent and added LIFO)
-apply from: "${rootDir}/gradle/jacoco.gradle"

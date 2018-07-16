@@ -1,11 +1,11 @@
-import stackstate.trace.api.Trace
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
+import akka.util.Timeout
+import stackstate.trace.api.Trace
+import stackstate.trace.context.TraceScope
 import io.opentracing.util.GlobalTracer
 
 import scala.concurrent.duration._
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
-import akka.routing.Broadcast
-import akka.util.Timeout
 
 // ! == send-message
 object AkkaActors {
@@ -32,18 +32,21 @@ class AkkaActors {
 
   @Trace
   def basicTell() : Unit = {
+    GlobalTracer.get().scopeManager().active().asInstanceOf[TraceScope].setAsyncPropagation(true)
     howdyGreeter ! WhoToGreet("Akka")
     howdyGreeter ! Greet
   }
 
   @Trace
   def basicAsk() : Unit = {
+    GlobalTracer.get().scopeManager().active().asInstanceOf[TraceScope].setAsyncPropagation(true)
     howdyGreeter ! WhoToGreet("Akka")
     howdyGreeter ? Greet
   }
 
   @Trace
   def basicForward() : Unit = {
+    GlobalTracer.get().scopeManager().active().asInstanceOf[TraceScope].setAsyncPropagation(true)
     helloGreeter ! WhoToGreet("Akka")
     helloGreeter ? Greet
   }
@@ -80,7 +83,6 @@ class Receiver extends Actor with ActorLogging {
   def receive = {
     case Greeting(greeting) => {
       AkkaActors.tracedChild(greeting)
-      "done"
     }
 
   }

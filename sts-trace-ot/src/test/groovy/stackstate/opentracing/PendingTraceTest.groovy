@@ -4,10 +4,13 @@ import stackstate.trace.common.writer.ListWriter
 import spock.lang.Specification
 import spock.lang.Subject
 
+import java.util.concurrent.TimeUnit
+
 
 class PendingTraceTest extends Specification {
   def writer = new ListWriter()
   def tracer = new STSTracer(writer)
+  def traceCount = tracer.traceCount
 
   def traceId = System.identityHashCode(this)
 
@@ -30,6 +33,7 @@ class PendingTraceTest extends Specification {
     expect:
     trace.asList() == [rootSpan]
     writer == [[rootSpan]]
+    traceCount.get() == 1
   }
 
   def "child finishes before parent"() {
@@ -57,6 +61,7 @@ class PendingTraceTest extends Specification {
     trace.weakReferences.size() == 0
     trace.asList() == [rootSpan, child]
     writer == [[rootSpan, child]]
+    traceCount.get() == 1
   }
 
   def "parent finishes before child which holds up trace"() {
@@ -84,6 +89,7 @@ class PendingTraceTest extends Specification {
     trace.weakReferences.size() == 0
     trace.asList() == [child, rootSpan]
     writer == [[child, rootSpan]]
+    traceCount.get() == 1
   }
 
   def "trace reported when unfinished child discarded"() {
@@ -108,6 +114,7 @@ class PendingTraceTest extends Specification {
     trace.weakReferences.size() == 0
     trace.asList() == [rootSpan]
     writer == [[rootSpan]]
+    traceCount.get() == 1
   }
 
   def "add unfinished span to trace fails"() {
@@ -118,6 +125,7 @@ class PendingTraceTest extends Specification {
     trace.pendingReferenceCount.get() == 1
     trace.weakReferences.size() == 1
     trace.asList() == []
+    traceCount.get() == 0
   }
 
   def "register span to wrong trace fails"() {
@@ -141,5 +149,27 @@ class PendingTraceTest extends Specification {
     otherTrace.pendingReferenceCount.get() == 0
     otherTrace.weakReferences.size() == 0
     otherTrace.asList() == []
+  }
+
+
+  def "child spans created after trace written"() {
+    setup:
+    rootSpan.finish()
+    // this shouldn't happen, but it's possible users of the api
+    // may incorrectly add spans after the trace is reported.
+    // in those cases we should still decrement the pending trace count
+    STSSpan childSpan = tracer.buildSpan("child").asChildOf(rootSpan).start()
+    childSpan.finish()
+
+    expect:
+    trace.pendingReferenceCount.get() == 0
+    trace.asList() == [rootSpan]
+    writer == [[rootSpan]]
+  }
+
+  def "test getCurrentTimeNano"() {
+    expect:
+    // Generous 5 seconds to execute this test
+    Math.abs(TimeUnit.NANOSECONDS.toSeconds(trace.currentTimeNano) - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis())) < 5
   }
 }

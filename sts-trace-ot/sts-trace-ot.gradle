@@ -1,49 +1,41 @@
 plugins {
   id "me.champeau.gradle.jmh" version "0.4.4"
-  id 'org.unbroken-dome.test-sets' version '1.4.4'
 }
 
 description = 'sts-trace-ot'
 
 apply from: "${rootDir}/gradle/java.gradle"
 apply from: "${rootDir}/gradle/publish.gradle"
-apply from: "${rootDir}/gradle/jacoco.gradle"
-minimumBranchCoverage = 0.3
-minimumInstructionCoverage = 0.5
-whitelistedInstructionClasses += whitelistedBranchClasses += [
-  'stackstate.opentracing.decorators.*',
+
+minimumBranchCoverage = 0.5
+minimumInstructionCoverage = 0.6
+excludedClassesConverage += [
   'stackstate.trace.common.writer.ListWriter',
-  'stackstate.trace.common.util.Clock',
-  'stackstate.trace.api.STSTags',
-  'stackstate.trace.common.util.ConfigUtils',
   'stackstate.trace.common.sampling.PrioritySampling'
 ]
 
-if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
-  sourceSets {
-    test {
-      groovy {
-        // These classes use Ratpack which requires Java 8. (Currently also incompatible with Java 9.)
-        exclude 'stackstate/trace/api/writer/STSApiTest.groovy'
-      }
-    }
-  }
-}
+// These classes use Ratpack which requires Java 8. (Currently also incompatible with Java 9.)
+testJava8Only += 'stackstate/trace/api/writer/STSApiTest.class'
+
+apply plugin: 'org.unbroken-dome.test-sets'
 
 testSets {
   traceAgentTest
 }
 
 dependencies {
+  annotationProcessor deps.autoservice
+  implementation deps.autoservice
+
   compile project(':sts-trace-api')
   compile deps.opentracing
   compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
   compile deps.jackson
   compile deps.slf4j
-  compile deps.autoservice
   compile group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.2'
 
+  testCompile deps.autoservice
   testCompile group: 'org.objenesis', name: 'objenesis', version: '2.6'
   testCompile group: 'cglib', name: 'cglib-nodep', version: '3.2.5'
   testCompile 'com.github.stefanbirkner:system-rules:1.17.1'

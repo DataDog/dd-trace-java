@@ -1,64 +1,55 @@
 package stackstate.trace.instrumentation.datastax.cassandra;
 
+import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 
 import com.datastax.driver.core.Session;
 import com.google.auto.service.AutoService;
+import stackstate.trace.agent.tooling.Instrumenter;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
 import java.lang.reflect.Constructor;
-import net.bytebuddy.agent.builder.AgentBuilder;
+import java.util.HashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.HelperInjector;
-import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.agent.tooling.STSAdvice;
-import stackstate.trace.agent.tooling.STSTransformers;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class CassandraClientInstrumentation extends Instrumenter.Configurable {
+public class CassandraClientInstrumentation extends Instrumenter.Default {
 
   public CassandraClientInstrumentation() {
     super("cassandra");
   }
 
   @Override
-  public AgentBuilder apply(final AgentBuilder agentBuilder) {
-    return agentBuilder
-        .type(
-            named("com.datastax.driver.core.Cluster$Manager"),
-            classLoaderHasClasses(
-                "com.datastax.driver.core.BoundStatement",
-                "com.datastax.driver.core.BoundStatement",
-                "com.datastax.driver.core.CloseFuture",
-                "com.datastax.driver.core.Cluster",
-                "com.datastax.driver.core.Host",
-                "com.datastax.driver.core.PreparedStatement",
-                "com.datastax.driver.core.RegularStatement",
-                "com.datastax.driver.core.ResultSet",
-                "com.datastax.driver.core.ResultSetFuture",
-                "com.datastax.driver.core.Session",
-                "com.datastax.driver.core.Statement",
-                "com.google.common.base.Function",
-                "com.google.common.util.concurrent.Futures",
-                "com.google.common.util.concurrent.ListenableFuture"))
-        .transform(
-            new HelperInjector(
-                "io.opentracing.contrib.cassandra.TracingSession",
-                "io.opentracing.contrib.cassandra.TracingSession$1",
-                "io.opentracing.contrib.cassandra.TracingSession$2",
-                "io.opentracing.contrib.cassandra.TracingCluster",
-                "io.opentracing.contrib.cassandra.TracingCluster$1"))
-        .transform(STSTransformers.defaultTransformers())
-        .transform(
-            STSAdvice.create()
-                .advice(
-                    isMethod().and(isPrivate()).and(named("newSession")).and(takesArguments(0)),
-                    CassandraClientAdvice.class.getName()))
-        .asDecorator();
+  public ElementMatcher typeMatcher() {
+    return named("com.datastax.driver.core.Cluster$Manager");
+  }
+
+  @Override
+  public ElementMatcher<? super ClassLoader> classLoaderMatcher() {
+    return classLoaderHasClasses("com.datastax.driver.core.Duration");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      "stackstate.trace.instrumentation.datastax.cassandra.TracingSession",
+      "stackstate.trace.instrumentation.datastax.cassandra.TracingSession$1",
+      "stackstate.trace.instrumentation.datastax.cassandra.TracingSession$2"
+    };
+  }
+
+  @Override
+  public Map<ElementMatcher, String> transformers() {
+    Map<ElementMatcher, String> transformers = new HashMap<>();
+    transformers.put(
+        isMethod().and(isPrivate()).and(named("newSession")).and(takesArguments(0)),
+        CassandraClientAdvice.class.getName());
+    return transformers;
   }
 
   public static class CassandraClientAdvice {
@@ -74,11 +65,13 @@ public class CassandraClientInstrumentation extends Instrumenter.Configurable {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void injectTracingSession(@Advice.Return(readOnly = false) Session session)
         throws Exception {
-      if (session.getClass().getName().endsWith("contrib.cassandra.TracingSession")) {
+      // This should cover ours and OT's TracingSession
+      if (session.getClass().getName().endsWith("cassandra.TracingSession")) {
         return;
       }
 
-      final Class<?> clazz = Class.forName("io.opentracing.contrib.cassandra.TracingSession");
+      final Class<?> clazz =
+          Class.forName("stackstate.trace.instrumentation.datastax.cassandra.TracingSession");
       final Constructor<?> constructor = clazz.getDeclaredConstructor(Session.class, Tracer.class);
       constructor.setAccessible(true);
       session = (Session) constructor.newInstance(session, GlobalTracer.get());

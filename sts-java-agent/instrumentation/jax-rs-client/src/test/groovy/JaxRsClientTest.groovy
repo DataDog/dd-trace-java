@@ -1,12 +1,11 @@
+import stackstate.trace.agent.test.AgentTestRunner
+import stackstate.trace.api.STSSpanTypes
+import stackstate.trace.api.STSTags
 import io.opentracing.tag.Tags
 import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl
 import org.glassfish.jersey.client.JerseyClientBuilder
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder
 import ratpack.http.Headers
-import spock.lang.Unroll
-import stackstate.trace.agent.test.AgentTestRunner
-import stackstate.trace.api.STSSpanTypes
-import stackstate.trace.api.STSTags
 
 import javax.ws.rs.client.AsyncInvoker
 import javax.ws.rs.client.Client
@@ -18,12 +17,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import static ratpack.groovy.test.embed.GroovyEmbeddedApp.ratpack
 
-//@Timeout(10)
 class JaxRsClientTest extends AgentTestRunner {
-  static {
-    System.setProperty("sts.integration.jax-rs.enabled", "true")
-  }
-
   def receivedHeaders = new AtomicReference<Headers>()
   def server = ratpack {
     handlers {
@@ -34,7 +28,6 @@ class JaxRsClientTest extends AgentTestRunner {
     }
   }
 
-  @Unroll
   def "#lib request creates spans and sends headers"() {
     setup:
     Client client = builder.build()
@@ -61,7 +54,7 @@ class JaxRsClientTest extends AgentTestRunner {
 
     span.context().operationName == "jax-rs.client.call"
     span.serviceName == "unnamed-java-app"
-    span.resourceName == "GET jax-rs.client.call"
+    span.resourceName == "GET /ping"
     span.type == "http"
     !span.context().getErrorFlag()
     span.context().parentId == 0

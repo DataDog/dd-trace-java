@@ -1,5 +1,6 @@
 package stackstate.trace.instrumentation.servlet3;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 import static io.opentracing.log.Fields.ERROR_OBJECT;
 import static net.bytebuddy.matcher.ElementMatchers.failSafe;
 import static net.bytebuddy.matcher.ElementMatchers.hasSuperType;
@@ -8,19 +9,22 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 
 import com.google.auto.service.AutoService;
+import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
+import stackstate.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
-import io.opentracing.contrib.web.servlet.filter.HttpServletRequestExtractAdapter;
-import io.opentracing.contrib.web.servlet.filter.ServletFilterSpanDecorator;
 import io.opentracing.propagation.Format;
 import io.opentracing.tag.Tags;
 import io.opentracing.util.GlobalTracer;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
@@ -28,17 +32,11 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.HelperInjector;
-import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.agent.tooling.STSAdvice;
-import stackstate.trace.agent.tooling.STSTransformers;
-import stackstate.trace.api.STSSpanTypes;
-import stackstate.trace.api.STSTags;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class FilterChain3Instrumentation extends Instrumenter.Configurable {
+public final class FilterChain3Instrumentation extends Instrumenter.Default {
   public static final String SERVLET_OPERATION_NAME = "servlet.request";
 
   public FilterChain3Instrumentation() {
@@ -46,30 +44,34 @@ public final class FilterChain3Instrumentation extends Instrumenter.Configurable
   }
 
   @Override
-  public AgentBuilder apply(final AgentBuilder agentBuilder) {
-    return agentBuilder
-        .type(
-            not(isInterface()).and(failSafe(hasSuperType(named("javax.servlet.FilterChain")))),
-            classLoaderHasClasses("javax.servlet.AsyncEvent", "javax.servlet.AsyncListener"))
-        .transform(
-            new HelperInjector(
-                "io.opentracing.contrib.web.servlet.filter.HttpServletRequestExtractAdapter",
-                "io.opentracing.contrib.web.servlet.filter.HttpServletRequestExtractAdapter$MultivaluedMapFlatIterator",
-                "io.opentracing.contrib.web.servlet.filter.ServletFilterSpanDecorator",
-                "io.opentracing.contrib.web.servlet.filter.ServletFilterSpanDecorator$1",
-                "io.opentracing.contrib.web.servlet.filter.TracingFilter",
-                "io.opentracing.contrib.web.servlet.filter.TracingFilter$1",
-                FilterChain3Advice.class.getName() + "$TagSettingAsyncListener"))
-        .transform(STSTransformers.defaultTransformers())
-        .transform(
-            STSAdvice.create()
-                .advice(
-                    named("doFilter")
-                        .and(takesArgument(0, named("javax.servlet.ServletRequest")))
-                        .and(takesArgument(1, named("javax.servlet.ServletResponse")))
-                        .and(isPublic()),
-                    FilterChain3Advice.class.getName()))
-        .asDecorator();
+  public ElementMatcher typeMatcher() {
+    return not(isInterface()).and(failSafe(hasSuperType(named("javax.servlet.FilterChain"))));
+  }
+
+  @Override
+  public ElementMatcher<? super ClassLoader> classLoaderMatcher() {
+    return classLoaderHasClasses("javax.servlet.AsyncEvent", "javax.servlet.AsyncListener");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      "datadog.trace.instrumentation.servlet3.HttpServletRequestExtractAdapter",
+      "datadog.trace.instrumentation.servlet3.HttpServletRequestExtractAdapter$MultivaluedMapFlatIterator",
+      FilterChain3Advice.class.getName() + "$TagSettingAsyncListener"
+    };
+  }
+
+  @Override
+  public Map<ElementMatcher, String> transformers() {
+    Map<ElementMatcher, String> transformers = new HashMap<>();
+    transformers.put(
+        named("doFilter")
+            .and(takesArgument(0, named("javax.servlet.ServletRequest")))
+            .and(takesArgument(1, named("javax.servlet.ServletResponse")))
+            .and(isPublic()),
+        FilterChain3Advice.class.getName());
+    return transformers;
   }
 
   public static class FilterChain3Advice {
@@ -81,11 +83,12 @@ public final class FilterChain3Instrumentation extends Instrumenter.Configurable
         return null;
       }
 
+      final HttpServletRequest httpServletRequest = (HttpServletRequest) req;
       final SpanContext extractedContext =
           GlobalTracer.get()
               .extract(
                   Format.Builtin.HTTP_HEADERS,
-                  new HttpServletRequestExtractAdapter((HttpServletRequest) req));
+                  new HttpServletRequestExtractAdapter(httpServletRequest));
 
       final Scope scope =
           GlobalTracer.get()
@@ -93,9 +96,20 @@ public final class FilterChain3Instrumentation extends Instrumenter.Configurable
               .asChildOf(extractedContext)
               .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
               .withTag(STSTags.SPAN_TYPE, STSSpanTypes.WEB_SERVLET)
+              .withTag("servlet.context", httpServletRequest.getContextPath())
               .startActive(false);
 
-      ServletFilterSpanDecorator.STANDARD_TAGS.onRequest((HttpServletRequest) req, scope.span());
+      if (scope instanceof TraceScope) {
+        ((TraceScope) scope).setAsyncPropagation(true);
+      }
+
+      final Span span = scope.span();
+      Tags.COMPONENT.set(span, "java-web-servlet");
+      Tags.HTTP_METHOD.set(span, httpServletRequest.getMethod());
+      Tags.HTTP_URL.set(span, httpServletRequest.getRequestURL().toString());
+      if (httpServletRequest.getUserPrincipal() != null) {
+        span.setTag("user.principal", httpServletRequest.getUserPrincipal().getName());
+      }
       return scope;
     }
 
@@ -113,7 +127,11 @@ public final class FilterChain3Instrumentation extends Instrumenter.Configurable
           final Span span = scope.span();
 
           if (throwable != null) {
-            ServletFilterSpanDecorator.STANDARD_TAGS.onError(req, resp, throwable, span);
+            if (resp.getStatus() == HttpServletResponse.SC_OK) {
+              // exception is thrown in filter chain, but status code is incorrect
+              Tags.HTTP_STATUS.set(span, 500);
+            }
+            Tags.ERROR.set(span, Boolean.TRUE);
             span.log(Collections.singletonMap(ERROR_OBJECT, throwable));
             scope.close();
             scope.span().finish(); // Finish the span manually since finishSpanOnClose was false
@@ -121,8 +139,9 @@ public final class FilterChain3Instrumentation extends Instrumenter.Configurable
             final AtomicBoolean activated = new AtomicBoolean(false);
             // what if async is already finished? This would not be called
             req.getAsyncContext().addListener(new TagSettingAsyncListener(activated, span));
+            scope.close();
           } else {
-            ServletFilterSpanDecorator.STANDARD_TAGS.onResponse(req, resp, span);
+            Tags.HTTP_STATUS.set(span, resp.getStatus());
             scope.close();
             scope.span().finish(); // Finish the span manually since finishSpanOnClose was false
           }
@@ -142,11 +161,9 @@ public final class FilterChain3Instrumentation extends Instrumenter.Configurable
       @Override
       public void onComplete(final AsyncEvent event) throws IOException {
         if (activated.compareAndSet(false, true)) {
-          try (Scope scope = GlobalTracer.get().scopeManager().activate(span, true)) {
-            ServletFilterSpanDecorator.STANDARD_TAGS.onResponse(
-                (HttpServletRequest) event.getSuppliedRequest(),
-                (HttpServletResponse) event.getSuppliedResponse(),
-                span);
+          try (final Scope scope = GlobalTracer.get().scopeManager().activate(span, true)) {
+            Tags.HTTP_STATUS.set(
+                span, ((HttpServletResponse) event.getSuppliedResponse()).getStatus());
           }
         }
       }
@@ -154,12 +171,9 @@ public final class FilterChain3Instrumentation extends Instrumenter.Configurable
       @Override
       public void onTimeout(final AsyncEvent event) throws IOException {
         if (activated.compareAndSet(false, true)) {
-          try (Scope scope = GlobalTracer.get().scopeManager().activate(span, true)) {
-            ServletFilterSpanDecorator.STANDARD_TAGS.onTimeout(
-                (HttpServletRequest) event.getSuppliedRequest(),
-                (HttpServletResponse) event.getSuppliedResponse(),
-                event.getAsyncContext().getTimeout(),
-                span);
+          try (final Scope scope = GlobalTracer.get().scopeManager().activate(span, true)) {
+            Tags.ERROR.set(span, Boolean.TRUE);
+            span.setTag("timeout", event.getAsyncContext().getTimeout());
           }
         }
       }
@@ -167,12 +181,13 @@ public final class FilterChain3Instrumentation extends Instrumenter.Configurable
       @Override
       public void onError(final AsyncEvent event) throws IOException {
         if (event.getThrowable() != null && activated.compareAndSet(false, true)) {
-          try (Scope scope = GlobalTracer.get().scopeManager().activate(span, true)) {
-            ServletFilterSpanDecorator.STANDARD_TAGS.onError(
-                (HttpServletRequest) event.getSuppliedRequest(),
-                (HttpServletResponse) event.getSuppliedResponse(),
-                event.getThrowable(),
-                span);
+          try (final Scope scope = GlobalTracer.get().scopeManager().activate(span, true)) {
+            if (((HttpServletResponse) event.getSuppliedResponse()).getStatus()
+                == HttpServletResponse.SC_OK) {
+              // exception is thrown in filter chain, but status code is incorrect
+              Tags.HTTP_STATUS.set(span, 500);
+            }
+            Tags.ERROR.set(span, Boolean.TRUE);
             span.log(Collections.singletonMap(ERROR_OBJECT, event.getThrowable()));
           }
         }

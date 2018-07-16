@@ -3,71 +3,112 @@ package stackstate.opentracing.decorators
 import stackstate.opentracing.STSSpanContext
 import stackstate.opentracing.STSTracer
 import stackstate.opentracing.SpanFactory
+import stackstate.trace.api.STSSpanTypes
+import stackstate.trace.api.STSTags
 import stackstate.trace.common.writer.LoggingWriter
 import io.opentracing.tag.StringTag
 import io.opentracing.tag.Tags
 import spock.lang.Specification
-import spock.lang.Timeout
 
-@Timeout(1)
+import static datadog.opentracing.STSTracer.UNASSIGNED_DEFAULT_SERVICE_NAME
+
 class SpanDecoratorTest extends Specification {
+  def tracer = new STSTracer(new LoggingWriter())
+  def span = SpanFactory.newSpanOf(tracer)
 
   def "adding span personalisation using Decorators"() {
     setup:
-    def tracer = new STSTracer(new LoggingWriter())
     def decorator = new AbstractDecorator() {
 
       @Override
-      boolean afterSetTag(STSSpanContext context, String tag, Object value) {
-        return super.afterSetTag(context, tag, value)
+      boolean shouldSetTag(STSSpanContext context, String tag, Object value) {
+        return super.shouldSetTag(context, tag, value)
       }
-
     }
     decorator.setMatchingTag("foo")
     decorator.setMatchingValue("bar")
-    decorator.setSetTag("newFoo")
-    decorator.setSetValue("newBar")
+    decorator.setReplacementTag("newFoo")
+    decorator.setReplacementValue("newBar")
     tracer.addDecorator(decorator)
 
-    def span = SpanFactory.newSpanOf(tracer)
     new StringTag("foo").set(span, "bar")
 
     expect:
     span.getTags().containsKey("newFoo")
     span.getTags().get("newFoo") == "newBar"
-
-    cleanup:
-    span.finish()
   }
 
-  def "override operation with OperationDecorator"() {
-
+  def "set service name"() {
     setup:
-    def tracer = new STSTracer(new LoggingWriter())
-    def span = SpanFactory.newSpanOf(tracer)
-    tracer.addDecorator(new OperationDecorator())
+    tracer.addDecorator(new ServiceNameDecorator(mapping))
 
+    when:
+    span.setTag(STSTags.SERVICE_NAME, name)
+
+    then:
+    span.getServiceName() == expected
+
+    where:
+    name            | expected        | mapping
+    "some-service"  | "new-service"   | ["some-service": "new-service"]
+    "other-service" | "other-service" | ["some-service": "new-service"]
+  }
+
+  def "set service name from servlet.context with context '#context'"() {
+    when:
+    span.setTag(STSTags.SERVICE_NAME, serviceName)
+    span.setTag("servlet.context", context)
+
+    then:
+    span.getServiceName() == expected
+
+    where:
+    context         | serviceName                     | expected
+    "/"             | UNASSIGNED_DEFAULT_SERVICE_NAME | UNASSIGNED_DEFAULT_SERVICE_NAME
+    ""              | UNASSIGNED_DEFAULT_SERVICE_NAME | UNASSIGNED_DEFAULT_SERVICE_NAME
+    "/some-context" | UNASSIGNED_DEFAULT_SERVICE_NAME | "some-context"
+    "other-context" | UNASSIGNED_DEFAULT_SERVICE_NAME | "other-context"
+    "/"             | "my-service"                    | "my-service"
+    ""              | "my-service"                    | "my-service"
+    "/some-context" | "my-service"                    | "my-service"
+    "other-context" | "my-service"                    | "my-service"
+  }
+
+  def "set operation name"() {
     when:
     Tags.COMPONENT.set(span, component)
 
     then:
     span.getOperationName() == operationName
 
-    cleanup:
-    span.finish()
-
     where:
     component << OperationDecorator.MAPPINGS.keySet()
     operationName << OperationDecorator.MAPPINGS.values()
   }
 
+  def "set resource name"() {
+    when:
+    span.setTag(STSTags.RESOURCE_NAME, name)
+
+    then:
+    span.getResourceName() == name
+
+    where:
+    name = "my resource name"
+  }
+
+  def "set span type"() {
+    when:
+    span.setTag(STSTags.SPAN_TYPE, type)
+
+    then:
+    span.getSpanType() == type
+
+    where:
+    type = STSSpanTypes.HTTP_CLIENT
+  }
+
   def "override operation with DBTypeDecorator"() {
-
-    setup:
-    def tracer = new STSTracer(new LoggingWriter())
-    def span = SpanFactory.newSpanOf(tracer)
-    tracer.addDecorator(new DBTypeDecorator())
-
     when:
     Tags.DB_TYPE.set(span, type)
 
@@ -83,19 +124,11 @@ class SpanDecoratorTest extends Specification {
     span.getOperationName() == "mongo.query"
     span.context().getSpanType() == "mongodb"
 
-    cleanup:
-    span.finish()
-
     where:
     type = "foo"
   }
 
   def "DBStatementAsResource should not interact on Mongo queries"() {
-    setup:
-    def tracer = new STSTracer(new LoggingWriter())
-    def span = SpanFactory.newSpanOf(tracer)
-    tracer.addDecorator(new DBStatementAsResourceName())
-
     when:
     span.setResourceName("not-change-me")
     Tags.COMPONENT.set(span, "java-mongo")
@@ -113,26 +146,98 @@ class SpanDecoratorTest extends Specification {
     then:
     span.getResourceName() == something
 
-    cleanup:
-    span.finish()
-
     where:
     something = "fake-query"
   }
 
   def "set 404 as a resource on a 404 issue"() {
-    setup:
-    def tracer = new STSTracer(new LoggingWriter())
-    def span = SpanFactory.newSpanOf(tracer)
-    tracer.addDecorator(new Status404Decorator())
-
     when:
     Tags.HTTP_STATUS.set(span, 404)
 
     then:
     span.getResourceName() == "404"
+  }
 
-    cleanup:
-    span.finish()
+  def "set 5XX status code as an error"() {
+    when:
+    Tags.HTTP_STATUS.set(span, status)
+
+    then:
+    span.isError() == error
+
+    where:
+    status | error
+    400    | false
+    404    | false
+    499    | false
+    500    | true
+    550    | true
+    599    | true
+    600    | false
+  }
+
+  def "set error flag when error tag reported"() {
+    when:
+    Tags.ERROR.set(span, error)
+
+    then:
+    span.isError() == error
+
+    where:
+    error | _
+    true  | _
+    false | _
+  }
+
+  def "#attribute decorators apply to builder too"() {
+    setup:
+    def span = tracer.buildSpan("decorator.test").withTag(name, value).start()
+
+    expect:
+    span.context()."$attribute" == value
+
+    where:
+    attribute      | name                 | value
+    "serviceName"  | STSTags.SERVICE_NAME  | "my-service"
+    "resourceName" | STSTags.RESOURCE_NAME | "my-resource"
+    "spanType"     | STSTags.SPAN_TYPE     | "my-span-type"
+  }
+
+  def "decorators apply to builder too"() {
+    when:
+    def span = tracer.buildSpan("decorator.test").withTag("servlet.context", "/my-servlet").start()
+
+    then:
+    span.serviceName == "my-servlet"
+
+    when:
+    span = tracer.buildSpan("decorator.test").withTag(Tags.HTTP_STATUS.key, 404).start()
+
+    then:
+    span.resourceName == "404"
+
+    when:
+    span = tracer.buildSpan("decorator.test").withTag("error", "true").start()
+
+    then:
+    span.error
+
+    when:
+    span = tracer.buildSpan("decorator.test").withTag(Tags.HTTP_STATUS.key, 500).start()
+
+    then:
+    span.error
+
+    when:
+    span = tracer.buildSpan("decorator.test").withTag(Tags.HTTP_URL.key, "http://example.com/path/number123/?param=true").start()
+
+    then:
+    span.resourceName == "/path/?/"
+
+    when:
+    span = tracer.buildSpan("decorator.test").withTag(Tags.DB_STATEMENT.key, "some-statement").start()
+
+    then:
+    span.resourceName == "some-statement"
   }
 }

@@ -1,9 +1,7 @@
 package stackstate.trace.common.writer;
 
-import com.google.auto.service.AutoService;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import stackstate.opentracing.STSSpan;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -13,8 +11,6 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.opentracing.STSSpan;
-import stackstate.trace.common.Service;
 
 /**
  * This writer write provided traces to the a STS agent which is most of time located on the same
@@ -27,7 +23,6 @@ import stackstate.trace.common.Service;
  * spans.
  */
 @Slf4j
-@AutoService(Writer.class)
 public class STSAgentWriter implements Writer {
 
   /** Default location of the STS agent */
@@ -36,7 +31,7 @@ public class STSAgentWriter implements Writer {
   public static final int DEFAULT_PORT = 8126;
 
   /** Maximum number of traces kept in memory */
-  static final int DEFAULT_MAX_TRACES = 1000;
+  static final int DEFAULT_MAX_TRACES = 7000;
 
   /** Timeout for the API in seconds */
   static final long API_TIMEOUT_SECONDS = 1;
@@ -45,7 +40,14 @@ public class STSAgentWriter implements Writer {
   static final long FLUSH_TIME_SECONDS = 1;
 
   private final ThreadFactory agentWriterThreadFactory =
-      new ThreadFactoryBuilder().setNameFormat("sts-agent-writer-%d").setDaemon(true).build();
+      new ThreadFactory() {
+        @Override
+        public Thread newThread(final Runnable r) {
+          final Thread thread = new Thread(r, "sts-agent-writer");
+          thread.setDaemon(true);
+          return thread;
+        }
+      };
 
   /** Scheduled thread pool, acting like a cron */
   private final ScheduledExecutorService scheduledExecutor =
@@ -89,28 +91,6 @@ public class STSAgentWriter implements Writer {
       return;
     }
     queueFullReported = false;
-  }
-
-  /* (non-Javadoc)
-   * @see stackstate.trace.Writer#writeServices(java.util.List)
-   */
-  @Override
-  public void writeServices(final Map<String, Service> services) {
-
-    final Runnable task =
-        new Runnable() {
-          @Override
-          public void run() {
-            // SEND the payload to the agent
-            log.debug("Async writer about to write {} services", services.size());
-            if (api.sendServices(services)) {
-              log.debug("Async writer just sent  {} services", services.size());
-            } else {
-              log.warn("Failed for Async writer to send {} services", services.size());
-            }
-          }
-        };
-    executor.submit(task);
   }
 
   /* (non-Javadoc)

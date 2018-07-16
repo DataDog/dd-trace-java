@@ -1,15 +1,13 @@
 import com.fasterxml.jackson.databind.JsonNode
 import stackstate.opentracing.STSSpan
 import stackstate.opentracing.STSSpanContext
-import stackstate.opentracing.PendingTrace
 import stackstate.opentracing.STSTracer
-import stackstate.trace.common.Service
-import stackstate.trace.common.sampling.PrioritySampling
+import stackstate.opentracing.PendingTrace
+import stackstate.trace.api.sampling.PrioritySampling
 import stackstate.trace.common.writer.STSAgentWriter
 import stackstate.trace.common.writer.STSApi
 import stackstate.trace.common.writer.ListWriter
 import spock.lang.Specification
-import spock.lang.Unroll
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -51,7 +49,6 @@ class STSApiIntegrationTest {
       return true
     }
 
-    @Unroll
     def "Sending traces succeeds (test #test)"() {
       expect:
       api.sendTraces(traces)
@@ -68,19 +65,6 @@ class STSApiIntegrationTest {
       [[new STSSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4
     }
 
-    def "Sending services succeeds"() {
-      expect:
-      api.sendServices(services)
-      endpoint.get() == null
-      agentResponse.get() == null
-
-      where:
-      services                                                     | _
-      [:]                                                          | _
-      ['app': new Service("name", "appName", Service.AppType.WEB)] | _
-    }
-
-    @Unroll
     def "Sending bad trace fails (test #test)"() {
       expect:
       api.sendTraces(traces) == false

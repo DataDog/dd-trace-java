@@ -2,14 +2,12 @@ package stackstate.trace.agent.integration.classloading
 
 import com.google.common.collect.MapMaker
 import com.google.common.reflect.ClassPath
+import datadog.trace.agent.test.IntegrationTestUtils
 import io.opentracing.util.GlobalTracer
 import spock.lang.Specification
-import spock.lang.Timeout
-import stackstate.trace.agent.test.IntegrationTestUtils
 
 import java.lang.reflect.Field
 
-@Timeout(1)
 class ShadowPackageRenamingTest extends Specification {
   def "agent dependencies renamed"() {
     setup:
@@ -21,7 +19,7 @@ class ShadowPackageRenamingTest extends Specification {
     final String agentGuavaDep =
       stsClass
         .getClassLoader()
-        .loadClass("stackstate.trace.agent.deps.google.common.collect.MapMaker")
+        .loadClass("com.google.common.collect.MapMaker")
         .getProtectionDomain()
         .getCodeSource()
         .getLocation()
@@ -59,7 +57,7 @@ class ShadowPackageRenamingTest extends Specification {
    setup:
    final ClassPath agentClasspath = ClassPath.from(IntegrationTestUtils.getAgentClassLoader())
 
-   final ClassPath bootstrapClasspath = ClassPath.from(IntegrationTestUtils.getBootstrapResourceLocator())
+   final ClassPath bootstrapClasspath = ClassPath.from(IntegrationTestUtils.getBootstrapProxy())
    final Set<String> bootstrapClasses = new HashSet<>()
    final String[] bootstrapPrefixes = IntegrationTestUtils.getBootstrapPackagePrefixes()
    final String[] agentPrefixes = IntegrationTestUtils.getAgentPackagePrefixes()
@@ -101,7 +99,6 @@ class ShadowPackageRenamingTest extends Specification {
    expect:
    duplicateClassFile == []
    badBootstrapPrefixes == []
-    // ListenableFuture is skipped from shadow due to cassandra instrumentation.
-   badAgentPrefixes == ['com.google.common.util.concurrent.ListenableFuture']
+   badAgentPrefixes == []
   }
 }

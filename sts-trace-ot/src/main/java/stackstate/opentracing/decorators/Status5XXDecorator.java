@@ -1,7 +1,7 @@
 package stackstate.opentracing.decorators;
 
-import io.opentracing.tag.Tags;
 import stackstate.opentracing.STSSpanContext;
+import io.opentracing.tag.Tags;
 
 /** Mark all 5xx status codes as an error */
 public class Status5XXDecorator extends AbstractDecorator {
@@ -11,14 +11,11 @@ public class Status5XXDecorator extends AbstractDecorator {
   }
 
   @Override
-  public boolean afterSetTag(final STSSpanContext context, final String tag, final Object value) {
-    if (Tags.HTTP_STATUS.getKey().equals(tag)) {
-      final int responseCode = Integer.parseInt(value.toString());
-      if (500 <= responseCode && responseCode < 600) {
-        context.setTag(Tags.ERROR.getKey(), true);
-        return true;
-      }
+  public boolean shouldSetTag(final STSSpanContext context, final String tag, final Object value) {
+    final int responseCode = Integer.parseInt(value.toString());
+    if (500 <= responseCode && responseCode < 600) {
+      context.setTag(Tags.ERROR.getKey(), true);
     }
-    return false;
+    return true;
   }
 }

@@ -1,18 +1,27 @@
 package stackstate.trace.agent.test;
 
+import static io.opentracing.log.Fields.ERROR_OBJECT;
+
+import datadog.trace.agent.tooling.Utils;
 import io.opentracing.Scope;
+import io.opentracing.Span;
 import io.opentracing.Tracer;
+import io.opentracing.tag.Tags;
 import io.opentracing.util.GlobalTracer;
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.ServerSocket;
 import java.net.URL;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
-import stackstate.trace.agent.tooling.Utils;
 
 public class TestUtils {
 
@@ -56,22 +65,42 @@ public class TestUtils {
     }
   }
 
-  public static <T extends Object> Object runUnderTrace(
-      final String rootOperationName, final Callable<T> r) {
-    final Scope scope = GlobalTracer.get().buildSpan(rootOperationName).startActive(true);
+  public static <T extends Object> Object withSystemProperty(
+      final String name, final String value, final Callable<T> r) {
+    if (value == null) {
+      System.clearProperty(name);
+    } else {
+      System.setProperty(name, value);
+    }
     try {
       return r.call();
     } catch (final Exception e) {
       throw new IllegalStateException(e);
     } finally {
+      System.clearProperty(name);
+    }
+  }
+
+  public static <T extends Object> Object runUnderTrace(
+      final String rootOperationName, final Callable<T> r) throws Exception {
+    final Scope scope = GlobalTracer.get().buildSpan(rootOperationName).startActive(true);
+    try {
+      return r.call();
+    } catch (final Exception e) {
+      final Span span = scope.span();
+      Tags.ERROR.set(span, true);
+      span.log(Collections.singletonMap(ERROR_OBJECT, e));
+
+      throw e;
+    } finally {
       scope.close();
     }
   }
 
-  public static byte[] convertToByteArray(InputStream resource) throws IOException {
-    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+  public static byte[] convertToByteArray(final InputStream resource) throws IOException {
+    final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
     int bytesRead;
-    byte[] data = new byte[1024];
+    final byte[] data = new byte[1024];
     while ((bytesRead = resource.read(data, 0, data.length)) != -1) {
       buffer.write(data, 0, bytesRead);
     }
@@ -79,7 +108,7 @@ public class TestUtils {
     return buffer.toByteArray();
   }
 
-  public static byte[] convertToByteArray(Class<?> clazz) throws IOException {
+  public static byte[] convertToByteArray(final Class<?> clazz) throws IOException {
     InputStream inputStream = null;
     try {
       inputStream =
@@ -164,13 +193,13 @@ public class TestUtils {
 
   /** Open up a random, reusable port. */
   public static int randomOpenPort() {
-    ServerSocket socket;
+    final ServerSocket socket;
     try {
       socket = new ServerSocket(0);
       socket.setReuseAddress(true);
       socket.close();
       return socket.getLocalPort();
-    } catch (IOException ioe) {
+    } catch (final IOException ioe) {
       ioe.printStackTrace();
       return -1;
     }

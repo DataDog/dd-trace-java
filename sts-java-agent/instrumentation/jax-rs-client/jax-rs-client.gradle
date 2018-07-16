@@ -1,23 +1,15 @@
-apply plugin: 'version-scan'
-
-versionScan {
-  group = "javax.ws.rs"
-  module = "jsr311-api"
-  versions = "(,)"
-}
+//apply plugin: 'version-scan'
+//
+//versionScan {
+//  group = "javax.ws.rs"
+//  module = "jsr311-api"
+//  versions = "(,)"
+//}
 
 apply from: "${rootDir}/gradle/java.gradle"
 
-if (JavaVersion.current() != JavaVersion.VERSION_1_8) {
-  sourceSets {
-    test {
-      groovy {
-        // These classes use Ratpack which requires Java 8. (Currently also incompatible with Java 9.)
-        exclude '**/*.groovy'
-      }
-    }
-  }
-}
+// These classes use Ratpack which requires Java 8. (Currently also incompatible with Java 9.)
+testJava8Only += '**/*.class'
 
 dependencies {
   compileOnly group: 'javax.ws.rs', name: 'javax.ws.rs-api', version: '2.1'
@@ -26,7 +18,8 @@ dependencies {
 
   compile deps.bytebuddy
   compile deps.opentracing
-  compile deps.autoservice
+  annotationProcessor deps.autoservice
+  implementation deps.autoservice
 
   compile project(':sts-java-agent:agent-tooling')
 

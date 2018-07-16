@@ -1,5 +1,6 @@
 package stackstate.trace.instrumentation.kafka_streams;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 import static io.opentracing.log.Fields.ERROR_OBJECT;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPackagePrivate;
@@ -7,9 +8,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 
 import com.google.auto.service.AutoService;
+import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -17,50 +20,51 @@ import io.opentracing.propagation.Format;
 import io.opentracing.tag.Tags;
 import io.opentracing.util.GlobalTracer;
 import java.util.Collections;
-import net.bytebuddy.agent.builder.AgentBuilder;
+import java.util.HashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
-import stackstate.trace.agent.tooling.HelperInjector;
-import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.agent.tooling.STSAdvice;
-import stackstate.trace.agent.tooling.STSTransformers;
-import stackstate.trace.api.STSSpanTypes;
-import stackstate.trace.api.STSTags;
 
 public class KafkaStreamsProcessorInstrumentation {
   // These two instrumentations work together to apply StreamTask.process.
   // The combination of these are needed because there's not a good instrumentation point.
 
-  public static final HelperInjector HELPER_INJECTOR =
-      new HelperInjector("stackstate.trace.instrumentation.kafka_streams.TextMapExtractAdapter");
+  public static final String[] HELPER_CLASS_NAMES =
+      new String[] {"datadog.trace.instrumentation.kafka_streams.TextMapExtractAdapter"};
 
   @AutoService(Instrumenter.class)
-  public static class StartInstrumentation extends Instrumenter.Configurable {
+  public static class StartInstrumentation extends Instrumenter.Default {
 
     public StartInstrumentation() {
       super("kafka", "kafka-streams");
     }
 
     @Override
-    public AgentBuilder apply(final AgentBuilder agentBuilder) {
-      return agentBuilder
-          .type(
-              named("org.apache.kafka.streams.processor.internals.PartitionGroup"),
-              classLoaderHasClasses("org.apache.kafka.streams.state.internals.KeyValueIterators"))
-          .transform(HELPER_INJECTOR)
-          .transform(STSTransformers.defaultTransformers())
-          .transform(
-              STSAdvice.create()
-                  .advice(
-                      isMethod()
-                          .and(isPackagePrivate())
-                          .and(named("nextRecord"))
-                          .and(
-                              returns(
-                                  named(
-                                      "org.apache.kafka.streams.processor.internals.StampedRecord"))),
-                      StartSpanAdvice.class.getName()))
-          .asDecorator();
+    public ElementMatcher typeMatcher() {
+      return named("org.apache.kafka.streams.processor.internals.PartitionGroup");
+    }
+
+    @Override
+    public ElementMatcher<? super ClassLoader> classLoaderMatcher() {
+      return classLoaderHasClasses("org.apache.kafka.streams.state.internals.OrderedBytes");
+    }
+
+    @Override
+    public String[] helperClassNames() {
+      return HELPER_CLASS_NAMES;
+    }
+
+    @Override
+    public Map<ElementMatcher, String> transformers() {
+      Map<ElementMatcher, String> transformers = new HashMap<>();
+      transformers.put(
+          isMethod()
+              .and(isPackagePrivate())
+              .and(named("nextRecord"))
+              .and(returns(named("org.apache.kafka.streams.processor.internals.StampedRecord"))),
+          StartSpanAdvice.class.getName());
+      return transformers;
     }
 
     public static class StartSpanAdvice {
@@ -92,31 +96,38 @@ public class KafkaStreamsProcessorInstrumentation {
   }
 
   @AutoService(Instrumenter.class)
-  public static class StopInstrumentation extends Instrumenter.Configurable {
+  public static class StopInstrumentation extends Instrumenter.Default {
 
     public StopInstrumentation() {
       super("kafka", "kafka-streams");
     }
 
     @Override
-    public AgentBuilder apply(final AgentBuilder agentBuilder) {
-      return agentBuilder
-          .type(
-              named("org.apache.kafka.streams.processor.internals.StreamTask"),
-              classLoaderHasClasses(
-                  "org.apache.kafka.common.header.Header",
-                  "org.apache.kafka.common.header.Headers"))
-          .transform(HELPER_INJECTOR)
-          .transform(STSTransformers.defaultTransformers())
-          .transform(
-              STSAdvice.create()
-                  .advice(
-                      isMethod().and(isPublic()).and(named("process")).and(takesArguments(0)),
-                      StartSpanAdvice.class.getName()))
-          .asDecorator();
+    public ElementMatcher typeMatcher() {
+      return named("org.apache.kafka.streams.processor.internals.StreamTask");
     }
 
-    public static class StartSpanAdvice {
+    @Override
+    public ElementMatcher<? super ClassLoader> classLoaderMatcher() {
+      return classLoaderHasClasses(
+          "org.apache.kafka.common.header.Header", "org.apache.kafka.common.header.Headers");
+    }
+
+    @Override
+    public String[] helperClassNames() {
+      return HELPER_CLASS_NAMES;
+    }
+
+    @Override
+    public Map<ElementMatcher, String> transformers() {
+      Map<ElementMatcher, String> transformers = new HashMap<>();
+      transformers.put(
+          isMethod().and(isPublic()).and(named("process")).and(takesArguments(0)),
+          StopSpanAdvice.class.getName());
+      return transformers;
+    }
+
+    public static class StopSpanAdvice {
 
       @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
       public static void stopSpan(@Advice.Thrown final Throwable throwable) {

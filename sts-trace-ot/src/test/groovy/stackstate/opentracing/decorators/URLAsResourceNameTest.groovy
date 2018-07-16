@@ -3,14 +3,12 @@ package stackstate.opentracing.decorators
 import stackstate.opentracing.STSSpanContext
 import stackstate.opentracing.STSTracer
 import stackstate.opentracing.PendingTrace
-import stackstate.trace.common.sampling.PrioritySampling
+import stackstate.trace.api.sampling.PrioritySampling
 import stackstate.trace.common.writer.ListWriter
 import io.opentracing.tag.Tags
 import spock.lang.Specification
 import spock.lang.Subject
-import spock.lang.Timeout
 
-@Timeout(1)
 class URLAsResourceNameTest extends Specification {
   def writer = new ListWriter()
   def tracer = new STSTracer(writer)
@@ -104,7 +102,7 @@ class URLAsResourceNameTest extends Specification {
         tracer)
 
     then:
-    decorator.afterSetTag(context, Tags.HTTP_URL.getKey(), value)
+    decorator.shouldSetTag(context, Tags.HTTP_URL.getKey(), value)
     context.resourceName == resourceName
 
     where:

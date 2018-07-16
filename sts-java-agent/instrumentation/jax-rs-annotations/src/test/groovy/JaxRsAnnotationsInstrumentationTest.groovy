@@ -1,15 +1,16 @@
 import stackstate.opentracing.STSSpanContext
 import io.opentracing.util.GlobalTracer
-import spock.lang.Timeout
-import spock.lang.Unroll
-import stackstate.trace.agent.test.AgentTestRunner
 
-import javax.ws.rs.*
+import javax.ws.rs.DELETE
+import javax.ws.rs.GET
+import javax.ws.rs.HEAD
+import javax.ws.rs.OPTIONS
+import javax.ws.rs.POST
+import javax.ws.rs.PUT
+import javax.ws.rs.Path
 
-@Timeout(1)
 class JaxRsAnnotationsInstrumentationTest extends AgentTestRunner {
 
-  @Unroll
   def "span named '#resourceName' from annotations on class"() {
     setup:
     def scope = GlobalTracer.get().buildSpan("test").startActive(false)

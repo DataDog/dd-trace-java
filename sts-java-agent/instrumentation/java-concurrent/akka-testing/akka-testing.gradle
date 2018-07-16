@@ -1,6 +1,8 @@
 apply from: "${rootDir}/gradle/java.gradle"
 apply plugin: 'scala'
 
+excludedClassesConverage += [ '*' ]
+
 dependencies {
   compile project(':sts-trace-api')
   compile project(':sts-trace-ot')

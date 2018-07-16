@@ -12,6 +12,14 @@ versionScan {
 
 apply from: "${rootDir}/gradle/java.gradle"
 
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
 dependencies {
   compileOnly group: 'redis.clients', name: 'jedis', version: '1.4.0'
 
@@ -19,10 +27,18 @@ dependencies {
 
   compile deps.bytebuddy
   compile deps.opentracing
-  compile deps.autoservice
-  
+  annotationProcessor deps.autoservice
+  implementation deps.autoservice
+
   testCompile project(':sts-java-agent:testing')
   testCompile group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
   testCompile group: 'redis.clients', name: 'jedis', version: '1.4.0'
-  
+
+  latestDepTestCompile group: 'redis.clients', name: 'jedis', version: '+'
+}
+
+configurations.latestDepTestCompile {
+  resolutionStrategy {
+    force group: 'redis.clients', name: 'jedis', version: '+'
+  }
 }

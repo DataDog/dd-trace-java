@@ -1,5 +1,6 @@
 package stackstate.trace.instrumentation.springweb;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClassWithField;
 import static io.opentracing.log.Fields.ERROR_OBJECT;
 import static net.bytebuddy.matcher.ElementMatchers.failSafe;
 import static net.bytebuddy.matcher.ElementMatchers.hasSuperType;
@@ -11,61 +12,77 @@ import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClassWithField;
 
 import com.google.auto.service.AutoService;
+import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.tag.Tags;
 import io.opentracing.util.GlobalTracer;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
-import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.web.servlet.HandlerMapping;
-import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.agent.tooling.STSAdvice;
-import stackstate.trace.agent.tooling.STSTransformers;
-import stackstate.trace.api.STSSpanTypes;
-import stackstate.trace.api.STSTags;
 
 @AutoService(Instrumenter.class)
-public final class SpringWebInstrumentation extends Instrumenter.Configurable {
+public final class SpringWebInstrumentation extends Instrumenter.Default {
 
   public SpringWebInstrumentation() {
     super("spring-web");
   }
 
   @Override
-  public AgentBuilder apply(final AgentBuilder agentBuilder) {
-    return agentBuilder
-        .type(
-            not(isInterface())
-                .and(
-                    failSafe(
-                        hasSuperType(named("org.springframework.web.servlet.HandlerAdapter")))),
-            classLoaderHasClassWithField(
-                "org.springframework.web.servlet.HandlerMapping",
-                "BEST_MATCHING_PATTERN_ATTRIBUTE"))
-        .transform(STSTransformers.defaultTransformers())
-        .transform(
-            STSAdvice.create()
-                .advice(
-                    isMethod()
-                        .and(isPublic())
-                        .and(nameStartsWith("handle"))
-                        .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
-                    SpringWebNamingAdvice.class.getName()))
-        .type(not(isInterface()).and(named("org.springframework.web.servlet.DispatcherServlet")))
-        .transform(
-            STSAdvice.create()
-                .advice(
-                    isMethod()
-                        .and(isProtected())
-                        .and(nameStartsWith("processHandlerException"))
-                        .and(takesArgument(3, Exception.class)),
-                    SpringWebErrorHandlerAdvice.class.getName()))
-        .asDecorator();
+  public ElementMatcher typeMatcher() {
+    return not(isInterface())
+        .and(failSafe(hasSuperType(named("org.springframework.web.servlet.HandlerAdapter"))));
+  }
+
+  @Override
+  public ElementMatcher<? super ClassLoader> classLoaderMatcher() {
+    return classLoaderHasClassWithField(
+        "org.springframework.web.servlet.HandlerMapping", "BEST_MATCHING_PATTERN_ATTRIBUTE");
+  }
+
+  @Override
+  public Map<ElementMatcher, String> transformers() {
+    Map<ElementMatcher, String> transformers = new HashMap<>();
+    transformers.put(
+        isMethod()
+            .and(isPublic())
+            .and(nameStartsWith("handle"))
+            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
+        SpringWebNamingAdvice.class.getName());
+    return transformers;
+  }
+
+  @AutoService(Instrumenter.class)
+  public static class DispatcherServletInstrumentation extends Default {
+
+    public DispatcherServletInstrumentation() {
+      super("spring-web");
+    }
+
+    @Override
+    public ElementMatcher typeMatcher() {
+      return not(isInterface()).and(named("org.springframework.web.servlet.DispatcherServlet"));
+    }
+
+    @Override
+    public Map<ElementMatcher, String> transformers() {
+      Map<ElementMatcher, String> transformers = new HashMap<>();
+      transformers.put(
+          isMethod()
+              .and(isProtected())
+              .and(nameStartsWith("processHandlerException"))
+              .and(takesArgument(3, Exception.class)),
+          SpringWebErrorHandlerAdvice.class.getName());
+      return transformers;
+    }
   }
 
   public static class SpringWebNamingAdvice {

@@ -39,7 +39,7 @@ public class IntegrationTestUtils {
       classloaderField = tracingAgentClass.getDeclaredField("AGENT_CLASSLOADER");
       classloaderField.setAccessible(true);
       return (ClassLoader) classloaderField.get(null);
-    } catch (Exception e) {
+    } catch (final Exception e) {
       throw new IllegalStateException(e);
     } finally {
       if (null != classloaderField) {
@@ -49,9 +49,9 @@ public class IntegrationTestUtils {
   }
 
   /** Returns the URL to the jar the agent appended to the bootstrap classpath * */
-  public static ClassLoader getBootstrapResourceLocator() throws Exception {
+  public static ClassLoader getBootstrapProxy() throws Exception {
     final ClassLoader agentClassLoader = getAgentClassLoader();
-    final Field field = agentClassLoader.getClass().getDeclaredField("bootstrapResourceLocator");
+    final Field field = agentClassLoader.getClass().getDeclaredField("bootstrapProxy");
     try {
       field.setAccessible(true);
       return (ClassLoader) field.get(agentClassLoader);
@@ -70,7 +70,7 @@ public class IntegrationTestUtils {
    * @throws IOException
    */
   public static URL createJarWithClasses(final Class<?>... classes) throws IOException {
-    final File tmpJar = File.createTempFile(UUID.randomUUID().toString() + "", ".jar");
+    final File tmpJar = File.createTempFile(UUID.randomUUID().toString() + "-", ".jar");
     tmpJar.deleteOnExit();
 
     final Manifest manifest = new Manifest();
@@ -141,29 +141,19 @@ public class IntegrationTestUtils {
     return className.replace('.', '/') + ".class";
   }
 
-  public static String[] getBootstrapPackagePrefixes() {
-    try {
-      Field f =
-          getAgentClassLoader()
-              .loadClass("stackstate.trace.agent.tooling.Utils")
-              .getField("BOOTSTRAP_PACKAGE_PREFIXES");
-      return (String[]) f.get(null);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return null;
+  public static String[] getBootstrapPackagePrefixes() throws Exception {
+    final Field f =
+        getAgentClassLoader()
+            .loadClass("stackstate.trace.agent.tooling.Utils")
+            .getField("BOOTSTRAP_PACKAGE_PREFIXES");
+    return (String[]) f.get(null);
   }
 
-  public static String[] getAgentPackagePrefixes() {
-    try {
-      Field f =
-          getAgentClassLoader()
-              .loadClass("stackstate.trace.agent.tooling.Utils")
-              .getField("AGENT_PACKAGE_PREFIXES");
-      return (String[]) f.get(null);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return null;
+  public static String[] getAgentPackagePrefixes() throws Exception {
+    final Field f =
+        getAgentClassLoader()
+            .loadClass("stackstate.trace.agent.tooling.Utils")
+            .getField("AGENT_PACKAGE_PREFIXES");
+    return (String[]) f.get(null);
   }
 }

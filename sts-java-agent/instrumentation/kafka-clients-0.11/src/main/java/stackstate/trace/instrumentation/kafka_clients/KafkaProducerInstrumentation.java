@@ -1,37 +1,37 @@
 package stackstate.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 import static io.opentracing.log.Fields.ERROR_OBJECT;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 
 import com.google.auto.service.AutoService;
+import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.api.STSSpanTypes;
+import stackstate.trace.api.STSTags;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.propagation.Format;
 import io.opentracing.tag.Tags;
 import io.opentracing.util.GlobalTracer;
 import java.util.Collections;
-import net.bytebuddy.agent.builder.AgentBuilder;
+import java.util.HashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import stackstate.trace.agent.tooling.HelperInjector;
-import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.agent.tooling.STSAdvice;
-import stackstate.trace.agent.tooling.STSTransformers;
-import stackstate.trace.api.STSSpanTypes;
-import stackstate.trace.api.STSTags;
 
 @AutoService(Instrumenter.class)
-public final class KafkaProducerInstrumentation extends Instrumenter.Configurable {
-  public static final HelperInjector HELPER_INJECTOR =
-      new HelperInjector(
-          "stackstate.trace.instrumentation.kafka_clients.TextMapInjectAdapter",
-          KafkaProducerInstrumentation.class.getName() + "$ProducerCallback");
+public final class KafkaProducerInstrumentation extends Instrumenter.Default {
+  private static final String[] HELPER_CLASS_NAMES =
+      new String[] {
+        "datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter",
+        KafkaProducerInstrumentation.class.getName() + "$ProducerCallback"
+      };
 
   private static final String OPERATION = "kafka.produce";
   private static final String COMPONENT_NAME = "java-kafka";
@@ -41,26 +41,32 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Configurabl
   }
 
   @Override
-  public AgentBuilder apply(final AgentBuilder agentBuilder) {
-    return agentBuilder
-        .type(
-            named("org.apache.kafka.clients.producer.KafkaProducer"),
-            classLoaderHasClasses(
-                "org.apache.kafka.common.header.Header", "org.apache.kafka.common.header.Headers"))
-        .transform(HELPER_INJECTOR)
-        .transform(STSTransformers.defaultTransformers())
-        .transform(
-            STSAdvice.create()
-                .advice(
-                    isMethod()
-                        .and(isPublic())
-                        .and(named("send"))
-                        .and(
-                            takesArgument(
-                                0, named("org.apache.kafka.clients.producer.ProducerRecord")))
-                        .and(takesArgument(1, named("org.apache.kafka.clients.producer.Callback"))),
-                    ProducerAdvice.class.getName()))
-        .asDecorator();
+  public ElementMatcher typeMatcher() {
+    return named("org.apache.kafka.clients.producer.KafkaProducer");
+  }
+
+  @Override
+  public ElementMatcher<? super ClassLoader> classLoaderMatcher() {
+    return classLoaderHasClasses(
+        "org.apache.kafka.common.header.Header", "org.apache.kafka.common.header.Headers");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return HELPER_CLASS_NAMES;
+  }
+
+  @Override
+  public Map<ElementMatcher, String> transformers() {
+    Map<ElementMatcher, String> transformers = new HashMap<>();
+    transformers.put(
+        isMethod()
+            .and(isPublic())
+            .and(named("send"))
+            .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerRecord")))
+            .and(takesArgument(1, named("org.apache.kafka.clients.producer.Callback"))),
+        ProducerAdvice.class.getName());
+    return transformers;
   }
 
   public static class ProducerAdvice {
@@ -73,7 +79,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Configurabl
       callback = new ProducerCallback(callback, scope);
 
       final Span span = scope.span();
-      final String topic = record.topic() == null ? "unknown" : record.topic();
+      final String topic = record.topic() == null ? "kafka" : record.topic();
       if (record.partition() != null) {
         span.setTag("kafka.partition", record.partition());
       }

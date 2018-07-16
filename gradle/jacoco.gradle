@@ -1,5 +1,9 @@
 apply plugin: "jacoco"
 
+jacoco {
+  toolVersion = "0.8.1"
+}
+
 jacocoTestReport {
   dependsOn test
   reports {
@@ -9,18 +13,34 @@ jacocoTestReport {
   }
 }
 
-project.ext.whitelistedBranchClasses = []
-project.ext.whitelistedInstructionClasses = []
+if (project.parent.hasProperty("excludedClassesConverage")) {
+  project.ext.excludedClassesConverage = parent.excludedClassesConverage
+} else {
+  project.ext.excludedClassesConverage = []
+}
 
-project.ext.minimumBranchCoverage = 0.6
-project.ext.minimumInstructionCoverage = 0.6
+if (project.parent.hasProperty("excludedClassesBranchConverage")) {
+  project.ext.excludedClassesBranchConverage = parent.excludedClassesBranchConverage
+} else {
+  project.ext.excludedClassesBranchConverage = []
+}
+
+if (project.parent.hasProperty("excludedClassesInstructionConverage")) {
+  project.ext.excludedClassesInstructionConverage = parent.excludedClassesInstructionConverage
+} else {
+  project.ext.excludedClassesInstructionConverage = []
+}
+
+// defaults can be overridden per project:
+project.ext.minimumBranchCoverage = 0.9
+project.ext.minimumInstructionCoverage = 0.9
 
 afterEvaluate {
   jacocoTestCoverageVerification {
     violationRules {
       rule {
         element = 'CLASS'
-        excludes = project.whitelistedBranchClasses
+        excludes = project.excludedClassesBranchConverage + project.excludedClassesConverage
         limit {
           counter = 'BRANCH'
           minimum = project.minimumBranchCoverage
@@ -29,7 +49,7 @@ afterEvaluate {
 
       rule {
         element = 'CLASS'
-        excludes = project.whitelistedInstructionClasses
+        excludes = project.excludedClassesInstructionConverage + project.excludedClassesConverage
         limit {
           counter = 'INSTRUCTION'
           minimum = project.minimumInstructionCoverage

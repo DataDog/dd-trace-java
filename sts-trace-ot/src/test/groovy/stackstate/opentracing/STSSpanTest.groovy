@@ -1,16 +1,15 @@
 package stackstate.opentracing
 
-import stackstate.trace.common.sampling.PrioritySampling
+import stackstate.trace.api.sampling.PrioritySampling
+import stackstate.trace.common.sampling.RateByServiceSampler
 import stackstate.trace.common.writer.ListWriter
 import spock.lang.Specification
-import spock.lang.Timeout
 
 import java.util.concurrent.TimeUnit
 
-@Timeout(10)
 class STSSpanTest extends Specification {
   def writer = new ListWriter()
-  def tracer = new STSTracer(writer)
+  def tracer = new STSTracer(STSTracer.UNASSIGNED_DEFAULT_SERVICE_NAME, writer, new RateByServiceSampler())
 
   def "getters and setters"() {
     setup:
@@ -105,6 +104,8 @@ class STSSpanTest extends Specification {
     def total = System.nanoTime() - start
 
     expect:
+    // Generous 5 seconds to execute this test
+    Math.abs(TimeUnit.NANOSECONDS.toSeconds(span.startTime) - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis())) < 5
     span.durationNano > betweenDur
     span.durationNano < total
     span.durationNano % mod > 0 // Very slim chance of a false negative.
@@ -123,6 +124,8 @@ class STSSpanTest extends Specification {
     def total = Math.max(1, System.currentTimeMillis() - start)
 
     expect:
+    // Generous 5 seconds to execute this test
+    Math.abs(TimeUnit.NANOSECONDS.toSeconds(span.startTime) - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis())) < 5
     span.durationNano >= TimeUnit.MILLISECONDS.toNanos(betweenDur)
     span.durationNano <= TimeUnit.MILLISECONDS.toNanos(total)
     span.durationNano % mod == 0 || span.durationNano == 1
@@ -140,6 +143,8 @@ class STSSpanTest extends Specification {
     def total = System.currentTimeMillis() - start + 1
 
     expect:
+    // Generous 5 seconds to execute this test
+    Math.abs(TimeUnit.NANOSECONDS.toSeconds(span.startTime) - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis())) < 5
     span.durationNano >= TimeUnit.MILLISECONDS.toNanos(betweenDur)
     span.durationNano <= TimeUnit.MILLISECONDS.toNanos(total)
     span.durationNano % mod == 0
@@ -152,5 +157,30 @@ class STSSpanTest extends Specification {
 
     expect:
     span.durationNano == 1
+  }
+
+  def "priority sampling metric set only on root span" () {
+    setup:
+    def parent = tracer.buildSpan("testParent").start()
+    def child1 = tracer.buildSpan("testChild1").asChildOf(parent).start()
+
+    child1.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
+    child1.context().lockSamplingPriority()
+    parent.setSamplingPriority(PrioritySampling.SAMPLER_DROP)
+    child1.finish()
+    def child2 = tracer.buildSpan("testChild2").asChildOf(parent).start()
+    child2.finish()
+    parent.finish()
+
+    expect:
+    parent.context().samplingPriority == PrioritySampling.SAMPLER_KEEP
+    parent.getMetrics().get(STSSpanContext.PRIORITY_SAMPLING_KEY) == PrioritySampling.SAMPLER_KEEP
+    parent.getMetrics().get(STSSpanContext.SAMPLE_RATE_KEY) == 1.0
+    child1.getSamplingPriority() == parent.getSamplingPriority()
+    child1.getMetrics().get(STSSpanContext.PRIORITY_SAMPLING_KEY) == null
+    child1.getMetrics().get(STSSpanContext.SAMPLE_RATE_KEY) == null
+    child2.getSamplingPriority() == parent.getSamplingPriority()
+    child2.getMetrics().get(STSSpanContext.PRIORITY_SAMPLING_KEY) == null
+    child2.getMetrics().get(STSSpanContext.SAMPLE_RATE_KEY) == null
   }
 }

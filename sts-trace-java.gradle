@@ -3,21 +3,28 @@ buildscript {
     jcenter()
   }
   dependencies {
-    classpath "io.franzbecker:gradle-lombok:1.8"
-    classpath "org.jfrog.buildinfo:build-info-extractor-gradle:4.4.18"
-    classpath "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3"
-    classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.13"
+    classpath "io.franzbecker:gradle-lombok:1.13"
+    classpath "org.jfrog.buildinfo:build-info-extractor-gradle:4.7.3"
+    classpath "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.1"
+    classpath "net.ltgt.gradle:gradle-errorprone-plugin:0.0.14"
+    classpath 'org.unbroken-dome.gradle-plugins:gradle-testsets-plugin:1.5.0'
   }
 }
 
 plugins {
-  id 'com.gradle.build-scan' version '1.13'
+  id 'com.gradle.build-scan' version '1.14'
   id 'com.github.sherter.google-java-format' version '0.6'
 }
 
+def isCI = System.getenv("CI") != null
+
 allprojects {
   group = 'com.stackstate'
-  version = '0.6.1-SNAPSHOT'
+  version = '0.11.0-SNAPSHOT'
+
+  if (isCI) {
+    buildDir = "${rootDir}/workspace/${projectDir.path.replace(rootDir.path, '')}/build/"
+  }
 
   apply from: "${rootDir}/gradle/dependencies.gradle"
 }
@@ -30,6 +37,7 @@ repositories {
 description = 'sts-trace-java'
 
 task traceAgentTest {}
+task latestDepTest {}
 
 // Applied here to allow publishing of artifactory build info
 apply from: "${rootDir}/gradle/publish.gradle"
@@ -38,14 +46,13 @@ buildScan {
   termsOfServiceUrl = 'https://gradle.com/terms-of-service'
   termsOfServiceAgree = 'yes'
 
-  def isCI = System.getenv("CI") != null
   if (isCI) {
     publishAlways()
     tag 'CI'
   }
 }
 
-ext.gradleWrapperVersion = '4.6'
+ext.gradleWrapperVersion = '4.8.1'
 task wrapper(type: Wrapper) {
   gradleVersion = gradleWrapperVersion
 }

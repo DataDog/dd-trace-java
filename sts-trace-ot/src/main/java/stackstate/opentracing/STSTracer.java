@@ -1,8 +1,23 @@
 package stackstate.opentracing;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import stackstate.opentracing.decorators.AbstractDecorator;
+import stackstate.opentracing.decorators.STSDecoratorsFactory;
+import stackstate.opentracing.propagation.Codec;
+import stackstate.opentracing.propagation.ExtractedContext;
+import stackstate.opentracing.propagation.HTTPCodec;
+import stackstate.opentracing.scopemanager.ContextualScopeManager;
+import stackstate.opentracing.scopemanager.ScopeContext;
+import stackstate.trace.api.CorrelationIdentifier;
+import stackstate.trace.api.interceptor.MutableSpan;
+import stackstate.trace.api.interceptor.TraceInterceptor;
+import stackstate.trace.api.sampling.PrioritySampling;
+import stackstate.trace.common.STSTraceConfig;
+import stackstate.trace.common.sampling.AllSampler;
+import stackstate.trace.common.sampling.RateByServiceSampler;
+import stackstate.trace.common.sampling.Sampler;
+import stackstate.trace.common.writer.STSAgentWriter;
+import stackstate.trace.common.writer.STSApi;
+import stackstate.trace.common.writer.Writer;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
@@ -22,26 +37,8 @@ import java.util.SortedSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.opentracing.decorators.AbstractDecorator;
-import stackstate.opentracing.decorators.STSDecoratorsFactory;
-import stackstate.opentracing.propagation.Codec;
-import stackstate.opentracing.propagation.ExtractedContext;
-import stackstate.opentracing.propagation.HTTPCodec;
-import stackstate.opentracing.scopemanager.ContextualScopeManager;
-import stackstate.opentracing.scopemanager.ScopeContext;
-import stackstate.trace.api.STSTags;
-import stackstate.trace.api.interceptor.MutableSpan;
-import stackstate.trace.api.interceptor.TraceInterceptor;
-import stackstate.trace.common.STSTraceConfig;
-import stackstate.trace.common.Service;
-import stackstate.trace.common.sampling.AllSampler;
-import stackstate.trace.common.sampling.PrioritySampling;
-import stackstate.trace.common.sampling.RateByServiceSampler;
-import stackstate.trace.common.sampling.Sampler;
-import stackstate.trace.common.writer.STSAgentWriter;
-import stackstate.trace.common.writer.STSApi;
-import stackstate.trace.common.writer.Writer;
 
 /** STSTracer makes it easy to send traces and span to STS using the OpenTracing API. */
 @Slf4j
@@ -59,7 +56,7 @@ public class STSTracer implements io.opentracing.Tracer {
   final ContextualScopeManager scopeManager = new ContextualScopeManager();
 
   /** A set of tags that are added to every span */
-  private final Map<String, Object> spanTags;
+  private final Map<String, String> spanTags;
 
   /** Span context decorators */
   private final Map<String, List<AbstractDecorator>> spanContextDecorators =
@@ -74,7 +71,8 @@ public class STSTracer implements io.opentracing.Tracer {
             }
           });
   private final CodecRegistry registry;
-  private final Map<String, Service> services = new HashMap<>();
+
+  private final AtomicInteger traceCount = new AtomicInteger(0);
 
   /** By default, report to local agent and collect all traces. */
   public STSTracer() {
@@ -90,40 +88,67 @@ public class STSTracer implements io.opentracing.Tracer {
         config.getProperty(STSTraceConfig.SERVICE_NAME),
         Writer.Builder.forConfig(config),
         Sampler.Builder.forConfig(config),
-        STSTraceConfig.parseMap(config.getProperty(STSTraceConfig.SPAN_TAGS)));
+        STSTraceConfig.parseMap(config.getProperty(STSTraceConfig.SPAN_TAGS)),
+        STSTraceConfig.parseMap(config.getProperty(STSTraceConfig.SERVICE_MAPPING)),
+        STSTraceConfig.parseMap(config.getProperty(STSTraceConfig.HEADER_TAGS)));
     log.debug("Using config: {}", config);
   }
 
   public STSTracer(final String serviceName, final Writer writer, final Sampler sampler) {
-    this(serviceName, writer, sampler, Collections.<String, Object>emptyMap());
+    this(
+        serviceName,
+        writer,
+        sampler,
+        Collections.<String, String>emptyMap(),
+        Collections.<String, String>emptyMap(),
+        Collections.<String, String>emptyMap());
   }
 
   public STSTracer(
       final String serviceName,
       final Writer writer,
       final Sampler sampler,
-      final Map<String, Object> spanTags) {
+      final Map<String, String> defaultSpanTags,
+      final Map<String, String> serviceNameMappings,
+      final Map<String, String> taggedHeaders) {
     this.serviceName = serviceName;
     this.writer = writer;
     this.writer.start();
     this.sampler = sampler;
-    this.spanTags = spanTags;
+    this.spanTags = defaultSpanTags;
+
+    try {
+      Runtime.getRuntime()
+          .addShutdownHook(
+              new Thread() {
+                @Override
+                public void run() {
+                  DDTracer.this.close();
+                }
+              });
+    } catch (final IllegalStateException ex) {
+      // The JVM is already shutting down.
+    }
 
     registry = new CodecRegistry();
-    registry.register(Format.Builtin.HTTP_HEADERS, new HTTPCodec());
-    registry.register(Format.Builtin.TEXT_MAP, new HTTPCodec());
+    registry.register(Format.Builtin.HTTP_HEADERS, new HTTPCodec(taggedHeaders));
+    registry.register(Format.Builtin.TEXT_MAP, new HTTPCodec(taggedHeaders));
     if (this.writer instanceof STSAgentWriter && sampler instanceof STSApi.ResponseListener) {
       final STSApi api = ((STSAgentWriter) this.writer).getApi();
       api.addResponseListener((STSApi.ResponseListener) this.sampler);
+      api.addTraceCounter(traceCount);
     }
 
     registerClassLoader(ClassLoader.getSystemClassLoader());
 
-    final List<AbstractDecorator> decorators = STSDecoratorsFactory.createBuiltinDecorators();
+    final List<AbstractDecorator> decorators =
+        STSDecoratorsFactory.createBuiltinDecorators(serviceNameMappings);
     for (final AbstractDecorator decorator : decorators) {
       log.debug("Loading decorator: {}", decorator.getClass().getSimpleName());
       addDecorator(decorator);
     }
+
+    CorrelationIdentifier.registerIfAbsent(OTTraceCorrelation.INSTANCE);
 
     log.info("New instance: {}", this);
   }
@@ -133,7 +158,9 @@ public class STSTracer implements io.opentracing.Tracer {
         UNASSIGNED_DEFAULT_SERVICE_NAME,
         writer,
         new AllSampler(),
-        STSTraceConfig.parseMap(new STSTraceConfig().getProperty(STSTraceConfig.SPAN_TAGS)));
+        STSTraceConfig.parseMap(new STSTraceConfig().getProperty(STSTraceConfig.SPAN_TAGS)),
+        STSTraceConfig.parseMap(new STSTraceConfig().getProperty(STSTraceConfig.SERVICE_MAPPING)),
+        STSTraceConfig.parseMap(new STSTraceConfig().getProperty(STSTraceConfig.HEADER_TAGS)));
   }
 
   /**
@@ -214,7 +241,7 @@ public class STSTracer implements io.opentracing.Tracer {
 
     final Codec<T> codec = registry.get(format);
     if (codec == null) {
-      log.warn("Unsupported format for propagation - {}", format.getClass().getName());
+      log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     } else {
       codec.inject((STSSpanContext) spanContext, carrier);
     }
@@ -224,7 +251,7 @@ public class STSTracer implements io.opentracing.Tracer {
   public <T> SpanContext extract(final Format<T> format, final T carrier) {
     final Codec<T> codec = registry.get(format);
     if (codec == null) {
-      log.warn("Unsupported format for propagation - {}", format.getClass().getName());
+      log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     } else {
       return codec.extract(carrier);
     }
@@ -243,25 +270,27 @@ public class STSTracer implements io.opentracing.Tracer {
     }
     final ArrayList<STSSpan> writtenTrace;
     if (interceptors.isEmpty()) {
-      writtenTrace = Lists.newArrayList(trace);
+      writtenTrace = new ArrayList<>(trace);
     } else {
-      Collection<? extends MutableSpan> interceptedTrace = Lists.newArrayList(trace);
+      Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
       for (final TraceInterceptor interceptor : interceptors) {
         interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
       }
-      writtenTrace = Lists.newArrayListWithExpectedSize(interceptedTrace.size());
+      writtenTrace = new ArrayList<>(interceptedTrace.size());
       for (final MutableSpan span : interceptedTrace) {
         if (span instanceof STSSpan) {
           writtenTrace.add((STSSpan) span);
         }
       }
     }
+    traceCount.incrementAndGet();
     if (!writtenTrace.isEmpty() && this.sampler.sample(writtenTrace.get(0))) {
       this.writer.write(writtenTrace);
     }
   }
 
   public void close() {
+    PendingTrace.close();
     writer.close();
   }
 
@@ -278,33 +307,6 @@ public class STSTracer implements io.opentracing.Tracer {
         + ", tags="
         + spanTags
         + '}';
-  }
-
-  /**
-   * Register additional information about a service. Service additional information are a
-   * StackState feature only. Services are reported through a specific StackState endpoint.
-   *
-   * @param service additional service information
-   */
-  public void addServiceInfo(final Service service) {
-    services.put(service.getName(), service);
-    // Update the writer
-    try {
-      // We don't bother to send multiple times the list of services at this time
-      writer.writeServices(services);
-    } catch (final Throwable ex) {
-      log.warn("Failed to report additional service information, reason: {}", ex.getMessage());
-    }
-  }
-
-  /**
-   * Return the list of additional service information registered
-   *
-   * @return the list of additional service information
-   */
-  @JsonIgnore
-  public Map<String, Service> getServiceInfo() {
-    return services;
   }
 
   private static class CodecRegistry {
@@ -329,10 +331,10 @@ public class STSTracer implements io.opentracing.Tracer {
 
     // Builder attributes
     private Map<String, Object> tags =
-        spanTags.isEmpty() ? Collections.<String, Object>emptyMap() : Maps.newHashMap(spanTags);
+        spanTags.isEmpty()
+            ? Collections.<String, Object>emptyMap()
+            : new HashMap<String, Object>(spanTags);
     private long timestampMicro;
-    private ISTSSpanContextPidProvider pidProvider;
-    private ISTSSpanContextHostNameProvider hostNameProvider;
     private SpanContext parent;
     private String serviceName;
     private String resourceName;
@@ -387,15 +389,7 @@ public class STSTracer implements io.opentracing.Tracer {
 
     @Override
     public STSSpanBuilder withTag(final String tag, final String string) {
-      if (tag.equals(STSTags.SERVICE_NAME)) {
-        return withServiceName(string);
-      } else if (tag.equals(STSTags.RESOURCE_NAME)) {
-        return withResourceName(string);
-      } else if (tag.equals(STSTags.SPAN_TYPE)) {
-        return withSpanType(string);
-      } else {
-        return withTag(tag, (Object) string);
-      }
+      return withTag(tag, (Object) string);
     }
 
     @Override
@@ -411,22 +405,6 @@ public class STSTracer implements io.opentracing.Tracer {
 
     public STSSpanBuilder withServiceName(final String serviceName) {
       this.serviceName = serviceName;
-      return this;
-    }
-
-    public STSSpanBuilder withPidProvider(final ISTSSpanContextPidProvider provider) {
-      this.pidProvider = provider;
-      if (this.parent instanceof STSSpanContext) {
-        ((STSSpanContext) this.parent).setPidProvider(provider);
-      }
-      return this;
-    }
-
-    public STSSpanBuilder withHostNameProvider(final ISTSSpanContextHostNameProvider provider) {
-      this.hostNameProvider = provider;
-      if (this.parent instanceof STSSpanContext) {
-        ((STSSpanContext) this.parent).setHostNameProvider(provider);
-      }
       return this;
     }
 
@@ -472,7 +450,7 @@ public class STSTracer implements io.opentracing.Tracer {
     // Private methods
     private STSSpanBuilder withTag(final String tag, final Object value) {
       if (this.tags.isEmpty()) {
-        this.tags = Maps.newHashMap();
+        this.tags = new HashMap<>();
       }
       this.tags.put(tag, value);
       return this;
@@ -512,15 +490,22 @@ public class STSTracer implements io.opentracing.Tracer {
         parentSpanId = stssc.getSpanId();
         baggage = stssc.getBaggageItems();
         parentTrace = stssc.getTrace();
-        samplingPriority = stssc.getSamplingPriority();
+        samplingPriority = PrioritySampling.UNSET;
         if (this.serviceName == null) this.serviceName = stssc.getServiceName();
         if (this.spanType == null) this.spanType = stssc.getSpanType();
+
         // Propagate external trace
       } else if (parentContext instanceof ExtractedContext) {
         final ExtractedContext stssc = (ExtractedContext) parentContext;
         traceId = stssc.getTraceId();
         parentSpanId = stssc.getSpanId();
         baggage = stssc.getBaggage();
+        if (this.tags.isEmpty() && !stssc.getTags().isEmpty()) {
+          this.tags = new HashMap<>();
+        }
+        if (!stssc.getTags().isEmpty()) {
+          tags.putAll(ddsc.getTags());
+        }
         parentTrace = new PendingTrace(STSTracer.this, traceId);
         samplingPriority = stssc.getSamplingPriority();
 
@@ -557,12 +542,34 @@ public class STSTracer implements io.opentracing.Tracer {
               parentTrace,
               STSTracer.this);
 
-      if (this.pidProvider != null) {
-        context.setPidProvider(this.pidProvider);
-      }
+      // Apply Decorators to handle any tags that may have been set via the builder.
+      for (final Map.Entry<String, Object> tag : this.tags.entrySet()) {
+        if (tag.getValue() == null) {
+          context.setTag(tag.getKey(), null);
+          continue;
+        }
 
-      if (this.hostNameProvider != null) {
-        context.setHostNameProvider(this.hostNameProvider);
+        boolean addTag = true;
+
+        // Call decorators
+        final List<AbstractDecorator> decorators =
+            STSTracer.this.getSpanContextDecorators(tag.getKey());
+        if (decorators != null) {
+          for (final AbstractDecorator decorator : decorators) {
+            try {
+              addTag &= decorator.shouldSetTag(context, tag.getKey(), tag.getValue());
+            } catch (final Throwable ex) {
+              log.debug(
+                  "Could not decorate the span decorator={}: {}",
+                  decorator.getClass().getSimpleName(),
+                  ex.getMessage());
+            }
+          }
+        }
+
+        if (!addTag) {
+          context.setTag(tag.getKey(), null);
+        }
       }
 
       return context;

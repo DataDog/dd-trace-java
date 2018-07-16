@@ -1,10 +1,12 @@
 package stackstate.trace.agent.tooling;
 
+import static stackstate.trace.agent.tooling.ClassLoaderMatcher.skipClassLoader;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.nameContains;
 import static net.bytebuddy.matcher.ElementMatchers.nameMatches;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
-import static stackstate.trace.agent.tooling.ClassLoaderMatcher.skipClassLoader;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import java.lang.instrument.Instrumentation;
 import java.util.ServiceLoader;
@@ -42,12 +44,19 @@ public class AgentInstaller {
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
             .with(new LoggingListener())
             .with(new STSLocationStrategy())
-            .ignore(nameStartsWith("stackstate.trace."))
+            .ignore(any(), skipClassLoader())
+            .or(nameStartsWith("stackstate.trace."))
             .or(nameStartsWith("stackstate.opentracing."))
             .or(nameStartsWith("stackstate.slf4j."))
-            .or(nameStartsWith("java."))
+            .or(
+                nameStartsWith("java.")
+                    .and(
+                        not(
+                            named("java.net.URL")
+                                .or(named("java.net.HttpURLConnection"))
+                                .or(nameStartsWith("java.util.concurrent.")))))
             .or(nameStartsWith("com.sun."))
-            .or(nameStartsWith("sun."))
+            .or(nameStartsWith("sun.").and(not(nameStartsWith("sun.net.www.protocol."))))
             .or(nameStartsWith("jdk."))
             .or(nameStartsWith("org.aspectj."))
             .or(nameStartsWith("org.groovy."))
@@ -55,8 +64,7 @@ public class AgentInstaller {
             .or(nameStartsWith("org.slf4j."))
             .or(nameContains("javassist"))
             .or(nameContains(".asm."))
-            .or(nameMatches("com\\.mchange\\.v2\\.c3p0\\..*Proxy"))
-            .ignore(any(), skipClassLoader());
+            .or(nameMatches("com\\.mchange\\.v2\\.c3p0\\..*Proxy"));
     for (final AgentBuilder.Listener listener : listeners) {
       agentBuilder = agentBuilder.with(listener);
     }
@@ -81,7 +89,11 @@ public class AgentInstaller {
         final JavaModule module,
         final boolean loaded,
         final Throwable throwable) {
-      log.debug("Failed to handle {} for transformation: {}", typeName, throwable.getMessage());
+      log.debug(
+          "Failed to handle {} for transformation on classloader {}: {}",
+          typeName,
+          classLoader,
+          throwable.getMessage());
     }
 
     @Override

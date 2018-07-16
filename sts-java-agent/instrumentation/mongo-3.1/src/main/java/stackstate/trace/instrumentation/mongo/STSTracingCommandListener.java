@@ -77,7 +77,7 @@ public class STSTracingCommandListener implements CommandListener {
     try {
       decorate(span, event);
     } catch (final Throwable e) {
-      log.warn("Couldn't decorate the mongo query: " + e.getMessage(), e);
+      log.debug("Couldn't decorate the mongo query: " + e.getMessage(), e);
     }
 
     return span;

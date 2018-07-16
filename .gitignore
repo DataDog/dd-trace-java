@@ -2,7 +2,6 @@
 #########
 target
 /target
-**/target/
 **/dependency-reduced-pom.xml
 
 # Gradle #
@@ -49,10 +48,8 @@ out/
 /logs/*
 /bin
 /out
-*/out
-sts-java-agent/instrumentation/*/out
+/workspace
 sts-java-agent/benchmark-integration/perf-test-settings.rc
-examples/*/out
 derby.log
 
 !sts-java-agent/benchmark/releases/*.jar

@@ -1,9 +1,10 @@
 package stackstate.opentracing.decorators;
 
+import stackstate.opentracing.STSSpanContext;
 import io.opentracing.tag.Tags;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import stackstate.opentracing.STSSpanContext;
 
 /**
  * This span decorator is a simple mapping to override the operation DB tags. The operation name of
@@ -11,18 +12,19 @@ import stackstate.opentracing.STSSpanContext;
  */
 public class OperationDecorator extends AbstractDecorator {
 
-  static final Map<String, String> MAPPINGS =
-      new HashMap<String, String>() {
-        {
-          // Component name <> Operation name
-          put("apache-httpclient", "apache.http");
-          put("java-aws-sdk", "aws.http");
-          // FIXME: JMS ops card is low (jms-send or jms-receive), may be this mapping is useless
-          put("java-jms", "jms");
-          put("okhttp", "okhttp.http");
-          // Cassandra, Mongo, JDBC are set via DBTypeDecorator
-        }
-      };
+  static final Map<String, String> MAPPINGS;
+
+  static {
+    final Map<String, String> mappings = new HashMap<>();
+    // Component name <> Operation name
+    mappings.put("apache-httpclient", "apache.http");
+    mappings.put("java-aws-sdk", "aws.http");
+    // FIXME: JMS ops card is low (jms-send or jms-receive), may be this mapping is useless
+    mappings.put("java-jms", "jms");
+    mappings.put("okhttp", "okhttp.http");
+    // Cassandra, Mongo, JDBC are set via DBTypeDecorator
+    MAPPINGS = Collections.unmodifiableMap(mappings);
+  }
 
   public OperationDecorator() {
     super();
@@ -30,12 +32,10 @@ public class OperationDecorator extends AbstractDecorator {
   }
 
   @Override
-  public boolean afterSetTag(final STSSpanContext context, final String tag, final Object value) {
-
+  public boolean shouldSetTag(final STSSpanContext context, final String tag, final Object value) {
     if (MAPPINGS.containsKey(String.valueOf(value))) {
       context.setOperationName(MAPPINGS.get(String.valueOf(value)));
-      return true;
     }
-    return false;
+    return true;
   }
 }

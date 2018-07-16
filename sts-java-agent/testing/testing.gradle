@@ -1,5 +1,13 @@
 apply from: "${rootDir}/gradle/java.gradle"
 
+minimumBranchCoverage = 0.5
+minimumInstructionCoverage = 0.6
+excludedClassesConverage += [
+  'stackstate.trace.agent.test.*Assert',
+  'stackstate.trace.agent.test.AgentTestRunner.ErrorCountingListener',
+  'stackstate.trace.agent.test.TestUtils'
+]
+
 dependencies {
   compile deps.bytebuddy
   compile deps.bytebuddyagent
@@ -7,9 +15,15 @@ dependencies {
   compile deps.opentracing
   compile deps.spock
   compile deps.testLogging
+  compile deps.guava
 
   compile project(':sts-trace-ot')
   compile project(':sts-java-agent:agent-tooling')
+
+  annotationProcessor deps.autoservice
+  implementation deps.autoservice
+
+  compile deps.groovy
 
   // test instrumenting java 1.1 bytecode
   testCompile group: 'net.sf.jt400', name: 'jt400', version: '6.1'

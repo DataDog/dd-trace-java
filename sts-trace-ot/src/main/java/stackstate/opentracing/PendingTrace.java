@@ -1,11 +1,14 @@
 package stackstate.opentracing;
 
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import stackstate.opentracing.scopemanager.ContinuableScope;
+import stackstate.trace.common.util.Clock;
+import java.io.Closeable;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
+import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -13,22 +16,33 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
-import stackstate.opentracing.scopemanager.ContinuableScope;
 
 @Slf4j
 public class PendingTrace extends ConcurrentLinkedDeque<STSSpan> {
+  private static final SpanCleaner SPAN_CLEANER;
+
   static {
-    SpanCleaner.start();
+    SPAN_CLEANER = new SpanCleaner();
+    SPAN_CLEANER.start();
   }
 
   private final STSTracer tracer;
   private final long traceId;
 
+  // TODO: consider moving these time fields into STSTracer to ensure that traces have precise relative time
+  /** Trace start time in nano seconds measured up to a millisecond accuracy */
+  private final long startTimeNano;
+  /** Nano second ticks value at trace start */
+  private final long startNanoTicks;
+
   private final ReferenceQueue referenceQueue = new ReferenceQueue();
-  private final Set<WeakReference<?>> weakReferences = Sets.newConcurrentHashSet();
+  private final Set<WeakReference<?>> weakReferences =
+      Collections.newSetFromMap(new ConcurrentHashMap<WeakReference<?>, Boolean>());
 
   private final AtomicInteger pendingReferenceCount = new AtomicInteger(0);
+  private final AtomicReference<WeakReference<DDSpan>> rootSpan = new AtomicReference<>();
 
   /** Ensure a trace is never written multiple times */
   private final AtomicBoolean isWritten = new AtomicBoolean(false);
@@ -36,14 +50,33 @@ public class PendingTrace extends ConcurrentLinkedDeque<STSSpan> {
   PendingTrace(final STSTracer tracer, final long traceId) {
     this.tracer = tracer;
     this.traceId = traceId;
-    SpanCleaner.pendingTraces.add(this);
+
+    this.startTimeNano = Clock.currentNanoTime();
+    this.startNanoTicks = Clock.currentNanoTicks();
+
+    SPAN_CLEANER.pendingTraces.add(this);
+  }
+
+  /**
+   * Current timestamp in nanoseconds.
+   *
+   * <p>Note: it is not possible to get 'real' nanosecond time. This method uses trace start time
+   * (which has millisecond precision) as a reference and it gets time with nanosecond precision
+   * after that. This means time measured within same Trace in different Spans is relatively correct
+   * with nanosecond precision.
+   *
+   * @return timestamp in nanoseconds
+   */
+  public long getCurrentTimeNano() {
+    return startTimeNano + Math.max(0, Clock.currentNanoTicks() - startNanoTicks);
   }
 
   public void registerSpan(final STSSpan span) {
     if (span.context().getTraceId() != traceId) {
-      log.warn("{} - span registered for wrong trace ({})", span, traceId);
+      log.debug("{} - span registered for wrong trace ({})", span, traceId);
       return;
     }
+    rootSpan.compareAndSet(null, new WeakReference<STSSpan>(span));
     synchronized (span) {
       if (null == span.ref) {
         span.ref = new WeakReference<STSSpan>(span, referenceQueue);
@@ -58,7 +91,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<STSSpan> {
 
   private void expireSpan(final STSSpan span) {
     if (span.context().getTraceId() != traceId) {
-      log.warn("{} - span expired for wrong trace ({})", span, traceId);
+      log.debug("{} - span expired for wrong trace ({})", span, traceId);
       return;
     }
     synchronized (span) {
@@ -75,20 +108,25 @@ public class PendingTrace extends ConcurrentLinkedDeque<STSSpan> {
 
   public void addSpan(final STSSpan span) {
     if (span.getDurationNano() == 0) {
-      log.warn("{} - added to trace, but not complete.", span);
+      log.debug("{} - added to trace, but not complete.", span);
       return;
     }
     if (traceId != span.getTraceId()) {
-      log.warn("{} - added to a mismatched trace.", span);
+      log.debug("{} - added to a mismatched trace.", span);
       return;
     }
 
     if (!isWritten.get()) {
       addFirst(span);
-      expireSpan(span);
     } else {
-      log.warn("{} - finished after trace reported.", span);
+      log.debug("{} - finished after trace reported.", span);
     }
+    expireSpan(span);
+  }
+
+  public STSSpan getRootSpan() {
+    WeakReference<STSSpan> rootRef = rootSpan.get();
+    return rootRef == null ? null : rootRef.get();
   }
 
   /**
@@ -133,7 +171,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<STSSpan> {
 
   private void write() {
     if (isWritten.compareAndSet(false, true)) {
-      SpanCleaner.pendingTraces.remove(this);
+      SPAN_CLEANER.pendingTraces.remove(this);
       if (!isEmpty()) {
         log.debug("Writing {} spans to {}.", this.size(), tracer.writer);
         tracer.write(this);
@@ -169,24 +207,58 @@ public class PendingTrace extends ConcurrentLinkedDeque<STSSpan> {
     }
   }
 
-  private static class SpanCleaner implements Runnable {
+  static void close() {
+    SPAN_CLEANER.close();
+  }
+
+  private static class SpanCleaner implements Runnable, Closeable {
     private static final long CLEAN_FREQUENCY = 1;
     private static final ThreadFactory FACTORY =
-        new ThreadFactoryBuilder().setNameFormat("sts-span-cleaner-%d").setDaemon(true).build();
+        new ThreadFactory() {
+          @Override
+          public Thread newThread(final Runnable r) {
+            final Thread thread = new Thread(r, "sts-span-cleaner");
+            thread.setDaemon(true);
+            return thread;
+          }
+        };
 
-    private static final ScheduledExecutorService EXECUTOR_SERVICE =
+    private final ScheduledExecutorService executorService =
         Executors.newScheduledThreadPool(1, FACTORY);
 
-    static final Set<PendingTrace> pendingTraces = Sets.newConcurrentHashSet();
+    private final Set<PendingTrace> pendingTraces =
+        Collections.newSetFromMap(new ConcurrentHashMap<PendingTrace, Boolean>());
 
-    static void start() {
-      EXECUTOR_SERVICE.scheduleAtFixedRate(new SpanCleaner(), 0, CLEAN_FREQUENCY, TimeUnit.SECONDS);
+    void start() {
+      executorService.scheduleAtFixedRate(new SpanCleaner(), 0, CLEAN_FREQUENCY, TimeUnit.SECONDS);
+      try {
+        Runtime.getRuntime()
+            .addShutdownHook(
+                new Thread() {
+                  @Override
+                  public void run() {
+                    PendingTrace.SpanCleaner.this.close();
+                  }
+                });
+      } catch (final IllegalStateException ex) {
+        // The JVM is already shutting down.
+      }
     }
 
     @Override
     public void run() {
       for (final PendingTrace trace : pendingTraces) {
         trace.clean();
+      }
+    }
+
+    @Override
+    public void close() {
+      executorService.shutdownNow();
+      try {
+        executorService.awaitTermination(500, TimeUnit.MILLISECONDS);
+      } catch (final InterruptedException e) {
+        log.info("Writer properly closed and async writer interrupted.");
       }
     }
   }

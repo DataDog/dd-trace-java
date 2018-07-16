@@ -1,20 +1,13 @@
 plugins {
-  id "com.github.johnrengelman.shadow" version "2.0.3"
+  id "com.github.johnrengelman.shadow" version "2.0.4"
 }
 
 description = 'sts-java-agent'
 
 apply from: "${rootDir}/gradle/java.gradle"
 apply from: "${rootDir}/gradle/publish.gradle"
-apply from: "${rootDir}/gradle/jacoco.gradle"
-jacocoTestReport.dependsOn ':sts-java-agent-ittests:test'
 
-whitelistedInstructionClasses += whitelistedBranchClasses += [
-  'stackstate.agent.*',
-  'stackstate.agent.decorators.*',
-  'io.opentracing.contrib.*',
-  'stackstate.opentracing.contrib.*',
-]
+jacocoTestReport.dependsOn ':sts-java-agent-ittests:test'
 
 /*
  * Include subproject's shadowJar in the sts-java-agent jar.
@@ -39,7 +32,7 @@ def includeShadowJar(subproject, jarname) {
       mergeServiceFiles()
 
       dependencies {
-        exclude(dependency('org.projectlombok:lombok:1.16.20'))
+        exclude(dependency("org.projectlombok:lombok:$versions.lombok"))
       }
 
       // Prevents conflict with other SLF4J instances. Important for premain.
@@ -48,20 +41,9 @@ def includeShadowJar(subproject, jarname) {
       relocate 'java.util.logging.Logger', 'stackstate.trace.bootstrap.PatchLogger'
 
       if (!project.hasProperty("disableShadowRelocate") || !disableShadowRelocate) {
+        // shadow OT impl to prevent casts to implementation
         relocate 'stackstate.trace.common', 'stackstate.trace.agent.common'
         relocate 'stackstate.opentracing', 'stackstate.trace.agent.ot'
-
-        relocate 'io.opentracing.contrib', 'stackstate.trace.agent.opentracing.contrib'
-
-        relocate 'org.yaml', 'stackstate.trace.agent.deps.yaml'
-        relocate 'org.msgpack', 'stackstate.trace.agent.deps.msgpack'
-        relocate 'com.fasterxml', 'stackstate.trace.agent.deps.fasterxml'
-
-        relocate 'net.bytebuddy', 'stackstate.trace.agent.deps.bytebuddy'
-        relocate('com.google', 'stackstate.trace.agent.deps.google') {
-          // This is used in the Cassandra Cluster.connectAsync signature so we can't relocate it. :fingers_crossed:
-          exclude 'com.google.common.util.concurrent.ListenableFuture'
-        }
       }
     }
   }
@@ -91,7 +73,7 @@ shadowJar {
   mergeServiceFiles()
 
   dependencies {
-    exclude(dependency('org.projectlombok:lombok:1.16.20'))
+    exclude(dependency("org.projectlombok:lombok:$versions.lombok"))
   }
 }
 

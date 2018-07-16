@@ -4,14 +4,17 @@ import stackstate.opentracing.STSSpan
 import stackstate.trace.api.STSTags
 import io.opentracing.tag.Tags
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper
-import spock.lang.Timeout
-import stackstate.trace.agent.test.AgentTestRunner
 
-@Timeout(15)
 class CassandraClientTest extends AgentTestRunner {
 
   def setupSpec() {
-    EmbeddedCassandraServerHelper.startEmbeddedCassandra(40000L)
+    /*
+     This timeout seems excessive but we've seen tests fail with timeout of 40s.
+     TODO: if we continue to see failures we may want to consider using 'real' Cassandra
+     started in container like we do for memcached. Note: this will complicate things because
+     tests would have to assume they run under shared Cassandra and act accordingly.
+      */
+    EmbeddedCassandraServerHelper.startEmbeddedCassandra(120000L)
   }
 
   def cleanupSpec() {
@@ -33,7 +36,7 @@ class CassandraClientTest extends AgentTestRunner {
     def query = "SELECT * FROM sync_test.users where name = 'alice' ALLOW FILTERING"
 
     expect:
-    session.getClass().getName().endsWith("contrib.cassandra.TracingSession")
+    session.getClass().getName().endsWith("cassandra.TracingSession")
     TEST_WRITER.size() == 5
     final STSSpan selectTrace = TEST_WRITER.get(TEST_WRITER.size() - 1).get(0)
 
@@ -72,7 +75,7 @@ class CassandraClientTest extends AgentTestRunner {
     def query = "SELECT * FROM async_test.users where name = 'alice' ALLOW FILTERING"
 
     expect:
-    session.getClass().getName().endsWith("contrib.cassandra.TracingSession")
+    session.getClass().getName().endsWith("cassandra.TracingSession")
     final STSSpan selectTrace = TEST_WRITER.get(TEST_WRITER.size() - 1).get(0)
 
     selectTrace.getServiceName() == "cassandra"

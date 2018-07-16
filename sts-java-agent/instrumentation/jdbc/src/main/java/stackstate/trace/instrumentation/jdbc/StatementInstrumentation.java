@@ -1,7 +1,6 @@
 package stackstate.trace.instrumentation.jdbc;
 
 import static io.opentracing.log.Fields.ERROR_OBJECT;
-import static net.bytebuddy.matcher.ElementMatchers.failSafe;
 import static net.bytebuddy.matcher.ElementMatchers.isInterface;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.isSubTypeOf;
@@ -10,40 +9,43 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import stackstate.trace.agent.tooling.Instrumenter;
+import stackstate.trace.api.STSTags;
+import stackstate.trace.bootstrap.CallDepthThreadLocalMap;
+import stackstate.trace.bootstrap.JDBCMaps;
 import io.opentracing.Scope;
 import io.opentracing.Span;
-import io.opentracing.noop.NoopScopeManager;
+import io.opentracing.noop.NoopScopeManager.NoopScope;
 import io.opentracing.tag.Tags;
 import io.opentracing.util.GlobalTracer;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collections;
-import net.bytebuddy.agent.builder.AgentBuilder;
+import java.util.HashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
-import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.agent.tooling.STSAdvice;
-import stackstate.trace.agent.tooling.STSTransformers;
-import stackstate.trace.api.STSTags;
-import stackstate.trace.bootstrap.JDBCMaps;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public final class StatementInstrumentation extends Instrumenter.Configurable {
+public final class StatementInstrumentation extends Instrumenter.Default {
 
   public StatementInstrumentation() {
     super("jdbc");
   }
 
   @Override
-  public AgentBuilder apply(final AgentBuilder agentBuilder) {
-    return agentBuilder
-        .type(not(isInterface()).and(failSafe(isSubTypeOf(Statement.class))))
-        .transform(STSTransformers.defaultTransformers())
-        .transform(
-            STSAdvice.create()
-                .advice(
-                    nameStartsWith("execute").and(takesArgument(0, String.class)).and(isPublic()),
-                    StatementAdvice.class.getName()))
-        .asDecorator();
+  public ElementMatcher typeMatcher() {
+    return not(isInterface()).and(isSubTypeOf(Statement.class));
+  }
+
+  @Override
+  public Map<ElementMatcher, String> transformers() {
+    Map<ElementMatcher, String> transformers = new HashMap<>();
+    transformers.put(
+        nameStartsWith("execute").and(takesArgument(0, String.class)).and(isPublic()),
+        StatementAdvice.class.getName());
+    return transformers;
   }
 
   public static class StatementAdvice {
@@ -51,24 +53,60 @@ public final class StatementInstrumentation extends Instrumenter.Configurable {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static Scope startSpan(
         @Advice.Argument(0) final String sql, @Advice.This final Statement statement) {
-      final Connection connection;
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
+      if (callDepth > 0) {
+        return null;
+      }
+      Connection connection;
       try {
         connection = statement.getConnection();
+        if (connection.isWrapperFor(Connection.class)) {
+          // unwrap the connection to cache the underlying actual connection and to not cache proxy objects
+          connection = connection.unwrap(Connection.class);
+        }
       } catch (final Throwable e) {
         // Had some problem getting the connection.
-        return NoopScopeManager.NoopScope.INSTANCE;
+        return NoopScope.INSTANCE;
       }
 
       JDBCMaps.DBInfo dbInfo = JDBCMaps.connectionInfo.get(connection);
-      if (dbInfo == null) {
-        dbInfo = JDBCMaps.DBInfo.UNKNOWN;
+      /**
+       * Logic to get the DBInfo from a JDBC Connection, if the connection was never seen before,
+       * the connectionInfo map will return null and will attempt to extract DBInfo from the
+       * connection. If the DBInfo can't be extracted, then the connection will be stored with the
+       * DEFAULT DBInfo as the value in the connectionInfo map to avoid retry overhead.
+       *
+       * <p>This should be a util method to be shared between PreparedStatementInstrumentation and
+       * StatementInstrumentation class, but java.sql.* are on the platform classloaders in Java 9,
+       * which prevents us from referencing them in the bootstrap utils.
+       */
+      {
+        if (dbInfo == null) {
+          try {
+            final String url = connection.getMetaData().getURL();
+            if (url != null) {
+              // Remove end of url to prevent passwords from leaking:
+              final String sanitizedURL = url.replaceAll("[?;].*", "");
+              final String type = url.split(":", -1)[1];
+              String user = connection.getMetaData().getUserName();
+              if (user != null && user.trim().equals("")) {
+                user = null;
+              }
+              dbInfo = new JDBCMaps.DBInfo(sanitizedURL, type, user);
+            } else {
+              dbInfo = JDBCMaps.DBInfo.DEFAULT;
+            }
+          } catch (SQLException se) {
+            dbInfo = JDBCMaps.DBInfo.DEFAULT;
+          }
+          JDBCMaps.connectionInfo.put(connection, dbInfo);
+        }
       }
 
       final Scope scope =
           GlobalTracer.get().buildSpan(dbInfo.getType() + ".query").startActive(true);
 
       final Span span = scope.span();
-
       Tags.DB_TYPE.set(span, dbInfo.getType());
       Tags.SPAN_KIND.set(span, Tags.SPAN_KIND_CLIENT);
       Tags.COMPONENT.set(span, "java-jdbc-statement");
@@ -88,12 +126,15 @@ public final class StatementInstrumentation extends Instrumenter.Configurable {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Enter final Scope scope, @Advice.Thrown final Throwable throwable) {
-      if (throwable != null) {
-        final Span span = scope.span();
-        Tags.ERROR.set(span, true);
-        span.log(Collections.singletonMap(ERROR_OBJECT, throwable));
+      if (scope != null) {
+        if (throwable != null) {
+          final Span span = scope.span();
+          Tags.ERROR.set(span, true);
+          span.log(Collections.singletonMap(ERROR_OBJECT, throwable));
+        }
+        scope.close();
+        CallDepthThreadLocalMap.reset(Statement.class);
       }
-      scope.close();
     }
   }
 }

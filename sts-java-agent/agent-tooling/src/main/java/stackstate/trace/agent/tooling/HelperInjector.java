@@ -76,12 +76,17 @@ public class HelperInjector implements Transformer {
                 }
               }
             }
+            log.debug("Injecting classes onto classloader {} -> {}", classLoader, helperClassNames);
             if (classLoader == BOOTSTRAP_CLASSLOADER) {
-              ClassInjector.UsingInstrumentation.of(
-                      new File(System.getProperty("java.io.tmpdir")),
-                      ClassInjector.UsingInstrumentation.Target.BOOTSTRAP,
-                      AgentInstaller.getInstrumentation())
-                  .inject(helperMap);
+              final Map<TypeDescription, Class<?>> injected =
+                  ClassInjector.UsingInstrumentation.of(
+                          new File(System.getProperty("java.io.tmpdir")),
+                          ClassInjector.UsingInstrumentation.Target.BOOTSTRAP,
+                          AgentInstaller.getInstrumentation())
+                      .inject(helperMap);
+              for (final TypeDescription desc : injected.keySet()) {
+                Class.forName(desc.getName(), false, Utils.getBootstrapProxy());
+              }
             } else {
               new ClassInjector.UsingReflection(classLoader).inject(helperMap);
             }

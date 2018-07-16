@@ -1,53 +1,60 @@
 package stackstate.trace.instrumentation.apachehttpclient;
 
+import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 
 import com.google.auto.service.AutoService;
+import stackstate.trace.agent.tooling.Instrumenter;
 import io.opentracing.util.GlobalTracer;
-import net.bytebuddy.agent.builder.AgentBuilder;
+import java.util.HashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
 import org.apache.http.impl.execchain.ClientExecChain;
-import stackstate.trace.agent.tooling.HelperInjector;
-import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.agent.tooling.STSAdvice;
-import stackstate.trace.agent.tooling.STSTransformers;
 
 @AutoService(Instrumenter.class)
-public class ApacheHttpClientInstrumentation extends Instrumenter.Configurable {
+public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
 
   public ApacheHttpClientInstrumentation() {
     super("httpclient");
   }
 
   @Override
-  public AgentBuilder apply(final AgentBuilder agentBuilder) {
-    return agentBuilder
-        .type(
-            named("org.apache.http.impl.client.HttpClientBuilder"),
-            classLoaderHasClasses(
-                "org.apache.http.HttpException",
-                "org.apache.http.HttpRequest",
-                "org.apache.http.client.RedirectStrategy",
-                "org.apache.http.client.methods.CloseableHttpResponse",
-                "org.apache.http.client.methods.HttpExecutionAware",
-                "org.apache.http.client.methods.HttpRequestWrapper",
-                "org.apache.http.client.protocol.HttpClientContext",
-                "org.apache.http.conn.routing.HttpRoute",
-                "org.apache.http.impl.execchain.ClientExecChain"))
-        .transform(
-            new HelperInjector(
-                "stackstate.trace.instrumentation.apachehttpclient.STSTracingClientExec",
-                "stackstate.trace.instrumentation.apachehttpclient.STSTracingClientExec$HttpHeadersInjectAdapter"))
-        .transform(STSTransformers.defaultTransformers())
-        .transform(
-            STSAdvice.create()
-                .advice(
-                    isMethod().and(named("decorateProtocolExec")),
-                    ApacheHttpClientAdvice.class.getName()))
-        .asDecorator();
+  public ElementMatcher<? super TypeDescription> typeMatcher() {
+    return named("org.apache.http.impl.client.HttpClientBuilder");
+  }
+
+  @Override
+  public ElementMatcher<? super ClassLoader> classLoaderMatcher() {
+    return classLoaderHasClasses(
+        "org.apache.http.HttpException",
+        "org.apache.http.HttpRequest",
+        "org.apache.http.client.RedirectStrategy",
+        "org.apache.http.client.methods.CloseableHttpResponse",
+        "org.apache.http.client.methods.HttpExecutionAware",
+        "org.apache.http.client.methods.HttpRequestWrapper",
+        "org.apache.http.client.protocol.HttpClientContext",
+        "org.apache.http.conn.routing.HttpRoute",
+        "org.apache.http.impl.execchain.ClientExecChain");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      "stackstate.trace.instrumentation.apachehttpclient.STSTracingClientExec",
+      "stackstate.trace.instrumentation.apachehttpclient.STSTracingClientExec$HttpHeadersInjectAdapter"
+    };
+  }
+
+  @Override
+  public Map<ElementMatcher, String> transformers() {
+    Map<ElementMatcher, String> transformers = new HashMap<>();
+    transformers.put(
+        isMethod().and(named("decorateProtocolExec")), ApacheHttpClientAdvice.class.getName());
+    return transformers;
   }
 
   public static class ApacheHttpClientAdvice {

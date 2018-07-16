@@ -2,12 +2,10 @@ package stackstate.trace.api.writer
 
 import stackstate.trace.common.writer.WriterQueue
 import spock.lang.Specification
-import spock.lang.Timeout
 
 import java.util.concurrent.Phaser
 import java.util.concurrent.atomic.AtomicInteger
 
-@Timeout(5)
 class WriterQueueTest extends Specification {
 
   def "instantiate a empty queue throws an exception"() {

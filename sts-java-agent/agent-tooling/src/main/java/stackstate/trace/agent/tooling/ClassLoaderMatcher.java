@@ -31,7 +31,7 @@ public class ClassLoaderMatcher {
   }
 
   public static ElementMatcher.Junction.AbstractBase<ClassLoader> classLoaderHasClassWithMethod(
-      final String className, final String methodName, final Class... methodArgs) {
+      final String className, final String methodName, final String... methodArgs) {
     return new ClassLoaderHasClassWithMethodMatcher(className, methodName, methodArgs);
   }
 
@@ -142,16 +142,14 @@ public class ClassLoaderMatcher {
           if (cache.containsKey(target)) {
             return cache.get(target);
           }
-          try {
-            for (final String name : names) {
-              Class.forName(name, false, target);
+          for (final String name : names) {
+            if (target.getResource(Utils.getResourceName(name)) == null) {
+              cache.put(target, false);
+              return false;
             }
-            cache.put(target, true);
-            return true;
-          } catch (final ClassNotFoundException e) {
-            cache.put(target, false);
-            return false;
           }
+          cache.put(target, true);
+          return true;
         }
       }
       return false;
@@ -205,10 +203,10 @@ public class ClassLoaderMatcher {
 
     private final String className;
     private final String methodName;
-    private final Class[] methodArgs;
+    private final String[] methodArgs;
 
     private ClassLoaderHasClassWithMethodMatcher(
-        final String className, final String methodName, final Class... methodArgs) {
+        final String className, final String methodName, final String... methodArgs) {
       this.className = className;
       this.methodName = methodName;
       this.methodArgs = methodArgs;
@@ -223,10 +221,14 @@ public class ClassLoaderMatcher {
           }
           try {
             final Class<?> aClass = Class.forName(className, false, target);
+            final Class[] methodArgsClasses = new Class[methodArgs.length];
+            for (int i = 0; i < methodArgs.length; ++i) {
+              methodArgsClasses[i] = target.loadClass(methodArgs[i]);
+            }
             if (aClass.isInterface()) {
-              aClass.getMethod(methodName, methodArgs);
+              aClass.getMethod(methodName, methodArgsClasses);
             } else {
-              aClass.getDeclaredMethod(methodName, methodArgs);
+              aClass.getDeclaredMethod(methodName, methodArgsClasses);
             }
             cache.put(target, true);
             return true;

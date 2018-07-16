@@ -181,7 +181,9 @@ class VersionScanPlugin implements Plugin<Project> {
         }
       }
 
-//      println "Scanning ${includeVersionSet.size()} included and ${excludeVersionSet.size()} excluded versions.  Included: ${includeVersionSet.collect { it.version }}}"
+//      println "Scanning ${includeVersionSet.size()} included and ${excludeVersionSet.size()} excluded versions."
+//      println "Included: ${includeVersionSet.collect { it.version }}}"
+//      println "Excluded: ${excludeVersionSet.collect { it.version }}}"
 
       includeVersionSet.each { version ->
         addScanTask("Include", new DefaultArtifact(version.groupId, version.artifactId, "jar", version.version), keyPresent, allInclude, project)
@@ -239,6 +241,7 @@ class VersionScanPlugin implements Plugin<Project> {
     list.removeIf {
       def version = it.toString().toLowerCase()
       return version.contains("rc") ||
+        version.contains(".cr") ||
         version.contains("alpha") ||
         version.contains("beta") ||
         version.contains("-b") ||

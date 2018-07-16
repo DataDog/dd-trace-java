@@ -1,60 +1,70 @@
 package stackstate.trace.instrumentation.okhttp3;
 
-import static io.opentracing.contrib.okhttp3.OkHttpClientSpanDecorator.STANDARD_TAGS;
+import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
+import static stackstate.trace.instrumentation.okhttp3.OkHttpClientSpanDecorator.STANDARD_TAGS;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static stackstate.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasClasses;
 
 import com.google.auto.service.AutoService;
-import io.opentracing.contrib.okhttp3.TracingInterceptor;
+import datadog.trace.agent.tooling.Instrumenter;
 import io.opentracing.util.GlobalTracer;
 import java.util.Collections;
-import net.bytebuddy.agent.builder.AgentBuilder;
+import java.util.HashMap;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
-import stackstate.trace.agent.tooling.HelperInjector;
-import stackstate.trace.agent.tooling.Instrumenter;
-import stackstate.trace.agent.tooling.STSAdvice;
-import stackstate.trace.agent.tooling.STSTransformers;
 
 @AutoService(Instrumenter.class)
-public class OkHttp3Instrumentation extends Instrumenter.Configurable {
+public class OkHttp3Instrumentation extends Instrumenter.Default {
 
   public OkHttp3Instrumentation() {
     super("okhttp", "okhttp-3");
   }
 
   @Override
-  public AgentBuilder apply(final AgentBuilder agentBuilder) {
-    return agentBuilder
-        .type(
-            named("okhttp3.OkHttpClient"),
-            classLoaderHasClasses(
-                "okhttp3.Request",
-                "okhttp3.Response",
-                "okhttp3.Connection",
-                "okhttp3.Cookie",
-                "okhttp3.ConnectionPool",
-                "okhttp3.Headers"))
-        .transform(
-            new HelperInjector(
-                "io.opentracing.contrib.okhttp3.OkHttpClientSpanDecorator",
-                "io.opentracing.contrib.okhttp3.OkHttpClientSpanDecorator$1",
-                "io.opentracing.contrib.okhttp3.TagWrapper",
-                "io.opentracing.contrib.okhttp3.TracingInterceptor",
-                "io.opentracing.contrib.okhttp3.RequestBuilderInjectAdapter",
-                "io.opentracing.contrib.okhttp3.TracingCallFactory",
-                "io.opentracing.contrib.okhttp3.TracingCallFactory$NetworkInterceptor",
-                "io.opentracing.contrib.okhttp3.TracingCallFactory$1"))
-        .transform(STSTransformers.defaultTransformers())
-        .transform(
-            STSAdvice.create()
-                .advice(
-                    isConstructor().and(takesArgument(0, named("okhttp3.OkHttpClient$Builder"))),
-                    OkHttp3Advice.class.getName()))
-        .asDecorator();
+  public ElementMatcher typeMatcher() {
+    return named("okhttp3.OkHttpClient");
+  }
+
+  @Override
+  public ElementMatcher<? super ClassLoader> classLoaderMatcher() {
+    return classLoaderHasClasses(
+        "okhttp3.Request",
+        "okhttp3.Response",
+        "okhttp3.Connection",
+        "okhttp3.Cookie",
+        "okhttp3.ConnectionPool",
+        "okhttp3.Headers");
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      "datadog.trace.instrumentation.okhttp3.OkHttpClientSpanDecorator",
+      "datadog.trace.instrumentation.okhttp3.OkHttpClientSpanDecorator$1",
+      "datadog.trace.instrumentation.okhttp3.RequestBuilderInjectAdapter",
+      "datadog.trace.instrumentation.okhttp3.TagWrapper",
+      "datadog.trace.instrumentation.okhttp3.TracedCallable",
+      "datadog.trace.instrumentation.okhttp3.TracedExecutor",
+      "datadog.trace.instrumentation.okhttp3.TracedExecutorService",
+      "datadog.trace.instrumentation.okhttp3.TracedRunnable",
+      "datadog.trace.instrumentation.okhttp3.TracingInterceptor",
+      "datadog.trace.instrumentation.okhttp3.TracingCallFactory",
+      "datadog.trace.instrumentation.okhttp3.TracingCallFactory$NetworkInterceptor",
+      "datadog.trace.instrumentation.okhttp3.TracingCallFactory$1"
+    };
+  }
+
+  @Override
+  public Map<ElementMatcher, String> transformers() {
+    Map<ElementMatcher, String> transformers = new HashMap<>();
+    transformers.put(
+        isConstructor().and(takesArgument(0, named("okhttp3.OkHttpClient$Builder"))),
+        OkHttp3Advice.class.getName());
+    return transformers;
   }
 
   public static class OkHttp3Advice {

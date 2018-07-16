@@ -4,15 +4,8 @@ import okhttp3.Request
 import play.api.test.TestServer
 import play.test.Helpers
 import spock.lang.Shared
-import stackstate.trace.agent.test.AgentTestRunner
-import stackstate.trace.agent.test.TestUtils
 
 class Play24Test extends AgentTestRunner {
-  static {
-    System.setProperty("sts.integration.java_concurrent.enabled", "true")
-    System.setProperty("sts.integration.play.enabled", "true")
-  }
-
   @Shared
   int port = TestUtils.randomOpenPort()
   @Shared
@@ -25,11 +18,6 @@ class Play24Test extends AgentTestRunner {
 
   def cleanupSpec() {
     testServer.stop()
-  }
-
-  @Override
-  void afterTest() {
-    // Ignore failures to instrument sun proxy classes
   }
 
   def "request traces" () {
@@ -58,7 +46,7 @@ class Play24Test extends AgentTestRunner {
     root.traceId == 123
     root.parentId == 456
     root.serviceName == "unnamed-java-app"
-    root.operationName == "/helloplay/:from"
+    root.operationName == "play.request"
     root.resourceName == "GET /helloplay/:from"
     !root.context().getErrorFlag()
     root.context().tags["http.status_code"] == 200
@@ -85,7 +73,7 @@ class Play24Test extends AgentTestRunner {
     response.code() == 500
 
     root.serviceName == "unnamed-java-app"
-    root.operationName == "/make-error"
+    root.operationName == "play.request"
     root.resourceName == "GET /make-error"
     root.context().getErrorFlag()
     root.context().tags["http.status_code"] == 500
@@ -116,7 +104,7 @@ class Play24Test extends AgentTestRunner {
     root.context().tags["error.type"] == RuntimeException.getName()
 
     root.serviceName == "unnamed-java-app"
-    root.operationName == "/exception"
+    root.operationName == "play.request"
     root.resourceName == "GET /exception"
     root.context().tags["http.status_code"] == 500
     root.context().tags["http.url"] == "/exception"
