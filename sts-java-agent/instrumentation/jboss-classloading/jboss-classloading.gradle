@@ -1,0 +1,11 @@
+apply from: "${rootDir}/gradle/java.gradle"
+
+dependencies {
+  compile project(':sts-java-agent:agent-tooling')
+  compile deps.bytebuddy
+  annotationProcessor deps.autoservice
+  implementation deps.autoservice
+
+  testCompile group: 'org.jboss.modules', name: 'jboss-modules', version: '1.3.10.Final'
+  testCompile project(':sts-java-agent:testing')
+}

@@ -1,0 +1,52 @@
+apply plugin: 'version-scan'
+
+versionScan {
+  group = "javax.servlet"
+  module = 'javax.servlet-api'
+  legacyModule = "servlet-api"
+  versions = "[3.0,)"
+  verifyPresent = [
+    "javax.servlet.AsyncEvent"   : null,
+    "javax.servlet.AsyncListener": null,
+  ]
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
+
+  compile project(':sts-trace-ot')
+  compile project(':sts-java-agent:agent-tooling')
+
+  compile deps.bytebuddy
+  compile deps.opentracing
+  annotationProcessor deps.autoservice
+  implementation deps.autoservice
+
+  testCompile project(':sts-java-agent:testing')
+  testCompile project(':sts-java-agent:instrumentation:jetty-8') // See if there's any conflicts.
+  testCompile group: 'org.eclipse.jetty', name: 'jetty-server', version: '8.2.0.v20160908'
+  testCompile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '8.2.0.v20160908'
+  testCompile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '8.0.41'
+  testCompile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '8.0.41'
+
+  testCompile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
+}
+
+configurations.latestDepTestCompile {
+  resolutionStrategy {
+    force group: 'org.eclipse.jetty', name: 'jetty-server', version: '+'
+    force group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '+'
+    force group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '+'
+    force group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper', version: '+'
+  }
+}

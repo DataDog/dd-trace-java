@@ -1,0 +1,8 @@
+apply from: "${rootDir}/gradle/java.gradle"
+apply from: "${rootDir}/gradle/publish.gradle"
+
+description = 'sts-trace-api'
+dependencies {
+  compile deps.slf4j
+  testCompile deps.junit
+}

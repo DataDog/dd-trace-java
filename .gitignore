@@ -49,7 +49,7 @@ out/
 /bin
 /out
 /workspace
-dd-java-agent/benchmark-integration/perf-test-settings.rc
+sts-java-agent/benchmark-integration/perf-test-settings.rc
 derby.log
 
-!dd-java-agent/benchmark/releases/*.jar
+!sts-java-agent/benchmark/releases/*.jar
