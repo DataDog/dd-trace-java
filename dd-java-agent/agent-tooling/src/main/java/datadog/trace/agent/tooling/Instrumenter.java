@@ -101,20 +101,20 @@ public interface Instrumenter {
                         if (mismatches.size() > 0) {
                           if (log.isDebugEnabled()) {
                             log.debug(
-                              "Instrumentation muzzled: {} -- {} on {}",
-                              instrumentationPrimaryName,
-                              this.getClass().getName(),
-                              classLoader);
+                                "Instrumentation muzzled: {} -- {} on {}",
+                                instrumentationPrimaryName,
+                                this.getClass().getName(),
+                                classLoader);
                             for (Reference.Mismatch mismatch : mismatches) {
                               log.debug("-- {}", mismatch);
                             }
                           }
                         } else {
                           log.debug(
-                            "Applying instrumentation: {} -- {} on {}",
-                            instrumentationPrimaryName,
-                            this.getClass().getName(),
-                            classLoader);
+                              "Applying instrumentation: {} -- {} on {}",
+                              instrumentationPrimaryName,
+                              this.getClass().getName(),
+                              classLoader);
                         }
                         return mismatches.size() == 0;
                       }
