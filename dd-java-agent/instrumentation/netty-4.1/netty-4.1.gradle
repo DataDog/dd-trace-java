@@ -36,6 +36,12 @@ dependencies {
   testCompile group: 'org.eclipse.jetty', name: 'jetty-server', version: '8.2.0.v20160908'
   testCompile group: 'org.asynchttpclient', name: 'async-http-client', version: '2.0.31'
   // async-http-client:2.0.32+ would require netty:4.1.9.Final
+
+  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '2.0.0.RELEASE'
+  testCompile group: 'org.spockframework', name: 'spock-spring', version: '1.1-groovy-2.4'
+  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.0.0.RELEASE'
+  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.0.0.RELEASE'
+
 }
 
 // We need to force the dependency to the earliest supported version because other libraries declare newer versions.
@@ -54,7 +60,11 @@ configurations.latestDepTestCompile {
   resolutionStrategy {
     force group: 'io.netty', name: 'netty-all', version: '+'
     force group: 'org.asynchttpclient', name: 'async-http-client', version: '+'
+    force group: 'org.springframework.boot', name: 'spring-boot-starter-webflux', version: '+'
+    force group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '+'
+    force group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '+'
   }
 }
 
 testJava8Only += '**/*Test.class'
+testJava8Only += '**/*TestApplication.class'
