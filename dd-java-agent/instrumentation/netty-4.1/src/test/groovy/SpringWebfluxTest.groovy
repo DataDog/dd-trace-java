@@ -30,10 +30,7 @@ class SpringWebfluxTest extends AgentTestRunner {
   ConfigurableApplicationContext context
 
   @Shared
-  String randomServerPort = -1
-
-  @Shared
-  String baseUrl = "http://localhost:"
+  String port
 
   OkHttpClient client = OkHttpUtils.client()
 
@@ -44,15 +41,14 @@ class SpringWebfluxTest extends AgentTestRunner {
     ])
     app.setWebApplicationType(WebApplicationType.REACTIVE)
     context = app.run("")
-    randomServerPort = context.getEnvironment().getProperty("local.server.port")
-    baseUrl += randomServerPort
-    println("Server running at " + baseUrl)
+    port = context.getEnvironment().getProperty("local.server.port")
+    println("Server running at " + "http://localhost:$port")
   }
 
   @Unroll
   def "Basic GET test #testName"() {
     setup:
-    String url = baseUrl + "/greet" + urlSuffix
+    String url = "http://localhost:$port/greet$urlSuffix"
     def request = new Request.Builder().url(url).get().build()
 
     when:
@@ -64,6 +60,7 @@ class SpringWebfluxTest extends AgentTestRunner {
     assertTraces(TEST_WRITER, 1) {
       trace(0, 1) {
         span(0) {
+          resourceName "GET /greet$urlSuffix"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           tags {
@@ -89,7 +86,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "404 GET test"() {
     setup:
-    String url = baseUrl + "/notfoundgreet"
+    String url = "http://localhost:$port/notfoundgreet"
     def request = new Request.Builder().url(url).get().build()
 
     when:
@@ -100,6 +97,7 @@ class SpringWebfluxTest extends AgentTestRunner {
     assertTraces(TEST_WRITER, 1) {
       trace(0, 1) {
         span(0) {
+          resourceName "404"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           tags {
@@ -121,7 +119,7 @@ class SpringWebfluxTest extends AgentTestRunner {
   def "Basic POST test"() {
     setup:
     String echoString = "TEST"
-    String url = "http://localhost:$randomServerPort/echo"
+    String url = "http://localhost:$port/echo"
     RequestBody body = RequestBody.create(PLAIN_TYPE, echoString)
     def request = new Request.Builder().url(url).post(body).build()
 
@@ -134,6 +132,7 @@ class SpringWebfluxTest extends AgentTestRunner {
     assertTraces(TEST_WRITER, 1) {
       trace(0, 1) {
         span(0) {
+          resourceName "POST /echo"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           tags {
@@ -156,7 +155,7 @@ class SpringWebfluxTest extends AgentTestRunner {
     setup:
     String echoString = "TEST"
     RequestBody body = RequestBody.create(PLAIN_TYPE, echoString)
-    String url = "http://localhost:$randomServerPort/fail-echo"
+    String url = "http://localhost:$port/fail-echo"
     def request = new Request.Builder().url(url).post(body).build()
 
     when:
@@ -167,6 +166,7 @@ class SpringWebfluxTest extends AgentTestRunner {
     assertTraces(TEST_WRITER, 1) {
       trace(0, 1) {
         span(0) {
+          resourceName "POST /fail-echo"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           errored true
@@ -192,7 +192,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
   def "Redirect test"() {
     setup:
-    String url = baseUrl + "/double-greet-redirect"
+    String url = "http://localhost:$port/double-greet-redirect"
     def request = new Request.Builder().url(url).get().build()
 
     when:
@@ -203,6 +203,7 @@ class SpringWebfluxTest extends AgentTestRunner {
     assertTraces(TEST_WRITER, 2) {
       trace(0, 1) {
         span(0) {
+          resourceName "GET /double-greet-redirect"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           tags {
@@ -220,6 +221,7 @@ class SpringWebfluxTest extends AgentTestRunner {
       }
       trace(1, 1) {
         span(0) {
+          resourceName "GET /double-greet"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           tags {
@@ -230,7 +232,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.PEER_PORT.key" Integer
             "$Tags.HTTP_METHOD.key" "GET"
             "$Tags.HTTP_STATUS.key" 200
-            "$Tags.HTTP_URL.key" baseUrl + "/double-greet"
+            "$Tags.HTTP_URL.key" "http://localhost:$port/double-greet"
             defaultTags()
           }
         }
@@ -238,15 +240,15 @@ class SpringWebfluxTest extends AgentTestRunner {
     }
   }
 
-  def "Flux GET test"() {
+  @Unroll
+  def "Flux x#count GET test"() {
     setup:
-    def count = 10
-    String[] expectedJsonStringArr = SpringWebFluxTestApplication.GreetingHandler.createGreetJsonStringArr(10)
+    String[] expectedJsonStringArr = SpringWebFluxTestApplication.GreetingHandler.createGreetJsonStringArr(count)
     String expectedResponseBodyStr = ""
     for (int i = 0; i < count; ++i) {
       expectedResponseBodyStr += expectedJsonStringArr[i]
     }
-    String url = baseUrl + "/greet-counter/$count"
+    String url = "http://localhost:$port/greet-counter/$count"
     def request = new Request.Builder().url(url).get().build()
 
     when:
@@ -274,5 +276,12 @@ class SpringWebfluxTest extends AgentTestRunner {
         }
       }
     }
+
+    where:
+    count | _
+    0 | _
+    1 | _
+    10 | _
+
   }
 }
