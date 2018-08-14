@@ -116,6 +116,38 @@ class SpringWebfluxTest extends AgentTestRunner {
     }
   }
 
+  def "2 params GET test"() {
+    setup:
+    String url = "http://localhost:$port/greet/a/a"
+    def request = new Request.Builder().url(url).get().build()
+
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code == 200
+    assertTraces(TEST_WRITER, 1) {
+      trace(0, 1) {
+        span(0) {
+          resourceName "GET /greet/a/a"
+          operationName "netty.request"
+          spanType DDSpanTypes.HTTP_SERVER
+          tags {
+            "$Tags.COMPONENT.key" "netty"
+            "$Tags.SPAN_KIND.key" Tags.SPAN_KIND_SERVER
+            "$DDTags.SPAN_TYPE" DDSpanTypes.HTTP_SERVER
+            "$Tags.PEER_HOSTNAME.key" "localhost"
+            "$Tags.PEER_PORT.key" Integer
+            "$Tags.HTTP_METHOD.key" "GET"
+            "$Tags.HTTP_STATUS.key" 200
+            "$Tags.HTTP_URL.key" url
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
   def "Basic POST test"() {
     setup:
     String echoString = "TEST"

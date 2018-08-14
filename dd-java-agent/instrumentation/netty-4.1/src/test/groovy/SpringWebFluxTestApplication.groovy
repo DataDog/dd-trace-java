@@ -74,6 +74,11 @@ class SpringWebFluxTestApplication {
       Mono<ServerResponse> handle(ServerRequest request) {
         return greetingHandler.customGreet(request)
       }
+    }).andRoute(GET("/greet/{name}/{word}"), new HandlerFunction<ServerResponse>() {
+      @Override
+      Mono<ServerResponse> handle(ServerRequest request) {
+        return greetingHandler.customGreetWithWord(request)
+      }
     }).andRoute(GET("/double-greet"), new HandlerFunction<ServerResponse>() {
       @Override
       Mono<ServerResponse> handle(ServerRequest request) {
@@ -124,6 +129,11 @@ class SpringWebFluxTestApplication {
     Mono<ServerResponse> customGreet(ServerRequest request) {
       return ServerResponse.ok().contentType(MediaType.TEXT_PLAIN)
         .body(BodyInserters.fromObject(DEFAULT_RESPONSE + " " + request.pathVariable("name")))
+    }
+
+    Mono<ServerResponse> customGreetWithWord(ServerRequest request) {
+      return ServerResponse.ok().contentType(MediaType.TEXT_PLAIN)
+        .body(BodyInserters.fromObject(DEFAULT_RESPONSE + " " + request.pathVariable("name") + " " + request.pathVariable("word")))
     }
 
     Mono<ServerResponse> counterGreet(ServerRequest request) {
