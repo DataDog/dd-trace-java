@@ -37,6 +37,10 @@ public class ReferenceMatcher {
     this.helperClassNames = new HashSet<>(Arrays.asList(helperClassNames));
   }
 
+  public Reference[] getReferences() {
+    return references;
+  }
+
   /**
    * @param loader Classloader to validate against (or null for bootstrap)
    * @return true if all references match the classpath of loader
