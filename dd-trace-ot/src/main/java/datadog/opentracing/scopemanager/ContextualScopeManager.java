@@ -4,9 +4,13 @@ import datadog.opentracing.DDSpan;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.LoggerFactory;
+
 import java.util.Deque;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
+@Slf4j
 public class ContextualScopeManager implements ScopeManager {
   static final ThreadLocal<Scope> tlsScope = new ThreadLocal<>();
   final Deque<ScopeContext> scopeContexts = new ConcurrentLinkedDeque<>();
@@ -28,6 +32,7 @@ public class ContextualScopeManager implements ScopeManager {
   @Override
   public Scope active() {
     for (final ScopeContext csm : scopeContexts) {
+
       if (csm.inContext()) {
         return csm.active();
       }
