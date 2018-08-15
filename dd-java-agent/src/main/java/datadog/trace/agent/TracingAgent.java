@@ -31,6 +31,9 @@ import java.util.jar.JarFile;
 
 /** Entry point for initializing the agent. */
 public class TracingAgent {
+
+  public static final String AGENT_BOOTSTRAP_PATH_ENV_VAR_NAME = "DD_AGENT_BOOTSTRAP_PATH";
+
   private static ClassLoader AGENT_CLASSLOADER = null;
 
   public static void premain(final String agentArgs, final Instrumentation inst) throws Exception {
@@ -46,12 +49,12 @@ public class TracingAgent {
       throws Exception {
     if (null == AGENT_CLASSLOADER) {
       final File toolingJar =
-          extractToTmpFile(
+          getBootstrapFile(
               TracingAgent.class.getClassLoader(),
               "agent-tooling-and-instrumentation.jar.zip",
               "agent-tooling-and-instrumentation.jar");
       final File bootstrapJar =
-          extractToTmpFile(
+          getBootstrapFile(
               TracingAgent.class.getClassLoader(),
               "agent-bootstrap.jar.zip",
               "agent-bootstrap.jar");
@@ -113,6 +116,22 @@ public class TracingAgent {
     return (ClassLoader)
         constructor.newInstance(
             bootstrapJar.toURI().toURL(), toolingJar.toURI().toURL(), agentParent);
+  }
+
+  /**
+   * Get the nominated file to bootstrap the agent, could be extracted from the current classloader,
+   * or from a local filesystem if specified
+   */
+  private static File getBootstrapFile(
+      final ClassLoader loader, final String sourcePath, final String destName) throws Exception {
+    final File localBootstrapFile =
+        new File(System.getenv().get(AGENT_BOOTSTRAP_PATH_ENV_VAR_NAME), destName);
+    if (System.getenv().get(AGENT_BOOTSTRAP_PATH_ENV_VAR_NAME) != null
+        && localBootstrapFile.exists()) {
+      return localBootstrapFile;
+    } else {
+      return extractToTmpFile(loader, sourcePath, destName);
+    }
   }
 
   /** Extract sourcePath out of loader to a temporary file named destName. */
