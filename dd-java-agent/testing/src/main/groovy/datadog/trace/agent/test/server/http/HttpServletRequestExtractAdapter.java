@@ -1,32 +1,29 @@
 package datadog.trace.agent.test.server.http;
 
+import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.Multimap;
 import io.opentracing.propagation.TextMap;
-import java.util.AbstractMap;
-import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import javax.servlet.http.HttpServletRequest;
 
 /**
  * Tracer extract adapter for {@link HttpServletRequest}.
  *
- * @author Pavol Loffay
+ * <p>FIXME: we have 4 copies of this class now - we should really make this a utility or something
  */
 public class HttpServletRequestExtractAdapter implements TextMap {
 
-  private final Map<String, List<String>> headers;
+  private final Multimap<String, String> headers;
 
   public HttpServletRequestExtractAdapter(final HttpServletRequest httpServletRequest) {
-    headers = servletHeadersToMultiMap(httpServletRequest);
+    headers = servletHeadersToMultimap(httpServletRequest);
   }
 
   @Override
   public Iterator<Map.Entry<String, String>> iterator() {
-    return new MultivaluedMapFlatIterator<>(headers.entrySet());
+    return headers.entries().iterator();
   }
 
   @Override
@@ -34,62 +31,20 @@ public class HttpServletRequestExtractAdapter implements TextMap {
     throw new UnsupportedOperationException("This class should be used only with Tracer.inject()!");
   }
 
-  protected Map<String, List<String>> servletHeadersToMultiMap(
+  protected ImmutableMultimap<String, String> servletHeadersToMultimap(
       final HttpServletRequest httpServletRequest) {
-    final Map<String, List<String>> headersResult = new HashMap<>();
+    final ImmutableMultimap.Builder<String, String> builder = new ImmutableMultimap.Builder<>();
 
-    final Enumeration<?> headerNamesIt = httpServletRequest.getHeaderNames();
+    final Enumeration<String> headerNamesIt = httpServletRequest.getHeaderNames();
     while (headerNamesIt.hasMoreElements()) {
-      final String headerName = headerNamesIt.nextElement().toString();
+      final String headerName = headerNamesIt.nextElement();
 
-      final Enumeration<?> valuesIt = httpServletRequest.getHeaders(headerName);
-      final List<String> valuesList = new ArrayList<>(1);
+      final Enumeration<String> valuesIt = httpServletRequest.getHeaders(headerName);
       while (valuesIt.hasMoreElements()) {
-        valuesList.add(valuesIt.nextElement().toString());
-      }
-
-      headersResult.put(headerName, valuesList);
-    }
-
-    return headersResult;
-  }
-
-  public static final class MultivaluedMapFlatIterator<K, V> implements Iterator<Map.Entry<K, V>> {
-
-    private final Iterator<Map.Entry<K, List<V>>> mapIterator;
-    private Map.Entry<K, List<V>> mapEntry;
-    private Iterator<V> listIterator;
-
-    public MultivaluedMapFlatIterator(final Set<Map.Entry<K, List<V>>> multiValuesEntrySet) {
-      mapIterator = multiValuesEntrySet.iterator();
-    }
-
-    @Override
-    public boolean hasNext() {
-      if (listIterator != null && listIterator.hasNext()) {
-        return true;
-      }
-
-      return mapIterator.hasNext();
-    }
-
-    @Override
-    public Map.Entry<K, V> next() {
-      if (mapEntry == null || (!listIterator.hasNext() && mapIterator.hasNext())) {
-        mapEntry = mapIterator.next();
-        listIterator = mapEntry.getValue().iterator();
-      }
-
-      if (listIterator.hasNext()) {
-        return new AbstractMap.SimpleImmutableEntry<>(mapEntry.getKey(), listIterator.next());
-      } else {
-        return new AbstractMap.SimpleImmutableEntry<>(mapEntry.getKey(), null);
+        builder.put(headerName, valuesIt.nextElement());
       }
     }
 
-    @Override
-    public void remove() {
-      throw new UnsupportedOperationException();
-    }
+    return builder.build();
   }
 }
