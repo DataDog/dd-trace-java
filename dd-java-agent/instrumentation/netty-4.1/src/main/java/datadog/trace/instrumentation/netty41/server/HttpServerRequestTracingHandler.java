@@ -15,6 +15,8 @@ import io.opentracing.SpanContext;
 import io.opentracing.propagation.Format;
 import io.opentracing.tag.Tags;
 import io.opentracing.util.GlobalTracer;
+import org.slf4j.LoggerFactory;
+
 import java.net.InetSocketAddress;
 import java.util.Collections;
 
@@ -65,6 +67,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       span.finish(); // Finish the span manually since finishSpanOnClose was false
       throw throwable;
     } finally {
+      LoggerFactory.getLogger(HttpServerResponseTracingHandler.class).warn("CLOSING NETTY SCOPE REQUESTTRACING HANDLER");
       scope.close();
     }
   }

@@ -8,6 +8,8 @@ import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpResponse;
 import io.opentracing.Span;
 import io.opentracing.tag.Tags;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collections;
 
 public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdapter {
@@ -32,6 +34,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       throw throwable;
     }
 
+    LoggerFactory.getLogger(HttpServerResponseTracingHandler.class).warn("FINISHING NETTY SPAN SERVERRESP HANDLER");
     Tags.HTTP_STATUS.set(span, response.status().code());
     span.finish(); // Finish the span manually since finishSpanOnClose was false
   }
