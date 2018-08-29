@@ -160,7 +160,7 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
     TEST_WRITER.clear()
 
     when:
-    doc.data == "other data"
+    doc.data = "other data"
 
     then:
     repo.index(doc) == doc
