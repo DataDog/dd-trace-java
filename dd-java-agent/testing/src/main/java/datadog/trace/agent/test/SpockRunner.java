@@ -57,12 +57,12 @@ public class SpockRunner extends Sputnik {
 
   private final InstrumentationClassLoader customLoader;
 
-  public SpockRunner(Class<?> clazz)
+  public SpockRunner(final Class<?> clazz)
       throws InitializationError, NoSuchFieldException, SecurityException, IllegalArgumentException,
           IllegalAccessException {
     super(shadowTestClass(clazz));
     // access the classloader created in shadowTestClass above
-    Field clazzField = Sputnik.class.getDeclaredField("clazz");
+    final Field clazzField = Sputnik.class.getDeclaredField("clazz");
     try {
       clazzField.setAccessible(true);
       customLoader =
@@ -75,11 +75,11 @@ public class SpockRunner extends Sputnik {
   // Shadow the test class with bytes loaded by InstrumentationClassLoader
   private static Class<?> shadowTestClass(final Class<?> clazz) {
     try {
-      InstrumentationClassLoader customLoader =
+      final InstrumentationClassLoader customLoader =
           new InstrumentationClassLoader(
               datadog.trace.agent.test.SpockRunner.class.getClassLoader(), clazz.getName());
       return customLoader.shadow(clazz);
-    } catch (Exception e) {
+    } catch (final Exception e) {
       throw new IllegalStateException(e);
     }
   }
@@ -101,7 +101,7 @@ public class SpockRunner extends Sputnik {
       ByteBuddyAgent.getInstrumentation()
           .appendToBootstrapClassLoaderSearch(new JarFile(bootstrapJar));
       Utils.getBootstrapProxy().addURL(bootstrapJar.toURI().toURL());
-    } catch (IOException e) {
+    } catch (final IOException e) {
       throw new RuntimeException(e);
     }
   }
@@ -114,8 +114,8 @@ public class SpockRunner extends Sputnik {
       loader = buildJavaClassPathClassLoader();
     }
     final ClassPath testCP = ClassPath.from(loader);
-    Set<String> bootstrapClasses = new HashSet<String>();
-    for (ClassPath.ClassInfo info : testCP.getAllClasses()) {
+    final Set<String> bootstrapClasses = new HashSet<>();
+    for (final ClassPath.ClassInfo info : testCP.getAllClasses()) {
       // if info starts with bootstrap prefix: add to bootstrap jar
       for (int i = 0; i < TEST_BOOTSTRAP_PREFIXES.length; ++i) {
         if (info.getName().startsWith(TEST_BOOTSTRAP_PREFIXES[i])) {
@@ -135,15 +135,15 @@ public class SpockRunner extends Sputnik {
    * logic, i.e. when we drop Java7 support.
    */
   private static ClassLoader buildJavaClassPathClassLoader() {
-    ImmutableList.Builder<URL> urls = ImmutableList.builder();
-    for (String entry : Splitter.on(PATH_SEPARATOR.value()).split(JAVA_CLASS_PATH.value())) {
+    final ImmutableList.Builder<URL> urls = ImmutableList.builder();
+    for (final String entry : Splitter.on(PATH_SEPARATOR.value()).split(JAVA_CLASS_PATH.value())) {
       try {
         try {
           urls.add(new File(entry).toURI().toURL());
-        } catch (SecurityException e) { // File.toURI checks to see if the file is a directory
+        } catch (final SecurityException e) { // File.toURI checks to see if the file is a directory
           urls.add(new URL("file", null, new File(entry).getAbsolutePath()));
         }
-      } catch (MalformedURLException e) {
+      } catch (final MalformedURLException e) {
         System.err.println(
             String.format(
                 "Error injecting bootstrap jar: Malformed classpath entry: %s. %s", entry, e));
@@ -157,48 +157,39 @@ public class SpockRunner extends Sputnik {
     final ClassLoader parent;
     final String shadowPrefix;
 
-    public InstrumentationClassLoader(ClassLoader parent, String shadowPrefix) {
+    public InstrumentationClassLoader(final ClassLoader parent, final String shadowPrefix) {
       super(parent);
       this.parent = parent;
       this.shadowPrefix = shadowPrefix;
     }
 
     /** Forcefully inject the bytes of clazz into this classloader. */
-    public Class<?> shadow(Class<?> clazz) throws IOException {
-      Class<?> loaded = this.findLoadedClass(clazz.getName());
+    public Class<?> shadow(final Class<?> clazz) throws IOException {
+      final Class<?> loaded = findLoadedClass(clazz.getName());
       if (loaded != null && loaded.getClassLoader() == this) {
         return loaded;
       }
       final ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(clazz.getClassLoader());
       final byte[] classBytes = locator.locate(clazz.getName()).resolve();
 
-      return this.defineClass(clazz.getName(), classBytes, 0, classBytes.length);
+      return defineClass(clazz.getName(), classBytes, 0, classBytes.length);
     }
 
     @Override
-    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+    protected Class<?> loadClass(final String name, final boolean resolve)
+        throws ClassNotFoundException {
       synchronized (super.getClassLoadingLock(name)) {
-        Class c = this.findLoadedClass(name);
+        final Class c = findLoadedClass(name);
         if (c != null) {
           return c;
         }
         if (name.startsWith(shadowPrefix)) {
           try {
             return shadow(super.loadClass(name, resolve));
-          } catch (Exception e) {
+          } catch (final Exception e) {
           }
         }
 
-        /*
-        if (!name.startsWith("datadog.trace.agent.test.")) {
-          for (int i = 0; i < AGENT_PACKAGE_PREFIXES.length; ++i) {
-            if (name.startsWith(AGENT_PACKAGE_PREFIXES[i])) {
-              throw new ClassNotFoundException(
-                  "refusing to load agent class: " + name + " on test classloader.");
-            }
-          }
-        }
-        */
         return parent.loadClass(name);
       }
     }
