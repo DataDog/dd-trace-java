@@ -1,0 +1,36 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+apply from: "${rootDir}/gradle/test-with-scala.gradle"
+
+muzzle {
+  pass {
+    group = 'io.spray'
+    module = 'spray-routing'
+    versions = "[1.3.0,)"
+  }
+}
+
+dependencies {
+  compileOnly group: 'com.typesafe.akka', name: 'akka-actor_2.10', version: '2.3.9'
+  compileOnly group: 'io.spray', name: 'spray-can_2.10', version: '1.3.1'
+  compileOnly group: 'io.spray', name: 'spray-routing_2.10', version: '1.3.1'
+
+  compile project(':dd-trace-api')
+  compile project(':dd-java-agent:agent-tooling')
+  compile deps.opentracing
+  compile deps.autoservice
+  annotationProcessor deps.autoservice
+
+  testCompile group: 'com.typesafe.akka', name: 'akka-actor_2.10', version: '2.3.9'
+  testCompile group: 'io.spray', name: 'spray-can_2.10', version: '1.3.1'
+  testCompile group: 'io.spray', name: 'spray-routing_2.10', version: '1.3.1'
+  testCompile project(':dd-java-agent:testing')
+  testCompile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
+  testCompile project(':dd-java-agent:instrumentation:java-concurrent')
+  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
+}
+
