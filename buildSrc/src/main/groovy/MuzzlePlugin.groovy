@@ -71,7 +71,9 @@ class MuzzlePlugin implements Plugin<Project> {
     project.tasks.compileMuzzle.dependsOn(bootstrapProject.tasks.compileJava)
     project.tasks.compileMuzzle.dependsOn(toolingProject.tasks.compileJava)
     project.afterEvaluate {
-      project.tasks.compileMuzzle.dependsOn(project.tasks.compileJava)
+      if (project.tasks.getNames().contains('compileJava')) {
+        project.tasks.compileMuzzle.dependsOn(project.tasks.compileJava)
+      }
       if (project.tasks.getNames().contains('compileScala')) {
         project.tasks.compileMuzzle.dependsOn(project.tasks.compileScala)
       }

@@ -27,7 +27,9 @@ subprojects { subProj ->
       transformation {
         tasks = ['compileJava', 'compileScala']
         plugin = 'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin'
-        classPath = project(':dd-java-agent:agent-tooling').configurations.instrumentationMuzzle + subProj.configurations.compile + subProj.sourceSets.main.output
+        classPath = project(':dd-java-agent:agent-tooling').configurations.instrumentationMuzzle \
+          + (subProj.configurations.hasProperty("compile") ? subProj.configurations.compile : []) \
+          + subProj.sourceSets.main.output
       }
     }
   }
