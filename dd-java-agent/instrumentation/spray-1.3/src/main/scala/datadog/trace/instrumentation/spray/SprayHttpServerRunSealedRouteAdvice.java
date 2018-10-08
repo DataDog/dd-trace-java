@@ -10,7 +10,6 @@ import static datadog.trace.instrumentation.spray.SprayHttpServerDecorator.SPRAY
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import spray.routing.RequestContext;
 
@@ -26,15 +25,22 @@ public class SprayHttpServerRunSealedRouteAdvice {
     }
 
     DECORATE.afterStart(span);
+
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
-
+    span.setResourceName(ctx.request().method().name() + " " + ctx.unmatchedPath().toString());
     ctx = SprayHelper.wrapRequestContext(ctx, scope.span());
     return scope;
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void exit(@Advice.Enter final AgentScope scope) {
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+  public static void exit(
+      @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+    System.out.println("throwable: " + throwable);
+    if (throwable != null) {
+      DECORATE.onError(scope, throwable);
+    }
+    DECORATE.beforeFinish(scope);
     scope.close();
   }
 }

@@ -7,11 +7,13 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.URI;
 import spray.http.HttpRequest;
 import spray.http.HttpResponse;
+import spray.routing.RequestContext;
 
 public class SprayHttpServerDecorator
-    extends HttpServerDecorator<HttpRequest, HttpRequest, HttpResponse> {
+    extends HttpServerDecorator<HttpRequest, RequestContext, HttpResponse> {
   public static final CharSequence SPRAY_HTTP_REQUEST =
       UTF8BytesString.create("spray-http.request");
+  public static final CharSequence SPRAY_HTTP_SERVER = UTF8BytesString.create("spray-http-server");
 
   public static final SprayHttpServerDecorator DECORATE = new SprayHttpServerDecorator();
 
@@ -26,13 +28,14 @@ public class SprayHttpServerDecorator
   }
 
   @Override
-  protected String peerHostIP(HttpRequest request) {
+  protected String peerHostIP(RequestContext ctx) {
     return null;
   }
 
   @Override
-  protected int peerPort(HttpRequest request) {
-    return request.uri().effectivePort();
+  protected int peerPort(RequestContext requestContext) {
+    // this is server port requestContext.request().uri().effectivePort();
+    return 0;
   }
 
   @Override
@@ -47,6 +50,6 @@ public class SprayHttpServerDecorator
 
   @Override
   protected CharSequence component() {
-    return SPRAY_HTTP_REQUEST;
+    return SPRAY_HTTP_SERVER;
   }
 }

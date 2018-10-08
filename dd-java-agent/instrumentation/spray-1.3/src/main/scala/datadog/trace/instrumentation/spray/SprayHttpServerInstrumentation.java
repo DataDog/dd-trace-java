@@ -5,9 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.HashMap;
-import java.util.Map;
-import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -38,14 +35,12 @@ public final class SprayHttpServerInstrumentation extends Instrumenter.Tracing {
    * order to capture that exception we have to also wrap 'inner' route.
    */
   @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(2, 1);
-    transformers.put(
+  public void adviceTransformations(AdviceTransformation transformation) {
+    transformation.applyAdvice(
         named("runSealedRoute$1").and(takesArgument(1, named("spray.routing.RequestContext"))),
         packageName + ".SprayHttpServerRunSealedRouteAdvice");
-    transformers.put(
+    transformation.applyAdvice(
         named("runRoute").and(takesArgument(1, named("scala.Function1"))),
         packageName + ".SprayHttpServerRunRouteAdvice");
-    return transformers;
   }
 }
