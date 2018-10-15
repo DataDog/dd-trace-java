@@ -23,9 +23,20 @@ muzzle {
 apply plugin: 'org.unbroken-dome.test-sets'
 
 testSets {
+  vertxTest
   latestDepTest {
     dirName = 'test'
   }
+}
+
+compileVertxTestJava {
+  sourceCompatibility = 1.8
+  targetCompatibility = 1.8
+}
+
+compileVertxTestGroovy {
+  sourceCompatibility = 1.8
+  targetCompatibility = 1.8
 }
 
 dependencies {
@@ -40,9 +51,13 @@ dependencies {
 
   testCompile project(':dd-java-agent:testing')
   testCompile project(':dd-java-agent:instrumentation:java-concurrent')
-
   testCompile group: 'io.netty', name: 'netty-codec-http', version: '4.1.0.Final'
   testCompile group: 'org.asynchttpclient', name: 'async-http-client', version: '2.1.0'
+
+  vertxTestCompile project(':dd-java-agent:testing')
+  vertxTestCompile project(':dd-java-agent:instrumentation:java-concurrent')
+  vertxTestCompile project(':dd-java-agent:instrumentation:trace-annotation')
+  vertxTestCompile group: 'io.vertx', name: 'vertx-web', version: '3.5.0'
 }
 
 // We need to force the dependency to the earliest supported version because other libraries declare newer versions.
