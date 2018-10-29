@@ -55,6 +55,7 @@ public class AgentInstaller {
             .with(POOL_STRATEGY)
             .with(new LoggingListener())
             .with(LOCATION_STRATEGY)
+            .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
             .ignore(any(), skipClassLoader())
             .or(nameStartsWith("datadog.trace."))
             .or(nameStartsWith("datadog.opentracing."))
