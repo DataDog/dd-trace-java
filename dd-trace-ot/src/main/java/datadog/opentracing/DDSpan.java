@@ -80,6 +80,7 @@ public class DDSpan implements Span, MutableSpan {
     context.getTrace().registerSpan(this);
   }
 
+  @Override
   @JsonIgnore
   public boolean isFinished() {
     return durationNano.get() != 0;

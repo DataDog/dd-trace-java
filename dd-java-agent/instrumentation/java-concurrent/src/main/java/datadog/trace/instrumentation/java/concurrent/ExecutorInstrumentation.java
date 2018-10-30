@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.context.TraceScope;
@@ -212,6 +213,7 @@ public final class ExecutorInstrumentation extends Instrumenter.Default {
       final Scope scope = GlobalTracer.get().scopeManager().active();
       if (scope instanceof TraceScope
           && ((TraceScope) scope).isAsyncPropagating()
+          && !((MutableSpan) scope.span()).isFinished()
           && tasks != null
           && DatadogWrapper.isTopLevelCall(executor)) {
         final Collection<Callable<?>> wrappedTasks = new ArrayList<>(tasks.size());
@@ -288,6 +290,7 @@ public final class ExecutorInstrumentation extends Instrumenter.Default {
       final Scope scope = GlobalTracer.get().scopeManager().active();
       return (scope instanceof TraceScope
           && ((TraceScope) scope).isAsyncPropagating()
+          && !((MutableSpan) scope.span()).isFinished()
           && task != null
           && !(task instanceof DatadogWrapper)
           && isTopLevelCall(executor)

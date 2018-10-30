@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.TestUtils
+import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.context.TraceScope
 import groovy.servlet.AbstractHttpServlet
 import io.opentracing.util.GlobalTracer
@@ -52,6 +53,10 @@ class TestServlet3 {
         scope.setAsyncPropagation(true)
         resp.writer.print("AsyncWithBackground")
         context.complete()
+        MutableSpan rootSpan = (MutableSpan) GlobalTracer.get().scopeManager().active().span()
+        while (!rootSpan.isFinished()) {
+          // await servlet span finish before submitting async
+        }
         POOL.submit {
           TestUtils.runUnderTrace("not-http") {
             // This should not report as part of the servlet trace because http response is written.

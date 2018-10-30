@@ -43,4 +43,6 @@ public interface MutableSpan {
   MutableSpan setError(boolean value);
 
   MutableSpan getRootSpan();
+
+  boolean isFinished();
 }
