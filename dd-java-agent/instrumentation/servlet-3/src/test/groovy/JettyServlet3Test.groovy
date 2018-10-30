@@ -45,6 +45,8 @@ class JettyServlet3Test extends AgentTestRunner {
     servletContext.addServlet(TestServlet3.Sync, "/auth/sync")
     servletContext.addServlet(TestServlet3.Async, "/async")
     servletContext.addServlet(TestServlet3.Async, "/auth/async")
+    servletContext.addServlet(TestServlet3.AsyncWithBackgroundWork, "/asyncwithbackgroundwork")
+    servletContext.addServlet(TestServlet3.Async, "/auth/asyncwithbackgroundwork")
 
     jettyServer.setHandler(servletContext)
     jettyServer.start()
@@ -222,6 +224,51 @@ class JettyServlet3Test extends AgentTestRunner {
     where:
     path   | expectedResponse
     "sync" | "Hello Sync"
+  }
+
+  def "test async context propagation under servlet"() {
+    setup:
+    def request = new Request.Builder()
+      .url("http://localhost:$port/asyncwithbackgroundwork")
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.body().string().trim() == "AsyncWithBackground"
+
+    assertTraces(2) {
+      trace(0, 1) {
+        span(0) {
+          serviceName "unnamed-java-app"
+          operationName "servlet.request"
+          resourceName "GET /asyncwithbackgroundwork"
+          spanType DDSpanTypes.WEB_SERVLET
+          errored false
+          parent()
+          tags {
+            "http.url" "http://localhost:$port/asyncwithbackgroundwork"
+            "http.method" "GET"
+            "span.kind" "server"
+            "component" "java-web-servlet"
+            "span.type" DDSpanTypes.WEB_SERVLET
+            "span.origin.type" "TestServlet3\$AsyncWithBackgroundWork"
+            "http.status_code" 200
+            defaultTags()
+          }
+        }
+      }
+      trace(1, 1) {
+        span(0) {
+          serviceName "unnamed-java-app"
+          operationName "not-http"
+          parent()
+          tags {
+            defaultTags()
+          }
+        }
+      }
+    }
   }
 
   /**
