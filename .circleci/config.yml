@@ -2,7 +2,7 @@ version: 2
 
 defaults: &defaults
   working_directory: ~/dd-trace-java
-  resource_class: xlarge
+  #  resource_class: xlarge
   docker:
   - image: &default_container datadog/dd-trace-java-docker-build:latest
 
@@ -25,7 +25,7 @@ jobs:
 
     - run:
         name: Build Project
-        command: GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx1G -Xms64M" ./gradlew clean :dd-java-agent:shadowJar compileTestGroovy compileTestScala compileTestJava --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+        command: GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx1G -Xms512M" ./gradlew clean :dd-java-agent:shadowJar compileTestGroovy compileTestScala compileTestJava --build-cache --stacktrace --no-daemon --max-workers=1
 
     - run:
         name: Collect Libs
@@ -66,7 +66,7 @@ jobs:
 
     - run:
         name: Run Tests
-        command: GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4G -Xms512M" ./gradlew $TEST_TASK --build-cache --parallel --stacktrace --no-daemon --max-workers=6
+        command: GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx2G -Xms512M" ./gradlew $TEST_TASK --build-cache --parallel --stacktrace --no-daemon --max-workers=2
 
     - run:
         name: Collect Reports
@@ -92,8 +92,12 @@ jobs:
   test_8:
     <<: *default_test_job
     environment:
-    # We are building on Java8, this is our default JVM so no need to set more homes
-    - TEST_TASK: test latestDepTest jacocoTestReport jacocoTestCoverageVerification
+    - TEST_TASK: test jacocoTestReport jacocoTestCoverageVerification
+
+  test_8_latest:
+    <<: *default_test_job
+    environment:
+    - TEST_TASK: latestDepTest
 
   test_9:
     <<: *default_test_job
@@ -109,6 +113,11 @@ jobs:
     <<: *default_test_job
     environment:
     - TEST_TASK: testJava11
+
+  test_11_latest:
+    <<: *default_test_job
+    environment:
+    - TEST_TASK: latestDepTestJava11
 
   agent_integration_tests:
     <<: *defaults
@@ -130,7 +139,7 @@ jobs:
 
     - run:
         name: Run Trace Agent Tests
-        command: ./gradlew traceAgentTest --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+        command: ./gradlew traceAgentTest --build-cache --parallel --stacktrace --no-daemon --max-workers=2
 
     - run:
         name: Collect Reports
@@ -162,7 +171,7 @@ jobs:
 
     - run:
         name: Build Project
-        command: GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx4G -Xms64M" ./gradlew check -PskipTests --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+        command: GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx2G -Xms64M" ./gradlew check -PskipTests --build-cache --parallel --stacktrace --no-daemon --max-workers=2
 
     - run:
         name: Collect Reports
@@ -205,7 +214,7 @@ jobs:
         # Note: we do not have `--max-workers` here to have number of workers (threads) equal to number of CPUs (32 currently).
         # This should speed things up slightly because muzzle may do a lot of IO bound work: reading off disk and downloading
         # dependencies.
-        command: SKIP_BUILDSCAN="true" GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx8G -Xms64M" ./gradlew muzzle --parallel --stacktrace --no-daemon
+        command: SKIP_BUILDSCAN="true" GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx2G -Xms64M" ./gradlew muzzle --parallel --stacktrace --no-daemon --max-workers=2
 
     - save_cache:
         key: dd-trace-java-muzzle-{{ checksum "dd-trace-java.gradle" }}
@@ -257,6 +266,12 @@ workflows:
         filters:
           tags:
             only: /.*/
+    - test_8_latest:
+        requires:
+        - build
+        filters:
+          tags:
+            only: /.*/
     - test_9:
         requires:
         - build
@@ -270,6 +285,12 @@ workflows:
           tags:
             only: /.*/
     - test_11:
+        requires:
+        - build
+        filters:
+          tags:
+            only: /.*/
+    - test_11_latest:
         requires:
         - build
         filters:
@@ -308,9 +329,11 @@ workflows:
         requires:
         - test_7
         - test_8
+        - test_8_latest
         - test_9
         - test_10
         - test_11
+        - test_11_latest
         - agent_integration_tests
         - check
         filters:
@@ -323,9 +346,11 @@ workflows:
         requires:
         - test_7
         - test_8
+        - test_8_latest
         - test_9
         - test_10
         - test_11
+        - test_11_latest
         - agent_integration_tests
         - check
         filters:
