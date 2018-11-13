@@ -1,9 +1,13 @@
 package datadog.trace.agent.tooling;
 
+import static net.bytebuddy.matcher.ElementMatchers.named;
+
 import datadog.trace.bootstrap.DatadogClassLoader;
 import datadog.trace.bootstrap.DatadogClassLoader.BootstrapClassLoaderProxy;
 import java.lang.reflect.Method;
 import java.net.URL;
+import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.description.type.TypeDefinition;
 
 public class Utils {
   /**
@@ -84,6 +88,14 @@ public class Utils {
   /** com.foo.Bar -> com/foo/Bar */
   public static String getInternalName(final String resourceName) {
     return resourceName.replaceAll("\\.class\\$", "").replace('.', '/');
+  }
+
+  public static String converToInnerClassName(final String className) {
+    return className.replaceAll("\\.", "\\$");
+  }
+
+  public static MethodDescription getMethodDefinition(TypeDefinition type, String methodName) {
+    return type.getDeclaredMethods().filter(named(methodName)).getOnly();
   }
 
   static boolean getConfigEnabled(final String name, final boolean fallback) {
