@@ -28,9 +28,7 @@ import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.utility.JavaModule;
-import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.slf4j.LoggerFactory;
@@ -69,7 +67,7 @@ public abstract class AgentTestRunner extends Specification {
 
   protected static final Set<String> TRANSFORMED_CLASSES = Sets.newConcurrentHashSet();
   private static final AtomicInteger INSTRUMENTATION_ERROR_COUNT = new AtomicInteger();
-  private static final ErrorCountingListener ERROR_LISTENER = new ErrorCountingListener();
+  private static final TestRunnerListener TEST_LISTENER = new TestRunnerListener();
 
   private static final Instrumentation instrumentation;
   private static volatile ClassFileTransformer activeTransformer = null;
@@ -120,6 +118,15 @@ public abstract class AgentTestRunner extends Specification {
     return true;
   }
 
+  /**
+   * @param className name of the class being loaded
+   * @param classLoader classloader class is being defined on
+   * @return true if the class under load should be transformed for this test.
+   */
+  protected boolean shouldTransformClass(final String className, final ClassLoader classLoader) {
+    return true;
+  }
+
   @BeforeClass
   public static synchronized void agentSetup() throws Exception {
     if (null != activeTransformer) {
@@ -131,23 +138,23 @@ public abstract class AgentTestRunner extends Specification {
       Thread.currentThread().setContextClassLoader(AgentTestRunner.class.getClassLoader());
       assert ServiceLoader.load(Instrumenter.class).iterator().hasNext()
           : "No instrumentation found";
-      activeTransformer = AgentInstaller.installBytebuddyAgent(instrumentation, ERROR_LISTENER);
+      activeTransformer = AgentInstaller.installBytebuddyAgent(instrumentation, TEST_LISTENER);
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
   }
 
-  @Before
+  @BeforeClass
   public void beforeTest() {
     TEST_WRITER.start();
     INSTRUMENTATION_ERROR_COUNT.set(0);
-    ERROR_LISTENER.activateTest(this);
+    TEST_LISTENER.activateTest(this);
     assert getTestTracer().activeSpan() == null : "Span is active before test has started";
   }
 
-  @After
+  @AfterClass
   public void afterTest() {
-    ERROR_LISTENER.deactivateTest(this);
+    TEST_LISTENER.deactivateTest(this);
     assert INSTRUMENTATION_ERROR_COUNT.get() == 0
         : INSTRUMENTATION_ERROR_COUNT.get() + " Instrumentation errors during test";
   }
@@ -170,7 +177,7 @@ public abstract class AgentTestRunner extends Specification {
     ListWriterAssert.assertTraces(TEST_WRITER, size, spec);
   }
 
-  public static class ErrorCountingListener implements AgentBuilder.Listener {
+  public static class TestRunnerListener implements AgentBuilder.Listener {
     private static final List<AgentTestRunner> activeTests = new CopyOnWriteArrayList<>();
 
     public void activateTest(final AgentTestRunner testRunner) {
@@ -186,7 +193,14 @@ public abstract class AgentTestRunner extends Specification {
         final String typeName,
         final ClassLoader classLoader,
         final JavaModule module,
-        final boolean loaded) {}
+        final boolean loaded) {
+      for (final AgentTestRunner testRunner : activeTests) {
+        if (!testRunner.shouldTransformClass(typeName, classLoader)) {
+          throw new AbortTransformationException(
+              "Aborting transform for class name = " + typeName + ", loader = " + classLoader);
+        }
+      }
+    }
 
     @Override
     public void onTransformation(
@@ -212,10 +226,12 @@ public abstract class AgentTestRunner extends Specification {
         final JavaModule module,
         final boolean loaded,
         final Throwable throwable) {
-      for (final AgentTestRunner testRunner : activeTests) {
-        if (testRunner.onInstrumentationError(typeName, classLoader, module, loaded, throwable)) {
-          INSTRUMENTATION_ERROR_COUNT.incrementAndGet();
-          break;
+      if (!(throwable instanceof AbortTransformationException)) {
+        for (final AgentTestRunner testRunner : activeTests) {
+          if (testRunner.onInstrumentationError(typeName, classLoader, module, loaded, throwable)) {
+            INSTRUMENTATION_ERROR_COUNT.incrementAndGet();
+            break;
+          }
         }
       }
     }
@@ -226,5 +242,16 @@ public abstract class AgentTestRunner extends Specification {
         final ClassLoader classLoader,
         final JavaModule module,
         final boolean loaded) {}
+
+    /** Used to signal that a transformation was intentionally aborted and is not an error. */
+    public static class AbortTransformationException extends RuntimeException {
+      public AbortTransformationException() {
+        super();
+      }
+
+      public AbortTransformationException(final String message) {
+        super(message);
+      }
+    }
   }
 }
