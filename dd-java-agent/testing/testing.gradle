@@ -35,3 +35,16 @@ dependencies {
   // test instrumenting java 1.1 bytecode
   testCompile group: 'net.sf.jt400', name: 'jt400', version: '6.1'
 }
+
+// See comment for FieldBackedProviderFieldInjectionDisabledTest about why this hack is here
+tasks.withType(Test) {
+  if (name != "testDisabledFieldInjection") {
+    exclude "context/FieldBackedProviderFieldInjectionDisabledTest.class"
+  }
+}
+
+task testDisabledFieldInjection(type: Test) {
+  systemProperties "dd.trace.runtime.context.field.injection": "false"
+  include "context/FieldBackedProviderFieldInjectionDisabledTest.class"
+}
+test.dependsOn(testDisabledFieldInjection)
