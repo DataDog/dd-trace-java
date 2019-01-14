@@ -25,7 +25,8 @@ class TraceImpl implements TraceInternal {
       Collections.newSetFromMap(new WeakHashMap<Continuation, Boolean>());
 
   /** Strong refs to spans which are closed */
-  private final List<Span> finishedSpans = new ArrayList();
+  private final List<Span> finishedSpans = new ArrayList<>();
+  private List<Span> spansToWrite;
 
   private final Tracer tracer;
   private final Clock clock;
@@ -65,7 +66,7 @@ class TraceImpl implements TraceInternal {
       tracer.reportError("Cannot get spans, trace is not finished yet: %s", this);
       return Collections.EMPTY_LIST;
     }
-    return Collections.unmodifiableList(finishedSpans);
+    return Collections.unmodifiableList(spansToWrite);
   }
 
   @Override
@@ -158,11 +159,13 @@ class TraceImpl implements TraceInternal {
     if (inFlightSpans.isEmpty() && inFlightContinuations.isEmpty()) {
       final Writer writer = tracer.getWriter();
       writer.incrementTraceCount();
-      final Trace trace = runInterceptorsBeforeTraceWritten(this);
-      if (trace != null && tracer.getSampler().sample(trace)) {
-        writer.write(trace);
+      if (tracer.getSampler().sample(this)) {
+        spansToWrite = runInterceptorsBeforeTraceWritten();
+        if (spansToWrite != null) {
+          writer.write(this);
+        }
+        finished = true;
       }
-      finished = true;
     }
   }
 
@@ -171,17 +174,25 @@ class TraceImpl implements TraceInternal {
    *
    * <p>Note: This has to be called under object lock.
    */
-  private Trace runInterceptorsBeforeTraceWritten(Trace trace) {
+  private List<Span> runInterceptorsBeforeTraceWritten() {
     final List<Interceptor> interceptors = tracer.getInterceptors();
-    // Run interceptors in 'reverse' order
-    for (int i = interceptors.size() - 1; i >= 0; i--) {
-      // TODO: we probably should handle exceptions in interceptors more or less gracefully
-      trace = interceptors.get(i).beforeTraceWritten(trace);
-      if (trace == null) {
-        break;
+    if (interceptors.size() > 0) {
+      List<Span> mutableSpans = new ArrayList<>(finishedSpans.size());
+      for (final Span span : finishedSpans) {
+        mutableSpans.add(new MutableSpanImpl(this, span));
       }
+      // Run interceptors in 'reverse' order
+      for (int i = interceptors.size() - 1; i >= 0; i--) {
+        // TODO: we probably should handle exceptions in interceptors more or less gracefully
+        mutableSpans = interceptors.get(i).beforeTraceWritten(mutableSpans);
+        if (mutableSpans == null) {
+          break;
+        }
+      }
+      return mutableSpans;
+    } else {
+      return finishedSpans;
     }
-    return trace;
   }
 
   /**
@@ -192,7 +203,7 @@ class TraceImpl implements TraceInternal {
    * @param action action to report error with.
    */
   private void checkTraceFinished(final String action) {
-    if (finished) {
+    if (!finished) {
       tracer.reportError("Cannot %s, trace has already been finished: %s", action, this);
     }
   }

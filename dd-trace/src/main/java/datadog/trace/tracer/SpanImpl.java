@@ -1,51 +1,16 @@
 package datadog.trace.tracer;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.annotation.JsonFormat;
-import com.fasterxml.jackson.annotation.JsonGetter;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.ser.std.StdSerializer;
-import datadog.trace.api.DDTags;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.math.BigInteger;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
-/** Concrete implementation of a span */
+/**
+ * Concrete implementation of a span used by applications to collect tracing information.
+ *
+ * <p>This class is thread-safe.</p>
+ */
 @Slf4j
-// Disable autodetection of fields and accessors
-@JsonAutoDetect(
-    fieldVisibility = Visibility.NONE,
-    setterVisibility = Visibility.NONE,
-    getterVisibility = Visibility.NONE,
-    isGetterVisibility = Visibility.NONE,
-    creatorVisibility = Visibility.NONE)
-class SpanImpl implements Span {
-
-  private final TraceInternal trace;
-
-  private final SpanContext context;
-  private final Timestamp startTimestamp;
-
-  /* Note: some fields are volatile so we could make getters non synchronized.
-  Alternatively we could make getters synchronized, but this may create more contention.
-   */
-  private volatile Long duration = null;
-
-  private volatile String service;
-  private volatile String resource;
-  private volatile String type;
-  private volatile String name;
-  private volatile boolean errored = false;
-
-  private final Map<String, Object> meta = new HashMap<>();
+class SpanImpl extends AbstractSpan {
 
   private final List<Interceptor> interceptors;
 
@@ -57,73 +22,30 @@ class SpanImpl implements Span {
    * @param startTimestamp timestamp when this span was started.
    */
   SpanImpl(
-      final TraceInternal trace, final SpanContext parentContext, final Timestamp startTimestamp) {
-    this.trace = trace;
+    final TraceInternal trace, final SpanContext parentContext, final Timestamp startTimestamp) {
+    super(trace, SpanContextImpl.fromParent(parentContext), startTimestamp);
 
-    context = SpanContextImpl.fromParent(parentContext);
+    super.setService(trace.getTracer().getDefaultServiceName());
 
-    if (startTimestamp == null) {
-      reportUsageError("Cannot create span without timestamp: %s", trace);
-      throw new TraceException(String.format("Cannot create span without timestamp: %s", trace));
-    }
-    this.startTimestamp = startTimestamp;
-    service = trace.getTracer().getDefaultServiceName();
     interceptors = trace.getTracer().getInterceptors();
-
     for (final Interceptor interceptor : interceptors) {
       interceptor.afterSpanStarted(this);
     }
   }
 
   @Override
-  public Trace getTrace() {
-    return trace;
+  public synchronized Long getDuration() {
+    return super.getDuration();
   }
 
   @Override
-  public SpanContext getContext() {
-    return context;
-  }
-
-  @JsonGetter("trace_id")
-  @JsonSerialize(using = UInt64IDStringSerializer.class)
-  public String getTraceId() {
-    return context.getTraceId();
-  }
-
-  @JsonGetter("span_id")
-  @JsonSerialize(using = UInt64IDStringSerializer.class)
-  public String getSpanId() {
-    return context.getSpanId();
-  }
-
-  @JsonGetter("parent_id")
-  @JsonSerialize(using = UInt64IDStringSerializer.class)
-  public String getParentId() {
-    return context.getParentId();
+  public synchronized boolean isFinished() {
+    return super.isFinished();
   }
 
   @Override
-  @JsonGetter("start")
-  public Timestamp getStartTimestamp() {
-    return startTimestamp;
-  }
-
-  @Override
-  @JsonGetter("duration")
-  public Long getDuration() {
-    return duration;
-  }
-
-  @Override
-  public boolean isFinished() {
-    return duration != null;
-  }
-
-  @Override
-  @JsonGetter("service")
-  public String getService() {
-    return service;
+  public synchronized String getService() {
+    return super.getService();
   }
 
   @Override
@@ -131,14 +53,13 @@ class SpanImpl implements Span {
     if (isFinished()) {
       reportSetterUsageError("service");
     } else {
-      this.service = service;
+      super.setService(service);
     }
   }
 
   @Override
-  @JsonGetter("resource")
-  public String getResource() {
-    return resource;
+  public synchronized String getResource() {
+    return super.getResource();
   }
 
   @Override
@@ -146,14 +67,13 @@ class SpanImpl implements Span {
     if (isFinished()) {
       reportSetterUsageError("resource");
     } else {
-      this.resource = resource;
+      super.setResource(resource);
     }
   }
 
   @Override
-  @JsonGetter("type")
-  public String getType() {
-    return type;
+  public synchronized String getType() {
+    return super.getType();
   }
 
   @Override
@@ -161,14 +81,13 @@ class SpanImpl implements Span {
     if (isFinished()) {
       reportSetterUsageError("type");
     } else {
-      this.type = type;
+      super.setType(type);
     }
   }
 
   @Override
-  @JsonGetter("name")
-  public String getName() {
-    return name;
+  public synchronized String getName() {
+    return super.getName();
   }
 
   @Override
@@ -176,15 +95,13 @@ class SpanImpl implements Span {
     if (isFinished()) {
       reportSetterUsageError("name");
     } else {
-      this.name = name;
+      super.setName(name);
     }
   }
 
   @Override
-  @JsonGetter("error")
-  @JsonFormat(shape = JsonFormat.Shape.NUMBER)
-  public boolean isErrored() {
-    return errored;
+  public synchronized boolean isErrored() {
+    return super.isErrored();
   }
 
   @Override
@@ -192,14 +109,7 @@ class SpanImpl implements Span {
     if (isFinished()) {
       reportSetterUsageError("throwable");
     } else {
-      setErrored(true);
-
-      setMeta(DDTags.ERROR_MSG, throwable.getMessage());
-      setMeta(DDTags.ERROR_TYPE, throwable.getClass().getName());
-
-      final StringWriter errorString = new StringWriter();
-      throwable.printStackTrace(new PrintWriter(errorString));
-      setMeta(DDTags.ERROR_STACK, errorString.toString());
+      super.attachThrowable(throwable);
     }
   }
 
@@ -208,49 +118,27 @@ class SpanImpl implements Span {
     if (isFinished()) {
       reportSetterUsageError("errored");
     } else {
-      this.errored = errored;
+      super.setErrored(errored);
     }
   }
 
-  @JsonGetter("meta")
-  synchronized Map<String, String> getMeta() {
-    final Map<String, String> result = new HashMap<>(meta.size());
-    for (final Map.Entry<String, Object> entry : meta.entrySet()) {
-      result.put(entry.getKey(), String.valueOf(entry.getValue()));
-    }
-    return result;
+  @Override
+  protected synchronized Map<String, String> getMetaJsonified() {
+    return super.getMetaJsonified();
   }
 
   @Override
   public synchronized Object getMeta(final String key) {
-    return meta.get(key);
+    return super.getMeta(key);
   }
 
+  @Override
   protected synchronized void setMeta(final String key, final Object value) {
     if (isFinished()) {
       reportSetterUsageError("meta value " + key);
     } else {
-      if (value == null) {
-        meta.remove(key);
-      } else {
-        meta.put(key, value);
-      }
+      super.setMeta(key, value);
     }
-  }
-
-  @Override
-  public void setMeta(final String key, final String value) {
-    setMeta(key, (Object) value);
-  }
-
-  @Override
-  public void setMeta(final String key, final Boolean value) {
-    setMeta(key, (Object) value);
-  }
-
-  @Override
-  public void setMeta(final String key, final Number value) {
-    setMeta(key, (Object) value);
   }
 
   // FIXME: Add metrics support and json rendering for metrics
@@ -260,7 +148,7 @@ class SpanImpl implements Span {
     if (isFinished()) {
       reportUsageError("Attempted to finish span that is already finished: %s", this);
     } else {
-      finishSpan(startTimestamp.getDuration(), false);
+      finishSpan(getStartTimestamp().getDuration(), false);
     }
   }
 
@@ -269,7 +157,7 @@ class SpanImpl implements Span {
     if (isFinished()) {
       reportUsageError("Attempted to finish span that is already finish: %s", this);
     } else {
-      finishSpan(startTimestamp.getDuration(finishTimestampNanoseconds), false);
+      finishSpan(getStartTimestamp().getDuration(finishTimestampNanoseconds), false);
     }
   }
 
@@ -282,7 +170,7 @@ class SpanImpl implements Span {
       if (!isFinished()) {
         log.debug(
             "Finishing span due to GC, this will prevent trace from being reported: {}", this);
-        finishSpan(startTimestamp.getDuration(), true);
+        finishSpan(getStartTimestamp().getDuration(), true);
       }
     } catch (final Throwable t) {
       // Exceptions thrown in finalizer are eaten up and ignored, so log them instead
@@ -304,30 +192,16 @@ class SpanImpl implements Span {
     for (int i = interceptors.size() - 1; i >= 0; i--) {
       interceptors.get(i).beforeSpanFinished(this);
     }
-    this.duration = duration;
-    trace.finishSpan(this, fromGC);
+    setDuration(duration);
+    getTrace().finishSpan(this, fromGC);
   }
 
   private void reportUsageError(final String message, final Object... args) {
-    trace.getTracer().reportError(message, args);
+    getTrace().getTracer().reportError(message, args);
   }
 
   private void reportSetterUsageError(final String fieldName) {
     reportUsageError("Attempted to set '%s' when span is already finished: %s", fieldName, this);
   }
 
-  /** Helper to serialize string value as 64 bit unsigned integer */
-  private static class UInt64IDStringSerializer extends StdSerializer<String> {
-
-    public UInt64IDStringSerializer() {
-      super(String.class);
-    }
-
-    @Override
-    public void serialize(
-        final String value, final JsonGenerator jsonGenerator, final SerializerProvider provider)
-        throws IOException {
-      jsonGenerator.writeNumber(new BigInteger(value));
-    }
-  }
 }

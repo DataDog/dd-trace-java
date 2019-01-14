@@ -1,9 +1,9 @@
 package datadog.trace.tracer;
 
+import java.util.Map;
+
 /**
  * A single measurement of time with arbitrary key-value attributes.
- *
- * <p>All spans are thread safe.
  *
  * <p>To create a Span, see {@link Trace#createSpan(SpanContext parentContext, Timestamp
  * startTimestamp)}
@@ -94,6 +94,13 @@ public interface Span {
    * @param throwable throwable to attach
    */
   void attachThrowable(Throwable throwable);
+
+  /**
+   * Get map containing all meta values.
+   *
+   * @return Map containing all meta information
+   */
+  Map<String, Object> getMeta();
 
   /**
    * Get a meta value on a span.

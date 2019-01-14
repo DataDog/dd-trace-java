@@ -54,6 +54,6 @@ class JsonSpan {
 
     error = span.isErrored()
 
-    meta = span.getMeta()
+    meta = span.getMetaJsonified()
   }
 }

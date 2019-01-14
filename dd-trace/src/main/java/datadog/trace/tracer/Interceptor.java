@@ -1,5 +1,7 @@
 package datadog.trace.tracer;
 
+import java.util.List;
+
 /**
  * An Interceptor allows adding hooks to particular events of a span starting and finishing and also
  * trace being written to backend.
@@ -22,8 +24,8 @@ public interface Interceptor {
   /**
    * Invoked when a trace is eligible for writing but hasn't been handed off to its writer yet.
    *
-   * @param trace The intercepted trace.
+   * @param spans The list of spans from the intercepted trace.
    * @return modified trace. Null if trace is to be dropped.
    */
-  Trace beforeTraceWritten(Trace trace);
+  List<Span> beforeTraceWritten(List<Span> spans);
 }

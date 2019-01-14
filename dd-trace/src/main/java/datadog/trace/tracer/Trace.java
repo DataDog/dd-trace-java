@@ -32,6 +32,8 @@ public interface Trace {
   /**
    * Create a new span in this trace as a child of the given parent context.
    *
+   * <p>Returned span is thread-safe.</p>
+   *
    * @param parentContext the parent to use. Must be a span in this trace.
    * @return the new span. It is the caller's responsibility to ensure {@link Span#finish()} is
    *     eventually invoked on this span.
@@ -40,6 +42,8 @@ public interface Trace {
 
   /**
    * Create a new span in this trace as a child of the given parent context.
+   *
+   * <p>Returned span is thread-safe.</p>
    *
    * @param parentContext the parent to use. Must be a span in this trace.
    * @param startTimestamp timestamp to use as start timestamp for a new span.

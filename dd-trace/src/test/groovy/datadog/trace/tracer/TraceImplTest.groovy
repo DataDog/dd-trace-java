@@ -90,7 +90,7 @@ class TraceImplTest extends Specification {
     then: "interceptors get called"
     interceptors.reverseEach({ interceptor ->
       then:
-      1 * interceptor.beforeTraceWritten(trace) >> trace
+      1 * interceptor.beforeTraceWritten(spans) >> spans
     })
     then: "trace gets sampled"
     1 * sampler.sample(trace) >> { true }
@@ -124,7 +124,7 @@ class TraceImplTest extends Specification {
     then: "interceptors get called"
     interceptors.reverseEach({ interceptor ->
       then:
-      1 * interceptor.beforeTraceWritten(trace) >> trace
+      1 * interceptor.beforeTraceWritten(spans) >> trace
     })
     then: "trace gets sampled"
     1 * sampler.sample(trace) >> { true }

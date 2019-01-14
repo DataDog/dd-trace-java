@@ -129,7 +129,7 @@ class SpanImplTest extends Specification {
     span.setMeta("boolean.key", true)
 
     then:
-    span.getMeta() == ["number.key": "123", "string.key": "meta string", "boolean.key": "true"]
+    span.getMetaJsonified() == ["number.key": "123", "string.key": "meta string", "boolean.key": "true"]
   }
 
   def "test meta setter on finished span for #key"() {
