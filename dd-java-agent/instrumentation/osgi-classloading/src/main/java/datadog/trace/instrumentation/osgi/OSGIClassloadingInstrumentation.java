@@ -8,11 +8,13 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Utils;
 import java.security.ProtectionDomain;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
 
+@Slf4j
 @AutoService(Instrumenter.class)
 public final class OSGIClassloadingInstrumentation extends Instrumenter.Default {
   public OSGIClassloadingInstrumentation() {
@@ -22,7 +24,8 @@ public final class OSGIClassloadingInstrumentation extends Instrumenter.Default 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     // OSGI Bundle class loads the sys prop which defines bootstrap classes
-    return named("org.osgi.framework.Bundle");
+    return named("org.osgi.framework.Bundle")
+        .or(named("org.eclipse.osgi.internal.framework.BundleContextImpl"));
   }
 
   @Override
@@ -43,12 +46,18 @@ public final class OSGIClassloadingInstrumentation extends Instrumenter.Default 
       ddPrefixes.append(Utils.BOOTSTRAP_PACKAGE_PREFIXES[i]);
     }
     final String existing = System.getProperty("org.osgi.framework.bootdelegation");
+    log.warn(
+        "Original osgi system property: {}",
+        System.getProperty("org.osgi.framework.bootdelegation"));
     if (null == existing) {
       System.setProperty("org.osgi.framework.bootdelegation", ddPrefixes.toString());
     } else if (!existing.contains(ddPrefixes)) {
       System.setProperty(
           "org.osgi.framework.bootdelegation", existing + "," + ddPrefixes.toString());
     }
+
+    log.warn(
+        "Set osgi system property: {}", System.getProperty("org.osgi.framework.bootdelegation"));
   }
 
   @Override
