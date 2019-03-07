@@ -24,19 +24,23 @@ public class GlobalTracer {
         }
 
         @Override
-        public boolean addTraceInterceptor(TraceInterceptor traceInterceptor) {
+        public boolean addTraceInterceptor(final TraceInterceptor traceInterceptor) {
           return false;
         }
 
         @Override
-        public void addScopeListener(ScopeListener listener) {}
+        public void addScopeListener(final ScopeListener listener) {}
       };
   private static final AtomicReference<Tracer> provider = new AtomicReference<>(NO_OP);
 
-  public static void registerIfAbsent(Tracer p) {
+  public static void registerIfAbsent(final Tracer p) {
     if (p != null && p != NO_OP) {
       provider.compareAndSet(NO_OP, p);
     }
+  }
+
+  public static void replace(final Tracer p) {
+    provider.set(p);
   }
 
   public static Tracer get() {
