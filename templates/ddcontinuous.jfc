@@ -1,52 +1,132 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-     Customized version of the standard profiling template for Datadog's distributed profiling services. Enables additional events to the
-     continuous template.
+     Customized version of the standard profiling template for Datadog's deep distributed tracing services.
 -->
 
-<configuration version="2.0" label="DD Profiling" description="Delta configuration for Datadog's distributed profiling services" provider="Datadog">
+<configuration version="2.0" label="DD Continuous" description="Standard configuration for Datadog's deep distributed tracing services" provider="Datadog">
+
+    <event name="jdk.ThreadAllocationStatistics">
+      <setting name="enabled">true</setting>
+      <setting name="period">everyChunk</setting>
+    </event>
 
     <event name="jdk.ClassLoadingStatistics">
       <setting name="enabled">true</setting>
-      <setting name="period">1000 ms</setting>
+      <setting name="period">5000 ms</setting>
+    </event>
+
+    <event name="jdk.ClassLoaderStatistics">
+      <setting name="enabled">true</setting>
+      <setting name="period">everyChunk</setting>
     </event>
 
     <event name="jdk.JavaThreadStatistics">
       <setting name="enabled">true</setting>
-      <setting name="period">1000 ms</setting>
+      <setting name="period">5000 ms</setting>
+    </event>
+
+    <event name="jdk.ThreadStart">
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event name="jdk.ThreadEnd">
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event name="jdk.ThreadSleep">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold" control="synchronization-threshold">10 ms</setting>
+    </event>
+
+    <event name="jdk.ThreadPark">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold" control="synchronization-threshold">10 ms</setting>
+    </event>
+
+    <event name="jdk.JavaMonitorEnter">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold" control="synchronization-threshold">10 ms</setting>
+    </event>
+
+    <event name="jdk.JavaMonitorWait">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold" control="synchronization-threshold">10 ms</setting>
+    </event>
+
+    <event name="jdk.JavaMonitorInflate">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold" control="synchronization-threshold">10 ms</setting>
+    </event>
+
+    <event name="jdk.BiasedLockRevocation">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold">0 ms</setting>
+    </event>
+
+    <event name="jdk.BiasedLockSelfRevocation">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold">0 ms</setting>
+    </event>
+
+    <event name="jdk.BiasedLockClassRevocation">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold">0 ms</setting>
+    </event>
+
+    <event name="jdk.ReservedStackActivation">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
     </event>
 
     <event name="jdk.ClassLoad">
-      <setting name="enabled" control="class-loading-enabled">true</setting>
+      <setting name="enabled" control="class-loading-enabled">false</setting>
       <setting name="stackTrace">true</setting>
       <setting name="threshold">0 ms</setting>
     </event>
 
     <event name="jdk.ClassDefine">
-      <setting name="enabled" control="class-loading-enabled">true</setting>
+      <setting name="enabled" control="class-loading-enabled">false</setting>
       <setting name="stackTrace">true</setting>
     </event>
 
     <event name="jdk.ClassUnload">
-      <setting name="enabled" control="class-loading-enabled">true</setting>
+      <setting name="enabled" control="class-loading-enabled">false</setting>
+    </event>
+
+    <event name="jdk.JVMInformation">
+      <setting name="enabled">true</setting>
+      <setting name="period">beginChunk</setting>
+    </event>
+
+    <event name="jdk.InitialSystemProperty">
+      <setting name="enabled">true</setting>
+      <setting name="period">beginChunk</setting>
     </event>
 
     <event name="jdk.ExecutionSample">
-      <setting name="enabled" control="method-sampling-enabled">true</setting>
+      <setting name="enabled" control="method-sampling-enabled">false</setting>
       <setting name="period" control="method-sampling-interval">10 ms</setting>
     </event>
 
     <event name="jdk.NativeMethodSample">
-      <setting name="enabled" control="method-sampling-enabled">true</setting>
+      <setting name="enabled" control="method-sampling-enabled">false</setting>
       <setting name="period" control="method-sampling-interval">10 ms</setting>
     </event>
 
     <event name="jdk.SafepointBegin">
-      <setting name="enabled">true</setting>
+      <setting name="enabled">false</setting>
       <setting name="threshold">0 ms</setting>
     </event>
-<!-- Do we want to do detailed safepoint analysis? Probably not in the beginning... -->
+
     <event name="jdk.SafepointStateSynchronization">
       <setting name="enabled">false</setting>
       <setting name="threshold">0 ms</setting>
@@ -77,17 +157,113 @@
       <setting name="threshold">0 ms</setting>
     </event>
 
-<!-- Would make for pretty visualization, but horribly expensive. Enable at own risk! -->
+    <event name="jdk.Shutdown">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+    </event>
+
+    <event name="jdk.ThreadDump">
+      <setting name="enabled" control="thread-dump-enabled">false</setting>
+      <setting name="period" control="thread-dump-interval">60 s</setting>
+    </event>
+
+    <event name="jdk.IntFlag">
+      <setting name="enabled">true</setting>
+      <setting name="period">beginChunk</setting>
+    </event>
+
+    <event name="jdk.UnsignedIntFlag">
+      <setting name="enabled">true</setting>
+      <setting name="period">beginChunk</setting>
+    </event>
+
+    <event name="jdk.LongFlag">
+      <setting name="enabled">true</setting>
+      <setting name="period">beginChunk</setting>
+    </event>
+
+    <event name="jdk.UnsignedLongFlag">
+      <setting name="enabled">true</setting>
+      <setting name="period">beginChunk</setting>
+    </event>
+
+    <event name="jdk.DoubleFlag">
+      <setting name="enabled">true</setting>
+      <setting name="period">beginChunk</setting>
+    </event>
+
+    <event name="jdk.BooleanFlag">
+      <setting name="enabled">true</setting>
+      <setting name="period">beginChunk</setting>
+    </event>
+
+    <event name="jdk.StringFlag">
+      <setting name="enabled">true</setting>
+      <setting name="period">beginChunk</setting>
+    </event>
+
+    <event name="jdk.IntFlagChanged">
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event name="jdk.UnsignedIntFlagChanged">
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event name="jdk.LongFlagChanged">
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event name="jdk.UnsignedLongFlagChanged">
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event name="jdk.DoubleFlagChanged">
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event name="jdk.BooleanFlagChanged">
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event name="jdk.StringFlagChanged">
+      <setting name="enabled">true</setting>
+    </event>
+
     <event name="jdk.ObjectCount">
       <setting name="enabled" control="memory-profiling-enabled-all">false</setting>
       <setting name="period">everyChunk</setting>
+    </event>
+
+    <event name="jdk.GCConfiguration">
+      <setting name="enabled" control="gc-enabled-normal">true</setting>
+      <setting name="period">everyChunk</setting>
+    </event>
+
+    <event name="jdk.GCHeapConfiguration">
+      <setting name="enabled" control="gc-enabled-normal">true</setting>
+      <setting name="period">beginChunk</setting>
+    </event>
+
+    <event name="jdk.YoungGenerationConfiguration">
+      <setting name="enabled" control="gc-enabled-normal">true</setting>
+      <setting name="period">beginChunk</setting>
+    </event>
+
+    <event name="jdk.GCTLABConfiguration">
+      <setting name="enabled" control="gc-enabled-normal">true</setting>
+      <setting name="period">beginChunk</setting>
+    </event>
+
+    <event name="jdk.GCSurvivorConfiguration">
+      <setting name="enabled" control="gc-enabled-normal">true</setting>
+      <setting name="period">beginChunk</setting>
     </event>
 
     <event name="jdk.ObjectCountAfterGC">
       <setting name="enabled">false</setting>
     </event>
 
-<!-- GC tuning here -->
     <event name="jdk.GCHeapSummary">
       <setting name="enabled" control="gc-enabled-normal">true</setting>
     </event>
@@ -359,29 +535,28 @@
       <setting name="period">everyChunk</setting>
     </event>
 
-    <!-- Do not touch allocation settings! -->
     <event name="jdk.ObjectAllocationInNewTLAB">
-      <setting name="enabled" control="memory-profiling-enabled-medium">true</setting>
+      <setting name="enabled" control="memory-profiling-enabled-medium">false</setting>
       <setting name="stackTrace">true</setting>
     </event>
 
     <event name="jdk.ObjectAllocationOutsideTLAB">
-      <setting name="enabled" control="memory-profiling-enabled-medium">true</setting>
+      <setting name="enabled" control="memory-profiling-enabled-medium">false</setting>
       <setting name="stackTrace">true</setting>
     </event>
 
     <event name="jdk.NativeLibrary">
-      <setting name="enabled">true</setting>
+      <setting name="enabled">false</setting>
       <setting name="period">everyChunk</setting>
     </event>
 
     <event name="jdk.ModuleRequire">
-      <setting name="enabled">true</setting>
+      <setting name="enabled">false</setting>
       <setting name="period">endChunk</setting>
     </event>
 
     <event name="jdk.ModuleExport">
-      <setting name="enabled">true</setting>
+      <setting name="enabled">false</setting>
       <setting name="period">endChunk</setting>
     </event>
 
@@ -391,10 +566,79 @@
       <setting name="threshold" control="file-io-threshold">10 ms</setting>
     </event>
 
-    <!-- Enable to get events for all exceptions -->
+    <event name="jdk.FileRead">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold" control="file-io-threshold">10 ms</setting>
+    </event>
+
+    <event name="jdk.FileWrite">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold" control="file-io-threshold">10 ms</setting>
+    </event>
+
+    <event name="jdk.SocketRead">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold" control="socket-io-threshold">10 ms</setting>
+    </event>
+
+    <event name="jdk.SocketWrite">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">true</setting>
+      <setting name="threshold" control="socket-io-threshold">10 ms</setting>
+    </event>
+
     <event name="jdk.JavaExceptionThrow">
       <setting name="enabled" control="enable-exceptions">false</setting>
       <setting name="stackTrace">true</setting>
+    </event>
+
+    <event name="jdk.JavaErrorThrow">
+      <setting name="enabled" control="enable-errors">true</setting>
+      <setting name="stackTrace">true</setting>
+    </event>
+
+    <event name="jdk.ExceptionStatistics">
+      <setting name="enabled">true</setting>
+      <setting name="period">1000 ms</setting>
+    </event>
+
+    <event name="jdk.ActiveRecording">
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event name="jdk.ActiveSetting">
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event name="jdk.DataLoss">
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event name="jdk.DumpReason">
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event name="jdk.ZPageAllocation">
+      <setting name="enabled">true</setting>
+      <setting name="threshold">10 ms</setting>
+    </event>
+
+    <event name="jdk.ZThreadPhase">
+      <setting name="enabled">true</setting>
+      <setting name="threshold">0 ms</setting>
+    </event>
+
+    <event name="jdk.ZStatisticsCounter">
+      <setting name="threshold">10 ms</setting>
+      <setting name="enabled">true</setting>
+    </event>
+
+    <event name="jdk.ZStatisticsSampler">
+      <setting name="enabled">true</setting>
+      <setting name="threshold">10 ms</setting>
     </event>
 
 </configuration>
