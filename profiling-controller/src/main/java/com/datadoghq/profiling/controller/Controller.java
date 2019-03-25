@@ -1,9 +1,9 @@
 package com.datadoghq.profiling.controller;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
 
 import jdk.jfr.Recording;
 
@@ -23,7 +23,7 @@ public interface Controller {
 	 * @param duration
 	 * @throws IOException
 	 */
-	Recording createRecording(String recordingName, File templateLocation, Path destination, Duration duration)
+	Recording createRecording(String recordingName, Map<String, String> template, Path destination, Duration duration)
 			throws IOException;
 
 }

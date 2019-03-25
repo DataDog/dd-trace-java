@@ -1,9 +1,9 @@
 package com.datadoghq.profiling.controller.openjdk;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
 
 import com.datadoghq.profiling.controller.Controller;
 
@@ -21,17 +21,17 @@ public class OpenJdkController implements Controller {
 	 * Starts a time limited recording using the specified template.
 	 * 
 	 * @param recordingName
-	 * @param templateLocation
+	 * @param template
 	 * @param destination
 	 * @param duration
 	 * @throws IOException
 	 */
-	public Recording createRecording(String recordingName, File templateLocation, Path destination, Duration duration) throws IOException {
+	public Recording createRecording(String recordingName, Map<String, String> template, Path destination, Duration duration) throws IOException {
 		Recording recording = new Recording();
 		recording.setName(recordingName);
 		recording.setDuration(duration);
 		recording.setDestination(destination);
-		// FIXME check template stuff
+		recording.setSettings(template);
 		recording.start();
 		return recording;
 	}
