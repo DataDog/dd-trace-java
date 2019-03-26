@@ -5,7 +5,7 @@ package com.datadoghq.profiling.controller;
  * 
  * @author Marcus Hirt
  */
-public class UnsupportedEnvironmentException extends Exception {
+public final class UnsupportedEnvironmentException extends Exception {
 	private static final long serialVersionUID = 1L;
 	
 	public UnsupportedEnvironmentException(String message) {

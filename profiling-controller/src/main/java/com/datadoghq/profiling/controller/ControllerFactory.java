@@ -9,7 +9,7 @@ import com.datadoghq.profiling.controller.openjdk.OpenJdkController;
  */
 public final class ControllerFactory {
 		
-	public Controller createController() throws UnsupportedEnvironmentException {
+	public final static Controller createController() throws UnsupportedEnvironmentException {
 		try {
 			Class.forName("com.oracle.jrockit.jfr.Producer");
 			throw new UnsupportedEnvironmentException("The JFR controller is currently not supported on the Oracle JDK <= JDK 11!");
