@@ -18,6 +18,9 @@ public final class JfpUtils {
 	}
 
 	public static Map<String, String> readJfpFile(InputStream stream) throws IOException {
+		if (stream == null) {
+			throw new IllegalArgumentException("Cannot read jfp file from empty stream!");
+		}
 		Properties props = new Properties();
 		try {
 			props.load(stream);

@@ -18,8 +18,8 @@ import jdk.jfr.Recording;
 public final class ProfilingSystem {
 	public final static ThreadGroup THREAD_GROUP = new ThreadGroup("Datadog Profiler");
 
-	private final static String JFP_CONTINUOUS = "continuous.jfp";
-	private final static String JFP_PROFILE = "profile.jfp";
+	private final static String JFP_CONTINUOUS = "jfr2/ddcontinuous.jfp";
+	private final static String JFP_PROFILE = "jfr2/ddprofile.jfp";
 
 	private ScheduledFuture<?> scheduledFuture;
 	private Recording continuousRecording;

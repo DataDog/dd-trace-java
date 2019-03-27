@@ -14,7 +14,7 @@ public final class ControllerFactory {
 			Class.forName("com.oracle.jrockit.jfr.Producer");
 			throw new UnsupportedEnvironmentException("The JFR controller is currently not supported on the Oracle JDK <= JDK 11!");
 		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
+			// Fall through - until we support Oracle JDK 7 & 8, this is a good thing. ;)
 		}
 		try {
 			Class.forName("jdk.jfr.Event");
