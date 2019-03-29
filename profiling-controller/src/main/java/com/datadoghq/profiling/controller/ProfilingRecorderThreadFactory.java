@@ -15,15 +15,19 @@
  */
 package com.datadoghq.profiling.controller;
 
+import java.util.concurrent.ThreadFactory;
+
 /**
- * Exception thrown when the environment does not support a controller.
- * 
+ * Thread factory for the recording scheduler.
+ *
  * @author Marcus Hirt
  */
-public final class UnsupportedEnvironmentException extends Exception {
-	private static final long serialVersionUID = 1L;
+final class ProfilingRecorderThreadFactory implements ThreadFactory {
 	
-	public UnsupportedEnvironmentException(String message) {
-		super(message);
+	@Override
+	public Thread newThread(Runnable r) {
+		Thread t = new Thread(ProfilingSystem.THREAD_GROUP, r, "DD Profiler Recording Scheduler");
+		t.setDaemon(true);
+		return t;
 	}
 }

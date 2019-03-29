@@ -7,6 +7,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.datadoghq.profiling.controller.ProfilingSystem;
+import com.datadoghq.profiling.controller.RecordingData;
+import com.datadoghq.profiling.controller.RecordingDataListener;
 import com.datadoghq.profiling.controller.UnsupportedEnvironmentException;
 
 /**
@@ -17,7 +19,7 @@ import com.datadoghq.profiling.controller.UnsupportedEnvironmentException;
  * @author Marcus Hirt
  */
 public class ProfilingAgent {
-	private static final ProfilingSystem profiler = new ProfilingSystem();
+	private static ProfilingSystem profiler;
 
 	/**
 	 * Called when starting from the command line.
@@ -27,18 +29,30 @@ public class ProfilingAgent {
 	}
 
 	/**
-	 * Called when loaded and run from attach. Note that this is also fully supported.
+	 * Called when loaded and run from attach. If the agent is already initialized (from either the
+	 * command line, or dynamically loaded through attach, no action will be taken.
 	 */
 	public void agentmain(String args, Instrumentation instrumentation) {
 		initialize(Duration.ofSeconds(0), Duration.ofHours(1), Duration.ofMinutes(1));
 	}
 
-	private void initialize(Duration delay, Duration period, Duration recordingDuration) {
-		try {
-			profiler.initialize(delay, period, recordingDuration);
-		} catch (UnsupportedEnvironmentException | IOException e) {
-			Logger.getLogger(ProfilingAgent.class.getName()).log(Level.WARNING, "Failed to initialize profiling agent!",
-					e);
+	private synchronized void initialize(Duration delay, Duration period, Duration recordingDuration) {
+		if (profiler == null) {
+			try {
+				// TODO: This is just debug code right now. Proper uploads will probably happen in another module,
+				// and then we can use that here. Also, add configuration options (yaml?) etc.
+				profiler = new ProfilingSystem(new RecordingDataListener() {
+					@Override
+					public void onNewData(RecordingData data) {
+						System.out.println("Just got data for " + data.getName());
+						data.release();
+					}
+				});
+				profiler.start();
+			} catch (UnsupportedEnvironmentException | IOException e) {
+				Logger.getLogger(ProfilingAgent.class.getName()).log(Level.WARNING,
+						"Failed to initialize profiling agent!", e);
+			}
 		}
 	}
 }

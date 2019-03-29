@@ -16,14 +16,17 @@
 package com.datadoghq.profiling.controller;
 
 /**
- * Exception thrown when the environment does not support a controller.
+ * Listener for getting notified when new recording data is becoming available.
  * 
  * @author Marcus Hirt
  */
-public final class UnsupportedEnvironmentException extends Exception {
-	private static final long serialVersionUID = 1L;
-	
-	public UnsupportedEnvironmentException(String message) {
-		super(message);
-	}
+public interface RecordingDataListener {
+	/**
+	 * Called when new recording data becomes available. Handle quickly, e.g. typically schedule
+	 * streaming of the new available data in another thread.
+	 * 
+	 * @param data
+	 *            the new data available
+	 */
+	public void onNewData(RecordingData data);
 }
