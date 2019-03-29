@@ -23,7 +23,8 @@ package com.datadoghq.profiling.controller;
 public interface RecordingDataListener {
 	/**
 	 * Called when new recording data becomes available. Handle quickly, e.g. typically schedule
-	 * streaming of the new available data in another thread.
+	 * streaming of the new available data in another thread. Do not forget to
+	 * {@link RecordingData#release()} when the data has been uploaded.
 	 * 
 	 * @param data
 	 *            the new data available

@@ -1,3 +1,18 @@
+/*
+ * Copyright 2019 Datadog
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.datadoghq.profiling.controller.openjdk;
 
 import java.io.IOException;
@@ -9,6 +24,11 @@ import com.datadoghq.profiling.controller.RecordingData;
 import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
 
+/**
+ * FIXME: This can probably be joined with {@link ContinuousRecording} after the latest refactoring.
+ * 
+ * @author Marcus Hirt
+ */
 public class ProfilingRecording implements RecordingData {
 	private final Recording recording;
 
@@ -45,7 +65,7 @@ public class ProfilingRecording implements RecordingData {
 	public String getName() {
 		return recording.getName();
 	}
-	
+
 	@Override
 	public String toString() {
 		return "ProfilingRecording: " + getName();

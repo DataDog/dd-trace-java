@@ -29,27 +29,27 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 
 /**
- * Unit test for simple App.
+ * Unit tests for testing the {@link ProfilingSystem}.
  */
 public class ProfilingSystemTest {
-	public static void main(String[] args) throws Exception {
-		new ProfilingSystemTest().testContinuous();
-	}
 
 	/**
 	 * Ensuring that it can be created and shutdown without problems, if not started.
-	 * @throws InterruptedException 
+	 * 
+	 * @throws InterruptedException
 	 */
 	@Test
-	public void testProfilingSystemCreation() throws UnsupportedEnvironmentException, IOException, InterruptedException {
+	public void testProfilingSystemCreation()
+			throws UnsupportedEnvironmentException, IOException, InterruptedException {
 		final CountDownLatch latch = new CountDownLatch(1);
-		RecordingDataListener listener = new RecordingDataListener() {			
+		RecordingDataListener listener = new RecordingDataListener() {
 			@Override
 			public void onNewData(RecordingData data) {
 				latch.countDown();
 			}
 		};
-		ProfilingSystem system = new ProfilingSystem(listener, Duration.ZERO, Duration.ofSeconds(2), Duration.ofSeconds(1));
+		ProfilingSystem system = new ProfilingSystem(listener, Duration.ZERO, Duration.ofSeconds(2),
+				Duration.ofSeconds(1));
 		latch.await(4, TimeUnit.SECONDS);
 		system.shutdown();
 		assertEquals("Got recording data even though the system was never started!", 1, latch.getCount());
@@ -64,15 +64,16 @@ public class ProfilingSystemTest {
 	public void testProfilingSystem() throws UnsupportedEnvironmentException, IOException, InterruptedException {
 		final CountDownLatch latch = new CountDownLatch(3);
 		final List<RecordingData> results = new ArrayList<>();
-		
-		RecordingDataListener listener = new RecordingDataListener() {			
+
+		RecordingDataListener listener = new RecordingDataListener() {
 			@Override
 			public void onNewData(RecordingData data) {
 				results.add(data);
 				latch.countDown();
 			}
 		};
-		ProfilingSystem system = new ProfilingSystem(listener, Duration.ZERO, Duration.ofSeconds(5), Duration.ofSeconds(2));
+		ProfilingSystem system = new ProfilingSystem(listener, Duration.ZERO, Duration.ofSeconds(5),
+				Duration.ofSeconds(2));
 		system.start();
 		latch.await(30, TimeUnit.SECONDS);
 		assertTrue("Should have received more data!", results.size() >= 3);
@@ -82,9 +83,8 @@ public class ProfilingSystemTest {
 		system.shutdown();
 		for (RecordingData data : results) {
 			data.release();
-		}		
+		}
 	}
-	
 
 	/**
 	 * Ensuring that it can be started, and recording data for the continuous recording captured.
@@ -95,8 +95,8 @@ public class ProfilingSystemTest {
 	public void testContinuous() throws UnsupportedEnvironmentException, IOException, InterruptedException {
 		final CountDownLatch latch = new CountDownLatch(3);
 		final List<RecordingData> results = new ArrayList<>();
-		
-		RecordingDataListener listener = new RecordingDataListener() {			
+
+		RecordingDataListener listener = new RecordingDataListener() {
 			@Override
 			public void onNewData(RecordingData data) {
 				results.add(data);
@@ -107,9 +107,10 @@ public class ProfilingSystemTest {
 				latch.countDown();
 			}
 		};
-		final ProfilingSystem system = new ProfilingSystem(listener, Duration.ofDays(1), Duration.ofDays(1), Duration.ofSeconds(2));
+		final ProfilingSystem system = new ProfilingSystem(listener, Duration.ofDays(1), Duration.ofDays(1),
+				Duration.ofSeconds(2));
 		system.start();
-		Runnable continuousTrigger = new Runnable() {		
+		Runnable continuousTrigger = new Runnable() {
 			@Override
 			public void run() {
 				for (int i = 0; i < 3; i++) {
@@ -117,7 +118,7 @@ public class ProfilingSystemTest {
 						system.triggerSnapshot();
 					} catch (IOException e) {
 						e.printStackTrace();
-					}					
+					}
 				}
 			}
 		};
@@ -131,6 +132,11 @@ public class ProfilingSystemTest {
 		system.shutdown();
 		for (RecordingData data : results) {
 			data.release();
-		}		
+		}
 	}
+	
+	/*
+	public static void main(String[] args) throws Exception {
+		new ProfilingSystemTest().testContinuous();
+	}*/
 }

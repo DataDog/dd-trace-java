@@ -20,7 +20,9 @@ import java.io.InputStream;
 import java.time.Instant;
 
 /**
- * API agnostic API for operations required by the profiling system.
+ * API agnostic API for operations required when retrieving data using the ProfilingSystem.
+ * 
+ * @See {@link ProfilingSystem}
  * 
  * @author Marcus Hirt
  */

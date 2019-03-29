@@ -27,7 +27,7 @@ import jdk.jfr.Recording;
 
 /**
  * This is the implementation of the controller for OpenJDK. It should work for JDK 11+ today, and
- * unmodified for JDK 8+ once JFR has been backported. The Oracle JDK implementation will be far
+ * unmodified for JDK 8+ once JFR has been back-ported. The Oracle JDK implementation will be far
  * messier... ;)
  * 
  * @author Marcus Hirt

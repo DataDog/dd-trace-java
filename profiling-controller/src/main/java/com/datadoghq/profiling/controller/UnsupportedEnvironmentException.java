@@ -16,7 +16,7 @@
 package com.datadoghq.profiling.controller;
 
 /**
- * Exception thrown when the environment does not support a controller.
+ * Exception thrown when the environment does not support a {@link Controller}.
  * 
  * @author Marcus Hirt
  */
