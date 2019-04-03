@@ -31,7 +31,7 @@
  * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.datadoghq.profiling.controller.util;
+package com.datadoghq.profiling.uploader.util;
 
 /**
  * Copy of JMC internal class. We should probably add the streaming JFR splitter, once developed,

@@ -35,7 +35,7 @@ import com.datadoghq.profiling.controller.util.JfpUtils;
  * @author Marcus Hirt
  */
 public final class ProfilingSystem {
-	final static ThreadGroup THREAD_GROUP = new ThreadGroup("Datadog Profiler");
+	public final static ThreadGroup THREAD_GROUP = new ThreadGroup("Datadog Profiler");
 	private final static AtomicInteger RECORDING_SEQUENCE_NUMBER = new AtomicInteger();
 	private final static String JFP_CONTINUOUS = "jfr2/ddcontinuous.jfp";
 	private final static String JFP_PROFILE = "jfr2/ddprofile.jfp";
