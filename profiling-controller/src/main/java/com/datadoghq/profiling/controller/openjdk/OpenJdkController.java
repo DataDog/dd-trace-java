@@ -17,6 +17,7 @@ package com.datadoghq.profiling.controller.openjdk;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 
 import com.datadoghq.profiling.controller.Controller;
@@ -58,5 +59,10 @@ public final class OpenJdkController implements Controller {
 	@Override
 	public RecordingData snapshot() throws IOException {
 		return new ContinuousRecording(FlightRecorder.getFlightRecorder().takeSnapshot());
+	}
+
+	@Override
+	public RecordingData snapshot(Instant start, Instant end) throws IOException {
+		return new ContinuousRecording(FlightRecorder.getFlightRecorder().takeSnapshot(), start, end);
 	}
 }

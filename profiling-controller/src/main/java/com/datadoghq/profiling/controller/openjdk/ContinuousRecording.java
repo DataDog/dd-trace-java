@@ -31,9 +31,17 @@ import jdk.jfr.RecordingState;
  */
 public class ContinuousRecording implements RecordingData {
 	private final Recording recording;
+	private final Instant defaultStart;
+	private final Instant defaultEnd;
 
-	public ContinuousRecording(Recording recording) {
+	public ContinuousRecording(Recording recording, Instant start, Instant end) {
 		this.recording = recording;
+		this.defaultStart = start;
+		this.defaultEnd = end;
+	}
+	
+	public ContinuousRecording(Recording recording) {
+		this(recording, null, null);
 	}
 
 	@Override
@@ -43,7 +51,7 @@ public class ContinuousRecording implements RecordingData {
 
 	@Override
 	public InputStream getStream() throws IllegalStateException, IOException {
-		return recording.getStream(null, null);
+		return recording.getStream(defaultStart, defaultEnd);
 	}
 
 	public InputStream getStream(Instant start, Instant end) throws IOException {

@@ -17,6 +17,7 @@ package com.datadoghq.profiling.controller;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -129,6 +130,10 @@ public final class ProfilingSystem {
 
 	public void triggerSnapshot() throws IOException {
 		dataListener.onNewData(controller.snapshot());
+	}
+
+	public void triggerSnapshot(Instant start, Instant end) throws IOException {
+		dataListener.onNewData(controller.snapshot(start, end));
 	}
 
 	/**
