@@ -16,6 +16,7 @@
 package com.datadoghq.profiling.uploader;
 
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.datadoghq.profiling.controller.ProfilingSystem;
 
@@ -25,10 +26,10 @@ import com.datadoghq.profiling.controller.ProfilingSystem;
  * @author Marcus Hirt
  */
 final class ProfilingUploaderThreadFactory implements ThreadFactory {
-	
+	private final static AtomicInteger COUNTER = new AtomicInteger();
 	@Override
 	public Thread newThread(Runnable r) {
-		Thread t = new Thread(ProfilingSystem.THREAD_GROUP, r, "DD Recording Uploader");
+		Thread t = new Thread(ProfilingSystem.THREAD_GROUP, r, "DD Recording Uploader - " + COUNTER.getAndIncrement());
 		t.setDaemon(true);
 		return t;
 	}

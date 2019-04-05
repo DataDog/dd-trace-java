@@ -21,16 +21,19 @@ import com.datadoghq.profiling.uploader.ChunkUploader;
  * @author Marcus Hirt
  */
 public class ProfilingAgent {
-	private static final int DEFAULT_DURATION = 60;
-	private static final int DEFAULT_PERIOD = 3600;
-	private static final int DEFAULT_DELAY = 30;
 	private static final String KEY_DURATION = "duration";
 	private static final String KEY_PERIOD = "period";
 	private static final String KEY_DELAY = "delay";
+	private static final String KEY_URL = "url";
+	private static final String KEY_API_KEY = "apiKey";
 
-	private final static String DEFAULT_PROPERTIES = "profiling.properties";
+	private static final int DEFAULT_DURATION = 60;
+	private static final int DEFAULT_PERIOD = 3600;
+	private static final int DEFAULT_DELAY = 30;
+	private static final String DEFAULT_PROPERTIES = "profiling.properties";
+	private static final String DEFAULT_URL = "http://localhost/9191";
 
-	// Do these need to be volatile?
+	// Overkill to make these volatile?
 	private ProfilingSystem profiler;
 	private ChunkUploader uploader;
 
@@ -39,9 +42,7 @@ public class ProfilingAgent {
 	 */
 	public void premain(String args, Instrumentation instrumentation) {
 		Properties props = initProperties(args);
-		initialize(Duration.ofSeconds(getInt(props, KEY_DELAY, DEFAULT_DELAY)),
-				Duration.ofSeconds(getInt(props, KEY_PERIOD, DEFAULT_PERIOD)),
-				Duration.ofSeconds(getInt(props, KEY_DURATION, DEFAULT_DURATION)));
+		initialize(props);
 	}
 
 	/**
@@ -50,18 +51,17 @@ public class ProfilingAgent {
 	 */
 	public void agentmain(String args, Instrumentation instrumentation) {
 		Properties props = initProperties(args);
-		initialize(Duration.ofSeconds(getInt(props, KEY_DELAY, DEFAULT_DELAY)),
-				Duration.ofSeconds(getInt(props, KEY_PERIOD, DEFAULT_PERIOD)),
-				Duration.ofSeconds(getInt(props, KEY_DURATION, DEFAULT_DURATION)));
+		initialize(props);
 	}
 
-	private synchronized void initialize(Duration delay, Duration period, Duration recordingDuration) {
+	private synchronized void initialize(Properties props) {
 		if (profiler == null) {
-			uploader = new ChunkUploader();
+			uploader = new ChunkUploader(getString(props, KEY_URL, DEFAULT_URL), getString(props, KEY_API_KEY, ""));
 			try {
-				// TODO: This is just debug code right now. Proper uploads will probably happen in another module,
-				// and then we can use that here. Also, add configuration options (yaml?) etc.
-				profiler = new ProfilingSystem(uploader.getRecordingDataListener());
+				profiler = new ProfilingSystem(uploader.getRecordingDataListener(),
+						Duration.ofSeconds(getInt(props, KEY_DELAY, DEFAULT_DELAY)),
+						Duration.ofSeconds(getInt(props, KEY_PERIOD, DEFAULT_PERIOD)),
+						Duration.ofSeconds(getInt(props, KEY_DURATION, DEFAULT_DURATION)));
 				profiler.start();
 			} catch (UnsupportedEnvironmentException | IOException e) {
 				getLogger().log(Level.WARNING, "Failed to initialize profiling agent!", e);
@@ -114,6 +114,14 @@ public class ProfilingAgent {
 		}
 		getLogger().log(Level.INFO, "Could not find key " + key + ". Will go with default " + defaultValue + ".");
 		return defaultValue;
+	}
+
+	private String getString(Properties props, String key, String defaultValue) {
+		String val = props.getProperty(key);
+		if (val == null) {
+			return defaultValue;
+		}
+		return val;
 	}
 
 	private static Logger getLogger() {

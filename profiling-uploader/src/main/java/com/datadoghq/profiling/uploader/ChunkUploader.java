@@ -15,17 +15,12 @@
  */
 package com.datadoghq.profiling.uploader;
 
-import java.io.IOException;
-import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import com.datadoghq.profiling.controller.ProfilingSystem;
 import com.datadoghq.profiling.controller.RecordingData;
 import com.datadoghq.profiling.controller.RecordingDataListener;
-import com.datadoghq.profiling.uploader.util.ChunkReader;
 
 /**
  * Code for uploading whatever recording data captured to Datadog. Create this class before the
@@ -37,56 +32,29 @@ import com.datadoghq.profiling.uploader.util.ChunkReader;
  * @author Marcus Hirt
  */
 public final class ChunkUploader {
-	// Allows simultaneous upload of 1 continuous and one profiling recording simultaneously.
-	// Of course, spamming dumps of the continuous recording may get us in trouble. For the normal 
-	// use case, it's expected that one of these upload threads will mostly be idle.
+	// Allows upload of 1 continuous and one profiling recording simultaneously. Of course, spamming 
+	// dumps of the continuous recording may get us in trouble, so we will likely protect against that 
+	// at some point. For the normal use case, it's expected that one of these upload threads will mostly be idle.
 	private final ExecutorService uploadingTaskExecutor = Executors.newFixedThreadPool(2,
 			new ProfilingUploaderThreadFactory());
 
 	private final RecordingDataListener listener = new ProfilingDataCallback();
+
+	private final String url;
+	private final String apiKey;
 
 	private final class ProfilingDataCallback implements RecordingDataListener {
 		/**
 		 * Just handing this off to the uploading threads.
 		 */
 		public void onNewData(RecordingData data) {
-			uploadingTaskExecutor.execute(new UploadingTask(data));
+			uploadingTaskExecutor.execute(new UploadingTask(url, apiKey, data));
 		}
 	}
 
-	/**
-	 * The class for uploading recordings somewhere. This is what eventually will call our edge
-	 * service.
-	 */
-	private final class UploadingTask implements Runnable {
-		private final RecordingData data;
-		private int chunkCounter;
-
-		public UploadingTask(RecordingData data) {
-			this.data = data;
-		}
-
-		@Override
-		public void run() {
-			try {
-				Iterator<byte[]> chunkIterator = ChunkReader.readChunks(data.getStream());
-				while (chunkIterator.hasNext()) {
-					uploadChunk(data, chunkCounter++, chunkIterator.next());
-				}
-				// Chunk loader closes stream automatically - only need to release RecordingData
-				data.release();
-			} catch (IllegalStateException | IOException e) {
-				Logger.getLogger(ChunkUploader.class.getName()).log(Level.WARNING,
-						"Problem reading chunk from recording!");
-			}
-		}
-
-		private void uploadChunk(RecordingData data, int chunkId, byte[] chunk) {
-			// Fill in actual call to Edge service here! :)
-			System.out.println(
-					"Woho! Uploading " + data.getName() + "[" + chunkId + "] (Size=" + chunk.length + " bytes)");
-
-		}
+	public ChunkUploader(String url, String apiKey) {
+		this.url = url;
+		this.apiKey = apiKey;
 	}
 
 	public RecordingDataListener getRecordingDataListener() {
