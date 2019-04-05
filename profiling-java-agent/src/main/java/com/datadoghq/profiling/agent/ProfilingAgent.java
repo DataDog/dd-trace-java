@@ -34,13 +34,13 @@ public class ProfilingAgent {
 	private static final String DEFAULT_URL = "http://localhost/9191";
 
 	// Overkill to make these volatile?
-	private ProfilingSystem profiler;
-	private ChunkUploader uploader;
+	private static ProfilingSystem profiler;
+	private static ChunkUploader uploader;
 
 	/**
 	 * Called when starting from the command line.
 	 */
-	public void premain(String args, Instrumentation instrumentation) {
+	public static void premain(String args, Instrumentation instrumentation) {
 		Properties props = initProperties(args);
 		initialize(props);
 	}
@@ -49,12 +49,12 @@ public class ProfilingAgent {
 	 * Called when loaded and run from attach. If the agent is already initialized (from either the
 	 * command line, or dynamically loaded through attach, no action will be taken.
 	 */
-	public void agentmain(String args, Instrumentation instrumentation) {
+	public static void agentmain(String args, Instrumentation instrumentation) {
 		Properties props = initProperties(args);
 		initialize(props);
 	}
 
-	private synchronized void initialize(Properties props) {
+	private static synchronized void initialize(Properties props) {
 		if (profiler == null) {
 			uploader = new ChunkUploader(getString(props, KEY_URL, DEFAULT_URL), getString(props, KEY_API_KEY, ""));
 			try {
@@ -116,7 +116,7 @@ public class ProfilingAgent {
 		return defaultValue;
 	}
 
-	private String getString(Properties props, String key, String defaultValue) {
+	private static String getString(Properties props, String key, String defaultValue) {
 		String val = props.getProperty(key);
 		if (val == null) {
 			return defaultValue;
