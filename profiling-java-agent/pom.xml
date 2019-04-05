@@ -12,8 +12,8 @@
 	<url>http://maven.apache.org</url>
 
 	<properties>
-		<maven.compiler.source>1.7</maven.compiler.source>
-		<maven.compiler.target>1.7</maven.compiler.target>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.target>1.8</maven.compiler.target>
 		<junit.version>4.12</junit.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
@@ -64,11 +64,10 @@
 					<argLine>-XX:+FlightRecorder</argLine>
 				</configuration>
 			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>1.7</version>
+				<version>3.2.1</version>
 				<executions>
 					<execution>
 						<phase>package</phase>

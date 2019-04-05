@@ -71,7 +71,7 @@ public class ProfilingAgent {
 
 	private static Properties initProperties(String args) {
 		Properties props = new Properties();
-		if (args == null || args.isBlank()) {
+		if (args == null || args.trim().isEmpty()) {
 			loadDefaultProperties(props);
 		} else {
 			File propsFile = new File(args);
