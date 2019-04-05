@@ -46,12 +46,14 @@
 				<configuration>
 					<archive>
 						<manifestEntries>
-							<Automatic-Module-Name>org.openjdk.jmc.agent</Automatic-Module-Name>
-							<Agent-Class>org.openjdk.jmc.agent.Agent</Agent-Class>
-							<Premain-Class>org.openjdk.jmc.agent.Agent</Premain-Class>
+							<Automatic-Module-Name>com.datadoghq.profiling.agent</Automatic-Module-Name>
+							<Agent-Class>com.datadoghq.profiling.agent.ProfilingAgent</Agent-Class>
+							<Premain-Class>com.datadoghq.profiling.agent.ProfilingAgent</Premain-Class>
+							<Can-Redefine-Classes>false</Can-Redefine-Classes>
+							<Can-Retransform-Classes>false</Can-Retransform-Classes>
+							<Can-Set-Native-Method-Prefix>false</Can-Set-Native-Method-Prefix>
 							<!-- For now - when JFR is back-ported, this will become JDK 8 -->
 							<Bundle-RequiredExecutionEnvironment>JavaSE-11</Bundle-RequiredExecutionEnvironment>
-							<Built-By></Built-By>
 						</manifestEntries>
 					</archive>
 				</configuration>

@@ -30,7 +30,7 @@ public class ProfilingAgent {
 	private static final int DEFAULT_DURATION = 60;
 	private static final int DEFAULT_PERIOD = 3600;
 	private static final int DEFAULT_DELAY = 30;
-	private static final String DEFAULT_PROPERTIES = "profiling.properties";
+	private static final String DEFAULT_PROPERTIES = "default.properties";
 	private static final String DEFAULT_URL = "http://localhost/9191";
 
 	// Overkill to make these volatile?
