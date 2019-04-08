@@ -23,8 +23,6 @@ import java.util.Map;
 /**
  * Interface for the low lever flight recorder control functionality. Needed since we will likely
  * want to support multiple version later.
- * 
- * @author Marcus Hirt
  */
 public interface Controller {
 	/**

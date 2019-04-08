@@ -26,8 +26,6 @@ import jdk.jfr.RecordingState;
 
 /**
  * FIXME: Probably don't need different implementations after the rewrite (for OpenJDK).
- * 
- * @author Marcus Hirt
  */
 public class ContinuousRecording implements RecordingData {
 	private final Recording recording;
@@ -39,7 +37,7 @@ public class ContinuousRecording implements RecordingData {
 		this.defaultStart = start;
 		this.defaultEnd = end;
 	}
-	
+
 	public ContinuousRecording(Recording recording) {
 		this(recording, null, null);
 	}

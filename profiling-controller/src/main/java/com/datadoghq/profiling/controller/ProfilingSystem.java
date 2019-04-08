@@ -31,8 +31,6 @@ import com.datadoghq.profiling.controller.util.JfpUtils;
 
 /**
  * Sets up the profiling strategy and schedules the profiling recordings.
- * 
- * @author Marcus Hirt
  */
 public final class ProfilingSystem {
 	public final static ThreadGroup THREAD_GROUP = new ThreadGroup("Datadog Profiler");

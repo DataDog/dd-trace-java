@@ -22,8 +22,6 @@ import com.datadoghq.profiling.controller.ProfilingSystem;
 
 /**
  * Thread factory for the recording scheduler.
- *
- * @author Marcus Hirt
  */
 final class ProfilingUploaderThreadFactory implements ThreadFactory {
 	private final static AtomicInteger COUNTER = new AtomicInteger();

@@ -28,8 +28,6 @@ import com.datadoghq.profiling.controller.RecordingDataListener;
  * {@link ProfilingSystem}.
  * <p>
  * Don't forget to shut down this component when no longer needed.
- * 
- * @author Marcus Hirt
  */
 public final class ChunkUploader {
 	// Allows upload of 1 continuous and one profiling recording simultaneously. Of course, spamming 

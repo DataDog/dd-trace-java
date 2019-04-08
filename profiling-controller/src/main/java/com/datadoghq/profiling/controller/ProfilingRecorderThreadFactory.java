@@ -19,8 +19,6 @@ import java.util.concurrent.ThreadFactory;
 
 /**
  * Thread factory for the recording scheduler.
- *
- * @author Marcus Hirt
  */
 final class ProfilingRecorderThreadFactory implements ThreadFactory {
 	

@@ -32,8 +32,6 @@ import com.squareup.okhttp.Response;
 
 /**
  * The class for uploading recordings somewhere. This is what eventually will call our edge service.
- * 
- * @author Marcus Hirt
  */
 final class UploadingTask implements Runnable {
 	// This logger will be called repeatedly

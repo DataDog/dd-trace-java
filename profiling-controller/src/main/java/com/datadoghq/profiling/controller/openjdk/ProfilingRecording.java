@@ -26,8 +26,6 @@ import jdk.jfr.RecordingState;
 
 /**
  * FIXME: This can probably be joined with {@link ContinuousRecording} after the latest refactoring.
- * 
- * @author Marcus Hirt
  */
 public class ProfilingRecording implements RecordingData {
 	private final Recording recording;

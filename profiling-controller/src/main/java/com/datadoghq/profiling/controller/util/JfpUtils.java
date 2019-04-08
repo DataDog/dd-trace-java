@@ -23,9 +23,10 @@ import java.util.Map.Entry;
 import java.util.Properties;
 
 /**
- * Toolkit for working with .jfp files.
- * 
- * @author Marcus Hirt
+ * Toolkit for working with .jfp files. A .jfp file is a .jfc file which has been transformed (using
+ * the XSLT in the template-transformer project). It contains the same event settings as the
+ * template, but in a format that is easier to handle in the profiling agent, not requiring us to
+ * parse XML.
  */
 public final class JfpUtils {
 	private JfpUtils() {
@@ -48,7 +49,7 @@ public final class JfpUtils {
 		}
 		return map;
 	}
-	
+
 	public static InputStream getNamedResource(String name) {
 		return JfpUtils.class.getClassLoader().getResourceAsStream(name);
 	}

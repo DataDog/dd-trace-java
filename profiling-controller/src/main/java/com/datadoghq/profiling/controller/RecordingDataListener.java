@@ -17,8 +17,6 @@ package com.datadoghq.profiling.controller;
 
 /**
  * Listener for getting notified when new recording data is becoming available.
- * 
- * @author Marcus Hirt
  */
 public interface RecordingDataListener {
 	/**

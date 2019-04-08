@@ -17,8 +17,6 @@ import com.datadoghq.profiling.uploader.ChunkUploader;
  * Simple agent wrapper for starting the profiling agent from the command-line, without requiring
  * the APM agent. This makes it possible to run the profiling agent stand-alone. Of course, this
  * also means no contextual events from the tracing will be present.
- * 
- * @author Marcus Hirt
  */
 public class ProfilingAgent {
 	private static final String KEY_DURATION = "duration";

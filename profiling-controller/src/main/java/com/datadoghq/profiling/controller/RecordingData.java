@@ -20,11 +20,12 @@ import java.io.InputStream;
 import java.time.Instant;
 
 /**
- * API agnostic API for operations required when retrieving data using the ProfilingSystem.
+ * Platform agnostic API for operations required when retrieving data using the ProfilingSystem.
+ * <p>
+ * Note: Due to the use of {@link Instant}, this will require JDK 8 or above. We could switch this
+ * and also support Oracle JDK 7 should we want to.
  * 
  * @See {@link ProfilingSystem}
- * 
- * @author Marcus Hirt
  */
 public interface RecordingData {
 	/**
