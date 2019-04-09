@@ -12,6 +12,7 @@ import java.util.logging.Logger;
 import com.datadoghq.profiling.controller.ProfilingSystem;
 import com.datadoghq.profiling.controller.UnsupportedEnvironmentException;
 import com.datadoghq.profiling.uploader.ChunkUploader;
+import com.squareup.okhttp.Credentials;
 
 /**
  * Simple agent wrapper for starting the profiling agent from the command-line, without requiring
@@ -23,7 +24,9 @@ public class ProfilingAgent {
 	private static final String KEY_PERIOD = "period";
 	private static final String KEY_DELAY = "delay";
 	private static final String KEY_URL = "url";
-	private static final String KEY_API_KEY = "apiKey";
+	private static final String KEY_API_KEY = "apikey";
+	private static final String KEY_USER_NAME = "username";
+	private static final String KEY_PASSWORD = "password";
 
 	private static final int DEFAULT_DURATION = 60;
 	private static final int DEFAULT_PERIOD = 3600;
@@ -54,7 +57,8 @@ public class ProfilingAgent {
 
 	private static synchronized void initialize(Properties props) {
 		if (profiler == null) {
-			uploader = new ChunkUploader(getString(props, KEY_URL, DEFAULT_URL), getString(props, KEY_API_KEY, ""));
+			uploader = new ChunkUploader(getString(props, KEY_URL, DEFAULT_URL), getString(props, KEY_API_KEY, ""),
+					Credentials.basic(getString(props, KEY_USER_NAME, ""), getString(props, KEY_PASSWORD, "")));
 			try {
 				profiler = new ProfilingSystem(uploader.getRecordingDataListener(),
 						Duration.ofSeconds(getInt(props, KEY_DELAY, DEFAULT_DELAY)),

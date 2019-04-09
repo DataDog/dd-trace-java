@@ -39,7 +39,7 @@ final class UploadingTask implements Runnable {
 	private final static MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
 	// May want to defined these somewhere where they can be shared in the public API
-	static final String HEADER_KEY_JFRCHUNKID = "jfr-chunk-id";
+	static final String HEADER_KEY_CHUNK_SEQ_NO = "chunk-seq-no";
 	static final String HEADER_KEY_JFRNAME = "jfr-name";
 	static final String HEADER_KEY_APIKEY = "apikey";
 
@@ -47,10 +47,12 @@ final class UploadingTask implements Runnable {
 	private final RecordingData data;
 	private final String apiKey;
 	private final String url;
+	private final String credentials;
 
-	public UploadingTask(String url, String apiKey, RecordingData data) {
+	public UploadingTask(String url, String apiKey, String credentials, RecordingData data) {
 		this.url = url;
 		this.apiKey = apiKey;
+		this.credentials = credentials;
 		this.data = data;
 	}
 
@@ -80,8 +82,8 @@ final class UploadingTask implements Runnable {
 				.build();
 
 		Request request = new Request.Builder().header(HEADER_KEY_APIKEY, apiKey)
-				.header(HEADER_KEY_JFRNAME, data.getName()).header(HEADER_KEY_JFRCHUNKID, String.valueOf(chunkId))
-				.url(url).post(requestBody).build();
+				.header(HEADER_KEY_JFRNAME, data.getName()).header(HEADER_KEY_CHUNK_SEQ_NO, String.valueOf(chunkId))
+				.addHeader("Authorization", credentials).url(url).post(requestBody).build();
 
 		Response response = CLIENT.newCall(request).execute();
 		if (!response.isSuccessful()) {

@@ -30,6 +30,7 @@ import org.junit.Test;
 
 import com.datadoghq.profiling.controller.ProfilingSystem;
 import com.datadoghq.profiling.controller.UnsupportedEnvironmentException;
+import com.squareup.okhttp.Credentials;
 import com.squareup.okhttp.HttpUrl;
 import com.squareup.okhttp.mockwebserver.Dispatcher;
 import com.squareup.okhttp.mockwebserver.MockResponse;
@@ -59,7 +60,7 @@ public class ChunkUploaderTest {
 		});
 		server.start();
 		HttpUrl url = server.url("/v0.1/lalalala");
-		ChunkUploader uploader = new ChunkUploader(url.toString(), TEST_APIKEY_VALUE);
+		ChunkUploader uploader = new ChunkUploader(url.toString(), TEST_APIKEY_VALUE, Credentials.basic("user", "pwd"));
 
 		ProfilingSystem system = new ProfilingSystem(uploader.getRecordingDataListener(), Duration.ZERO,
 				Duration.ofSeconds(5), Duration.ofSeconds(2));
@@ -72,12 +73,12 @@ public class ChunkUploaderTest {
 		assertEquals("Got the right amount of recordings tests ", NUMBER_OF_RECORDINGS, recordedRequests.size());
 
 		for (RecordedRequest requests : recordedRequests) {
-			requests.getHeader(UploadingTask.HEADER_KEY_JFRCHUNKID);
+			requests.getHeader(UploadingTask.HEADER_KEY_CHUNK_SEQ_NO);
 			assertEquals("Not the right API key!", TEST_APIKEY_VALUE,
 					requests.getHeader(UploadingTask.HEADER_KEY_APIKEY));
 			assertTrue("Expected a profiling dump name",
 					requests.getHeader(UploadingTask.HEADER_KEY_JFRNAME).startsWith("dd-profiling-"));
-			int chunkId = Integer.valueOf(requests.getHeader(UploadingTask.HEADER_KEY_JFRCHUNKID));
+			int chunkId = Integer.valueOf(requests.getHeader(UploadingTask.HEADER_KEY_CHUNK_SEQ_NO));
 			assertTrue("Expected a chunk id larger or equal to zero", chunkId >= 0);
 		}
 
