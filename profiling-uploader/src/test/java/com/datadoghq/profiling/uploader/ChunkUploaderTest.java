@@ -18,11 +18,15 @@ package com.datadoghq.profiling.uploader;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.StringReader;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -72,17 +76,37 @@ public class ChunkUploaderTest {
 
 		assertEquals("Got the right amount of recordings tests ", NUMBER_OF_RECORDINGS, recordedRequests.size());
 
-		for (RecordedRequest requests : recordedRequests) {
-			requests.getHeader(UploadingTask.HEADER_KEY_CHUNK_SEQ_NO);
+		for (RecordedRequest request : recordedRequests) {
+			Map<String, String> params = getParameters(request);
 			assertEquals("Not the right API key!", TEST_APIKEY_VALUE,
-					requests.getHeader(UploadingTask.HEADER_KEY_APIKEY));
+					request.getHeader(UploadingTask.HEADER_KEY_APIKEY));
 			assertTrue("Expected a profiling dump name",
-					requests.getHeader(UploadingTask.HEADER_KEY_JFRNAME).startsWith("dd-profiling-"));
-			int chunkId = Integer.valueOf(requests.getHeader(UploadingTask.HEADER_KEY_CHUNK_SEQ_NO));
+					params.get(UploadingTask.KEY_RECORDING_NAME).startsWith("dd-profiling-"));
+			int chunkId = Integer.valueOf(params.get(UploadingTask.KEY_CHUNK_SEQ_NO));
 			assertTrue("Expected a chunk id larger or equal to zero", chunkId >= 0);
 		}
 
 		server.shutdown();
+	}
+
+	private Map<String, String> getParameters(RecordedRequest request) throws IOException {
+		Map<String, String> params = new HashMap<String, String>();
+		String body = request.getBody().readUtf8();
+		BufferedReader reader = new BufferedReader(new StringReader(body));
+		String line = null;
+		while ((line = reader.readLine()) != null) {
+			if (line.startsWith("Content-Disposition:")) {
+				int start = line.indexOf("name=") + 6;
+				int end = line.indexOf('"', start);
+				String key = line.substring(start, end);
+				// Getting the first content line.
+				for (int i = 0; i < 3; i++) {
+					line = reader.readLine();
+				}
+				params.put(key, line);
+			}
+		}
+		return params;
 	}
 
 	public static void main(String[] args) throws IOException, UnsupportedEnvironmentException, InterruptedException {

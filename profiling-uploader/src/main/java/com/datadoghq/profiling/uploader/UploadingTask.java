@@ -39,8 +39,12 @@ final class UploadingTask implements Runnable {
 	private final static MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
 	// May want to defined these somewhere where they can be shared in the public API
-	static final String HEADER_KEY_CHUNK_SEQ_NO = "chunk-seq-no";
-	static final String HEADER_KEY_JFRNAME = "jfr-name";
+	static final String KEY_CHUNK_SEQ_NO = "chunk-seq-no";
+	static final String KEY_RECORDING_NAME = "recording-name";
+	// This is just the requested times. Later we will do this right, with per chunk info.
+	// Also this information should not have to be repeated in every request.
+	static final String KEY_RECORDING_START = "recording-start";
+	static final String KEY_RECORDING_END = "recording-end";
 	static final String HEADER_KEY_APIKEY = "apikey";
 
 	private final static OkHttpClient CLIENT = new OkHttpClient();
@@ -72,17 +76,20 @@ final class UploadingTask implements Runnable {
 	}
 
 	private void uploadChunk(RecordingData data, int chunkId, byte[] chunk) throws IOException {
-		// Fill in actual call to Edge service here! :)
 		LOGGER.log(Level.INFO,
 				"Beginning upload of " + data.getName() + "[" + chunkId + "] (Size=" + chunk.length + " bytes)");
 
 		RequestBody requestBody = new MultipartBuilder().type(MultipartBuilder.FORM)
+				.addFormDataPart(KEY_RECORDING_NAME, data.getName())
+				// Note that toString is well defined for instants - ISO-8601
+				.addFormDataPart(KEY_RECORDING_START, data.getRequestedStart().toString())
+				.addFormDataPart(KEY_RECORDING_END, data.getRequestedEnd().toString())
+				.addFormDataPart(KEY_CHUNK_SEQ_NO, String.valueOf(chunkId))
 				.addPart(Headers.of("Content-Disposition", "form-data; name=\"jfr-chunk-data\""),
 						RequestBody.create(OCTET_STREAM, chunk))
 				.build();
 
 		Request request = new Request.Builder().header(HEADER_KEY_APIKEY, apiKey)
-				.header(HEADER_KEY_JFRNAME, data.getName()).header(HEADER_KEY_CHUNK_SEQ_NO, String.valueOf(chunkId))
 				.addHeader("Authorization", credentials).url(url).post(requestBody).build();
 
 		Response response = CLIENT.newCall(request).execute();
