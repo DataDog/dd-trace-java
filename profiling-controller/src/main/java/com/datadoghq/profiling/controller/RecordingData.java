@@ -29,7 +29,7 @@ import java.time.Instant;
  */
 public interface RecordingData {
 	/**
-	 * True if the datastream is available, false if not.
+	 * True if the data stream is available, false if not.
 	 * 
 	 * @return
 	 */
@@ -61,7 +61,7 @@ public interface RecordingData {
 	 * @throws IllegalStateException
 	 *             if the data is not available yet.
 	 * @throws IOException
-	 *             if another IO-related problem occured.
+	 *             if another IO-related problem occurred.
 	 */
 	InputStream getStream(Instant start, Instant end) throws IllegalStateException, IOException;
 
