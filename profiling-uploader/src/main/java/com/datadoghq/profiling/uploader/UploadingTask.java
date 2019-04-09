@@ -36,10 +36,11 @@ import com.squareup.okhttp.Response;
 final class UploadingTask implements Runnable {
 	// This logger will be called repeatedly
 	private final static Logger LOGGER = Logger.getLogger(UploadingTask.class.getName());
+	private final static MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
 	// May want to defined these somewhere where they can be shared in the public API
-	static final String HEADER_KEY_JFRCHUNKID = "jfrchunkid";
-	static final String HEADER_KEY_JFRNAME = "jfrname";
+	static final String HEADER_KEY_JFRCHUNKID = "jfr-chunk-id";
+	static final String HEADER_KEY_JFRNAME = "jfr-name";
 	static final String HEADER_KEY_APIKEY = "apikey";
 
 	private final static OkHttpClient CLIENT = new OkHttpClient();
@@ -74,8 +75,8 @@ final class UploadingTask implements Runnable {
 				"Beginning upload of " + data.getName() + "[" + chunkId + "] (Size=" + chunk.length + " bytes)");
 
 		RequestBody requestBody = new MultipartBuilder().type(MultipartBuilder.FORM)
-				.addPart(Headers.of("Content-Disposition", "form-data; name=\"jfrchunkdata\""),
-						RequestBody.create(MediaType.parse("MediaType.parse(\"application/octet-stream\""), chunk))
+				.addPart(Headers.of("Content-Disposition", "form-data; name=\"jfr-chunk-data\""),
+						RequestBody.create(OCTET_STREAM, chunk))
 				.build();
 
 		Request request = new Request.Builder().header(HEADER_KEY_APIKEY, apiKey)
