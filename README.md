@@ -23,4 +23,4 @@ To run the agent with a Java process, add the built agent to the process using t
 java MyLovelyProgram -javaagent:${project_loc}/target/profiling-javaagent-0.0.1-SNAPSHOT.jar=<agentproperties.txt>
 ```
 
-If the project is imported into Eclipse, the agent comes with a little test program and a launcher which starts it with agent. To run with the externally built agent, simply run the TakeBuiltAgentForASpin launcher. Don't forget to first build everything with maven.
+If the project is imported into Eclipse, the agent comes with a little test program and a launcher which runs the example program with the agent. To run with the externally built agent, simply run the TakeBuiltAgentForASpin launcher. Don't forget to first build everything with maven.
