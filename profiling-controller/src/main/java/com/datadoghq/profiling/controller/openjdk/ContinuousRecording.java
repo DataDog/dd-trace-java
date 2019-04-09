@@ -25,7 +25,7 @@ import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
 
 /**
- * FIXME: Probably don't need different implementations after the rewrite (for OpenJDK).
+ * Implementation for a continuous recording.
  */
 public class ContinuousRecording implements RecordingData {
 	private final Recording recording;
@@ -68,6 +68,16 @@ public class ContinuousRecording implements RecordingData {
 	@Override
 	public String toString() {
 		return "ContinuousRecording: " + getName();
+	}
+
+	@Override
+	public Instant getRequestedStart() {
+		return defaultStart;
+	}
+
+	@Override
+	public Instant getRequestedEnd() {
+		return defaultEnd;
 	}
 
 }

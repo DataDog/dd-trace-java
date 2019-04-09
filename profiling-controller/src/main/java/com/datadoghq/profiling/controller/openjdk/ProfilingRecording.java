@@ -25,7 +25,7 @@ import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
 
 /**
- * FIXME: This can probably be joined with {@link ContinuousRecording} after the latest refactoring.
+ * Implementation for profiling recordings.
  */
 public class ProfilingRecording implements RecordingData {
 	private final Recording recording;
@@ -67,5 +67,15 @@ public class ProfilingRecording implements RecordingData {
 	@Override
 	public String toString() {
 		return "ProfilingRecording: " + getName();
+	}
+
+	@Override
+	public Instant getRequestedStart() {
+		return recording.getStartTime();
+	}
+
+	@Override
+	public Instant getRequestedEnd() {
+		return recording.getStopTime();
 	}
 }

@@ -84,4 +84,30 @@ public interface RecordingData {
 	 * @return the name of the recording from which the data is originating.
 	 */
 	String getName();
+
+	/**
+	 * Returns the requested start time for the recording. If no specific time was requested, this
+	 * returns null.
+	 * <p>
+	 * For time limited recordings this is the start time of the recording. For continuous
+	 * recordings, this is the default start time for the snapshot.
+	 * <p>
+	 * Note that this doesn't necessarily have to match the time for the actual data recorded.
+	 * 
+	 * @return the requested start time.
+	 */
+	Instant getRequestedStart();
+
+	/**
+	 * Returns the requested end time for the recording. If no specific time was requested, this
+	 * returns null.
+	 * <p>
+	 * For time limited recordings this is the end time of the recording. For continuous recordings,
+	 * this is the default end time for the snapshot.
+	 * <p>
+	 * Note that this doesn't necessarily have to match the time for the actual data recorded.
+	 * 
+	 * @return the requested end time.
+	 */
+	Instant getRequestedEnd();
 }
