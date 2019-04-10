@@ -74,7 +74,7 @@ public class ChunkUploaderTest {
 		system.shutdown();
 		uploader.shutdown();
 
-		assertEquals("Got the right amount of recordings tests ", NUMBER_OF_RECORDINGS, recordedRequests.size());
+		assertEquals("Didn't get the right amount of recordings", NUMBER_OF_RECORDINGS, recordedRequests.size());
 
 		for (RecordedRequest request : recordedRequests) {
 			Map<String, String> params = getParameters(request);
