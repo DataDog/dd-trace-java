@@ -39,7 +39,7 @@ final class UploadingTask implements Runnable {
 	private final static MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
 	// May want to defined these somewhere where they can be shared in the public API
-	static final String KEY_CHUNK_SEQ_NO = "chunk-seq-no";
+	static final String KEY_CHUNK_SEQ_NO = "chunk-seq-num";
 	static final String KEY_RECORDING_NAME = "recording-name";
 	// This is just the requested times. Later we will do this right, with per chunk info.
 	// Also this information should not have to be repeated in every request.
@@ -85,7 +85,7 @@ final class UploadingTask implements Runnable {
 				.addFormDataPart(KEY_RECORDING_START, data.getRequestedStart().toString())
 				.addFormDataPart(KEY_RECORDING_END, data.getRequestedEnd().toString())
 				.addFormDataPart(KEY_CHUNK_SEQ_NO, String.valueOf(chunkId))
-				.addPart(Headers.of("Content-Disposition", "form-data; name=\"jfr-chunk-data\""),
+				.addPart(Headers.of("Content-Disposition", "form-data; name=\"jfr-chunk-data\"; filename=\"chunk\""),
 						RequestBody.create(OCTET_STREAM, chunk))
 				.build();
 
