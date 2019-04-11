@@ -54,24 +54,51 @@ public final class ProfilingSystem {
 	private volatile RecordingData ongoingProfilingRecording;
 
 	/**
-	 * Initializes the profiling system.
+	 * Constructor.
 	 * 
+	 * @param dataListener
+	 *            the listener for data being produced.
+	 * @param delay
+	 *            the delay to wait before starting capturing data.
+	 * @param period
+	 *            the period between data captures.
+	 * @param recordingDuration
+	 *            the duration for each recording captured.
 	 * @throws IOException
 	 *             if a storage for the recordings could not be configured, or another IO related
 	 *             problem occurred.
 	 * @throws UnsupportedEnvironmentException
 	 *             if the runtime environment isn't supported.
+	 * @throws BadConfigurationException
+	 *             if the configuration information was bad.
 	 */
 	public ProfilingSystem(RecordingDataListener dataListener, Duration delay, Duration period,
-			Duration recordingDuration) throws IOException, UnsupportedEnvironmentException {
+			Duration recordingDuration) throws IOException, UnsupportedEnvironmentException, BadConfigurationException {
 		controller = ControllerFactory.createController();
 		this.dataListener = dataListener;
 		this.delay = delay;
 		this.period = period;
 		this.recordingDuration = recordingDuration;
+		if (period.minus(recordingDuration).isNegative()) {
+			throw new BadConfigurationException("Period must be larger than recording duration.");
+		}
 	}
 
-	public ProfilingSystem(RecordingDataListener dataListener) throws IOException, UnsupportedEnvironmentException {
+	/**
+	 * Constructor. Will use the default configuration parameters.
+	 * 
+	 * @param dataListener
+	 *            the listener for data being produced.
+	 * @throws IOException
+	 *             if a storage for the recordings could not be configured, or another IO related
+	 *             problem occurred.
+	 * @throws UnsupportedEnvironmentException
+	 *             if the runtime environment isn't supported.
+	 * @throws BadConfigurationException
+	 *             if the configuration information was bad.
+	 */
+	public ProfilingSystem(RecordingDataListener dataListener)
+			throws IOException, UnsupportedEnvironmentException, BadConfigurationException {
 		this(dataListener, Duration.ofSeconds(20), Duration.ofHours(1), Duration.ofMinutes(1));
 	}
 

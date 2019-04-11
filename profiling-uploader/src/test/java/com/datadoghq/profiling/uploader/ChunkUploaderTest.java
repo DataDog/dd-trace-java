@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
+import com.datadoghq.profiling.controller.BadConfigurationException;
 import com.datadoghq.profiling.controller.ProfilingSystem;
 import com.datadoghq.profiling.controller.UnsupportedEnvironmentException;
 import com.squareup.okhttp.Credentials;
@@ -49,7 +50,7 @@ public class ChunkUploaderTest {
 	private static final int NUMBER_OF_RECORDINGS = 3;
 
 	@Test
-	public void testUploader() throws IOException, UnsupportedEnvironmentException, InterruptedException {
+	public void testUploader() throws Exception {
 		final List<RecordedRequest> recordedRequests = Collections.synchronizedList(new ArrayList<RecordedRequest>());
 		final CountDownLatch latch = new CountDownLatch(NUMBER_OF_RECORDINGS);
 
@@ -109,7 +110,7 @@ public class ChunkUploaderTest {
 		return params;
 	}
 
-	public static void main(String[] args) throws IOException, UnsupportedEnvironmentException, InterruptedException {
+	public static void main(String[] args) throws Exception {
 		new ChunkUploaderTest().testUploader();
 	}
 }

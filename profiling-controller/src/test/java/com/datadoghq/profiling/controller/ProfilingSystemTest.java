@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 /**
@@ -37,10 +38,11 @@ public class ProfilingSystemTest {
 	 * Ensuring that it can be created and shutdown without problems, if not started.
 	 * 
 	 * @throws InterruptedException
+	 * @throws BadConfigurationException
 	 */
 	@Test
 	public void testProfilingSystemCreation()
-			throws UnsupportedEnvironmentException, IOException, InterruptedException {
+			throws UnsupportedEnvironmentException, IOException, InterruptedException, BadConfigurationException {
 		final CountDownLatch latch = new CountDownLatch(1);
 		RecordingDataListener listener = new RecordingDataListener() {
 			@Override
@@ -56,12 +58,39 @@ public class ProfilingSystemTest {
 	}
 
 	/**
-	 * Ensuring that it can be started, and recording data for a few profiling recordings captured.
+	 * Ensuring it is not possible to configure the profiling system to have greater recording
+	 * lengths than the dump periodicity.
 	 * 
 	 * @throws InterruptedException
 	 */
 	@Test
-	public void testProfilingSystem() throws UnsupportedEnvironmentException, IOException, InterruptedException {
+	public void testProfilingSystemCreationBadConfig()
+			throws UnsupportedEnvironmentException, IOException, InterruptedException {
+		RecordingDataListener listener = new RecordingDataListener() {
+			@Override
+			public void onNewData(RecordingData data) {
+				// Don't care...
+			}
+		};
+		try {
+			ProfilingSystem system = new ProfilingSystem(listener, Duration.ZERO, Duration.ofMillis(200),
+					Duration.ofMillis(400));
+			system.shutdown();
+		} catch (Exception e) {
+			return;
+		}
+
+		Assert.fail("An exception should have been thrown at this point!");
+	}
+
+	/**
+	 * Ensuring that it can be started, and recording data for a few profiling recordings captured.
+	 * 
+	 * @throws InterruptedException
+	 * @throws BadConfigurationException 
+	 */
+	@Test
+	public void testProfilingSystem() throws UnsupportedEnvironmentException, IOException, InterruptedException, BadConfigurationException {
 		final CountDownLatch latch = new CountDownLatch(2);
 		final List<RecordingData> results = new ArrayList<>();
 
@@ -90,9 +119,10 @@ public class ProfilingSystemTest {
 	 * Ensuring that it can be started, and recording data for the continuous recording captured.
 	 * 
 	 * @throws InterruptedException
+	 * @throws BadConfigurationException 
 	 */
 	@Test
-	public void testContinuous() throws UnsupportedEnvironmentException, IOException, InterruptedException {
+	public void testContinuous() throws UnsupportedEnvironmentException, IOException, InterruptedException, BadConfigurationException {
 		final CountDownLatch latch = new CountDownLatch(2);
 		final List<RecordingData> results = new ArrayList<>();
 

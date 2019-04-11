@@ -9,6 +9,7 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.datadoghq.profiling.controller.BadConfigurationException;
 import com.datadoghq.profiling.controller.ProfilingSystem;
 import com.datadoghq.profiling.controller.UnsupportedEnvironmentException;
 import com.datadoghq.profiling.uploader.ChunkUploader;
@@ -65,7 +66,7 @@ public class ProfilingAgent {
 						Duration.ofSeconds(getInt(props, KEY_PERIOD, DEFAULT_PERIOD)),
 						Duration.ofSeconds(getInt(props, KEY_DURATION, DEFAULT_DURATION)));
 				profiler.start();
-			} catch (UnsupportedEnvironmentException | IOException e) {
+			} catch (UnsupportedEnvironmentException | IOException | BadConfigurationException e) {
 				getLogger().log(Level.WARNING, "Failed to initialize profiling agent!", e);
 			}
 		}
