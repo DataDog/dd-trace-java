@@ -67,7 +67,7 @@ public class ChunkUploaderTest {
 		ChunkUploader uploader = new ChunkUploader(url.toString(), TEST_APIKEY_VALUE, Credentials.basic("user", "pwd"));
 
 		ProfilingSystem system = new ProfilingSystem(uploader.getRecordingDataListener(), Duration.ZERO,
-				Duration.ofSeconds(5), Duration.ofSeconds(2));
+				Duration.ofMillis(200), Duration.ofMillis(25));
 		system.start();
 
 		latch.await(45, TimeUnit.SECONDS);

@@ -100,7 +100,7 @@ public final class ProfilingSystem {
 				new RecordingCreator(JfpUtils.readNamedJfpResource(JFP_PROFILE)), delay.toMillis(), period.toMillis(),
 				TimeUnit.MILLISECONDS);
 		scheduledHarvester = executorService.scheduleAtFixedRate(new RecordingHarvester(),
-				delay.toMillis() + recordingDuration.toMillis(), period.toMillis(), TimeUnit.MILLISECONDS);
+				delay.toMillis() + recordingDuration.toMillis() + 50, period.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -167,7 +167,7 @@ public final class ProfilingSystem {
 	}
 
 	private final class RecordingHarvester implements Runnable {
-		private final static long RETRY_DELAY = 2;
+		private final static long RETRY_DELAY = 100;
 
 		@Override
 		public void run() {
@@ -175,9 +175,9 @@ public final class ProfilingSystem {
 			if (recording != null) {
 				if (!recording.isAvailable()) {
 					// We were called too soon. Let's try again in a bit.
-					executorService.schedule(this, RETRY_DELAY, TimeUnit.SECONDS);
-					getLogger().log(Level.FINE,
-							"Profiling Recording wasn't done. Rescheduled check in " + RETRY_DELAY + " seconds.");
+					executorService.schedule(this, RETRY_DELAY, TimeUnit.MILLISECONDS);
+					getLogger().log(Level.WARNING,
+							"Profiling Recording wasn't done. Rescheduled check in " + RETRY_DELAY + " ms.");
 				} else {
 					dataListener.onNewData(recording);
 					ongoingProfilingRecording = null;

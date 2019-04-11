@@ -48,8 +48,8 @@ public class ProfilingSystemTest {
 				latch.countDown();
 			}
 		};
-		ProfilingSystem system = new ProfilingSystem(listener, Duration.ZERO, Duration.ofSeconds(2),
-				Duration.ofSeconds(1));
+		ProfilingSystem system = new ProfilingSystem(listener, Duration.ZERO, Duration.ofMillis(200),
+				Duration.ofMillis(100));
 		latch.await(4, TimeUnit.SECONDS);
 		system.shutdown();
 		assertEquals("Got recording data even though the system was never started!", 1, latch.getCount());
@@ -62,7 +62,7 @@ public class ProfilingSystemTest {
 	 */
 	@Test
 	public void testProfilingSystem() throws UnsupportedEnvironmentException, IOException, InterruptedException {
-		final CountDownLatch latch = new CountDownLatch(3);
+		final CountDownLatch latch = new CountDownLatch(2);
 		final List<RecordingData> results = new ArrayList<>();
 
 		RecordingDataListener listener = new RecordingDataListener() {
@@ -72,11 +72,11 @@ public class ProfilingSystemTest {
 				latch.countDown();
 			}
 		};
-		ProfilingSystem system = new ProfilingSystem(listener, Duration.ZERO, Duration.ofSeconds(5),
-				Duration.ofSeconds(2));
+		ProfilingSystem system = new ProfilingSystem(listener, Duration.ZERO, Duration.ofMillis(200),
+				Duration.ofMillis(25));
 		system.start();
 		latch.await(30, TimeUnit.SECONDS);
-		assertTrue("Should have received more data!", results.size() >= 3);
+		assertTrue("Should have received more data!", results.size() >= 2);
 		for (RecordingData data : results) {
 			assertTrue("RecordingData should be available before sent out!", data.isAvailable());
 		}
@@ -93,17 +93,13 @@ public class ProfilingSystemTest {
 	 */
 	@Test
 	public void testContinuous() throws UnsupportedEnvironmentException, IOException, InterruptedException {
-		final CountDownLatch latch = new CountDownLatch(3);
+		final CountDownLatch latch = new CountDownLatch(2);
 		final List<RecordingData> results = new ArrayList<>();
 
 		RecordingDataListener listener = new RecordingDataListener() {
 			@Override
 			public void onNewData(RecordingData data) {
 				results.add(data);
-				try {
-					Thread.sleep(2000);
-				} catch (InterruptedException e) {
-				}
 				latch.countDown();
 			}
 		};
@@ -116,6 +112,10 @@ public class ProfilingSystemTest {
 				for (int i = 0; i < 3; i++) {
 					try {
 						system.triggerSnapshot();
+						try {
+							Thread.sleep(200);
+						} catch (InterruptedException e) {
+						}
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -124,7 +124,7 @@ public class ProfilingSystemTest {
 		};
 		new Thread(continuousTrigger, "Continuous trigger").start();
 		latch.await(30, TimeUnit.SECONDS);
-		assertTrue("Should have received more data!", results.size() >= 3);
+		assertTrue("Should have received more data!", results.size() >= 2);
 		for (RecordingData data : results) {
 			assertFalse("Should not be getting profiling recordings!", data.getName().startsWith("dd-profiling"));
 			assertTrue("RecordingData should be available before sent out!", data.isAvailable());
@@ -134,9 +134,4 @@ public class ProfilingSystemTest {
 			data.release();
 		}
 	}
-
-	/*
-	 * public static void main(String[] args) throws Exception { new
-	 * ProfilingSystemTest().testContinuous(); }
-	 */
 }
