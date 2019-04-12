@@ -77,7 +77,7 @@ final class UploadingTask implements Runnable {
 
 	private void uploadChunk(RecordingData data, int chunkId, byte[] chunk) throws IOException {
 		LOGGER.log(Level.INFO,
-				"Beginning upload of " + data.getName() + "[" + chunkId + "] (Size=" + chunk.length + " bytes)");
+				"Uploading " + data.getName() + "[" + chunkId + "] (Size=" + chunk.length + " bytes)");
 
 		RequestBody requestBody = new MultipartBuilder().type(MultipartBuilder.FORM)
 				.addFormDataPart(KEY_RECORDING_NAME, data.getName())
@@ -93,7 +93,9 @@ final class UploadingTask implements Runnable {
 				.addHeader("Authorization", credentials).url(url).post(requestBody).build();
 
 		Response response = CLIENT.newCall(request).execute();
-		if (!response.isSuccessful()) {
+		if (response.isSuccessful()) {
+			LOGGER.log(Level.INFO, "Upload done");
+		} else {
 			throw new IOException("Unexpected code " + response);
 		}
 	}
