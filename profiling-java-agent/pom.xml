@@ -68,9 +68,9 @@
 				<configuration>
 					<archive>
 						<manifestEntries>
-							<Automatic-Module-Name>com.datadoghq.profiling.agent</Automatic-Module-Name>
-							<Agent-Class>com.datadoghq.profiling.agent.ProfilingAgent</Agent-Class>
-							<Premain-Class>com.datadoghq.profiling.agent.ProfilingAgent</Premain-Class>
+							<Automatic-Module-Name>com.datadog.profiling.agent</Automatic-Module-Name>
+							<Agent-Class>com.datadog.profiling.agent.ProfilingAgent</Agent-Class>
+							<Premain-Class>com.datadog.profiling.agent.ProfilingAgent</Premain-Class>
 							<Can-Redefine-Classes>false</Can-Redefine-Classes>
 							<Can-Retransform-Classes>false</Can-Retransform-Classes>
 							<Can-Set-Native-Method-Prefix>false</Can-Set-Native-Method-Prefix>
