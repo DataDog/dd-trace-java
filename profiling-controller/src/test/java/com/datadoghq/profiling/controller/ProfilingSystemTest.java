@@ -29,6 +29,12 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.datadog.profiling.controller.BadConfigurationException;
+import com.datadog.profiling.controller.ProfilingSystem;
+import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.controller.RecordingDataListener;
+import com.datadog.profiling.controller.UnsupportedEnvironmentException;
+
 /**
  * Unit tests for testing the {@link ProfilingSystem}.
  */
