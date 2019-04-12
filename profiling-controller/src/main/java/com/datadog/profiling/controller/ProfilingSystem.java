@@ -24,8 +24,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.slf4j.LoggerFactory;
 
 import com.datadog.profiling.controller.util.JfpUtils;
 
@@ -180,16 +180,11 @@ public final class ProfilingSystem {
 					ongoingProfilingRecording = controller.createRecording(
 							"dd-profiling-" + RECORDING_SEQUENCE_NUMBER.getAndIncrement(), template, recordingDuration);
 				} else {
-					getLogger().log(Level.WARNING,
-							"Skipped creating profiling recording, since one was already underway.");
+					getLogger().warn("Skipped creating profiling recording, since one was already underway.");
 				}
 			} catch (IOException e) {
-				getLogger().log(Level.SEVERE, "Failed to create a profiling recording!", e);
+				getLogger().error("Failed to create a profiling recording!", e);
 			}
-		}
-
-		private Logger getLogger() {
-			return Logger.getLogger(getClass().getName());
 		}
 	}
 
@@ -203,18 +198,17 @@ public final class ProfilingSystem {
 				if (!recording.isAvailable()) {
 					// We were called too soon. Let's try again in a bit.
 					executorService.schedule(this, RETRY_DELAY, TimeUnit.MILLISECONDS);
-					getLogger().log(Level.WARNING,
-							"Profiling Recording wasn't done. Rescheduled check in " + RETRY_DELAY + " ms.");
+					getLogger().warn("Profiling Recording wasn't done. Rescheduled check in {} ms", RETRY_DELAY);
 				} else {
 					dataListener.onNewData(recording);
 					ongoingProfilingRecording = null;
 				}
 			}
 		}
-
-		private Logger getLogger() {
-			return Logger.getLogger(getClass().getName());
-		}
 	}
 
+	// These are typically called once - no need for a field.
+	private static org.slf4j.Logger getLogger() {
+		return LoggerFactory.getLogger(ProfilingSystem.class);
+	}
 }

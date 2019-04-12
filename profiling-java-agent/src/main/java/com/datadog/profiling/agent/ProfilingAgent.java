@@ -6,8 +6,9 @@ import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.time.Duration;
 import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.datadog.profiling.controller.BadConfigurationException;
 import com.datadog.profiling.controller.ProfilingSystem;
@@ -67,7 +68,7 @@ public class ProfilingAgent {
 						Duration.ofSeconds(getInt(props, KEY_DURATION, DEFAULT_DURATION)));
 				profiler.start();
 			} catch (UnsupportedEnvironmentException | IOException | BadConfigurationException e) {
-				getLogger().log(Level.WARNING, "Failed to initialize profiling agent!", e);
+				getLogger().warn("Failed to initialize profiling agent!", e);
 			}
 		}
 	}
@@ -79,15 +80,14 @@ public class ProfilingAgent {
 		} else {
 			File propsFile = new File(args);
 			if (!propsFile.exists()) {
-				getLogger().log(Level.WARNING,
-						"The agent settings file " + args + " could not be found! Will go with the defaults!");
+				getLogger().warn("The agent settings file {} could not be found! Will go with the defaults!", args);
 				loadDefaultProperties(props);
 			} else {
 				try (FileInputStream in = new FileInputStream(propsFile)) {
 					props.load(in);
 				} catch (Exception e) {
-					getLogger().log(Level.WARNING, "Failed to load agent settings from " + args
-							+ ". File format error? Going with the defaults.");
+					getLogger().warn(
+							"Failed to load agent settings from {}. File format error? Going with the defaults.", args);
 					loadDefaultProperties(props);
 				}
 			}
@@ -100,7 +100,7 @@ public class ProfilingAgent {
 			props.load(ProfilingAgent.class.getClassLoader().getResourceAsStream(DEFAULT_PROPERTIES));
 		} catch (IOException e) {
 			// Should never happen! Build fail!
-			getLogger().log(Level.SEVERE, "Failure to load default properties!", e);
+			getLogger().error("Failure to load default properties!", e);
 		}
 	}
 
@@ -110,12 +110,11 @@ public class ProfilingAgent {
 			try {
 				return Integer.valueOf(val);
 			} catch (NumberFormatException e) {
-				getLogger().log(Level.WARNING,
-						"Could not parse key " + key + ". Will go with default " + defaultValue + ".");
+				getLogger().warn("Could not parse key {}. Will go with default {}.", key, defaultValue);
 				return defaultValue;
 			}
 		}
-		getLogger().log(Level.INFO, "Could not find key " + key + ". Will go with default " + defaultValue + ".");
+		getLogger().info("Could not find key {}. Will go with default {}.", key, defaultValue);
 		return defaultValue;
 	}
 
@@ -128,6 +127,6 @@ public class ProfilingAgent {
 	}
 
 	private static Logger getLogger() {
-		return Logger.getLogger(ProfilingAgent.class.getName());
+		return LoggerFactory.getLogger(ProfilingAgent.class);
 	}
 }

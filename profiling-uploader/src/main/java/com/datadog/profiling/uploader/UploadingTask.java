@@ -17,8 +17,9 @@ package com.datadog.profiling.uploader;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.uploader.util.ChunkReader;
@@ -35,7 +36,7 @@ import com.squareup.okhttp.Response;
  */
 final class UploadingTask implements Runnable {
 	// This logger will be called repeatedly
-	private final static Logger LOGGER = Logger.getLogger(UploadingTask.class.getName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(UploadingTask.class);
 	private final static MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
 	// May want to defined these somewhere where they can be shared in the public API
@@ -71,13 +72,12 @@ final class UploadingTask implements Runnable {
 			// Chunk loader closes stream automatically - only need to release RecordingData
 			data.release();
 		} catch (IllegalStateException | IOException e) {
-			LOGGER.log(Level.SEVERE, "Problem uploading recording chunk!", e);
+			LOGGER.error("Problem uploading recording chunk!", e);
 		}
 	}
 
 	private void uploadChunk(RecordingData data, int chunkId, byte[] chunk) throws IOException {
-		LOGGER.log(Level.INFO,
-				"Uploading " + data.getName() + "[" + chunkId + "] (Size=" + chunk.length + " bytes)");
+		LOGGER.info("Uploading {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
 
 		RequestBody requestBody = new MultipartBuilder().type(MultipartBuilder.FORM)
 				.addFormDataPart(KEY_RECORDING_NAME, data.getName())
@@ -94,7 +94,7 @@ final class UploadingTask implements Runnable {
 
 		Response response = CLIENT.newCall(request).execute();
 		if (response.isSuccessful()) {
-			LOGGER.log(Level.INFO, "Upload done");
+			LOGGER.info("Upload done");
 		} else {
 			throw new IOException("Unexpected code " + response);
 		}
