@@ -27,7 +27,7 @@ build:
 
 release:
   stage: upload
-  tags: [ "runner:docker", "size:large" ]
+  tags: [ "runner:main", "size:large" ]
   image: $CI_IMAGE
   only: [ "master", ]
   dependencies:
