@@ -15,7 +15,9 @@
  */
 package com.datadog.profiling.uploader;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedReader;
@@ -41,6 +43,7 @@ import com.squareup.okhttp.mockwebserver.Dispatcher;
 import com.squareup.okhttp.mockwebserver.MockResponse;
 import com.squareup.okhttp.mockwebserver.MockWebServer;
 import com.squareup.okhttp.mockwebserver.RecordedRequest;
+import static org.hamcrest.Matchers.*;
 
 /**
  * Unit tests for the chunk uploader.
@@ -68,14 +71,14 @@ public class ChunkUploaderTest {
 		ChunkUploader uploader = new ChunkUploader(url.toString(), TEST_APIKEY_VALUE, Credentials.basic("user", "pwd"));
 
 		ProfilingSystem system = new ProfilingSystem(uploader.getRecordingDataListener(), Duration.ZERO,
-				Duration.ofMillis(200), Duration.ofMillis(25));
+				Duration.ofMillis(10), Duration.ofMillis(10));
 		system.start();
 
-		latch.await(45, TimeUnit.SECONDS);
+		latch.await(15, TimeUnit.SECONDS);
 		system.shutdown();
 		uploader.shutdown();
 
-		assertEquals("Didn't get the right amount of recordings", NUMBER_OF_RECORDINGS, recordedRequests.size());
+		assertThat("Didn't get the right amount of recordings", recordedRequests.size(), greaterThanOrEqualTo(NUMBER_OF_RECORDINGS));
 
 		for (RecordedRequest request : recordedRequests) {
 			Map<String, String> params = getParameters(request);

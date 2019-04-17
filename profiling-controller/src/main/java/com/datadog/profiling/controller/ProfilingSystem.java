@@ -25,6 +25,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.datadog.profiling.controller.util.JfpUtils;
@@ -33,6 +34,9 @@ import com.datadog.profiling.controller.util.JfpUtils;
  * Sets up the profiling strategy and schedules the profiling recordings.
  */
 public final class ProfilingSystem {
+
+	private final static Logger LOGGER = LoggerFactory.getLogger(ProfilingSystem.class);
+
 	public final static ThreadGroup THREAD_GROUP = new ThreadGroup("Datadog Profiler");
 	private final static AtomicInteger RECORDING_SEQUENCE_NUMBER = new AtomicInteger();
 	private final static String JFP_CONTINUOUS = "jfr2/ddcontinuous.jfp";
@@ -135,6 +139,7 @@ public final class ProfilingSystem {
 	 */
 	public final void shutdown() {
 		executorService.shutdownNow();
+
 		if (scheduledHarvester != null) {
 			scheduledHarvester.cancel(true);
 		}
@@ -150,6 +155,12 @@ public final class ProfilingSystem {
 		if (recording != null) {
 			recording.release();
 			continuousRecording = null;
+		}
+
+		try {
+			executorService.awaitTermination(10, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			LOGGER.error("Wait for executor shutdown interrupted");
 		}
 	}
 
