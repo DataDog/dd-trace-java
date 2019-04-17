@@ -17,6 +17,10 @@ package com.datadog.profiling.uploader;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.RecordingData;
@@ -31,6 +35,9 @@ import com.squareup.okhttp.Credentials;
  * Don't forget to shut down this component when no longer needed.
  */
 public final class ChunkUploader {
+
+	private final static Logger LOGGER = LoggerFactory.getLogger(ChunkUploader.class);
+
 	// Allows upload of 1 continuous and one profiling recording simultaneously. Of course, spamming 
 	// dumps of the continuous recording may get us in trouble, so we will likely protect against that 
 	// at some point. For the normal use case, it's expected that one of these upload threads will mostly be idle.
@@ -75,7 +82,11 @@ public final class ChunkUploader {
 	public void shutdown() {
 		if (uploadingTaskExecutor != null) {
 			uploadingTaskExecutor.shutdown();
-			// May want to await termination here for a tad.
+			try {
+				uploadingTaskExecutor.awaitTermination(10, TimeUnit.SECONDS);
+			} catch (InterruptedException e) {
+				LOGGER.error("Wait for executor shutdown interrupted");
+			}
 		}
 	}
 }
