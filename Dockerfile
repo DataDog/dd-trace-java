@@ -1,5 +1,4 @@
 FROM openjdk:11
-# FROM openjdk:11-jdk
 
 RUN apt update && apt install -y awscli moreutils && apt -y clean && rm -rf /var/lib/apt/lists/*
 
