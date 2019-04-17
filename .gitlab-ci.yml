@@ -1,6 +1,6 @@
 variables:
-  # CI_IMAGE generated in https://gitlab.ddbuild.io/DataDog/dd-profiling-java/-/jobs/13076395
-  CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/dd-profiling-java@sha256:9f151e0c3be8ec9a4a74ec4167cf43da84095db08eb1903255922288d5ad1a4d
+  # CI_IMAGE generated in https://gitlab.ddbuild.io/DataDog/dd-profiling-java/-/jobs/13094121
+  CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/dd-profiling-java@sha256:86aa201ffcfbe9ec940838b6cb02d109299fd4101310d2cc0bc97ac992ad73eb
 
 stages: [ci-image, build, upload]
 
