@@ -1,0 +1,36 @@
+variables:
+  # CI_IMAGE generated in https://gitlab.ddbuild.io/DataDog/dd-profiling-java/-/jobs/13076395
+  CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/dd-profiling-java@sha256:9f151e0c3be8ec9a4a74ec4167cf43da84095db08eb1903255922288d5ad1a4d
+
+stages: [ci-image, build, upload]
+
+ci-image:
+  stage: ci-image
+  when: manual
+  except: [ tags, schedules ]
+  tags: [ "runner:docker", "size:large" ]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:18.03.1
+  script:
+    - docker build --tag 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/dd-profiling-java .
+    - docker push 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/dd-profiling-java
+
+build:
+  stage: build
+  image: $CI_IMAGE
+  tags: [ "runner:main", "size:large" ]
+  script:
+    - mvn clean package 2>&1 | ts "[%H:%M:%S %Z] "
+  artifacts:
+    paths:
+      - profiling-java-agent/target/profiling-javaagent-0.0.1-SNAPSHOT.jar
+    expire_in: 1 week
+
+release:
+  stage: upload
+  tags: [ "runner:docker", "size:large" ]
+  image: $CI_IMAGE
+  only: [ "master", ]
+  dependencies:
+    - build # makes it download the archived file(s)
+  script:
+    - aws s3 cp profiling-java-agent/target/profiling-javaagent-0.0.1-SNAPSHOT.jar s3://binaries.ddbuild.io/dd-profile-java/profile-agent-0-${CI_PIPELINE_ID}-${CI_COMMIT_HASH:0:8}
