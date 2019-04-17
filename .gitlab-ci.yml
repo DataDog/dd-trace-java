@@ -27,10 +27,10 @@ build:
 
 release:
   stage: upload
-  tags: [ "runner:docker", "size:large" ]
+  tags: [ "runner:main", "size:large" ]
   image: $CI_IMAGE
   only: [ "master", ]
   dependencies:
     - build # makes it download the archived file(s)
   script:
-    - aws s3 cp profiling-java-agent/target/profiling-javaagent-0.0.1-SNAPSHOT.jar s3://binaries.ddbuild.io/dd-profile-java/profile-agent-0-${CI_PIPELINE_ID}-${CI_COMMIT_HASH:0:8}
+    - aws s3 cp profiling-java-agent/target/profiling-javaagent-0.0.1-SNAPSHOT.jar s3://binaries.ddbuild.io/dd-profile-java/profile-agent-0.0.1-${CI_PIPELINE_ID}-${CI_COMMIT_HASH:0:8}.jar
