@@ -79,4 +79,22 @@ public interface Controller {
 	 */
 	public RecordingData snapshot(Instant start, Instant end) throws IOException;
 
+	/**
+	 * Returns the default settings to be used for the continuous recording.
+	 * 
+	 * @return the default settings to be used for the continuous recording.
+	 * @throws IOException
+	 *             if the settings could not be read.
+	 */
+	Map<String, String> getContinuousSettings() throws IOException;
+
+	/**
+	 * Returns the default settings to be used for the profiling recordings.
+	 * 
+	 * @return the default settings to be used for the profiling recordings.
+	 * @throws IOException
+	 *             if the settings could not be read.
+	 */
+	Map<String, String> getProfilingSettings() throws IOException;
+
 }

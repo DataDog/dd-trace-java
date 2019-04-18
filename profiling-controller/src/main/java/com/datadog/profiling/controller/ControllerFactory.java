@@ -30,7 +30,7 @@ public final class ControllerFactory {
 	 *             if there is controller available for the platform we're running in. See the
 	 *             exception message for specifics.
 	 */
-	public final static Controller createController() throws UnsupportedEnvironmentException {
+	public static final Controller createController() throws UnsupportedEnvironmentException {
 		try {
 			Class.forName("com.oracle.jrockit.jfr.Producer");
 			throw new UnsupportedEnvironmentException(
