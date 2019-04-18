@@ -48,9 +48,13 @@ public class ProfilingAgent {
 		initialize();
 	}
 
-	private static synchronized void initialize() {
+	private static synchronized void initialize() throws IllegalArgumentException {
 		if (profiler == null) {
-			uploader = new ChunkUploader(getString(KEY_URL, DEFAULT_URL), getString(KEY_API_KEY, ""));
+			String apiKey = System.getProperty(KEY_API_KEY);
+			if (apiKey == null) {
+				throw new IllegalArgumentException("You must set -D" + KEY_API_KEY);
+			}
+			uploader = new ChunkUploader(getString(KEY_URL, DEFAULT_URL), apiKey);
 			try {
 				profiler = new ProfilingSystem(uploader.getRecordingDataListener(),
 						Duration.ofSeconds(getInt(KEY_DELAY, DEFAULT_DELAY)),
