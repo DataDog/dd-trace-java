@@ -11,7 +11,6 @@ import com.datadog.profiling.controller.BadConfigurationException;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.uploader.ChunkUploader;
-import com.squareup.okhttp.Credentials;
 
 /**
  * Simple agent wrapper for starting the profiling agent from the command-line, without requiring
@@ -24,8 +23,6 @@ public class ProfilingAgent {
 	private static final String KEY_DELAY = "dd.profile.delay_sec";
 	private static final String KEY_URL = "dd.profile.endpoint";
 	private static final String KEY_API_KEY = "dd.profile.api_key";
-	private static final String KEY_USERNAME = "dd.profile.username";
-	private static final String KEY_PASSWORD = "dd.profile.password";
 
 	private static final int DEFAULT_DURATION = 60;
 	private static final int DEFAULT_PERIOD = 3600;
@@ -53,8 +50,7 @@ public class ProfilingAgent {
 
 	private static synchronized void initialize() {
 		if (profiler == null) {
-			uploader = new ChunkUploader(getString(KEY_URL, DEFAULT_URL), getString(KEY_API_KEY, ""),
-					Credentials.basic(getString(KEY_USERNAME, ""), getString(KEY_PASSWORD, "")));
+			uploader = new ChunkUploader(getString(KEY_URL, DEFAULT_URL), getString(KEY_API_KEY, ""));
 			try {
 				profiler = new ProfilingSystem(uploader.getRecordingDataListener(),
 						Duration.ofSeconds(getInt(KEY_DELAY, DEFAULT_DELAY)),
