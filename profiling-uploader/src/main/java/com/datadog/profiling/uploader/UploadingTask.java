@@ -36,8 +36,8 @@ import com.squareup.okhttp.Response;
  */
 final class UploadingTask implements Runnable {
 	// This logger will be called repeatedly
-	private final static Logger LOGGER = LoggerFactory.getLogger(UploadingTask.class);
-	private final static MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
+	private static final Logger LOGGER = LoggerFactory.getLogger(UploadingTask.class);
+	private static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
 	// May want to defined these somewhere where they can be shared in the public API
 	static final String KEY_CHUNK_SEQ_NO = "chunk-seq-num";
@@ -48,7 +48,7 @@ final class UploadingTask implements Runnable {
 	static final String KEY_RECORDING_END = "recording-end";
 	static final String HEADER_KEY_APIKEY = "apikey";
 
-	private final static OkHttpClient CLIENT = new OkHttpClient();
+	private static final OkHttpClient CLIENT = new OkHttpClient();
 	private final RecordingData data;
 	private final String apiKey;
 	private final String url;

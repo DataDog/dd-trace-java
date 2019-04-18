@@ -24,7 +24,7 @@ import com.datadog.profiling.controller.ProfilingSystem;
  * Thread factory for the recording scheduler.
  */
 final class ProfilingUploaderThreadFactory implements ThreadFactory {
-	private final static AtomicInteger COUNTER = new AtomicInteger();
+	private static final AtomicInteger COUNTER = new AtomicInteger();
 	@Override
 	public Thread newThread(Runnable r) {
 		Thread t = new Thread(ProfilingSystem.THREAD_GROUP, r, "DD Recording Uploader - " + COUNTER.getAndIncrement());

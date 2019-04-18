@@ -28,19 +28,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.datadog.profiling.controller.util.JfpUtils;
-
 /**
  * Sets up the profiling strategy and schedules the profiling recordings.
  */
 public final class ProfilingSystem {
+	public static final ThreadGroup THREAD_GROUP = new ThreadGroup("Datadog Profiler");
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(ProfilingSystem.class);
-
-	public final static ThreadGroup THREAD_GROUP = new ThreadGroup("Datadog Profiler");
-	private final static AtomicInteger RECORDING_SEQUENCE_NUMBER = new AtomicInteger();
-	private final static String JFP_CONTINUOUS = "jfr2/ddcontinuous.jfp";
-	private final static String JFP_PROFILE = "jfr2/ddprofile.jfp";
+	private static final Logger LOGGER = LoggerFactory.getLogger(ProfilingSystem.class);
+	private static final AtomicInteger RECORDING_SEQUENCE_NUMBER = new AtomicInteger();
 
 	private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1,
 			new ProfilingRecorderThreadFactory());
@@ -116,7 +111,7 @@ public final class ProfilingSystem {
 	 */
 	public final void start() throws UnsupportedEnvironmentException, IOException {
 		continuousRecording = controller.createContinuousRecording("dd_profiler_continuous",
-				JfpUtils.readNamedJfpResource(JFP_CONTINUOUS));
+				controller.getContinuousSettings());
 		startSchedulingProfilingRecordings();
 	}
 
@@ -128,7 +123,7 @@ public final class ProfilingSystem {
 	 */
 	private void startSchedulingProfilingRecordings() throws IOException {
 		scheduledProfilingRecordings = executorService.scheduleAtFixedRate(
-				new RecordingCreator(JfpUtils.readNamedJfpResource(JFP_PROFILE)), delay.toMillis(), period.toMillis(),
+				new RecordingCreator(controller.getProfilingSettings()), delay.toMillis(), period.toMillis(),
 				TimeUnit.MILLISECONDS);
 		scheduledHarvester = executorService.scheduleAtFixedRate(new RecordingHarvester(),
 				delay.toMillis() + recordingDuration.toMillis() + 50, period.toMillis(), TimeUnit.MILLISECONDS);
@@ -160,7 +155,7 @@ public final class ProfilingSystem {
 		try {
 			executorService.awaitTermination(10, TimeUnit.SECONDS);
 		} catch (InterruptedException e) {
-			LOGGER.error("Wait for executor shutdown interrupted");
+			getLogger().error("Wait for executor shutdown interrupted");
 		}
 	}
 
@@ -200,7 +195,7 @@ public final class ProfilingSystem {
 	}
 
 	private final class RecordingHarvester implements Runnable {
-		private final static long RETRY_DELAY = 100;
+		private static final long RETRY_DELAY = 100;
 
 		@Override
 		public void run() {
@@ -218,8 +213,7 @@ public final class ProfilingSystem {
 		}
 	}
 
-	// These are typically called once - no need for a field.
-	private static org.slf4j.Logger getLogger() {
-		return LoggerFactory.getLogger(ProfilingSystem.class);
+	private static Logger getLogger() {
+		return LOGGER;
 	}
 }

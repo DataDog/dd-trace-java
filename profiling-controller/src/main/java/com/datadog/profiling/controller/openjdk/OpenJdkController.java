@@ -22,6 +22,7 @@ import java.util.Map;
 
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.controller.util.JfpUtils;
 
 import jdk.jfr.FlightRecorder;
 import jdk.jfr.Recording;
@@ -32,6 +33,8 @@ import jdk.jfr.Recording;
  * messier... ;)
  */
 public final class OpenJdkController implements Controller {
+	private static final String JFP_CONTINUOUS = "jfr2/ddcontinuous.jfp";
+	private static final String JFP_PROFILE = "jfr2/ddprofile.jfp";
 
 	@Override
 	public RecordingData createRecording(String recordingName, Map<String, String> template, Duration duration)
@@ -62,5 +65,15 @@ public final class OpenJdkController implements Controller {
 	@Override
 	public RecordingData snapshot(Instant start, Instant end) throws IOException {
 		return new ContinuousRecording(FlightRecorder.getFlightRecorder().takeSnapshot(), start, end);
+	}
+
+	@Override
+	public Map<String, String> getContinuousSettings() throws IOException {
+		return JfpUtils.readNamedJfpResource(JFP_CONTINUOUS);
+	}
+
+	@Override
+	public Map<String, String> getProfilingSettings() throws IOException {
+		return JfpUtils.readNamedJfpResource(JFP_PROFILE);
 	}
 }
