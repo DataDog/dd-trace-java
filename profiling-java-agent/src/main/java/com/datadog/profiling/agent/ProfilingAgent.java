@@ -18,11 +18,11 @@ import com.datadog.profiling.uploader.ChunkUploader;
  * also means no contextual events from the tracing will be present.
  */
 public class ProfilingAgent {
-	private static final String KEY_DURATION = "DD_PROFILE_DURATION_SEC";
-	private static final String KEY_PERIOD = "DD_PROFILE_PERIOD_SEC";
-	private static final String KEY_DELAY = "DD_PROFILE_DELAY_SEC";
-	private static final String KEY_URL = "DD_PROFILE_ENDPOINT";
-	private static final String KEY_API_KEY = "DD_PROFILE_API_KEY";
+	private static final String ENV_VAR_DURATION = "DD_PROFILE_DURATION_SEC";
+	private static final String ENV_VAR_PERIOD = "DD_PROFILE_PERIOD_SEC";
+	private static final String ENV_VAR_DELAY = "DD_PROFILE_DELAY_SEC";
+	private static final String ENV_VAR_URL = "DD_PROFILE_ENDPOINT";
+	private static final String ENV_VAR_API_KEY = "DD_PROFILE_API_KEY";
 
 	private static final int DEFAULT_DURATION = 60;
 	private static final int DEFAULT_PERIOD = 3600;
@@ -50,16 +50,16 @@ public class ProfilingAgent {
 
 	private static synchronized void initialize() throws IllegalArgumentException {
 		if (profiler == null) {
-			String apiKey = System.getenv(KEY_API_KEY);
+			String apiKey = System.getenv(ENV_VAR_API_KEY);
 			if (apiKey == null) {
-				throw new IllegalArgumentException("You must set env var " + KEY_API_KEY);
+				throw new IllegalArgumentException("You must set env var " + ENV_VAR_API_KEY);
 			}
-			uploader = new ChunkUploader(getString(KEY_URL, DEFAULT_URL), apiKey);
+			uploader = new ChunkUploader(getString(ENV_VAR_URL, DEFAULT_URL), apiKey);
 			try {
 				profiler = new ProfilingSystem(uploader.getRecordingDataListener(),
-						Duration.ofSeconds(getInt(KEY_DELAY, DEFAULT_DELAY)),
-						Duration.ofSeconds(getInt(KEY_PERIOD, DEFAULT_PERIOD)),
-						Duration.ofSeconds(getInt(KEY_DURATION, DEFAULT_DURATION)));
+						Duration.ofSeconds(getInt(ENV_VAR_DELAY, DEFAULT_DELAY)),
+						Duration.ofSeconds(getInt(ENV_VAR_PERIOD, DEFAULT_PERIOD)),
+						Duration.ofSeconds(getInt(ENV_VAR_DURATION, DEFAULT_DURATION)));
 				profiler.start();
 			} catch (UnsupportedEnvironmentException | IOException | BadConfigurationException e) {
 				getLogger().warn("Failed to initialize profiling agent!", e);
