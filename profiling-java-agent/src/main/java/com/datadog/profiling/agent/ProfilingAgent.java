@@ -18,11 +18,11 @@ import com.datadog.profiling.uploader.ChunkUploader;
  * also means no contextual events from the tracing will be present.
  */
 public class ProfilingAgent {
-	private static final String KEY_DURATION = "dd.profile.duration_sec";
-	private static final String KEY_PERIOD = "dd.profile.period_sec";
-	private static final String KEY_DELAY = "dd.profile.delay_sec";
-	private static final String KEY_URL = "dd.profile.endpoint";
-	private static final String KEY_API_KEY = "dd.profile.api_key";
+	private static final String KEY_DURATION = "DD_PROFILE_DURATION_SEC";
+	private static final String KEY_PERIOD = "DD_PROFILE_PERIOD_SEC";
+	private static final String KEY_DELAY = "DD_PROFILE_DELAY_SEC";
+	private static final String KEY_URL = "DD_PROFILE_ENDPOINT";
+	private static final String KEY_API_KEY = "DD_PROFILE_API_KEY";
 
 	private static final int DEFAULT_DURATION = 60;
 	private static final int DEFAULT_PERIOD = 3600;
@@ -50,9 +50,9 @@ public class ProfilingAgent {
 
 	private static synchronized void initialize() throws IllegalArgumentException {
 		if (profiler == null) {
-			String apiKey = System.getProperty(KEY_API_KEY);
+			String apiKey = System.getenv(KEY_API_KEY);
 			if (apiKey == null) {
-				throw new IllegalArgumentException("You must set -D" + KEY_API_KEY);
+				throw new IllegalArgumentException("You must set env var " + KEY_API_KEY);
 			}
 			uploader = new ChunkUploader(getString(KEY_URL, DEFAULT_URL), apiKey);
 			try {
@@ -68,7 +68,7 @@ public class ProfilingAgent {
 	}
 
 	private static int getInt(String key, int defaultValue) {
-		String val = System.getProperty(key);
+		String val = System.getenv(key);
 		if (val != null) {
 			try {
 				return Integer.valueOf(val);
@@ -82,7 +82,7 @@ public class ProfilingAgent {
 	}
 
 	private static String getString(String key, String defaultValue) {
-		String val = System.getProperty(key);
+		String val = System.getenv(key);
 		if (val == null) {
 			getLogger().info("Could not find key {}. Will go with default {}.", key, defaultValue);
 			return defaultValue;
