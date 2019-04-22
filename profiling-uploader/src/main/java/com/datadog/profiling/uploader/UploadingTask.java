@@ -16,6 +16,8 @@
 package com.datadog.profiling.uploader;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Iterator;
 
 import com.squareup.okhttp.*;
@@ -40,16 +42,25 @@ final class UploadingTask implements Runnable {
 	// Also this information should not have to be repeated in every request.
 	static final String KEY_RECORDING_START = "recording-start";
 	static final String KEY_RECORDING_END = "recording-end";
+	static final String KEY_TAG = "tags[]";
 
 	private static final OkHttpClient CLIENT = new OkHttpClient();
 	private final RecordingData data;
 	private final String apiKey;
 	private final String url;
+	private final String hostTag;
 
 	public UploadingTask(String url, String apiKey, RecordingData data) {
 		this.url = url;
 		this.apiKey = apiKey;
 		this.data = data;
+		String ht;
+		try {
+			ht = "host:" + InetAddress.getLocalHost().getHostName();
+		} catch (java.net.UnknownHostException e) {
+			ht = "host:unknown";
+		}
+		this.hostTag = ht;
 	}
 
 	@Override
@@ -76,6 +87,7 @@ final class UploadingTask implements Runnable {
 				.addFormDataPart(KEY_RECORDING_START, data.getRequestedStart().toString())
 				.addFormDataPart(KEY_RECORDING_END, data.getRequestedEnd().toString())
 				.addFormDataPart(KEY_CHUNK_SEQ_NO, String.valueOf(chunkId))
+				.addFormDataPart(KEY_TAG, hostTag)
 				.addPart(Headers.of("Content-Disposition", "form-data; name=\"jfr-chunk-data\"; filename=\"chunk\""),
 						RequestBody.create(OCTET_STREAM, chunk))
 				.build();
