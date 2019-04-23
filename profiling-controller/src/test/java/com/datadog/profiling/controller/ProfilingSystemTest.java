@@ -41,13 +41,28 @@ import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 public class ProfilingSystemTest {
 
 	/**
-	 * Ensuring that it can be created and shutdown without problems, if not started.
-	 * 
 	 * @throws InterruptedException
 	 * @throws BadConfigurationException
 	 */
 	@Test
-	public void testProfilingSystemCreation()
+	public void testCanShutDownWithoutStarting()
+			throws UnsupportedEnvironmentException, IOException, InterruptedException, BadConfigurationException {
+		RecordingDataListener listener = new RecordingDataListener() {
+			@Override
+			public void onNewData(RecordingData data) {
+			}
+		};
+		ProfilingSystem system = new ProfilingSystem(listener, Duration.ZERO, Duration.ofMillis(200),
+				Duration.ofMillis(100));
+		system.shutdown();
+	}
+
+	/**
+	 * @throws InterruptedException
+	 * @throws BadConfigurationException
+	 */
+	@Test
+	public void testDoesntSendDataIfNotStarted()
 			throws UnsupportedEnvironmentException, IOException, InterruptedException, BadConfigurationException {
 		final CountDownLatch latch = new CountDownLatch(1);
 		RecordingDataListener listener = new RecordingDataListener() {
@@ -56,16 +71,16 @@ public class ProfilingSystemTest {
 				latch.countDown();
 			}
 		};
-		ProfilingSystem system = new ProfilingSystem(listener, Duration.ZERO, Duration.ofMillis(200),
-				Duration.ofMillis(100));
-		system.shutdown();
+		ProfilingSystem system = new ProfilingSystem(listener, Duration.ZERO, Duration.ofMillis(1),
+				Duration.ofMillis(1));
+		latch.await(10, TimeUnit.MILLISECONDS);
 		assertEquals("Got recording data even though the system was never started!", 1, latch.getCount());
 	}
 
 	/**
 	 * Ensuring it is not possible to configure the profiling system to have greater recording
 	 * lengths than the dump periodicity.
-	 * 
+	 *
 	 * @throws InterruptedException
 	 */
 	@Test
@@ -90,9 +105,9 @@ public class ProfilingSystemTest {
 
 	/**
 	 * Ensuring that it can be started, and recording data for a few profiling recordings captured.
-	 * 
+	 *
 	 * @throws InterruptedException
-	 * @throws BadConfigurationException 
+	 * @throws BadConfigurationException
 	 */
 	@Test
 	public void testProfilingSystem() throws UnsupportedEnvironmentException, IOException, InterruptedException, BadConfigurationException {
@@ -122,9 +137,9 @@ public class ProfilingSystemTest {
 
 	/**
 	 * Ensuring that it can be started, and recording data for the continuous recording captured.
-	 * 
+	 *
 	 * @throws InterruptedException
-	 * @throws BadConfigurationException 
+	 * @throws BadConfigurationException
 	 */
 	@Test
 	public void testContinuous() throws UnsupportedEnvironmentException, IOException, InterruptedException, BadConfigurationException {
