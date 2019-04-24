@@ -15,7 +15,7 @@
  */
 package com.datadog.profiling.uploader;
 
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -35,15 +35,12 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 
 import com.datadog.profiling.controller.ProfilingSystem;
-import com.datadog.profiling.uploader.ChunkUploader;
-import com.datadog.profiling.uploader.UploadingTask;
 import com.squareup.okhttp.Credentials;
 import com.squareup.okhttp.HttpUrl;
 import com.squareup.okhttp.mockwebserver.Dispatcher;
 import com.squareup.okhttp.mockwebserver.MockResponse;
 import com.squareup.okhttp.mockwebserver.MockWebServer;
 import com.squareup.okhttp.mockwebserver.RecordedRequest;
-import static org.hamcrest.Matchers.*;
 
 /**
  * Unit tests for the chunk uploader.
