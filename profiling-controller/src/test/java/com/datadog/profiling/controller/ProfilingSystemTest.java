@@ -39,11 +39,6 @@ import com.datadog.profiling.controller.UnsupportedEnvironmentException;
  * Unit tests for testing the {@link ProfilingSystem}.
  */
 public class ProfilingSystemTest {
-
-	/**
-	 * @throws InterruptedException
-	 * @throws BadConfigurationException
-	 */
 	@Test
 	public void testCanShutDownWithoutStarting()
 			throws UnsupportedEnvironmentException, IOException, InterruptedException, BadConfigurationException {
@@ -57,10 +52,6 @@ public class ProfilingSystemTest {
 		system.shutdown();
 	}
 
-	/**
-	 * @throws InterruptedException
-	 * @throws BadConfigurationException
-	 */
 	@Test
 	public void testDoesntSendDataIfNotStarted()
 			throws UnsupportedEnvironmentException, IOException, InterruptedException, BadConfigurationException {
