@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingDataListener;
-import com.squareup.okhttp.Credentials;
 
 /**
  * Code for uploading whatever recording data captured to Datadog. Create this class before the
@@ -48,14 +47,13 @@ public final class ChunkUploader {
 
 	private final String url;
 	private final String apiKey;
-	private final String credentials;
 
 	private final class ProfilingDataCallback implements RecordingDataListener {
 		/**
 		 * Just handing this off to the uploading threads.
 		 */
 		public void onNewData(RecordingData data) {
-			uploadingTaskExecutor.execute(new UploadingTask(url, apiKey, credentials, data));
+			uploadingTaskExecutor.execute(new UploadingTask(url, apiKey, data));
 		}
 	}
 
@@ -66,13 +64,10 @@ public final class ChunkUploader {
 	 *            the URL of the edge service.
 	 * @param apiKey
 	 *            the apiKey to use.
-	 * @param credentials
-	 *            see {@link Credentials}, e.g. Credentials.basic("test", "test")
 	 */
-	public ChunkUploader(String url, String apiKey, String credentials) {
+	public ChunkUploader(String url, String apiKey) {
 		this.url = url;
 		this.apiKey = apiKey;
-		this.credentials = credentials;
 	}
 
 	public RecordingDataListener getRecordingDataListener() {

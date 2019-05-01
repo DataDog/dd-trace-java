@@ -16,20 +16,16 @@
 package com.datadog.profiling.uploader;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Iterator;
 
+import com.squareup.okhttp.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.uploader.util.ChunkReader;
-import com.squareup.okhttp.Headers;
-import com.squareup.okhttp.MediaType;
-import com.squareup.okhttp.MultipartBuilder;
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.RequestBody;
-import com.squareup.okhttp.Response;
 
 /**
  * The class for uploading recordings somewhere. This is what eventually will call our edge service.
@@ -46,19 +42,25 @@ final class UploadingTask implements Runnable {
 	// Also this information should not have to be repeated in every request.
 	static final String KEY_RECORDING_START = "recording-start";
 	static final String KEY_RECORDING_END = "recording-end";
-	static final String HEADER_KEY_APIKEY = "apikey";
+	static final String KEY_TAG = "tags[]";
 
 	private static final OkHttpClient CLIENT = new OkHttpClient();
 	private final RecordingData data;
 	private final String apiKey;
 	private final String url;
-	private final String credentials;
+	private final String hostTag;
 
-	public UploadingTask(String url, String apiKey, String credentials, RecordingData data) {
+	public UploadingTask(String url, String apiKey, RecordingData data) {
 		this.url = url;
 		this.apiKey = apiKey;
-		this.credentials = credentials;
 		this.data = data;
+		String ht;
+		try {
+			ht = "host:" + InetAddress.getLocalHost().getHostName();
+		} catch (java.net.UnknownHostException e) {
+			ht = "host:unknown";
+		}
+		this.hostTag = ht;
 	}
 
 	@Override
@@ -85,12 +87,16 @@ final class UploadingTask implements Runnable {
 				.addFormDataPart(KEY_RECORDING_START, data.getRequestedStart().toString())
 				.addFormDataPart(KEY_RECORDING_END, data.getRequestedEnd().toString())
 				.addFormDataPart(KEY_CHUNK_SEQ_NO, String.valueOf(chunkId))
+				.addFormDataPart(KEY_TAG, hostTag)
 				.addPart(Headers.of("Content-Disposition", "form-data; name=\"jfr-chunk-data\"; filename=\"chunk\""),
 						RequestBody.create(OCTET_STREAM, chunk))
 				.build();
 
-		Request request = new Request.Builder().header(HEADER_KEY_APIKEY, apiKey)
-				.addHeader("Authorization", credentials).url(url).post(requestBody).build();
+		Request request = new Request.Builder()
+				.addHeader("Authorization", Credentials.basic(apiKey, ""))
+				.url(url)
+				.post(requestBody)
+				.build();
 
 		Response response = CLIENT.newCall(request).execute();
 		if (response.isSuccessful()) {

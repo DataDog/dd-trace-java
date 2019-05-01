@@ -35,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 
 import com.datadog.profiling.controller.ProfilingSystem;
-import com.squareup.okhttp.Credentials;
 import com.squareup.okhttp.HttpUrl;
 import com.squareup.okhttp.mockwebserver.Dispatcher;
 import com.squareup.okhttp.mockwebserver.MockResponse;
@@ -65,7 +64,7 @@ public class ChunkUploaderTest {
 		});
 		server.start();
 		HttpUrl url = server.url("/v0.1/lalalala");
-		ChunkUploader uploader = new ChunkUploader(url.toString(), TEST_APIKEY_VALUE, Credentials.basic("user", "pwd"));
+		ChunkUploader uploader = new ChunkUploader(url.toString(), TEST_APIKEY_VALUE);
 
 		ProfilingSystem system = new ProfilingSystem(uploader.getRecordingDataListener(), Duration.ZERO,
 				Duration.ofMillis(10), Duration.ofMillis(10));
@@ -79,8 +78,6 @@ public class ChunkUploaderTest {
 
 		for (RecordedRequest request : recordedRequests) {
 			Map<String, String> params = getParameters(request);
-			assertEquals("Not the right API key!", TEST_APIKEY_VALUE,
-					request.getHeader(UploadingTask.HEADER_KEY_APIKEY));
 			assertTrue("Expected a profiling dump name",
 					params.get(UploadingTask.KEY_RECORDING_NAME).startsWith("dd-profiling-"));
 			int chunkId = Integer.valueOf(params.get(UploadingTask.KEY_CHUNK_SEQ_NO));

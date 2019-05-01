@@ -1,11 +1,8 @@
 package com.datadog.profiling.agent;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.time.Duration;
-import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +11,6 @@ import com.datadog.profiling.controller.BadConfigurationException;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.uploader.ChunkUploader;
-import com.squareup.okhttp.Credentials;
 
 /**
  * Simple agent wrapper for starting the profiling agent from the command-line, without requiring
@@ -22,19 +18,16 @@ import com.squareup.okhttp.Credentials;
  * also means no contextual events from the tracing will be present.
  */
 public class ProfilingAgent {
-	private static final String KEY_DURATION = "duration";
-	private static final String KEY_PERIOD = "period";
-	private static final String KEY_DELAY = "delay";
-	private static final String KEY_URL = "url";
-	private static final String KEY_API_KEY = "apikey";
-	private static final String KEY_USER_NAME = "username";
-	private static final String KEY_PASSWORD = "password";
+	private static final String ENV_VAR_DURATION = "DD_PROFILE_DURATION_SEC";
+	private static final String ENV_VAR_PERIOD = "DD_PROFILE_PERIOD_SEC";
+	private static final String ENV_VAR_DELAY = "DD_PROFILE_DELAY_SEC";
+	private static final String ENV_VAR_URL = "DD_PROFILE_ENDPOINT";
+	private static final String ENV_VAR_API_KEY = "DD_PROFILE_API_KEY";
 
 	private static final int DEFAULT_DURATION = 60;
 	private static final int DEFAULT_PERIOD = 3600;
 	private static final int DEFAULT_DELAY = 30;
-	private static final String DEFAULT_PROPERTIES = "default.properties";
-	private static final String DEFAULT_URL = "http://localhost/9191";
+	private static final String DEFAULT_URL = "http://localhost:5000/api/v0/profiling/jfk-chunk"; // TODO our eventual prod endpoint
 
 	// Overkill to make these volatile?
 	private static ProfilingSystem profiler;
@@ -44,8 +37,7 @@ public class ProfilingAgent {
 	 * Called when starting from the command line.
 	 */
 	public static void premain(String args, Instrumentation instrumentation) {
-		Properties props = initProperties(args);
-		initialize(props);
+		initialize();
 	}
 
 	/**
@@ -53,19 +45,21 @@ public class ProfilingAgent {
 	 * command line, or dynamically loaded through attach, no action will be taken.
 	 */
 	public static void agentmain(String args, Instrumentation instrumentation) {
-		Properties props = initProperties(args);
-		initialize(props);
+		initialize();
 	}
 
-	private static synchronized void initialize(Properties props) {
+	private static synchronized void initialize() throws IllegalArgumentException {
 		if (profiler == null) {
-			uploader = new ChunkUploader(getString(props, KEY_URL, DEFAULT_URL), getString(props, KEY_API_KEY, ""),
-					Credentials.basic(getString(props, KEY_USER_NAME, ""), getString(props, KEY_PASSWORD, "")));
+			String apiKey = System.getenv(ENV_VAR_API_KEY);
+			if (apiKey == null) {
+				throw new IllegalArgumentException("You must set env var " + ENV_VAR_API_KEY);
+			}
+			uploader = new ChunkUploader(getString(ENV_VAR_URL, DEFAULT_URL), apiKey);
 			try {
 				profiler = new ProfilingSystem(uploader.getRecordingDataListener(),
-						Duration.ofSeconds(getInt(props, KEY_DELAY, DEFAULT_DELAY)),
-						Duration.ofSeconds(getInt(props, KEY_PERIOD, DEFAULT_PERIOD)),
-						Duration.ofSeconds(getInt(props, KEY_DURATION, DEFAULT_DURATION)));
+						Duration.ofSeconds(getInt(ENV_VAR_DELAY, DEFAULT_DELAY)),
+						Duration.ofSeconds(getInt(ENV_VAR_PERIOD, DEFAULT_PERIOD)),
+						Duration.ofSeconds(getInt(ENV_VAR_DURATION, DEFAULT_DURATION)));
 				profiler.start();
 			} catch (UnsupportedEnvironmentException | IOException | BadConfigurationException e) {
 				getLogger().warn("Failed to initialize profiling agent!", e);
@@ -73,39 +67,8 @@ public class ProfilingAgent {
 		}
 	}
 
-	private static Properties initProperties(String args) {
-		Properties props = new Properties();
-		if (args == null || args.trim().isEmpty()) {
-			loadDefaultProperties(props);
-		} else {
-			File propsFile = new File(args);
-			if (!propsFile.exists()) {
-				getLogger().warn("The agent settings file {} could not be found! Will go with the defaults!", args);
-				loadDefaultProperties(props);
-			} else {
-				try (FileInputStream in = new FileInputStream(propsFile)) {
-					props.load(in);
-				} catch (Exception e) {
-					getLogger().warn(
-							"Failed to load agent settings from {}. File format error? Going with the defaults.", args);
-					loadDefaultProperties(props);
-				}
-			}
-		}
-		return props;
-	}
-
-	private static void loadDefaultProperties(Properties props) {
-		try {
-			props.load(ProfilingAgent.class.getClassLoader().getResourceAsStream(DEFAULT_PROPERTIES));
-		} catch (IOException e) {
-			// Should never happen! Build fail!
-			getLogger().error("Failure to load default properties!", e);
-		}
-	}
-
-	private static int getInt(Properties props, String key, int defaultValue) {
-		String val = props.getProperty(key);
+	private static int getInt(String key, int defaultValue) {
+		String val = System.getenv(key);
 		if (val != null) {
 			try {
 				return Integer.valueOf(val);
@@ -118,9 +81,10 @@ public class ProfilingAgent {
 		return defaultValue;
 	}
 
-	private static String getString(Properties props, String key, String defaultValue) {
-		String val = props.getProperty(key);
+	private static String getString(String key, String defaultValue) {
+		String val = System.getenv(key);
 		if (val == null) {
+			getLogger().info("Could not find key {}. Will go with default {}.", key, defaultValue);
 			return defaultValue;
 		}
 		return val;
