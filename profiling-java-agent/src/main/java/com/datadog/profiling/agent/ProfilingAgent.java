@@ -2,6 +2,7 @@ package com.datadog.profiling.agent;
 
 import java.io.IOException;
 import java.lang.instrument.Instrumentation;
+import java.net.InetAddress;
 import java.time.Duration;
 
 import org.slf4j.Logger;
@@ -23,6 +24,7 @@ public class ProfilingAgent {
 	private static final String ENV_VAR_DELAY = "DD_PROFILE_DELAY_SEC";
 	private static final String ENV_VAR_URL = "DD_PROFILE_ENDPOINT";
 	private static final String ENV_VAR_API_KEY = "DD_PROFILE_API_KEY";
+	private static final String ENV_VAR_TAGS = "DD_PROFILE_TAGS"; // comma separated, no spaces
 
 	private static final int DEFAULT_DURATION = 60;
 	private static final int DEFAULT_PERIOD = 3600;
@@ -54,7 +56,8 @@ public class ProfilingAgent {
 			if (apiKey == null) {
 				throw new IllegalArgumentException("You must set env var " + ENV_VAR_API_KEY);
 			}
-			uploader = new ChunkUploader(getString(ENV_VAR_URL, DEFAULT_URL), apiKey);
+
+			uploader = new ChunkUploader(getString(ENV_VAR_URL, DEFAULT_URL), apiKey, getTags());
 			try {
 				profiler = new ProfilingSystem(uploader.getRecordingDataListener(),
 						Duration.ofSeconds(getInt(ENV_VAR_DELAY, DEFAULT_DELAY)),
@@ -65,6 +68,23 @@ public class ProfilingAgent {
 				getLogger().warn("Failed to initialize profiling agent!", e);
 			}
 		}
+	}
+
+	private static String[] getTags() {
+		// TODO allow a passed `host` tag to override the default one
+		String hostTag;
+		try {
+			hostTag = "host:" + InetAddress.getLocalHost().getHostName();
+		} catch (java.net.UnknownHostException e) {
+			hostTag = "host:unknown";
+		}
+		String envVarTags = getString(ENV_VAR_TAGS, "");
+		if (envVarTags.length() == 0) {
+			envVarTags = hostTag;
+		} else {
+			envVarTags += "," + hostTag;
+		}
+		return envVarTags.split(",");
 	}
 
 	private static int getInt(String key, int defaultValue) {

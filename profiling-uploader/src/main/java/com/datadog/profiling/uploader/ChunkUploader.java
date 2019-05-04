@@ -47,13 +47,14 @@ public final class ChunkUploader {
 
 	private final String url;
 	private final String apiKey;
+	private final String[] tags;
 
 	private final class ProfilingDataCallback implements RecordingDataListener {
 		/**
 		 * Just handing this off to the uploading threads.
 		 */
 		public void onNewData(RecordingData data) {
-			uploadingTaskExecutor.execute(new UploadingTask(url, apiKey, data));
+			uploadingTaskExecutor.execute(new UploadingTask(url, apiKey, tags, data));
 		}
 	}
 
@@ -65,9 +66,10 @@ public final class ChunkUploader {
 	 * @param apiKey
 	 *            the apiKey to use.
 	 */
-	public ChunkUploader(String url, String apiKey) {
+	public ChunkUploader(String url, String apiKey, String[] tags) {
 		this.url = url;
 		this.apiKey = apiKey;
+		this.tags = tags;
 	}
 
 	public RecordingDataListener getRecordingDataListener() {
