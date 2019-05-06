@@ -64,7 +64,7 @@ public class ChunkUploaderTest {
 		});
 		server.start();
 		HttpUrl url = server.url("/v0.1/lalalala");
-		ChunkUploader uploader = new ChunkUploader(url.toString(), TEST_APIKEY_VALUE);
+		ChunkUploader uploader = new ChunkUploader(url.toString(), TEST_APIKEY_VALUE, new String[0]);
 
 		ProfilingSystem system = new ProfilingSystem(uploader.getRecordingDataListener(), Duration.ZERO,
 				Duration.ofMillis(10), Duration.ofMillis(10));
@@ -86,6 +86,8 @@ public class ChunkUploaderTest {
 
 		server.shutdown();
 	}
+
+	// TODO test w tags if we keep this functionality
 
 	private Map<String, String> getParameters(RecordedRequest request) throws IOException {
 		Map<String, String> params = new HashMap<String, String>();

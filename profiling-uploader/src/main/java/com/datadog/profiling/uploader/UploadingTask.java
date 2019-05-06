@@ -48,19 +48,13 @@ final class UploadingTask implements Runnable {
 	private final RecordingData data;
 	private final String apiKey;
 	private final String url;
-	private final String hostTag;
+	private final String[] tags;
 
-	public UploadingTask(String url, String apiKey, RecordingData data) {
+	public UploadingTask(String url, String apiKey, String[] tags, RecordingData data) {
 		this.url = url;
 		this.apiKey = apiKey;
+		this.tags = tags;
 		this.data = data;
-		String ht;
-		try {
-			ht = "host:" + InetAddress.getLocalHost().getHostName();
-		} catch (java.net.UnknownHostException e) {
-			ht = "host:unknown";
-		}
-		this.hostTag = ht;
 	}
 
 	@Override
@@ -81,16 +75,18 @@ final class UploadingTask implements Runnable {
 	private void uploadChunk(RecordingData data, int chunkId, byte[] chunk) throws IOException {
 		LOGGER.info("Uploading {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
 
-		RequestBody requestBody = new MultipartBuilder().type(MultipartBuilder.FORM)
+		MultipartBuilder bodyBuilder = new MultipartBuilder().type(MultipartBuilder.FORM)
 				.addFormDataPart(KEY_RECORDING_NAME, data.getName())
 				// Note that toString is well defined for instants - ISO-8601
 				.addFormDataPart(KEY_RECORDING_START, data.getRequestedStart().toString())
 				.addFormDataPart(KEY_RECORDING_END, data.getRequestedEnd().toString())
-				.addFormDataPart(KEY_CHUNK_SEQ_NO, String.valueOf(chunkId))
-				.addFormDataPart(KEY_TAG, hostTag)
-				.addPart(Headers.of("Content-Disposition", "form-data; name=\"jfr-chunk-data\"; filename=\"chunk\""),
-						RequestBody.create(OCTET_STREAM, chunk))
-				.build();
+				.addFormDataPart(KEY_CHUNK_SEQ_NO, String.valueOf(chunkId));
+		for (int i = 0; i < tags.length; i++) {
+			bodyBuilder.addFormDataPart(KEY_TAG, tags[i]);
+		}
+		bodyBuilder.addPart(Headers.of("Content-Disposition", "form-data; name=\"jfr-chunk-data\"; filename=\"chunk\""),
+						RequestBody.create(OCTET_STREAM, chunk));
+		RequestBody requestBody = bodyBuilder.build();
 
 		Request request = new Request.Builder()
 				.addHeader("Authorization", Credentials.basic(apiKey, ""))
