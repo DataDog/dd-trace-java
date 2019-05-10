@@ -1,10 +1,10 @@
-
-apply from: "${rootDir}/gradle/java.gradle"
-apply plugin: 'idea'
 // Set properties before any plugins get loaded
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_11
 }
+
+apply from: "${rootDir}/gradle/java.gradle"
+apply plugin: 'idea'
 
 dependencies {
   compile deps.slf4j
@@ -13,8 +13,8 @@ dependencies {
   testCompile project(':dd-trace-ot')
 }
 
-sourceCompatibility = 11
-targetCompatibility = 11
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
 
 tasks.withType(JavaCompile) {
   doFirst {
