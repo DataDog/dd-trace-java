@@ -26,7 +26,7 @@ import jdk.jfr.RecordingState;
 public class ProfilingRecording implements RecordingData {
   private final Recording recording;
 
-  public ProfilingRecording(Recording recording) {
+  public ProfilingRecording(final Recording recording) {
     this.recording = recording;
   }
 
@@ -50,7 +50,7 @@ public class ProfilingRecording implements RecordingData {
   }
 
   @Override
-  public InputStream getStream(Instant start, Instant end)
+  public InputStream getStream(final Instant start, final Instant end)
       throws IllegalStateException, IOException {
     // Might come in handy for long lasting profiling recordings not quite done yet, but we may want
     // to not allow.

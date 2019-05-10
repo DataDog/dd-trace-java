@@ -28,13 +28,13 @@ public class ContinuousRecording implements RecordingData {
   private final Instant defaultStart;
   private final Instant defaultEnd;
 
-  public ContinuousRecording(Recording recording, Instant start, Instant end) {
+  public ContinuousRecording(final Recording recording, final Instant start, final Instant end) {
     this.recording = recording;
-    this.defaultStart = start;
-    this.defaultEnd = end;
+    defaultStart = start;
+    defaultEnd = end;
   }
 
-  public ContinuousRecording(Recording recording) {
+  public ContinuousRecording(final Recording recording) {
     this(recording, null, null);
   }
 
@@ -48,7 +48,8 @@ public class ContinuousRecording implements RecordingData {
     return recording.getStream(defaultStart, defaultEnd);
   }
 
-  public InputStream getStream(Instant start, Instant end) throws IOException {
+  @Override
+  public InputStream getStream(final Instant start, final Instant end) throws IOException {
     return recording.getStream(start, end);
   }
 
@@ -57,6 +58,7 @@ public class ContinuousRecording implements RecordingData {
     recording.close();
   }
 
+  @Override
   public String getName() {
     return recording.getName();
   }

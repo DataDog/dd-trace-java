@@ -86,7 +86,7 @@ public final class ChunkReader {
     private final FileChannel channel;
     private final MappedByteBuffer buffer;
 
-    private ChunkIterator(File jfrFile) throws IOException {
+    private ChunkIterator(final File jfrFile) throws IOException {
       try {
         file = new RandomAccessFile(jfrFile, "r"); // $NON-NLS-1$
         channel = file.getChannel();
@@ -102,7 +102,7 @@ public final class ChunkReader {
                     + ") is not a JFR file!"); //$NON-NLS-1$ //$NON-NLS-2$
           }
         }
-      } catch (Exception e) {
+      } catch (final Exception e) {
         if (file != null) {
           file.close();
         }
@@ -112,12 +112,12 @@ public final class ChunkReader {
 
     @Override
     public boolean hasNext() {
-      boolean hasNext = checkHasMore();
+      final boolean hasNext = checkHasMore();
       if (!hasNext) {
         try {
           channel.close();
           file.close();
-        } catch (IOException e) {
+        } catch (final IOException e) {
           // Shouldn't happen.
           e.printStackTrace();
         }
@@ -140,7 +140,7 @@ public final class ChunkReader {
       }
 
       int index = lastChunkOffset + JFR_MAGIC.length;
-      short versionMSB = buffer.getShort(index);
+      final short versionMSB = buffer.getShort(index);
       // short versionLSB = buffer.getShort(index + SHORT_SIZE);
       index += 2 * DataInputToolkit.SHORT_SIZE;
       int size = 0;
@@ -154,19 +154,19 @@ public final class ChunkReader {
         // add the size of the metadata event to find the chunk boundary
         index = lastChunkOffset + (int) buffer.getLong(index);
         // Reading the metadata event size
-        int lastEventSize = buffer.getInt(index);
+        final int lastEventSize = buffer.getInt(index);
         index += lastEventSize;
         size = index - lastChunkOffset;
       }
       // Read the chunk and return it
-      byte[] result = new byte[size];
+      final byte[] result = new byte[size];
       buffer.position(lastChunkOffset);
       buffer.get(result, 0, result.length);
       lastChunkOffset = index;
       return result;
     }
 
-    private boolean bufferHasMagic(int[] magicBytes) {
+    private boolean bufferHasMagic(final int[] magicBytes) {
       for (int i = 0; i < magicBytes.length; i++) {
         if (buffer.get(lastChunkOffset + i) != magicBytes[i]) {
           return false;
@@ -193,11 +193,11 @@ public final class ChunkReader {
     private StreamState streamState = StreamState.NEXT_CHUNK;
     private Throwable lastError = null;
 
-    public StreamChunkIterator(InputStream inputStream) {
+    public StreamChunkIterator(final InputStream inputStream) {
       this.inputStream = getDataStream(inputStream);
     }
 
-    private DataInputStream getDataStream(InputStream is) {
+    private DataInputStream getDataStream(final InputStream is) {
       if (is.markSupported()) {
         return new DataInputStream(is);
       }
@@ -230,7 +230,7 @@ public final class ChunkReader {
                   "Next chunk has no JFR magic. It is either no JFR file at all or corrupt."); //$NON-NLS-1$
           return false;
         }
-      } catch (IOException e) {
+      } catch (final IOException e) {
         streamState = StreamState.ERROR;
         lastError = e;
         return false;
@@ -253,7 +253,7 @@ public final class ChunkReader {
         case JFR_CHECKED:
           try {
             return retrieveNextChunk();
-          } catch (IOException e) {
+          } catch (final IOException e) {
             lastError = e;
             throw new IllegalArgumentException(e);
           }
@@ -263,32 +263,32 @@ public final class ChunkReader {
     }
 
     private byte[] retrieveNextChunk() throws IOException {
-      byte[] chunkHeader = new byte[HEADER_SIZE];
+      final byte[] chunkHeader = new byte[HEADER_SIZE];
       // Copy in the magic
       System.arraycopy(JFR_MAGIC_BYTES, 0, chunkHeader, 0, JFR_MAGIC_BYTES.length);
       // Read rest of chunk header
       readBytesFromStream(
           chunkHeader, JFR_MAGIC_BYTES.length, HEADER_SIZE - JFR_MAGIC_BYTES.length);
-      short majorVersion = DataInputToolkit.readShort(chunkHeader, JFR_MAGIC_BYTES.length);
+      final short majorVersion = DataInputToolkit.readShort(chunkHeader, JFR_MAGIC_BYTES.length);
       byte[] chunkTotal = null;
       if (majorVersion >= 1) {
         // JDK 9+ recording
-        long fullSize =
+        final long fullSize =
             DataInputToolkit.readLong(chunkHeader, HEADER_SIZE - DataInputToolkit.LONG_SIZE);
-        int readSize = (int) fullSize - HEADER_SIZE;
+        final int readSize = (int) fullSize - HEADER_SIZE;
         chunkTotal = new byte[(int) fullSize];
         System.arraycopy(chunkHeader, 0, chunkTotal, 0, chunkHeader.length);
         readBytesFromStream(chunkTotal, HEADER_SIZE, readSize);
       } else {
-        long metadataIndex =
+        final long metadataIndex =
             DataInputToolkit.readLong(chunkHeader, HEADER_SIZE - DataInputToolkit.LONG_SIZE);
-        int eventReadSize = (int) (metadataIndex - HEADER_SIZE + DataInputToolkit.INTEGER_SIZE);
-        byte[] chunkEvents = new byte[eventReadSize];
+        final int eventReadSize = (int) (metadataIndex - HEADER_SIZE + DataInputToolkit.INTEGER_SIZE);
+        final byte[] chunkEvents = new byte[eventReadSize];
         readBytesFromStream(chunkEvents, 0, chunkEvents.length);
-        int metadataEventSize =
+        final int metadataEventSize =
             DataInputToolkit.readInt(chunkEvents, eventReadSize - DataInputToolkit.INTEGER_SIZE)
                 - DataInputToolkit.INTEGER_SIZE;
-        byte[] chunkMetadata = new byte[metadataEventSize];
+        final byte[] chunkMetadata = new byte[metadataEventSize];
         readBytesFromStream(chunkMetadata, 0, chunkMetadata.length);
 
         chunkTotal = new byte[chunkHeader.length + chunkEvents.length + chunkMetadata.length];
@@ -305,10 +305,10 @@ public final class ChunkReader {
       return chunkTotal;
     }
 
-    private void readBytesFromStream(byte[] bytes, int offset, int count) throws IOException {
+    private void readBytesFromStream(final byte[] bytes, final int offset, final int count) throws IOException {
       int totalRead = 0;
       while (totalRead < count) {
-        int read = inputStream.read(bytes, offset + totalRead, count - totalRead);
+        final int read = inputStream.read(bytes, offset + totalRead, count - totalRead);
         if (read == -1) {
           throw new IOException("Unexpected end of data."); // $NON-NLS-1$
         }
@@ -333,7 +333,7 @@ public final class ChunkReader {
    * @return returns an iterator over byte arrays, where each byte array is a self containing jfr
    *     chunk
    */
-  public static Iterator<byte[]> readChunks(File jfrFile) throws IOException {
+  public static Iterator<byte[]> readChunks(final File jfrFile) throws IOException {
     // We fall back to using a StreamChunkIterator if the file is compressed.
     if (IOToolkit.isCompressedFile(jfrFile)) {
       return new StreamChunkIterator(IOToolkit.openUncompressedStream(jfrFile));
@@ -352,7 +352,7 @@ public final class ChunkReader {
    * @return returns an iterator over byte arrays, where each byte array is a self containing JFR
    *     chunk
    */
-  public static Iterator<byte[]> readChunks(InputStream jfrStream) throws IOException {
+  public static Iterator<byte[]> readChunks(final InputStream jfrStream) throws IOException {
     return new StreamChunkIterator(IOToolkit.openUncompressedStream(jfrStream));
   }
 }

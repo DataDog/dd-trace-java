@@ -19,7 +19,7 @@ package com.datadog.profiling.controller;
 public class BadConfigurationException extends Exception {
   private static final long serialVersionUID = 1L;
 
-  public BadConfigurationException(String message) {
+  public BadConfigurationException(final String message) {
     super(message);
   }
 }

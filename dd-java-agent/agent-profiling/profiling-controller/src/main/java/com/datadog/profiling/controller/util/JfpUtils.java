@@ -33,28 +33,28 @@ public final class JfpUtils {
     throw new UnsupportedOperationException("Toolkit!");
   }
 
-  public static Map<String, String> readJfpFile(InputStream stream) throws IOException {
+  public static Map<String, String> readJfpFile(final InputStream stream) throws IOException {
     if (stream == null) {
       throw new IllegalArgumentException("Cannot read jfp file from empty stream!");
     }
-    Properties props = new Properties();
+    final Properties props = new Properties();
     try {
       props.load(stream);
     } finally {
       stream.close();
     }
-    Map<String, String> map = new HashMap<String, String>();
-    for (Entry<Object, Object> o : props.entrySet()) {
+    final Map<String, String> map = new HashMap<>();
+    for (final Entry<Object, Object> o : props.entrySet()) {
       map.put(String.valueOf(o.getKey()), String.valueOf(o.getValue()));
     }
     return map;
   }
 
-  public static InputStream getNamedResource(String name) {
+  public static InputStream getNamedResource(final String name) {
     return JfpUtils.class.getClassLoader().getResourceAsStream(name);
   }
 
-  public static Map<String, String> readNamedJfpResource(String name) throws IOException {
+  public static Map<String, String> readNamedJfpResource(final String name) throws IOException {
     return readJfpFile(getNamedResource(name));
   }
 }

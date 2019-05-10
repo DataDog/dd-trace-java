@@ -62,10 +62,10 @@ public final class ProfilingSystem {
    * @throws BadConfigurationException if the configuration information was bad.
    */
   public ProfilingSystem(
-      RecordingDataListener dataListener,
-      Duration delay,
-      Duration period,
-      Duration recordingDuration)
+    final RecordingDataListener dataListener,
+    final Duration delay,
+    final Duration period,
+    final Duration recordingDuration)
       throws IOException, UnsupportedEnvironmentException, BadConfigurationException {
     controller = ControllerFactory.createController();
     this.dataListener = dataListener;
@@ -86,7 +86,7 @@ public final class ProfilingSystem {
    * @throws UnsupportedEnvironmentException if the runtime environment isn't supported.
    * @throws BadConfigurationException if the configuration information was bad.
    */
-  public ProfilingSystem(RecordingDataListener dataListener)
+  public ProfilingSystem(final RecordingDataListener dataListener)
       throws IOException, UnsupportedEnvironmentException, BadConfigurationException {
     this(dataListener, Duration.ofSeconds(20), Duration.ofHours(1), Duration.ofMinutes(1));
   }
@@ -147,7 +147,7 @@ public final class ProfilingSystem {
 
     try {
       executorService.awaitTermination(10, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
+    } catch (final InterruptedException e) {
       getLogger().error("Wait for executor shutdown interrupted");
     }
   }
@@ -156,7 +156,7 @@ public final class ProfilingSystem {
     dataListener.onNewData(controller.snapshot());
   }
 
-  public void triggerSnapshot(Instant start, Instant end) throws IOException {
+  public void triggerSnapshot(final Instant start, final Instant end) throws IOException {
     dataListener.onNewData(controller.snapshot(start, end));
   }
 
@@ -168,7 +168,7 @@ public final class ProfilingSystem {
   private final class RecordingCreator implements Runnable {
     private final Map<String, String> template;
 
-    public RecordingCreator(Map<String, String> template) {
+    public RecordingCreator(final Map<String, String> template) {
       this.template = template;
     }
 
@@ -184,7 +184,7 @@ public final class ProfilingSystem {
         } else {
           getLogger().warn("Skipped creating profiling recording, since one was already underway.");
         }
-      } catch (IOException e) {
+      } catch (final IOException e) {
         getLogger().error("Failed to create a profiling recording!", e);
       }
     }
@@ -195,7 +195,7 @@ public final class ProfilingSystem {
 
     @Override
     public void run() {
-      RecordingData recording = ongoingProfilingRecording;
+      final RecordingData recording = ongoingProfilingRecording;
       if (recording != null) {
         if (!recording.isAvailable()) {
           // We were called too soon. Let's try again in a bit.

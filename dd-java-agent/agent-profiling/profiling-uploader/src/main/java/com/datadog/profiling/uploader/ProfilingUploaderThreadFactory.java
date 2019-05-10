@@ -24,8 +24,8 @@ final class ProfilingUploaderThreadFactory implements ThreadFactory {
   private static final AtomicInteger COUNTER = new AtomicInteger();
 
   @Override
-  public Thread newThread(Runnable r) {
-    Thread t =
+  public Thread newThread(final Runnable r) {
+    final Thread t =
         new Thread(
             ProfilingSystem.THREAD_GROUP,
             r,

@@ -21,8 +21,8 @@ import java.util.concurrent.ThreadFactory;
 final class ProfilingRecorderThreadFactory implements ThreadFactory {
 
   @Override
-  public Thread newThread(Runnable r) {
-    Thread t = new Thread(ProfilingSystem.THREAD_GROUP, r, "DD Profiler Recording Scheduler");
+  public Thread newThread(final Runnable r) {
+    final Thread t = new Thread(ProfilingSystem.THREAD_GROUP, r, "DD Profiler Recording Scheduler");
     t.setDaemon(true);
     return t;
   }

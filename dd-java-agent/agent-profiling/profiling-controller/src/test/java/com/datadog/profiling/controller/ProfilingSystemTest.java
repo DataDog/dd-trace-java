@@ -15,10 +15,6 @@
  */
 package com.datadog.profiling.controller;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -28,18 +24,22 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 /** Unit tests for testing the {@link com.datadog.profiling.controller.ProfilingSystem}. */
 public class ProfilingSystemTest {
   @Test
   public void testCanShutDownWithoutStarting()
       throws UnsupportedEnvironmentException, IOException, InterruptedException,
           BadConfigurationException {
-    RecordingDataListener listener =
+    final RecordingDataListener listener =
         new RecordingDataListener() {
           @Override
-          public void onNewData(RecordingData data) {}
+          public void onNewData(final RecordingData data) {}
         };
-    ProfilingSystem system =
+    final ProfilingSystem system =
         new ProfilingSystem(
             listener, Duration.ZERO, Duration.ofMillis(200), Duration.ofMillis(100));
     system.shutdown();
@@ -50,14 +50,14 @@ public class ProfilingSystemTest {
       throws UnsupportedEnvironmentException, IOException, InterruptedException,
           BadConfigurationException {
     final CountDownLatch latch = new CountDownLatch(1);
-    RecordingDataListener listener =
+    final RecordingDataListener listener =
         new RecordingDataListener() {
           @Override
-          public void onNewData(RecordingData data) {
+          public void onNewData(final RecordingData data) {
             latch.countDown();
           }
         };
-    ProfilingSystem system =
+    final ProfilingSystem system =
         new ProfilingSystem(listener, Duration.ZERO, Duration.ofMillis(1), Duration.ofMillis(1));
     latch.await(10, TimeUnit.MILLISECONDS);
     assertEquals(
@@ -73,19 +73,19 @@ public class ProfilingSystemTest {
   @Test
   public void testProfilingSystemCreationBadConfig()
       throws UnsupportedEnvironmentException, IOException, InterruptedException {
-    RecordingDataListener listener =
+    final RecordingDataListener listener =
         new RecordingDataListener() {
           @Override
-          public void onNewData(RecordingData data) {
+          public void onNewData(final RecordingData data) {
             // Don't care...
           }
         };
     try {
-      ProfilingSystem system =
+      final ProfilingSystem system =
           new ProfilingSystem(
               listener, Duration.ZERO, Duration.ofMillis(200), Duration.ofMillis(400));
       system.shutdown();
-    } catch (Exception e) {
+    } catch (final Exception e) {
       return;
     }
 
@@ -105,24 +105,24 @@ public class ProfilingSystemTest {
     final CountDownLatch latch = new CountDownLatch(2);
     final List<RecordingData> results = new ArrayList<>();
 
-    RecordingDataListener listener =
+    final RecordingDataListener listener =
         new RecordingDataListener() {
           @Override
-          public void onNewData(RecordingData data) {
+          public void onNewData(final RecordingData data) {
             results.add(data);
             latch.countDown();
           }
         };
-    ProfilingSystem system =
+    final ProfilingSystem system =
         new ProfilingSystem(listener, Duration.ZERO, Duration.ofMillis(200), Duration.ofMillis(25));
     system.start();
     latch.await(30, TimeUnit.SECONDS);
     assertTrue("Should have received more data!", results.size() >= 2);
-    for (RecordingData data : results) {
+    for (final RecordingData data : results) {
       assertTrue("RecordingData should be available before sent out!", data.isAvailable());
     }
     system.shutdown();
-    for (RecordingData data : results) {
+    for (final RecordingData data : results) {
       data.release();
     }
   }
@@ -140,10 +140,10 @@ public class ProfilingSystemTest {
     final CountDownLatch latch = new CountDownLatch(2);
     final List<RecordingData> results = new ArrayList<>();
 
-    RecordingDataListener listener =
+    final RecordingDataListener listener =
         new RecordingDataListener() {
           @Override
-          public void onNewData(RecordingData data) {
+          public void onNewData(final RecordingData data) {
             results.add(data);
             latch.countDown();
           }
@@ -152,7 +152,7 @@ public class ProfilingSystemTest {
         new ProfilingSystem(
             listener, Duration.ofDays(1), Duration.ofDays(1), Duration.ofSeconds(2));
     system.start();
-    Runnable continuousTrigger =
+    final Runnable continuousTrigger =
         new Runnable() {
           @Override
           public void run() {
@@ -161,9 +161,9 @@ public class ProfilingSystemTest {
                 system.triggerSnapshot();
                 try {
                   Thread.sleep(200);
-                } catch (InterruptedException e) {
+                } catch (final InterruptedException e) {
                 }
-              } catch (IOException e) {
+              } catch (final IOException e) {
                 e.printStackTrace();
               }
             }
@@ -172,13 +172,13 @@ public class ProfilingSystemTest {
     new Thread(continuousTrigger, "Continuous trigger").start();
     latch.await(30, TimeUnit.SECONDS);
     assertTrue("Should have received more data!", results.size() >= 2);
-    for (RecordingData data : results) {
+    for (final RecordingData data : results) {
       assertFalse(
           "Should not be getting profiling recordings!", data.getName().startsWith("dd-profiling"));
       assertTrue("RecordingData should be available before sent out!", data.isAvailable());
     }
     system.shutdown();
-    for (RecordingData data : results) {
+    for (final RecordingData data : results) {
       data.release();
     }
   }

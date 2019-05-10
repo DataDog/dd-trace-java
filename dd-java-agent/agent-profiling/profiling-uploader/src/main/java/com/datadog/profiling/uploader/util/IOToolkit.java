@@ -77,11 +77,11 @@ public final class IOToolkit {
    *
    * @param closeable object to close, may be null
    */
-  public static void closeSilently(Closeable closeable) {
+  public static void closeSilently(final Closeable closeable) {
     if (closeable != null) {
       try {
         closeable.close();
-      } catch (IOException e) {
+      } catch (final IOException e) {
         // keep your mouth shut
       }
     }
@@ -95,25 +95,25 @@ public final class IOToolkit {
    * @return input stream for the unpacked file content
    * @throws IOException on I/O error
    */
-  public static InputStream openUncompressedStream(File file) throws IOException {
-    FileInputStream fin = new FileInputStream(file);
+  public static InputStream openUncompressedStream(final File file) throws IOException {
+    final FileInputStream fin = new FileInputStream(file);
     try {
-      InputStream in = new BufferedInputStream(fin);
+      final InputStream in = new BufferedInputStream(fin);
       if (hasMagic(file, GZ_MAGIC)) {
         return new GZIPInputStream(in);
       } else if (hasMagic(file, ZIP_MAGIC)) {
-        ZipInputStream zin = new ZipInputStream(in);
+        final ZipInputStream zin = new ZipInputStream(in);
         zin.getNextEntry();
         return zin;
       }
       return in;
-    } catch (RuntimeException e) {
+    } catch (final RuntimeException e) {
       closeSilently(fin);
       throw e;
-    } catch (IOException e) {
+    } catch (final IOException e) {
       closeSilently(fin);
       throw e;
-    } catch (Error e) {
+    } catch (final Error e) {
       closeSilently(fin);
       throw e;
     }
@@ -127,7 +127,7 @@ public final class IOToolkit {
    * @return input stream for the unpacked content
    * @throws IOException on I/O error
    */
-  public static InputStream openUncompressedStream(InputStream stream) throws IOException {
+  public static InputStream openUncompressedStream(final InputStream stream) throws IOException {
     InputStream in = stream;
     if (!in.markSupported()) {
       in = new BufferedInputStream(stream);
@@ -141,7 +141,7 @@ public final class IOToolkit {
     in.mark(ZIP_MAGIC.length + 1);
     if (hasMagic(in, ZIP_MAGIC)) {
       in.reset();
-      ZipInputStream zin = new ZipInputStream(in);
+      final ZipInputStream zin = new ZipInputStream(in);
       zin.getNextEntry();
       return zin;
     }
@@ -157,7 +157,7 @@ public final class IOToolkit {
    * @return {@code true} if the file begins with the magic, {@code false} otherwise
    * @throws IOException if an error occurred when trying to read from the file
    */
-  public static boolean hasMagic(File file, int[] magic) throws IOException {
+  public static boolean hasMagic(final File file, final int[] magic) throws IOException {
     FileInputStream fis = null;
     try {
       fis = new FileInputStream(file);
@@ -176,9 +176,9 @@ public final class IOToolkit {
    * @return {@code true} if the input stream begins with the magic, {@code false} otherwise
    * @throws IOException if an error occurred when trying to read from the stream
    */
-  public static boolean hasMagic(InputStream is, int[] magic) throws IOException {
-    for (int element : magic) {
-      int b = is.read();
+  public static boolean hasMagic(final InputStream is, final int[] magic) throws IOException {
+    for (final int element : magic) {
+      final int b = is.read();
       if (b != element) {
         return false;
       }
@@ -193,7 +193,7 @@ public final class IOToolkit {
    * @return {@code true} if it is a GZip file, {@code false} otherwise
    * @throws IOException if an error occurred when trying to read from the file
    */
-  public static boolean isGZipFile(File file) throws IOException {
+  public static boolean isGZipFile(final File file) throws IOException {
     return hasMagic(file, GZ_MAGIC);
   }
 
@@ -204,7 +204,7 @@ public final class IOToolkit {
    * @return {@code true} if it's a ZIP archive, {@code false} otherwise
    * @throws IOException if an error occurred when trying to read from the file
    */
-  public static boolean isZipFile(File file) throws IOException {
+  public static boolean isZipFile(final File file) throws IOException {
     return hasMagic(file, ZIP_MAGIC);
   }
 
@@ -217,7 +217,7 @@ public final class IOToolkit {
    *     #openUncompressedStream(File)}, {@code false} otherwise
    * @throws IOException if an error occurred when trying to read from the file
    */
-  public static boolean isCompressedFile(File file) throws IOException {
+  public static boolean isCompressedFile(final File file) throws IOException {
     BufferedInputStream is = null;
     try {
       is = new BufferedInputStream(new FileInputStream(file), ZIP_MAGIC.length + 1);
@@ -240,20 +240,20 @@ public final class IOToolkit {
    * @return a list of strings, one for each line in the file
    * @throws IOException on I/O error
    */
-  public static List<String> loadFromFile(File file) throws IOException {
-    FileReader fr = new FileReader(file);
+  public static List<String> loadFromFile(final File file) throws IOException {
+    final FileReader fr = new FileReader(file);
     try {
       return loadFromReader(fr);
-    } catch (IOException e) {
+    } catch (final IOException e) {
       throw e;
     } finally {
       closeSilently(fr);
     }
   }
 
-  private static List<String> loadFromReader(Reader reader) throws IOException {
-    List<String> lines = new ArrayList<>();
-    BufferedReader br = new BufferedReader(reader);
+  private static List<String> loadFromReader(final Reader reader) throws IOException {
+    final List<String> lines = new ArrayList<>();
+    final BufferedReader br = new BufferedReader(reader);
     while (br.ready()) {
       lines.add(br.readLine());
     }
@@ -268,11 +268,11 @@ public final class IOToolkit {
    * @param lines a list of strings that will be written on one line each
    * @throws IOException on I/O error
    */
-  public static void saveToFile(File file, List<String> lines) throws IOException {
+  public static void saveToFile(final File file, final List<String> lines) throws IOException {
     PrintWriter pr = null;
     try {
       pr = new PrintWriter(new FileWriter(file));
-      for (String line : lines) {
+      for (final String line : lines) {
         pr.println(line);
       }
     } finally {
@@ -288,11 +288,11 @@ public final class IOToolkit {
    * @return a list of strings, one for each line in the stream
    * @throws IOException on I/O error
    */
-  public static List<String> loadFromStream(InputStream is) throws IOException {
+  public static List<String> loadFromStream(final InputStream is) throws IOException {
     try {
-      List<String> lines = new ArrayList<>();
-      BufferedInputStream bis = new BufferedInputStream(is);
-      BufferedReader r = new BufferedReader(new InputStreamReader(bis));
+      final List<String> lines = new ArrayList<>();
+      final BufferedInputStream bis = new BufferedInputStream(is);
+      final BufferedReader r = new BufferedReader(new InputStreamReader(bis));
       while (r.ready()) {
         lines.add(r.readLine());
       }
@@ -311,8 +311,8 @@ public final class IOToolkit {
    *     overwritten
    * @throws IOException on I/O error
    */
-  public static void write(InputStream in, File toOutput, boolean append) throws IOException {
-    FileOutputStream fos = new FileOutputStream(toOutput, append);
+  public static void write(final InputStream in, final File toOutput, final boolean append) throws IOException {
+    final FileOutputStream fos = new FileOutputStream(toOutput, append);
     BufferedOutputStream os = null;
     try {
       os = new BufferedOutputStream(fos);
@@ -330,7 +330,7 @@ public final class IOToolkit {
    * @param os output stream to write to
    * @throws IOException on I/O error
    */
-  public static void copy(InputStream is, OutputStream os) throws IOException {
+  public static void copy(final InputStream is, final OutputStream os) throws IOException {
     copy(is, os, 1024);
   }
 
@@ -342,9 +342,9 @@ public final class IOToolkit {
    * @param bufferSize size of the buffer used when copying data
    * @throws IOException on I/O error
    */
-  public static void copy(InputStream is, OutputStream os, int bufferSize) throws IOException {
+  public static void copy(final InputStream is, final OutputStream os, final int bufferSize) throws IOException {
     int length;
-    byte[] buffer = new byte[bufferSize];
+    final byte[] buffer = new byte[bufferSize];
     while ((length = is.read(buffer)) > 0) {
       os.write(buffer, 0, length);
     }
@@ -359,7 +359,7 @@ public final class IOToolkit {
    * @param targetFile target file to copy data to
    * @throws IOException if something goes wrong during the copy
    */
-  public static void copyFile(File srcFile, File targetFile) throws IOException {
+  public static void copyFile(final File srcFile, final File targetFile) throws IOException {
     Files.copy(
         srcFile.toPath(),
         targetFile.toPath(),
@@ -374,19 +374,19 @@ public final class IOToolkit {
    * @return MD5 hash string
    * @throws IOException if something goes wrong when reading file data
    */
-  public static String calculateFileHash(File file) throws IOException {
-    RandomAccessFile raf = new RandomAccessFile(file, "r"); // $NON-NLS-1$
+  public static String calculateFileHash(final File file) throws IOException {
+    final RandomAccessFile raf = new RandomAccessFile(file, "r"); // $NON-NLS-1$
     try {
-      long seek = raf.length() / 10;
-      byte[] buffer = new byte[1024];
-      MessageDigest hash = MessageDigest.getInstance("MD5"); // $NON-NLS-1$
+      final long seek = raf.length() / 10;
+      final byte[] buffer = new byte[1024];
+      final MessageDigest hash = MessageDigest.getInstance("MD5"); // $NON-NLS-1$
       int read;
       while ((read = raf.read(buffer)) > 0) {
         hash.update(buffer, 0, read);
         raf.seek(raf.getFilePointer() + seek);
       }
       return new BigInteger(1, hash.digest()).toString();
-    } catch (NoSuchAlgorithmException e) {
+    } catch (final NoSuchAlgorithmException e) {
       throw new RuntimeException(e);
     } finally {
       closeSilently(raf);

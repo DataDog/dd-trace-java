@@ -19,7 +19,7 @@ package com.datadog.profiling.controller;
 public final class UnsupportedEnvironmentException extends Exception {
   private static final long serialVersionUID = 1L;
 
-  public UnsupportedEnvironmentException(String message) {
+  public UnsupportedEnvironmentException(final String message) {
     super(message);
   }
 }
