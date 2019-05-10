@@ -18,9 +18,11 @@ public class TracingAgent {
   // fields must be managed under class lock
   private static ClassLoader AGENT_CLASSLOADER = null;
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
+  private static ClassLoader PROFILING_CLASSLOADER = null;
   private static File bootstrapJar = null;
   private static File toolingJar = null;
   private static File jmxFetchJar = null;
+  private static File profilingJar = null;
 
   public static void premain(final String agentArgs, final Instrumentation inst) throws Exception {
     agentmain(agentArgs, inst);
@@ -60,6 +62,7 @@ public class TracingAgent {
     } else {
       startJmxFetch();
     }
+    startProfilingAgent();
   }
 
   public static synchronized void startDatadogAgent(
@@ -113,6 +116,24 @@ public class TracingAgent {
     }
   }
 
+  public static synchronized void startProfilingAgent() throws Exception {
+    initializeJars();
+    if (PROFILING_CLASSLOADER == null) {
+      final ClassLoader profilingClassLoader = createDatadogClassLoader(bootstrapJar, profilingJar);
+      final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+      try {
+        Thread.currentThread().setContextClassLoader(profilingClassLoader);
+        final Class<?> jmxFetchAgentClass =
+            profilingClassLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
+        final Method jmxFetchInstallerMethod = jmxFetchAgentClass.getMethod("run");
+        jmxFetchInstallerMethod.invoke(null);
+        PROFILING_CLASSLOADER = profilingClassLoader;
+      } finally {
+        Thread.currentThread().setContextClassLoader(contextLoader);
+      }
+    }
+  }
+
   /**
    * Extract embeded jars out of the dd-java-agent to a temporary location.
    *
@@ -137,6 +158,13 @@ public class TracingAgent {
       jmxFetchJar =
           extractToTmpFile(
               TracingAgent.class.getClassLoader(), "agent-jmxfetch.jar.zip", "agent-jmxfetch.jar");
+    }
+    if (profilingJar == null) {
+      profilingJar =
+          extractToTmpFile(
+              TracingAgent.class.getClassLoader(),
+              "agent-profiling.jar.zip",
+              "agent-profiling.jar");
     }
   }
 
