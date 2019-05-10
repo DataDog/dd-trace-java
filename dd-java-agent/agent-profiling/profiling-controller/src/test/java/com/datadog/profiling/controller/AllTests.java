@@ -21,6 +21,4 @@ import org.junit.runners.Suite.SuiteClasses;
 
 @RunWith(Suite.class)
 @SuiteClasses({ProfilingSystemTest.class})
-
-public class AllTests {
-}
+public class AllTests {}

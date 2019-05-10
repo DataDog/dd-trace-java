@@ -29,32 +29,32 @@ import java.util.Properties;
  * parse XML.
  */
 public final class JfpUtils {
-	private JfpUtils() {
-		throw new UnsupportedOperationException("Toolkit!");
-	}
+  private JfpUtils() {
+    throw new UnsupportedOperationException("Toolkit!");
+  }
 
-	public static Map<String, String> readJfpFile(InputStream stream) throws IOException {
-		if (stream == null) {
-			throw new IllegalArgumentException("Cannot read jfp file from empty stream!");
-		}
-		Properties props = new Properties();
-		try {
-			props.load(stream);
-		} finally {
-			stream.close();
-		}
-		Map<String, String> map = new HashMap<String, String>();
-		for (Entry<Object, Object> o : props.entrySet()) {
-			map.put(String.valueOf(o.getKey()), String.valueOf(o.getValue()));
-		}
-		return map;
-	}
+  public static Map<String, String> readJfpFile(InputStream stream) throws IOException {
+    if (stream == null) {
+      throw new IllegalArgumentException("Cannot read jfp file from empty stream!");
+    }
+    Properties props = new Properties();
+    try {
+      props.load(stream);
+    } finally {
+      stream.close();
+    }
+    Map<String, String> map = new HashMap<String, String>();
+    for (Entry<Object, Object> o : props.entrySet()) {
+      map.put(String.valueOf(o.getKey()), String.valueOf(o.getValue()));
+    }
+    return map;
+  }
 
-	public static InputStream getNamedResource(String name) {
-		return JfpUtils.class.getClassLoader().getResourceAsStream(name);
-	}
+  public static InputStream getNamedResource(String name) {
+    return JfpUtils.class.getClassLoader().getResourceAsStream(name);
+  }
 
-	public static Map<String, String> readNamedJfpResource(String name) throws IOException {
-		return readJfpFile(getNamedResource(name));
-	}
+  public static Map<String, String> readNamedJfpResource(String name) throws IOException {
+    return readJfpFile(getNamedResource(name));
+  }
 }

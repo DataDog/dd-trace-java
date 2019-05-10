@@ -34,72 +34,76 @@
 package com.datadog.profiling.uploader.util;
 
 /**
- * Copy of JMC internal class. We should probably add the streaming JFR splitter, once developed,
- * to the JMC project, so that we can use this class. ;)
- * 
+ * Copy of JMC internal class. We should probably add the streaming JFR splitter, once developed, to
+ * the JMC project, so that we can use this class. ;)
+ *
  * @author Marcus Hirt
  */
 public class DataInputToolkit {
 
-	public static final byte BYTE_SIZE = 1;
-	public static final byte BOOLEAN_SIZE = 1;
-	public static final byte SHORT_SIZE = 2;
-	public static final byte CHAR_SIZE = 2;
-	public static final byte INTEGER_SIZE = 4;
-	public static final byte LONG_SIZE = 8;
-	public static final byte FLOAT_SIZE = 4;
-	public static final byte DOUBLE_SIZE = 8;
+  public static final byte BYTE_SIZE = 1;
+  public static final byte BOOLEAN_SIZE = 1;
+  public static final byte SHORT_SIZE = 2;
+  public static final byte CHAR_SIZE = 2;
+  public static final byte INTEGER_SIZE = 4;
+  public static final byte LONG_SIZE = 8;
+  public static final byte FLOAT_SIZE = 4;
+  public static final byte DOUBLE_SIZE = 8;
 
-	public static int readUnsignedByte(byte[] bytes, int offset) {
-		return bytes[offset] & 0xFF;
-	}
+  public static int readUnsignedByte(byte[] bytes, int offset) {
+    return bytes[offset] & 0xFF;
+  }
 
-	public static byte readByte(byte[] bytes, int offset) {
-		return bytes[offset];
-	}
+  public static byte readByte(byte[] bytes, int offset) {
+    return bytes[offset];
+  }
 
-	public static int readUnsignedShort(byte[] bytes, int offset) {
-		int ch1 = (bytes[offset] & 0xff);
-		int ch2 = (bytes[offset + 1] & 0xff);
-		return (ch1 << 8) + (ch2 << 0);
-	}
+  public static int readUnsignedShort(byte[] bytes, int offset) {
+    int ch1 = (bytes[offset] & 0xff);
+    int ch2 = (bytes[offset + 1] & 0xff);
+    return (ch1 << 8) + (ch2 << 0);
+  }
 
-	public static short readShort(byte[] bytes, int offset) {
-		return (short) readUnsignedShort(bytes, offset);
-	}
+  public static short readShort(byte[] bytes, int offset) {
+    return (short) readUnsignedShort(bytes, offset);
+  }
 
-	public static char readChar(byte[] bytes, int offset) {
-		return (char) readUnsignedShort(bytes, offset);
-	}
+  public static char readChar(byte[] bytes, int offset) {
+    return (char) readUnsignedShort(bytes, offset);
+  }
 
-	public static long readUnsignedInt(byte[] bytes, int index) {
-		return readInt(bytes, index) & 0xffffffffL;
-	}
+  public static long readUnsignedInt(byte[] bytes, int index) {
+    return readInt(bytes, index) & 0xffffffffL;
+  }
 
-	public static int readInt(byte[] bytes, int index) {
-		int ch1 = (bytes[index] & 0xff);
-		int ch2 = (bytes[index + 1] & 0xff);
-		int ch3 = (bytes[index + 2] & 0xff);
-		int ch4 = (bytes[index + 3] & 0xff);
-		return ((ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0));
-	}
+  public static int readInt(byte[] bytes, int index) {
+    int ch1 = (bytes[index] & 0xff);
+    int ch2 = (bytes[index + 1] & 0xff);
+    int ch3 = (bytes[index + 2] & 0xff);
+    int ch4 = (bytes[index + 3] & 0xff);
+    return ((ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0));
+  }
 
-	public static long readLong(byte[] bytes, int index) {
-		return (((long) bytes[index + 0] << 56) + ((long) (bytes[index + 1] & 255) << 48)
-				+ ((long) (bytes[index + 2] & 255) << 40) + ((long) (bytes[index + 3] & 255) << 32)
-				+ ((long) (bytes[index + 4] & 255) << 24) + ((bytes[index + 5] & 255) << 16)
-				+ ((bytes[index + 6] & 255) << 8) + ((bytes[index + 7] & 255) << 0));
-	}
+  public static long readLong(byte[] bytes, int index) {
+    return (((long) bytes[index + 0] << 56)
+        + ((long) (bytes[index + 1] & 255) << 48)
+        + ((long) (bytes[index + 2] & 255) << 40)
+        + ((long) (bytes[index + 3] & 255) << 32)
+        + ((long) (bytes[index + 4] & 255) << 24)
+        + ((bytes[index + 5] & 255) << 16)
+        + ((bytes[index + 6] & 255) << 8)
+        + ((bytes[index + 7] & 255) << 0));
+  }
 
-	public static float readFloat(byte[] bytes, int offset) {
-		return Float.intBitsToFloat(readInt(bytes, offset));
-	}
+  public static float readFloat(byte[] bytes, int offset) {
+    return Float.intBitsToFloat(readInt(bytes, offset));
+  }
 
-	public static double readDouble(byte[] bytes, int offset) {
-		return Double.longBitsToDouble(readLong(bytes, offset));
-	}
+  public static double readDouble(byte[] bytes, int offset) {
+    return Double.longBitsToDouble(readLong(bytes, offset));
+  }
 
-	public static boolean readBoolean(byte[] bytes, int offset) {
-		return bytes[offset] != 0;
-	}
+  public static boolean readBoolean(byte[] bytes, int offset) {
+    return bytes[offset] != 0;
+  }
 }

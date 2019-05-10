@@ -15,20 +15,22 @@
  */
 package com.datadog.profiling.uploader;
 
+import com.datadog.profiling.controller.ProfilingSystem;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.datadog.profiling.controller.ProfilingSystem;
-
-/**
- * Thread factory for the recording scheduler.
- */
+/** Thread factory for the recording scheduler. */
 final class ProfilingUploaderThreadFactory implements ThreadFactory {
-	private static final AtomicInteger COUNTER = new AtomicInteger();
-	@Override
-	public Thread newThread(Runnable r) {
-		Thread t = new Thread(ProfilingSystem.THREAD_GROUP, r, "DD Recording Uploader - " + COUNTER.getAndIncrement());
-		t.setDaemon(true);
-		return t;
-	}
+  private static final AtomicInteger COUNTER = new AtomicInteger();
+
+  @Override
+  public Thread newThread(Runnable r) {
+    Thread t =
+        new Thread(
+            ProfilingSystem.THREAD_GROUP,
+            r,
+            "DD Recording Uploader - " + COUNTER.getAndIncrement());
+    t.setDaemon(true);
+    return t;
+  }
 }

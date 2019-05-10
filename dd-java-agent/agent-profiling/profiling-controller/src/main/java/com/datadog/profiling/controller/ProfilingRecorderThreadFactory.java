@@ -17,15 +17,13 @@ package com.datadog.profiling.controller;
 
 import java.util.concurrent.ThreadFactory;
 
-/**
- * Thread factory for the recording scheduler.
- */
+/** Thread factory for the recording scheduler. */
 final class ProfilingRecorderThreadFactory implements ThreadFactory {
-	
-	@Override
-	public Thread newThread(Runnable r) {
-		Thread t = new Thread(ProfilingSystem.THREAD_GROUP, r, "DD Profiler Recording Scheduler");
-		t.setDaemon(true);
-		return t;
-	}
+
+  @Override
+  public Thread newThread(Runnable r) {
+    Thread t = new Thread(ProfilingSystem.THREAD_GROUP, r, "DD Profiler Recording Scheduler");
+    t.setDaemon(true);
+    return t;
+  }
 }

@@ -15,69 +15,64 @@
  */
 package com.datadog.profiling.controller.openjdk;
 
+import com.datadog.profiling.controller.RecordingData;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
-
-import com.datadog.profiling.controller.RecordingData;
-
 import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
 
-/**
- * Implementation for a continuous recording.
- */
+/** Implementation for a continuous recording. */
 public class ContinuousRecording implements RecordingData {
-	private final Recording recording;
-	private final Instant defaultStart;
-	private final Instant defaultEnd;
+  private final Recording recording;
+  private final Instant defaultStart;
+  private final Instant defaultEnd;
 
-	public ContinuousRecording(Recording recording, Instant start, Instant end) {
-		this.recording = recording;
-		this.defaultStart = start;
-		this.defaultEnd = end;
-	}
+  public ContinuousRecording(Recording recording, Instant start, Instant end) {
+    this.recording = recording;
+    this.defaultStart = start;
+    this.defaultEnd = end;
+  }
 
-	public ContinuousRecording(Recording recording) {
-		this(recording, null, null);
-	}
+  public ContinuousRecording(Recording recording) {
+    this(recording, null, null);
+  }
 
-	@Override
-	public boolean isAvailable() {
-		return recording.getState() == RecordingState.STOPPED;
-	}
+  @Override
+  public boolean isAvailable() {
+    return recording.getState() == RecordingState.STOPPED;
+  }
 
-	@Override
-	public InputStream getStream() throws IllegalStateException, IOException {
-		return recording.getStream(defaultStart, defaultEnd);
-	}
+  @Override
+  public InputStream getStream() throws IllegalStateException, IOException {
+    return recording.getStream(defaultStart, defaultEnd);
+  }
 
-	public InputStream getStream(Instant start, Instant end) throws IOException {
-		return recording.getStream(start, end);
-	}
+  public InputStream getStream(Instant start, Instant end) throws IOException {
+    return recording.getStream(start, end);
+  }
 
-	@Override
-	public void release() {
-		recording.close();
-	}
+  @Override
+  public void release() {
+    recording.close();
+  }
 
-	public String getName() {
-		return recording.getName();
-	}
+  public String getName() {
+    return recording.getName();
+  }
 
-	@Override
-	public String toString() {
-		return "ContinuousRecording: " + getName();
-	}
+  @Override
+  public String toString() {
+    return "ContinuousRecording: " + getName();
+  }
 
-	@Override
-	public Instant getRequestedStart() {
-		return defaultStart;
-	}
+  @Override
+  public Instant getRequestedStart() {
+    return defaultStart;
+  }
 
-	@Override
-	public Instant getRequestedEnd() {
-		return defaultEnd;
-	}
-
+  @Override
+  public Instant getRequestedEnd() {
+    return defaultEnd;
+  }
 }

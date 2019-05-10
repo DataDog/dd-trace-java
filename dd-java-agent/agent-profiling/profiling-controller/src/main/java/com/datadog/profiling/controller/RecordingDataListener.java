@@ -15,17 +15,14 @@
  */
 package com.datadog.profiling.controller;
 
-/**
- * Listener for getting notified when new recording data is becoming available.
- */
+/** Listener for getting notified when new recording data is becoming available. */
 public interface RecordingDataListener {
-	/**
-	 * Called when new recording data becomes available. Handle quickly, e.g. typically schedule
-	 * streaming of the new available data in another thread. Do not forget to
-	 * {@link RecordingData#release()} when the data has been uploaded.
-	 * 
-	 * @param data
-	 *            the new data available
-	 */
-	public void onNewData(RecordingData data);
+  /**
+   * Called when new recording data becomes available. Handle quickly, e.g. typically schedule
+   * streaming of the new available data in another thread. Do not forget to {@link
+   * RecordingData#release()} when the data has been uploaded.
+   *
+   * @param data the new data available
+   */
+  public void onNewData(RecordingData data);
 }

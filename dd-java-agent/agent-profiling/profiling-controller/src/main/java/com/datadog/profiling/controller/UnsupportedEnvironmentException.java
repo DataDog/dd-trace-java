@@ -15,13 +15,11 @@
  */
 package com.datadog.profiling.controller;
 
-/**
- * Exception thrown when the environment does not support a {@link Controller}.
- */
+/** Exception thrown when the environment does not support a {@link Controller}. */
 public final class UnsupportedEnvironmentException extends Exception {
-	private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-	public UnsupportedEnvironmentException(String message) {
-		super(message);
-	}
+  public UnsupportedEnvironmentException(String message) {
+    super(message);
+  }
 }
