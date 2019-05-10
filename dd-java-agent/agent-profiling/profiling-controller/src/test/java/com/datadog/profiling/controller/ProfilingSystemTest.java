@@ -60,6 +60,7 @@ public class ProfilingSystemTest {
     final ProfilingSystem system =
         new ProfilingSystem(listener, Duration.ZERO, Duration.ofMillis(1), Duration.ofMillis(1));
     latch.await(10, TimeUnit.MILLISECONDS);
+    system.shutdown();
     assertEquals(
         "Got recording data even though the system was never started!", 1, latch.getCount());
   }
