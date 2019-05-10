@@ -1,0 +1,55 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+apply from: "${rootDir}/gradle/java.gradle"
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+dependencies {
+  compile deps.slf4j
+  compile project(':dd-trace-api')
+
+  compile project(':dd-java-agent:agent-profiling:profiling-controller')
+  compile project(':dd-java-agent:agent-profiling:profiling-uploader')
+}
+
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
+
+tasks.withType(JavaCompile) {
+  doFirst {
+    // FIXME: `-processing` should be removed at some point - but it looks like linter gets confused by presence of lombok processor
+    options.compilerArgs.addAll(['--release', '11', '-Xlint:all,-processing', '-Werror'])
+    options.fork = true
+    options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+  }
+}
+
+tasks.withType(GroovyCompile) {
+  doFirst {
+    // FIXME: `-processing` should be removed at some point - but it looks like linter gets confused by presence of lombok processor
+    options.compilerArgs.addAll(['--release', '11', '-Xlint:all,-processing'])
+    options.fork = true
+    options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+  }
+}
+
+configurations {
+  // exclude bootstrap dependencies from shadowJar
+  runtime.exclude module: deps.opentracing
+  runtime.exclude module: deps.slf4j
+  runtime.exclude group: 'org.slf4j'
+  runtime.exclude group: 'io.opentracing'
+}
+
+shadowJar {
+  dependencies {
+    exclude(project(':dd-java-agent:agent-bootstrap'))
+    exclude(project(':dd-trace-api'))
+  }
+}
+
+jar {
+  classifier = 'unbundled'
+}

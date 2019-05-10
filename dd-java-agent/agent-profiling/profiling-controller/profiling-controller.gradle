@@ -1,0 +1,41 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+apply plugin: 'idea'
+
+dependencies {
+  compile deps.slf4j
+  compile project(':dd-trace-api')
+
+  testCompile deps.junit
+}
+
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
+
+tasks.withType(JavaCompile) {
+  doFirst {
+    // FIXME: `-processing` should be removed at some point - but it looks like linter gets confused by presence of lombok processor
+    options.compilerArgs.addAll(['--release', '11', '-Xlint:all,-processing', '-Werror'])
+    options.fork = true
+    options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+  }
+}
+
+tasks.withType(GroovyCompile) {
+  doFirst {
+    // FIXME: `-processing` should be removed at some point - but it looks like linter gets confused by presence of lombok processor
+    options.compilerArgs.addAll(['--release', '11', '-Xlint:all,-processing'])
+    options.fork = true
+    options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+  }
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}
