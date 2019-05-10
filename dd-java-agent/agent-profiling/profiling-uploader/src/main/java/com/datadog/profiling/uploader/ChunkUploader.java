@@ -21,8 +21,7 @@ import com.datadog.profiling.controller.RecordingDataListener;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Code for uploading whatever recording data captured to Datadog. Create this class before the
@@ -31,9 +30,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Don't forget to shut down this component when no longer needed.
  */
+@Slf4j
 public final class ChunkUploader {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(ChunkUploader.class);
 
   // Allows upload of 1 continuous and one profiling recording simultaneously. Of course, spamming
   // dumps of the continuous recording may get us in trouble, so we will likely protect against that
@@ -78,7 +76,7 @@ public final class ChunkUploader {
       try {
         uploadingTaskExecutor.awaitTermination(10, TimeUnit.SECONDS);
       } catch (final InterruptedException e) {
-        LOGGER.error("Wait for executor shutdown interrupted");
+        log.error("Wait for executor shutdown interrupted");
       }
     }
   }

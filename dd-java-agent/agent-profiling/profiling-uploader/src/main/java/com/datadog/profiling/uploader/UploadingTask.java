@@ -19,6 +19,7 @@ import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.uploader.util.ChunkReader;
 import java.io.IOException;
 import java.util.Iterator;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.Credentials;
 import okhttp3.Headers;
 import okhttp3.MediaType;
@@ -27,15 +28,13 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The class for uploading recordings somewhere. This is what eventually will call our edge service.
  */
+@Slf4j
 final class UploadingTask implements Runnable {
   // This logger will be called repeatedly
-  private static final Logger LOGGER = LoggerFactory.getLogger(UploadingTask.class);
   private static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
   // May want to defined these somewhere where they can be shared in the public API
@@ -72,13 +71,13 @@ final class UploadingTask implements Runnable {
       // Chunk loader closes stream automatically - only need to release RecordingData
       data.release();
     } catch (final IllegalStateException | IOException e) {
-      LOGGER.error("Problem uploading recording chunk!", e);
+      log.error("Problem uploading recording chunk!", e);
     }
   }
 
   private void uploadChunk(final RecordingData data, final int chunkId, final byte[] chunk)
       throws IOException {
-    LOGGER.info("Uploading {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
+    log.info("Uploading {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
 
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder()
@@ -107,7 +106,7 @@ final class UploadingTask implements Runnable {
     // Apparently we have to do this with okHttp, even if we do not use the body
     response.body().close();
     if (response.isSuccessful()) {
-      LOGGER.info("Upload done");
+      log.info("Upload done");
     } else {
       throw new IOException("Unexpected code " + response);
     }

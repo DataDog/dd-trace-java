@@ -24,10 +24,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Sets up the profiling strategy and schedules the profiling recordings. */
+@Slf4j
 public final class ProfilingSystem {
   public static final ThreadGroup THREAD_GROUP = new ThreadGroup("Datadog Profiler");
 
@@ -62,10 +64,10 @@ public final class ProfilingSystem {
    * @throws BadConfigurationException if the configuration information was bad.
    */
   public ProfilingSystem(
-    final RecordingDataListener dataListener,
-    final Duration delay,
-    final Duration period,
-    final Duration recordingDuration)
+      final RecordingDataListener dataListener,
+      final Duration delay,
+      final Duration period,
+      final Duration recordingDuration)
       throws IOException, UnsupportedEnvironmentException, BadConfigurationException {
     controller = ControllerFactory.createController();
     this.dataListener = dataListener;
@@ -148,7 +150,7 @@ public final class ProfilingSystem {
     try {
       executorService.awaitTermination(10, TimeUnit.SECONDS);
     } catch (final InterruptedException e) {
-      getLogger().error("Wait for executor shutdown interrupted");
+      log.error("Wait for executor shutdown interrupted");
     }
   }
 
@@ -182,10 +184,10 @@ public final class ProfilingSystem {
                   template,
                   recordingDuration);
         } else {
-          getLogger().warn("Skipped creating profiling recording, since one was already underway.");
+          log.warn("Skipped creating profiling recording, since one was already underway.");
         }
       } catch (final IOException e) {
-        getLogger().error("Failed to create a profiling recording!", e);
+        log.error("Failed to create a profiling recording!", e);
       }
     }
   }
@@ -200,17 +202,12 @@ public final class ProfilingSystem {
         if (!recording.isAvailable()) {
           // We were called too soon. Let's try again in a bit.
           executorService.schedule(this, RETRY_DELAY, TimeUnit.MILLISECONDS);
-          getLogger()
-              .warn("Profiling Recording wasn't done. Rescheduled check in {} ms", RETRY_DELAY);
+          log.warn("Profiling Recording wasn't done. Rescheduled check in {} ms", RETRY_DELAY);
         } else {
           dataListener.onNewData(recording);
           ongoingProfilingRecording = null;
         }
       }
     }
-  }
-
-  private static Logger getLogger() {
-    return LOGGER;
   }
 }
