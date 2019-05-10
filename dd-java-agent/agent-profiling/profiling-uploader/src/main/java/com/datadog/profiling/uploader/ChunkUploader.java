@@ -50,7 +50,8 @@ public final class ChunkUploader {
 
   private final class ProfilingDataCallback implements RecordingDataListener {
     /** Just handing this off to the uploading threads. */
-    public void onNewData(RecordingData data) {
+    @Override
+    public void onNewData(final RecordingData data) {
       uploadingTaskExecutor.execute(new UploadingTask(url, apiKey, tags, data));
     }
   }
@@ -61,7 +62,7 @@ public final class ChunkUploader {
    * @param url the URL of the edge service.
    * @param apiKey the apiKey to use.
    */
-  public ChunkUploader(String url, String apiKey, String[] tags) {
+  public ChunkUploader(final String url, final String apiKey, final String[] tags) {
     this.url = url;
     this.apiKey = apiKey;
     this.tags = tags;
@@ -76,7 +77,7 @@ public final class ChunkUploader {
       uploadingTaskExecutor.shutdown();
       try {
         uploadingTaskExecutor.awaitTermination(10, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
+      } catch (final InterruptedException e) {
         LOGGER.error("Wait for executor shutdown interrupted");
       }
     }

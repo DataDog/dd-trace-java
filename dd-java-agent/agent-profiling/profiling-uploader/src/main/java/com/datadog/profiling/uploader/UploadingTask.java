@@ -17,9 +17,16 @@ package com.datadog.profiling.uploader;
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.uploader.util.ChunkReader;
-import com.squareup.okhttp.*;
 import java.io.IOException;
 import java.util.Iterator;
+import okhttp3.Credentials;
+import okhttp3.Headers;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +53,8 @@ final class UploadingTask implements Runnable {
   private final String url;
   private final String[] tags;
 
-  public UploadingTask(String url, String apiKey, String[] tags, RecordingData data) {
+  public UploadingTask(
+      final String url, final String apiKey, final String[] tags, final RecordingData data) {
     this.url = url;
     this.apiKey = apiKey;
     this.tags = tags;
@@ -56,24 +64,25 @@ final class UploadingTask implements Runnable {
   @Override
   public void run() {
     try {
-      Iterator<byte[]> chunkIterator = ChunkReader.readChunks(data.getStream());
+      final Iterator<byte[]> chunkIterator = ChunkReader.readChunks(data.getStream());
       int chunkCounter = 0;
       while (chunkIterator.hasNext()) {
         uploadChunk(data, chunkCounter++, chunkIterator.next());
       }
       // Chunk loader closes stream automatically - only need to release RecordingData
       data.release();
-    } catch (IllegalStateException | IOException e) {
+    } catch (final IllegalStateException | IOException e) {
       LOGGER.error("Problem uploading recording chunk!", e);
     }
   }
 
-  private void uploadChunk(RecordingData data, int chunkId, byte[] chunk) throws IOException {
+  private void uploadChunk(final RecordingData data, final int chunkId, final byte[] chunk)
+      throws IOException {
     LOGGER.info("Uploading {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
 
-    MultipartBuilder bodyBuilder =
-        new MultipartBuilder()
-            .type(MultipartBuilder.FORM)
+    final MultipartBody.Builder bodyBuilder =
+        new MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
             .addFormDataPart(KEY_RECORDING_NAME, data.getName())
             // Note that toString is well defined for instants - ISO-8601
             .addFormDataPart(KEY_RECORDING_START, data.getRequestedStart().toString())
@@ -85,16 +94,16 @@ final class UploadingTask implements Runnable {
     bodyBuilder.addPart(
         Headers.of("Content-Disposition", "form-data; name=\"jfr-chunk-data\"; filename=\"chunk\""),
         RequestBody.create(OCTET_STREAM, chunk));
-    RequestBody requestBody = bodyBuilder.build();
+    final RequestBody requestBody = bodyBuilder.build();
 
-    Request request =
+    final Request request =
         new Request.Builder()
             .addHeader("Authorization", Credentials.basic(apiKey, ""))
             .url(url)
             .post(requestBody)
             .build();
 
-    Response response = CLIENT.newCall(request).execute();
+    final Response response = CLIENT.newCall(request).execute();
     // Apparently we have to do this with okHttp, even if we do not use the body
     response.body().close();
     if (response.isSuccessful()) {

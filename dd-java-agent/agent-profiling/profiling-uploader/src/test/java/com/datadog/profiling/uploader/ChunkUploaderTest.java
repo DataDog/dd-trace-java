@@ -20,11 +20,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.datadog.profiling.controller.ProfilingSystem;
-import com.squareup.okhttp.HttpUrl;
-import com.squareup.okhttp.mockwebserver.Dispatcher;
-import com.squareup.okhttp.mockwebserver.MockResponse;
-import com.squareup.okhttp.mockwebserver.MockWebServer;
-import com.squareup.okhttp.mockwebserver.RecordedRequest;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
@@ -36,6 +31,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import okhttp3.HttpUrl;
+import okhttp3.mockwebserver.Dispatcher;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.Test;
 
 /** Unit tests for the chunk uploader. */
@@ -45,25 +45,25 @@ public class ChunkUploaderTest {
 
   @Test
   public void testUploader() throws Exception {
-    final List<RecordedRequest> recordedRequests =
-        Collections.synchronizedList(new ArrayList<RecordedRequest>());
+    final List<RecordedRequest> recordedRequests = Collections.synchronizedList(new ArrayList<>());
     final CountDownLatch latch = new CountDownLatch(NUMBER_OF_RECORDINGS);
 
-    MockWebServer server = new MockWebServer();
+    final MockWebServer server = new MockWebServer();
     server.setDispatcher(
         new Dispatcher() {
           @Override
-          public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
+          public MockResponse dispatch(final RecordedRequest request) throws InterruptedException {
             recordedRequests.add(request);
             latch.countDown();
             return new MockResponse().setResponseCode(200);
           }
         });
     server.start();
-    HttpUrl url = server.url("/v0.1/lalalala");
-    ChunkUploader uploader = new ChunkUploader(url.toString(), TEST_APIKEY_VALUE, new String[0]);
+    final HttpUrl url = server.url("/v0.1/lalalala");
+    final ChunkUploader uploader =
+        new ChunkUploader(url.toString(), TEST_APIKEY_VALUE, new String[0]);
 
-    ProfilingSystem system =
+    final ProfilingSystem system =
         new ProfilingSystem(
             uploader.getRecordingDataListener(),
             Duration.ZERO,
@@ -80,12 +80,12 @@ public class ChunkUploaderTest {
         recordedRequests.size(),
         greaterThanOrEqualTo(NUMBER_OF_RECORDINGS));
 
-    for (RecordedRequest request : recordedRequests) {
-      Map<String, String> params = getParameters(request);
+    for (final RecordedRequest request : recordedRequests) {
+      final Map<String, String> params = getParameters(request);
       assertTrue(
           "Expected a profiling dump name",
           params.get(UploadingTask.KEY_RECORDING_NAME).startsWith("dd-profiling-"));
-      int chunkId = Integer.valueOf(params.get(UploadingTask.KEY_CHUNK_SEQ_NO));
+      final int chunkId = Integer.valueOf(params.get(UploadingTask.KEY_CHUNK_SEQ_NO));
       assertTrue("Expected a chunk id larger or equal to zero", chunkId >= 0);
     }
 
@@ -94,16 +94,16 @@ public class ChunkUploaderTest {
 
   // TODO test w tags if we keep this functionality
 
-  private Map<String, String> getParameters(RecordedRequest request) throws IOException {
-    Map<String, String> params = new HashMap<String, String>();
-    String body = request.getBody().readUtf8();
-    BufferedReader reader = new BufferedReader(new StringReader(body));
+  private Map<String, String> getParameters(final RecordedRequest request) throws IOException {
+    final Map<String, String> params = new HashMap<>();
+    final String body = request.getBody().readUtf8();
+    final BufferedReader reader = new BufferedReader(new StringReader(body));
     String line = null;
     while ((line = reader.readLine()) != null) {
       if (line.startsWith("Content-Disposition:")) {
-        int start = line.indexOf("name=") + 6;
-        int end = line.indexOf('"', start);
-        String key = line.substring(start, end);
+        final int start = line.indexOf("name=") + 6;
+        final int end = line.indexOf('"', start);
+        final String key = line.substring(start, end);
         // Getting the first content line.
         for (int i = 0; i < 3; i++) {
           line = reader.readLine();
@@ -114,7 +114,7 @@ public class ChunkUploaderTest {
     return params;
   }
 
-  public static void main(String[] args) throws Exception {
+  public static void main(final String[] args) throws Exception {
     new ChunkUploaderTest().testUploader();
   }
 }
