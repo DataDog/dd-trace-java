@@ -1,0 +1,29 @@
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore build related folders
+build/
+target/
+
+# Ignore idea files
+.idea
+
+# Ignore Eclipse files
+.classpath
+.project
+.settings
+# Eclipse is odd in assuming in can use bin to put temp files into it
+# This assumes we do not have sub-projects that actually need bin files committed
+*/bin/
+
+# Java class files
+.class
+
+# Ignore Mac stuff
+.DS_Store
+
+# Mvn -- TODO remove this when migrating to Gradle
+dependency-reduced-pom.xml
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
