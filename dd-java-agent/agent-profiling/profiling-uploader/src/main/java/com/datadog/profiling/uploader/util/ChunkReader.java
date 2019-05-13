@@ -282,7 +282,8 @@ public final class ChunkReader {
       } else {
         final long metadataIndex =
             DataInputToolkit.readLong(chunkHeader, HEADER_SIZE - DataInputToolkit.LONG_SIZE);
-        final int eventReadSize = (int) (metadataIndex - HEADER_SIZE + DataInputToolkit.INTEGER_SIZE);
+        final int eventReadSize =
+            (int) (metadataIndex - HEADER_SIZE + DataInputToolkit.INTEGER_SIZE);
         final byte[] chunkEvents = new byte[eventReadSize];
         readBytesFromStream(chunkEvents, 0, chunkEvents.length);
         final int metadataEventSize =
@@ -305,7 +306,8 @@ public final class ChunkReader {
       return chunkTotal;
     }
 
-    private void readBytesFromStream(final byte[] bytes, final int offset, final int count) throws IOException {
+    private void readBytesFromStream(final byte[] bytes, final int offset, final int count)
+        throws IOException {
       int totalRead = 0;
       while (totalRead < count) {
         final int read = inputStream.read(bytes, offset + totalRead, count - totalRead);

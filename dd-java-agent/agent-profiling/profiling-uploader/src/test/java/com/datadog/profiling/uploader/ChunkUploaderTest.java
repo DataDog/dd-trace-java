@@ -15,6 +15,10 @@
  */
 package com.datadog.profiling.uploader;
 
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+
 import com.datadog.profiling.controller.ProfilingSystem;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -33,10 +37,6 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.Test;
-
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 /** Unit tests for the chunk uploader. */
 public class ChunkUploaderTest {

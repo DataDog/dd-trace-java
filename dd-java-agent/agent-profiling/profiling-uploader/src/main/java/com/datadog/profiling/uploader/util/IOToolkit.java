@@ -311,7 +311,8 @@ public final class IOToolkit {
    *     overwritten
    * @throws IOException on I/O error
    */
-  public static void write(final InputStream in, final File toOutput, final boolean append) throws IOException {
+  public static void write(final InputStream in, final File toOutput, final boolean append)
+      throws IOException {
     final FileOutputStream fos = new FileOutputStream(toOutput, append);
     BufferedOutputStream os = null;
     try {
@@ -342,7 +343,8 @@ public final class IOToolkit {
    * @param bufferSize size of the buffer used when copying data
    * @throws IOException on I/O error
    */
-  public static void copy(final InputStream is, final OutputStream os, final int bufferSize) throws IOException {
+  public static void copy(final InputStream is, final OutputStream os, final int bufferSize)
+      throws IOException {
     int length;
     final byte[] buffer = new byte[bufferSize];
     while ((length = is.read(buffer)) > 0) {
