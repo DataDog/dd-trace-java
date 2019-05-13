@@ -33,9 +33,3 @@ tasks.withType(GroovyCompile) {
     options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
   }
 }
-
-idea {
-  module {
-    jdkName = '11'
-  }
-}

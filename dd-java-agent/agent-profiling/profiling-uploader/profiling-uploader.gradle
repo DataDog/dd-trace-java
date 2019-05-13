@@ -20,14 +20,15 @@ dependencies {
   testCompile group: 'com.squareup.okhttp3', name: 'mockwebserver', version: '3.14.1'
 }
 
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
+// This currently depends on Java11 lib and we cannot feasibly run tests on java8 at the moment
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
 
 tasks.withType(JavaCompile) {
   doFirst {
     // FIXME: `-processing` should be removed at some point - but it looks like linter gets confused by presence of lombok processor
     // FIXME: java11 doesn't like fallthrough, but apparently we are using it
-    options.compilerArgs.addAll(['--release', '8', '-Xlint:all,-processing,-fallthrough', '-Werror'])
+    options.compilerArgs.addAll(['--release', '11', '-Xlint:all,-processing,-fallthrough', '-Werror'])
     options.fork = true
     options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
   }
@@ -36,8 +37,9 @@ tasks.withType(JavaCompile) {
 tasks.withType(GroovyCompile) {
   doFirst {
     // FIXME: `-processing` should be removed at some point - but it looks like linter gets confused by presence of lombok processor
-    options.compilerArgs.addAll(['--release', '8', '-Xlint:all,-processing'])
+    options.compilerArgs.addAll(['--release', '11', '-Xlint:all,-processing'])
     options.fork = true
     options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
   }
 }
+
