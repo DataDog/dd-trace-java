@@ -8,6 +8,7 @@ include ':dd-trace-ext'
 
 // implements for third-party tracing libraries
 include ':dd-trace-ot'
+include ':dd-trace-ot:jfr-openjdk'
 
 // agent projects
 include ':dd-java-agent'

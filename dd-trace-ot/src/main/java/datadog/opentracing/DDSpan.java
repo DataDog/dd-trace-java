@@ -8,6 +8,8 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import datadog.opentracing.jfr.DDSpanEvent;
+import datadog.opentracing.jfr.DDSpanEventFactory;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -35,6 +37,9 @@ public class DDSpan implements Span, MutableSpan {
 
   /** The context attached to the span */
   private final DDSpanContext context;
+
+  /** Event attached to the span */
+  @JsonIgnore private final DDSpanEvent event;
 
   /**
    * Creation time of the span in microseconds provided by external clock. Must be greater than
@@ -64,8 +69,14 @@ public class DDSpan implements Span, MutableSpan {
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  DDSpan(final long timestampMicro, final DDSpanContext context) {
+  DDSpan(
+      final long timestampMicro,
+      final DDSpanContext context,
+      final DDSpanEventFactory eventFactory) {
     this.context = context;
+
+    event = eventFactory.create(context);
+    event.start();
 
     if (timestampMicro <= 0L) {
       // record the start time
@@ -90,6 +101,7 @@ public class DDSpan implements Span, MutableSpan {
     if (this.durationNano.compareAndSet(0, Math.max(1, durationNano))) {
       log.debug("Finished: {}", this);
       context.getTrace().addSpan(this);
+      event.finish();
     } else {
       log.debug("{} - already finished!", this);
     }

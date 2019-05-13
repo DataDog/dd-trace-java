@@ -1,6 +1,7 @@
 package datadog.opentracing.scopemanager;
 
 import datadog.opentracing.DDSpan;
+import datadog.opentracing.jfr.DDScopeEventFactory;
 import datadog.trace.context.ScopeListener;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
@@ -12,8 +13,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public class ContextualScopeManager implements ScopeManager {
   static final ThreadLocal<Scope> tlsScope = new ThreadLocal<>();
+
   final Deque<ScopeContext> scopeContexts = new ConcurrentLinkedDeque<>();
   final List<ScopeListener> scopeListeners = new CopyOnWriteArrayList<>();
+
+  private final DDScopeEventFactory scopeEventFactory;
+
+  public ContextualScopeManager(final DDScopeEventFactory scopeEventFactory) {
+    this.scopeEventFactory = scopeEventFactory;
+  }
 
   @Override
   public Scope activate(final Span span, final boolean finishOnClose) {
@@ -23,7 +31,7 @@ public class ContextualScopeManager implements ScopeManager {
       }
     }
     if (span instanceof DDSpan) {
-      return new ContinuableScope(this, (DDSpan) span, finishOnClose);
+      return new ContinuableScope(this, (DDSpan) span, finishOnClose, scopeEventFactory);
     } else {
       return new SimpleScope(this, span, finishOnClose);
     }

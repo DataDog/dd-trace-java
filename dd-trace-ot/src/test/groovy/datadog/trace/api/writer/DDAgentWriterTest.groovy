@@ -12,6 +12,7 @@ import spock.lang.Timeout
 
 import java.util.concurrent.TimeUnit
 
+import static datadog.opentracing.SpanFactory.EVENT_FACTORY
 import static datadog.opentracing.SpanFactory.newSpanOf
 import static datadog.trace.common.writer.DDAgentWriter.DISRUPTOR_BUFFER_SIZE
 
@@ -172,7 +173,7 @@ class DDAgentWriterTest extends Specification {
       Collections.emptyMap(),
       Mock(PendingTrace),
       Mock(DDTracer))
-    minimalSpan = new DDSpan(0, minimalContext)
+    minimalSpan = new DDSpan(0, minimalContext, EVENT_FACTORY)
     minimalTrace = [minimalSpan]
     traceSize = DDApi.OBJECT_MAPPER.writeValueAsBytes(minimalTrace).length
     maxedPayloadTraceCount = ((int) (DDAgentWriter.FLUSH_PAYLOAD_BYTES / traceSize)) + 1
