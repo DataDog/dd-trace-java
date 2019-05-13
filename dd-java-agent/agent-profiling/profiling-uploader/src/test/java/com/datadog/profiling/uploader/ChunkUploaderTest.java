@@ -61,7 +61,7 @@ public class ChunkUploaderTest {
     server.start();
     final HttpUrl url = server.url("/v0.1/lalalala");
     final ChunkUploader uploader =
-        new ChunkUploader(url.toString(), TEST_APIKEY_VALUE, new String[0]);
+        new ChunkUploader(url.toString(), TEST_APIKEY_VALUE, Collections.emptyMap());
 
     final ProfilingSystem system =
         new ProfilingSystem(
