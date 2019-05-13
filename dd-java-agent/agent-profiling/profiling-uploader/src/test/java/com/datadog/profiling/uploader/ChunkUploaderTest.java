@@ -113,8 +113,4 @@ public class ChunkUploaderTest {
     }
     return params;
   }
-
-  public static void main(final String[] args) throws Exception {
-    new ChunkUploaderTest().testUploader();
-  }
 }
