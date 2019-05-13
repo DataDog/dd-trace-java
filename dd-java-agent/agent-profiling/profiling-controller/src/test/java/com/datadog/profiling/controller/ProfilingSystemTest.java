@@ -15,6 +15,10 @@
  */
 package com.datadog.profiling.controller;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -24,21 +28,13 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 /** Unit tests for testing the {@link com.datadog.profiling.controller.ProfilingSystem}. */
 public class ProfilingSystemTest {
   @Test
   public void testCanShutDownWithoutStarting()
       throws UnsupportedEnvironmentException, IOException, InterruptedException,
           BadConfigurationException {
-    final RecordingDataListener listener =
-        new RecordingDataListener() {
-          @Override
-          public void onNewData(final RecordingData data) {}
-        };
+    final RecordingDataListener listener = (final RecordingData data) -> {};
     final ProfilingSystem system =
         new ProfilingSystem(
             listener, Duration.ZERO, Duration.ofMillis(200), Duration.ofMillis(100));
@@ -51,11 +47,8 @@ public class ProfilingSystemTest {
           BadConfigurationException {
     final CountDownLatch latch = new CountDownLatch(1);
     final RecordingDataListener listener =
-        new RecordingDataListener() {
-          @Override
-          public void onNewData(final RecordingData data) {
-            latch.countDown();
-          }
+        (final RecordingData data) -> {
+          latch.countDown();
         };
     final ProfilingSystem system =
         new ProfilingSystem(listener, Duration.ZERO, Duration.ofMillis(1), Duration.ofMillis(1));
@@ -75,11 +68,8 @@ public class ProfilingSystemTest {
   public void testProfilingSystemCreationBadConfig()
       throws UnsupportedEnvironmentException, IOException, InterruptedException {
     final RecordingDataListener listener =
-        new RecordingDataListener() {
-          @Override
-          public void onNewData(final RecordingData data) {
-            // Don't care...
-          }
+        (final RecordingData data) -> {
+          // Don't care...
         };
     try {
       final ProfilingSystem system =
@@ -107,12 +97,9 @@ public class ProfilingSystemTest {
     final List<RecordingData> results = new ArrayList<>();
 
     final RecordingDataListener listener =
-        new RecordingDataListener() {
-          @Override
-          public void onNewData(final RecordingData data) {
-            results.add(data);
-            latch.countDown();
-          }
+        (final RecordingData data) -> {
+          results.add(data);
+          latch.countDown();
         };
     final ProfilingSystem system =
         new ProfilingSystem(listener, Duration.ZERO, Duration.ofMillis(200), Duration.ofMillis(25));
@@ -142,31 +129,25 @@ public class ProfilingSystemTest {
     final List<RecordingData> results = new ArrayList<>();
 
     final RecordingDataListener listener =
-        new RecordingDataListener() {
-          @Override
-          public void onNewData(final RecordingData data) {
-            results.add(data);
-            latch.countDown();
-          }
+        (final RecordingData data) -> {
+          results.add(data);
+          latch.countDown();
         };
     final ProfilingSystem system =
         new ProfilingSystem(
             listener, Duration.ofDays(1), Duration.ofDays(1), Duration.ofSeconds(2));
     system.start();
     final Runnable continuousTrigger =
-        new Runnable() {
-          @Override
-          public void run() {
-            for (int i = 0; i < 3; i++) {
+        () -> {
+          for (int i = 0; i < 3; i++) {
+            try {
+              system.triggerSnapshot();
               try {
-                system.triggerSnapshot();
-                try {
-                  Thread.sleep(200);
-                } catch (final InterruptedException e) {
-                }
-              } catch (final IOException e) {
-                e.printStackTrace();
+                Thread.sleep(200);
+              } catch (final InterruptedException e) {
               }
+            } catch (final IOException e) {
+              e.printStackTrace();
             }
           }
         };
@@ -182,5 +163,19 @@ public class ProfilingSystemTest {
     for (final RecordingData data : results) {
       data.release();
     }
+  }
+
+  /** Non-blocking run to speed things up when we don't care. */
+  private void asyncRun(final Runnable task) {
+    final Thread t = new Thread(task, "ProfilingSystem shutdown thread");
+    t.setDaemon(true);
+    t.start();
+  }
+
+  /** Non-blocking shutdown to speed things up when we don't care. */
+  private void shutdown(final ProfilingSystem system) {
+    final Thread t = new Thread(system::shutdown, "ProfilingSystem shutdown thread");
+    t.setDaemon(true);
+    t.start();
   }
 }
