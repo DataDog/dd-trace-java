@@ -33,7 +33,7 @@ public class ProfilingSystemTest {
   @Test
   public void testCanShutDownWithoutStarting()
       throws UnsupportedEnvironmentException, IOException, InterruptedException,
-          BadConfigurationException {
+          ConfigurationException {
     final RecordingDataListener listener = (final RecordingData data) -> {};
     final ProfilingSystem system =
         new ProfilingSystem(
@@ -44,7 +44,7 @@ public class ProfilingSystemTest {
   @Test
   public void testDoesntSendDataIfNotStarted()
       throws UnsupportedEnvironmentException, IOException, InterruptedException,
-          BadConfigurationException {
+          ConfigurationException {
     final CountDownLatch latch = new CountDownLatch(1);
     final RecordingDataListener listener =
         (final RecordingData data) -> {
@@ -87,12 +87,12 @@ public class ProfilingSystemTest {
    * Ensuring that it can be started, and recording data for a few profiling recordings captured.
    *
    * @throws InterruptedException
-   * @throws com.datadog.profiling.controller.BadConfigurationException
+   * @throws ConfigurationException
    */
   @Test
   public void testProfilingSystem()
       throws UnsupportedEnvironmentException, IOException, InterruptedException,
-          BadConfigurationException {
+          ConfigurationException {
     final CountDownLatch latch = new CountDownLatch(2);
     final List<RecordingData> results = new ArrayList<>();
 
@@ -119,12 +119,12 @@ public class ProfilingSystemTest {
    * Ensuring that it can be started, and recording data for the continuous recording captured.
    *
    * @throws InterruptedException
-   * @throws com.datadog.profiling.controller.BadConfigurationException
+   * @throws ConfigurationException
    */
   @Test
   public void testContinuous()
       throws UnsupportedEnvironmentException, IOException, InterruptedException,
-          BadConfigurationException {
+          ConfigurationException {
     final CountDownLatch latch = new CountDownLatch(2);
     final List<RecordingData> results = new ArrayList<>();
 

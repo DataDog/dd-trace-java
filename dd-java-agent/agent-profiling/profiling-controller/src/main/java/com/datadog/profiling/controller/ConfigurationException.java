@@ -16,10 +16,10 @@
 package com.datadog.profiling.controller;
 
 /** Exception thrown when the profiling system is badly configured. */
-public class BadConfigurationException extends Exception {
+public class ConfigurationException extends Exception {
   private static final long serialVersionUID = 1L;
 
-  public BadConfigurationException(final String message) {
+  public ConfigurationException(final String message) {
     super(message);
   }
 }

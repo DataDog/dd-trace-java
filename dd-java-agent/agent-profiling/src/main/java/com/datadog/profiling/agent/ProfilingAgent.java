@@ -1,6 +1,6 @@
 package com.datadog.profiling.agent;
 
-import com.datadog.profiling.controller.BadConfigurationException;
+import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.uploader.ChunkUploader;
@@ -42,7 +42,7 @@ public class ProfilingAgent {
                 config.getProfilingPeriodicDuration());
         profiler.start();
         log.warn("Periodic profiling has started!");
-      } catch (final UnsupportedEnvironmentException | IOException | BadConfigurationException e) {
+      } catch (final UnsupportedEnvironmentException | IOException | ConfigurationException e) {
         log.warn("Failed to initialize profiling agent!", e);
       }
     }

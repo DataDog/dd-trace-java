@@ -61,14 +61,14 @@ public final class ProfilingSystem {
    * @throws IOException if a storage for the recordings could not be configured, or another IO
    *     related problem occurred.
    * @throws UnsupportedEnvironmentException if the runtime environment isn't supported.
-   * @throws BadConfigurationException if the configuration information was bad.
+   * @throws ConfigurationException if the configuration information was bad.
    */
   public ProfilingSystem(
       final RecordingDataListener dataListener,
       final int delaySeconds,
       final int periodSeconds,
       final int recordingDurationSeconds)
-      throws UnsupportedEnvironmentException, BadConfigurationException {
+      throws UnsupportedEnvironmentException, ConfigurationException {
     this(
         dataListener,
         Duration.ofSeconds(delaySeconds),
@@ -86,21 +86,21 @@ public final class ProfilingSystem {
    * @throws IOException if a storage for the recordings could not be configured, or another IO
    *     related problem occurred.
    * @throws UnsupportedEnvironmentException if the runtime environment isn't supported.
-   * @throws BadConfigurationException if the configuration information was bad.
+   * @throws ConfigurationException if the configuration information was bad.
    */
   public ProfilingSystem(
       final RecordingDataListener dataListener,
       final Duration delay,
       final Duration period,
       final Duration recordingDuration)
-      throws UnsupportedEnvironmentException, BadConfigurationException {
+      throws UnsupportedEnvironmentException, ConfigurationException {
     controller = ControllerFactory.createController();
     this.dataListener = dataListener;
     this.delay = delay;
     this.period = period;
     this.recordingDuration = recordingDuration;
     if (period.minus(recordingDuration).isNegative()) {
-      throw new BadConfigurationException("Period must be larger than recording duration.");
+      throw new ConfigurationException("Period must be larger than recording duration.");
     }
   }
 
