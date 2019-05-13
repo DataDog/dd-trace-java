@@ -99,7 +99,7 @@ class ConfigTest extends Specification {
     config.profilingEnabled == false
     config.profilingUrl == Config.DEFAULT_PROFILING_URL
     config.profilingApiKey == null
-    config.mergedProfilingTags == [(HOST_TAG): config.getHostname(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_NAME): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [(HOST_TAG): config.getHostname(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingPeriodicDelay == 30
     config.profilingPeriodicPeriod == 3600
     config.profilingPeriodicDuration == 60
@@ -186,7 +186,7 @@ class ConfigTest extends Specification {
     config.profilingEnabled == true
     config.profilingUrl == "new url"
     config.profilingApiKey == "new api key" // we can still override via internal properties object
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_NAME): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingPeriodicDelay == 1111
     config.profilingPeriodicPeriod == 1112
     config.profilingPeriodicDuration == 1113
@@ -263,7 +263,7 @@ class ConfigTest extends Specification {
     config.profilingEnabled == true
     config.profilingUrl == "new url"
     config.profilingApiKey == null // system properties cannot be used to provide a key
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_NAME): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingPeriodicDelay == 1111
     config.profilingPeriodicPeriod == 1112
     config.profilingPeriodicDuration == 1113

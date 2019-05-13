@@ -404,7 +404,7 @@ public class Config {
     result.putAll(runtimeTags);
     // service name set here instead of getRuntimeTags because apm already manages the service tag
     // and may chose to override it.
-    result.put(SERVICE_NAME, serviceName);
+    result.put(SERVICE_TAG, serviceName);
     return Collections.unmodifiableMap(result);
   }
 
