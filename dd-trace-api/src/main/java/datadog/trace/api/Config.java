@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,7 +35,6 @@ public class Config {
   private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
 
   public static final String SERVICE_NAME = "service.name";
-  public static final String SERVICE = "service";
   public static final String TRACE_ENABLED = "trace.enabled";
   public static final String WRITER_TYPE = "writer.type";
   public static final String AGENT_HOST = "agent.host";
@@ -44,9 +44,11 @@ public class Config {
   public static final String PRIORITY_SAMPLING = "priority.sampling";
   public static final String TRACE_RESOLVER_ENABLED = "trace.resolver.enabled";
   public static final String SERVICE_MAPPING = "service.mapping";
+
   public static final String GLOBAL_TAGS = "trace.global.tags";
   public static final String SPAN_TAGS = "trace.span.tags";
   public static final String JMX_TAGS = "trace.jmx.tags";
+
   public static final String TRACE_ANALYTICS_ENABLED = "trace.analytics.enabled";
   public static final String TRACE_ANNOTATIONS = "trace.annotations";
   public static final String TRACE_METHODS = "trace.methods";
@@ -69,11 +71,23 @@ public class Config {
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
   private static final String APP_CUSTOM_LOG_MANAGER = "app.customlogmanager";
 
+  // FIXME: review naming before releasing
+  public static final String PROFILING_ENABLED = "profiling.enabled";
+  public static final String PROFILING_URL = "profiling.url";
+  public static final String PROFILING_API_KEY = "profiling.apikey";
+  public static final String PROFILING_TAGS = "profiling.tags";
+  public static final String PROFILING_PERIODIC_DELAY = "profiling.periodic.delay";
+  public static final String PROFILING_PERIODIC_PERIOD = "profiling.periodic.period";
+  public static final String PROFILING_PERIODIC_DURATION = "profiling.periodic.duration";
+
   public static final String RUNTIME_ID_TAG = "runtime-id";
+  public static final String SERVICE_TAG = "service";
+  public static final String HOST_TAG = "host";
   public static final String LANGUAGE_TAG_KEY = "language";
   public static final String LANGUAGE_TAG_VALUE = "jvm";
 
   public static final String DEFAULT_SERVICE_NAME = "unnamed-java-app";
+  public static final String UNKNOWN_HOST = "unknown";
 
   private static final boolean DEFAULT_TRACE_ENABLED = true;
   public static final String DD_AGENT_WRITER_TYPE = "DDAgentWriter";
@@ -102,6 +116,13 @@ public class Config {
 
   public static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
   private static final boolean DEFAULT_APP_CUSTOM_LOG_MANAGER = false;
+
+  public static final boolean DEFAULT_PROFILING_ENABLED = false;
+  public static final String DEFAULT_PROFILING_URL =
+      "http://localhost:5000/api/v0/profiling/jfk-chunk";
+  public static final int DEFAULT_PROFILING_PERIODIC_DELAY = 30;
+  public static final int DEFAULT_PROFILING_PERIODIC_PERIOD = 3600;
+  public static final int DEFAULT_PROFILING_PERIODIC_DURATION = 60;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
@@ -145,6 +166,13 @@ public class Config {
   @Getter private final Integer jmxFetchStatsdPort;
   @Getter private final boolean logsInjectionEnabled;
   @Getter private final boolean appCustomLogManager;
+  @Getter private final boolean profilingEnabled;
+  @Getter private final String profilingUrl;
+  @Getter private final String profilingApiKey;
+  private final Map<String, String> profilingTags;
+  @Getter private final int profilingPeriodicDelay;
+  @Getter private final int profilingPeriodicPeriod;
+  @Getter private final int profilingPeriodicDuration;
 
   // Read order: System Properties -> Env Variables, [-> default value]
   // Visible for testing
@@ -222,6 +250,24 @@ public class Config {
 
     appCustomLogManager =
         getBooleanSettingFromEnvironment(APP_CUSTOM_LOG_MANAGER, DEFAULT_APP_CUSTOM_LOG_MANAGER);
+
+    profilingEnabled =
+        getBooleanSettingFromEnvironment(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
+    profilingUrl = getSettingFromEnvironment(PROFILING_URL, DEFAULT_PROFILING_URL);
+    // Note: We do not want APiKey to be loaded from property for security reasons
+    // Note: we do not use defined default here
+    // FIXME: We should use better authentication mechanism
+    profilingApiKey = System.getenv(propertyToEnvironmentName(PREFIX + PROFILING_API_KEY));
+    profilingTags = getMapSettingFromEnvironment(PROFILING_TAGS, null);
+    profilingPeriodicDelay =
+        getIntegerSettingFromEnvironment(
+            PROFILING_PERIODIC_DELAY, DEFAULT_PROFILING_PERIODIC_DELAY);
+    profilingPeriodicPeriod =
+        getIntegerSettingFromEnvironment(
+            PROFILING_PERIODIC_PERIOD, DEFAULT_PROFILING_PERIODIC_PERIOD);
+    profilingPeriodicDuration =
+        getIntegerSettingFromEnvironment(
+            PROFILING_PERIODIC_DURATION, DEFAULT_PROFILING_PERIODIC_DURATION);
 
     log.debug("New instance: {}", this);
   }
@@ -306,6 +352,21 @@ public class Config {
     appCustomLogManager =
         getBooleanSettingFromEnvironment(APP_CUSTOM_LOG_MANAGER, DEFAULT_APP_CUSTOM_LOG_MANAGER);
 
+    profilingEnabled =
+        getPropertyBooleanValue(properties, PROFILING_ENABLED, parent.profilingEnabled);
+    profilingUrl = properties.getProperty(PROFILING_URL, parent.profilingUrl);
+    profilingApiKey = properties.getProperty(PROFILING_API_KEY, parent.profilingApiKey);
+    profilingTags = getPropertyMapValue(properties, PROFILING_TAGS, parent.profilingTags);
+    profilingPeriodicDelay =
+        getPropertyIntegerValue(
+            properties, PROFILING_PERIODIC_DELAY, parent.profilingPeriodicDelay);
+    profilingPeriodicPeriod =
+        getPropertyIntegerValue(
+            properties, PROFILING_PERIODIC_PERIOD, parent.profilingPeriodicPeriod);
+    profilingPeriodicDuration =
+        getPropertyIntegerValue(
+            properties, PROFILING_PERIODIC_DURATION, parent.profilingPeriodicDuration);
+
     log.debug("New instance: {}", this);
   }
 
@@ -328,7 +389,26 @@ public class Config {
     // service name set here instead of getRuntimeTags because apm already manages the service tag
     // and may chose to override it.
     // Additionally, infra/JMX metrics require `service` rather than APM's `service.name` tag
-    result.put(SERVICE, serviceName);
+    result.put(SERVICE_TAG, serviceName);
+    return Collections.unmodifiableMap(result);
+  }
+
+  public Map<String, String> getMergedProfilingTags() {
+    final Map<String, String> runtimeTags = getRuntimeTags();
+    final String host = getHostname();
+    final Map<String, String> result =
+        newHashMap(
+            globalTags.size()
+                + profilingTags.size()
+                + runtimeTags.size()
+                + 2 /* for serviceName and host */);
+    result.put(HOST_TAG, host); // Host goes first to allow to override it
+    result.putAll(globalTags);
+    result.putAll(profilingTags);
+    result.putAll(runtimeTags);
+    // service name set here instead of getRuntimeTags because apm already manages the service tag
+    // and may chose to override it.
+    result.put(SERVICE_NAME, serviceName);
     return Collections.unmodifiableMap(result);
   }
 
@@ -346,6 +426,14 @@ public class Config {
     result.put(RUNTIME_ID_TAG, runtimeId);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
     return Collections.unmodifiableMap(result);
+  }
+
+  private String getHostname() {
+    try {
+      return InetAddress.getLocalHost().getHostName();
+    } catch (final java.net.UnknownHostException e) {
+      return UNKNOWN_HOST;
+    }
   }
 
   public static boolean integrationEnabled(

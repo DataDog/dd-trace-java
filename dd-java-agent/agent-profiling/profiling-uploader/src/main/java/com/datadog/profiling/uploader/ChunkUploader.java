@@ -18,6 +18,7 @@ package com.datadog.profiling.uploader;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingDataListener;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -60,10 +61,10 @@ public final class ChunkUploader {
    * @param url the URL of the edge service.
    * @param apiKey the apiKey to use.
    */
-  public ChunkUploader(final String url, final String apiKey, final String[] tags) {
+  public ChunkUploader(final String url, final String apiKey, final Map<String, String> tags) {
     this.url = url;
     this.apiKey = apiKey;
-    this.tags = tags;
+    this.tags = tagsToArray(tags);
   }
 
   public RecordingDataListener getRecordingDataListener() {
@@ -71,13 +72,18 @@ public final class ChunkUploader {
   }
 
   public void shutdown() {
-    if (uploadingTaskExecutor != null) {
-      uploadingTaskExecutor.shutdown();
-      try {
-        uploadingTaskExecutor.awaitTermination(10, TimeUnit.SECONDS);
-      } catch (final InterruptedException e) {
-        log.error("Wait for executor shutdown interrupted");
-      }
+    uploadingTaskExecutor.shutdown();
+    try {
+      uploadingTaskExecutor.awaitTermination(10, TimeUnit.SECONDS);
+    } catch (final InterruptedException e) {
+      log.error("Wait for executor shutdown interrupted");
     }
+  }
+
+  private String[] tagsToArray(final Map<String, String> tags) {
+    return tags.entrySet()
+        .stream()
+        .map(e -> e.getKey() + ":" + e.getValue())
+        .toArray(String[]::new);
   }
 }

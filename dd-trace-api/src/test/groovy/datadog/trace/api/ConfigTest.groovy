@@ -11,6 +11,7 @@ import static datadog.trace.api.Config.AGENT_UNIX_DOMAIN_SOCKET
 import static datadog.trace.api.Config.DEFAULT_JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.Config.GLOBAL_TAGS
 import static datadog.trace.api.Config.HEADER_TAGS
+import static datadog.trace.api.Config.HOST_TAG
 import static datadog.trace.api.Config.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.Config.HTTP_SERVER_ERROR_STATUSES
@@ -26,13 +27,20 @@ import static datadog.trace.api.Config.LANGUAGE_TAG_VALUE
 import static datadog.trace.api.Config.PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.api.Config.PRIORITY_SAMPLING
+import static datadog.trace.api.Config.PROFILING_API_KEY
+import static datadog.trace.api.Config.PROFILING_ENABLED
+import static datadog.trace.api.Config.PROFILING_PERIODIC_DELAY
+import static datadog.trace.api.Config.PROFILING_PERIODIC_DURATION
+import static datadog.trace.api.Config.PROFILING_PERIODIC_PERIOD
+import static datadog.trace.api.Config.PROFILING_TAGS
+import static datadog.trace.api.Config.PROFILING_URL
 import static datadog.trace.api.Config.PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.Config.PROPAGATION_STYLE_INJECT
 import static datadog.trace.api.Config.RUNTIME_CONTEXT_FIELD_INJECTION
 import static datadog.trace.api.Config.RUNTIME_ID_TAG
-import static datadog.trace.api.Config.SERVICE
 import static datadog.trace.api.Config.SERVICE_MAPPING
 import static datadog.trace.api.Config.SERVICE_NAME
+import static datadog.trace.api.Config.SERVICE_TAG
 import static datadog.trace.api.Config.SPAN_TAGS
 import static datadog.trace.api.Config.TRACE_AGENT_PORT
 import static datadog.trace.api.Config.TRACE_ENABLED
@@ -72,7 +80,7 @@ class ConfigTest extends Specification {
     config.traceResolverEnabled == true
     config.serviceMapping == [:]
     config.mergedSpanTags == [:]
-    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.headerTags == [:]
     config.httpServerErrorStatuses == (500..599).toSet()
     config.httpClientErrorStatuses == (400..499).toSet()
@@ -87,6 +95,15 @@ class ConfigTest extends Specification {
     config.jmxFetchRefreshBeansPeriod == null
     config.jmxFetchStatsdHost == null
     config.jmxFetchStatsdPort == DEFAULT_JMX_FETCH_STATSD_PORT
+
+    config.profilingEnabled == false
+    config.profilingUrl == Config.DEFAULT_PROFILING_URL
+    config.profilingApiKey == null
+    config.mergedProfilingTags == [(HOST_TAG): config.getHostname(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_NAME): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.profilingPeriodicDelay == 30
+    config.profilingPeriodicPeriod == 3600
+    config.profilingPeriodicDuration == 60
+
     config.toString().contains("unnamed-java-app")
 
     where:
@@ -128,6 +145,14 @@ class ConfigTest extends Specification {
     prop.setProperty(JMX_FETCH_STATSD_HOST, "statsd host")
     prop.setProperty(JMX_FETCH_STATSD_PORT, "321")
 
+    prop.setProperty(PROFILING_ENABLED, "true")
+    prop.setProperty(PROFILING_URL, "new url")
+    prop.setProperty(PROFILING_API_KEY, "new api key")
+    prop.setProperty(PROFILING_TAGS, "f:6,host:test-host")
+    prop.setProperty(PROFILING_PERIODIC_DELAY, "1111")
+    prop.setProperty(PROFILING_PERIODIC_PERIOD, "1112")
+    prop.setProperty(PROFILING_PERIODIC_DURATION, "1113")
+
     when:
     Config config = Config.get(prop)
 
@@ -142,7 +167,7 @@ class ConfigTest extends Specification {
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1"]
     config.mergedSpanTags == [b: "2", c: "3"]
-    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.headerTags == [e: "5"]
     config.httpServerErrorStatuses == (122..457).toSet()
     config.httpClientErrorStatuses == (111..111).toSet()
@@ -157,6 +182,14 @@ class ConfigTest extends Specification {
     config.jmxFetchRefreshBeansPeriod == 200
     config.jmxFetchStatsdHost == "statsd host"
     config.jmxFetchStatsdPort == 321
+
+    config.profilingEnabled == true
+    config.profilingUrl == "new url"
+    config.profilingApiKey == "new api key" // we can still override via internal properties object
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_NAME): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.profilingPeriodicDelay == 1111
+    config.profilingPeriodicPeriod == 1112
+    config.profilingPeriodicDuration == 1113
   }
 
   def "specify overrides via system properties"() {
@@ -189,6 +222,14 @@ class ConfigTest extends Specification {
     System.setProperty(PREFIX + JMX_FETCH_STATSD_HOST, "statsd host")
     System.setProperty(PREFIX + JMX_FETCH_STATSD_PORT, "321")
 
+    System.setProperty(PREFIX + PROFILING_ENABLED, "true")
+    System.setProperty(PREFIX + PROFILING_URL, "new url")
+    System.setProperty(PREFIX + PROFILING_API_KEY, "new api key")
+    System.setProperty(PREFIX + PROFILING_TAGS, "f:6,host:test-host")
+    System.setProperty(PREFIX + PROFILING_PERIODIC_DELAY, "1111")
+    System.setProperty(PREFIX + PROFILING_PERIODIC_PERIOD, "1112")
+    System.setProperty(PREFIX + PROFILING_PERIODIC_DURATION, "1113")
+
     when:
     Config config = new Config()
 
@@ -203,7 +244,7 @@ class ConfigTest extends Specification {
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1"]
     config.mergedSpanTags == [b: "2", c: "3"]
-    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.headerTags == [e: "5"]
     config.httpServerErrorStatuses == (122..457).toSet()
     config.httpClientErrorStatuses == (111..111).toSet()
@@ -218,6 +259,14 @@ class ConfigTest extends Specification {
     config.jmxFetchRefreshBeansPeriod == 200
     config.jmxFetchStatsdHost == "statsd host"
     config.jmxFetchStatsdPort == 321
+
+    config.profilingEnabled == true
+    config.profilingUrl == "new url"
+    config.profilingApiKey == null // system properties cannot be used to provide a key
+    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_NAME): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.profilingPeriodicDelay == 1111
+    config.profilingPeriodicPeriod == 1112
+    config.profilingPeriodicDuration == 1113
   }
 
   def "specify overrides via env vars"() {
@@ -344,6 +393,7 @@ class ConfigTest extends Specification {
     false        | false              | true               | true                     | 777 // env var gets picked up instead.
   }
 
+  // FIXME: this seems to be a repeated test
   def "sys props override properties"() {
     setup:
     Properties properties = new Properties()
@@ -371,7 +421,7 @@ class ConfigTest extends Specification {
     properties.setProperty(JMX_FETCH_REFRESH_BEANS_PERIOD, "200")
     properties.setProperty(JMX_FETCH_STATSD_HOST, "statsd host")
     properties.setProperty(JMX_FETCH_STATSD_PORT, "321")
-    
+
     when:
     def config = Config.get(properties)
 
@@ -386,7 +436,7 @@ class ConfigTest extends Specification {
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1"]
     config.mergedSpanTags == [b: "2", c: "3"]
-    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.headerTags == [e: "5"]
     config.httpServerErrorStatuses == (122..457).toSet()
     config.httpClientErrorStatuses == (111..111).toSet()
