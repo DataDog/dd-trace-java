@@ -14,7 +14,7 @@ import jdk.jfr.StackTrace;
 @Description("Datadog event corresponding to a scope.")
 @Category("Datadog")
 @StackTrace(false)
-public class ScopeEvent extends Event implements DDScopeEvent {
+public final class ScopeEvent extends Event implements DDScopeEvent {
 
   private final transient DDSpanContext spanContext;
 

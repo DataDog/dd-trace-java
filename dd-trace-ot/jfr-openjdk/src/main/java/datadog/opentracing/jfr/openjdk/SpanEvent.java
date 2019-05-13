@@ -15,7 +15,7 @@ import jdk.jfr.StackTrace;
     "Datadog event corresponding to a span. Note: this event may be started on a different thread.")
 @Category("Datadog")
 @StackTrace(false)
-public class SpanEvent extends Event implements DDSpanEvent {
+public final class SpanEvent extends Event implements DDSpanEvent {
 
   private final transient DDSpanContext spanContext;
 
