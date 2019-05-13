@@ -6,7 +6,6 @@ import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.uploader.ChunkUploader;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -32,7 +31,6 @@ public class ProfilingAgent {
 
   // Overkill to make these volatile?
   private static ProfilingSystem profiler;
-  private static ChunkUploader uploader;
 
   public static synchronized void run() throws IllegalArgumentException {
     if (profiler == null) {
@@ -40,14 +38,15 @@ public class ProfilingAgent {
       if (apiKey == null) {
         throw new IllegalArgumentException("You must set env var " + ENV_VAR_API_KEY);
       }
-      uploader = new ChunkUploader(getString(ENV_VAR_URL, DEFAULT_URL), apiKey, getTags());
+      final ChunkUploader uploader =
+          new ChunkUploader(getString(ENV_VAR_URL, DEFAULT_URL), apiKey, getTags());
       try {
         profiler =
             new ProfilingSystem(
                 uploader.getRecordingDataListener(),
-                Duration.ofSeconds(getInt(ENV_VAR_DELAY, DEFAULT_DELAY)),
-                Duration.ofSeconds(getInt(ENV_VAR_PERIOD, DEFAULT_PERIOD)),
-                Duration.ofSeconds(getInt(ENV_VAR_DURATION, DEFAULT_DURATION)));
+                getInt(ENV_VAR_DELAY, DEFAULT_DELAY),
+                getInt(ENV_VAR_PERIOD, DEFAULT_PERIOD),
+                getInt(ENV_VAR_DURATION, DEFAULT_DURATION));
         profiler.start();
       } catch (final UnsupportedEnvironmentException | IOException | BadConfigurationException e) {
         log.warn("Failed to initialize profiling agent!", e);
