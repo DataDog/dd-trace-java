@@ -34,6 +34,7 @@ tasks.withType(GroovyCompile) {
   }
 }
 
+// Without this idea would use JDK from project to run tests, which would fail.
 idea {
   module {
     jdkName = '11'
