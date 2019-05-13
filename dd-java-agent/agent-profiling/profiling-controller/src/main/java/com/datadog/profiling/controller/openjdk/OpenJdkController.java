@@ -36,7 +36,8 @@ public final class OpenJdkController implements Controller {
 
   @Override
   public RecordingData createRecording(
-    final String recordingName, final Map<String, String> template, final Duration duration) throws IOException {
+      final String recordingName, final Map<String, String> template, final Duration duration)
+      throws IOException {
     final Recording recording = new Recording();
     recording.setName(recordingName);
     recording.setDuration(duration);
@@ -47,7 +48,7 @@ public final class OpenJdkController implements Controller {
 
   @Override
   public RecordingData createContinuousRecording(
-    final String recordingName, final Map<String, String> template) {
+      final String recordingName, final Map<String, String> template) {
     final Recording recording = new Recording();
     recording.setName(recordingName);
     recording.setSettings(template);
