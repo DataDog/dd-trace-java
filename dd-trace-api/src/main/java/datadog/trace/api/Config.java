@@ -62,14 +62,15 @@ public class Config {
       "trace.runtime.context.field.injection";
   public static final String PROPAGATION_STYLE_EXTRACT = "propagation.style.extract";
   public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
+
   public static final String JMX_FETCH_ENABLED = "jmxfetch.enabled";
   public static final String JMX_FETCH_METRICS_CONFIGS = "jmxfetch.metrics-configs";
   public static final String JMX_FETCH_CHECK_PERIOD = "jmxfetch.check-period";
   public static final String JMX_FETCH_REFRESH_BEANS_PERIOD = "jmxfetch.refresh-beans-period";
   public static final String JMX_FETCH_STATSD_HOST = "jmxfetch.statsd.host";
   public static final String JMX_FETCH_STATSD_PORT = "jmxfetch.statsd.port";
+
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
-  private static final String APP_CUSTOM_LOG_MANAGER = "app.customlogmanager";
 
   // FIXME: review naming before releasing
   public static final String PROFILING_ENABLED = "profiling.enabled";
@@ -115,7 +116,6 @@ public class Config {
   public static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;
 
   public static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
-  private static final boolean DEFAULT_APP_CUSTOM_LOG_MANAGER = false;
 
   public static final boolean DEFAULT_PROFILING_ENABLED = false;
   public static final String DEFAULT_PROFILING_URL =
@@ -158,14 +158,16 @@ public class Config {
   @Getter private final boolean runtimeContextFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
   @Getter private final Set<PropagationStyle> propagationStylesToInject;
+
   @Getter private final boolean jmxFetchEnabled;
   @Getter private final List<String> jmxFetchMetricsConfigs;
   @Getter private final Integer jmxFetchCheckPeriod;
   @Getter private final Integer jmxFetchRefreshBeansPeriod;
   @Getter private final String jmxFetchStatsdHost;
   @Getter private final Integer jmxFetchStatsdPort;
+
   @Getter private final boolean logsInjectionEnabled;
-  @Getter private final boolean appCustomLogManager;
+
   @Getter private final boolean profilingEnabled;
   @Getter private final String profilingUrl;
   @Getter private final String profilingApiKey;
@@ -247,9 +249,6 @@ public class Config {
 
     logsInjectionEnabled =
         getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
-
-    appCustomLogManager =
-        getBooleanSettingFromEnvironment(APP_CUSTOM_LOG_MANAGER, DEFAULT_APP_CUSTOM_LOG_MANAGER);
 
     profilingEnabled =
         getBooleanSettingFromEnvironment(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
@@ -348,9 +347,6 @@ public class Config {
 
     logsInjectionEnabled =
         getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
-
-    appCustomLogManager =
-        getBooleanSettingFromEnvironment(APP_CUSTOM_LOG_MANAGER, DEFAULT_APP_CUSTOM_LOG_MANAGER);
 
     profilingEnabled =
         getPropertyBooleanValue(properties, PROFILING_ENABLED, parent.profilingEnabled);
