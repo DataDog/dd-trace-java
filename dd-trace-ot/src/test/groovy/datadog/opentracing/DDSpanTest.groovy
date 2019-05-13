@@ -10,6 +10,7 @@ import spock.lang.Specification
 
 import java.util.concurrent.TimeUnit
 
+import static datadog.opentracing.SpanFactory.EVENT_FACTORY
 import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
 
 class DDSpanTest extends Specification {
@@ -38,7 +39,7 @@ class DDSpanTest extends Specification {
         new PendingTrace(tracer, "1", [:]),
         tracer)
 
-    final DDSpan span = new DDSpan(1L, context)
+    final DDSpan span = new DDSpan(1L, context, EVENT_FACTORY)
 
     when:
     span.setServiceName("service")

@@ -2,6 +2,10 @@ package datadog.opentracing;
 
 import datadog.opentracing.decorators.AbstractDecorator;
 import datadog.opentracing.decorators.DDDecoratorsFactory;
+import datadog.opentracing.jfr.DDNoopScopeEventFactory;
+import datadog.opentracing.jfr.DDNoopSpanEventFactory;
+import datadog.opentracing.jfr.DDScopeEventFactory;
+import datadog.opentracing.jfr.DDSpanEventFactory;
 import datadog.opentracing.propagation.ExtractedContext;
 import datadog.opentracing.propagation.HttpCodec;
 import datadog.opentracing.propagation.TagContext;
@@ -54,7 +58,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
   final Sampler sampler;
   /** Scope manager is in charge of managing the scopes from which spans are created */
-  final ContextualScopeManager scopeManager = new ContextualScopeManager();
+  final ContextualScopeManager scopeManager;
 
   /** Tags required to link apm traces to runtime metrics */
   final Map<String, String> runtimeTags;
@@ -87,6 +91,9 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
 
   private final HttpCodec.Injector injector;
   private final HttpCodec.Extractor extractor;
+
+  private final DDScopeEventFactory scopeEventFactory;
+  private final DDSpanEventFactory spanEventFactory;
 
   /** By default, report to local agent and collect all traces. */
   public DDTracer() {
@@ -251,6 +258,10 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
     }
 
     registerClassLoader(ClassLoader.getSystemClassLoader());
+
+    scopeEventFactory = createScopeEventFactory();
+    scopeManager = new ContextualScopeManager(scopeEventFactory);
+    spanEventFactory = createSpanEventFactory();
 
     // Ensure that PendingTrace.SPAN_CLEANER is initialized in this thread:
     // FIXME: add test to verify the span cleaner thread is started with this call.
@@ -446,6 +457,26 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
     return Collections.unmodifiableMap(runtimeTags);
   }
 
+  private DDScopeEventFactory createScopeEventFactory() {
+    try {
+      return (DDScopeEventFactory)
+          Class.forName("datadog.opentracing.jfr.openjdk.ScopeEventFactory").newInstance();
+    } catch (final Throwable e) {
+      log.debug("Cannot create Openjdk JFR scope event factory", e);
+    }
+    return new DDNoopScopeEventFactory();
+  }
+
+  private DDSpanEventFactory createSpanEventFactory() {
+    try {
+      return (DDSpanEventFactory)
+          Class.forName("datadog.opentracing.jfr.openjdk.SpanEventFactory").newInstance();
+    } catch (final Throwable e) {
+      log.debug("Cannot create Openjdk JFR span event factory", e);
+    }
+    return new DDNoopSpanEventFactory();
+  }
+
   /** Spans are built using this builder */
   public class DDSpanBuilder implements SpanBuilder {
     private final ScopeManager scopeManager;
@@ -475,7 +506,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
     }
 
     private DDSpan startSpan() {
-      final DDSpan span = new DDSpan(timestampMicro, buildSpanContext());
+      final DDSpan span = new DDSpan(timestampMicro, buildSpanContext(), spanEventFactory);
       if (sampler instanceof RateByServiceSampler) {
         ((RateByServiceSampler) sampler).initializeSamplingPriority(span);
       }

@@ -1,9 +1,14 @@
 package datadog.opentracing
 
+import datadog.opentracing.jfr.DDNoopSpanEventFactory
+import datadog.opentracing.jfr.DDSpanEventFactory
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 
 class SpanFactory {
+
+  public static final DDSpanEventFactory EVENT_FACTORY = new DDNoopSpanEventFactory()
+
   static newSpanOf(long timestampMicro, String threadName = Thread.currentThread().name) {
     def writer = new ListWriter()
     def tracer = new DDTracer(writer)
@@ -25,7 +30,7 @@ class SpanFactory {
       new PendingTrace(tracer, "1", [:]),
       tracer)
     Thread.currentThread().setName(currentThreadName)
-    return new DDSpan(timestampMicro, context)
+    return new DDSpan(timestampMicro, context, EVENT_FACTORY)
   }
 
   static newSpanOf(DDTracer tracer) {
@@ -44,7 +49,7 @@ class SpanFactory {
       Collections.emptyMap(),
       new PendingTrace(tracer, "1", [:]),
       tracer)
-    return new DDSpan(1, context)
+    return new DDSpan(1, context, EVENT_FACTORY)
   }
 
   static newSpanOf(PendingTrace trace) {
@@ -63,7 +68,7 @@ class SpanFactory {
       Collections.emptyMap(),
       trace,
       trace.tracer)
-    return new DDSpan(1, context)
+    return new DDSpan(1, context, EVENT_FACTORY)
   }
 
   static DDSpan newSpanOf(String serviceName, String envName) {
@@ -85,6 +90,6 @@ class SpanFactory {
       new PendingTrace(tracer, "1", [:]),
       tracer)
     context.setTag("env", envName)
-    return new DDSpan(0l, context)
+    return new DDSpan(0l, context, EVENT_FACTORY)
   }
 }

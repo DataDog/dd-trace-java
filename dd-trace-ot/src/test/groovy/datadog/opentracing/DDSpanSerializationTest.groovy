@@ -1,6 +1,5 @@
 package datadog.opentracing
 
-
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.collect.Maps
 import datadog.trace.api.DDTags
@@ -11,6 +10,8 @@ import org.msgpack.core.buffer.ArrayBufferInput
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import org.msgpack.value.ValueType
 import spock.lang.Specification
+
+import static datadog.opentracing.SpanFactory.EVENT_FACTORY
 
 class DDSpanSerializationTest extends Specification {
 
@@ -62,7 +63,7 @@ class DDSpanSerializationTest extends Specification {
     baggage.put(DDTags.THREAD_NAME, Thread.currentThread().getName())
     baggage.put(DDTags.THREAD_ID, String.valueOf(Thread.currentThread().getId()))
 
-    DDSpan span = new DDSpan(100L, context)
+    DDSpan span = new DDSpan(100L, context, EVENT_FACTORY)
     if (samplingPriority != PrioritySampling.UNSET) {
       span.context().setMetric("_sample_rate", Double.valueOf(1.0))
     }
@@ -100,7 +101,7 @@ class DDSpanSerializationTest extends Specification {
       Collections.emptyMap(),
       new PendingTrace(tracer, "1", [:]),
       tracer)
-    def span = new DDSpan(0, context)
+    def span = new DDSpan(0, context, EVENT_FACTORY)
     byte[] bytes = objectMapper.writeValueAsBytes(span)
     def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(bytes))
     int size = unpacker.unpackMapHeader()
