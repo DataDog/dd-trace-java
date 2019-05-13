@@ -164,18 +164,4 @@ public class ProfilingSystemTest {
       data.release();
     }
   }
-
-  /** Non-blocking run to speed things up when we don't care. */
-  private void asyncRun(final Runnable task) {
-    final Thread t = new Thread(task, "ProfilingSystem shutdown thread");
-    t.setDaemon(true);
-    t.start();
-  }
-
-  /** Non-blocking shutdown to speed things up when we don't care. */
-  private void shutdown(final ProfilingSystem system) {
-    final Thread t = new Thread(system::shutdown, "ProfilingSystem shutdown thread");
-    t.setDaemon(true);
-    t.start();
-  }
 }
