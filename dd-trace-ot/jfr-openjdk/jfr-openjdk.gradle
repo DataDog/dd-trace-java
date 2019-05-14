@@ -8,33 +8,32 @@ apply plugin: 'idea'
 
 dependencies {
   compile deps.slf4j
-  compileOnly project(':dd-trace-ot')
-
-  testCompile project(':dd-trace-ot')
+  compile project(':dd-trace-ot')
 }
 
-sourceCompatibility = JavaVersion.VERSION_11
-targetCompatibility = JavaVersion.VERSION_11
+/*
+Setup here is as following:
+* We compile with Java11 compiler to get JFR definitions.
+* We specify source/target as Java8 to get code that is loadable on Java8 - JFR defs are Java8 compatible.
+* We force IDEA to treat this as Java11 project with 'idea' plugin below.
+* We run tests only on Java11+.
+ */
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
-tasks.withType(JavaCompile) {
-  doFirst {
-    // FIXME: `-processing` should be removed at some point - but it looks like linter gets confused by presence of lombok processor
-    options.compilerArgs.addAll(['--release', '11', '-Xlint:all,-processing', '-Werror'])
-    options.fork = true
-    options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+[JavaCompile, GroovyCompile].each {
+  tasks.withType(it) {
+    doFirst {
+      // Disable '-processing' because some annotations are not claimed.
+      // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
+      // Disable '-path' because we do not have some of the paths seem to be missing.
+      options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path', '-Werror'])
+      options.fork = true
+      options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+    }
   }
 }
 
-tasks.withType(GroovyCompile) {
-  doFirst {
-    // FIXME: `-processing` should be removed at some point - but it looks like linter gets confused by presence of lombok processor
-    options.compilerArgs.addAll(['--release', '11', '-Xlint:all,-processing'])
-    options.fork = true
-    options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
-  }
-}
-
-// Without this idea would use JDK from project to run tests, which would fail.
 idea {
   module {
     jdkName = '11'
