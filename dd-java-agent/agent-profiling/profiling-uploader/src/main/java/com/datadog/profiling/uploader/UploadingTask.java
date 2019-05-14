@@ -104,7 +104,9 @@ final class UploadingTask implements Runnable {
 
     final Response response = CLIENT.newCall(request).execute();
     // Apparently we have to do this with okHttp, even if we do not use the body
-    response.body().close();
+    if (response.body() != null) {
+      response.body().close();
+    }
     if (response.isSuccessful()) {
       log.info("Upload done");
     } else {
