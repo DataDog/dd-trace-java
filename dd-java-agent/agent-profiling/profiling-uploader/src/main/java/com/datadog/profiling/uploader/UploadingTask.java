@@ -87,8 +87,8 @@ final class UploadingTask implements Runnable {
             .addFormDataPart(KEY_RECORDING_START, data.getRequestedStart().toString())
             .addFormDataPart(KEY_RECORDING_END, data.getRequestedEnd().toString())
             .addFormDataPart(KEY_CHUNK_SEQ_NO, String.valueOf(chunkId));
-    for (int i = 0; i < tags.length; i++) {
-      bodyBuilder.addFormDataPart(KEY_TAG, tags[i]);
+    for (final String tag : tags) {
+      bodyBuilder.addFormDataPart(KEY_TAG, tag);
     }
     bodyBuilder.addPart(
         Headers.of("Content-Disposition", "form-data; name=\"jfr-chunk-data\"; filename=\"chunk\""),
