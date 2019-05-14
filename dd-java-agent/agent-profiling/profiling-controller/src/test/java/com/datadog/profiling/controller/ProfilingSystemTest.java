@@ -65,8 +65,7 @@ public class ProfilingSystemTest {
    * @throws InterruptedException
    */
   @Test
-  public void testProfilingSystemCreationBadConfig()
-      throws UnsupportedEnvironmentException, IOException, InterruptedException {
+  public void testProfilingSystemCreationBadConfig() {
     final RecordingDataListener listener =
         (final RecordingData data) -> {
           // Don't care...
