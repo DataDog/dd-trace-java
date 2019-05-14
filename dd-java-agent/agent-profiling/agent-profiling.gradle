@@ -1,0 +1,56 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+
+dependencies {
+  compile deps.slf4j
+  compile project(':dd-trace-api')
+
+  compile project(':dd-java-agent:agent-profiling:profiling-controller')
+  compile project(':dd-java-agent:agent-profiling:profiling-uploader')
+}
+
+// FIXME: ideally we would like to be able to compile this for java7, so we could run things without odd strange errors
+// from `TracingAgent`.
+// But currently switching this to Java7 leads to an awkward API error when java sees constructor with `Duration`
+// arguments and freaks out even though it doesn't use it.
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+[JavaCompile, GroovyCompile].each {
+  tasks.withType(it) {
+    doFirst {
+      // FIXME: `-processing` should be removed at some point - but it looks like linter gets confused by presence of lombok processor
+      // FIXME: '-path' is used because groovy seems to confuse linter
+      options.compilerArgs.addAll(['--release', '8', '-Xlint:all,-processing,-path', '-Werror'])
+      options.fork = true
+      options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+    }
+  }
+}
+
+configurations {
+  // exclude bootstrap dependencies from shadowJar
+  runtime.exclude module: deps.opentracing
+  runtime.exclude module: deps.slf4j
+  runtime.exclude group: 'org.slf4j'
+  runtime.exclude group: 'io.opentracing'
+}
+
+shadowJar {
+  dependencies {
+    exclude(project(':dd-java-agent:agent-bootstrap'))
+    exclude(project(':dd-trace-api'))
+  }
+}
+
+jar {
+  classifier = 'unbundled'
+}

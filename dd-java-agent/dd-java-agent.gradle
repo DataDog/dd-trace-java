@@ -59,6 +59,7 @@ def includeShadowJar(subproject, jarname) {
 includeShadowJar(project(':dd-java-agent:agent-bootstrap'), 'agent-bootstrap.jar.zip')
 includeShadowJar(project(':dd-java-agent:instrumentation'), 'agent-tooling-and-instrumentation.jar.zip')
 includeShadowJar(project(':dd-java-agent:agent-jmxfetch'), 'agent-jmxfetch.jar.zip')
+includeShadowJar(project(':dd-java-agent:agent-profiling'), 'agent-profiling.jar.zip')
 
 jar {
   classifier = 'unbundled'

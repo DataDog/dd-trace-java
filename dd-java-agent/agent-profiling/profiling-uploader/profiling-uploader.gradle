@@ -1,0 +1,50 @@
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+apply plugin: 'idea'
+
+dependencies {
+  compile deps.slf4j
+  compile project(':dd-trace-api')
+
+  // TOOD: this is not a very good way to abstract things
+  compile project(':dd-java-agent:agent-profiling:profiling-controller')
+
+  compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.14.1'
+
+  testCompile deps.junit
+  testCompile group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
+  testCompile group: 'com.squareup.okhttp3', name: 'mockwebserver', version: '3.14.1'
+}
+
+// This currently depends on Java11 lib and we cannot feasibly run tests on java8 at the moment
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
+
+[JavaCompile, GroovyCompile].each {
+  tasks.withType(it) {
+    doFirst {
+      // FIXME: `-processing` should be removed at some point - but it looks like linter gets confused by presence of lombok processor
+      // FIXME: '-path' is used because groovy seems to confuse linter
+      // FIXME: java11 doesn't like fallthrough, but apparently we are using it
+      options.compilerArgs.addAll(['--release', '11', '-Xlint:all,-processing,-path,-fallthrough', '-Werror'])
+      options.fork = true
+      options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+    }
+  }
+}
+
+// Disable checkstyle since it doesn't want to check classes compiled with java (11) newer than gradle is running on (8)
+tasks.withType(Checkstyle) { task ->
+  enabled = false
+}
+
+// Without this idea would use JDK from project to run tests, which would fail.
+idea {
+  module {
+    jdkName = '11'
+  }
+}
