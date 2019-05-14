@@ -22,4 +22,8 @@ public final class UnsupportedEnvironmentException extends Exception {
   public UnsupportedEnvironmentException(final String message) {
     super(message);
   }
+
+  public UnsupportedEnvironmentException(final String message, final Throwable cause) {
+    super(message, cause);
+  }
 }
