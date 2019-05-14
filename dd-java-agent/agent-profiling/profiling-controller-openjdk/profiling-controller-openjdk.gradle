@@ -9,17 +9,9 @@ apply plugin: 'idea'
 dependencies {
   compile deps.slf4j
   compile project(':dd-trace-api')
-
-  // TOOD: this is not a very good way to abstract things
   compile project(':dd-java-agent:agent-profiling:profiling-controller')
 
-  compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.14.1'
-
   testCompile deps.junit
-  testCompile group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
-  testCompile group: 'com.squareup.okhttp3', name: 'mockwebserver', version: '3.14.1'
-  // FIXME: we should do mock instead!
-  testCompile project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
 }
 
 /*
@@ -38,8 +30,7 @@ targetCompatibility = JavaVersion.VERSION_1_8
       // Disable '-processing' because some annotations are not claimed.
       // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
       // Disable '-path' because we do not have some of the paths seem to be missing.
-      // Disable '-fallthrough' because java11 doesn't like fallthrough, but apparently we are using it.
-      options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path,-fallthrough', '-Werror'])
+      options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path', '-Werror'])
       options.fork = true
       options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
     }
