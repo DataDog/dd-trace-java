@@ -41,7 +41,7 @@ public class ProfilingAgent {
                 config.getProfilingPeriodicPeriod(),
                 config.getProfilingPeriodicDuration());
         profiler.start();
-        log.warn("Periodic profiling has started!");
+        log.info("Periodic profiling has started!");
       } catch (final UnsupportedEnvironmentException | IOException | ConfigurationException e) {
         log.warn("Failed to initialize profiling agent!", e);
       }
