@@ -23,6 +23,7 @@ public class TracerInstaller {
     } else {
       log.debug("Tracing is disabled, not installing GlobalTracer.");
     }
+    logVersionInfo();
   }
 
   public static void logVersionInfo() {

@@ -85,8 +85,6 @@ public class TracingAgent {
           final Method tracerInstallerMethod =
               tracerInstallerClass.getMethod("installGlobalTracer");
           tracerInstallerMethod.invoke(null);
-          final Method logVersionInfoMethod = tracerInstallerClass.getMethod("logVersionInfo");
-          logVersionInfoMethod.invoke(null);
         }
         AGENT_CLASSLOADER = agentClassLoader;
       } finally {
