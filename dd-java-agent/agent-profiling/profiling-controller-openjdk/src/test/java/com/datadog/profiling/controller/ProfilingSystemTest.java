@@ -16,38 +16,37 @@
 package com.datadog.profiling.controller;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
+import com.datadog.profiling.controller.openjdk.OpenJdkController;
 import java.io.IOException;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Unit tests for testing the {@link com.datadog.profiling.controller.ProfilingSystem}.
+ * Unit tests for testing the {@link ProfilingSystem} with {@link OpenJdkController}.
  *
- * <p>TODO: review these tests to make sure they are actually reasonable for any {@link Controller}
- * implementation
+ * <p>TODO: ideally this test should be specific to OpenJdkController instead of involving
+ * ProfilingSystem
  */
 public class ProfilingSystemTest {
-
-  private final Controller controller = new TestController();
-
   @Test
   public void testCanShutDownWithoutStarting()
       throws UnsupportedEnvironmentException, ConfigurationException {
     final RecordingDataListener listener = (final RecordingData data) -> {};
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ZERO, Duration.ofMillis(200), Duration.ofMillis(100));
+            new OpenJdkController(),
+            listener,
+            Duration.ZERO,
+            Duration.ofMillis(200),
+            Duration.ofMillis(100));
     system.shutdown();
   }
 
@@ -62,7 +61,11 @@ public class ProfilingSystemTest {
         };
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ZERO, Duration.ofMillis(1), Duration.ofMillis(1));
+            new OpenJdkController(),
+            listener,
+            Duration.ZERO,
+            Duration.ofMillis(1),
+            Duration.ofMillis(1));
     latch.await(10, TimeUnit.MILLISECONDS);
     system.shutdown();
     assertEquals(
@@ -82,7 +85,11 @@ public class ProfilingSystemTest {
     try {
       final ProfilingSystem system =
           new ProfilingSystem(
-              controller, listener, Duration.ZERO, Duration.ofMillis(200), Duration.ofMillis(400));
+              new OpenJdkController(),
+              listener,
+              Duration.ZERO,
+              Duration.ofMillis(200),
+              Duration.ofMillis(400));
       system.shutdown();
     } catch (final Exception e) {
       return;
@@ -108,7 +115,11 @@ public class ProfilingSystemTest {
         };
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ZERO, Duration.ofMillis(200), Duration.ofMillis(25));
+            new OpenJdkController(),
+            listener,
+            Duration.ZERO,
+            Duration.ofMillis(200),
+            Duration.ofMillis(25));
     system.start();
     latch.await(30, TimeUnit.SECONDS);
     assertTrue("Should have received more data!", results.size() >= 2);
@@ -136,7 +147,11 @@ public class ProfilingSystemTest {
         };
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ofDays(1), Duration.ofDays(1), Duration.ofSeconds(2));
+            new OpenJdkController(),
+            listener,
+            Duration.ofDays(1),
+            Duration.ofDays(1),
+            Duration.ofSeconds(2));
     system.start();
     final Runnable continuousTrigger =
         () -> {
@@ -148,7 +163,6 @@ public class ProfilingSystemTest {
               } catch (final InterruptedException e) {
               }
             } catch (final IOException e) {
-              // TODO: do not do this, fail test instead maybe?
               e.printStackTrace();
             }
           }
@@ -157,60 +171,13 @@ public class ProfilingSystemTest {
     latch.await(30, TimeUnit.SECONDS);
     assertTrue("Should have received more data!", results.size() >= 2);
     for (final RecordingData data : results) {
-      assertEquals("Getting snapshots", "snapshot", data.getName());
+      assertFalse(
+          "Should not be getting profiling recordings!", data.getName().startsWith("dd-profiling"));
       assertTrue("RecordingData should be available before sent out!", data.isAvailable());
     }
     system.shutdown();
     for (final RecordingData data : results) {
       data.release();
-    }
-  }
-
-  private static class TestController implements Controller {
-
-    @Override
-    public RecordingData createRecording(
-        final String recordingName, final Map<String, String> template, final Duration duration)
-        throws IOException {
-      final RecordingData recordingData = mock(RecordingData.class);
-      when(recordingData.isAvailable()).thenReturn(true);
-      when(recordingData.getName()).thenReturn("single-recording");
-      return recordingData;
-    }
-
-    @Override
-    public RecordingData createContinuousRecording(
-        final String recordingName, final Map<String, String> template) {
-      final RecordingData recordingData = mock(RecordingData.class);
-      when(recordingData.isAvailable()).thenReturn(true);
-      when(recordingData.getName()).thenReturn("continuous-recording");
-      return recordingData;
-    }
-
-    @Override
-    public RecordingData snapshot() throws IOException {
-      final RecordingData recordingData = mock(RecordingData.class);
-      when(recordingData.isAvailable()).thenReturn(true);
-      when(recordingData.getName()).thenReturn("snapshot");
-      return recordingData;
-    }
-
-    @Override
-    public RecordingData snapshot(final Instant start, final Instant end) throws IOException {
-      final RecordingData recordingData = mock(RecordingData.class);
-      when(recordingData.isAvailable()).thenReturn(true);
-      when(recordingData.getName()).thenReturn("snapshot-with-time");
-      return recordingData;
-    }
-
-    @Override
-    public Map<String, String> getContinuousSettings() throws IOException {
-      return null;
-    }
-
-    @Override
-    public Map<String, String> getProfilingSettings() throws IOException {
-      return null;
     }
   }
 }

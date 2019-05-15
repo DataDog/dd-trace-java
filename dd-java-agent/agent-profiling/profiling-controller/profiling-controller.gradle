@@ -11,8 +11,7 @@ dependencies {
   compile project(':dd-trace-api')
 
   testCompile deps.junit
-  // FIXME: we should do mock instead!
-  testCompile project(':dd-java-agent:agent-profiling:profiling-controller-openjdk')
+  testCompile group: 'org.mockito', name: 'mockito-core', version: '2.27.0'
 }
 
 /*

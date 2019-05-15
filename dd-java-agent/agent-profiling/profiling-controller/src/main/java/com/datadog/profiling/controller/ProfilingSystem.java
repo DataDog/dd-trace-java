@@ -54,31 +54,7 @@ public final class ProfilingSystem {
   /**
    * Constructor.
    *
-   * @param dataListener the listener for data being produced.
-   * @param delaySeconds the delay to wait before starting capturing data.
-   * @param periodSeconds the period between data captures.
-   * @param recordingDurationSeconds the duration for each recording captured.
-   * @throws IOException if a storage for the recordings could not be configured, or another IO
-   *     related problem occurred.
-   * @throws UnsupportedEnvironmentException if the runtime environment isn't supported.
-   * @throws ConfigurationException if the configuration information was bad.
-   */
-  public ProfilingSystem(
-      final RecordingDataListener dataListener,
-      final int delaySeconds,
-      final int periodSeconds,
-      final int recordingDurationSeconds)
-      throws UnsupportedEnvironmentException, ConfigurationException {
-    this(
-        dataListener,
-        Duration.ofSeconds(delaySeconds),
-        Duration.ofSeconds(periodSeconds),
-        Duration.ofSeconds(recordingDurationSeconds));
-  }
-
-  /**
-   * Constructor.
-   *
+   * @param controller implementation specific controller of profiling machinery
    * @param dataListener the listener for data being produced.
    * @param delay the delay to wait before starting capturing data.
    * @param period the period between data captures.
@@ -89,12 +65,13 @@ public final class ProfilingSystem {
    * @throws ConfigurationException if the configuration information was bad.
    */
   public ProfilingSystem(
+      final Controller controller,
       final RecordingDataListener dataListener,
       final Duration delay,
       final Duration period,
       final Duration recordingDuration)
       throws UnsupportedEnvironmentException, ConfigurationException {
-    controller = ControllerFactory.createController();
+    this.controller = controller;
     this.dataListener = dataListener;
     this.delay = delay;
     this.period = period;

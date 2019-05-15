@@ -1,11 +1,14 @@
 package com.datadog.profiling.agent;
 
 import com.datadog.profiling.controller.ConfigurationException;
+import com.datadog.profiling.controller.Controller;
+import com.datadog.profiling.controller.ControllerFactory;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.uploader.ChunkUploader;
 import datadog.trace.api.Config;
 import java.io.IOException;
+import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 
 /** Profiling agent implementation */
@@ -27,18 +30,22 @@ public class ProfilingAgent {
         return;
       }
 
-      final ChunkUploader uploader =
-          new ChunkUploader(
-              config.getProfilingUrl(),
-              config.getProfilingApiKey(),
-              config.getMergedProfilingTags());
       try {
+        final Controller controller = ControllerFactory.createController();
+
+        final ChunkUploader uploader =
+            new ChunkUploader(
+                config.getProfilingUrl(),
+                config.getProfilingApiKey(),
+                config.getMergedProfilingTags());
+
         profiler =
             new ProfilingSystem(
+                controller,
                 uploader.getRecordingDataListener(),
-                config.getProfilingPeriodicDelay(),
-                config.getProfilingPeriodicPeriod(),
-                config.getProfilingPeriodicDuration());
+                Duration.ofSeconds(config.getProfilingPeriodicDelay()),
+                Duration.ofSeconds(config.getProfilingPeriodicPeriod()),
+                Duration.ofSeconds(config.getProfilingPeriodicDuration()));
         profiler.start();
         log.info("Periodic profiling has started!");
       } catch (final UnsupportedEnvironmentException | IOException | ConfigurationException e) {
