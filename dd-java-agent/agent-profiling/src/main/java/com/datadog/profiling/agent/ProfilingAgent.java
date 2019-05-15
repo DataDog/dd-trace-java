@@ -22,6 +22,10 @@ public class ProfilingAgent {
   public static synchronized void run() throws IllegalArgumentException {
     if (profiler == null) {
       final Config config = Config.get();
+      if (!config.isProfilingEnabled()) {
+        log.info("Profiling: disabled");
+        return;
+      }
       if (config.getProfilingApiKey() == null) {
         log.info("Profiling: no API key, profiling disabled");
         return;
