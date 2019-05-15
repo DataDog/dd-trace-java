@@ -128,10 +128,11 @@ public class TracingAgent {
         final Method jmxFetchInstallerMethod = jmxFetchAgentClass.getMethod("run");
         jmxFetchInstallerMethod.invoke(null);
         PROFILING_CLASSLOADER = profilingClassLoader;
-      } catch (final Error e) {
-        // FIXME: we are compiling profiling with java8+ which java7 cannot load
-        // In the future We need to make sure that com.datadog.profiling.agent.ProfilingAgent
-        // Can be run by Java7 and can determine if it should start up real agent or not
+      } catch (final ClassFormatError e) {
+        /*
+        Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
+        (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
+        */
         System.out.println("Cannot start profiling agent: " + e);
       } finally {
         Thread.currentThread().setContextClassLoader(contextLoader);
