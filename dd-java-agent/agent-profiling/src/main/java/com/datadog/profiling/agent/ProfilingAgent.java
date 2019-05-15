@@ -15,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class ProfilingAgent {
-  private static final String ENV_VAR_TAGS = "DD_PROFILE_TAGS"; // comma separated, no spaces
 
   // Overkill to make these volatile?
   private static ProfilingSystem profiler;
@@ -41,7 +40,7 @@ public class ProfilingAgent {
                 config.getProfilingPeriodicPeriod(),
                 config.getProfilingPeriodicDuration());
         profiler.start();
-        log.warn("Periodic profiling has started!");
+        log.info("Periodic profiling has started!");
       } catch (final UnsupportedEnvironmentException | IOException | ConfigurationException e) {
         log.warn("Failed to initialize profiling agent!", e);
       }
