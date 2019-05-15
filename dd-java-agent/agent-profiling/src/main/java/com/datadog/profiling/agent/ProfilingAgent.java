@@ -8,11 +8,7 @@ import datadog.trace.api.Config;
 import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Simple agent wrapper for starting the profiling agent from the command-line, without requiring
- * the APM agent. This makes it possible to run the profiling agent stand-alone. Of course, this
- * also means no contextual events from the tracing will be present.
- */
+/** Profiling agent implementation */
 @Slf4j
 public class ProfilingAgent {
 
