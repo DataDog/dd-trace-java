@@ -87,6 +87,8 @@ public class TracingAgent {
           tracerInstallerMethod.invoke(null);
         }
         AGENT_CLASSLOADER = agentClassLoader;
+      } catch (final Error e) {
+        System.out.println("Cannot start tracer: " + e);
       } finally {
         Thread.currentThread().setContextClassLoader(contextLoader);
       }
@@ -105,6 +107,8 @@ public class TracingAgent {
         final Method jmxFetchInstallerMethod = jmxFetchAgentClass.getMethod("run");
         jmxFetchInstallerMethod.invoke(null);
         JMXFETCH_CLASSLOADER = jmxFetchClassLoader;
+      } catch (final Error e) {
+        System.out.println("Cannot start jmxfetch: " + e);
       } finally {
         Thread.currentThread().setContextClassLoader(contextLoader);
       }
