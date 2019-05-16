@@ -1,5 +1,11 @@
 apply from: "${rootDir}/gradle/java.gradle"
-apply plugin: 'idea'
+
+tasks.withType(Test).configureEach {
+  jacoco {
+    // FIXME: we should write tests and enable this!
+    enabled = false
+  }
+}
 
 dependencies {
   compile deps.slf4j

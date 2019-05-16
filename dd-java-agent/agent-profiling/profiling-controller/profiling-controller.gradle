@@ -1,5 +1,12 @@
 apply from: "${rootDir}/gradle/java.gradle"
 
+tasks.withType(Test).configureEach {
+  jacoco {
+    // FIXME: we should write tests and enable this!
+    enabled = false
+  }
+}
+
 dependencies {
   compile deps.slf4j
   compile project(':dd-trace-api')
