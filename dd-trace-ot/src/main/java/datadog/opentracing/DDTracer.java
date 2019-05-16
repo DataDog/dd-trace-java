@@ -461,7 +461,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
     try {
       return (DDScopeEventFactory)
           Class.forName("datadog.opentracing.jfr.openjdk.ScopeEventFactory").newInstance();
-    } catch (final ClassFormatError | ReflectiveOperationException e) {
+    } catch (final ClassFormatError | ReflectiveOperationException | NoClassDefFoundError e) {
       log.debug("Cannot create Openjdk JFR scope event factory", e);
     }
     return new DDNoopScopeEventFactory();
@@ -471,7 +471,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
     try {
       return (DDSpanEventFactory)
           Class.forName("datadog.opentracing.jfr.openjdk.SpanEventFactory").newInstance();
-    } catch (final ClassFormatError | ReflectiveOperationException e) {
+    } catch (final ClassFormatError | ReflectiveOperationException | NoClassDefFoundError e) {
       log.debug("Cannot create Openjdk JFR span event factory", e);
     }
     return new DDNoopSpanEventFactory();
