@@ -17,7 +17,7 @@ dependencies {
   implementation deps.autoservice
 
   compileOnly project(':dd-trace-ot')
-  compile project(':dd-trace-ot:jfr-openjdk')
+  compileOnly project(':dd-trace-ot:jfr-openjdk')
 
   testCompile deps.opentracing
   testCompile project(':dd-java-agent:testing')
