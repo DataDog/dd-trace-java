@@ -60,8 +60,8 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final ContextualScopeManager scopeManager;
 
-  /** Tags required to link apm traces to runtime metrics */
-  final Map<String, String> runtimeTags;
+  /** A set of tags that are added only to the application's root span */
+  private final Map<String, String> localRootSpanTags;
   /** A set of tags that are added to every span */
   private final Map<String, String> defaultSpanTags;
   /** A configured mapping of service names to update with new values */
@@ -114,7 +114,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
 
   // This constructor is already used in the wild, so we have to keep it inside this API for now.
   public DDTracer(final String serviceName, final Writer writer, final Sampler sampler) {
-    this(serviceName, writer, sampler, Config.get().getRuntimeTags());
+    this(serviceName, writer, sampler, Config.get().getLocalRootSpanTags());
   }
 
   private DDTracer(final String serviceName, final Config config) {
@@ -122,7 +122,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
         serviceName,
         Writer.Builder.forConfig(config),
         Sampler.Builder.forConfig(config),
-        config.getRuntimeTags(),
+        config.getLocalRootSpanTags(),
         config.getMergedSpanTags(),
         config.getServiceMapping(),
         config.getHeaderTags(),
@@ -156,7 +156,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
         config.getServiceName(),
         writer,
         Sampler.Builder.forConfig(config),
-        config.getRuntimeTags(),
+        config.getLocalRootSpanTags(),
         config.getMergedSpanTags(),
         config.getServiceMapping(),
         config.getHeaderTags(),
@@ -172,6 +172,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
       final Writer writer,
       final Sampler sampler,
       final String runtimeId,
+      final Map<String, String> localRootSpanTags,
       final Map<String, String> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders) {
@@ -179,7 +180,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
         serviceName,
         writer,
         sampler,
-        customRuntimeTags(runtimeId),
+        customRuntimeTags(runtimeId, localRootSpanTags),
         defaultSpanTags,
         serviceNameMappings,
         taggedHeaders,
@@ -194,7 +195,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
       final String serviceName,
       final Writer writer,
       final Sampler sampler,
-      final Map<String, String> runtimeTags,
+      final Map<String, String> localRootSpanTags,
       final Map<String, String> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders) {
@@ -202,7 +203,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
         serviceName,
         writer,
         sampler,
-        runtimeTags,
+        localRootSpanTags,
         defaultSpanTags,
         serviceNameMappings,
         taggedHeaders,
@@ -213,12 +214,12 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
       final String serviceName,
       final Writer writer,
       final Sampler sampler,
-      final Map<String, String> runtimeTags,
+      final Map<String, String> localRootSpanTags,
       final Map<String, String> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders,
       final int partialFlushMinSpans) {
-    assert runtimeTags != null;
+    assert localRootSpanTags != null;
     assert defaultSpanTags != null;
     assert serviceNameMappings != null;
     assert taggedHeaders != null;
@@ -227,8 +228,8 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
     this.writer = writer;
     this.writer.start();
     this.sampler = sampler;
+    this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
-    this.runtimeTags = runtimeTags;
     this.serviceNameMappings = serviceNameMappings;
     this.partialFlushMinSpans = partialFlushMinSpans;
 
@@ -450,9 +451,9 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
   }
 
   @Deprecated
-  private static Map<String, String> customRuntimeTags(final String runtimeId) {
-    final Map<String, String> runtimeTags = new HashMap<>();
-    runtimeTags.putAll(Config.get().getRuntimeTags());
+  private static Map<String, String> customRuntimeTags(
+      final String runtimeId, Map<String, String> applicationRootSpanTags) {
+    final Map<String, String> runtimeTags = new HashMap<>(applicationRootSpanTags);
     runtimeTags.put(Config.RUNTIME_ID_TAG, runtimeId);
     return Collections.unmodifiableMap(runtimeTags);
   }
@@ -654,7 +655,9 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
         }
       }
 
-      // Propagate internal trace
+      // Propagate internal trace.
+      // Note: if we are not in the context of distributed tracing and we are starting the first
+      // root span, parentContext will be null at this point.
       if (parentContext instanceof DDSpanContext) {
         final DDSpanContext ddsc = (DDSpanContext) parentContext;
         traceId = ddsc.getTraceId();
@@ -691,10 +694,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
           origin = null;
         }
 
-        // add runtime tags to the root span
-        for (final Map.Entry<String, String> runtimeTag : runtimeTags.entrySet()) {
-          tags.put(runtimeTag.getKey(), runtimeTag.getValue());
-        }
+        tags.putAll(localRootSpanTags);
 
         parentTrace = new PendingTrace(DDTracer.this, traceId, serviceNameMappings);
       }

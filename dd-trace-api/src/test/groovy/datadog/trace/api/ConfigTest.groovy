@@ -43,6 +43,7 @@ import static datadog.trace.api.Config.SERVICE_NAME
 import static datadog.trace.api.Config.SERVICE_TAG
 import static datadog.trace.api.Config.SPAN_TAGS
 import static datadog.trace.api.Config.TRACE_AGENT_PORT
+import static datadog.trace.api.Config.TRACE_REPORT_HOSTNAME
 import static datadog.trace.api.Config.TRACE_ENABLED
 import static datadog.trace.api.Config.TRACE_RESOLVER_ENABLED
 import static datadog.trace.api.Config.WRITER_TYPE
@@ -64,6 +65,7 @@ class ConfigTest extends Specification {
   private static final DD_JMXFETCH_METRICS_CONFIGS_ENV = "DD_JMXFETCH_METRICS_CONFIGS"
   private static final DD_TRACE_AGENT_PORT_ENV = "DD_TRACE_AGENT_PORT"
   private static final DD_AGENT_PORT_LEGACY_ENV = "DD_AGENT_PORT"
+  private static final DD_TRACE_REPORT_HOSTNAME = "DD_TRACE_REPORT_HOSTNAME"
 
   def "verify defaults"() {
     when:
@@ -86,6 +88,7 @@ class ConfigTest extends Specification {
     config.httpClientErrorStatuses == (400..499).toSet()
     config.httpClientSplitByDomain == false
     config.partialFlushMinSpans == 1000
+    config.reportHostName == false
     config.runtimeContextFieldInjection == true
     config.propagationStylesToExtract.toList() == [Config.PropagationStyle.DATADOG]
     config.propagationStylesToInject.toList() == [Config.PropagationStyle.DATADOG]
@@ -135,6 +138,7 @@ class ConfigTest extends Specification {
     prop.setProperty(HTTP_CLIENT_ERROR_STATUSES, "111")
     prop.setProperty(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
     prop.setProperty(PARTIAL_FLUSH_MIN_SPANS, "15")
+    prop.setProperty(TRACE_REPORT_HOSTNAME, "true")
     prop.setProperty(RUNTIME_CONTEXT_FIELD_INJECTION, "false")
     prop.setProperty(PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
     prop.setProperty(PROPAGATION_STYLE_INJECT, "B3, Datadog")
@@ -173,6 +177,7 @@ class ConfigTest extends Specification {
     config.httpClientErrorStatuses == (111..111).toSet()
     config.httpClientSplitByDomain == true
     config.partialFlushMinSpans == 15
+    config.reportHostName == true
     config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [Config.PropagationStyle.DATADOG, Config.PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [Config.PropagationStyle.B3, Config.PropagationStyle.DATADOG]
@@ -212,6 +217,7 @@ class ConfigTest extends Specification {
     System.setProperty(PREFIX + HTTP_CLIENT_ERROR_STATUSES, "111")
     System.setProperty(PREFIX + HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "true")
     System.setProperty(PREFIX + PARTIAL_FLUSH_MIN_SPANS, "25")
+    System.setProperty(PREFIX + TRACE_REPORT_HOSTNAME, "true")
     System.setProperty(PREFIX + RUNTIME_CONTEXT_FIELD_INJECTION, "false")
     System.setProperty(PREFIX + PROPAGATION_STYLE_EXTRACT, "Datadog, B3")
     System.setProperty(PREFIX + PROPAGATION_STYLE_INJECT, "B3, Datadog")
@@ -250,6 +256,7 @@ class ConfigTest extends Specification {
     config.httpClientErrorStatuses == (111..111).toSet()
     config.httpClientSplitByDomain == true
     config.partialFlushMinSpans == 25
+    config.reportHostName == true
     config.runtimeContextFieldInjection == false
     config.propagationStylesToExtract.toList() == [Config.PropagationStyle.DATADOG, Config.PropagationStyle.B3]
     config.propagationStylesToInject.toList() == [Config.PropagationStyle.B3, Config.PropagationStyle.DATADOG]
@@ -277,6 +284,7 @@ class ConfigTest extends Specification {
     environmentVariables.set(DD_PROPAGATION_STYLE_EXTRACT, "B3 Datadog")
     environmentVariables.set(DD_PROPAGATION_STYLE_INJECT, "Datadog B3")
     environmentVariables.set(DD_JMXFETCH_METRICS_CONFIGS_ENV, "some/file")
+    environmentVariables.set(DD_TRACE_REPORT_HOSTNAME, "true")
 
     when:
     def config = new Config()
@@ -288,6 +296,7 @@ class ConfigTest extends Specification {
     config.propagationStylesToExtract.toList() == [Config.PropagationStyle.B3, Config.PropagationStyle.DATADOG]
     config.propagationStylesToInject.toList() == [Config.PropagationStyle.DATADOG, Config.PropagationStyle.B3]
     config.jmxFetchMetricsConfigs == ["some/file"]
+    config.reportHostName == true
   }
 
   def "sys props override env vars"() {
@@ -698,5 +707,28 @@ class ConfigTest extends Specification {
     where:
     listString | list
     ""         | []
+  }
+
+  def "verify hostname not added to root span tags by default"() {
+    setup:
+    Properties properties = new Properties()
+
+    when:
+    def config = Config.get(properties)
+
+    then:
+    !config.localRootSpanTags.containsKey('_dd.hostname')
+  }
+
+  def "verify configuration to add hostname to root span tags"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(TRACE_REPORT_HOSTNAME, 'true')
+
+    when:
+    def config = Config.get(properties)
+
+    then:
+    config.localRootSpanTags.get('_dd.hostname') == InetAddress.localHost.hostName
   }
 }

@@ -33,6 +33,7 @@ class ApacheHttpAsyncClientNullCallbackTest extends HttpClientTest<ApacheHttpAsy
     Future future = client.execute(request, null)
     future.get()
     if (callback != null) {
+      blockUntilChildSpansFinished(1)
       callback()
     }
     return 200
