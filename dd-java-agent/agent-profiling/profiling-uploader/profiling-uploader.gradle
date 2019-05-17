@@ -19,6 +19,8 @@ dependencies {
   testCompile deps.guava
   testCompile group: 'org.mockito', name: 'mockito-core', version: '2.27.0'
   testCompile group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
+  testCompile group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
+  testCompile group: 'org.javadelight', name: 'delight-fileupload', version: '0.0.5'
   testCompile group: 'com.squareup.okhttp3', name: 'mockwebserver', version: '3.14.1'
 }
 

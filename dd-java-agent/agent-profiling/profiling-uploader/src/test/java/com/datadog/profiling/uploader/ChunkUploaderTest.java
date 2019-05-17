@@ -21,17 +21,16 @@ import static org.mockito.Mockito.when;
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingDataListener;
-import java.io.BufferedReader;
+import delight.fileupload.FileUpload;
 import java.io.IOException;
-import java.io.StringReader;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -110,25 +109,10 @@ public class ChunkUploaderTest {
     }
   }
 
-  // TODO: replace this with the library
   private Map<String, String> getParameters(final RecordedRequest request) throws IOException {
-    final Map<String, String> params = new HashMap<>();
-    final String body = request.getBody().readUtf8();
-    final BufferedReader reader = new BufferedReader(new StringReader(body));
-    String line = null;
-    while ((line = reader.readLine()) != null) {
-      if (line.startsWith("Content-Disposition:")) {
-        final int start = line.indexOf("name=") + 6;
-        final int end = line.indexOf('"', start);
-        final String key = line.substring(start, end);
-        // Getting the first content line.
-        for (int i = 0; i < 3; i++) {
-          line = reader.readLine();
-        }
-        params.put(key, line);
-      }
-    }
-    return params;
+    return FileUpload.parse(request.getBody().readByteArray(), request.getHeader("Content-Type"))
+        .stream()
+        .collect(Collectors.toMap(i -> i.getFieldName(), i -> i.getString()));
   }
 
   private RecordingData mockRecordingData(final int sequenceNumber) throws IOException {
