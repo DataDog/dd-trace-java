@@ -71,7 +71,7 @@ public class ChunkUploaderTest {
       server.enqueue(new MockResponse().setResponseCode(200));
     }
 
-    // TODO: test with non empty tags
+    // TODO: test with non empty tags and with tags with nulls
     final ChunkUploader uploader =
         new ChunkUploader(url.toString(), TEST_APIKEY_VALUE, Collections.emptyMap());
 

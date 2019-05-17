@@ -83,6 +83,7 @@ public final class ChunkUploader {
   private String[] tagsToArray(final Map<String, String> tags) {
     return tags.entrySet()
         .stream()
+        .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
         .map(e -> e.getKey() + ":" + e.getValue())
         .toArray(String[]::new);
   }
