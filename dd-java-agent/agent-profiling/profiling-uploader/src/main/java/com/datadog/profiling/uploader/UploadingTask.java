@@ -97,8 +97,13 @@ final class UploadingTask implements Runnable {
 
     final Request request =
         new Request.Builder()
-            .addHeader("Authorization", Credentials.basic(apiKey, ""))
             .url(url)
+            .addHeader("Authorization", Credentials.basic(apiKey, ""))
+            // Note: this header is also used to disable tracing of profiling requests
+            .addHeader(VersionInfo.DATADOG_META_LANG, VersionInfo.JAVA_LANG)
+            .addHeader(VersionInfo.DATADOG_META_LANG_VERSION, VersionInfo.JAVA_VERSION)
+            .addHeader(VersionInfo.DATADOG_META_LANG_INTERPRETER, VersionInfo.JAVA_VM_NAME)
+            .addHeader(VersionInfo.DATADOG_META_TRACER_VERSION, VersionInfo.VERSION)
             .post(requestBody)
             .build();
 

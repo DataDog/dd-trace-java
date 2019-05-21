@@ -79,24 +79,36 @@ public class ChunkUploaderTest {
       listener.onNewData(mockRecordingData(i));
     }
 
-    final List<Map<String, String>> recordedRequests = new ArrayList<>();
+    final List<Map<String, String>> recordedParameters = new ArrayList<>();
     for (int i = 0; i < NUMBER_OF_RECORDINGS; i++) {
       final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
       if (recordedRequest == null) {
         break;
       } else {
-        recordedRequests.add(getParameters(recordedRequest));
+        assertEquals(
+            VersionInfo.JAVA_LANG, recordedRequest.getHeader(VersionInfo.DATADOG_META_LANG));
+        assertEquals(
+            VersionInfo.JAVA_VERSION,
+            recordedRequest.getHeader(VersionInfo.DATADOG_META_LANG_VERSION));
+        assertEquals(
+            VersionInfo.JAVA_VM_NAME,
+            recordedRequest.getHeader(VersionInfo.DATADOG_META_LANG_INTERPRETER));
+        assertEquals(
+            "Stubbed-Test-Version",
+            recordedRequest.getHeader(VersionInfo.DATADOG_META_TRACER_VERSION));
+
+        recordedParameters.add(getParameters(recordedRequest));
       }
     }
 
     uploader.shutdown();
 
-    assertEquals(NUMBER_OF_RECORDINGS, recordedRequests.size());
+    assertEquals(NUMBER_OF_RECORDINGS, recordedParameters.size());
 
     // Recording may get reordered so let sort them first
-    recordedRequests.sort(Comparator.comparing(r -> r.get(UploadingTask.KEY_RECORDING_NAME)));
+    recordedParameters.sort(Comparator.comparing(r -> r.get(UploadingTask.KEY_RECORDING_NAME)));
     for (int i = 0; i < NUMBER_OF_RECORDINGS; i++) {
-      final Map<String, String> request = recordedRequests.get(i);
+      final Map<String, String> request = recordedParameters.get(i);
       assertEquals(
           "Recording name of " + i,
           RECODING_NAME_PREFIX + i,
