@@ -15,6 +15,10 @@
  */
 package com.datadog.profiling.uploader;
 
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingDataListener;
 import delight.fileupload.FileUpload;
@@ -34,10 +38,6 @@ import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /** Unit tests for the chunk uploader. */
 public class UploaderTest {
@@ -106,18 +106,18 @@ public class UploaderTest {
     assertEquals(NUMBER_OF_RECORDINGS, recordedParameters.size());
 
     // Recording may get reordered so let sort them first
-    recordedParameters.sort(Comparator.comparing(r -> r.get(UploadingTask.KEY_RECORDING_NAME)));
+    recordedParameters.sort(Comparator.comparing(r -> r.get(RecordingUploader.KEY_RECORDING_NAME)));
     for (int i = 0; i < NUMBER_OF_RECORDINGS; i++) {
       final Map<String, String> request = recordedParameters.get(i);
       assertEquals(
           "Recording name of " + i,
           RECODING_NAME_PREFIX + i,
-          request.get(UploadingTask.KEY_RECORDING_NAME));
+          request.get(RecordingUploader.KEY_RECORDING_NAME));
       // TODO: find recording with more than 1 chunk
       assertEquals(
           "Chunk sequence number of " + i,
           Integer.toString(0),
-          request.get(UploadingTask.KEY_CHUNK_SEQ_NO));
+          request.get(RecordingUploader.KEY_CHUNK_SEQ_NO));
     }
   }
 

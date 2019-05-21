@@ -40,18 +40,15 @@ public final class Uploader {
   // mostly be idle.
   private final ExecutorService uploadingTaskExecutor =
       Executors.newFixedThreadPool(2, new ProfilingUploaderThreadFactory());
+  private final RecordingUploader recordingUploader;
 
   private final RecordingDataListener listener = new ProfilingDataCallback();
-
-  private final String url;
-  private final String apiKey;
-  private final String[] tags;
 
   private final class ProfilingDataCallback implements RecordingDataListener {
     /** Just handing this off to the uploading threads. */
     @Override
     public void onNewData(final RecordingData data) {
-      uploadingTaskExecutor.execute(new UploadingTask(url, apiKey, tags, data));
+      uploadingTaskExecutor.execute(new UploadingTask(recordingUploader, data));
     }
   }
 
@@ -60,11 +57,14 @@ public final class Uploader {
    *
    * @param url the URL of the edge service.
    * @param apiKey the apiKey to use.
+   * @param tags the tags to use.
    */
   public Uploader(final String url, final String apiKey, final Map<String, String> tags) {
-    this.url = url;
-    this.apiKey = apiKey;
-    this.tags = tagsToArray(tags);
+    this(new RecordingUploader(url, apiKey, tags));
+  }
+
+  Uploader(final RecordingUploader recordingUploader) {
+    this.recordingUploader = recordingUploader;
   }
 
   public RecordingDataListener getRecordingDataListener() {
@@ -78,12 +78,5 @@ public final class Uploader {
     } catch (final InterruptedException e) {
       log.error("Wait for executor shutdown interrupted");
     }
-  }
-
-  private String[] tagsToArray(final Map<String, String> tags) {
-    return tags.entrySet().stream()
-        .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
-        .map(e -> e.getKey() + ":" + e.getValue())
-        .toArray(String[]::new);
   }
 }
