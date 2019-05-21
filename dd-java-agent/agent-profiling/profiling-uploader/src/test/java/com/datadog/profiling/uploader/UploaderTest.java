@@ -15,10 +15,6 @@
  */
 package com.datadog.profiling.uploader;
 
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingDataListener;
 import delight.fileupload.FileUpload;
@@ -39,8 +35,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 /** Unit tests for the chunk uploader. */
-public class ChunkUploaderTest {
+public class UploaderTest {
 
   private static final String TEST_APIKEY_VALUE = "testkey";
   private static final String TEST_RECORDING = "test.jfr";
@@ -71,8 +71,8 @@ public class ChunkUploaderTest {
     }
 
     // TODO: test with non empty tags and with tags with nulls
-    final ChunkUploader uploader =
-        new ChunkUploader(url.toString(), TEST_APIKEY_VALUE, Collections.emptyMap());
+    final Uploader uploader =
+        new Uploader(url.toString(), TEST_APIKEY_VALUE, Collections.emptyMap());
 
     final RecordingDataListener listener = uploader.getRecordingDataListener();
     for (int i = 0; i < NUMBER_OF_RECORDINGS; i++) {

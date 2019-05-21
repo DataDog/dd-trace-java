@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>Don't forget to shut down this component when no longer needed.
  */
 @Slf4j
-public final class ChunkUploader {
+public final class Uploader {
 
   // Allows upload of 1 continuous and one profiling recording simultaneously. Of course, spamming
   // dumps of the continuous recording may get us in trouble, so we will likely protect against that
@@ -61,7 +61,7 @@ public final class ChunkUploader {
    * @param url the URL of the edge service.
    * @param apiKey the apiKey to use.
    */
-  public ChunkUploader(final String url, final String apiKey, final Map<String, String> tags) {
+  public Uploader(final String url, final String apiKey, final Map<String, String> tags) {
     this.url = url;
     this.apiKey = apiKey;
     this.tags = tagsToArray(tags);
@@ -81,8 +81,7 @@ public final class ChunkUploader {
   }
 
   private String[] tagsToArray(final Map<String, String> tags) {
-    return tags.entrySet()
-        .stream()
+    return tags.entrySet().stream()
         .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
         .map(e -> e.getKey() + ":" + e.getValue())
         .toArray(String[]::new);
