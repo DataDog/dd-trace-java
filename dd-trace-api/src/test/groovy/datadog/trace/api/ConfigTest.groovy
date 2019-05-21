@@ -43,8 +43,8 @@ import static datadog.trace.api.Config.SERVICE_NAME
 import static datadog.trace.api.Config.SERVICE_TAG
 import static datadog.trace.api.Config.SPAN_TAGS
 import static datadog.trace.api.Config.TRACE_AGENT_PORT
-import static datadog.trace.api.Config.TRACE_REPORT_HOSTNAME
 import static datadog.trace.api.Config.TRACE_ENABLED
+import static datadog.trace.api.Config.TRACE_REPORT_HOSTNAME
 import static datadog.trace.api.Config.TRACE_RESOLVER_ENABLED
 import static datadog.trace.api.Config.WRITER_TYPE
 
@@ -102,7 +102,7 @@ class ConfigTest extends Specification {
     config.profilingEnabled == false
     config.profilingUrl == Config.DEFAULT_PROFILING_URL
     config.profilingApiKey == null
-    config.mergedProfilingTags == [(HOST_TAG): config.getHostname(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [(HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingPeriodicDelay == 30
     config.profilingPeriodicPeriod == 3600
     config.profilingPeriodicDuration == 60
