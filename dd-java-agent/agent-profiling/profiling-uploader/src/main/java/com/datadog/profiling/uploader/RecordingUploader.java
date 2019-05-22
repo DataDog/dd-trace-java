@@ -18,6 +18,7 @@ package com.datadog.profiling.uploader;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.uploader.util.ChunkReader;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -36,18 +37,27 @@ import okhttp3.Response;
 @Slf4j
 final class RecordingUploader {
   // This logger will be called repeatedly
-  private static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
+  static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
+  static final String CHUNK_DATA_PARAM = "jfr-chunk-data";
   // May want to defined these somewhere where they can be shared in the public API
-  static final String KEY_CHUNK_SEQ_NO = "chunk-seq-num";
-  static final String KEY_RECORDING_NAME = "recording-name";
+  static final String CHUNK_SEQUENCE_NUMBER_PARAM = "chunk-seq-num";
+  static final String RECORDING_NAME_PARAM = "recording-name";
   // This is just the requested times. Later we will do this right, with per chunk info.
   // Also this information should not have to be repeated in every request.
-  static final String KEY_RECORDING_START = "recording-start";
-  static final String KEY_RECORDING_END = "recording-end";
-  static final String KEY_TAG = "tags[]";
+  static final String RECORDING_START_PARAM = "recording-start";
+  static final String RECORDING_END_PARAM = "recording-end";
+  static final String TAGS_PARAM = "tags[]";
 
-  private static final OkHttpClient CLIENT = new OkHttpClient();
+  static final Duration HTTP_TIMEOUT =
+      Duration.ofSeconds(1); // 1 second for connect/read/write operations
+
+  private static final Headers CHUNK_DATA_HEADERS =
+      Headers.of(
+          "Content-Disposition",
+          "form-data; name=\"" + CHUNK_DATA_PARAM + "\"; filename=\"chunk\"");
+
+  private final OkHttpClient client;
   private final String apiKey;
   private final String url;
   private final List<String> tags;
@@ -56,6 +66,13 @@ final class RecordingUploader {
     this.url = url;
     this.apiKey = apiKey;
     this.tags = tagsToList(tags);
+
+    client =
+        new OkHttpClient.Builder()
+            .connectTimeout(HTTP_TIMEOUT)
+            .writeTimeout(HTTP_TIMEOUT)
+            .readTimeout(HTTP_TIMEOUT)
+            .build();
   }
 
   public void upload(final RecordingData data) {
@@ -65,10 +82,11 @@ final class RecordingUploader {
       while (chunkIterator.hasNext()) {
         uploadChunk(data, chunkCounter++, chunkIterator.next());
       }
-      // Chunk loader closes stream automatically - only need to release RecordingData
-      data.release();
     } catch (final IllegalStateException | IOException e) {
       log.error("Problem uploading recording chunk!", e);
+    } finally {
+      // Chunk loader closes stream automatically - only need to release RecordingData
+      data.release();
     }
   }
 
@@ -79,17 +97,15 @@ final class RecordingUploader {
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart(KEY_RECORDING_NAME, data.getName())
+            .addFormDataPart(RECORDING_NAME_PARAM, data.getName())
             // Note that toString is well defined for instants - ISO-8601
-            .addFormDataPart(KEY_RECORDING_START, data.getRequestedStart().toString())
-            .addFormDataPart(KEY_RECORDING_END, data.getRequestedEnd().toString())
-            .addFormDataPart(KEY_CHUNK_SEQ_NO, String.valueOf(chunkId));
+            .addFormDataPart(RECORDING_START_PARAM, data.getRequestedStart().toString())
+            .addFormDataPart(RECORDING_END_PARAM, data.getRequestedEnd().toString())
+            .addFormDataPart(CHUNK_SEQUENCE_NUMBER_PARAM, String.valueOf(chunkId));
     for (final String tag : tags) {
-      bodyBuilder.addFormDataPart(KEY_TAG, tag);
+      bodyBuilder.addFormDataPart(TAGS_PARAM, tag);
     }
-    bodyBuilder.addPart(
-        Headers.of("Content-Disposition", "form-data; name=\"jfr-chunk-data\"; filename=\"chunk\""),
-        RequestBody.create(OCTET_STREAM, chunk));
+    bodyBuilder.addPart(CHUNK_DATA_HEADERS, RequestBody.create(OCTET_STREAM, chunk));
     final RequestBody requestBody = bodyBuilder.build();
 
     final Request request =
@@ -104,7 +120,7 @@ final class RecordingUploader {
             .post(requestBody)
             .build();
 
-    final Response response = CLIENT.newCall(request).execute();
+    final Response response = client.newCall(request).execute();
     // Apparently we have to do this with okHttp, even if we do not use the body
     if (response.body() != null) {
       response.body().close();
