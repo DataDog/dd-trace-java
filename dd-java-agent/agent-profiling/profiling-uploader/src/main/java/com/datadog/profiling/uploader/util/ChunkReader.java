@@ -52,9 +52,6 @@ import java.util.NoSuchElementException;
  * <p>Each chunk will be self-contained and parsable, for example by wrapping it in a {@link
  * ByteArrayInputStream} and using the {@link JfrLoaderToolkit}. Note that this is a copy of my code
  * from the JMC project... It should be replaced by a nice streaming splitter later.
- *
- * <p>Note that this is a copy of the ChunkReader I contributed to JMC. A better (streaming) one
- * will be provided as soon as I have the time.
  */
 public final class ChunkReader {
   private static final byte[] JFR_MAGIC_BYTES = new byte[] {'F', 'L', 'R', 0};

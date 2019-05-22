@@ -90,7 +90,6 @@ public class Config {
   public static final String LANGUAGE_TAG_VALUE = "jvm";
 
   public static final String DEFAULT_SERVICE_NAME = "unnamed-java-app";
-  public static final String UNKNOWN_HOST = "unknown";
 
   private static final boolean DEFAULT_TRACE_ENABLED = true;
   public static final String DD_AGENT_WRITER_TYPE = "DDAgentWriter";
@@ -384,7 +383,7 @@ public class Config {
     final Map<String, String> result = new HashMap<>(runtimeTags);
 
     if (reportHostName) {
-      String hostName = getHostName();
+      final String hostName = getHostName();
       if (null != hostName && !hostName.isEmpty()) {
         result.put(INTERNAL_HOST_NAME, hostName);
       }
@@ -418,10 +417,7 @@ public class Config {
 
   public Map<String, String> getMergedProfilingTags() {
     final Map<String, String> runtimeTags = getRuntimeTags();
-    String host = getHostName();
-    if (host == null) {
-      host = UNKNOWN_HOST;
-    }
+    final String host = getHostName();
     final Map<String, String> result =
         newHashMap(
             globalTags.size()

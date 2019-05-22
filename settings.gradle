@@ -16,6 +16,7 @@ include ':dd-java-agent:agent-tooling'
 include ':dd-java-agent:agent-jmxfetch'
 include ':dd-java-agent:agent-profiling'
 include ':dd-java-agent:agent-profiling:profiling-controller'
+include ':dd-java-agent:agent-profiling:profiling-controller-openjdk'
 include ':dd-java-agent:agent-profiling:profiling-uploader'
 
 // misc

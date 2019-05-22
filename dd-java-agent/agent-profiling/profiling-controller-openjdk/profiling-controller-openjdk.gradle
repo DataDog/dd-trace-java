@@ -3,12 +3,22 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_11
 }
 
+tasks.withType(Test).configureEach {
+  jacoco {
+    // FIXME: we should write tests and enable this!
+    enabled = false
+  }
+}
+
 apply from: "${rootDir}/gradle/java.gradle"
 apply plugin: 'idea'
 
 dependencies {
   compile deps.slf4j
-  compile project(':dd-trace-ot')
+  compile project(':dd-trace-api')
+  compile project(':dd-java-agent:agent-profiling:profiling-controller')
+
+  testCompile deps.junit
 }
 
 /*

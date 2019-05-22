@@ -87,8 +87,8 @@ final class UploadingTask implements Runnable {
             .addFormDataPart(KEY_RECORDING_START, data.getRequestedStart().toString())
             .addFormDataPart(KEY_RECORDING_END, data.getRequestedEnd().toString())
             .addFormDataPart(KEY_CHUNK_SEQ_NO, String.valueOf(chunkId));
-    for (int i = 0; i < tags.length; i++) {
-      bodyBuilder.addFormDataPart(KEY_TAG, tags[i]);
+    for (final String tag : tags) {
+      bodyBuilder.addFormDataPart(KEY_TAG, tag);
     }
     bodyBuilder.addPart(
         Headers.of("Content-Disposition", "form-data; name=\"jfr-chunk-data\"; filename=\"chunk\""),
@@ -104,7 +104,9 @@ final class UploadingTask implements Runnable {
 
     final Response response = CLIENT.newCall(request).execute();
     // Apparently we have to do this with okHttp, even if we do not use the body
-    response.body().close();
+    if (response.body() != null) {
+      response.body().close();
+    }
     if (response.isSuccessful()) {
       log.info("Upload done");
     } else {

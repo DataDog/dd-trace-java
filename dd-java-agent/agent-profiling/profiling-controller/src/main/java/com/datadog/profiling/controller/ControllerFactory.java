@@ -15,9 +15,11 @@
  */
 package com.datadog.profiling.controller;
 
-import com.datadog.profiling.controller.openjdk.OpenJdkController;
+import java.lang.reflect.InvocationTargetException;
+import lombok.extern.slf4j.Slf4j;
 
 /** Factory used to get a {@link Controller}. */
+@Slf4j
 public final class ControllerFactory {
 
   /**
@@ -27,7 +29,7 @@ public final class ControllerFactory {
    * @throws UnsupportedEnvironmentException if there is controller available for the platform we're
    *     running in. See the exception message for specifics.
    */
-  public static final Controller createController() throws UnsupportedEnvironmentException {
+  public static Controller createController() throws UnsupportedEnvironmentException {
     try {
       Class.forName("com.oracle.jrockit.jfr.Producer");
       throw new UnsupportedEnvironmentException(
@@ -36,11 +38,17 @@ public final class ControllerFactory {
       // Fall through - until we support Oracle JDK 7 & 8, this is a good thing. ;)
     }
     try {
-      Class.forName("jdk.jfr.Event");
-    } catch (final ClassNotFoundException e) {
+      final Class<? extends Controller> clazz =
+          Class.forName("com.datadog.profiling.controller.openjdk.OpenJdkController")
+              .asSubclass(Controller.class);
+      return clazz.getDeclaredConstructor().newInstance();
+    } catch (final ClassNotFoundException
+        | NoSuchMethodException
+        | InstantiationException
+        | IllegalAccessException
+        | InvocationTargetException e) {
       throw new UnsupportedEnvironmentException(
-          "The JFR controller could not find a supported JFR API");
+          "The JFR controller could not find a supported JFR API", e);
     }
-    return new OpenJdkController();
   }
 }
