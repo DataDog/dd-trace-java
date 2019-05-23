@@ -42,7 +42,7 @@ final class RecordingUploader {
   static final String RECORDING_NAME_PARAM = "recording-name";
   static final String FORMAT_PARAM = "format";
   static final String TYPE_PARAM = "type";
-  static final String LANGUAGE_PARAM = "java";
+  static final String LANGUAGE_PARAM = "language";
 
   // This is just the requested times. Later we will do this right, with per chunk info.
   // Also this information should not have to be repeated in every request.
