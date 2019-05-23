@@ -56,8 +56,9 @@ final class RecordingUploader {
 
   static final String TAGS_PARAM = "tags[]";
 
+  // TODO: Review timeout value to make sure we are not loosing data
   static final Duration HTTP_TIMEOUT =
-      Duration.ofSeconds(1); // 1 second for connect/read/write operations
+      Duration.ofSeconds(5); // 5 seconds for connect/read/write operations
 
   static final String RECORDING_FORMAT = "jfr";
   static final String RECORDING_TYPE = "jfr";
