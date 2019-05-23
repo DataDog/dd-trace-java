@@ -104,7 +104,7 @@ class ConfigTest extends Specification {
     config.profilingApiKey == null
     config.mergedProfilingTags == [(HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingPeriodicDelay == 30
-    config.profilingPeriodicPeriod == 3600
+    config.profilingPeriodicPeriod == 900
     config.profilingPeriodicDuration == 60
 
     config.toString().contains("unnamed-java-app")
