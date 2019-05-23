@@ -5,7 +5,7 @@ import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerFactory;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
-import com.datadog.profiling.uploader.ChunkUploader;
+import com.datadog.profiling.uploader.Uploader;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.time.Duration;
@@ -33,8 +33,8 @@ public class ProfilingAgent {
       try {
         final Controller controller = ControllerFactory.createController();
 
-        final ChunkUploader uploader =
-            new ChunkUploader(
+        final Uploader uploader =
+            new Uploader(
                 config.getProfilingUrl(),
                 config.getProfilingApiKey(),
                 config.getMergedProfilingTags());

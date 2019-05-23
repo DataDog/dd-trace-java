@@ -29,7 +29,7 @@ final class ProfilingUploaderThreadFactory implements ThreadFactory {
         new Thread(
             ProfilingSystem.THREAD_GROUP,
             r,
-            "DD Recording Uploader - " + COUNTER.getAndIncrement());
+            "dd-agent-profile-uploader-" + COUNTER.getAndIncrement());
     t.setDaemon(true);
     return t;
   }
