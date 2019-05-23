@@ -107,8 +107,14 @@ public class RecordingUploaderTest {
         ImmutableList.of(RECODING_NAME_PREFIX + SEQUENCE_NUMBER),
         parameters.get(RecordingUploader.RECORDING_NAME_PARAM));
     assertEquals(
-        ImmutableList.of(Integer.toString(0)),
-        parameters.get(RecordingUploader.CHUNK_SEQUENCE_NUMBER_PARAM));
+        ImmutableList.of(RecordingUploader.RECORDING_FORMAT),
+        parameters.get(RecordingUploader.FORMAT_PARAM));
+    assertEquals(
+        ImmutableList.of(RecordingUploader.RECORDING_TYPE),
+        parameters.get(RecordingUploader.TYPE_PARAM));
+    assertEquals(
+        ImmutableList.of(RecordingUploader.RECORDING_LANGUAGE),
+        parameters.get(RecordingUploader.LANGUAGE_PARAM));
 
     assertEquals(
         ImmutableList.of(Instant.ofEpochSecond(REQUESTED_START).toString()),
@@ -116,6 +122,10 @@ public class RecordingUploaderTest {
     assertEquals(
         ImmutableList.of(Instant.ofEpochSecond(REQUESTED_END).toString()),
         parameters.get(RecordingUploader.RECORDING_END_PARAM));
+
+    assertEquals(
+        ImmutableList.of(Integer.toString(0)),
+        parameters.get(RecordingUploader.CHUNK_SEQUENCE_NUMBER_PARAM));
 
     assertEquals(
         EXPECTED_TAGS,
@@ -239,9 +249,6 @@ public class RecordingUploaderTest {
       assertEquals(
           ImmutableList.of(RECODING_NAME_PREFIX + SEQUENCE_NUMBER),
           parameters.get(RecordingUploader.RECORDING_NAME_PARAM));
-      assertEquals(
-          ImmutableList.of(Integer.toString(i)),
-          parameters.get(RecordingUploader.CHUNK_SEQUENCE_NUMBER_PARAM));
 
       assertEquals(
           ImmutableList.of(Instant.ofEpochSecond(REQUESTED_START).toString()),
@@ -249,6 +256,10 @@ public class RecordingUploaderTest {
       assertEquals(
           ImmutableList.of(Instant.ofEpochSecond(REQUESTED_END).toString()),
           parameters.get(RecordingUploader.RECORDING_END_PARAM));
+
+      assertEquals(
+          ImmutableList.of(Integer.toString(i)),
+          parameters.get(RecordingUploader.CHUNK_SEQUENCE_NUMBER_PARAM));
 
       assertEquals(
           EXPECTED_TAGS,

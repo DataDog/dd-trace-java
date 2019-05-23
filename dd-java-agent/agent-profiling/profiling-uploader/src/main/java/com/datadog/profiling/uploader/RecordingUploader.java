@@ -39,18 +39,29 @@ final class RecordingUploader {
   // This logger will be called repeatedly
   static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
-  static final String CHUNK_DATA_PARAM = "jfr-chunk-data";
-  // May want to defined these somewhere where they can be shared in the public API
-  static final String CHUNK_SEQUENCE_NUMBER_PARAM = "chunk-seq-num";
   static final String RECORDING_NAME_PARAM = "recording-name";
+  static final String FORMAT_PARAM = "format";
+  static final String TYPE_PARAM = "type";
+  static final String LANGUAGE_PARAM = "java";
+
   // This is just the requested times. Later we will do this right, with per chunk info.
   // Also this information should not have to be repeated in every request.
   static final String RECORDING_START_PARAM = "recording-start";
   static final String RECORDING_END_PARAM = "recording-end";
+
+  // May want to defined these somewhere where they can be shared in the public API
+  static final String CHUNK_SEQUENCE_NUMBER_PARAM = "chunk-seq-num";
+
+  static final String CHUNK_DATA_PARAM = "chunk-data";
+
   static final String TAGS_PARAM = "tags[]";
 
   static final Duration HTTP_TIMEOUT =
       Duration.ofSeconds(1); // 1 second for connect/read/write operations
+
+  static final String RECORDING_FORMAT = "jfr";
+  static final String RECORDING_TYPE = "jfr";
+  static final String RECORDING_LANGUAGE = "java";
 
   private static final Headers CHUNK_DATA_HEADERS =
       Headers.of(
@@ -98,6 +109,9 @@ final class RecordingUploader {
         new MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart(RECORDING_NAME_PARAM, data.getName())
+            .addFormDataPart(FORMAT_PARAM, RECORDING_FORMAT)
+            .addFormDataPart(TYPE_PARAM, RECORDING_TYPE)
+            .addFormDataPart(LANGUAGE_PARAM, RECORDING_LANGUAGE)
             // Note that toString is well defined for instants - ISO-8601
             .addFormDataPart(RECORDING_START_PARAM, data.getRequestedStart().toString())
             .addFormDataPart(RECORDING_END_PARAM, data.getRequestedEnd().toString())
