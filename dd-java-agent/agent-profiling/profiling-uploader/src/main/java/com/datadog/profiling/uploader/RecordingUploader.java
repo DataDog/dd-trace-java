@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.Call;
+import okhttp3.Callback;
 import okhttp3.Credentials;
 import okhttp3.Headers;
 import okhttp3.MediaType;
@@ -59,6 +61,8 @@ final class RecordingUploader {
   // TODO: Review timeout value to make sure we are not loosing data
   static final Duration HTTP_TIMEOUT =
       Duration.ofSeconds(5); // 5 seconds for connect/read/write operations
+  static final int MAX_RUNNING_REQUESTS = 10;
+  static final int MAX_ENQUEUED_REQUESTS = 20;
 
   static final String RECORDING_FORMAT = "jfr";
   static final String RECORDING_TYPE = "jfr";
@@ -68,6 +72,27 @@ final class RecordingUploader {
       Headers.of(
           "Content-Disposition",
           "form-data; name=\"" + CHUNK_DATA_PARAM + "\"; filename=\"chunk\"");
+
+  private static final Callback RESPONSE_CALLBACK =
+      new Callback() {
+        @Override
+        public void onFailure(final Call call, final IOException e) {
+          log.error("Failed to upload chunk", e);
+        }
+
+        @Override
+        public void onResponse(final Call call, final Response response) {
+          // Apparently we have to do this with okHttp, even if we do not use the body
+          if (response.body() != null) {
+            response.body().close();
+          }
+          if (response.isSuccessful()) {
+            log.info("Upload done");
+          } else {
+            log.error("Failed to upload chunk: unexpected response code: " + response);
+          }
+        }
+      };
 
   private final OkHttpClient client;
   private final String apiKey;
@@ -84,15 +109,24 @@ final class RecordingUploader {
             .connectTimeout(HTTP_TIMEOUT)
             .writeTimeout(HTTP_TIMEOUT)
             .readTimeout(HTTP_TIMEOUT)
+            .callTimeout(HTTP_TIMEOUT)
             .build();
+
+    client.dispatcher().setMaxRequests(MAX_RUNNING_REQUESTS);
+    // We are mainly talking to the same(ish) host so we need to raise this limit
+    client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
   }
 
   public void upload(final RecordingData data) {
     try {
-      final Iterator<byte[]> chunkIterator = ChunkReader.readChunks(data.getStream());
-      int chunkCounter = 0;
-      while (chunkIterator.hasNext()) {
-        uploadChunk(data, chunkCounter++, chunkIterator.next());
+      if (canEnqueueMoreRequests()) {
+        final Iterator<byte[]> chunkIterator = ChunkReader.readChunks(data.getStream());
+        int chunkCounter = 0;
+        while (chunkIterator.hasNext()) {
+          uploadChunk(data, chunkCounter++, chunkIterator.next());
+        }
+      } else {
+        log.error("Cannot upload data: too many enqueued requests!");
       }
     } catch (final IllegalStateException | IOException e) {
       log.error("Problem uploading recording chunk!", e);
@@ -102,8 +136,11 @@ final class RecordingUploader {
     }
   }
 
-  private void uploadChunk(final RecordingData data, final int chunkId, final byte[] chunk)
-      throws IOException {
+  public void shutdown() {
+    client.dispatcher().executorService().shutdown();
+  }
+
+  private void uploadChunk(final RecordingData data, final int chunkId, final byte[] chunk) {
     log.info("Uploading {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
 
     final MultipartBody.Builder bodyBuilder =
@@ -135,16 +172,13 @@ final class RecordingUploader {
             .post(requestBody)
             .build();
 
-    final Response response = client.newCall(request).execute();
-    // Apparently we have to do this with okHttp, even if we do not use the body
-    if (response.body() != null) {
-      response.body().close();
-    }
-    if (response.isSuccessful()) {
-      log.info("Upload done");
-    } else {
-      throw new IOException("Unexpected code " + response);
-    }
+    client.newCall(request).enqueue(RESPONSE_CALLBACK);
+  }
+
+  private boolean canEnqueueMoreRequests() {
+    // This is a soft limit since recording data may contain many chunks which are
+    // uploaded with multiple requests.
+    return client.dispatcher().queuedCallsCount() <= MAX_ENQUEUED_REQUESTS;
   }
 
   private List<String> tagsToList(final Map<String, String> tags) {
