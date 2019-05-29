@@ -42,7 +42,7 @@ final class RecordingUploader {
   static final String RECORDING_NAME_PARAM = "recording-name";
   static final String FORMAT_PARAM = "format";
   static final String TYPE_PARAM = "type";
-  static final String LANGUAGE_PARAM = "language";
+  static final String RUNTIME_PARAM = "runtime";
 
   // This is just the requested times. Later we will do this right, with per chunk info.
   // Also this information should not have to be repeated in every request.
@@ -62,7 +62,7 @@ final class RecordingUploader {
 
   static final String RECORDING_FORMAT = "jfr";
   static final String RECORDING_TYPE = "jfr";
-  static final String RECORDING_LANGUAGE = "java";
+  static final String RECORDING_RUNTIME = "jvm";
 
   private static final Headers CHUNK_DATA_HEADERS =
       Headers.of(
@@ -112,7 +112,7 @@ final class RecordingUploader {
             .addFormDataPart(RECORDING_NAME_PARAM, data.getName())
             .addFormDataPart(FORMAT_PARAM, RECORDING_FORMAT)
             .addFormDataPart(TYPE_PARAM, RECORDING_TYPE)
-            .addFormDataPart(LANGUAGE_PARAM, RECORDING_LANGUAGE)
+            .addFormDataPart(RUNTIME_PARAM, RECORDING_RUNTIME)
             // Note that toString is well defined for instants - ISO-8601
             .addFormDataPart(RECORDING_START_PARAM, data.getRequestedStart().toString())
             .addFormDataPart(RECORDING_END_PARAM, data.getRequestedEnd().toString())
