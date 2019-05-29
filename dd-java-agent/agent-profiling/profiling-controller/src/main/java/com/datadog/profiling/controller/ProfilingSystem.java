@@ -59,9 +59,6 @@ public final class ProfilingSystem {
    * @param delay the delay to wait before starting capturing data.
    * @param period the period between data captures.
    * @param recordingDuration the duration for each recording captured.
-   * @throws IOException if a storage for the recordings could not be configured, or another IO
-   *     related problem occurred.
-   * @throws UnsupportedEnvironmentException if the runtime environment isn't supported.
    * @throws ConfigurationException if the configuration information was bad.
    */
   public ProfilingSystem(
@@ -70,7 +67,7 @@ public final class ProfilingSystem {
       final Duration delay,
       final Duration period,
       final Duration recordingDuration)
-      throws UnsupportedEnvironmentException, ConfigurationException {
+      throws ConfigurationException {
     this.controller = controller;
     this.dataListener = dataListener;
     this.delay = delay;
@@ -84,10 +81,9 @@ public final class ProfilingSystem {
   /**
    * Starts the scheduling of profiling recordings and the continuous recording.
    *
-   * @throws UnsupportedEnvironmentException if the profiling system cannot be run on this system.
    * @throws IOException if there was a problem reading configuration files etc.
    */
-  public final void start() throws UnsupportedEnvironmentException, IOException {
+  public final void start() throws IOException {
     continuousRecording =
         controller.createContinuousRecording(
             "dd_profiler_continuous", controller.getContinuousSettings());

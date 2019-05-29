@@ -24,5 +24,5 @@ public interface RecordingDataListener {
    *
    * @param data the new data available
    */
-  public void onNewData(RecordingData data);
+  void onNewData(RecordingData data);
 }

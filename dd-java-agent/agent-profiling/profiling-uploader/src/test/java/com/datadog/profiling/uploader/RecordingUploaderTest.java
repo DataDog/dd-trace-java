@@ -33,16 +33,18 @@ import delight.fileupload.FileUpload;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
-import okhttp3.mockwebserver.SocketPolicy;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -90,7 +92,11 @@ public class RecordingUploaderTest {
 
   @After
   public void tearDown() throws IOException {
-    server.shutdown();
+    try {
+      server.shutdown();
+    } catch (final IOException e) {
+      // Looks like this happens for some unclear reason, but should not affect tests
+    }
   }
 
   @Test
@@ -158,37 +164,27 @@ public class RecordingUploaderTest {
   public void test500Response() throws IOException, InterruptedException {
     server.enqueue(new MockResponse().setResponseCode(200));
     server.enqueue(new MockResponse().setResponseCode(500));
+    server.enqueue(new MockResponse().setResponseCode(200));
 
     final RecordingData recording = mockRecordingData(RECORDING_3_CHUNKS);
     uploader.upload(recording);
 
+    // We upload chunks in parallel so all three requests should happen
     assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
     assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
-    assertNull("No more requests", server.takeRequest(100, TimeUnit.MILLISECONDS));
+    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
 
     verify(recording).release();
   }
 
   @Test
   public void testConnectionRefused() throws IOException, InterruptedException {
-    server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
-            .setSocketPolicy(SocketPolicy.SHUTDOWN_SERVER_AFTER_RESPONSE));
+    server.shutdown();
 
     final RecordingData recording = mockRecordingData(RECORDING_3_CHUNKS);
     uploader.upload(recording);
 
-    assertNotNull("Expected chunk", server.takeRequest(5, TimeUnit.SECONDS));
-    assertNull("No requests", server.takeRequest(100, TimeUnit.MILLISECONDS));
-
     verify(recording).release();
-
-    /*
-    Note: server should be shut down after this. Unfortunately it looks like there is a slight
-    bug in mockwebserver in regards to this: second call to `server.shutdown` waits for 5
-    seconds, so this test is reported to run for 5 seconds.
-    */
   }
 
   @Test
@@ -199,13 +195,15 @@ public class RecordingUploaderTest {
             .setHeadersDelay(
                 RecordingUploader.HTTP_TIMEOUT.plus(Duration.ofMillis(1000)).toMillis(),
                 TimeUnit.MILLISECONDS));
+    server.enqueue(new MockResponse().setResponseCode(200));
 
     final RecordingData recording = mockRecordingData(RECORDING_3_CHUNKS);
     uploader.upload(recording);
 
+    // We upload chunks in parallel so all three requests should happen
     assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
     assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
-    assertNull("No more requests", server.takeRequest(100, TimeUnit.MILLISECONDS));
+    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
 
     verify(recording).release();
   }
@@ -240,12 +238,14 @@ public class RecordingUploaderTest {
     final RecordingData recording = mockRecordingData(RECORDING_3_CHUNKS);
     uploader.upload(recording);
 
+    final List<Integer> sequenceNumbers = new ArrayList<>();
     for (int i = 0; i < NUMBER_OF_CHUNKS; i++) {
       final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
       assertNotNull("Expected chunk", request);
 
       final Multimap<String, Object> parameters = getParameters(request);
 
+      // recordingNames.add(parameters.get(RecordingUploader.RECORDING_NAME_PARAM));
       assertEquals(
           ImmutableList.of(RECODING_NAME_PREFIX + SEQUENCE_NUMBER),
           parameters.get(RecordingUploader.RECORDING_NAME_PARAM));
@@ -257,9 +257,12 @@ public class RecordingUploaderTest {
           ImmutableList.of(Instant.ofEpochSecond(REQUESTED_END).toString()),
           parameters.get(RecordingUploader.RECORDING_END_PARAM));
 
-      assertEquals(
-          ImmutableList.of(Integer.toString(i)),
-          parameters.get(RecordingUploader.CHUNK_SEQUENCE_NUMBER_PARAM));
+      sequenceNumbers.addAll(
+          parameters
+              .get(RecordingUploader.CHUNK_SEQUENCE_NUMBER_PARAM)
+              .stream()
+              .map(o -> Integer.parseInt(o.toString()))
+              .collect(Collectors.toList()));
 
       assertEquals(
           EXPECTED_TAGS,
@@ -274,6 +277,13 @@ public class RecordingUploaderTest {
       not decoupled well enough to make this easy.
        */
     }
+
+    sequenceNumbers.sort(Comparator.naturalOrder());
+    assertEquals(
+        "Got all chunks",
+        IntStream.range(0, NUMBER_OF_CHUNKS).boxed().collect(Collectors.toList()),
+        sequenceNumbers);
+
     assertNull("No more requests", server.takeRequest(100, TimeUnit.MILLISECONDS));
 
     verify(recording).release();
@@ -294,6 +304,53 @@ public class RecordingUploaderTest {
         recordedRequest.getHeader(VersionInfo.DATADOG_META_LANG_INTERPRETER));
     assertEquals(
         "Stubbed-Test-Version", recordedRequest.getHeader(VersionInfo.DATADOG_META_TRACER_VERSION));
+  }
+
+  @Test
+  public void testTooManyRequests() throws IOException, InterruptedException {
+    final int totalRequests =
+        RecordingUploader.MAX_ENQUEUED_REQUESTS + RecordingUploader.MAX_RUNNING_REQUESTS;
+
+    // We have to block all requests to make sure queue is kept full
+    for (int i = 0; i < totalRequests; i++) {
+      server.enqueue(
+          new MockResponse()
+              .setHeadersDelay(
+                  RecordingUploader.HTTP_TIMEOUT.plus(Duration.ofMillis(1000)).toMillis(),
+                  TimeUnit.MILLISECONDS));
+    }
+    server.enqueue(new MockResponse().setResponseCode(200));
+
+    final List<RecordingData> recordings = new ArrayList<>();
+    for (int i = 0; i < totalRequests; i++) {
+      final RecordingData recording = mockRecordingData(RECORDING_1_CHUNK);
+      uploader.upload(recording);
+      recordings.add(recording);
+    }
+
+    final RecordingData additionalRecording = mockRecordingData(RECORDING_1_CHUNK);
+    uploader.upload(additionalRecording);
+
+    // Make sure all expected requests happened
+    for (int i = 0; i < totalRequests; i++) {
+      assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
+    }
+    // 'additionRecording' will not be added becasuse queue is full
+    assertNull("No more requests", server.takeRequest(100, TimeUnit.MILLISECONDS));
+
+    verify(additionalRecording).release();
+  }
+
+  @Test
+  public void testShutdown() throws IOException, InterruptedException {
+    uploader.shutdown();
+
+    final RecordingData recording = mockRecordingData(RECORDING_1_CHUNK);
+    uploader.upload(recording);
+
+    assertNull("No more requests", server.takeRequest(100, TimeUnit.MILLISECONDS));
+
+    verify(recording).release();
   }
 
   private Multimap<String, Object> getParameters(final RecordedRequest request) {

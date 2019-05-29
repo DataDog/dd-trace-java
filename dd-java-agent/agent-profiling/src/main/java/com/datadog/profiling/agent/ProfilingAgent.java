@@ -5,7 +5,7 @@ import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerFactory;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
-import com.datadog.profiling.uploader.Uploader;
+import com.datadog.profiling.uploader.RecordingUploader;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.time.Duration;
@@ -33,8 +33,8 @@ public class ProfilingAgent {
       try {
         final Controller controller = ControllerFactory.createController();
 
-        final Uploader uploader =
-            new Uploader(
+        final RecordingUploader uploader =
+            new RecordingUploader(
                 config.getProfilingUrl(),
                 config.getProfilingApiKey(),
                 config.getMergedProfilingTags());
@@ -42,7 +42,7 @@ public class ProfilingAgent {
         profiler =
             new ProfilingSystem(
                 controller,
-                uploader.getRecordingDataListener(),
+                uploader::upload,
                 Duration.ofSeconds(config.getProfilingPeriodicDelay()),
                 Duration.ofSeconds(config.getProfilingPeriodicPeriod()),
                 Duration.ofSeconds(config.getProfilingPeriodicDuration()));
