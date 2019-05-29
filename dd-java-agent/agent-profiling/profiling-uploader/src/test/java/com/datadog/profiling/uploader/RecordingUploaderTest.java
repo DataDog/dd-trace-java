@@ -113,8 +113,8 @@ public class RecordingUploaderTest {
         ImmutableList.of(RecordingUploader.RECORDING_TYPE),
         parameters.get(RecordingUploader.TYPE_PARAM));
     assertEquals(
-        ImmutableList.of(RecordingUploader.RECORDING_LANGUAGE),
-        parameters.get(RecordingUploader.LANGUAGE_PARAM));
+        ImmutableList.of(RecordingUploader.RECORDING_RUNTIME),
+        parameters.get(RecordingUploader.RUNTIME_PARAM));
 
     assertEquals(
         ImmutableList.of(Instant.ofEpochSecond(REQUESTED_START).toString()),
