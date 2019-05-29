@@ -22,7 +22,7 @@ final class ProfilingRecorderThreadFactory implements ThreadFactory {
 
   @Override
   public Thread newThread(final Runnable r) {
-    final Thread t = new Thread(ProfilingSystem.THREAD_GROUP, r, "DD Profiler Recording Scheduler");
+    final Thread t = new Thread(ProfilingSystem.THREAD_GROUP, r, "dd-profiler-recording-scheduler");
     t.setDaemon(true);
     return t;
   }
