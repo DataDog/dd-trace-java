@@ -20,7 +20,6 @@ import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.util.JfpUtils;
 import java.io.IOException;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
 import jdk.jfr.FlightRecorder;
 import jdk.jfr.Recording;
@@ -61,11 +60,6 @@ public final class OpenJdkController implements Controller {
   @Override
   public RecordingData snapshot() throws IOException {
     return new ContinuousRecording(FlightRecorder.getFlightRecorder().takeSnapshot());
-  }
-
-  @Override
-  public RecordingData snapshot(final Instant start, final Instant end) throws IOException {
-    return new ContinuousRecording(FlightRecorder.getFlightRecorder().takeSnapshot(), start, end);
   }
 
   @Override

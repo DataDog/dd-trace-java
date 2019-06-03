@@ -17,7 +17,6 @@ package com.datadog.profiling.controller;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
 
 /**
@@ -56,19 +55,6 @@ public interface Controller {
    * @throws IOException if something went wrong taking the snapshot.
    */
   public RecordingData snapshot() throws IOException;
-
-  /**
-   * Will snapshot the flight recorder, giving stable access to, for example, later stream between
-   * two different times. This version will default to retrieving data between two times when
-   * getting the stream later.
-   *
-   * @param start the (approximate) start time. Start time will be included, if available, but more
-   *     data may be included due to chunk boundaries.
-   * @param end the (approximate) end time. End time will be included, if available, but more data
-   *     may be included due to chunk boundaries.
-   * @throws IOException if something went wrong taking the snapshot.
-   */
-  public RecordingData snapshot(Instant start, Instant end) throws IOException;
 
   /**
    * Returns the default settings to be used for the continuous recording.

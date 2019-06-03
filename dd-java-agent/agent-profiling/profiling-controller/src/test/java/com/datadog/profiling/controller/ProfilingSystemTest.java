@@ -22,7 +22,6 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -192,14 +191,6 @@ public class ProfilingSystemTest {
       final RecordingData recordingData = mock(RecordingData.class);
       when(recordingData.isAvailable()).thenReturn(true);
       when(recordingData.getName()).thenReturn("snapshot");
-      return recordingData;
-    }
-
-    @Override
-    public RecordingData snapshot(final Instant start, final Instant end) throws IOException {
-      final RecordingData recordingData = mock(RecordingData.class);
-      when(recordingData.isAvailable()).thenReturn(true);
-      when(recordingData.getName()).thenReturn("snapshot-with-time");
       return recordingData;
     }
 
