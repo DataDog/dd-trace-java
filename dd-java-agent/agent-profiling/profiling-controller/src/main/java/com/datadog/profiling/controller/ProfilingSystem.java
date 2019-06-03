@@ -17,7 +17,6 @@ package com.datadog.profiling.controller;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -83,9 +82,7 @@ public final class ProfilingSystem {
    * @throws IOException if there was a problem reading configuration files etc.
    */
   public final void start() throws IOException {
-    continuousRecording =
-        controller.createContinuousRecording(
-            "dd_profiler_continuous", controller.getContinuousSettings());
+    continuousRecording = controller.createContinuousRecording("dd_profiler_continuous");
     startSchedulingProfilingRecordings();
   }
 
@@ -97,10 +94,7 @@ public final class ProfilingSystem {
   private void startSchedulingProfilingRecordings() throws IOException {
     scheduledProfilingRecordings =
         executorService.scheduleAtFixedRate(
-            new RecordingCreator(controller.getProfilingSettings()),
-            delay.toMillis(),
-            period.toMillis(),
-            TimeUnit.MILLISECONDS);
+            new RecordingCreator(), delay.toMillis(), period.toMillis(), TimeUnit.MILLISECONDS);
     scheduledHarvester =
         executorService.scheduleAtFixedRate(
             new RecordingHarvester(),
@@ -147,11 +141,6 @@ public final class ProfilingSystem {
    * @author Marcus Hirt
    */
   private final class RecordingCreator implements Runnable {
-    private final Map<String, String> template;
-
-    public RecordingCreator(final Map<String, String> template) {
-      this.template = template;
-    }
 
     @Override
     public void run() {
@@ -159,9 +148,7 @@ public final class ProfilingSystem {
         if (ongoingProfilingRecording == null) {
           ongoingProfilingRecording =
               controller.createRecording(
-                  "dd-profiling-" + RECORDING_SEQUENCE_NUMBER.getAndIncrement(),
-                  template,
-                  recordingDuration);
+                  "dd-profiling-" + RECORDING_SEQUENCE_NUMBER.getAndIncrement(), recordingDuration);
         } else {
           log.warn("Skipped creating profiling recording, since one was already underway.");
         }

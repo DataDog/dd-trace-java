@@ -17,7 +17,6 @@ package com.datadog.profiling.controller;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Map;
 
 /**
  * Interface for the low lever flight recorder control functionality. Needed since we will likely
@@ -30,23 +29,20 @@ public interface Controller {
    * for that to completed and determined.
    *
    * @param recordingName the name under which the recording will be known.
-   * @param template the event configurations which will be used when starting the continuous
-   *     recording.
    * @param duration the duration for which to record.
+   * @return the recording object created.
    * @throws IOException if something went wrong when scheduling the recording.
    */
-  RecordingData createRecording(
-      String recordingName, Map<String, String> template, Duration duration) throws IOException;
+  RecordingData createRecording(String recordingName, Duration duration) throws IOException;
 
   /**
    * Creates a continuous recording using the specified template.
    *
    * @param recordingName the name under which the recording will be known.
-   * @param template the even configurations which will be used when starting the continuous
-   *     recording.
-   * @return returns the recording object created.
+   * @return the recording object created.
+   * @throws IOException if something went wrong when scheduling the recording.
    */
-  RecordingData createContinuousRecording(String recordingName, Map<String, String> template);
+  RecordingData createContinuousRecording(String recordingName) throws IOException;
 
   /**
    * Will snapshot the flight recorder, giving stable access to, for example, later stream between
@@ -54,21 +50,5 @@ public interface Controller {
    *
    * @throws IOException if something went wrong taking the snapshot.
    */
-  public RecordingData snapshot() throws IOException;
-
-  /**
-   * Returns the default settings to be used for the continuous recording.
-   *
-   * @return the default settings to be used for the continuous recording.
-   * @throws IOException if the settings could not be read.
-   */
-  Map<String, String> getContinuousSettings() throws IOException;
-
-  /**
-   * Returns the default settings to be used for the profiling recordings.
-   *
-   * @return the default settings to be used for the profiling recordings.
-   * @throws IOException if the settings could not be read.
-   */
-  Map<String, String> getProfilingSettings() throws IOException;
+  RecordingData snapshot() throws IOException;
 }

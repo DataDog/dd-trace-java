@@ -34,23 +34,21 @@ public final class OpenJdkController implements Controller {
   private static final String JFP_PROFILE = "jfr2/ddprofile.jfp";
 
   @Override
-  public RecordingData createRecording(
-      final String recordingName, final Map<String, String> template, final Duration duration)
+  public RecordingData createRecording(final String recordingName, final Duration duration)
       throws IOException {
     final Recording recording = new Recording();
     recording.setName(recordingName);
     recording.setDuration(duration);
-    recording.setSettings(template);
+    recording.setSettings(getProfilingSettings());
     recording.start();
     return new ProfilingRecording(recording);
   }
 
   @Override
-  public RecordingData createContinuousRecording(
-      final String recordingName, final Map<String, String> template) {
+  public RecordingData createContinuousRecording(final String recordingName) throws IOException {
     final Recording recording = new Recording();
     recording.setName(recordingName);
-    recording.setSettings(template);
+    recording.setSettings(getContinuousSettings());
     recording.start();
     // probably limit maxSize to something sensible, and configurable, here. For now rely on
     // in-memory.
@@ -62,13 +60,11 @@ public final class OpenJdkController implements Controller {
     return new ContinuousRecording(FlightRecorder.getFlightRecorder().takeSnapshot());
   }
 
-  @Override
-  public Map<String, String> getContinuousSettings() throws IOException {
+  private Map<String, String> getContinuousSettings() throws IOException {
     return JfpUtils.readNamedJfpResource(JFP_CONTINUOUS);
   }
 
-  @Override
-  public Map<String, String> getProfilingSettings() throws IOException {
+  private Map<String, String> getProfilingSettings() throws IOException {
     return JfpUtils.readNamedJfpResource(JFP_PROFILE);
   }
 }

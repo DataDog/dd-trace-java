@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
@@ -41,8 +40,7 @@ public class ProfilingSystemTest {
   private final Controller controller = new TestController();
 
   @Test
-  public void testCanShutDownWithoutStarting()
-      throws UnsupportedEnvironmentException, ConfigurationException {
+  public void testCanShutDownWithoutStarting() throws ConfigurationException {
     final RecordingDataListener listener = (final RecordingData data) -> {};
     final ProfilingSystem system =
         new ProfilingSystem(
@@ -51,9 +49,7 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testDoesntSendDataIfNotStarted()
-      throws UnsupportedEnvironmentException, IOException, InterruptedException,
-          ConfigurationException {
+  public void testDoesntSendDataIfNotStarted() throws InterruptedException, ConfigurationException {
     final CountDownLatch latch = new CountDownLatch(1);
     final RecordingDataListener listener =
         (final RecordingData data) -> {
@@ -95,8 +91,7 @@ public class ProfilingSystemTest {
    */
   @Test
   public void testProfilingSystem()
-      throws UnsupportedEnvironmentException, IOException, InterruptedException,
-          ConfigurationException {
+      throws IOException, InterruptedException, ConfigurationException {
     final CountDownLatch latch = new CountDownLatch(2);
     final List<RecordingData> results = new ArrayList<>();
 
@@ -122,9 +117,7 @@ public class ProfilingSystemTest {
 
   /** Ensuring that it can be started, and recording data for the continuous recording captured. */
   @Test
-  public void testContinuous()
-      throws UnsupportedEnvironmentException, IOException, InterruptedException,
-          ConfigurationException {
+  public void testContinuous() throws IOException, InterruptedException, ConfigurationException {
     final CountDownLatch latch = new CountDownLatch(2);
     final List<RecordingData> results = new ArrayList<>();
 
@@ -168,9 +161,7 @@ public class ProfilingSystemTest {
   private static class TestController implements Controller {
 
     @Override
-    public RecordingData createRecording(
-        final String recordingName, final Map<String, String> template, final Duration duration)
-        throws IOException {
+    public RecordingData createRecording(final String recordingName, final Duration duration) {
       final RecordingData recordingData = mock(RecordingData.class);
       when(recordingData.isAvailable()).thenReturn(true);
       when(recordingData.getName()).thenReturn("single-recording");
@@ -178,8 +169,7 @@ public class ProfilingSystemTest {
     }
 
     @Override
-    public RecordingData createContinuousRecording(
-        final String recordingName, final Map<String, String> template) {
+    public RecordingData createContinuousRecording(final String recordingName) {
       final RecordingData recordingData = mock(RecordingData.class);
       when(recordingData.isAvailable()).thenReturn(true);
       when(recordingData.getName()).thenReturn("continuous-recording");
@@ -187,21 +177,11 @@ public class ProfilingSystemTest {
     }
 
     @Override
-    public RecordingData snapshot() throws IOException {
+    public RecordingData snapshot() {
       final RecordingData recordingData = mock(RecordingData.class);
       when(recordingData.isAvailable()).thenReturn(true);
       when(recordingData.getName()).thenReturn("snapshot");
       return recordingData;
-    }
-
-    @Override
-    public Map<String, String> getContinuousSettings() throws IOException {
-      return null;
-    }
-
-    @Override
-    public Map<String, String> getProfilingSettings() throws IOException {
-      return null;
     }
   }
 }
