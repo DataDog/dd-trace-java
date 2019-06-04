@@ -1,8 +1,8 @@
 package com.datadog.profiling.controller.openjdk;
 
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -10,13 +10,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import jdk.jfr.Recording;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class OpenJdkRecordingDataTest {
 
   private static final String TEST_NAME = "recording name";
@@ -32,7 +32,7 @@ public class OpenJdkRecordingDataTest {
   private OpenJdkRecordingData recordingData;
   private OpenJdkRecordingData customRecordingData;
 
-  @Before
+  @BeforeEach
   public void setup() throws IOException {
     when(recording.getStream(start, end)).thenReturn(stream);
     when(recording.getStream(customStart, customEnd)).thenReturn(customStream);

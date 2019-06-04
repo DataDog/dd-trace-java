@@ -33,15 +33,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class ProfilingSystemTest {
 
   // Time in MS when all things should have been done by
@@ -59,11 +60,16 @@ public class ProfilingSystemTest {
   @Mock private Instant start;
   @Mock private Instant end;
 
-  @Before
+  @BeforeEach
   public void setup() {
     when(controller.createContinuousRecording(ProfilingSystem.CONTINUOUS_RECORDING_NAME))
         .thenReturn(continuousRecording);
     when(controller.createRecording(any())).thenReturn(profilingRecording);
+  }
+
+  @AfterEach
+  public void tearDown() {
+    pool.shutdown();
   }
 
   @Test

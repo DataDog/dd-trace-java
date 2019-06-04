@@ -5,19 +5,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.datadog.profiling.controller.ConfigurationException;
 import java.io.IOException;
 import jdk.jfr.Recording;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class OpenJdkControllerTest {
 
   private static final String TEST_NAME = "recording name";
 
   private OpenJdkController controller;
 
-  @Before
+  @BeforeEach
   public void setup() throws ConfigurationException {
     controller = new OpenJdkController();
   }

@@ -45,9 +45,9 @@ import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Unit tests for the chunk uploader. */
 public class RecordingUploaderTest {
@@ -83,14 +83,14 @@ public class RecordingUploaderTest {
 
   private RecordingUploader uploader;
 
-  @Before
+  @BeforeEach
   public void setup() throws IOException {
     server.start();
     url = server.url(URL_PATH);
     uploader = new RecordingUploader(url.toString(), APIKEY_VALUE, TAGS);
   }
 
-  @After
+  @AfterEach
   public void tearDown() throws IOException {
     try {
       server.shutdown();

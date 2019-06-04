@@ -12,7 +12,8 @@ dependencies {
   compile project(':dd-java-agent:agent-profiling:profiling-controller')
 
   testCompile deps.junit5
-  testCompile group: 'org.mockito', name: 'mockito-core', version: '2.28.0'
+  testCompile group: 'org.mockito', name: 'mockito-core', version: '2.28.2'
+  testCompile group: 'org.mockito', name: 'mockito-junit-jupiter', version: '2.28.2'
   testCompile group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
 }
 

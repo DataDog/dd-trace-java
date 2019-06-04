@@ -6,7 +6,8 @@ dependencies {
 
   testCompile deps.junit5
   testCompile deps.guava
-  testCompile group: 'org.mockito', name: 'mockito-core', version: '2.27.0'
+  testCompile group: 'org.mockito', name: 'mockito-core', version: '2.28.2'
+  testCompile group: 'org.mockito', name: 'mockito-junit-jupiter', version: '2.28.2'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8
