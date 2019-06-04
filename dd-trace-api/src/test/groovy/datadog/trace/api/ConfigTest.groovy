@@ -28,6 +28,7 @@ import static datadog.trace.api.Config.PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.api.Config.PRIORITY_SAMPLING
 import static datadog.trace.api.Config.PROFILING_API_KEY
+import static datadog.trace.api.Config.PROFILING_API_KEY_FILE
 import static datadog.trace.api.Config.PROFILING_ENABLED
 import static datadog.trace.api.Config.PROFILING_PERIODIC_DELAY
 import static datadog.trace.api.Config.PROFILING_PERIODIC_DURATION
@@ -66,6 +67,8 @@ class ConfigTest extends Specification {
   private static final DD_TRACE_AGENT_PORT_ENV = "DD_TRACE_AGENT_PORT"
   private static final DD_AGENT_PORT_LEGACY_ENV = "DD_AGENT_PORT"
   private static final DD_TRACE_REPORT_HOSTNAME = "DD_TRACE_REPORT_HOSTNAME"
+
+  private static final DD_PROFILING_API_KEY = "DD_PROFILING_APIKEY";
 
   def "verify defaults"() {
     when:
@@ -285,6 +288,7 @@ class ConfigTest extends Specification {
     environmentVariables.set(DD_PROPAGATION_STYLE_INJECT, "Datadog B3")
     environmentVariables.set(DD_JMXFETCH_METRICS_CONFIGS_ENV, "some/file")
     environmentVariables.set(DD_TRACE_REPORT_HOSTNAME, "true")
+    environmentVariables.set(DD_PROFILING_API_KEY, "test-api-key")
 
     when:
     def config = new Config()
@@ -297,6 +301,7 @@ class ConfigTest extends Specification {
     config.propagationStylesToInject.toList() == [Config.PropagationStyle.DATADOG, Config.PropagationStyle.B3]
     config.jmxFetchMetricsConfigs == ["some/file"]
     config.reportHostName == true
+    config.profilingApiKey == "test-api-key"
   }
 
   def "sys props override env vars"() {
@@ -764,5 +769,22 @@ class ConfigTest extends Specification {
 
     then:
     config.localRootSpanTags.get('_dd.hostname') == InetAddress.localHost.hostName
+  }
+
+  def "verify secret loaded from file: #path"() {
+    setup:
+    environmentVariables.set(DD_PROFILING_API_KEY, "default-api-key")
+    System.setProperty(PREFIX + PROFILING_API_KEY_FILE, path)
+
+    when:
+    def config = new Config()
+
+    then:
+    config.profilingApiKey == expectedKey
+
+    where:
+    path                                                        | expectedKey
+    getClass().getClassLoader().getResource("apikey").getFile() | "test-api-key\n"
+    "/path/that/doesnt/exist"                                   | "default-api-key"
   }
 }
