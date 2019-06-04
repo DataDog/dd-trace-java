@@ -19,45 +19,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 
-/**
- * Platform agnostic API for operations required when retrieving data using the ProfilingSystem.
- *
- * <p>Note: Due to the use of {@link Instant}, this will require JDK 8 or above. We could switch
- * this and also support Oracle JDK 7 should we want to. @See {@link ProfilingSystem}
- */
+/** Platform agnostic API for operations required when retrieving data using the ProfilingSystem. */
 public interface RecordingData {
-  /**
-   * True if the data stream is available, false if not.
-   *
-   * @return
-   */
-  boolean isAvailable();
 
   /**
    * @return the data stream.
-   * @throws IllegalStateException if the data is not available yet.
    * @throws IOException if another IO-related problem occured.
    */
-  InputStream getStream() throws IllegalStateException, IOException;
-
-  /**
-   * For getting a stream (usually from a continuous recording).
-   *
-   * <p>A few things to note:
-   *
-   * <ul>
-   *   <li>What data that will be possible to stream depends on the settings for the file repo, if
-   *       present.
-   *   <li>More to come...
-   * </ul>
-   *
-   * @param start the start time to try to get data for.
-   * @paratm end the end time to try to get data for.
-   * @return the data stream.
-   * @throws IllegalStateException if the data is not available yet.
-   * @throws IOException if another IO-related problem occurred.
-   */
-  InputStream getStream(Instant start, Instant end) throws IllegalStateException, IOException;
+  InputStream getStream() throws IOException;
 
   /**
    * Releases the resources associated with the recording, for example the underlying file.
@@ -81,28 +50,20 @@ public interface RecordingData {
   String getName();
 
   /**
-   * Returns the requested start time for the recording. If no specific time was requested, this
-   * returns null.
-   *
-   * <p>For time limited recordings this is the start time of the recording. For continuous
-   * recordings, this is the default start time for the snapshot.
+   * Returns the requested start time for the recording.
    *
    * <p>Note that this doesn't necessarily have to match the time for the actual data recorded.
    *
    * @return the requested start time.
    */
-  Instant getRequestedStart();
+  Instant getStart();
 
   /**
-   * Returns the requested end time for the recording. If no specific time was requested, this
-   * returns null.
-   *
-   * <p>For time limited recordings this is the end time of the recording. For continuous
-   * recordings, this is the default end time for the snapshot.
+   * Returns the requested end time for the recording.
    *
    * <p>Note that this doesn't necessarily have to match the time for the actual data recorded.
    *
    * @return the requested end time.
    */
-  Instant getRequestedEnd();
+  Instant getEnd();
 }

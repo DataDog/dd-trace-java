@@ -151,8 +151,8 @@ public final class RecordingUploader {
             .addFormDataPart(TYPE_PARAM, RECORDING_TYPE)
             .addFormDataPart(RUNTIME_PARAM, RECORDING_RUNTIME)
             // Note that toString is well defined for instants - ISO-8601
-            .addFormDataPart(RECORDING_START_PARAM, data.getRequestedStart().toString())
-            .addFormDataPart(RECORDING_END_PARAM, data.getRequestedEnd().toString())
+            .addFormDataPart(RECORDING_START_PARAM, data.getStart().toString())
+            .addFormDataPart(RECORDING_END_PARAM, data.getEnd().toString())
             .addFormDataPart(CHUNK_SEQUENCE_NUMBER_PARAM, String.valueOf(chunkId));
     for (final String tag : tags) {
       bodyBuilder.addFormDataPart(TAGS_PARAM, tag);

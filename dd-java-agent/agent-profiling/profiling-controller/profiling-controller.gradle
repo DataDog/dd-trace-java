@@ -1,17 +1,11 @@
 apply from: "${rootDir}/gradle/java.gradle"
 
-tasks.withType(Test).configureEach {
-  jacoco {
-    // FIXME: we should write tests and enable this!
-    enabled = false
-  }
-}
-
 dependencies {
   compile deps.slf4j
   compile project(':dd-trace-api')
 
-  testCompile deps.junit
+  testCompile deps.junit5
+  testCompile deps.guava
   testCompile group: 'org.mockito', name: 'mockito-core', version: '2.27.0'
 }
 

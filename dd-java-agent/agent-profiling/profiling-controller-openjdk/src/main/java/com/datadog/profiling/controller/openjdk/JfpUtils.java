@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datadog.profiling.controller.util;
+package com.datadog.profiling.controller.openjdk;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,7 +29,7 @@ import java.util.Properties;
  * template, but in a format that is easier to handle in the profiling agent, not requiring us to
  * parse XML.
  */
-public final class JfpUtils {
+final class JfpUtils {
   private JfpUtils() {
     throw new UnsupportedOperationException("Toolkit!");
   }

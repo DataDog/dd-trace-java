@@ -15,9 +15,6 @@
  */
 package com.datadog.profiling.controller;
 
-import java.io.IOException;
-import java.time.Duration;
-
 /**
  * Interface for the low lever flight recorder control functionality. Needed since we will likely
  * want to support multiple version later.
@@ -29,26 +26,15 @@ public interface Controller {
    * for that to completed and determined.
    *
    * @param recordingName the name under which the recording will be known.
-   * @param duration the duration for which to record.
    * @return the recording object created.
-   * @throws IOException if something went wrong when scheduling the recording.
    */
-  RecordingData createRecording(String recordingName, Duration duration) throws IOException;
+  OngoingRecording createRecording(String recordingName);
 
   /**
    * Creates a continuous recording using the specified template.
    *
    * @param recordingName the name under which the recording will be known.
    * @return the recording object created.
-   * @throws IOException if something went wrong when scheduling the recording.
    */
-  RecordingData createContinuousRecording(String recordingName) throws IOException;
-
-  /**
-   * Will snapshot the flight recorder, giving stable access to, for example, later stream between
-   * two different times.
-   *
-   * @throws IOException if something went wrong taking the snapshot.
-   */
-  RecordingData snapshot() throws IOException;
+  OngoingRecording createContinuousRecording(String recordingName);
 }

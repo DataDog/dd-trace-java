@@ -3,13 +3,6 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_11
 }
 
-tasks.withType(Test).configureEach {
-  jacoco {
-    // FIXME: we should write tests and enable this!
-    enabled = false
-  }
-}
-
 apply from: "${rootDir}/gradle/java.gradle"
 apply plugin: 'idea'
 
@@ -18,7 +11,9 @@ dependencies {
   compile project(':dd-trace-api')
   compile project(':dd-java-agent:agent-profiling:profiling-controller')
 
-  testCompile deps.junit
+  testCompile deps.junit5
+  testCompile group: 'org.mockito', name: 'mockito-core', version: '2.28.0'
+  testCompile group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
 }
 
 /*

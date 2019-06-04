@@ -15,10 +15,10 @@
  */
 package com.datadog.profiling.uploader;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -224,8 +224,8 @@ public class RecordingUploaderTest {
 
     uploader.upload(mockRecordingData(RECORDING_1_CHUNK));
 
-    assertNotNull("Expected chunk", server.takeRequest(5, TimeUnit.SECONDS));
-    assertNull("No more requests", server.takeRequest(100, TimeUnit.MILLISECONDS));
+    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS), "Expected chunk");
+    assertNull(server.takeRequest(100, TimeUnit.MILLISECONDS), "No more requests");
   }
 
   @Test
@@ -241,7 +241,7 @@ public class RecordingUploaderTest {
     final List<Integer> sequenceNumbers = new ArrayList<>();
     for (int i = 0; i < NUMBER_OF_CHUNKS; i++) {
       final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
-      assertNotNull("Expected chunk", request);
+      assertNotNull(request, "Expected chunk");
 
       final Multimap<String, Object> parameters = getParameters(request);
 
@@ -280,11 +280,11 @@ public class RecordingUploaderTest {
 
     sequenceNumbers.sort(Comparator.naturalOrder());
     assertEquals(
-        "Got all chunks",
         IntStream.range(0, NUMBER_OF_CHUNKS).boxed().collect(Collectors.toList()),
-        sequenceNumbers);
+        sequenceNumbers,
+        "Got all chunks");
 
-    assertNull("No more requests", server.takeRequest(100, TimeUnit.MILLISECONDS));
+    assertNull(server.takeRequest(100, TimeUnit.MILLISECONDS), "No more requests");
 
     verify(recording).release();
   }
@@ -336,7 +336,7 @@ public class RecordingUploaderTest {
       assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
     }
     // 'additionRecording' will not be added becasuse queue is full
-    assertNull("No more requests", server.takeRequest(100, TimeUnit.MILLISECONDS));
+    assertNull(server.takeRequest(100, TimeUnit.MILLISECONDS), "No more requests");
 
     verify(additionalRecording).release();
   }
@@ -348,7 +348,7 @@ public class RecordingUploaderTest {
     final RecordingData recording = mockRecordingData(RECORDING_1_CHUNK);
     uploader.upload(recording);
 
-    assertNull("No more requests", server.takeRequest(100, TimeUnit.MILLISECONDS));
+    assertNull(server.takeRequest(100, TimeUnit.MILLISECONDS), "No more requests");
 
     verify(recording).release();
   }
@@ -374,8 +374,8 @@ public class RecordingUploaderTest {
         .thenReturn(
             Thread.currentThread().getContextClassLoader().getResourceAsStream(recordingResource));
     when(recordingData.getName()).thenReturn(RECODING_NAME_PREFIX + SEQUENCE_NUMBER);
-    when(recordingData.getRequestedStart()).thenReturn(Instant.ofEpochSecond(REQUESTED_START));
-    when(recordingData.getRequestedEnd()).thenReturn(Instant.ofEpochSecond(REQUESTED_END));
+    when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(REQUESTED_START));
+    when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(REQUESTED_END));
     return recordingData;
   }
 }

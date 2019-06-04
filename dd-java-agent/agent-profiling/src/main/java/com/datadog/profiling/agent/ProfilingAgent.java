@@ -7,7 +7,6 @@ import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.uploader.RecordingUploader;
 import datadog.trace.api.Config;
-import java.io.IOException;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 
@@ -15,11 +14,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ProfilingAgent {
 
-  // Overkill to make these volatile?
-  private static ProfilingSystem profiler;
+  private static volatile ProfilingSystem PROFILER;
 
   public static synchronized void run() throws IllegalArgumentException {
-    if (profiler == null) {
+    if (PROFILER == null) {
       final Config config = Config.get();
       if (!config.isProfilingEnabled()) {
         log.info("Profiling: disabled");
@@ -39,16 +37,16 @@ public class ProfilingAgent {
                 config.getProfilingApiKey(),
                 config.getMergedProfilingTags());
 
-        profiler =
+        PROFILER =
             new ProfilingSystem(
                 controller,
                 uploader::upload,
                 Duration.ofSeconds(config.getProfilingPeriodicDelay()),
                 Duration.ofSeconds(config.getProfilingPeriodicPeriod()),
                 Duration.ofSeconds(config.getProfilingPeriodicDuration()));
-        profiler.start();
+        PROFILER.start();
         log.info("Periodic profiling has started!");
-      } catch (final UnsupportedEnvironmentException | IOException | ConfigurationException e) {
+      } catch (final UnsupportedEnvironmentException | ConfigurationException e) {
         log.warn("Failed to initialize profiling agent!", e);
       }
     }

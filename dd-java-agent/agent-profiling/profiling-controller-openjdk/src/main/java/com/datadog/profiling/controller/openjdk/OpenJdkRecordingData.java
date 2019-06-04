@@ -20,41 +20,32 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import jdk.jfr.Recording;
-import jdk.jfr.RecordingState;
 
 /** Implementation for profiling recordings. */
-public class ProfilingRecording implements RecordingData {
+public class OpenJdkRecordingData implements RecordingData {
+
   private final Recording recording;
+  private final Instant start;
+  private final Instant end;
 
-  public ProfilingRecording(final Recording recording) {
+  OpenJdkRecordingData(final Recording recording) {
+    this(recording, recording.getStartTime(), recording.getStopTime());
+  }
+
+  OpenJdkRecordingData(final Recording recording, final Instant start, final Instant end) {
     this.recording = recording;
+    this.start = start;
+    this.end = end;
   }
 
   @Override
-  public boolean isAvailable() {
-    return recording.getState() == RecordingState.STOPPED;
-  }
-
-  @Override
-  public InputStream getStream() throws IllegalStateException, IOException {
-    if (!isAvailable()) {
-      throw new IllegalStateException(
-          "Can't get stream from a profiling recording until the recording is finished!");
-    }
-    return recording.getStream(null, null);
+  public InputStream getStream() throws IOException {
+    return recording.getStream(start, end);
   }
 
   @Override
   public void release() {
     recording.close();
-  }
-
-  @Override
-  public InputStream getStream(final Instant start, final Instant end)
-      throws IllegalStateException, IOException {
-    // Might come in handy for long lasting profiling recordings not quite done yet, but we may want
-    // to not allow.
-    return recording.getStream(start, end);
   }
 
   @Override
@@ -64,16 +55,21 @@ public class ProfilingRecording implements RecordingData {
 
   @Override
   public String toString() {
-    return "ProfilingRecording: " + getName();
+    return "OpenJdkRecording: " + getName();
   }
 
   @Override
-  public Instant getRequestedStart() {
-    return recording.getStartTime();
+  public Instant getStart() {
+    return start;
   }
 
   @Override
-  public Instant getRequestedEnd() {
-    return recording.getStopTime();
+  public Instant getEnd() {
+    return end;
+  }
+
+  // Visible for testing
+  Recording getRecording() {
+    return recording;
   }
 }
