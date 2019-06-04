@@ -103,7 +103,7 @@ class ConfigTest extends Specification {
     config.profilingUrl == Config.DEFAULT_PROFILING_URL
     config.profilingApiKey == null
     config.mergedProfilingTags == [(HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
-    config.profilingPeriodicDelay == 30
+    config.profilingPeriodicDelay == 0
     config.profilingPeriodicPeriod == 900
     config.profilingPeriodicDuration == 60
 
