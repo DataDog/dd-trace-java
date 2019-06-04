@@ -35,7 +35,12 @@ public final class OpenJdkController implements Controller {
   private final Map<String, String> continuousRecordingSettings;
   private final Map<String, String> profilingRecordingSettings;
 
-  OpenJdkController() throws ConfigurationException {
+  /**
+   * Main contructor for OpenJDK profiling controller.
+   *
+   * <p>This has to be public because it is created via reflection
+   */
+  public OpenJdkController() throws ConfigurationException {
     try {
       profilingRecordingSettings = JfpUtils.readNamedJfpResource(JFP_PROFILE);
       continuousRecordingSettings = JfpUtils.readNamedJfpResource(JFP_CONTINUOUS);
