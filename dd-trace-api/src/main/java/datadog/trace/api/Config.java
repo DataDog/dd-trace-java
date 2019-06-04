@@ -127,7 +127,7 @@ public class Config {
   public static final boolean DEFAULT_PROFILING_ENABLED = false;
   public static final String DEFAULT_PROFILING_URL =
       "http://localhost:5000/api/v0/profiling/jfr-chunk";
-  public static final int DEFAULT_PROFILING_PERIODIC_DELAY = 30;
+  public static final int DEFAULT_PROFILING_PERIODIC_DELAY = 0;
   public static final int DEFAULT_PROFILING_PERIODIC_PERIOD = 900; // 15 mins
   public static final int DEFAULT_PROFILING_PERIODIC_DURATION = 60;
 
