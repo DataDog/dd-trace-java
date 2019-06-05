@@ -111,7 +111,7 @@ public class ProfilingSystemTest {
   }
 
   @Test
-  public void testShutdownTimeout() throws ConfigurationException {
+  public void testShutdownInterruption() throws ConfigurationException {
     final Thread mainThread = Thread.currentThread();
     doAnswer(
             (InvocationOnMock invocation) -> {
@@ -119,9 +119,11 @@ public class ProfilingSystemTest {
                 try {
                   Thread.sleep(100);
                 } catch (InterruptedException e) {
-                  // Ignore InterruptedException to force wait timeout
+                  // Ignore InterruptedException to make sure this threads lives through executor
+                  // shutdown
                 }
               }
+              // Interrupting main thread to make sure this is handled properly
               mainThread.interrupt();
               return null;
             })
@@ -140,6 +142,7 @@ public class ProfilingSystemTest {
     // Make sure we actually started the recording before terminating
     verify(controller, timeout(100)).createRecording(any());
     system.shutdown();
+    assertTrue(true, "Shutdown exited cleanly after interruption");
   }
 
   @Test

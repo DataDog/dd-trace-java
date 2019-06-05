@@ -114,6 +114,8 @@ public final class ProfilingSystem {
     try {
       executorService.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
     } catch (final InterruptedException e) {
+      // Note: this should only happen in main thread right before exiting, so eating up interrupted
+      // state should be fine.
       log.error("Wait for executor shutdown interrupted");
     }
 
