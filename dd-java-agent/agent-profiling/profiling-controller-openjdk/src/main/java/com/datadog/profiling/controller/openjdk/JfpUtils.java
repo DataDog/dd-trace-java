@@ -15,6 +15,7 @@
  */
 package com.datadog.profiling.controller.openjdk;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
@@ -44,16 +45,25 @@ final class JfpUtils {
     for (final Entry<Object, Object> o : props.entrySet()) {
       map.put(String.valueOf(o.getKey()), String.valueOf(o.getValue()));
     }
-    return Collections.unmodifiableMap(map);
+    return map;
   }
 
   private static InputStream getNamedResource(final String name) {
     return JfpUtils.class.getClassLoader().getResourceAsStream(name);
   }
 
-  public static Map<String, String> readNamedJfpResource(final String name) throws IOException {
+  public static Map<String, String> readNamedJfpResource(
+      final String name, final String overridesFile) throws IOException {
+    final Map<String, String> result;
     try (final InputStream stream = getNamedResource(name)) {
-      return readJfpFile(stream);
+      result = readJfpFile(stream);
     }
+
+    if (overridesFile != null) {
+      try (final InputStream stream = new FileInputStream(overridesFile)) {
+        result.putAll(readJfpFile(stream));
+      }
+    }
+    return Collections.unmodifiableMap(result);
   }
 }

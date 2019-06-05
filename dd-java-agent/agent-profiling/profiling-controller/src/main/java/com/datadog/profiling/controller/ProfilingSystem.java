@@ -70,7 +70,7 @@ public final class ProfilingSystem {
         delay,
         period,
         recordingDuration,
-        Executors.newScheduledThreadPool(1, new ProfilingRecorderThreadFactory()),
+        Executors.newScheduledThreadPool(1, new ProfilingThreadFactory()),
         new AtomicInteger());
   }
 
@@ -165,7 +165,7 @@ public final class ProfilingSystem {
     }
   }
 
-  private static final class ProfilingRecorderThreadFactory implements ThreadFactory {
+  private static final class ProfilingThreadFactory implements ThreadFactory {
     private static final ThreadGroup THREAD_GROUP = new ThreadGroup("Datadog Profiler");
 
     @Override

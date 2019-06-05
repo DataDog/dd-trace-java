@@ -17,6 +17,7 @@ package com.datadog.profiling.controller.openjdk;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
+import datadog.trace.api.Config;
 import java.io.IOException;
 import java.util.Map;
 import jdk.jfr.Recording;
@@ -40,10 +41,14 @@ public final class OpenJdkController implements Controller {
    *
    * <p>This has to be public because it is created via reflection
    */
-  public OpenJdkController() throws ConfigurationException {
+  public OpenJdkController(final Config config) throws ConfigurationException {
     try {
-      profilingRecordingSettings = JfpUtils.readNamedJfpResource(JFP_PROFILE);
-      continuousRecordingSettings = JfpUtils.readNamedJfpResource(JFP_CONTINUOUS);
+      profilingRecordingSettings =
+          JfpUtils.readNamedJfpResource(
+              JFP_PROFILE, config.getProfilingPeriodicConfigOverridePath());
+      continuousRecordingSettings =
+          JfpUtils.readNamedJfpResource(
+              JFP_CONTINUOUS, config.getProfilingContinuousConfigOverridePath());
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
