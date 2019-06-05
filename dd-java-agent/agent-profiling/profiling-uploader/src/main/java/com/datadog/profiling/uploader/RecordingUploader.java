@@ -141,7 +141,7 @@ public final class RecordingUploader {
   }
 
   private void uploadChunk(final RecordingData data, final int chunkId, final byte[] chunk) {
-    log.info("Uploading {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
+    log.info("Uploading chunk {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
 
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder()
@@ -178,7 +178,7 @@ public final class RecordingUploader {
   private boolean canEnqueueMoreRequests() {
     // This is a soft limit since recording data may contain many chunks which are
     // uploaded with multiple requests.
-    return client.dispatcher().queuedCallsCount() <= MAX_ENQUEUED_REQUESTS;
+    return client.dispatcher().queuedCallsCount() < MAX_ENQUEUED_REQUESTS;
   }
 
   private List<String> tagsToList(final Map<String, String> tags) {
