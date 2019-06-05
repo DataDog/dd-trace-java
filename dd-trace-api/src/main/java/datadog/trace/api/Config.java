@@ -1,7 +1,11 @@
 package datadog.trace.api;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -82,6 +86,7 @@ public class Config {
   public static final String PROFILING_ENABLED = "profiling.enabled";
   public static final String PROFILING_URL = "profiling.url";
   public static final String PROFILING_API_KEY = "profiling.apikey";
+  public static final String PROFILING_API_KEY_FILE = "profiling.apikey.file";
   public static final String PROFILING_TAGS = "profiling.tags";
   public static final String PROFILING_PERIODIC_DELAY = "profiling.periodic.delay";
   public static final String PROFILING_PERIODIC_PERIOD = "profiling.periodic.period";
@@ -285,7 +290,19 @@ public class Config {
     // Note: We do not want APiKey to be loaded from property for security reasons
     // Note: we do not use defined default here
     // FIXME: We should use better authentication mechanism
-    profilingApiKey = System.getenv(propertyToEnvironmentName(PREFIX + PROFILING_API_KEY));
+    final String profilingApiKeyFile = getSettingFromEnvironment(PROFILING_API_KEY_FILE, null);
+    String tmpProfilingApiKey =
+        System.getenv(propertyToEnvironmentName(PREFIX + PROFILING_API_KEY));
+    if (profilingApiKeyFile != null) {
+      try {
+        tmpProfilingApiKey =
+            new String(Files.readAllBytes(Paths.get(profilingApiKeyFile)), StandardCharsets.UTF_8);
+      } catch (final IOException e) {
+        log.error("Cannot read API key from file {}, skipping", profilingApiKeyFile, e);
+      }
+    }
+    profilingApiKey = tmpProfilingApiKey;
+
     profilingTags = getMapSettingFromEnvironment(PROFILING_TAGS, null);
     profilingPeriodicDelay =
         getIntegerSettingFromEnvironment(
