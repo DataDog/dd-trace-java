@@ -41,8 +41,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 @ExtendWith(MockitoExtension.class)
+// Proper unused stub detection doesn't work in junit5 yet,
+// see https://github.com/mockito/mockito/issues/1540
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class ProfilingSystemTest {
 
   // Time in MS when all things should have been done by

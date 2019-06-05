@@ -15,8 +15,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 @ExtendWith(MockitoExtension.class)
+// Proper unused stub detection doesn't work in junit5 yet,
+// see https://github.com/mockito/mockito/issues/1540
+@MockitoSettings(strictness = Strictness.LENIENT)
 public class OpenJdkOngoingRecordingTest {
 
   private static final String TEST_NAME = "recording name";
