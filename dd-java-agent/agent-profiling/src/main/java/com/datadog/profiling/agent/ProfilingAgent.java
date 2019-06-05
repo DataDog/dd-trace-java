@@ -7,6 +7,7 @@ import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.uploader.RecordingUploader;
 import datadog.trace.api.Config;
+import java.lang.ref.WeakReference;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,8 +47,43 @@ public class ProfilingAgent {
                 Duration.ofSeconds(config.getProfilingPeriodicDuration()));
         PROFILER.start();
         log.info("Periodic profiling has started!");
+
+        try {
+          /*
+          Note: shutdown hooks are tricky because JVM holds reference for them forever preventing
+          GC for anything that is reachable from it.
+          This means that if/when we implement functionality to manually shutdown profiler we would
+          need to not forget to add code that removes this shutdown hook from JVM.
+           */
+          Runtime.getRuntime().addShutdownHook(new ShutdownHook(PROFILER, uploader));
+        } catch (final IllegalStateException ex) {
+          // The JVM is already shutting down.
+        }
       } catch (final UnsupportedEnvironmentException | ConfigurationException e) {
         log.warn("Failed to initialize profiling agent!", e);
+      }
+    }
+  }
+
+  private static class ShutdownHook extends Thread {
+    private final WeakReference<ProfilingSystem> profilerRef;
+    private final WeakReference<RecordingUploader> uploaderRef;
+
+    private ShutdownHook(final ProfilingSystem profiler, final RecordingUploader uploader) {
+      profilerRef = new WeakReference<>(profiler);
+      uploaderRef = new WeakReference<>(uploader);
+    }
+
+    @Override
+    public void run() {
+      final ProfilingSystem profiler = profilerRef.get();
+      if (profiler != null) {
+        profiler.shutdown();
+      }
+
+      final RecordingUploader uploader = uploaderRef.get();
+      if (uploader != null) {
+        uploader.shutdown();
       }
     }
   }
