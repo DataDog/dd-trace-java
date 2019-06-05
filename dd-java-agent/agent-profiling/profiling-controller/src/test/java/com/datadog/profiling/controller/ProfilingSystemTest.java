@@ -62,8 +62,6 @@ public class ProfilingSystemTest {
   @Mock private OngoingRecording profilingRecording;
   @Mock private RecordingData recordingData;
   @Mock private RecordingDataListener listener;
-  @Mock private Instant start;
-  @Mock private Instant end;
 
   @BeforeEach
   public void setup() {
@@ -290,6 +288,8 @@ public class ProfilingSystemTest {
   /** Ensuring that it can be started, and recording data for the continuous recording captured. */
   @Test
   public void testContinuousRecording() throws ConfigurationException {
+    final Instant start = Instant.EPOCH;
+    final Instant end = Instant.now();
     when(continuousRecording.snapshot(start, end)).thenReturn(recordingData);
 
     final ProfilingSystem system =
