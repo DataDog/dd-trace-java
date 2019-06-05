@@ -1,5 +1,12 @@
 apply from: "${rootDir}/gradle/java.gradle"
 
+excludedClassesConverage += [
+  // This is mainly JFR copy-paste and should be removed at some point
+  'com.datadog.profiling.uploader.util.*',
+  // This is just a static declaration that is hard to test
+  'com.datadog.profiling.uploader.VersionInfo'
+]
+
 dependencies {
   compile deps.slf4j
   compile project(':dd-trace-api')
