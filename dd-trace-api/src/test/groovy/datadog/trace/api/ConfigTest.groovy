@@ -68,7 +68,7 @@ class ConfigTest extends Specification {
   private static final DD_AGENT_PORT_LEGACY_ENV = "DD_AGENT_PORT"
   private static final DD_TRACE_REPORT_HOSTNAME = "DD_TRACE_REPORT_HOSTNAME"
 
-  private static final DD_PROFILING_API_KEY = "DD_PROFILING_APIKEY";
+  private static final DD_PROFILING_API_KEY = "DD_PROFILING_APIKEY"
 
   def "verify defaults"() {
     when:
