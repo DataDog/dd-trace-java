@@ -82,15 +82,12 @@ public final class RecordingUploader {
 
         @Override
         public void onResponse(final Call call, final Response response) {
-          // Apparently we have to do this with okHttp, even if we do not use the body
-          if (response.body() != null) {
-            response.body().close();
-          }
           if (response.isSuccessful()) {
             log.info("Upload done");
           } else {
             log.error("Failed to upload chunk: unexpected response code: " + response);
           }
+          response.close();
         }
       };
 
