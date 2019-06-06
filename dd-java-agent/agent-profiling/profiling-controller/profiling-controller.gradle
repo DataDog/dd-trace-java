@@ -1,6 +1,6 @@
 apply from: "${rootDir}/gradle/java.gradle"
 
-excludedClassesConverage += [
+excludedClassesCoverage += [
   // ControllerFactory gets better tested in actual controller implementations
   'com.datadog.profiling.controller.ControllerFactory',
   // There are some copde paths that is impossible/very-very hard to hit
