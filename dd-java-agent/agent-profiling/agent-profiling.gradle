@@ -4,6 +4,7 @@ plugins {
 
 // Set properties before any plugins get loaded
 ext {
+  enableJunitPlatform = true
   minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 

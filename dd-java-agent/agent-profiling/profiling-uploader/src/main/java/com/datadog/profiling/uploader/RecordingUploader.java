@@ -82,15 +82,12 @@ public final class RecordingUploader {
 
         @Override
         public void onResponse(final Call call, final Response response) {
-          // Apparently we have to do this with okHttp, even if we do not use the body
-          if (response.body() != null) {
-            response.body().close();
-          }
           if (response.isSuccessful()) {
             log.info("Upload done");
           } else {
             log.error("Failed to upload chunk: unexpected response code: " + response);
           }
+          response.close();
         }
       };
 
@@ -141,7 +138,7 @@ public final class RecordingUploader {
   }
 
   private void uploadChunk(final RecordingData data, final int chunkId, final byte[] chunk) {
-    log.info("Uploading {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
+    log.info("Uploading chunk {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
 
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder()
@@ -151,8 +148,8 @@ public final class RecordingUploader {
             .addFormDataPart(TYPE_PARAM, RECORDING_TYPE)
             .addFormDataPart(RUNTIME_PARAM, RECORDING_RUNTIME)
             // Note that toString is well defined for instants - ISO-8601
-            .addFormDataPart(RECORDING_START_PARAM, data.getRequestedStart().toString())
-            .addFormDataPart(RECORDING_END_PARAM, data.getRequestedEnd().toString())
+            .addFormDataPart(RECORDING_START_PARAM, data.getStart().toString())
+            .addFormDataPart(RECORDING_END_PARAM, data.getEnd().toString())
             .addFormDataPart(CHUNK_SEQUENCE_NUMBER_PARAM, String.valueOf(chunkId));
     for (final String tag : tags) {
       bodyBuilder.addFormDataPart(TAGS_PARAM, tag);
@@ -178,7 +175,7 @@ public final class RecordingUploader {
   private boolean canEnqueueMoreRequests() {
     // This is a soft limit since recording data may contain many chunks which are
     // uploaded with multiple requests.
-    return client.dispatcher().queuedCallsCount() <= MAX_ENQUEUED_REQUESTS;
+    return client.dispatcher().queuedCallsCount() < MAX_ENQUEUED_REQUESTS;
   }
 
   private List<String> tagsToList(final Map<String, String> tags) {

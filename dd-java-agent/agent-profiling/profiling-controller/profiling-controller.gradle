@@ -1,18 +1,21 @@
 apply from: "${rootDir}/gradle/java.gradle"
 
-tasks.withType(Test).configureEach {
-  jacoco {
-    // FIXME: we should write tests and enable this!
-    enabled = false
-  }
-}
+excludedClassesConverage += [
+  // ControllerFactory gets better tested in actual controller implementations
+  'com.datadog.profiling.controller.ControllerFactory',
+  // There are some copde paths that is impossible/very-very hard to hit
+  'com.datadog.profiling.controller.ProfilingSystem.StartRecording',
+  'com.datadog.profiling.controller.ProfilingSystem.StopRecording'
+]
 
 dependencies {
   compile deps.slf4j
   compile project(':dd-trace-api')
 
-  testCompile deps.junit
-  testCompile group: 'org.mockito', name: 'mockito-core', version: '2.27.0'
+  testCompile deps.junit5
+  testCompile deps.guava
+  testCompile group: 'org.mockito', name: 'mockito-core', version: '2.28.2'
+  testCompile group: 'org.mockito', name: 'mockito-junit-jupiter', version: '2.28.2'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8

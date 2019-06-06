@@ -15,14 +15,10 @@
  */
 package com.datadog.profiling.controller.openjdk;
 
+import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
-import com.datadog.profiling.controller.RecordingData;
-import com.datadog.profiling.controller.util.JfpUtils;
 import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
-import jdk.jfr.FlightRecorder;
 import jdk.jfr.Recording;
 
 /**
@@ -31,50 +27,45 @@ import jdk.jfr.Recording;
  * messier... ;)
  */
 public final class OpenJdkController implements Controller {
-  private static final String JFP_CONTINUOUS = "jfr2/ddcontinuous.jfp";
-  private static final String JFP_PROFILE = "jfr2/ddprofile.jfp";
+  // Visible for testing
+  static final String JFP_PROFILE = "jfr2/ddprofile.jfp";
+  // Visible for testing
+  static final String JFP_CONTINUOUS = "jfr2/ddcontinuous.jfp";
 
-  @Override
-  public RecordingData createRecording(
-      final String recordingName, final Map<String, String> template, final Duration duration)
-      throws IOException {
-    final Recording recording = new Recording();
-    recording.setName(recordingName);
-    recording.setDuration(duration);
-    recording.setSettings(template);
-    recording.start();
-    return new ProfilingRecording(recording);
+  private final Map<String, String> continuousRecordingSettings;
+  private final Map<String, String> profilingRecordingSettings;
+
+  /**
+   * Main contructor for OpenJDK profiling controller.
+   *
+   * <p>This has to be public because it is created via reflection
+   */
+  public OpenJdkController() throws ConfigurationException {
+    try {
+      profilingRecordingSettings = JfpUtils.readNamedJfpResource(JFP_PROFILE);
+      continuousRecordingSettings = JfpUtils.readNamedJfpResource(JFP_CONTINUOUS);
+    } catch (final IOException e) {
+      throw new ConfigurationException(e);
+    }
   }
 
   @Override
-  public RecordingData createContinuousRecording(
-      final String recordingName, final Map<String, String> template) {
+  public OpenJdkOngoingRecording createRecording(final String recordingName) {
     final Recording recording = new Recording();
     recording.setName(recordingName);
-    recording.setSettings(template);
+    recording.setSettings(profilingRecordingSettings);
+    recording.start();
+    return new OpenJdkOngoingRecording(recording);
+  }
+
+  @Override
+  public OpenJdkOngoingRecording createContinuousRecording(final String recordingName) {
+    final Recording recording = new Recording();
+    recording.setName(recordingName);
+    recording.setSettings(continuousRecordingSettings);
     recording.start();
     // probably limit maxSize to something sensible, and configurable, here. For now rely on
     // in-memory.
-    return new ContinuousRecording(recording);
-  }
-
-  @Override
-  public RecordingData snapshot() throws IOException {
-    return new ContinuousRecording(FlightRecorder.getFlightRecorder().takeSnapshot());
-  }
-
-  @Override
-  public RecordingData snapshot(final Instant start, final Instant end) throws IOException {
-    return new ContinuousRecording(FlightRecorder.getFlightRecorder().takeSnapshot(), start, end);
-  }
-
-  @Override
-  public Map<String, String> getContinuousSettings() throws IOException {
-    return JfpUtils.readNamedJfpResource(JFP_CONTINUOUS);
-  }
-
-  @Override
-  public Map<String, String> getProfilingSettings() throws IOException {
-    return JfpUtils.readNamedJfpResource(JFP_PROFILE);
+    return new OpenJdkOngoingRecording(recording);
   }
 }

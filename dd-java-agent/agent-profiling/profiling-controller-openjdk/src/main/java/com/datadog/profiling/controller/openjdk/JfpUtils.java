@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.datadog.profiling.controller.util;
+package com.datadog.profiling.controller.openjdk;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -28,33 +29,31 @@ import java.util.Properties;
  * template, but in a format that is easier to handle in the profiling agent, not requiring us to
  * parse XML.
  */
-public final class JfpUtils {
+final class JfpUtils {
   private JfpUtils() {
     throw new UnsupportedOperationException("Toolkit!");
   }
 
-  public static Map<String, String> readJfpFile(final InputStream stream) throws IOException {
+  private static Map<String, String> readJfpFile(final InputStream stream) throws IOException {
     if (stream == null) {
       throw new IllegalArgumentException("Cannot read jfp file from empty stream!");
     }
     final Properties props = new Properties();
-    try {
-      props.load(stream);
-    } finally {
-      stream.close();
-    }
+    props.load(stream);
     final Map<String, String> map = new HashMap<>();
     for (final Entry<Object, Object> o : props.entrySet()) {
       map.put(String.valueOf(o.getKey()), String.valueOf(o.getValue()));
     }
-    return map;
+    return Collections.unmodifiableMap(map);
   }
 
-  public static InputStream getNamedResource(final String name) {
+  private static InputStream getNamedResource(final String name) {
     return JfpUtils.class.getClassLoader().getResourceAsStream(name);
   }
 
   public static Map<String, String> readNamedJfpResource(final String name) throws IOException {
-    return readJfpFile(getNamedResource(name));
+    try (final InputStream stream = getNamedResource(name)) {
+      return readJfpFile(stream);
+    }
   }
 }

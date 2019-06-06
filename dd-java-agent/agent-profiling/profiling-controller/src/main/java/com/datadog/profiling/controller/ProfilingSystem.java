@@ -15,29 +15,26 @@
  */
 package com.datadog.profiling.controller;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Sets up the profiling strategy and schedules the profiling recordings. */
 @Slf4j
 public final class ProfilingSystem {
-  public static final ThreadGroup THREAD_GROUP = new ThreadGroup("Datadog Profiler");
+  static final String PROFILING_RECORDING_NAME_PREFIX = "dd-profiling-";
+  static final String CONTINUOUS_RECORDING_NAME = "dd-profiling-continuous";
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ProfilingSystem.class);
-  private static final AtomicInteger RECORDING_SEQUENCE_NUMBER = new AtomicInteger();
+  private static final long TERMINATION_TIMEOUT = 10;
 
-  private final ScheduledExecutorService executorService =
-      Executors.newScheduledThreadPool(1, new ProfilingRecorderThreadFactory());
+  private final ScheduledExecutorService executorService;
+  private final AtomicInteger recordingSequenceCounter;
   private final Controller controller;
   // For now only support one callback. Multiplex as needed.
   private final RecordingDataListener dataListener;
@@ -46,10 +43,9 @@ public final class ProfilingSystem {
   private final Duration period;
   private final Duration recordingDuration;
 
-  private volatile ScheduledFuture<?> scheduledProfilingRecordings;
-  private volatile ScheduledFuture<?> scheduledHarvester;
-  private volatile RecordingData continuousRecording;
-  private volatile RecordingData ongoingProfilingRecording;
+  private OngoingRecording continuousRecording;
+  private final AtomicReference<OngoingRecording> ongoingProfilingRecording =
+      new AtomicReference<>(null);
 
   /**
    * Constructor.
@@ -68,130 +64,115 @@ public final class ProfilingSystem {
       final Duration period,
       final Duration recordingDuration)
       throws ConfigurationException {
+    this(
+        controller,
+        dataListener,
+        delay,
+        period,
+        recordingDuration,
+        Executors.newScheduledThreadPool(1, new ProfilingRecorderThreadFactory()),
+        new AtomicInteger());
+  }
+
+  /** Constructor visible for testing. */
+  ProfilingSystem(
+      final Controller controller,
+      final RecordingDataListener dataListener,
+      final Duration delay,
+      final Duration period,
+      final Duration recordingDuration,
+      final ScheduledExecutorService executorService,
+      final AtomicInteger recordingSequenceCounter)
+      throws ConfigurationException {
     this.controller = controller;
     this.dataListener = dataListener;
     this.delay = delay;
     this.period = period;
     this.recordingDuration = recordingDuration;
+    this.executorService = executorService;
+    this.recordingSequenceCounter = recordingSequenceCounter;
+
     if (period.minus(recordingDuration).isNegative()) {
       throw new ConfigurationException("Period must be larger than recording duration.");
     }
   }
 
-  /**
-   * Starts the scheduling of profiling recordings and the continuous recording.
-   *
-   * @throws IOException if there was a problem reading configuration files etc.
-   */
-  public final void start() throws IOException {
-    continuousRecording =
-        controller.createContinuousRecording(
-            "dd_profiler_continuous", controller.getContinuousSettings());
-    startSchedulingProfilingRecordings();
+  public final void start() {
+    continuousRecording = controller.createContinuousRecording(CONTINUOUS_RECORDING_NAME);
+    executorService.scheduleAtFixedRate(
+        new StartRecording(), delay.toMillis(), period.toMillis(), TimeUnit.MILLISECONDS);
   }
 
-  /**
-   * Schedules the repeated recording of profiling recordings.
-   *
-   * @throws IOException if there was a problem reading the profiling settings.
-   */
-  private void startSchedulingProfilingRecordings() throws IOException {
-    scheduledProfilingRecordings =
-        executorService.scheduleAtFixedRate(
-            new RecordingCreator(controller.getProfilingSettings()),
-            delay.toMillis(),
-            period.toMillis(),
-            TimeUnit.MILLISECONDS);
-    scheduledHarvester =
-        executorService.scheduleAtFixedRate(
-            new RecordingHarvester(),
-            delay.toMillis() + recordingDuration.toMillis() + 50,
-            period.toMillis(),
-            TimeUnit.MILLISECONDS);
+  public void triggerSnapshot(final Instant start, final Instant end) {
+    dataListener.onNewData(continuousRecording.snapshot(start, end));
   }
 
   /** Shuts down the profiling system. */
   public final void shutdown() {
     executorService.shutdownNow();
 
-    if (scheduledHarvester != null) {
-      scheduledHarvester.cancel(true);
-    }
-    if (scheduledProfilingRecordings != null) {
-      scheduledProfilingRecordings.cancel(true);
-    }
-    RecordingData recording = ongoingProfilingRecording;
-    if (recording != null) {
-      recording.release();
-      ongoingProfilingRecording = null;
-    }
-    recording = continuousRecording;
-    if (recording != null) {
-      recording.release();
-      continuousRecording = null;
-    }
-
     try {
-      executorService.awaitTermination(10, TimeUnit.SECONDS);
+      executorService.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
     } catch (final InterruptedException e) {
+      // Note: this should only happen in main thread right before exiting, so eating up interrupted
+      // state should be fine.
       log.error("Wait for executor shutdown interrupted");
     }
-  }
 
-  public void triggerSnapshot() throws IOException {
-    dataListener.onNewData(controller.snapshot());
-  }
-
-  public void triggerSnapshot(final Instant start, final Instant end) throws IOException {
-    dataListener.onNewData(controller.snapshot(start, end));
-  }
-
-  /**
-   * Package private helper class for scheduling the creation of recordings.
-   *
-   * @author Marcus Hirt
-   */
-  private final class RecordingCreator implements Runnable {
-    private final Map<String, String> template;
-
-    public RecordingCreator(final Map<String, String> template) {
-      this.template = template;
+    // Here we assume that all other threads have been shutdown and we can close remaining
+    // recordings
+    if (continuousRecording != null) {
+      continuousRecording.close();
     }
+
+    final OngoingRecording recording = ongoingProfilingRecording.getAndSet(null);
+    if (recording != null) {
+      recording.close();
+    }
+  }
+
+  private final class StartRecording implements Runnable {
 
     @Override
     public void run() {
       try {
-        if (ongoingProfilingRecording == null) {
-          ongoingProfilingRecording =
-              controller.createRecording(
-                  "dd-profiling-" + RECORDING_SEQUENCE_NUMBER.getAndIncrement(),
-                  template,
-                  recordingDuration);
+        final OngoingRecording recording =
+            controller.createRecording(
+                PROFILING_RECORDING_NAME_PREFIX + recordingSequenceCounter.getAndIncrement());
+        if (ongoingProfilingRecording.compareAndSet(null, recording)) {
+          executorService.schedule(
+              new StopRecording(), recordingDuration.toMillis(), TimeUnit.MILLISECONDS);
         } else {
+          // Note: this seems to be impossible to test because we do not allow recordings longer
+          // than recording period
+          recording.close();
           log.warn("Skipped creating profiling recording, since one was already underway.");
         }
-      } catch (final IOException e) {
+      } catch (final Exception e) {
         log.error("Failed to create a profiling recording!", e);
       }
     }
   }
 
-  private final class RecordingHarvester implements Runnable {
-    private static final long RETRY_DELAY = 100;
+  private final class StopRecording implements Runnable {
 
     @Override
     public void run() {
-      final RecordingData recording = ongoingProfilingRecording;
+      final OngoingRecording recording = ongoingProfilingRecording.getAndSet(null);
       if (recording != null) {
-        if (!recording.isAvailable()) {
-          // We were called too soon. Let's try again in a bit.
-          executorService.schedule(this, RETRY_DELAY, TimeUnit.MILLISECONDS);
-          log.warn("Profiling Recording wasn't done. Rescheduled check in {} ms", RETRY_DELAY);
-        } else {
-          dataListener.onNewData(recording);
-          ongoingProfilingRecording = null;
-        }
+        dataListener.onNewData(recording.stop());
       }
+    }
+  }
+
+  private static final class ProfilingRecorderThreadFactory implements ThreadFactory {
+    private static final ThreadGroup THREAD_GROUP = new ThreadGroup("Datadog Profiler");
+
+    @Override
+    public Thread newThread(final Runnable r) {
+      final Thread t = new Thread(THREAD_GROUP, r, "dd-profiler-recording-scheduler");
+      t.setDaemon(true);
+      return t;
     }
   }
 }
