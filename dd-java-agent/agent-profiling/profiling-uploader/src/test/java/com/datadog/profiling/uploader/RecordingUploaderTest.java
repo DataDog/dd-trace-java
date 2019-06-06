@@ -357,7 +357,7 @@ public class RecordingUploaderTest {
     }
 
     final List<RecordingData> hangingRequests = new ArrayList<>();
-    // We schedule one additional request to check case when request would be injected immediately
+    // We schedule one additional request to check case when request would be rejected immediately
     // rather than added to the queue.
     for (int i = 0; i < RecordingUploader.MAX_ENQUEUED_REQUESTS + 1; i++) {
       final RecordingData recording = mockRecordingData(RECORDING_1_CHUNK);
