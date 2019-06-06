@@ -1,5 +1,7 @@
 package com.datadog.profiling.controller.openjdk;
 
+import static com.datadog.profiling.controller.openjdk.JfpUtilsTest.CONTINUOUS_OVERRIDES;
+import static com.datadog.profiling.controller.openjdk.JfpUtilsTest.PERIODIC_OVERRIDES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
@@ -17,13 +19,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class OpenJdkControllerTest {
 
   private static final String TEST_NAME = "recording name";
-  private static final String PERIODIC_OVERRIDES =
-      OpenJdkControllerTest.class.getClassLoader().getResource("periodic-overrides.jfp").getFile();
-  private static final String CONTINUOUS_OVERRIDES =
-      OpenJdkControllerTest.class
-          .getClassLoader()
-          .getResource("continuous-overrides.jfp")
-          .getFile();
 
   @Mock private Config config;
   private OpenJdkController controller;
