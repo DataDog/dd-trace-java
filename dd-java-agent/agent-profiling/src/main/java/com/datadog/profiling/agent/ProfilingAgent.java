@@ -30,7 +30,7 @@ public class ProfilingAgent {
       }
 
       try {
-        final Controller controller = ControllerFactory.createController();
+        final Controller controller = ControllerFactory.createController(config);
 
         final RecordingUploader uploader =
             new RecordingUploader(

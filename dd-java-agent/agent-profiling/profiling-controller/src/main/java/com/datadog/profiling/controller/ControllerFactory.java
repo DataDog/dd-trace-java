@@ -15,6 +15,7 @@
  */
 package com.datadog.profiling.controller;
 
+import datadog.trace.api.Config;
 import java.lang.reflect.InvocationTargetException;
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,7 +30,8 @@ public final class ControllerFactory {
    * @throws UnsupportedEnvironmentException if there is controller available for the platform we're
    *     running in. See the exception message for specifics.
    */
-  public static Controller createController() throws UnsupportedEnvironmentException {
+  public static Controller createController(final Config config)
+      throws UnsupportedEnvironmentException {
     try {
       Class.forName("com.oracle.jrockit.jfr.Producer");
       throw new UnsupportedEnvironmentException(
@@ -41,7 +43,7 @@ public final class ControllerFactory {
       final Class<? extends Controller> clazz =
           Class.forName("com.datadog.profiling.controller.openjdk.OpenJdkController")
               .asSubclass(Controller.class);
-      return clazz.getDeclaredConstructor().newInstance();
+      return clazz.getDeclaredConstructor(Config.class).newInstance(config);
     } catch (final ClassNotFoundException
         | NoSuchMethodException
         | InstantiationException

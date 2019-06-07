@@ -29,7 +29,9 @@ import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.api.Config.PRIORITY_SAMPLING
 import static datadog.trace.api.Config.PROFILING_API_KEY
 import static datadog.trace.api.Config.PROFILING_API_KEY_FILE
+import static datadog.trace.api.Config.PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH
 import static datadog.trace.api.Config.PROFILING_ENABLED
+import static datadog.trace.api.Config.PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH
 import static datadog.trace.api.Config.PROFILING_PERIODIC_DELAY
 import static datadog.trace.api.Config.PROFILING_PERIODIC_DURATION
 import static datadog.trace.api.Config.PROFILING_PERIODIC_PERIOD
@@ -109,6 +111,8 @@ class ConfigTest extends Specification {
     config.profilingPeriodicDelay == 0
     config.profilingPeriodicPeriod == 900
     config.profilingPeriodicDuration == 60
+    config.profilingPeriodicConfigOverridePath == null
+    config.profilingContinuousConfigOverridePath == null
 
     config.toString().contains("unnamed-java-app")
 
@@ -159,6 +163,8 @@ class ConfigTest extends Specification {
     prop.setProperty(PROFILING_PERIODIC_DELAY, "1111")
     prop.setProperty(PROFILING_PERIODIC_PERIOD, "1112")
     prop.setProperty(PROFILING_PERIODIC_DURATION, "1113")
+    prop.setProperty(PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, "/periodic/path")
+    prop.setProperty(PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
 
     when:
     Config config = Config.get(prop)
@@ -198,6 +204,8 @@ class ConfigTest extends Specification {
     config.profilingPeriodicDelay == 1111
     config.profilingPeriodicPeriod == 1112
     config.profilingPeriodicDuration == 1113
+    config.profilingPeriodicConfigOverridePath == "/periodic/path"
+    config.profilingContinuousConfigOverridePath == "/continuous/path"
   }
 
   def "specify overrides via system properties"() {
@@ -238,6 +246,8 @@ class ConfigTest extends Specification {
     System.setProperty(PREFIX + PROFILING_PERIODIC_DELAY, "1111")
     System.setProperty(PREFIX + PROFILING_PERIODIC_PERIOD, "1112")
     System.setProperty(PREFIX + PROFILING_PERIODIC_DURATION, "1113")
+    System.setProperty(PREFIX + PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, "/periodic/path")
+    System.setProperty(PREFIX + PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
 
     when:
     Config config = new Config()
@@ -277,6 +287,8 @@ class ConfigTest extends Specification {
     config.profilingPeriodicDelay == 1111
     config.profilingPeriodicPeriod == 1112
     config.profilingPeriodicDuration == 1113
+    config.profilingPeriodicConfigOverridePath == "/periodic/path"
+    config.profilingContinuousConfigOverridePath == "/continuous/path"
   }
 
   def "specify overrides via env vars"() {

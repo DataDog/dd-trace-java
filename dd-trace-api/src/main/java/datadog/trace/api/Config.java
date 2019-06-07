@@ -91,6 +91,10 @@ public class Config {
   public static final String PROFILING_PERIODIC_DELAY = "profiling.periodic.delay";
   public static final String PROFILING_PERIODIC_PERIOD = "profiling.periodic.period";
   public static final String PROFILING_PERIODIC_DURATION = "profiling.periodic.duration";
+  public static final String PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH =
+      "profiling.periodic.config.override.path";
+  public static final String PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH =
+      "profiling.continuous.config.override.path";
 
   public static final String RUNTIME_ID_TAG = "runtime-id";
   public static final String SERVICE_TAG = "service";
@@ -197,6 +201,8 @@ public class Config {
   @Getter private final int profilingPeriodicDelay;
   @Getter private final int profilingPeriodicPeriod;
   @Getter private final int profilingPeriodicDuration;
+  @Getter private final String profilingPeriodicConfigOverridePath;
+  @Getter private final String profilingContinuousConfigOverridePath;
 
   // Read order: System Properties -> Env Variables, [-> default value]
   // Visible for testing
@@ -313,6 +319,10 @@ public class Config {
     profilingPeriodicDuration =
         getIntegerSettingFromEnvironment(
             PROFILING_PERIODIC_DURATION, DEFAULT_PROFILING_PERIODIC_DURATION);
+    profilingPeriodicConfigOverridePath =
+        getSettingFromEnvironment(PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, null);
+    profilingContinuousConfigOverridePath =
+        getSettingFromEnvironment(PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, null);
 
     log.debug("New instance: {}", this);
   }
@@ -420,6 +430,13 @@ public class Config {
     profilingPeriodicDuration =
         getPropertyIntegerValue(
             properties, PROFILING_PERIODIC_DURATION, parent.profilingPeriodicDuration);
+    profilingPeriodicConfigOverridePath =
+        properties.getProperty(
+            PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, parent.profilingPeriodicConfigOverridePath);
+    profilingContinuousConfigOverridePath =
+        properties.getProperty(
+            PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH,
+            parent.profilingContinuousConfigOverridePath);
 
     log.debug("New instance: {}", this);
   }
