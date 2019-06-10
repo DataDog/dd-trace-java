@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.common.io.ByteStreams;
@@ -72,7 +73,8 @@ public class RecordingUploaderTest {
   }
 
   // We sort tags to have expected parameters to have expected result
-  private static final List<String> EXPECTED_TAGS = ImmutableList.of("baz:123", "foo:bar");
+  private static final Map<String, String> EXPECTED_TAGS =
+      ImmutableMap.of("baz", "123", "foo", "bar");
 
   private static final int SEQUENCE_NUMBER = 123;
   private static final int RECORDING_START = 1000;
@@ -138,12 +140,7 @@ public class RecordingUploaderTest {
         parameters.get(RecordingUploader.CHUNK_SEQUENCE_NUMBER_PARAM));
 
     assertEquals(
-        EXPECTED_TAGS,
-        parameters
-            .get(RecordingUploader.TAGS_PARAM)
-            .stream()
-            .sorted()
-            .collect(Collectors.toList()));
+        EXPECTED_TAGS, ProfilingTestUtils.parseTags(parameters.get(RecordingUploader.TAGS_PARAM)));
 
     final byte[] expectedBytes =
         ByteStreams.toByteArray(
@@ -271,11 +268,7 @@ public class RecordingUploaderTest {
 
       assertEquals(
           EXPECTED_TAGS,
-          parameters
-              .get(RecordingUploader.TAGS_PARAM)
-              .stream()
-              .sorted()
-              .collect(Collectors.toList()));
+          ProfilingTestUtils.parseTags(parameters.get(RecordingUploader.TAGS_PARAM)));
 
       /*
       TODO: ideally we would like to check chunk data here as well. But chunk splitting code is

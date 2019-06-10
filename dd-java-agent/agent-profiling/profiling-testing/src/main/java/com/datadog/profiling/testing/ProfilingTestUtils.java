@@ -3,6 +3,9 @@ package com.datadog.profiling.testing;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import delight.fileupload.FileUpload;
+import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Collectors;
 import okhttp3.MediaType;
 import okhttp3.mockwebserver.RecordedRequest;
 
@@ -24,5 +27,12 @@ public final class ProfilingTestUtils {
                         : value.getString()),
             (builder1, builder2) -> builder1.putAll(builder2.build()))
         .build();
+  }
+
+  public static Map<String, String> parseTags(final Collection<Object> params) {
+    return params
+        .stream()
+        .map(p -> ((String) p).split(":", 2))
+        .collect(Collectors.toMap(p -> p[0], p -> p[1]));
   }
 }
