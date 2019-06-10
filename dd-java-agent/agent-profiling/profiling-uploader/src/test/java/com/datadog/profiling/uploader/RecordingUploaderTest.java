@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import okhttp3.Credentials;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -107,6 +108,8 @@ public class RecordingUploaderTest {
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(url, recordedRequest.getRequestUrl());
+
+    assertEquals(Credentials.basic(APIKEY_VALUE, ""), recordedRequest.getHeader("Authorization"));
 
     final Multimap<String, Object> parameters =
         ProfilingTestUtils.parseProfilingRequestParameters(recordedRequest);
