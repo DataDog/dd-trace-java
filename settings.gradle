@@ -18,6 +18,8 @@ include ':dd-java-agent:agent-profiling'
 include ':dd-java-agent:agent-profiling:profiling-controller'
 include ':dd-java-agent:agent-profiling:profiling-controller-openjdk'
 include ':dd-java-agent:agent-profiling:profiling-uploader'
+include ':dd-java-agent:agent-profiling:profiling-testing'
+
 
 // misc
 include ':dd-java-agent:testing'

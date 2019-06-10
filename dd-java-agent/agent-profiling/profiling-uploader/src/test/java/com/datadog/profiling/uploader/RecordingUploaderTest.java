@@ -24,12 +24,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.common.io.ByteStreams;
-import delight.fileupload.FileUpload;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -75,8 +74,8 @@ public class RecordingUploaderTest {
   private static final List<String> EXPECTED_TAGS = ImmutableList.of("baz:123", "foo:bar");
 
   private static final int SEQUENCE_NUMBER = 123;
-  private static final int REQUESTED_START = 1000;
-  private static final int REQUESTED_END = 1100;
+  private static final int RECORDING_START = 1000;
+  private static final int RECORDING_END = 1100;
 
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;
@@ -109,7 +108,8 @@ public class RecordingUploaderTest {
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(url, recordedRequest.getRequestUrl());
 
-    final Multimap<String, Object> parameters = getParameters(recordedRequest);
+    final Multimap<String, Object> parameters =
+        ProfilingTestUtils.parseProfilingRequestParameters(recordedRequest);
     assertEquals(
         ImmutableList.of(RECODING_NAME_PREFIX + SEQUENCE_NUMBER),
         parameters.get(RecordingUploader.RECORDING_NAME_PARAM));
@@ -124,10 +124,10 @@ public class RecordingUploaderTest {
         parameters.get(RecordingUploader.RUNTIME_PARAM));
 
     assertEquals(
-        ImmutableList.of(Instant.ofEpochSecond(REQUESTED_START).toString()),
+        ImmutableList.of(Instant.ofEpochSecond(RECORDING_START).toString()),
         parameters.get(RecordingUploader.RECORDING_START_PARAM));
     assertEquals(
-        ImmutableList.of(Instant.ofEpochSecond(REQUESTED_END).toString()),
+        ImmutableList.of(Instant.ofEpochSecond(RECORDING_END).toString()),
         parameters.get(RecordingUploader.RECORDING_END_PARAM));
 
     assertEquals(
@@ -244,7 +244,8 @@ public class RecordingUploaderTest {
       final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
       assertNotNull(request, "Expected chunk");
 
-      final Multimap<String, Object> parameters = getParameters(request);
+      final Multimap<String, Object> parameters =
+          ProfilingTestUtils.parseProfilingRequestParameters(request);
 
       // recordingNames.add(parameters.get(RecordingUploader.RECORDING_NAME_PARAM));
       assertEquals(
@@ -252,10 +253,10 @@ public class RecordingUploaderTest {
           parameters.get(RecordingUploader.RECORDING_NAME_PARAM));
 
       assertEquals(
-          ImmutableList.of(Instant.ofEpochSecond(REQUESTED_START).toString()),
+          ImmutableList.of(Instant.ofEpochSecond(RECORDING_START).toString()),
           parameters.get(RecordingUploader.RECORDING_START_PARAM));
       assertEquals(
-          ImmutableList.of(Instant.ofEpochSecond(REQUESTED_END).toString()),
+          ImmutableList.of(Instant.ofEpochSecond(RECORDING_END).toString()),
           parameters.get(RecordingUploader.RECORDING_END_PARAM));
 
       sequenceNumbers.addAll(
@@ -390,29 +391,14 @@ public class RecordingUploaderTest {
     verify(recording).release();
   }
 
-  private Multimap<String, Object> getParameters(final RecordedRequest request) {
-    return FileUpload.parse(request.getBody().readByteArray(), request.getHeader("Content-Type"))
-        .stream()
-        .collect(
-            ImmutableMultimap::<String, Object>builder,
-            (builder, value) ->
-                builder.put(
-                    value.getFieldName(),
-                    RecordingUploader.OCTET_STREAM.toString().equals(value.getContentType())
-                        ? value.get()
-                        : value.getString()),
-            (builder1, builder2) -> builder1.putAll(builder2.build()))
-        .build();
-  }
-
   private RecordingData mockRecordingData(final String recordingResource) throws IOException {
     final RecordingData recordingData = mock(RecordingData.class);
     when(recordingData.getStream())
         .thenReturn(
             Thread.currentThread().getContextClassLoader().getResourceAsStream(recordingResource));
     when(recordingData.getName()).thenReturn(RECODING_NAME_PREFIX + SEQUENCE_NUMBER);
-    when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(REQUESTED_START));
-    when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(REQUESTED_END));
+    when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(RECORDING_START));
+    when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(RECORDING_END));
     return recordingData;
   }
 }

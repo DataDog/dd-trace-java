@@ -38,8 +38,7 @@ import okhttp3.Response;
 /** The class for uploading recordings to the backend. */
 @Slf4j
 public final class RecordingUploader {
-  // This logger will be called repeatedly
-  static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
+  private static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
   static final String RECORDING_NAME_PARAM = "recording-name";
   static final String FORMAT_PARAM = "format";
