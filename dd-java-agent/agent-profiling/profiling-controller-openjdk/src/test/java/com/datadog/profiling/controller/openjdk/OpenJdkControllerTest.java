@@ -1,10 +1,5 @@
 package com.datadog.profiling.controller.openjdk;
 
-import static com.datadog.profiling.controller.openjdk.JfpUtilsTest.CONTINUOUS_OVERRIDES;
-import static com.datadog.profiling.controller.openjdk.JfpUtilsTest.PERIODIC_OVERRIDES;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.when;
-
 import com.datadog.profiling.controller.ConfigurationException;
 import datadog.trace.api.Config;
 import java.io.IOException;
@@ -15,6 +10,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static com.datadog.profiling.controller.openjdk.JfpUtilsTest.CONTINUOUS_OVERRIDES;
+import static com.datadog.profiling.controller.openjdk.JfpUtilsTest.PERIODIC_OVERRIDES;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.when;
+
 @ExtendWith(MockitoExtension.class)
 public class OpenJdkControllerTest {
 
@@ -24,7 +24,7 @@ public class OpenJdkControllerTest {
   private OpenJdkController controller;
 
   @BeforeEach
-  public void setup() throws ConfigurationException {
+  public void setup() throws ConfigurationException, ClassNotFoundException {
     when(config.getProfilingPeriodicConfigOverridePath()).thenReturn(PERIODIC_OVERRIDES);
     when(config.getProfilingContinuousConfigOverridePath()).thenReturn(CONTINUOUS_OVERRIDES);
     controller = new OpenJdkController(config);
