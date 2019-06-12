@@ -18,12 +18,33 @@ jar {
   }
 }
 
+task fetchJmc(type: Exec) {
+  group 'Build Setup'
+  description 'Initializes and updates jmc git submodule'
+  commandLine 'git', 'submodule', 'update', '--init', "${rootDir}/vendor/jmc"
+}
+
+task buildJmc(type: Exec) {
+  workingDir "${rootDir}/vendor/jmc/core/"
+  commandLine "mvn", "package", "dependency:copy-dependencies", "-DoutputDirectory=${rootDir}/vendor/jmc-libs", "-DskipTests"
+
+  dependsOn fetchJmc
+}
+
 dependencies {
   compile project(':dd-trace-api')
 
   testCompile project(':dd-smoke-tests')
   testCompile project(':dd-java-agent:agent-profiling:profiling-testing')
-  testCompile "org.openjdk.jmc:flightrecorder:7.1.0-SNAPSHOT"
+
+  // FIXME: since JMC is not released on maven instead of simply doing this:
+  //testCompile "org.openjdk.jmc:flightrecorder:7.1.0-SNAPSHOT"
+  // We have to do this ugly and slow thing:
+  testCompile(fileTree("${rootDir}/vendor/jmc-libs/") {
+    include '*.jar'
+    builtBy buildJmc
+  })
+
 }
 
 tasks.withType(Test).configureEach {

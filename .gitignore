@@ -56,3 +56,6 @@ derby.log
 .java-version
 
 !dd-java-agent/benchmark/releases/*.jar
+
+# Magic for local JMC built
+/vendor/jmc-libs
