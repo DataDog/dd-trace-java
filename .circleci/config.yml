@@ -42,9 +42,7 @@ jobs:
 
     - save_cache:
         key: dd-trace-java-{{ checksum "dd-trace-java.gradle" }}-{{ .Branch }}-{{ .Revision }}
-        paths:
-        - ~/.gradle
-        - ./vendor
+        paths: ~/.gradle
 
 
   default_test_job: &default_test_job
