@@ -26,7 +26,7 @@ task fetchJmc(type: Exec) {
 
 task buildJmc(type: Exec) {
   workingDir "${rootDir}/vendor/jmc/core/"
-  commandLine "mvn", "package", "dependency:copy-dependencies", "-DoutputDirectory=${rootDir}/vendor/jmc-libs", "-DskipTests"
+  commandLine "mvn", "package", "dependency:copy-dependencies", "-DoutputDirectory=${rootDir}/vendor/jmc-libs"
 
   dependsOn fetchJmc
 }
