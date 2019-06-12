@@ -60,8 +60,8 @@ abstract class AbstractSmokeTest extends Specification {
   }
 
   String javaPath() {
-    final String separator = System.getProperty("file.separator");
-    return System.getProperty("java.home") + separator + "bin" + separator + "java";
+    final String separator = System.getProperty("file.separator")
+    return System.getProperty("java.home") + separator + "bin" + separator + "java"
   }
 
   def cleanupSpec() {
