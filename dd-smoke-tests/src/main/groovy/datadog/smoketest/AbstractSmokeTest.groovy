@@ -49,6 +49,7 @@ abstract class AbstractSmokeTest extends Specification {
 
     ProcessBuilder processBuilder = createProcessBuilder()
 
+    processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
     processBuilder.environment().put("DD_PROFILING_APIKEY", PROFILING_API_KEY)
 
     processBuilder.redirectErrorStream(true)
@@ -56,6 +57,11 @@ abstract class AbstractSmokeTest extends Specification {
     processBuilder.redirectOutput(ProcessBuilder.Redirect.to(log))
 
     serverProcess = processBuilder.start()
+  }
+
+  String javaPath() {
+    final String separator = System.getProperty("file.separator");
+    return System.getProperty("java.home") + separator + "bin" + separator + "java";
   }
 
   def cleanupSpec() {
