@@ -41,6 +41,7 @@ public class Config {
 
   public static final String SERVICE_NAME = "service.name";
   public static final String TRACE_ENABLED = "trace.enabled";
+  public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
   public static final String WRITER_TYPE = "writer.type";
   public static final String AGENT_HOST = "agent.host";
   public static final String TRACE_AGENT_PORT = "trace.agent.port";
@@ -56,6 +57,8 @@ public class Config {
 
   public static final String TRACE_ANALYTICS_ENABLED = "trace.analytics.enabled";
   public static final String TRACE_ANNOTATIONS = "trace.annotations";
+  public static final String TRACE_EXECUTORS_ALL = "trace.executors.all";
+  public static final String TRACE_EXECUTORS = "trace.executors";
   public static final String TRACE_METHODS = "trace.methods";
   public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
@@ -105,6 +108,7 @@ public class Config {
   public static final String DEFAULT_SERVICE_NAME = "unnamed-java-app";
 
   private static final boolean DEFAULT_TRACE_ENABLED = true;
+  public static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
   public static final String DD_AGENT_WRITER_TYPE = "DDAgentWriter";
   public static final String LOGGING_WRITER_TYPE = "LoggingWriter";
   private static final String DEFAULT_AGENT_WRITER_TYPE = DD_AGENT_WRITER_TYPE;
@@ -143,6 +147,12 @@ public class Config {
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
   private static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
+  private static final String DEFAULT_TRACE_ANNOTATIONS = null;
+  private static final boolean DEFAULT_TRACE_EXECUTORS_ALL = false;
+  private static final String DEFAULT_TRACE_EXECUTORS = "";
+  private static final String DEFAULT_TRACE_METHODS = null;
+  public static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
+  public static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
 
   public enum PropagationStyle {
     DATADOG,
@@ -160,6 +170,7 @@ public class Config {
 
   @Getter private final String serviceName;
   @Getter private final boolean traceEnabled;
+  @Getter private final boolean integrationsEnabled;
   @Getter private final String writerType;
   @Getter private final String agentHost;
   @Getter private final int agentPort;
@@ -194,6 +205,15 @@ public class Config {
   @Getter private final boolean logsInjectionEnabled;
   @Getter private final boolean reportHostName;
 
+  @Getter private final String traceAnnotations;
+
+  @Getter private final String traceMethods;
+
+  @Getter private final boolean traceExecutorsAll;
+  @Getter private final List<String> traceExecutors;
+
+  @Getter private final boolean traceAnalyticsEnabled;
+
   @Getter private final boolean profilingEnabled;
   @Getter private final String profilingUrl;
   @Getter private final String profilingApiKey;
@@ -212,6 +232,8 @@ public class Config {
     serviceName = getSettingFromEnvironment(SERVICE_NAME, DEFAULT_SERVICE_NAME);
 
     traceEnabled = getBooleanSettingFromEnvironment(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
+    integrationsEnabled =
+        getBooleanSettingFromEnvironment(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
     writerType = getSettingFromEnvironment(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
     agentHost = getSettingFromEnvironment(AGENT_HOST, DEFAULT_AGENT_HOST);
     agentPort =
@@ -290,6 +312,18 @@ public class Config {
     reportHostName =
         getBooleanSettingFromEnvironment(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
+    traceAnnotations = getSettingFromEnvironment(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
+
+    traceMethods = getSettingFromEnvironment(TRACE_METHODS, DEFAULT_TRACE_METHODS);
+
+    traceExecutorsAll =
+        getBooleanSettingFromEnvironment(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
+
+    traceExecutors = getListSettingFromEnvironment(TRACE_EXECUTORS, DEFAULT_TRACE_EXECUTORS);
+
+    traceAnalyticsEnabled =
+        getBooleanSettingFromEnvironment(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
+
     profilingEnabled =
         getBooleanSettingFromEnvironment(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
     profilingUrl = getSettingFromEnvironment(PROFILING_URL, DEFAULT_PROFILING_URL);
@@ -334,6 +368,8 @@ public class Config {
     serviceName = properties.getProperty(SERVICE_NAME, parent.serviceName);
 
     traceEnabled = getPropertyBooleanValue(properties, TRACE_ENABLED, parent.traceEnabled);
+    integrationsEnabled =
+        getPropertyBooleanValue(properties, INTEGRATIONS_ENABLED, parent.integrationsEnabled);
     writerType = properties.getProperty(WRITER_TYPE, parent.writerType);
     agentHost = properties.getProperty(AGENT_HOST, parent.agentHost);
     agentPort =
@@ -415,6 +451,17 @@ public class Config {
         getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
     reportHostName =
         getPropertyBooleanValue(properties, TRACE_REPORT_HOSTNAME, parent.reportHostName);
+
+    traceAnnotations = properties.getProperty(TRACE_ANNOTATIONS, parent.traceAnnotations);
+
+    traceMethods = properties.getProperty(TRACE_METHODS, parent.traceMethods);
+
+    traceExecutorsAll =
+        getPropertyBooleanValue(properties, TRACE_EXECUTORS_ALL, parent.traceExecutorsAll);
+    traceExecutors = getPropertyListValue(properties, TRACE_EXECUTORS, parent.traceExecutors);
+
+    traceAnalyticsEnabled =
+        getPropertyBooleanValue(properties, TRACE_ANALYTICS_ENABLED, parent.traceAnalyticsEnabled);
 
     profilingEnabled =
         getPropertyBooleanValue(properties, PROFILING_ENABLED, parent.profilingEnabled);
@@ -499,6 +546,20 @@ public class Config {
   }
 
   /**
+   * Returns the sample rate for the specified instrumentation or {@link
+   * #DEFAULT_ANALYTICS_SAMPLE_RATE} if none specified.
+   */
+  public float getInstrumentationAnalyticsSampleRate(final String... aliases) {
+    for (final String alias : aliases) {
+      final Float rate = getFloatSettingFromEnvironment(alias + ".analytics.sample-rate", null);
+      if (null != rate) {
+        return rate;
+      }
+    }
+    return DEFAULT_ANALYTICS_SAMPLE_RATE;
+  }
+
+  /**
    * Return a map of tags required by the datadog backend to link runtime metrics (i.e. jmx) and
    * traces.
    *
@@ -514,6 +575,18 @@ public class Config {
     return Collections.unmodifiableMap(result);
   }
 
+  public boolean isIntegrationEnabled(
+      final SortedSet<String> integrationNames, final boolean defaultEnabled) {
+    return integrationEnabled(integrationNames, defaultEnabled);
+  }
+
+  /**
+   * @deprecated This method should only be used internally. Use the instance getter instead {@link
+   *     #isIntegrationEnabled(SortedSet, boolean)}.
+   * @param integrationNames
+   * @param defaultEnabled
+   * @return
+   */
   public static boolean integrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
     // If default is enabled, we want to enable individually,
@@ -531,6 +604,18 @@ public class Config {
     return anyEnabled;
   }
 
+  public boolean isJmxFetchIntegrationEnabled(
+      final SortedSet<String> integrationNames, final boolean defaultEnabled) {
+    return jmxFetchIntegrationEnabled(integrationNames, defaultEnabled);
+  }
+
+  /**
+   * @deprecated This method should only be used internally. Use the instance getter instead {@link
+   *     #isJmxFetchIntegrationEnabled(SortedSet, boolean)}.
+   * @param integrationNames
+   * @param defaultEnabled
+   * @return
+   */
   public static boolean jmxFetchIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
     // If default is enabled, we want to enable individually,
@@ -548,6 +633,18 @@ public class Config {
     return anyEnabled;
   }
 
+  public boolean isTraceAnalyticsIntegrationEnabled(
+      final SortedSet<String> integrationNames, final boolean defaultEnabled) {
+    return traceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled);
+  }
+
+  /**
+   * @deprecated This method should only be used internally. Use the instance getter instead {@link
+   *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
+   * @param integrationNames
+   * @param defaultEnabled
+   * @return
+   */
   public static boolean traceAnalyticsIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
     // If default is enabled, we want to enable individually,
@@ -573,6 +670,7 @@ public class Config {
    * @param name
    * @param defaultValue
    * @return
+   * @deprecated This method should only be used internally. Use the explicit getter instead.
    */
   public static String getSettingFromEnvironment(final String name, final String defaultValue) {
     final String completeName = PREFIX + name;
@@ -582,6 +680,7 @@ public class Config {
     return value == null ? defaultValue : value;
   }
 
+  /** @deprecated This method should only be used internally. Use the explicit getter instead. */
   private static Map<String, String> getMapSettingFromEnvironment(
       final String name, final String defaultValue) {
     return parseMap(getSettingFromEnvironment(name, defaultValue), PREFIX + name);
@@ -590,6 +689,8 @@ public class Config {
   /**
    * Calls {@link #getSettingFromEnvironment(String, String)} and converts the result to a list by
    * splitting on `,`.
+   *
+   * @deprecated This method should only be used internally. Use the explicit getter instead.
    */
   public static List<String> getListSettingFromEnvironment(
       final String name, final String defaultValue) {
@@ -598,6 +699,8 @@ public class Config {
 
   /**
    * Calls {@link #getSettingFromEnvironment(String, String)} and converts the result to a Boolean.
+   *
+   * @deprecated This method should only be used internally. Use the explicit getter instead.
    */
   public static Boolean getBooleanSettingFromEnvironment(
       final String name, final Boolean defaultValue) {
@@ -607,6 +710,8 @@ public class Config {
 
   /**
    * Calls {@link #getSettingFromEnvironment(String, String)} and converts the result to a Float.
+   *
+   * @deprecated This method should only be used internally. Use the explicit getter instead.
    */
   public static Float getFloatSettingFromEnvironment(final String name, final Float defaultValue) {
     final String value = getSettingFromEnvironment(name, null);
