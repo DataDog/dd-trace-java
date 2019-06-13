@@ -522,7 +522,7 @@ class ConfigTest extends Specification {
     System.setProperty("dd.integration.disabled-prop.enabled", "false")
 
     expect:
-    Config.integrationEnabled(integrationNames, defaultEnabled) == expected
+    Config.get().isIntegrationEnabled(integrationNames, defaultEnabled) == expected
 
     where:
     names                          | defaultEnabled | expected
@@ -556,7 +556,7 @@ class ConfigTest extends Specification {
     System.setProperty("dd.jmxfetch.disabled-prop.enabled", "false")
 
     expect:
-    Config.jmxFetchIntegrationEnabled(integrationNames, defaultEnabled) == expected
+    Config.get().isJmxFetchIntegrationEnabled(integrationNames, defaultEnabled) == expected
 
     where:
     names                          | defaultEnabled | expected
@@ -590,7 +590,7 @@ class ConfigTest extends Specification {
     System.setProperty("dd.disabled-prop.analytics.enabled", "false")
 
     expect:
-    Config.traceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled) == expected
+    Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled) == expected
 
     where:
     names                          | defaultEnabled | expected
