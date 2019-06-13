@@ -25,7 +25,7 @@ class ProfilingIntegrationTest extends AbstractSmokeTest {
     String profilingShadowJar = System.getProperty("datadog.smoketest.profiling.shadowJar.path")
 
     List<String> command = new ArrayList<>()
-    command.add("java")
+    command.add(javaPath())
     command.addAll(defaultJavaProperties)
     command.addAll((String[]) ["-jar", profilingShadowJar])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
