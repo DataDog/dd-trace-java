@@ -25,8 +25,15 @@ task fetchJmc(type: Exec) {
 }
 
 task buildJmc(type: Exec) {
+  group 'Build Setup'
+
   workingDir "${rootDir}/vendor/jmc/core/"
   commandLine "mvn", "package", "dependency:copy-dependencies", "-DoutputDirectory=${rootDir}/vendor/jmc-libs"
+  def libsPath = file("${rootDir}/vendor/jmc-libs")
+  outputs.dir libsPath
+  if (libsPath == null || libsPath.list() == null || libsPath.list().length == 0) {
+    outputs.upToDateWhen { false }
+  }
 
   dependsOn fetchJmc
 }
