@@ -40,7 +40,7 @@ jobs:
         paths:
         - .gradle
         - workspace
-        - vendor
+        - vendor/jmc-libs
 
     - save_cache:
         key: dd-trace-java-{{ checksum "dd-trace-java.gradle" }}-{{ .Branch }}-{{ .Revision }}
