@@ -39,6 +39,7 @@ jobs:
         root: .
         paths:
         - workspace
+        - vendor
 
     - save_cache:
         key: dd-trace-java-{{ checksum "dd-trace-java.gradle" }}-{{ .Branch }}-{{ .Revision }}
