@@ -185,4 +185,42 @@ class AkkaHttpServerInstrumentationTest extends AgentTestRunner {
     "async" | asyncPort
     "sync"  | syncPort
   }
+
+  def "server scheduling tasks via scala scheduler"() {
+    setup:
+    def request = new Request.Builder()
+      .url("http://localhost:$asyncPort/scheduler")
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == 200
+
+    assertTraces(1) {
+      trace(0, 2) {
+        span(0) {
+          traceId "123"
+          parentId "456"
+          serviceName "unnamed-java-app"
+          operationName "akka-http.request"
+          resourceName "GET /scheduler"
+          spanType DDSpanTypes.HTTP_SERVER
+          errored false
+          tags {
+            defaultTags(true)
+            "$Tags.HTTP_STATUS.key" 200
+            "$Tags.HTTP_URL.key" "http://localhost:$asyncPort/scheduler"
+            "$Tags.HTTP_METHOD.key" "GET"
+            "$Tags.SPAN_KIND.key" Tags.SPAN_KIND_SERVER
+            "$Tags.COMPONENT.key" "akka-http-server"
+          }
+        }
+        span(1) {
+          childOf span(0)
+          assert span(1).operationName.endsWith('.tracedMethod')
+        }
+      }
+    }
+  }
 }

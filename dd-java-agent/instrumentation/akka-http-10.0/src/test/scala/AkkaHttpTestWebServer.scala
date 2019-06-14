@@ -8,6 +8,7 @@ import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Trace
 
 import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 
 object AkkaHttpTestAsyncWebServer {
   val port = PortUtils.randomOpenPort()
@@ -20,6 +21,14 @@ object AkkaHttpTestAsyncWebServer {
       Future {
         tracedMethod()
         HttpResponse(entity = "Hello unit test.")
+      }
+    case HttpRequest(GET, Uri.Path("/scheduler"), _, _, _) =>
+      Future {
+        system.scheduler.scheduleOnce(50 milliseconds) {
+          tracedMethod()
+        }
+        Thread.sleep(100)
+        HttpResponse(entity = "Scheduled.")
       }
     case HttpRequest(GET, Uri.Path("/throw-handler"), _, _, _) =>
       sys.error("Oh no handler")
