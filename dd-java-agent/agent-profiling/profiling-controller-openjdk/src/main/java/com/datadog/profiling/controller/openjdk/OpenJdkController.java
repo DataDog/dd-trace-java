@@ -37,11 +37,17 @@ public final class OpenJdkController implements Controller {
   private final Map<String, String> profilingRecordingSettings;
 
   /**
-   * Main contructor for OpenJDK profiling controller.
+   * Main constructor for OpenJDK profiling controller.
    *
    * <p>This has to be public because it is created via reflection
    */
-  public OpenJdkController(final Config config) throws ConfigurationException {
+  public OpenJdkController(final Config config)
+      throws ConfigurationException, ClassNotFoundException {
+    // Make sure we can load JFR classesbefore declaring that we have successfully created
+    // factory and can use it.
+    Class.forName("jdk.jfr.Recording");
+    Class.forName("jdk.jfr.FlightRecorder");
+
     try {
       profilingRecordingSettings =
           JfpUtils.readNamedJfpResource(

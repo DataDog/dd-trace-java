@@ -24,7 +24,7 @@ public class OpenJdkControllerTest {
   private OpenJdkController controller;
 
   @BeforeEach
-  public void setup() throws ConfigurationException {
+  public void setup() throws ConfigurationException, ClassNotFoundException {
     when(config.getProfilingPeriodicConfigOverridePath()).thenReturn(PERIODIC_OVERRIDES);
     when(config.getProfilingContinuousConfigOverridePath()).thenReturn(CONTINUOUS_OVERRIDES);
     controller = new OpenJdkController(config);

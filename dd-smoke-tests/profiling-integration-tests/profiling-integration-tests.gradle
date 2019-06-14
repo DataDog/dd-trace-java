@@ -1,0 +1,61 @@
+plugins {
+  id "com.github.johnrengelman.shadow" version "4.0.4"
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+
+description = 'Profiling Integration Tests.'
+
+jar {
+  manifest {
+    attributes(
+      'Main-Class': 'datadog.smoketest.profiling.ProfilingTestApplication'
+    )
+  }
+}
+
+task fetchJmc(type: Exec) {
+  group 'Build Setup'
+  description 'Initializes and updates jmc git submodule'
+  commandLine 'git', 'submodule', 'update', '--init', "${rootDir}/vendor/jmc"
+}
+
+task buildJmc(type: Exec) {
+  group 'Build Setup'
+
+  workingDir "${rootDir}/vendor/jmc/core/"
+  commandLine "mvn", "package", "dependency:copy-dependencies", "-DoutputDirectory=${rootDir}/vendor/jmc-libs"
+  def libsPath = file("${rootDir}/vendor/jmc-libs")
+  outputs.dir libsPath
+  if (libsPath == null || libsPath.list() == null || libsPath.list().length == 0) {
+    outputs.upToDateWhen { false }
+  }
+
+  dependsOn fetchJmc
+}
+
+dependencies {
+  compile project(':dd-trace-api')
+
+  testCompile project(':dd-smoke-tests')
+  testCompile project(':dd-java-agent:agent-profiling:profiling-testing')
+
+  // FIXME: since JMC is not released on maven instead of simply doing this:
+  //testCompile "org.openjdk.jmc:flightrecorder:7.1.0-SNAPSHOT"
+  // We have to do this ugly and slow thing:
+  testCompile(fileTree("${rootDir}/vendor/jmc-libs/") {
+    include '*.jar'
+    builtBy buildJmc
+  })
+
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn shadowJar
+
+  jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archivePath}"
+}

@@ -17,12 +17,10 @@ dependencies {
 
   testCompile deps.junit5
   testCompile deps.guava
+  testCompile project(':dd-java-agent:agent-profiling:profiling-testing')
   testCompile group: 'org.mockito', name: 'mockito-core', version: '2.28.2'
   testCompile group: 'org.mockito', name: 'mockito-junit-jupiter', version: '2.28.2'
   testCompile group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
-  testCompile group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
-  testCompile group: 'org.javadelight', name: 'delight-fileupload', version: '0.0.5'
-  testCompile group: 'com.squareup.okhttp3', name: 'mockwebserver', version: '3.14.1'
 }
 
 /* We use Java8 features, but there is no code needing JFR libraries */
