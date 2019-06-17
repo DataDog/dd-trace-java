@@ -59,8 +59,6 @@ class ProfilingIntegrationTest extends AbstractSmokeTest {
     final Multimap<String, Object> firstRequestParameters =
       ProfilingTestUtils.parseProfilingRequestParameters(firstRequest)
 
-    println "!!!" + firstRequestParameters
-
     def firstRecordingNameMatch = firstRequestParameters.get("recording-name").get(0) =~ /^dd-profiling-(\d+)$/
     firstRecordingNameMatch != null
     Integer.parseInt(firstRecordingNameMatch[0][1]) == 0
@@ -94,8 +92,6 @@ class ProfilingIntegrationTest extends AbstractSmokeTest {
 
     final Multimap<String, Object> secondRequestParameters =
       ProfilingTestUtils.parseProfilingRequestParameters(secondRequest)
-
-    println "!!!" + secondRequestParameters
 
     def secondStartTime = Instant.parse(secondRequestParameters.get("recording-start").get(0))
     def secondRecordingNameMatch = secondRequestParameters.get("recording-name").get(0) =~ /^dd-profiling-(\d+)$/
