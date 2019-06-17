@@ -13,7 +13,7 @@ import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-class ProfilingIntegrationPeriodicProfilesTest extends AbstractSmokeTest {
+class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
 
   // This needs to give enough time for test app to start up and recording to happen
   private static final int REQUEST_WAIT_TIMEOUT = 30
@@ -27,7 +27,7 @@ class ProfilingIntegrationPeriodicProfilesTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
-    command.add("-Ddd.profiling.continuous.upload.period=0") // Disable continuous profiles uploads
+    command.add("-Ddd.profiling.periodic.period=0") // Disable periodic profiles
     command.addAll((String[]) ["-jar", profilingShadowJar])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
@@ -46,7 +46,7 @@ class ProfilingIntegrationPeriodicProfilesTest extends AbstractSmokeTest {
     }
   }
 
-  def "test periodic recording"() {
+  def "test continuous recording"() {
     setup:
     server.enqueue(new MockResponse().setResponseCode(200))
 
@@ -60,11 +60,9 @@ class ProfilingIntegrationPeriodicProfilesTest extends AbstractSmokeTest {
     final Multimap<String, Object> firstRequestParameters =
       ProfilingTestUtils.parseProfilingRequestParameters(firstRequest)
 
-    def firstRecordingNameMatch = firstRequestParameters.get("recording-name").get(0) =~ /^dd-profiling-(\d+)$/
-    firstRecordingNameMatch != null
-    Integer.parseInt(firstRecordingNameMatch[0][1]) == 0
+    firstRequestParameters.get("recording-name").get(0) == 'dd-profiling-continuous'
     firstRequestParameters.get("format").get(0) == "jfr"
-    firstRequestParameters.get("type").get(0) == "jfr-periodic"
+    firstRequestParameters.get("type").get(0) == "jfr-continuous"
     firstRequestParameters.get("runtime").get(0) == "jvm"
 
     def firstStartTime = Instant.parse(firstRequestParameters.get("recording-start").get(0))
@@ -72,8 +70,8 @@ class ProfilingIntegrationPeriodicProfilesTest extends AbstractSmokeTest {
     firstStartTime != null
     firstEndTime != null
     def duration = firstEndTime.toEpochMilli() - firstStartTime.toEpochMilli()
-    duration > TimeUnit.SECONDS.toMillis(PROFILING_PERIODIC_RECORDING_DURATION_SECONDS - 1)
-    duration < TimeUnit.SECONDS.toMillis(PROFILING_PERIODIC_RECORDING_DURATION_SECONDS + 1)
+    duration > TimeUnit.SECONDS.toMillis(PROFILING_CONTINUOUS_RECORDING_UPLOAD_PERIOD_SECONDS - 1)
+    duration < TimeUnit.SECONDS.toMillis(PROFILING_CONTINUOUS_RECORDING_UPLOAD_PERIOD_SECONDS + 1)
 
     Map<String, String> requestTags = ProfilingTestUtils.parseTags(firstRequestParameters.get("tags[]"))
     requestTags.get("service") == "smoke-test-java-app"
@@ -94,13 +92,11 @@ class ProfilingIntegrationPeriodicProfilesTest extends AbstractSmokeTest {
     final Multimap<String, Object> secondRequestParameters =
       ProfilingTestUtils.parseProfilingRequestParameters(secondRequest)
 
+    secondRequestParameters.get("recording-name").get(0) == 'dd-profiling-continuous'
     def secondStartTime = Instant.parse(secondRequestParameters.get("recording-start").get(0))
-    def secondRecordingNameMatch = secondRequestParameters.get("recording-name").get(0) =~ /^dd-profiling-(\d+)$/
-    secondRecordingNameMatch != null
-    Integer.parseInt(secondRecordingNameMatch[0][1]) == Integer.parseInt(firstRecordingNameMatch[0][1]) + 1
     def period = secondStartTime.toEpochMilli() - firstStartTime.toEpochMilli()
-    period > TimeUnit.SECONDS.toMillis(PROFILING_PERIODIC_RECORDING_PERIOD_SECONDS - 1)
-    period < TimeUnit.SECONDS.toMillis(PROFILING_PERIODIC_RECORDING_PERIOD_SECONDS + 1)
+    period > TimeUnit.SECONDS.toMillis(PROFILING_CONTINUOUS_RECORDING_UPLOAD_PERIOD_SECONDS - 1)
+    period < TimeUnit.SECONDS.toMillis(PROFILING_CONTINUOUS_RECORDING_UPLOAD_PERIOD_SECONDS + 1)
 
     secondRequestParameters.get("chunk-seq-num").get(0) == "0"
     firstRequestParameters.get("chunk-data").get(0) != null
