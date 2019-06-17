@@ -13,7 +13,7 @@ import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-class ProfilingIntegrationTest extends AbstractSmokeTest {
+class ProfilingIntegrationPeriodicProfilesTest extends AbstractSmokeTest {
 
   // This needs to give enough time for test app to start up and recording to happen
   private static final int REQUEST_WAIT_TIMEOUT = 30
@@ -27,6 +27,7 @@ class ProfilingIntegrationTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
+    command.add("-Ddd.profiling.continuous.upload.period=0") // Disable continuous profiles uploads
     command.addAll((String[]) ["-jar", profilingShadowJar])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
@@ -63,7 +64,7 @@ class ProfilingIntegrationTest extends AbstractSmokeTest {
     firstRecordingNameMatch != null
     Integer.parseInt(firstRecordingNameMatch[0][1]) == 0
     firstRequestParameters.get("format").get(0) == "jfr"
-    firstRequestParameters.get("type").get(0) == "jfr"
+    firstRequestParameters.get("type").get(0) == "jfr-periodic"
     firstRequestParameters.get("runtime").get(0) == "jvm"
 
     def firstStartTime = Instant.parse(firstRequestParameters.get("recording-start").get(0))
