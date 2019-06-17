@@ -116,10 +116,14 @@ public final class ProfilingSystem {
   }
 
   public final void start() {
+    final Instant now = Instant.now();
     continuousRecording = controller.createContinuousRecording(CONTINUOUS_RECORDING_NAME);
     if (!continuousUploadPeriod.isZero()) {
       executorService.scheduleAtFixedRate(
-          new SnapshotRecording(), 0, continuousUploadPeriod.toMillis(), TimeUnit.MILLISECONDS);
+          new SnapshotRecording(now),
+          continuousUploadPeriod.toMillis(),
+          continuousUploadPeriod.toMillis(),
+          TimeUnit.MILLISECONDS);
     }
     if (!period.isZero()) {
       executorService.scheduleAtFixedRate(
@@ -187,7 +191,11 @@ public final class ProfilingSystem {
 
   private final class SnapshotRecording implements Runnable {
 
-    private Instant lastSnapshot = Instant.EPOCH;
+    private Instant lastSnapshot;
+
+    public SnapshotRecording(final Instant startTime) {
+      lastSnapshot = startTime;
+    }
 
     @Override
     public void run() {

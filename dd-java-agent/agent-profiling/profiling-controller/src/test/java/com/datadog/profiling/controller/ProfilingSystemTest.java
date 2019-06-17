@@ -15,20 +15,6 @@
  */
 package com.datadog.profiling.controller;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.after;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import com.google.common.collect.ImmutableList;
 import java.time.Duration;
 import java.time.Instant;
@@ -46,6 +32,20 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 // Proper unused stub detection doesn't work in junit5 yet,
@@ -406,6 +406,7 @@ public class ProfilingSystemTest {
 
   @Test
   public void testContinuousRecording() throws ConfigurationException {
+    final Instant testStartTime = Instant.now();
     final ArgumentCaptor<Instant> startCaptor = ArgumentCaptor.forClass(Instant.class);
     final ArgumentCaptor<Instant> endCaptor = ArgumentCaptor.forClass(Instant.class);
     when(continuousRecording.snapshot(startCaptor.capture(), endCaptor.capture()))
@@ -430,7 +431,7 @@ public class ProfilingSystemTest {
     assertEquals(
         ImmutableList.of(recordingData, anotherRecordingData), recordingDataCaptor.getAllValues());
 
-    assertEquals(Instant.EPOCH, startCaptor.getAllValues().get(0));
+    assertTrue(startCaptor.getAllValues().get(0).isAfter(testStartTime));
     assertEquals(startCaptor.getAllValues().get(1), endCaptor.getAllValues().get(0));
     assertTrue(
         endCaptor.getAllValues().get(0).isBefore(Instant.now()),
