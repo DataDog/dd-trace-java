@@ -1,5 +1,8 @@
 package datadog.trace.api;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -23,8 +26,8 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Config gives priority to system properties and falls back to environment variables. It also
- * includes default values to ensure a valid config.
+ * Config reads values with the following priority: 1) system properties, 2) environment variables,
+ * 3) optional configuration file. It also includes default values to ensure a valid config.
  *
  * <p>
  *
@@ -39,6 +42,7 @@ public class Config {
 
   private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
 
+  public static final String CONFIGURATION_FILE = "trace.config";
   public static final String SERVICE_NAME = "service.name";
   public static final String TRACE_ENABLED = "trace.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
@@ -68,6 +72,7 @@ public class Config {
   public static final String HTTP_SERVER_TAG_QUERY_STRING = "http.server.tag.query-string";
   public static final String HTTP_CLIENT_TAG_QUERY_STRING = "http.client.tag.query-string";
   public static final String HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN = "trace.http.client.split-by-domain";
+  public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE = "trace.db.client.split-by-instance";
   public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";
@@ -128,6 +133,7 @@ public class Config {
   private static final boolean DEFAULT_HTTP_SERVER_TAG_QUERY_STRING = false;
   private static final boolean DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING = false;
   private static final boolean DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN = false;
+  private static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
   private static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   private static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
   private static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
@@ -188,6 +194,7 @@ public class Config {
   @Getter private final boolean httpServerTagQueryString;
   @Getter private final boolean httpClientTagQueryString;
   @Getter private final boolean httpClientSplitByDomain;
+  @Getter private final boolean dbClientSplitByInstance;
   @Getter private final Integer partialFlushMinSpans;
   @Getter private final boolean runtimeContextFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
@@ -225,8 +232,14 @@ public class Config {
   @Getter private final String profilingContinuousConfigOverridePath;
 
   // Read order: System Properties -> Env Variables, [-> default value]
+  // Values from an optionally provided properties file
+  private static Properties propertiesFromConfigFile;
+
+  // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   // Visible for testing
   Config() {
+    propertiesFromConfigFile = loadConfigurationFile();
+
     runtimeId = UUID.randomUUID().toString();
 
     serviceName = getSettingFromEnvironment(SERVICE_NAME, DEFAULT_SERVICE_NAME);
@@ -274,6 +287,10 @@ public class Config {
     httpClientSplitByDomain =
         getBooleanSettingFromEnvironment(
             HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN);
+
+    dbClientSplitByInstance =
+        getBooleanSettingFromEnvironment(
+            DB_CLIENT_HOST_SPLIT_BY_INSTANCE, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE);
 
     partialFlushMinSpans =
         getIntegerSettingFromEnvironment(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
@@ -332,7 +349,7 @@ public class Config {
     // FIXME: We should use better authentication mechanism
     final String profilingApiKeyFile = getSettingFromEnvironment(PROFILING_API_KEY_FILE, null);
     String tmpProfilingApiKey =
-        System.getenv(propertyToEnvironmentName(PREFIX + PROFILING_API_KEY));
+        System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY));
     if (profilingApiKeyFile != null) {
       try {
         tmpProfilingApiKey =
@@ -411,6 +428,10 @@ public class Config {
     httpClientSplitByDomain =
         getPropertyBooleanValue(
             properties, HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, parent.httpClientSplitByDomain);
+
+    dbClientSplitByInstance =
+        getPropertyBooleanValue(
+            properties, DB_CLIENT_HOST_SPLIT_BY_INSTANCE, parent.dbClientSplitByInstance);
 
     partialFlushMinSpans =
         getPropertyIntegerValue(properties, PARTIAL_FLUSH_MIN_SPANS, parent.partialFlushMinSpans);
@@ -665,7 +686,8 @@ public class Config {
   /**
    * Helper method that takes the name, adds a "dd." prefix then checks for System Properties of
    * that name. If none found, the name is converted to an Environment Variable and used to check
-   * the env. If setting not configured in either location, defaultValue is returned.
+   * the env. If none of the above returns a value, then an optional properties file if checked. If
+   * setting is not configured in either location, <code>defaultValue</code> is returned.
    *
    * @param name
    * @param defaultValue
@@ -673,17 +695,34 @@ public class Config {
    * @deprecated This method should only be used internally. Use the explicit getter instead.
    */
   public static String getSettingFromEnvironment(final String name, final String defaultValue) {
-    final String completeName = PREFIX + name;
-    final String value =
-        System.getProperties()
-            .getProperty(completeName, System.getenv(propertyToEnvironmentName(completeName)));
-    return value == null ? defaultValue : value;
+    String value;
+
+    // System properties and properties provided from command line have the highest precedence
+    value = System.getProperties().getProperty(propertyNameToSystemPropertyName(name));
+    if (null != value) {
+      return value;
+    }
+
+    // If value not provided from system properties, looking at env variables
+    value = System.getenv(propertyNameToEnvironmentVariableName(name));
+    if (null != value) {
+      return value;
+    }
+
+    // If value is not defined yet, we look at properties optionally defined in a properties file
+    value = propertiesFromConfigFile.getProperty(propertyNameToSystemPropertyName(name));
+    if (null != value) {
+      return value;
+    }
+
+    return defaultValue;
   }
 
   /** @deprecated This method should only be used internally. Use the explicit getter instead. */
   private static Map<String, String> getMapSettingFromEnvironment(
       final String name, final String defaultValue) {
-    return parseMap(getSettingFromEnvironment(name, defaultValue), PREFIX + name);
+    return parseMap(
+        getSettingFromEnvironment(name, defaultValue), propertyNameToSystemPropertyName(name));
   }
 
   /**
@@ -773,8 +812,28 @@ public class Config {
     }
   }
 
-  private static String propertyToEnvironmentName(final String name) {
-    return ENV_REPLACEMENT.matcher(name.toUpperCase()).replaceAll("_");
+  /**
+   * Converts the property name, e.g. 'service.name' into a public environment variable name, e.g.
+   * `DD_SERVICE_NAME`.
+   *
+   * @param setting The setting name, e.g. `service.name`
+   * @return The public facing environment variable name
+   */
+  private static String propertyNameToEnvironmentVariableName(final String setting) {
+    return ENV_REPLACEMENT
+        .matcher(propertyNameToSystemPropertyName(setting).toUpperCase())
+        .replaceAll("_");
+  }
+
+  /**
+   * Converts the property name, e.g. 'service.name' into a public system property name, e.g.
+   * `dd.service.name`.
+   *
+   * @param setting The setting name, e.g. `service.name`
+   * @return The public facing system property name
+   */
+  private static String propertyNameToSystemPropertyName(final String setting) {
+    return PREFIX + setting;
   }
 
   private static Map<String, String> getPropertyMapValue(
@@ -927,6 +986,50 @@ public class Config {
       }
     }
     return Collections.unmodifiableSet(result);
+  }
+
+  /**
+   * Loads the optional configuration properties file into the global {@link Properties} object.
+   *
+   * @return The {@link Properties} object. the returned instance might be empty of file does not
+   *     exist or if it is in a wrong format.
+   */
+  private static Properties loadConfigurationFile() {
+    final Properties properties = new Properties();
+
+    // Reading from system property first and from env after
+    String configurationFilePath =
+        System.getProperty(propertyNameToSystemPropertyName(CONFIGURATION_FILE));
+    if (null == configurationFilePath) {
+      configurationFilePath =
+          System.getenv(propertyNameToEnvironmentVariableName(CONFIGURATION_FILE));
+    }
+    if (null == configurationFilePath) {
+      return properties;
+    }
+
+    // Normalizing tilde (~) paths for unix systems
+    configurationFilePath =
+        configurationFilePath.replaceFirst("^~", System.getProperty("user.home"));
+
+    // Configuration properties file is optional
+    final File configurationFile = new File(configurationFilePath);
+    if (!configurationFile.exists()) {
+      log.error("Configuration file '{}' not found.", configurationFilePath);
+      return properties;
+    }
+
+    try {
+      final FileReader fileReader = new FileReader(configurationFile);
+      properties.load(fileReader);
+    } catch (final FileNotFoundException fnf) {
+      log.error("Configuration file '{}' not found.", configurationFilePath);
+    } catch (final IOException ioe) {
+      log.error(
+          "Configuration file '{}' cannot be accessed or correctly parsed.", configurationFilePath);
+    }
+
+    return properties;
   }
 
   /**
