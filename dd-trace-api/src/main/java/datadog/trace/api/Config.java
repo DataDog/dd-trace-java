@@ -99,6 +99,8 @@ public class Config {
   public static final String PROFILING_PERIODIC_DELAY = "profiling.periodic.delay";
   public static final String PROFILING_PERIODIC_PERIOD = "profiling.periodic.period";
   public static final String PROFILING_PERIODIC_DURATION = "profiling.periodic.duration";
+  public static final String PROFILING_CONTINUOUS_UPLOAD_PERIOD =
+      "profiling.continuous.upload.period";
   public static final String PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH =
       "profiling.periodic.config.override.path";
   public static final String PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH =
@@ -149,6 +151,7 @@ public class Config {
   public static final int DEFAULT_PROFILING_PERIODIC_DELAY = 0;
   public static final int DEFAULT_PROFILING_PERIODIC_PERIOD = 900; // 15 mins
   public static final int DEFAULT_PROFILING_PERIODIC_DURATION = 60;
+  public static final int DEFAULT_PROFILING_CONTINUOUS_UPLOAD_PERIOD = 60;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
@@ -228,6 +231,7 @@ public class Config {
   @Getter private final int profilingPeriodicDelay;
   @Getter private final int profilingPeriodicPeriod;
   @Getter private final int profilingPeriodicDuration;
+  @Getter private final int profilingContinuousUploadPeriod;
   @Getter private final String profilingPeriodicConfigOverridePath;
   @Getter private final String profilingContinuousConfigOverridePath;
 
@@ -370,6 +374,9 @@ public class Config {
     profilingPeriodicDuration =
         getIntegerSettingFromEnvironment(
             PROFILING_PERIODIC_DURATION, DEFAULT_PROFILING_PERIODIC_DURATION);
+    profilingContinuousUploadPeriod =
+        getIntegerSettingFromEnvironment(
+            PROFILING_CONTINUOUS_UPLOAD_PERIOD, DEFAULT_PROFILING_CONTINUOUS_UPLOAD_PERIOD);
     profilingPeriodicConfigOverridePath =
         getSettingFromEnvironment(PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, null);
     profilingContinuousConfigOverridePath =
@@ -498,6 +505,9 @@ public class Config {
     profilingPeriodicDuration =
         getPropertyIntegerValue(
             properties, PROFILING_PERIODIC_DURATION, parent.profilingPeriodicDuration);
+    profilingContinuousUploadPeriod =
+        getPropertyIntegerValue(
+            properties, PROFILING_CONTINUOUS_UPLOAD_PERIOD, parent.profilingContinuousUploadPeriod);
     profilingPeriodicConfigOverridePath =
         properties.getProperty(
             PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, parent.profilingPeriodicConfigOverridePath);

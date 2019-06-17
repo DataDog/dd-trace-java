@@ -22,7 +22,8 @@ public interface RecordingDataListener {
    * streaming of the new available data in another thread. Do not forget to {@link
    * RecordingData#release()} when the data has been uploaded.
    *
+   * @param type type of the recording
    * @param data the new data available
    */
-  void onNewData(RecordingData data);
+  void onNewData(RecordingType type, RecordingData data);
 }

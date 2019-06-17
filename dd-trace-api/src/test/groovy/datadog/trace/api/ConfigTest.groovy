@@ -32,6 +32,7 @@ import static datadog.trace.api.Config.PRIORITY_SAMPLING
 import static datadog.trace.api.Config.PROFILING_API_KEY
 import static datadog.trace.api.Config.PROFILING_API_KEY_FILE
 import static datadog.trace.api.Config.PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH
+import static datadog.trace.api.Config.PROFILING_CONTINUOUS_UPLOAD_PERIOD
 import static datadog.trace.api.Config.PROFILING_ENABLED
 import static datadog.trace.api.Config.PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH
 import static datadog.trace.api.Config.PROFILING_PERIODIC_DELAY
@@ -114,6 +115,7 @@ class ConfigTest extends Specification {
     config.profilingPeriodicDelay == 0
     config.profilingPeriodicPeriod == 900
     config.profilingPeriodicDuration == 60
+    config.profilingContinuousUploadPeriod == 60
     config.profilingPeriodicConfigOverridePath == null
     config.profilingContinuousConfigOverridePath == null
 
@@ -167,6 +169,7 @@ class ConfigTest extends Specification {
     prop.setProperty(PROFILING_PERIODIC_DELAY, "1111")
     prop.setProperty(PROFILING_PERIODIC_PERIOD, "1112")
     prop.setProperty(PROFILING_PERIODIC_DURATION, "1113")
+    prop.setProperty(PROFILING_CONTINUOUS_UPLOAD_PERIOD, "1114")
     prop.setProperty(PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, "/periodic/path")
     prop.setProperty(PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
 
@@ -209,6 +212,7 @@ class ConfigTest extends Specification {
     config.profilingPeriodicDelay == 1111
     config.profilingPeriodicPeriod == 1112
     config.profilingPeriodicDuration == 1113
+    config.profilingContinuousUploadPeriod == 1114
     config.profilingPeriodicConfigOverridePath == "/periodic/path"
     config.profilingContinuousConfigOverridePath == "/continuous/path"
   }
@@ -252,6 +256,7 @@ class ConfigTest extends Specification {
     System.setProperty(PREFIX + PROFILING_PERIODIC_DELAY, "1111")
     System.setProperty(PREFIX + PROFILING_PERIODIC_PERIOD, "1112")
     System.setProperty(PREFIX + PROFILING_PERIODIC_DURATION, "1113")
+    System.setProperty(PREFIX + PROFILING_CONTINUOUS_UPLOAD_PERIOD, "1114")
     System.setProperty(PREFIX + PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, "/periodic/path")
     System.setProperty(PREFIX + PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
 
@@ -294,6 +299,7 @@ class ConfigTest extends Specification {
     config.profilingPeriodicDelay == 1111
     config.profilingPeriodicPeriod == 1112
     config.profilingPeriodicDuration == 1113
+    config.profilingContinuousUploadPeriod == 1114
     config.profilingPeriodicConfigOverridePath == "/periodic/path"
     config.profilingContinuousConfigOverridePath == "/continuous/path"
   }
@@ -793,7 +799,7 @@ class ConfigTest extends Specification {
     then:
     config.localRootSpanTags.get('_dd.hostname') == InetAddress.localHost.hostName
   }
-  
+
   def "verify fallback to properties file"() {
     setup:
     System.setProperty(PREFIX + CONFIGURATION_FILE, "src/test/resources/dd-java-tracer.properties")

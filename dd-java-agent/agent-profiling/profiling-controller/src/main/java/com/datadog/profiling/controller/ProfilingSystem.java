@@ -42,6 +42,7 @@ public final class ProfilingSystem {
   private final Duration delay;
   private final Duration period;
   private final Duration recordingDuration;
+  private final Duration continuousUploadPeriod;
 
   private OngoingRecording continuousRecording;
   private final AtomicReference<OngoingRecording> ongoingProfilingRecording =
@@ -62,7 +63,8 @@ public final class ProfilingSystem {
       final RecordingDataListener dataListener,
       final Duration delay,
       final Duration period,
-      final Duration recordingDuration)
+      final Duration recordingDuration,
+      final Duration continuousUploadPeriod)
       throws ConfigurationException {
     this(
         controller,
@@ -70,6 +72,7 @@ public final class ProfilingSystem {
         delay,
         period,
         recordingDuration,
+        continuousUploadPeriod,
         Executors.newScheduledThreadPool(1, new ProfilingThreadFactory()),
         new AtomicInteger());
   }
@@ -81,6 +84,7 @@ public final class ProfilingSystem {
       final Duration delay,
       final Duration period,
       final Duration recordingDuration,
+      final Duration continuousUploadPeriod,
       final ScheduledExecutorService executorService,
       final AtomicInteger recordingSequenceCounter)
       throws ConfigurationException {
@@ -89,22 +93,38 @@ public final class ProfilingSystem {
     this.delay = delay;
     this.period = period;
     this.recordingDuration = recordingDuration;
+    this.continuousUploadPeriod = continuousUploadPeriod;
     this.executorService = executorService;
     this.recordingSequenceCounter = recordingSequenceCounter;
 
-    if (period.minus(recordingDuration).isNegative()) {
+    if (delay.isNegative()) {
+      throw new ConfigurationException("Recording delay must not be negative.");
+    }
+
+    if (period.isNegative()) {
+      throw new ConfigurationException("Recording duration must not be negative.");
+    }
+
+    if (!period.isZero() && period.minus(recordingDuration).isNegative()) {
       throw new ConfigurationException("Period must be larger than recording duration.");
+    }
+
+    if (continuousUploadPeriod.isNegative()) {
+      throw new ConfigurationException(
+          "Upload period for continuous recording must not ber negative.");
     }
   }
 
   public final void start() {
     continuousRecording = controller.createContinuousRecording(CONTINUOUS_RECORDING_NAME);
-    executorService.scheduleAtFixedRate(
-        new StartRecording(), delay.toMillis(), period.toMillis(), TimeUnit.MILLISECONDS);
-  }
-
-  public void triggerSnapshot(final Instant start, final Instant end) {
-    dataListener.onNewData(continuousRecording.snapshot(start, end));
+    if (!continuousUploadPeriod.isZero()) {
+      executorService.scheduleAtFixedRate(
+          new SnapshotRecording(), 0, continuousUploadPeriod.toMillis(), TimeUnit.MILLISECONDS);
+    }
+    if (!period.isZero()) {
+      executorService.scheduleAtFixedRate(
+          new StartRecording(), delay.toMillis(), period.toMillis(), TimeUnit.MILLISECONDS);
+    }
   }
 
   /** Shuts down the profiling system. */
@@ -160,7 +180,26 @@ public final class ProfilingSystem {
     public void run() {
       final OngoingRecording recording = ongoingProfilingRecording.getAndSet(null);
       if (recording != null) {
-        dataListener.onNewData(recording.stop());
+        dataListener.onNewData(RecordingType.PERIODIC, recording.stop());
+      }
+    }
+  }
+
+  private final class SnapshotRecording implements Runnable {
+
+    private Instant lastSnapshot = Instant.EPOCH;
+
+    @Override
+    public void run() {
+      final Instant now = Instant.now();
+      try {
+        final RecordingData recording = continuousRecording.snapshot(lastSnapshot, now);
+        lastSnapshot = now;
+        if (recording != null) {
+          dataListener.onNewData(RecordingType.CONTINUOUS, recording);
+        }
+      } catch (final Exception e) {
+        log.error("Cannot upload snapshot", e);
       }
     }
   }

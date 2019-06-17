@@ -16,6 +16,7 @@
 package com.datadog.profiling.uploader;
 
 import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.ChunkReader;
 import java.io.IOException;
 import java.time.Duration;
@@ -64,7 +65,7 @@ public final class RecordingUploader {
   static final int MAX_ENQUEUED_REQUESTS = 20;
 
   static final String RECORDING_FORMAT = "jfr";
-  static final String RECORDING_TYPE = "jfr";
+  static final String RECORDING_TYPE_PREFIX = "jfr-";
   static final String RECORDING_RUNTIME = "jvm";
 
   private static final Headers CHUNK_DATA_HEADERS =
@@ -113,13 +114,13 @@ public final class RecordingUploader {
     client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
   }
 
-  public void upload(final RecordingData data) {
+  public void upload(final RecordingType type, final RecordingData data) {
     try {
       if (canEnqueueMoreRequests()) {
         final Iterator<byte[]> chunkIterator = ChunkReader.readChunks(data.getStream());
         int chunkCounter = 0;
         while (chunkIterator.hasNext()) {
-          uploadChunk(data, chunkCounter++, chunkIterator.next());
+          uploadChunk(type, data, chunkCounter++, chunkIterator.next());
         }
       } else {
         log.error("Cannot upload data: too many enqueued requests!");
@@ -136,7 +137,8 @@ public final class RecordingUploader {
     client.dispatcher().executorService().shutdown();
   }
 
-  private void uploadChunk(final RecordingData data, final int chunkId, final byte[] chunk) {
+  private void uploadChunk(
+      final RecordingType type, final RecordingData data, final int chunkId, final byte[] chunk) {
     log.info("Uploading chunk {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
 
     final MultipartBody.Builder bodyBuilder =
@@ -144,7 +146,7 @@ public final class RecordingUploader {
             .setType(MultipartBody.FORM)
             .addFormDataPart(RECORDING_NAME_PARAM, data.getName())
             .addFormDataPart(FORMAT_PARAM, RECORDING_FORMAT)
-            .addFormDataPart(TYPE_PARAM, RECORDING_TYPE)
+            .addFormDataPart(TYPE_PARAM, RECORDING_TYPE_PREFIX + type.getName())
             .addFormDataPart(RUNTIME_PARAM, RECORDING_RUNTIME)
             // Note that toString is well defined for instants - ISO-8601
             .addFormDataPart(RECORDING_START_PARAM, data.getStart().toString())

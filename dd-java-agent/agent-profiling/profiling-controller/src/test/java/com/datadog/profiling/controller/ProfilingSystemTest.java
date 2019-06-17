@@ -19,7 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -27,6 +29,7 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableList;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -61,6 +64,7 @@ public class ProfilingSystemTest {
   @Mock private OngoingRecording continuousRecording;
   @Mock private OngoingRecording profilingRecording;
   @Mock private RecordingData recordingData;
+  @Mock private RecordingData anotherRecordingData;
   @Mock private RecordingDataListener listener;
 
   @BeforeEach
@@ -84,6 +88,7 @@ public class ProfilingSystemTest {
             Duration.ZERO,
             Duration.ofMillis(200),
             Duration.ofMillis(100),
+            Duration.ofMillis(300),
             pool,
             counter);
     system.start();
@@ -104,6 +109,7 @@ public class ProfilingSystemTest {
             Duration.ZERO,
             Duration.ofMillis(REASONABLE_TIMEOUT + 1),
             Duration.ofMillis(REASONABLE_TIMEOUT),
+            Duration.ZERO,
             pool,
             counter);
     system.start();
@@ -139,6 +145,7 @@ public class ProfilingSystemTest {
             Duration.ZERO,
             Duration.ofMillis(REASONABLE_TIMEOUT + 1),
             Duration.ofMillis(REASONABLE_TIMEOUT),
+            Duration.ZERO,
             pool,
             counter);
     system.start();
@@ -157,6 +164,7 @@ public class ProfilingSystemTest {
             Duration.ZERO,
             Duration.ofMillis(200),
             Duration.ofMillis(100),
+            Duration.ZERO,
             pool,
             counter);
     system.shutdown();
@@ -167,11 +175,85 @@ public class ProfilingSystemTest {
   public void testDoesntSendDataIfNotStarted() throws InterruptedException, ConfigurationException {
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ZERO, Duration.ofMillis(1), Duration.ofMillis(1));
+            controller,
+            listener,
+            Duration.ZERO,
+            Duration.ofMillis(1),
+            Duration.ofMillis(1),
+            Duration.ofMillis(1));
     Thread.sleep(20);
     system.shutdown();
     verify(controller, never()).createRecording(any());
-    verify(listener, never()).onNewData(any());
+    verify(listener, never()).onNewData(any(), any());
+  }
+
+  @Test
+  public void testDoesntSendPeriodicRecordingIfPeriodicRecordingIsDisabled()
+      throws InterruptedException, ConfigurationException {
+    when(continuousRecording.snapshot(any(), any())).thenReturn(recordingData);
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ZERO,
+            Duration.ZERO,
+            Duration.ofMillis(1),
+            Duration.ofMillis(1));
+    system.start();
+    Thread.sleep(200);
+    system.shutdown();
+    verify(controller, never()).createRecording(any());
+    verify(listener, never()).onNewData(eq(RecordingType.PERIODIC), any());
+    verify(listener, atLeastOnce()).onNewData(eq(RecordingType.CONTINUOUS), any());
+  }
+
+  @Test
+  public void testDoesntSendContinuousRecordingIfContinuousRecordingIsDisabled()
+      throws InterruptedException, ConfigurationException {
+    when(continuousRecording.snapshot(any(), any())).thenReturn(recordingData);
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ZERO,
+            Duration.ofMillis(10),
+            Duration.ofMillis(1),
+            Duration.ZERO);
+    system.start();
+    Thread.sleep(200);
+    system.shutdown();
+    verify(listener, never()).onNewData(eq(RecordingType.CONTINUOUS), any());
+    verify(listener, atLeastOnce()).onNewData(eq(RecordingType.PERIODIC), any());
+  }
+
+  @Test
+  public void testProfilingSystemNegativeDelay() {
+    assertThrows(
+        ConfigurationException.class,
+        () -> {
+          new ProfilingSystem(
+              controller,
+              listener,
+              Duration.ofMillis(-200),
+              Duration.ofMillis(200),
+              Duration.ofMillis(400),
+              Duration.ZERO);
+        });
+  }
+
+  @Test
+  public void testProfilingSystemNegativePeriod() {
+    assertThrows(
+        ConfigurationException.class,
+        () -> {
+          new ProfilingSystem(
+              controller,
+              listener,
+              Duration.ZERO,
+              Duration.ofMillis(-200),
+              Duration.ofMillis(400),
+              Duration.ZERO);
+        });
   }
 
   /**
@@ -184,7 +266,27 @@ public class ProfilingSystemTest {
         ConfigurationException.class,
         () -> {
           new ProfilingSystem(
-              controller, listener, Duration.ZERO, Duration.ofMillis(200), Duration.ofMillis(400));
+              controller,
+              listener,
+              Duration.ZERO,
+              Duration.ofMillis(200),
+              Duration.ofMillis(400),
+              Duration.ZERO);
+        });
+  }
+
+  @Test
+  public void testProfilingSystemNegativeUploadPeriod() {
+    assertThrows(
+        ConfigurationException.class,
+        () -> {
+          new ProfilingSystem(
+              controller,
+              listener,
+              Duration.ZERO,
+              Duration.ofMillis(400),
+              Duration.ofMillis(200),
+              Duration.ofMillis(-200));
         });
   }
 
@@ -192,7 +294,7 @@ public class ProfilingSystemTest {
    * Ensuring that it can be started, and recording data for a few profiling recordings captured.
    */
   @Test
-  public void testProfilingRecording() throws ConfigurationException {
+  public void testPeriodicProfilingRecording() throws ConfigurationException {
     final Duration recordingPeriod = Duration.ofMillis(500);
     final Duration recordingDuration = Duration.ofMillis(25);
     final List<RecordingData> generatedRecordingData = new ArrayList<>();
@@ -215,16 +317,25 @@ public class ProfilingSystemTest {
 
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ZERO, recordingPeriod, recordingDuration, pool, counter);
+            controller,
+            listener,
+            Duration.ZERO,
+            recordingPeriod,
+            recordingDuration,
+            Duration.ZERO,
+            pool,
+            counter);
     system.start();
 
     final ArgumentCaptor<RecordingData> captor = ArgumentCaptor.forClass(RecordingData.class);
-    verify(listener, timeout(REASONABLE_TIMEOUT).times(3)).onNewData(captor.capture());
+    verify(listener, timeout(REASONABLE_TIMEOUT).times(3))
+        .onNewData(eq(RecordingType.PERIODIC), captor.capture());
     assertEquals(generatedRecordingData, captor.getAllValues());
 
     system.shutdown();
 
-    verify(listener, after(REASONABLE_TIMEOUT).atMost(4)).onNewData(captor.capture());
+    verify(listener, after(REASONABLE_TIMEOUT).atMost(4))
+        .onNewData(eq(RecordingType.PERIODIC), captor.capture());
     assertEquals(generatedRecordingData, captor.getAllValues());
 
     for (int i = 0; i < captor.getAllValues().size(); i++) {
@@ -251,7 +362,7 @@ public class ProfilingSystemTest {
 
   /** Ensure that we continue recording after one recording fails to get created */
   @Test
-  public void testProfilingRecordingCreateError() throws ConfigurationException {
+  public void testPeriodicProfilingRecordingCreateError() throws ConfigurationException {
     final Duration recordingPeriod = Duration.ofMillis(200);
     final Duration recordingDuration = Duration.ofMillis(25);
     final List<RecordingData> generatedRecordingData = new ArrayList<>();
@@ -275,30 +386,116 @@ public class ProfilingSystemTest {
 
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ZERO, recordingPeriod, recordingDuration, pool, counter);
+            controller,
+            listener,
+            Duration.ZERO,
+            recordingPeriod,
+            recordingDuration,
+            Duration.ZERO,
+            pool,
+            counter);
     system.start();
 
     final ArgumentCaptor<RecordingData> captor = ArgumentCaptor.forClass(RecordingData.class);
-    verify(listener, timeout(REASONABLE_TIMEOUT).times(2)).onNewData(captor.capture());
+    verify(listener, timeout(REASONABLE_TIMEOUT).times(2))
+        .onNewData(eq(RecordingType.PERIODIC), captor.capture());
     assertEquals(generatedRecordingData, captor.getAllValues());
 
     system.shutdown();
   }
 
-  /** Ensuring that it can be started, and recording data for the continuous recording captured. */
   @Test
   public void testContinuousRecording() throws ConfigurationException {
-    final Instant start = Instant.EPOCH;
-    final Instant end = Instant.now();
-    when(continuousRecording.snapshot(start, end)).thenReturn(recordingData);
+    final ArgumentCaptor<Instant> startCaptor = ArgumentCaptor.forClass(Instant.class);
+    final ArgumentCaptor<Instant> endCaptor = ArgumentCaptor.forClass(Instant.class);
+    when(continuousRecording.snapshot(startCaptor.capture(), endCaptor.capture()))
+        .thenReturn(recordingData)
+        .thenReturn(anotherRecordingData);
 
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ofDays(1), Duration.ofDays(1), Duration.ofSeconds(2));
+            controller,
+            listener,
+            Duration.ZERO,
+            Duration.ZERO,
+            Duration.ofSeconds(2),
+            Duration.ofMillis(200));
     system.start();
 
-    system.triggerSnapshot(start, end);
+    final ArgumentCaptor<RecordingData> recordingDataCaptor =
+        ArgumentCaptor.forClass(RecordingData.class);
+    verify(listener, timeout(REASONABLE_TIMEOUT).times(2))
+        .onNewData(eq(RecordingType.CONTINUOUS), recordingDataCaptor.capture());
 
-    verify(listener).onNewData(recordingData);
+    assertEquals(
+        ImmutableList.of(recordingData, anotherRecordingData), recordingDataCaptor.getAllValues());
+
+    assertEquals(Instant.EPOCH, startCaptor.getAllValues().get(0));
+    assertEquals(startCaptor.getAllValues().get(1), endCaptor.getAllValues().get(0));
+    assertTrue(
+        endCaptor.getAllValues().get(0).isBefore(Instant.now()),
+        "Last captured value is before now");
+
+    system.shutdown();
+  }
+
+  @Test
+  public void testContinuousRecordingException() throws ConfigurationException {
+    final ArgumentCaptor<Instant> startCaptor = ArgumentCaptor.forClass(Instant.class);
+    final ArgumentCaptor<Instant> endCaptor = ArgumentCaptor.forClass(Instant.class);
+    when(continuousRecording.snapshot(startCaptor.capture(), endCaptor.capture()))
+        .thenThrow(new RuntimeException("test error"))
+        .thenReturn(recordingData)
+        .thenReturn(anotherRecordingData);
+
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ZERO,
+            Duration.ZERO,
+            Duration.ofSeconds(2),
+            Duration.ofMillis(200));
+    system.start();
+
+    final ArgumentCaptor<RecordingData> recordingDataCaptor =
+        ArgumentCaptor.forClass(RecordingData.class);
+    verify(listener, timeout(REASONABLE_TIMEOUT).times(2))
+        .onNewData(eq(RecordingType.CONTINUOUS), recordingDataCaptor.capture());
+
+    assertEquals(
+        ImmutableList.of(recordingData, anotherRecordingData), recordingDataCaptor.getAllValues());
+
+    system.shutdown();
+  }
+
+  @Test
+  public void testContinuousRecordingNoData() throws ConfigurationException {
+    final ArgumentCaptor<Instant> startCaptor = ArgumentCaptor.forClass(Instant.class);
+    final ArgumentCaptor<Instant> endCaptor = ArgumentCaptor.forClass(Instant.class);
+    when(continuousRecording.snapshot(startCaptor.capture(), endCaptor.capture()))
+        .thenReturn(null)
+        .thenReturn(recordingData)
+        .thenReturn(anotherRecordingData);
+
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ZERO,
+            Duration.ZERO,
+            Duration.ofSeconds(2),
+            Duration.ofMillis(200));
+    system.start();
+
+    final ArgumentCaptor<RecordingData> recordingDataCaptor =
+        ArgumentCaptor.forClass(RecordingData.class);
+    verify(listener, timeout(REASONABLE_TIMEOUT).times(2))
+        .onNewData(eq(RecordingType.CONTINUOUS), recordingDataCaptor.capture());
+
+    assertEquals(
+        ImmutableList.of(recordingData, anotherRecordingData), recordingDataCaptor.getAllValues());
+
+    system.shutdown();
   }
 }
