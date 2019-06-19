@@ -60,9 +60,7 @@ class ProfilingIntegrationPeriodicProfilesTest extends AbstractSmokeTest {
     final Multimap<String, Object> firstRequestParameters =
       ProfilingTestUtils.parseProfilingRequestParameters(firstRequest)
 
-    def firstRecordingNameMatch = firstRequestParameters.get("recording-name").get(0) =~ /^dd-profiling-(\d+)$/
-    firstRecordingNameMatch != null
-    Integer.parseInt(firstRecordingNameMatch[0][1]) == 0
+    firstRequestParameters.get("recording-name").get(0) == 'dd-periodic'
     firstRequestParameters.get("format").get(0) == "jfr"
     firstRequestParameters.get("type").get(0) == "jfr-periodic"
     firstRequestParameters.get("runtime").get(0) == "jvm"
@@ -94,10 +92,8 @@ class ProfilingIntegrationPeriodicProfilesTest extends AbstractSmokeTest {
     final Multimap<String, Object> secondRequestParameters =
       ProfilingTestUtils.parseProfilingRequestParameters(secondRequest)
 
+    secondRequestParameters.get("recording-name").get(0) == 'dd-periodic'
     def secondStartTime = Instant.parse(secondRequestParameters.get("recording-start").get(0))
-    def secondRecordingNameMatch = secondRequestParameters.get("recording-name").get(0) =~ /^dd-profiling-(\d+)$/
-    secondRecordingNameMatch != null
-    Integer.parseInt(secondRecordingNameMatch[0][1]) == Integer.parseInt(firstRecordingNameMatch[0][1]) + 1
     def period = secondStartTime.toEpochMilli() - firstStartTime.toEpochMilli()
     period > TimeUnit.SECONDS.toMillis(PROFILING_PERIODIC_RECORDING_PERIOD_SECONDS - 1)
     period < TimeUnit.SECONDS.toMillis(PROFILING_PERIODIC_RECORDING_PERIOD_SECONDS + 1)
