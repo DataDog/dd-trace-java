@@ -31,11 +31,11 @@ public class OpenJdkControllerTest {
   }
 
   @Test
-  public void testCreateRecording() throws IOException {
-    final Recording recording = controller.createRecording(TEST_NAME).stop().getRecording();
+  public void testCreatePeriodicRecording() throws IOException {
+    final Recording recording = controller.createPeriodicRecording(TEST_NAME).stop().getRecording();
     assertEquals(TEST_NAME, recording.getName());
     assertEquals(
-        JfpUtils.readNamedJfpResource(OpenJdkController.JFP_PROFILE, PERIODIC_OVERRIDES),
+        JfpUtils.readNamedJfpResource(OpenJdkController.JFP_PERIODIC, PERIODIC_OVERRIDES),
         recording.getSettings());
   }
 

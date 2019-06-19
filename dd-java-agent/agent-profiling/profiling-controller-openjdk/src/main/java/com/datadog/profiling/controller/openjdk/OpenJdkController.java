@@ -29,12 +29,12 @@ import jdk.jfr.Recording;
  */
 public final class OpenJdkController implements Controller {
   // Visible for testing
-  static final String JFP_PROFILE = "jfr2/ddprofile.jfp";
+  static final String JFP_PERIODIC = "jfr2/ddperiodic.jfp";
   // Visible for testing
   static final String JFP_CONTINUOUS = "jfr2/ddcontinuous.jfp";
 
   private final Map<String, String> continuousRecordingSettings;
-  private final Map<String, String> profilingRecordingSettings;
+  private final Map<String, String> periodicRecordingSettings;
 
   /**
    * Main constructor for OpenJDK profiling controller.
@@ -49,9 +49,9 @@ public final class OpenJdkController implements Controller {
     Class.forName("jdk.jfr.FlightRecorder");
 
     try {
-      profilingRecordingSettings =
+      periodicRecordingSettings =
           JfpUtils.readNamedJfpResource(
-              JFP_PROFILE, config.getProfilingPeriodicConfigOverridePath());
+              JFP_PERIODIC, config.getProfilingPeriodicConfigOverridePath());
       continuousRecordingSettings =
           JfpUtils.readNamedJfpResource(
               JFP_CONTINUOUS, config.getProfilingContinuousConfigOverridePath());
@@ -61,10 +61,10 @@ public final class OpenJdkController implements Controller {
   }
 
   @Override
-  public OpenJdkOngoingRecording createRecording(final String recordingName) {
+  public OpenJdkOngoingRecording createPeriodicRecording(final String recordingName) {
     final Recording recording = new Recording();
     recording.setName(recordingName);
-    recording.setSettings(profilingRecordingSettings);
+    recording.setSettings(periodicRecordingSettings);
     recording.start();
     return new OpenJdkOngoingRecording(recording);
   }
@@ -75,8 +75,7 @@ public final class OpenJdkController implements Controller {
     recording.setName(recordingName);
     recording.setSettings(continuousRecordingSettings);
     recording.start();
-    // probably limit maxSize to something sensible, and configurable, here. For now rely on
-    // in-memory.
+    // probably limit maxSize/maxAge to something sensible, and configurable, here.
     return new OpenJdkOngoingRecording(recording);
   }
 }

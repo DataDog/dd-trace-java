@@ -25,7 +25,7 @@ public class JfpUtilsTest {
   @Test
   public void testLoadingPeriodicConfig() throws IOException {
     final Map<String, String> config =
-        JfpUtils.readNamedJfpResource(OpenJdkController.JFP_PROFILE, null);
+        JfpUtils.readNamedJfpResource(OpenJdkController.JFP_PERIODIC, null);
     assertEquals("true", config.get(TEST_CONFIG_ENTRY));
     assertNull(config.get(PERIODIC_CONFIG_OVERRIDE_ENTRY));
   }
@@ -41,7 +41,7 @@ public class JfpUtilsTest {
   @Test
   public void testLoadingPeriodicConfigWithOverride() throws IOException {
     final Map<String, String> config =
-        JfpUtils.readNamedJfpResource(OpenJdkController.JFP_PROFILE, PERIODIC_OVERRIDES);
+        JfpUtils.readNamedJfpResource(OpenJdkController.JFP_PERIODIC, PERIODIC_OVERRIDES);
     assertEquals("periodic-test-value", config.get(TEST_CONFIG_ENTRY));
     assertEquals("100", config.get(PERIODIC_CONFIG_OVERRIDE_ENTRY));
   }

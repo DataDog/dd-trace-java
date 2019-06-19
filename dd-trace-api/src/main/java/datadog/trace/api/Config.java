@@ -96,11 +96,9 @@ public class Config {
   public static final String PROFILING_API_KEY = "profiling.apikey";
   public static final String PROFILING_API_KEY_FILE = "profiling.apikey.file";
   public static final String PROFILING_TAGS = "profiling.tags";
-  public static final String PROFILING_PERIODIC_DELAY = "profiling.periodic.delay";
-  public static final String PROFILING_PERIODIC_PERIOD = "profiling.periodic.period";
-  public static final String PROFILING_PERIODIC_DURATION = "profiling.periodic.duration";
-  public static final String PROFILING_CONTINUOUS_UPLOAD_PERIOD =
-      "profiling.continuous.upload.period";
+  public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
+  public static final String PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO =
+      "profiling.continuous.to.periodic.upload.ratio";
   public static final String PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH =
       "profiling.periodic.config.override.path";
   public static final String PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH =
@@ -148,10 +146,9 @@ public class Config {
   public static final boolean DEFAULT_PROFILING_ENABLED = false;
   public static final String DEFAULT_PROFILING_URL =
       "http://localhost:5000/api/v0/profiling/jfr-chunk";
-  public static final int DEFAULT_PROFILING_PERIODIC_DELAY = 0;
-  public static final int DEFAULT_PROFILING_PERIODIC_PERIOD = 900; // 15 mins
-  public static final int DEFAULT_PROFILING_PERIODIC_DURATION = 60;
-  public static final int DEFAULT_PROFILING_CONTINUOUS_UPLOAD_PERIOD = 60;
+  public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
+  // always-on periodic profile
+  public static final int DEFAULT_PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO = 1;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
@@ -228,10 +225,8 @@ public class Config {
   @Getter private final String profilingUrl;
   @Getter private final String profilingApiKey;
   private final Map<String, String> profilingTags;
-  @Getter private final int profilingPeriodicDelay;
-  @Getter private final int profilingPeriodicPeriod;
-  @Getter private final int profilingPeriodicDuration;
-  @Getter private final int profilingContinuousUploadPeriod;
+  @Getter private final int profilingUploadPeriod;
+  @Getter private final int profilingContinuousToPeriodicUploadsRatio;
   @Getter private final String profilingPeriodicConfigOverridePath;
   @Getter private final String profilingContinuousConfigOverridePath;
 
@@ -365,18 +360,12 @@ public class Config {
     profilingApiKey = tmpProfilingApiKey;
 
     profilingTags = getMapSettingFromEnvironment(PROFILING_TAGS, null);
-    profilingPeriodicDelay =
+    profilingUploadPeriod =
+        getIntegerSettingFromEnvironment(PROFILING_UPLOAD_PERIOD, DEFAULT_PROFILING_UPLOAD_PERIOD);
+    profilingContinuousToPeriodicUploadsRatio =
         getIntegerSettingFromEnvironment(
-            PROFILING_PERIODIC_DELAY, DEFAULT_PROFILING_PERIODIC_DELAY);
-    profilingPeriodicPeriod =
-        getIntegerSettingFromEnvironment(
-            PROFILING_PERIODIC_PERIOD, DEFAULT_PROFILING_PERIODIC_PERIOD);
-    profilingPeriodicDuration =
-        getIntegerSettingFromEnvironment(
-            PROFILING_PERIODIC_DURATION, DEFAULT_PROFILING_PERIODIC_DURATION);
-    profilingContinuousUploadPeriod =
-        getIntegerSettingFromEnvironment(
-            PROFILING_CONTINUOUS_UPLOAD_PERIOD, DEFAULT_PROFILING_CONTINUOUS_UPLOAD_PERIOD);
+            PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO,
+            DEFAULT_PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO);
     profilingPeriodicConfigOverridePath =
         getSettingFromEnvironment(PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, null);
     profilingContinuousConfigOverridePath =
@@ -496,18 +485,13 @@ public class Config {
     profilingUrl = properties.getProperty(PROFILING_URL, parent.profilingUrl);
     profilingApiKey = properties.getProperty(PROFILING_API_KEY, parent.profilingApiKey);
     profilingTags = getPropertyMapValue(properties, PROFILING_TAGS, parent.profilingTags);
-    profilingPeriodicDelay =
+    profilingUploadPeriod =
+        getPropertyIntegerValue(properties, PROFILING_UPLOAD_PERIOD, parent.profilingUploadPeriod);
+    profilingContinuousToPeriodicUploadsRatio =
         getPropertyIntegerValue(
-            properties, PROFILING_PERIODIC_DELAY, parent.profilingPeriodicDelay);
-    profilingPeriodicPeriod =
-        getPropertyIntegerValue(
-            properties, PROFILING_PERIODIC_PERIOD, parent.profilingPeriodicPeriod);
-    profilingPeriodicDuration =
-        getPropertyIntegerValue(
-            properties, PROFILING_PERIODIC_DURATION, parent.profilingPeriodicDuration);
-    profilingContinuousUploadPeriod =
-        getPropertyIntegerValue(
-            properties, PROFILING_CONTINUOUS_UPLOAD_PERIOD, parent.profilingContinuousUploadPeriod);
+            properties,
+            PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO,
+            parent.profilingContinuousToPeriodicUploadsRatio);
     profilingPeriodicConfigOverridePath =
         properties.getProperty(
             PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, parent.profilingPeriodicConfigOverridePath);

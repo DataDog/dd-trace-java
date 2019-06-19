@@ -27,7 +27,7 @@ class ProfilingIntegrationPeriodicProfilesTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
-    command.add("-Ddd.profiling.continuous.upload.period=0") // Disable continuous profiles uploads
+    command.add("-Dprofiling.continuous.to.periodic.upload.ratio=1") // Make all profiles periodic
     command.addAll((String[]) ["-jar", profilingShadowJar])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))

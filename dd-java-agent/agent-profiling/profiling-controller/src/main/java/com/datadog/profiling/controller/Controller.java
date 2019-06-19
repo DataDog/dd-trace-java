@@ -28,7 +28,7 @@ public interface Controller {
    * @param recordingName the name under which the recording will be known.
    * @return the recording object created.
    */
-  OngoingRecording createRecording(String recordingName);
+  OngoingRecording createPeriodicRecording(String recordingName);
 
   /**
    * Creates a continuous recording using the specified template.
