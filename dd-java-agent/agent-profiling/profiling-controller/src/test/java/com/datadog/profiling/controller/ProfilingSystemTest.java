@@ -70,9 +70,9 @@ public class ProfilingSystemTest {
 
   @BeforeEach
   public void setup() {
-    when(controller.createContinuousRecording(ProfilingSystem.CONTINUOUS_RECORDING_NAME))
+    when(controller.createContinuousRecording(ProfilingSystem.RECORDING_NAME))
         .thenReturn(continuousRecording);
-    when(controller.createPeriodicRecording(ProfilingSystem.PERIODIC_RECORDING_NAME))
+    when(controller.createPeriodicRecording(ProfilingSystem.RECORDING_NAME))
         .thenReturn(periodicRecording);
   }
 
@@ -193,7 +193,7 @@ public class ProfilingSystemTest {
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
     final List<OngoingRecording> generatedPeriodicRecordings = new ArrayList<>();
-    when(controller.createPeriodicRecording(ProfilingSystem.PERIODIC_RECORDING_NAME))
+    when(controller.createPeriodicRecording(ProfilingSystem.RECORDING_NAME))
         .thenAnswer(
             (InvocationOnMock invocation) -> {
               final OngoingRecording recording = mock(OngoingRecording.class);

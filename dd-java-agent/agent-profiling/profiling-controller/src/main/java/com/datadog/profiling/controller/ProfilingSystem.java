@@ -27,8 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 /** Sets up the profiling strategy and schedules the profiling recordings. */
 @Slf4j
 public final class ProfilingSystem {
-  static final String PERIODIC_RECORDING_NAME = "dd-periodic";
-  static final String CONTINUOUS_RECORDING_NAME = "dd-continuous";
+  static final String RECORDING_NAME = "dd-profiling";
 
   private static final long TERMINATION_TIMEOUT = 10;
 
@@ -94,7 +93,7 @@ public final class ProfilingSystem {
 
   public final void start() {
     final Instant now = Instant.now();
-    continuousRecording = controller.createContinuousRecording(CONTINUOUS_RECORDING_NAME);
+    continuousRecording = controller.createContinuousRecording(RECORDING_NAME);
     executorService.scheduleAtFixedRate(
         new SnapshotRecording(now),
         uploadPeriod.toMillis(),
@@ -102,7 +101,7 @@ public final class ProfilingSystem {
         TimeUnit.MILLISECONDS);
 
     if (continuousToPeriodicUploadsRatio == 1) {
-      periodicRecordingRef.set(controller.createPeriodicRecording(PERIODIC_RECORDING_NAME));
+      periodicRecordingRef.set(controller.createPeriodicRecording(RECORDING_NAME));
     }
   }
 
@@ -171,8 +170,7 @@ public final class ProfilingSystem {
         periodicRecordingCounter++;
         if (periodicRecordingCounter == continuousToPeriodicUploadsRatio) {
           periodicRecordingCounter = 0;
-          final OngoingRecording newRecording =
-              controller.createPeriodicRecording(PERIODIC_RECORDING_NAME);
+          final OngoingRecording newRecording = controller.createPeriodicRecording(RECORDING_NAME);
           if (!periodicRecordingRef.compareAndSet(null, newRecording)) {
             newRecording.close(); // should never happen
           }
