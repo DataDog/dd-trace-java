@@ -101,6 +101,7 @@ public final class ProfilingSystem {
         TimeUnit.MILLISECONDS);
 
     if (continuousToPeriodicUploadsRatio == 1) {
+      log.debug("Always running periodic profiling recording since ratio=1");
       periodicRecordingRef.set(controller.createPeriodicRecording(RECORDING_NAME));
     }
   }
