@@ -10,7 +10,7 @@ public class SpanEventFactory implements DDSpanEventFactory {
   // This is needed to ensure SpanEven class is loaded when SpanEventFactory is loaded
   // Loading SpanEven is important because it also loads JFR classes - which may not be present on
   // some JVMs
-  private static final Class<?> eventClass = SpanEvent.class;
+  private static final Class<?> EVENT_CLASS = SpanEvent.class;
 
   @Override
   public DDSpanEvent create(final DDSpanContext context) {
