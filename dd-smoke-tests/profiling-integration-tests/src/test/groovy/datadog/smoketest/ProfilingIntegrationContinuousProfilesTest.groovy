@@ -27,7 +27,7 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
-    command.add("-Dprofiling.continuous.to.periodic.upload.ratio=0") // Disable periodic profiles
+    command.add("-Ddd.profiling.continuous.to.periodic.upload.ratio=0") // Disable periodic profiles
     command.addAll((String[]) ["-jar", profilingShadowJar])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
@@ -51,14 +51,21 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     server.enqueue(new MockResponse().setResponseCode(200))
 
     when:
-    final RecordedRequest firstRequest = server.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS)
+    RecordedRequest firstRequest
+    Multimap<String, Object> firstRequestParameters
+    while (true) {
+      firstRequest = server.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS)
+      firstRequestParameters =
+        ProfilingTestUtils.parseProfilingRequestParameters(firstRequest)
+      // Skip non-first chunks
+      if (firstRequestParameters.get("chunk-seq-num").get(0) == "0") {
+        break
+      }
+    }
 
     then:
     firstRequest.getRequestUrl().toString() == profilingUrl
     firstRequest.getHeader("Authorization") == Credentials.basic(PROFILING_API_KEY, "")
-
-    final Multimap<String, Object> firstRequestParameters =
-      ProfilingTestUtils.parseProfilingRequestParameters(firstRequest)
 
     firstRequestParameters.get("recording-name").get(0) == 'dd-profiling'
     firstRequestParameters.get("format").get(0) == "jfr"
@@ -83,14 +90,21 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     firstRequestParameters.get("chunk-data").get(0) != null
 
     when:
-    final RecordedRequest secondRequest = server.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS)
+    RecordedRequest secondRequest
+    Multimap<String, Object> secondRequestParameters
+    while (true) {
+      secondRequest = server.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS)
+      secondRequestParameters =
+        ProfilingTestUtils.parseProfilingRequestParameters(secondRequest)
+      // Skip non-first chunks
+      if (secondRequestParameters.get("chunk-seq-num").get(0) == "0") {
+        break
+      }
+    }
 
     then:
     secondRequest.getRequestUrl().toString() == profilingUrl
     secondRequest.getHeader("Authorization") == Credentials.basic(PROFILING_API_KEY, "")
-
-    final Multimap<String, Object> secondRequestParameters =
-      ProfilingTestUtils.parseProfilingRequestParameters(secondRequest)
 
     secondRequestParameters.get("recording-name").get(0) == 'dd-profiling'
     def secondStartTime = Instant.parse(secondRequestParameters.get("recording-start").get(0))
