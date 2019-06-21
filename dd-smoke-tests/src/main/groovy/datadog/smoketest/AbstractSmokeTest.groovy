@@ -50,7 +50,7 @@ abstract class AbstractSmokeTest extends Specification {
     processBuilder.environment().put("DD_PROFILING_APIKEY", PROFILING_API_KEY)
 
     processBuilder.redirectErrorStream(true)
-    File log = new File("${buildDirectory}/reports/testProcess${this.getClass().getName()}.log")
+    File log = new File("${buildDirectory}/reports/testProcess.${this.getClass().getName()}.log")
     processBuilder.redirectOutput(ProcessBuilder.Redirect.to(log))
 
     serverProcess = processBuilder.start()
