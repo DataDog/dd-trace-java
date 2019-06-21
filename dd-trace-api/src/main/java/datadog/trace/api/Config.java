@@ -99,6 +99,8 @@ public class Config {
   public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
   public static final String PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO =
       "profiling.continuous.to.periodic.upload.ratio";
+  public static final String PROFILING_RECORDING_MAX_SIZE = "profiling.recording.max.size";
+  public static final String PROFILING_RECORDING_MAX_AGE = "profiling.recording.max.age";
   public static final String PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH =
       "profiling.periodic.config.override.path";
   public static final String PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH =
@@ -147,6 +149,8 @@ public class Config {
   public static final String DEFAULT_PROFILING_URL =
       "http://localhost:5000/api/v0/profiling/jfr-chunk";
   public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
+  public static final int DEFAULT_PROFILING_RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
+  public static final int DEFAULT_PROFILING_RECORDING_MAX_AGE = 5 * 60; // 5 mins
   // always-on periodic profile
   public static final int DEFAULT_PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO = 1;
 
@@ -227,6 +231,8 @@ public class Config {
   private final Map<String, String> profilingTags;
   @Getter private final int profilingUploadPeriod;
   @Getter private final int profilingContinuousToPeriodicUploadsRatio;
+  @Getter private final int profilingRecordingMaxSize;
+  @Getter private final int profilingRecordingMaxAge;
   @Getter private final String profilingPeriodicConfigOverridePath;
   @Getter private final String profilingContinuousConfigOverridePath;
 
@@ -366,6 +372,12 @@ public class Config {
         getIntegerSettingFromEnvironment(
             PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO,
             DEFAULT_PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO);
+    profilingRecordingMaxSize =
+        getIntegerSettingFromEnvironment(
+            PROFILING_RECORDING_MAX_SIZE, DEFAULT_PROFILING_RECORDING_MAX_SIZE);
+    profilingRecordingMaxAge =
+        getIntegerSettingFromEnvironment(
+            PROFILING_RECORDING_MAX_AGE, DEFAULT_PROFILING_RECORDING_MAX_AGE);
     profilingPeriodicConfigOverridePath =
         getSettingFromEnvironment(PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, null);
     profilingContinuousConfigOverridePath =
@@ -492,6 +504,12 @@ public class Config {
             properties,
             PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO,
             parent.profilingContinuousToPeriodicUploadsRatio);
+    profilingRecordingMaxSize =
+        getPropertyIntegerValue(
+            properties, PROFILING_RECORDING_MAX_SIZE, parent.profilingRecordingMaxSize);
+    profilingRecordingMaxAge =
+        getPropertyIntegerValue(
+            properties, PROFILING_RECORDING_MAX_AGE, parent.profilingRecordingMaxAge);
     profilingPeriodicConfigOverridePath =
         properties.getProperty(
             PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, parent.profilingPeriodicConfigOverridePath);

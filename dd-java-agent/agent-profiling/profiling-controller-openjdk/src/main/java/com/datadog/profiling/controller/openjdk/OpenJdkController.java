@@ -19,6 +19,7 @@ import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import datadog.trace.api.Config;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Map;
 import jdk.jfr.Recording;
 
@@ -33,6 +34,8 @@ public final class OpenJdkController implements Controller {
   // Visible for testing
   static final String JFP_CONTINUOUS = "jfr2/ddcontinuous.jfp";
 
+  private final int recordingMaxSize;
+  private final Duration recordingMaxAge;
   private final Map<String, String> continuousRecordingSettings;
   private final Map<String, String> periodicRecordingSettings;
 
@@ -58,24 +61,29 @@ public final class OpenJdkController implements Controller {
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
+
+    recordingMaxSize = config.getProfilingRecordingMaxSize();
+    recordingMaxAge = Duration.ofSeconds(config.getProfilingRecordingMaxAge());
   }
 
   @Override
   public OpenJdkOngoingRecording createPeriodicRecording(final String recordingName) {
-    final Recording recording = new Recording();
-    recording.setName(recordingName);
-    recording.setSettings(periodicRecordingSettings);
-    recording.start();
-    return new OpenJdkOngoingRecording(recording);
+    return createRecording(recordingName, periodicRecordingSettings);
   }
 
   @Override
   public OpenJdkOngoingRecording createContinuousRecording(final String recordingName) {
+    return createRecording(recordingName, continuousRecordingSettings);
+  }
+
+  private OpenJdkOngoingRecording createRecording(
+      final String recordingName, final Map<String, String> settings) {
     final Recording recording = new Recording();
     recording.setName(recordingName);
-    recording.setSettings(continuousRecordingSettings);
+    recording.setSettings(settings);
+    recording.setMaxSize(recordingMaxSize);
+    recording.setMaxAge(recordingMaxAge);
     recording.start();
-    // probably limit maxSize/maxAge to something sensible, and configurable, here.
     return new OpenJdkOngoingRecording(recording);
   }
 }

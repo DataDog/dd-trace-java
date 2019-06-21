@@ -35,6 +35,8 @@ import static datadog.trace.api.Config.PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH
 import static datadog.trace.api.Config.PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO
 import static datadog.trace.api.Config.PROFILING_ENABLED
 import static datadog.trace.api.Config.PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH
+import static datadog.trace.api.Config.PROFILING_RECORDING_MAX_AGE
+import static datadog.trace.api.Config.PROFILING_RECORDING_MAX_SIZE
 import static datadog.trace.api.Config.PROFILING_TAGS
 import static datadog.trace.api.Config.PROFILING_UPLOAD_PERIOD
 import static datadog.trace.api.Config.PROFILING_URL
@@ -112,6 +114,9 @@ class ConfigTest extends Specification {
     config.mergedProfilingTags == [(HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingUploadPeriod == 60
     config.profilingContinuousToPeriodicUploadsRatio == 1
+    config.profilingRecordingMaxSize == 64 * 1024 * 1024
+    config.profilingRecordingMaxAge == 5 * 60
+    config.profilingRecordingMaxAge == 5 * 60
     config.profilingPeriodicConfigOverridePath == null
     config.profilingContinuousConfigOverridePath == null
 
@@ -164,6 +169,8 @@ class ConfigTest extends Specification {
     prop.setProperty(PROFILING_TAGS, "f:6,host:test-host")
     prop.setProperty(PROFILING_UPLOAD_PERIOD, "1112")
     prop.setProperty(PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO, "1113")
+    prop.setProperty(PROFILING_RECORDING_MAX_SIZE, "1114")
+    prop.setProperty(PROFILING_RECORDING_MAX_AGE, "1115")
     prop.setProperty(PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, "/periodic/path")
     prop.setProperty(PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
 
@@ -205,6 +212,8 @@ class ConfigTest extends Specification {
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingUploadPeriod == 1112
     config.profilingContinuousToPeriodicUploadsRatio == 1113
+    config.profilingRecordingMaxSize == 1114
+    config.profilingRecordingMaxAge == 1115
     config.profilingPeriodicConfigOverridePath == "/periodic/path"
     config.profilingContinuousConfigOverridePath == "/continuous/path"
   }
@@ -247,6 +256,8 @@ class ConfigTest extends Specification {
     System.setProperty(PREFIX + PROFILING_TAGS, "f:6,host:test-host")
     System.setProperty(PREFIX + PROFILING_UPLOAD_PERIOD, "1112")
     System.setProperty(PREFIX + PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO, "1113")
+    System.setProperty(PREFIX + PROFILING_RECORDING_MAX_SIZE, "1114")
+    System.setProperty(PREFIX + PROFILING_RECORDING_MAX_AGE, "1115")
     System.setProperty(PREFIX + PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, "/periodic/path")
     System.setProperty(PREFIX + PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
 
@@ -288,6 +299,8 @@ class ConfigTest extends Specification {
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingUploadPeriod == 1112
     config.profilingContinuousToPeriodicUploadsRatio == 1113
+    config.profilingRecordingMaxSize == 1114
+    config.profilingRecordingMaxAge == 1115
     config.profilingPeriodicConfigOverridePath == "/periodic/path"
     config.profilingContinuousConfigOverridePath == "/continuous/path"
   }
