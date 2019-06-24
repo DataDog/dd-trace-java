@@ -224,10 +224,8 @@ jdk.JavaErrorThrow#enabled=true
 jdk.JavaErrorThrow#stackTrace=true
 jdk.ExceptionStatistics#enabled=true
 jdk.ExceptionStatistics#period=1000 ms
-# FIXME: having this causes segfault on macos and in docker in profiling integration tests
-# Disabling is likely just hiding some bigger issue - need to investigate further
-#jdk.ActiveRecording#enabled=true
-#jdk.ActiveSetting#enabled=true
+jdk.ActiveRecording#enabled=true
+jdk.ActiveSetting#enabled=true
 jdk.DataLoss#enabled=true
 jdk.DumpReason#enabled=true
 jdk.ZPageAllocation#enabled=true
