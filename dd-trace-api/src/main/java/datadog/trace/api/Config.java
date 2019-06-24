@@ -96,6 +96,7 @@ public class Config {
   public static final String PROFILING_API_KEY = "profiling.apikey";
   public static final String PROFILING_API_KEY_FILE = "profiling.apikey.file";
   public static final String PROFILING_TAGS = "profiling.tags";
+  public static final String PROFILING_STARTUP_DELAY = "profiling.start.delay";
   public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
   public static final String PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO =
       "profiling.continuous.to.periodic.upload.ratio";
@@ -148,6 +149,7 @@ public class Config {
   public static final boolean DEFAULT_PROFILING_ENABLED = false;
   public static final String DEFAULT_PROFILING_URL =
       "http://localhost:5000/api/v0/profiling/jfr-chunk";
+  public static final int DEFAULT_PROFILING_STARTUP_DELAY = 10;
   public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
   public static final int DEFAULT_PROFILING_RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
   public static final int DEFAULT_PROFILING_RECORDING_MAX_AGE = 5 * 60; // 5 mins
@@ -229,6 +231,7 @@ public class Config {
   @Getter private final String profilingUrl;
   @Getter private final String profilingApiKey;
   private final Map<String, String> profilingTags;
+  @Getter private final int profilingStartupDelay;
   @Getter private final int profilingUploadPeriod;
   @Getter private final int profilingContinuousToPeriodicUploadsRatio;
   @Getter private final int profilingRecordingMaxSize;
@@ -366,6 +369,8 @@ public class Config {
     profilingApiKey = tmpProfilingApiKey;
 
     profilingTags = getMapSettingFromEnvironment(PROFILING_TAGS, null);
+    profilingStartupDelay =
+        getIntegerSettingFromEnvironment(PROFILING_STARTUP_DELAY, DEFAULT_PROFILING_STARTUP_DELAY);
     profilingUploadPeriod =
         getIntegerSettingFromEnvironment(PROFILING_UPLOAD_PERIOD, DEFAULT_PROFILING_UPLOAD_PERIOD);
     profilingContinuousToPeriodicUploadsRatio =
@@ -497,6 +502,8 @@ public class Config {
     profilingUrl = properties.getProperty(PROFILING_URL, parent.profilingUrl);
     profilingApiKey = properties.getProperty(PROFILING_API_KEY, parent.profilingApiKey);
     profilingTags = getPropertyMapValue(properties, PROFILING_TAGS, parent.profilingTags);
+    profilingStartupDelay =
+        getPropertyIntegerValue(properties, PROFILING_STARTUP_DELAY, parent.profilingStartupDelay);
     profilingUploadPeriod =
         getPropertyIntegerValue(properties, PROFILING_UPLOAD_PERIOD, parent.profilingUploadPeriod);
     profilingContinuousToPeriodicUploadsRatio =

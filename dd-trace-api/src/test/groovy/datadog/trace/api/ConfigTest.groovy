@@ -37,6 +37,7 @@ import static datadog.trace.api.Config.PROFILING_ENABLED
 import static datadog.trace.api.Config.PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH
 import static datadog.trace.api.Config.PROFILING_RECORDING_MAX_AGE
 import static datadog.trace.api.Config.PROFILING_RECORDING_MAX_SIZE
+import static datadog.trace.api.Config.PROFILING_STARTUP_DELAY
 import static datadog.trace.api.Config.PROFILING_TAGS
 import static datadog.trace.api.Config.PROFILING_UPLOAD_PERIOD
 import static datadog.trace.api.Config.PROFILING_URL
@@ -112,6 +113,7 @@ class ConfigTest extends Specification {
     config.profilingUrl == Config.DEFAULT_PROFILING_URL
     config.profilingApiKey == null
     config.mergedProfilingTags == [(HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.profilingStartupDelay == 10
     config.profilingUploadPeriod == 60
     config.profilingContinuousToPeriodicUploadsRatio == 1
     config.profilingRecordingMaxSize == 64 * 1024 * 1024
@@ -167,6 +169,7 @@ class ConfigTest extends Specification {
     prop.setProperty(PROFILING_URL, "new url")
     prop.setProperty(PROFILING_API_KEY, "new api key")
     prop.setProperty(PROFILING_TAGS, "f:6,host:test-host")
+    prop.setProperty(PROFILING_STARTUP_DELAY, "1111")
     prop.setProperty(PROFILING_UPLOAD_PERIOD, "1112")
     prop.setProperty(PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO, "1113")
     prop.setProperty(PROFILING_RECORDING_MAX_SIZE, "1114")
@@ -210,6 +213,7 @@ class ConfigTest extends Specification {
     config.profilingUrl == "new url"
     config.profilingApiKey == "new api key" // we can still override via internal properties object
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.profilingStartupDelay == 1111
     config.profilingUploadPeriod == 1112
     config.profilingContinuousToPeriodicUploadsRatio == 1113
     config.profilingRecordingMaxSize == 1114
@@ -254,6 +258,7 @@ class ConfigTest extends Specification {
     System.setProperty(PREFIX + PROFILING_URL, "new url")
     System.setProperty(PREFIX + PROFILING_API_KEY, "new api key")
     System.setProperty(PREFIX + PROFILING_TAGS, "f:6,host:test-host")
+    System.setProperty(PREFIX + PROFILING_STARTUP_DELAY, "1111")
     System.setProperty(PREFIX + PROFILING_UPLOAD_PERIOD, "1112")
     System.setProperty(PREFIX + PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO, "1113")
     System.setProperty(PREFIX + PROFILING_RECORDING_MAX_SIZE, "1114")
@@ -297,6 +302,7 @@ class ConfigTest extends Specification {
     config.profilingUrl == "new url"
     config.profilingApiKey == null // system properties cannot be used to provide a key
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.profilingStartupDelay == 1111
     config.profilingUploadPeriod == 1112
     config.profilingContinuousToPeriodicUploadsRatio == 1113
     config.profilingRecordingMaxSize == 1114

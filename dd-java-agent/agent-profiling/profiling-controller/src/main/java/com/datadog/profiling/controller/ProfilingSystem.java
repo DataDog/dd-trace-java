@@ -36,18 +36,21 @@ public final class ProfilingSystem {
   // For now only support one callback. Multiplex as needed.
   private final RecordingDataListener dataListener;
 
+  private final Duration startupDelay;
   private final Duration uploadPeriod;
   private final int continuousToPeriodicUploadsRatio;
 
   private OngoingRecording continuousRecording;
   private final AtomicReference<OngoingRecording> periodicRecordingRef =
       new AtomicReference<>(null);
+  private boolean started = false;
 
   /**
    * Constructor.
    *
    * @param controller implementation specific controller of profiling machinery
-   * @param dataListener the listener for data being produced.
+   * @param dataListener the listener for data being produced
+   * @param startupDelay delay before starting jfr
    * @param uploadPeriod how often to upload data
    * @param continuousToPeriodicUploadsRatio how often to run and upload periodic recordings, given
    *     in units of {@code uploadPeriod}
@@ -56,12 +59,14 @@ public final class ProfilingSystem {
   public ProfilingSystem(
       final Controller controller,
       final RecordingDataListener dataListener,
+      final Duration startupDelay,
       final Duration uploadPeriod,
       final int continuousToPeriodicUploadsRatio)
       throws ConfigurationException {
     this(
         controller,
         dataListener,
+        startupDelay,
         uploadPeriod,
         continuousToPeriodicUploadsRatio,
         Executors.newScheduledThreadPool(1, new ProfilingThreadFactory()));
@@ -71,15 +76,21 @@ public final class ProfilingSystem {
   ProfilingSystem(
       final Controller controller,
       final RecordingDataListener dataListener,
+      final Duration startupDelay,
       final Duration uploadPeriod,
       final int continuousToPeriodicUploadsRatio,
       final ScheduledExecutorService executorService)
       throws ConfigurationException {
     this.controller = controller;
     this.dataListener = dataListener;
+    this.startupDelay = startupDelay;
     this.uploadPeriod = uploadPeriod;
     this.executorService = executorService;
     this.continuousToPeriodicUploadsRatio = continuousToPeriodicUploadsRatio;
+
+    if (startupDelay.isNegative()) {
+      throw new ConfigurationException("Startup delay must not be negative.");
+    }
 
     if (uploadPeriod.isNegative() || uploadPeriod.isZero()) {
       throw new ConfigurationException("Upload period must be positive.");
@@ -92,18 +103,24 @@ public final class ProfilingSystem {
   }
 
   public final void start() {
-    final Instant now = Instant.now();
-    continuousRecording = controller.createContinuousRecording(RECORDING_NAME);
-    executorService.scheduleAtFixedRate(
-        new SnapshotRecording(now),
-        uploadPeriod.toMillis(),
-        uploadPeriod.toMillis(),
-        TimeUnit.MILLISECONDS);
+    executorService.schedule(
+        () -> {
+          final Instant now = Instant.now();
+          continuousRecording = controller.createContinuousRecording(RECORDING_NAME);
 
-    if (continuousToPeriodicUploadsRatio == 1) {
-      log.debug("Always running periodic profiling recording since ratio=1");
-      periodicRecordingRef.set(controller.createPeriodicRecording(RECORDING_NAME));
-    }
+          if (continuousToPeriodicUploadsRatio == 1) {
+            periodicRecordingRef.set(controller.createPeriodicRecording(RECORDING_NAME));
+          }
+
+          executorService.scheduleAtFixedRate(
+              new SnapshotRecording(now),
+              uploadPeriod.toMillis(),
+              uploadPeriod.toMillis(),
+              TimeUnit.MILLISECONDS);
+          started = true;
+        },
+        startupDelay.toMillis(),
+        TimeUnit.MILLISECONDS);
   }
 
   /** Shuts down the profiling system. */
@@ -128,6 +145,11 @@ public final class ProfilingSystem {
     if (recording != null) {
       recording.close();
     }
+    started = false;
+  }
+
+  public boolean isStarted() {
+    return started;
   }
 
   private final class SnapshotRecording implements Runnable {

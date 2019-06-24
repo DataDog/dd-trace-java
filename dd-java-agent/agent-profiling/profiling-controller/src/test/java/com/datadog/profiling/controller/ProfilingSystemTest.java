@@ -17,6 +17,7 @@ package com.datadog.profiling.controller;
 
 import static com.datadog.profiling.controller.RecordingType.CONTINUOUS;
 import static com.datadog.profiling.controller.RecordingType.PERIODIC;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -84,8 +85,9 @@ public class ProfilingSystemTest {
   @Test
   public void testShutdown() throws ConfigurationException {
     final ProfilingSystem system =
-        new ProfilingSystem(controller, listener, Duration.ofMillis(300), 0, pool);
-    system.start();
+        new ProfilingSystem(
+            controller, listener, Duration.ofMillis(10), Duration.ofMillis(300), 0, pool);
+    startProfilingSystem(system);
     verify(controller).createContinuousRecording(any());
     system.shutdown();
 
@@ -96,8 +98,9 @@ public class ProfilingSystemTest {
   @Test
   public void testShutdownWithRunningProfilingRecording() throws ConfigurationException {
     final ProfilingSystem system =
-        new ProfilingSystem(controller, listener, Duration.ofMillis(300), 1, pool);
-    system.start();
+        new ProfilingSystem(
+            controller, listener, Duration.ofMillis(10), Duration.ofMillis(300), 1, pool);
+    startProfilingSystem(system);
     verify(controller).createPeriodicRecording(any());
     system.shutdown();
 
@@ -126,8 +129,9 @@ public class ProfilingSystemTest {
         .when(controller)
         .createPeriodicRecording(any());
     final ProfilingSystem system =
-        new ProfilingSystem(controller, listener, Duration.ofMillis(100), 2, pool);
-    system.start();
+        new ProfilingSystem(
+            controller, listener, Duration.ofMillis(10), Duration.ofMillis(100), 2, pool);
+    startProfilingSystem(system);
     // Make sure we actually started the recording before terminating
     verify(controller, timeout(300)).createPeriodicRecording(any());
     system.shutdown();
@@ -137,7 +141,8 @@ public class ProfilingSystemTest {
   @Test
   public void testCanShutDownWithoutStarting() throws ConfigurationException {
     final ProfilingSystem system =
-        new ProfilingSystem(controller, listener, Duration.ofMillis(300), 1, pool);
+        new ProfilingSystem(
+            controller, listener, Duration.ofMillis(10), Duration.ofMillis(300), 1, pool);
     system.shutdown();
     assertTrue(pool.isTerminated());
   }
@@ -145,7 +150,7 @@ public class ProfilingSystemTest {
   @Test
   public void testDoesntSendDataIfNotStarted() throws InterruptedException, ConfigurationException {
     final ProfilingSystem system =
-        new ProfilingSystem(controller, listener, Duration.ofMillis(1), 1);
+        new ProfilingSystem(controller, listener, Duration.ofMillis(10), Duration.ofMillis(1), 1);
     Thread.sleep(50);
     system.shutdown();
     verify(controller, never()).createPeriodicRecording(any());
@@ -158,8 +163,8 @@ public class ProfilingSystemTest {
       throws InterruptedException, ConfigurationException {
     when(continuousRecording.snapshot(any(), any())).thenReturn(recordingData);
     final ProfilingSystem system =
-        new ProfilingSystem(controller, listener, Duration.ofMillis(10), 0);
-    system.start();
+        new ProfilingSystem(controller, listener, Duration.ofMillis(10), Duration.ofMillis(10), 0);
+    startProfilingSystem(system);
     Thread.sleep(200);
     system.shutdown();
     verify(controller, never()).createPeriodicRecording(any());
@@ -168,11 +173,22 @@ public class ProfilingSystemTest {
   }
 
   @Test
+  public void testProfilingSystemNegativeStartupDelay() {
+    assertThrows(
+        ConfigurationException.class,
+        () -> {
+          new ProfilingSystem(
+              controller, listener, Duration.ofMillis(-10), Duration.ofMillis(200), 1);
+        });
+  }
+
+  @Test
   public void testProfilingSystemNegativeUploadPeriod() {
     assertThrows(
         ConfigurationException.class,
         () -> {
-          new ProfilingSystem(controller, listener, Duration.ofMillis(-200), 1);
+          new ProfilingSystem(
+              controller, listener, Duration.ofMillis(10), Duration.ofMillis(-200), 1);
         });
   }
 
@@ -181,7 +197,8 @@ public class ProfilingSystemTest {
     assertThrows(
         ConfigurationException.class,
         () -> {
-          new ProfilingSystem(controller, listener, Duration.ofMillis(200), -1);
+          new ProfilingSystem(
+              controller, listener, Duration.ofMillis(10), Duration.ofMillis(200), -1);
         });
   }
 
@@ -201,8 +218,9 @@ public class ProfilingSystemTest {
               return recording;
             });
 
-    final ProfilingSystem system = new ProfilingSystem(controller, listener, uploadPeriod, 2, pool);
-    system.start();
+    final ProfilingSystem system =
+        new ProfilingSystem(controller, listener, Duration.ofMillis(10), uploadPeriod, 2, pool);
+    startProfilingSystem(system);
 
     final ArgumentCaptor<RecordingType> recordingTypeCaptor =
         ArgumentCaptor.forClass(RecordingType.class);
@@ -260,8 +278,9 @@ public class ProfilingSystemTest {
     when(continuousRecording.snapshot(any(), any()))
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
-    final ProfilingSystem system = new ProfilingSystem(controller, listener, uploadPeriod, 1, pool);
-    system.start();
+    final ProfilingSystem system =
+        new ProfilingSystem(controller, listener, Duration.ofMillis(10), uploadPeriod, 1, pool);
+    startProfilingSystem(system);
 
     final ArgumentCaptor<RecordingData> captor = ArgumentCaptor.forClass(RecordingData.class);
     verify(listener, timeout(REASONABLE_TIMEOUT).times(3))
@@ -285,8 +304,9 @@ public class ProfilingSystemTest {
         .thenThrow(new RuntimeException("Test"))
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
-    final ProfilingSystem system = new ProfilingSystem(controller, listener, uploadPeriod, 0, pool);
-    system.start();
+    final ProfilingSystem system =
+        new ProfilingSystem(controller, listener, Duration.ofMillis(10), uploadPeriod, 0, pool);
+    startProfilingSystem(system);
 
     final ArgumentCaptor<RecordingData> captor = ArgumentCaptor.forClass(RecordingData.class);
     verify(listener, timeout(REASONABLE_TIMEOUT).times(2))
@@ -304,8 +324,9 @@ public class ProfilingSystemTest {
         .thenReturn(null)
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
-    final ProfilingSystem system = new ProfilingSystem(controller, listener, uploadPeriod, 0, pool);
-    system.start();
+    final ProfilingSystem system =
+        new ProfilingSystem(controller, listener, Duration.ofMillis(10), uploadPeriod, 0, pool);
+    startProfilingSystem(system);
 
     final ArgumentCaptor<RecordingData> captor = ArgumentCaptor.forClass(RecordingData.class);
     verify(listener, timeout(REASONABLE_TIMEOUT).times(2))
@@ -324,5 +345,10 @@ public class ProfilingSystemTest {
       generatedRecordingData.add(recordingData);
       return recordingData;
     };
+  }
+
+  private void startProfilingSystem(final ProfilingSystem system) {
+    system.start();
+    await().until(system::isStarted);
   }
 }
