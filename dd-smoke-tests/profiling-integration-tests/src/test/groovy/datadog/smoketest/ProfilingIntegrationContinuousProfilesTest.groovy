@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit
 class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
 
   // This needs to give enough time for test app to start up and recording to happen
-  private static final int REQUEST_WAIT_TIMEOUT = 30
+  private static final int REQUEST_WAIT_TIMEOUT = 40
 
   private final MockWebServer server = new MockWebServer()
 
