@@ -77,8 +77,8 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     firstStartTime != null
     firstEndTime != null
     def duration = firstEndTime.toEpochMilli() - firstStartTime.toEpochMilli()
-    duration > TimeUnit.SECONDS.toMillis(PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS - 1)
-    duration < TimeUnit.SECONDS.toMillis(PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS + 1)
+    duration > TimeUnit.SECONDS.toMillis(PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS - 2)
+    duration < TimeUnit.SECONDS.toMillis(PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS + 2)
 
     Map<String, String> requestTags = ProfilingTestUtils.parseTags(firstRequestParameters.get("tags[]"))
     requestTags.get("service") == "smoke-test-java-app"
@@ -109,8 +109,8 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     secondRequestParameters.get("recording-name").get(0) == 'dd-profiling'
     def secondStartTime = Instant.parse(secondRequestParameters.get("recording-start").get(0))
     def period = secondStartTime.toEpochMilli() - firstStartTime.toEpochMilli()
-    period > TimeUnit.SECONDS.toMillis(PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS - 1)
-    period < TimeUnit.SECONDS.toMillis(PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS + 1)
+    period > TimeUnit.SECONDS.toMillis(PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS - 2)
+    period < TimeUnit.SECONDS.toMillis(PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS + 2)
 
     secondRequestParameters.get("chunk-seq-num").get(0) == "0"
     firstRequestParameters.get("chunk-data").get(0) != null
