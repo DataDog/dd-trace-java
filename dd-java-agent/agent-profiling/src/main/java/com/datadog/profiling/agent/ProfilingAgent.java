@@ -42,9 +42,9 @@ public class ProfilingAgent {
             new ProfilingSystem(
                 controller,
                 uploader::upload,
-                Duration.ofSeconds(config.getProfilingPeriodicDelay()),
-                Duration.ofSeconds(config.getProfilingPeriodicPeriod()),
-                Duration.ofSeconds(config.getProfilingPeriodicDuration()));
+                Duration.ofSeconds(config.getProfilingStartupDelay()),
+                Duration.ofSeconds(config.getProfilingUploadPeriod()),
+                config.getProfilingContinuousToPeriodicUploadsRatio());
         PROFILER.start();
         log.info("Periodic profiling has started!");
 

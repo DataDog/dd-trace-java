@@ -16,6 +16,7 @@ dependencies {
   testCompile deps.guava
   testCompile group: 'org.mockito', name: 'mockito-core', version: '2.28.2'
   testCompile group: 'org.mockito', name: 'mockito-junit-jupiter', version: '2.28.2'
+  testCompile group: 'org.awaitility', name: 'awaitility', version: '3.1.6'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8

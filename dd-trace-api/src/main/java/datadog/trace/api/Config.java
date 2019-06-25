@@ -96,9 +96,12 @@ public class Config {
   public static final String PROFILING_API_KEY = "profiling.apikey";
   public static final String PROFILING_API_KEY_FILE = "profiling.apikey.file";
   public static final String PROFILING_TAGS = "profiling.tags";
-  public static final String PROFILING_PERIODIC_DELAY = "profiling.periodic.delay";
-  public static final String PROFILING_PERIODIC_PERIOD = "profiling.periodic.period";
-  public static final String PROFILING_PERIODIC_DURATION = "profiling.periodic.duration";
+  public static final String PROFILING_STARTUP_DELAY = "profiling.start.delay";
+  public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
+  public static final String PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO =
+      "profiling.continuous.to.periodic.upload.ratio";
+  public static final String PROFILING_RECORDING_MAX_SIZE = "profiling.recording.max.size";
+  public static final String PROFILING_RECORDING_MAX_AGE = "profiling.recording.max.age";
   public static final String PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH =
       "profiling.periodic.config.override.path";
   public static final String PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH =
@@ -146,9 +149,12 @@ public class Config {
   public static final boolean DEFAULT_PROFILING_ENABLED = false;
   public static final String DEFAULT_PROFILING_URL =
       "http://localhost:5000/api/v0/profiling/jfr-chunk";
-  public static final int DEFAULT_PROFILING_PERIODIC_DELAY = 0;
-  public static final int DEFAULT_PROFILING_PERIODIC_PERIOD = 900; // 15 mins
-  public static final int DEFAULT_PROFILING_PERIODIC_DURATION = 60;
+  public static final int DEFAULT_PROFILING_STARTUP_DELAY = 10;
+  public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
+  public static final int DEFAULT_PROFILING_RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
+  public static final int DEFAULT_PROFILING_RECORDING_MAX_AGE = 5 * 60; // 5 mins
+  // always-on periodic profile
+  public static final int DEFAULT_PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO = 1;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
@@ -225,9 +231,11 @@ public class Config {
   @Getter private final String profilingUrl;
   @Getter private final String profilingApiKey;
   private final Map<String, String> profilingTags;
-  @Getter private final int profilingPeriodicDelay;
-  @Getter private final int profilingPeriodicPeriod;
-  @Getter private final int profilingPeriodicDuration;
+  @Getter private final int profilingStartupDelay;
+  @Getter private final int profilingUploadPeriod;
+  @Getter private final int profilingContinuousToPeriodicUploadsRatio;
+  @Getter private final int profilingRecordingMaxSize;
+  @Getter private final int profilingRecordingMaxAge;
   @Getter private final String profilingPeriodicConfigOverridePath;
   @Getter private final String profilingContinuousConfigOverridePath;
 
@@ -361,15 +369,20 @@ public class Config {
     profilingApiKey = tmpProfilingApiKey;
 
     profilingTags = getMapSettingFromEnvironment(PROFILING_TAGS, null);
-    profilingPeriodicDelay =
+    profilingStartupDelay =
+        getIntegerSettingFromEnvironment(PROFILING_STARTUP_DELAY, DEFAULT_PROFILING_STARTUP_DELAY);
+    profilingUploadPeriod =
+        getIntegerSettingFromEnvironment(PROFILING_UPLOAD_PERIOD, DEFAULT_PROFILING_UPLOAD_PERIOD);
+    profilingContinuousToPeriodicUploadsRatio =
         getIntegerSettingFromEnvironment(
-            PROFILING_PERIODIC_DELAY, DEFAULT_PROFILING_PERIODIC_DELAY);
-    profilingPeriodicPeriod =
+            PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO,
+            DEFAULT_PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO);
+    profilingRecordingMaxSize =
         getIntegerSettingFromEnvironment(
-            PROFILING_PERIODIC_PERIOD, DEFAULT_PROFILING_PERIODIC_PERIOD);
-    profilingPeriodicDuration =
+            PROFILING_RECORDING_MAX_SIZE, DEFAULT_PROFILING_RECORDING_MAX_SIZE);
+    profilingRecordingMaxAge =
         getIntegerSettingFromEnvironment(
-            PROFILING_PERIODIC_DURATION, DEFAULT_PROFILING_PERIODIC_DURATION);
+            PROFILING_RECORDING_MAX_AGE, DEFAULT_PROFILING_RECORDING_MAX_AGE);
     profilingPeriodicConfigOverridePath =
         getSettingFromEnvironment(PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, null);
     profilingContinuousConfigOverridePath =
@@ -489,15 +502,21 @@ public class Config {
     profilingUrl = properties.getProperty(PROFILING_URL, parent.profilingUrl);
     profilingApiKey = properties.getProperty(PROFILING_API_KEY, parent.profilingApiKey);
     profilingTags = getPropertyMapValue(properties, PROFILING_TAGS, parent.profilingTags);
-    profilingPeriodicDelay =
+    profilingStartupDelay =
+        getPropertyIntegerValue(properties, PROFILING_STARTUP_DELAY, parent.profilingStartupDelay);
+    profilingUploadPeriod =
+        getPropertyIntegerValue(properties, PROFILING_UPLOAD_PERIOD, parent.profilingUploadPeriod);
+    profilingContinuousToPeriodicUploadsRatio =
         getPropertyIntegerValue(
-            properties, PROFILING_PERIODIC_DELAY, parent.profilingPeriodicDelay);
-    profilingPeriodicPeriod =
+            properties,
+            PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO,
+            parent.profilingContinuousToPeriodicUploadsRatio);
+    profilingRecordingMaxSize =
         getPropertyIntegerValue(
-            properties, PROFILING_PERIODIC_PERIOD, parent.profilingPeriodicPeriod);
-    profilingPeriodicDuration =
+            properties, PROFILING_RECORDING_MAX_SIZE, parent.profilingRecordingMaxSize);
+    profilingRecordingMaxAge =
         getPropertyIntegerValue(
-            properties, PROFILING_PERIODIC_DURATION, parent.profilingPeriodicDuration);
+            properties, PROFILING_RECORDING_MAX_AGE, parent.profilingRecordingMaxAge);
     profilingPeriodicConfigOverridePath =
         properties.getProperty(
             PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, parent.profilingPeriodicConfigOverridePath);

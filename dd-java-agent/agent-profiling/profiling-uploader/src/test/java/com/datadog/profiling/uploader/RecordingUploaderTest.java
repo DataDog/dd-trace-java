@@ -24,6 +24,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.datadog.profiling.controller.RecordingData;
+import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -59,6 +60,7 @@ public class RecordingUploaderTest {
   private static final String RECORDING_3_CHUNKS = "test-3-chunks.jfr";
   private static final int NUMBER_OF_CHUNKS = 3;
   private static final String RECODING_NAME_PREFIX = "test-recording-";
+  private static final RecordingType RECORDING_TYPE = RecordingType.CONTINUOUS;
 
   private static final Map<String, String> TAGS;
 
@@ -106,7 +108,7 @@ public class RecordingUploaderTest {
   public void testRequestParameters() throws IOException, InterruptedException {
     server.enqueue(new MockResponse().setResponseCode(200));
 
-    uploader.upload(mockRecordingData(RECORDING_1_CHUNK));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_1_CHUNK));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(url, recordedRequest.getRequestUrl());
@@ -122,7 +124,7 @@ public class RecordingUploaderTest {
         ImmutableList.of(RecordingUploader.RECORDING_FORMAT),
         parameters.get(RecordingUploader.FORMAT_PARAM));
     assertEquals(
-        ImmutableList.of(RecordingUploader.RECORDING_TYPE),
+        ImmutableList.of(RecordingUploader.RECORDING_TYPE_PREFIX + RECORDING_TYPE.getName()),
         parameters.get(RecordingUploader.TYPE_PARAM));
     assertEquals(
         ImmutableList.of(RecordingUploader.RECORDING_RUNTIME),
@@ -156,7 +158,7 @@ public class RecordingUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(200));
 
     final RecordingData recording = mockRecordingData(RECORDING_1_CHUNK);
-    uploader.upload(recording);
+    uploader.upload(RECORDING_TYPE, recording);
 
     verify(recording).release();
   }
@@ -168,7 +170,7 @@ public class RecordingUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(200));
 
     final RecordingData recording = mockRecordingData(RECORDING_3_CHUNKS);
-    uploader.upload(recording);
+    uploader.upload(RECORDING_TYPE, recording);
 
     // We upload chunks in parallel so all three requests should happen
     assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
@@ -183,7 +185,7 @@ public class RecordingUploaderTest {
     server.shutdown();
 
     final RecordingData recording = mockRecordingData(RECORDING_3_CHUNKS);
-    uploader.upload(recording);
+    uploader.upload(RECORDING_TYPE, recording);
 
     verify(recording).release();
   }
@@ -199,7 +201,7 @@ public class RecordingUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(200));
 
     final RecordingData recording = mockRecordingData(RECORDING_3_CHUNKS);
-    uploader.upload(recording);
+    uploader.upload(RECORDING_TYPE, recording);
 
     // We upload chunks in parallel so all three requests should happen
     assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
@@ -213,7 +215,7 @@ public class RecordingUploaderTest {
   public void testUnfinishedRecording() throws IOException {
     final RecordingData recording = mockRecordingData(RECORDING_1_CHUNK);
     when(recording.getStream()).thenThrow(new IllegalStateException("test exception"));
-    uploader.upload(recording);
+    uploader.upload(RECORDING_TYPE, recording);
 
     verify(recording).release();
   }
@@ -223,7 +225,7 @@ public class RecordingUploaderTest {
     server.enqueue(new MockResponse().setResponseCode(200));
     server.enqueue(new MockResponse().setResponseCode(200));
 
-    uploader.upload(mockRecordingData(RECORDING_1_CHUNK));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_1_CHUNK));
 
     assertNotNull(server.takeRequest(5, TimeUnit.SECONDS), "Expected chunk");
     assertNull(server.takeRequest(100, TimeUnit.MILLISECONDS), "No more requests");
@@ -237,7 +239,7 @@ public class RecordingUploaderTest {
     }
 
     final RecordingData recording = mockRecordingData(RECORDING_3_CHUNKS);
-    uploader.upload(recording);
+    uploader.upload(RECORDING_TYPE, recording);
 
     final List<Integer> sequenceNumbers = new ArrayList<>();
     for (int i = 0; i < NUMBER_OF_CHUNKS; i++) {
@@ -291,7 +293,7 @@ public class RecordingUploaderTest {
   public void testHeaders() throws IOException, InterruptedException {
     server.enqueue(new MockResponse().setResponseCode(200));
 
-    uploader.upload(mockRecordingData(RECORDING_1_CHUNK));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_1_CHUNK));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(VersionInfo.JAVA_LANG, recordedRequest.getHeader(VersionInfo.DATADOG_META_LANG));
@@ -319,11 +321,11 @@ public class RecordingUploaderTest {
 
     for (int i = 0; i < RecordingUploader.MAX_RUNNING_REQUESTS; i++) {
       final RecordingData recording = mockRecordingData(RECORDING_1_CHUNK);
-      uploader.upload(recording);
+      uploader.upload(RECORDING_TYPE, recording);
     }
 
     final RecordingData additionalRecording = mockRecordingData(RECORDING_1_CHUNK);
-    uploader.upload(additionalRecording);
+    uploader.upload(RECORDING_TYPE, additionalRecording);
 
     // Make sure all expected requests happened
     for (int i = 0; i < RecordingUploader.MAX_RUNNING_REQUESTS; i++) {
@@ -350,7 +352,7 @@ public class RecordingUploaderTest {
 
     for (int i = 0; i < RecordingUploader.MAX_RUNNING_REQUESTS; i++) {
       final RecordingData recording = mockRecordingData(RECORDING_1_CHUNK);
-      uploader.upload(recording);
+      uploader.upload(RECORDING_TYPE, recording);
     }
 
     final List<RecordingData> hangingRequests = new ArrayList<>();
@@ -359,7 +361,7 @@ public class RecordingUploaderTest {
     for (int i = 0; i < RecordingUploader.MAX_ENQUEUED_REQUESTS + 1; i++) {
       final RecordingData recording = mockRecordingData(RECORDING_1_CHUNK);
       hangingRequests.add(recording);
-      uploader.upload(recording);
+      uploader.upload(RECORDING_TYPE, recording);
     }
 
     // Make sure all expected requests happened
@@ -380,7 +382,7 @@ public class RecordingUploaderTest {
     uploader.shutdown();
 
     final RecordingData recording = mockRecordingData(RECORDING_1_CHUNK);
-    uploader.upload(recording);
+    uploader.upload(RECORDING_TYPE, recording);
 
     assertNull(server.takeRequest(100, TimeUnit.MILLISECONDS), "No more requests");
 

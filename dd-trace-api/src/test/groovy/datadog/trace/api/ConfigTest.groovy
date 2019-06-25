@@ -32,12 +32,14 @@ import static datadog.trace.api.Config.PRIORITY_SAMPLING
 import static datadog.trace.api.Config.PROFILING_API_KEY
 import static datadog.trace.api.Config.PROFILING_API_KEY_FILE
 import static datadog.trace.api.Config.PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH
+import static datadog.trace.api.Config.PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO
 import static datadog.trace.api.Config.PROFILING_ENABLED
 import static datadog.trace.api.Config.PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH
-import static datadog.trace.api.Config.PROFILING_PERIODIC_DELAY
-import static datadog.trace.api.Config.PROFILING_PERIODIC_DURATION
-import static datadog.trace.api.Config.PROFILING_PERIODIC_PERIOD
+import static datadog.trace.api.Config.PROFILING_RECORDING_MAX_AGE
+import static datadog.trace.api.Config.PROFILING_RECORDING_MAX_SIZE
+import static datadog.trace.api.Config.PROFILING_STARTUP_DELAY
 import static datadog.trace.api.Config.PROFILING_TAGS
+import static datadog.trace.api.Config.PROFILING_UPLOAD_PERIOD
 import static datadog.trace.api.Config.PROFILING_URL
 import static datadog.trace.api.Config.PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.Config.PROPAGATION_STYLE_INJECT
@@ -111,9 +113,12 @@ class ConfigTest extends Specification {
     config.profilingUrl == Config.DEFAULT_PROFILING_URL
     config.profilingApiKey == null
     config.mergedProfilingTags == [(HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
-    config.profilingPeriodicDelay == 0
-    config.profilingPeriodicPeriod == 900
-    config.profilingPeriodicDuration == 60
+    config.profilingStartupDelay == 10
+    config.profilingUploadPeriod == 60
+    config.profilingContinuousToPeriodicUploadsRatio == 1
+    config.profilingRecordingMaxSize == 64 * 1024 * 1024
+    config.profilingRecordingMaxAge == 5 * 60
+    config.profilingRecordingMaxAge == 5 * 60
     config.profilingPeriodicConfigOverridePath == null
     config.profilingContinuousConfigOverridePath == null
 
@@ -164,9 +169,11 @@ class ConfigTest extends Specification {
     prop.setProperty(PROFILING_URL, "new url")
     prop.setProperty(PROFILING_API_KEY, "new api key")
     prop.setProperty(PROFILING_TAGS, "f:6,host:test-host")
-    prop.setProperty(PROFILING_PERIODIC_DELAY, "1111")
-    prop.setProperty(PROFILING_PERIODIC_PERIOD, "1112")
-    prop.setProperty(PROFILING_PERIODIC_DURATION, "1113")
+    prop.setProperty(PROFILING_STARTUP_DELAY, "1111")
+    prop.setProperty(PROFILING_UPLOAD_PERIOD, "1112")
+    prop.setProperty(PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO, "1113")
+    prop.setProperty(PROFILING_RECORDING_MAX_SIZE, "1114")
+    prop.setProperty(PROFILING_RECORDING_MAX_AGE, "1115")
     prop.setProperty(PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, "/periodic/path")
     prop.setProperty(PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
 
@@ -206,9 +213,11 @@ class ConfigTest extends Specification {
     config.profilingUrl == "new url"
     config.profilingApiKey == "new api key" // we can still override via internal properties object
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
-    config.profilingPeriodicDelay == 1111
-    config.profilingPeriodicPeriod == 1112
-    config.profilingPeriodicDuration == 1113
+    config.profilingStartupDelay == 1111
+    config.profilingUploadPeriod == 1112
+    config.profilingContinuousToPeriodicUploadsRatio == 1113
+    config.profilingRecordingMaxSize == 1114
+    config.profilingRecordingMaxAge == 1115
     config.profilingPeriodicConfigOverridePath == "/periodic/path"
     config.profilingContinuousConfigOverridePath == "/continuous/path"
   }
@@ -249,9 +258,11 @@ class ConfigTest extends Specification {
     System.setProperty(PREFIX + PROFILING_URL, "new url")
     System.setProperty(PREFIX + PROFILING_API_KEY, "new api key")
     System.setProperty(PREFIX + PROFILING_TAGS, "f:6,host:test-host")
-    System.setProperty(PREFIX + PROFILING_PERIODIC_DELAY, "1111")
-    System.setProperty(PREFIX + PROFILING_PERIODIC_PERIOD, "1112")
-    System.setProperty(PREFIX + PROFILING_PERIODIC_DURATION, "1113")
+    System.setProperty(PREFIX + PROFILING_STARTUP_DELAY, "1111")
+    System.setProperty(PREFIX + PROFILING_UPLOAD_PERIOD, "1112")
+    System.setProperty(PREFIX + PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO, "1113")
+    System.setProperty(PREFIX + PROFILING_RECORDING_MAX_SIZE, "1114")
+    System.setProperty(PREFIX + PROFILING_RECORDING_MAX_AGE, "1115")
     System.setProperty(PREFIX + PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, "/periodic/path")
     System.setProperty(PREFIX + PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
 
@@ -291,9 +302,11 @@ class ConfigTest extends Specification {
     config.profilingUrl == "new url"
     config.profilingApiKey == null // system properties cannot be used to provide a key
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
-    config.profilingPeriodicDelay == 1111
-    config.profilingPeriodicPeriod == 1112
-    config.profilingPeriodicDuration == 1113
+    config.profilingStartupDelay == 1111
+    config.profilingUploadPeriod == 1112
+    config.profilingContinuousToPeriodicUploadsRatio == 1113
+    config.profilingRecordingMaxSize == 1114
+    config.profilingRecordingMaxAge == 1115
     config.profilingPeriodicConfigOverridePath == "/periodic/path"
     config.profilingContinuousConfigOverridePath == "/continuous/path"
   }
@@ -793,7 +806,7 @@ class ConfigTest extends Specification {
     then:
     config.localRootSpanTags.get('_dd.hostname') == InetAddress.localHost.hostName
   }
-  
+
   def "verify fallback to properties file"() {
     setup:
     System.setProperty(PREFIX + CONFIGURATION_FILE, "src/test/resources/dd-java-tracer.properties")

@@ -7,8 +7,7 @@ import spock.lang.Specification
 abstract class AbstractSmokeTest extends Specification {
 
   public static final PROFILING_API_KEY = "org2_api_key"
-  public static final int PROFILING_RECORDING_DURATION_SECONDS = 9
-  public static final int PROFILING_RECORDING_PERIOD_SECONDS = 10
+  public static final int PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS = 10
 
   @Shared
   protected String workingDirectory = System.getProperty("user.dir")
@@ -39,9 +38,7 @@ abstract class AbstractSmokeTest extends Specification {
       "-Ddd.writer.type=LoggingWriter",
       "-Ddd.service.name=smoke-test-java-app",
       "-Ddd.profiling.enabled=true",
-      "-Ddd.profiling.periodic.duration=${PROFILING_RECORDING_DURATION_SECONDS}",
-      "-Ddd.profiling.periodic.period=${PROFILING_RECORDING_PERIOD_SECONDS}",
-      "-Ddd.profiling.periodic.delay=0",
+      "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
       "-Ddd.profiling.url=http://localhost:${profilingPort}/api/v0/profiling/chunk",
       "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
       "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"

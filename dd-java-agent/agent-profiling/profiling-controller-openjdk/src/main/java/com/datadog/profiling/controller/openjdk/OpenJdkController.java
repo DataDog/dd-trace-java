@@ -19,6 +19,7 @@ import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import datadog.trace.api.Config;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Map;
 import jdk.jfr.Recording;
 
@@ -29,12 +30,14 @@ import jdk.jfr.Recording;
  */
 public final class OpenJdkController implements Controller {
   // Visible for testing
-  static final String JFP_PROFILE = "jfr2/ddprofile.jfp";
+  static final String JFP_PERIODIC = "jfr2/ddperiodic.jfp";
   // Visible for testing
   static final String JFP_CONTINUOUS = "jfr2/ddcontinuous.jfp";
 
+  private final int recordingMaxSize;
+  private final Duration recordingMaxAge;
   private final Map<String, String> continuousRecordingSettings;
-  private final Map<String, String> profilingRecordingSettings;
+  private final Map<String, String> periodicRecordingSettings;
 
   /**
    * Main constructor for OpenJDK profiling controller.
@@ -49,34 +52,38 @@ public final class OpenJdkController implements Controller {
     Class.forName("jdk.jfr.FlightRecorder");
 
     try {
-      profilingRecordingSettings =
+      periodicRecordingSettings =
           JfpUtils.readNamedJfpResource(
-              JFP_PROFILE, config.getProfilingPeriodicConfigOverridePath());
+              JFP_PERIODIC, config.getProfilingPeriodicConfigOverridePath());
       continuousRecordingSettings =
           JfpUtils.readNamedJfpResource(
               JFP_CONTINUOUS, config.getProfilingContinuousConfigOverridePath());
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
+
+    recordingMaxSize = config.getProfilingRecordingMaxSize();
+    recordingMaxAge = Duration.ofSeconds(config.getProfilingRecordingMaxAge());
   }
 
   @Override
-  public OpenJdkOngoingRecording createRecording(final String recordingName) {
-    final Recording recording = new Recording();
-    recording.setName(recordingName);
-    recording.setSettings(profilingRecordingSettings);
-    recording.start();
-    return new OpenJdkOngoingRecording(recording);
+  public OpenJdkOngoingRecording createPeriodicRecording(final String recordingName) {
+    return createRecording(recordingName, periodicRecordingSettings);
   }
 
   @Override
   public OpenJdkOngoingRecording createContinuousRecording(final String recordingName) {
+    return createRecording(recordingName, continuousRecordingSettings);
+  }
+
+  private OpenJdkOngoingRecording createRecording(
+      final String recordingName, final Map<String, String> settings) {
     final Recording recording = new Recording();
     recording.setName(recordingName);
-    recording.setSettings(continuousRecordingSettings);
+    recording.setSettings(settings);
+    recording.setMaxSize(recordingMaxSize);
+    recording.setMaxAge(recordingMaxAge);
     recording.start();
-    // probably limit maxSize to something sensible, and configurable, here. For now rely on
-    // in-memory.
     return new OpenJdkOngoingRecording(recording);
   }
 }
