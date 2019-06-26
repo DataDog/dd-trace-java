@@ -167,7 +167,6 @@ public final class ProfilingSystem {
 
     @Override
     public void run() {
-      final Instant now = Instant.now();
       RecordingType recordingType = RecordingType.CONTINUOUS;
 
       if (continuousToPeriodicUploadsRatio == 1) {
@@ -183,8 +182,10 @@ public final class ProfilingSystem {
       }
 
       try {
-        final RecordingData recording = continuousRecording.snapshot(lastSnapshot, now);
-        lastSnapshot = now;
+        final RecordingData recording = continuousRecording.snapshot(lastSnapshot, Instant.now());
+        // The hope here is that we do not get chunk rotated after taking snapshot and before we
+        // take this timestamp otherwise we will start losing data.
+        lastSnapshot = Instant.now();
         if (recording != null) {
           dataListener.onNewData(recordingType, recording);
         }
