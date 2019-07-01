@@ -105,7 +105,7 @@ public final class ProfilingSystem {
   public final void start() {
     // Delay JFR initialization. This code is run from 'premain' and there is a known but in JVM
     // which makes it crash if JFR is run before 'main' starts.
-    // See https://bugs.openjdk.java.net/browse/JDK-8226779
+    // See https://bugs.openjdk.java.net/browse/JDK-8227011
     executorService.schedule(
         () -> {
           final Instant now = Instant.now();
