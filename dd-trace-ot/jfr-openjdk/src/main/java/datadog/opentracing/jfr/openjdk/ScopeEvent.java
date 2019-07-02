@@ -27,6 +27,15 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
   @Label("Parent Id")
   private String parentId;
 
+  @Label("Service Name")
+  private String serviceName;
+
+  @Label("Resource Name")
+  private String resourceName;
+
+  @Label("Operation Name")
+  private String operationName;
+
   ScopeEvent(final DDSpanContext spanContext) {
     this.spanContext = spanContext;
   }
@@ -44,6 +53,10 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
       traceId = spanContext.getTraceId();
       spanId = spanContext.getSpanId();
       parentId = spanContext.getParentId();
+      serviceName = spanContext.getServiceName();
+      resourceName = spanContext.getResourceName();
+      operationName = spanContext.getOperationName();
+
       end();
       commit();
     }
