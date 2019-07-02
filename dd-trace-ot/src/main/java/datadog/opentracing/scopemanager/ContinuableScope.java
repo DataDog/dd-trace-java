@@ -71,7 +71,7 @@ public class ContinuableScope implements Scope, TraceScope {
   public void close() {
     // We have to scope finish event before we finish then span (which finishes span event).
     // The reason is that we get span on construction and span event starts when span is created.
-    // This means from JFR perspective scope if included into the span.
+    // This means from JFR perspective scope is included into the span.
     event.finish();
 
     if (null != continuation) {
