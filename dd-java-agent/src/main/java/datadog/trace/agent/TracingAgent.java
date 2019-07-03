@@ -134,10 +134,10 @@ public class TracingAgent {
       final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
       try {
         Thread.currentThread().setContextClassLoader(profilingClassLoader);
-        final Class<?> jmxFetchAgentClass =
+        final Class<?> profilingAgentClass =
             profilingClassLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
-        final Method jmxFetchInstallerMethod = jmxFetchAgentClass.getMethod("run");
-        jmxFetchInstallerMethod.invoke(null);
+        final Method profilingInstallerMethod = profilingAgentClass.getMethod("run");
+        profilingInstallerMethod.invoke(null);
         PROFILING_CLASSLOADER = profilingClassLoader;
       } catch (final ClassFormatError e) {
         /*
