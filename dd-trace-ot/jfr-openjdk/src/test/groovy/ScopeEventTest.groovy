@@ -63,6 +63,9 @@ class ScopeEventTest extends Specification {
     event.getString("traceId") == span.context().traceId
     event.getString("spanId") == span.context().spanId
     event.getString("parentId") == span.context().parentId
+    event.getString("serviceName") == "test service"
+    event.getString("resourceName") == "test resource"
+    event.getString("operationName") == "test operation"
   }
 
   def "Scope event is written after continuation activation"() {
@@ -88,5 +91,8 @@ class ScopeEventTest extends Specification {
     event.getString("traceId") == span.context().traceId
     event.getString("spanId") == span.context().spanId
     event.getString("parentId") == span.context().parentId
+    event.getString("serviceName") == "test service"
+    event.getString("resourceName") == "test resource"
+    event.getString("operationName") == "test operation"
   }
 }
