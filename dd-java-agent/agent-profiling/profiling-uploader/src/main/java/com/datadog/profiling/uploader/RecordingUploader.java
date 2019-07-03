@@ -83,7 +83,7 @@ public final class RecordingUploader {
         @Override
         public void onResponse(final Call call, final Response response) {
           if (response.isSuccessful()) {
-            log.info("Upload done");
+            log.debug("Upload done");
           } else {
             log.error("Failed to upload chunk: unexpected response code: " + response);
           }
@@ -139,7 +139,7 @@ public final class RecordingUploader {
 
   private void uploadChunk(
       final RecordingType type, final RecordingData data, final int chunkId, final byte[] chunk) {
-    log.info("Uploading chunk {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
+    log.debug("Uploading chunk {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
 
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder()
