@@ -10,7 +10,12 @@ public class ScopeEventFactory implements DDScopeEventFactory {
   // This is needed to ensure ScopeEvent class is loaded when SpanEventFactory is loaded
   // Loading ScopeEvent is important because it also loads JFR classes - which may not be present on
   // some JVMs
-  private static final Class<?> EVENT_CLASS = ScopeEvent.class;
+  private final Class<?> eventClass;
+
+  public ScopeEventFactory() throws ClassNotFoundException {
+    BlackList.checkBlackList();
+    eventClass = Class.forName("datadog.opentracing.jfr.openjdk.ScopeEvent");
+  }
 
   @Override
   public DDScopeEvent create(final DDSpanContext context) {
