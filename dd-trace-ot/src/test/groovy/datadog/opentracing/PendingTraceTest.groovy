@@ -11,7 +11,6 @@ import java.lang.ref.WeakReference
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-import static datadog.opentracing.SpanFactory.EVENT_FACTORY
 import static datadog.trace.api.Config.PARTIAL_FLUSH_MIN_SPANS
 
 class PendingTraceTest extends Specification {
@@ -148,7 +147,7 @@ class PendingTraceTest extends Specification {
   def "register span to wrong trace fails"() {
     setup:
     def otherTrace = new PendingTrace(tracer, String.valueOf(traceId - 10), [:])
-    otherTrace.registerSpan(new DDSpan(0, rootSpan.context(), EVENT_FACTORY))
+    otherTrace.registerSpan(new DDSpan(0, rootSpan.context()))
 
     expect:
     otherTrace.pendingReferenceCount.get() == 0

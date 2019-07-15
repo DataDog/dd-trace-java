@@ -11,8 +11,6 @@ import org.msgpack.jackson.dataformat.MessagePackFactory
 import org.msgpack.value.ValueType
 import spock.lang.Specification
 
-import static datadog.opentracing.SpanFactory.EVENT_FACTORY
-
 class DDSpanSerializationTest extends Specification {
 
   def "serialize spans with sampling #samplingPriority"() throws Exception {
@@ -63,7 +61,7 @@ class DDSpanSerializationTest extends Specification {
     baggage.put(DDTags.THREAD_NAME, Thread.currentThread().getName())
     baggage.put(DDTags.THREAD_ID, String.valueOf(Thread.currentThread().getId()))
 
-    DDSpan span = new DDSpan(100L, context, EVENT_FACTORY)
+    DDSpan span = new DDSpan(100L, context)
     if (samplingPriority != PrioritySampling.UNSET) {
       span.context().setMetric("_sample_rate", Double.valueOf(1.0))
     }
@@ -101,7 +99,7 @@ class DDSpanSerializationTest extends Specification {
       Collections.emptyMap(),
       new PendingTrace(tracer, "1", [:]),
       tracer)
-    def span = new DDSpan(0, context, EVENT_FACTORY)
+    def span = new DDSpan(0, context)
     byte[] bytes = objectMapper.writeValueAsBytes(span)
     def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(bytes))
     int size = unpacker.unpackMapHeader()

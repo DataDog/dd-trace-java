@@ -3,8 +3,6 @@ import datadog.opentracing.DDSpan
 import datadog.opentracing.DDSpanContext
 import datadog.opentracing.DDTracer
 import datadog.opentracing.PendingTrace
-import datadog.opentracing.jfr.DDNoopSpanEventFactory
-import datadog.opentracing.jfr.DDSpanEventFactory
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.DDApi
 import datadog.trace.common.writer.ListWriter
@@ -23,8 +21,6 @@ class DDApiIntegrationTest {
   // It is fine to run on CI because CI provides rabbitmq externally, not through testcontainers
   @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
   static class DDApiIntegrationV4Test extends Specification {
-
-    public static final DDSpanEventFactory EVENT_FACTORY = new DDNoopSpanEventFactory()
 
     static final WRITER = new ListWriter()
     static final TRACER = new DDTracer(WRITER)
@@ -134,17 +130,17 @@ class DDApiIntegrationTest {
       }
 
       where:
-      traces                                                                                             | test
-      []                                                                                                 | 1
-      [[], []]                                                                                           | 2
-      [[new DDSpan(1, CONTEXT, EVENT_FACTORY)]]                                                          | 3
-      [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT, EVENT_FACTORY)]] | 4
+      traces                                                                              | test
+      []                                                                                  | 1
+      [[], []]                                                                            | 2
+      [[new DDSpan(1, CONTEXT)]]                                                          | 3
+      [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4
       (1..15).collect {
         []
-      }                                                                                                  | 5
+      }                                                                                   | 5
       (1..16).collect {
         []
-      }                                                                                                  | 6
+      }                                                                                   | 6
       // Larger traces take more than 1 second to send to the agent and get a timeout exception:
 //      (1..((1 << 16) - 1)).collect { [] }                                                 | 7
 //      (1..(1 << 16)).collect { [] }                                                       | 8
@@ -159,11 +155,11 @@ class DDApiIntegrationTest {
       }
 
       where:
-      traces                                                                                             | test
-      []                                                                                                 | 1
-      [[], []]                                                                                           | 2
-      [[new DDSpan(1, CONTEXT, EVENT_FACTORY)]]                                                          | 3
-      [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT, EVENT_FACTORY)]] | 4
+      traces                                                                              | test
+      []                                                                                  | 1
+      [[], []]                                                                            | 2
+      [[new DDSpan(1, CONTEXT)]]                                                          | 3
+      [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4
     }
   }
 

@@ -116,10 +116,8 @@ class ProfilingIntegrationPeriodicProfilesTest extends AbstractSmokeTest {
     firstRequestParameters.get("chunk-data").get(0) != null
 
     IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(secondRequestParameters.get("chunk-data").get(0)))
-    IItemCollection spanEvents = events.apply(ItemFilters.type("datadog.Span"))
     IItemCollection scopeEvents = events.apply(ItemFilters.type("datadog.Scope"))
 
-    spanEvents.size() > 0
     scopeEvents.size() > 0
   }
 

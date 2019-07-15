@@ -3,9 +3,7 @@ package datadog.opentracing;
 import datadog.opentracing.decorators.AbstractDecorator;
 import datadog.opentracing.decorators.DDDecoratorsFactory;
 import datadog.opentracing.jfr.DDNoopScopeEventFactory;
-import datadog.opentracing.jfr.DDNoopSpanEventFactory;
 import datadog.opentracing.jfr.DDScopeEventFactory;
-import datadog.opentracing.jfr.DDSpanEventFactory;
 import datadog.opentracing.propagation.ExtractedContext;
 import datadog.opentracing.propagation.HttpCodec;
 import datadog.opentracing.propagation.TagContext;
@@ -93,7 +91,6 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
   private final HttpCodec.Extractor extractor;
 
   private final DDScopeEventFactory scopeEventFactory;
-  private final DDSpanEventFactory spanEventFactory;
 
   /** By default, report to local agent and collect all traces. */
   public DDTracer() {
@@ -262,7 +259,6 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
 
     scopeEventFactory = createScopeEventFactory();
     scopeManager = new ContextualScopeManager(scopeEventFactory);
-    spanEventFactory = createSpanEventFactory();
 
     // Ensure that PendingTrace.SPAN_CLEANER is initialized in this thread:
     // FIXME: add test to verify the span cleaner thread is started with this call.
@@ -468,16 +464,6 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
     return new DDNoopScopeEventFactory();
   }
 
-  private DDSpanEventFactory createSpanEventFactory() {
-    try {
-      return (DDSpanEventFactory)
-          Class.forName("datadog.opentracing.jfr.openjdk.SpanEventFactory").newInstance();
-    } catch (final ClassFormatError | ReflectiveOperationException | NoClassDefFoundError e) {
-      log.debug("Cannot create Openjdk JFR span event factory", e);
-    }
-    return new DDNoopSpanEventFactory();
-  }
-
   /** Spans are built using this builder */
   public class DDSpanBuilder implements SpanBuilder {
     private final ScopeManager scopeManager;
@@ -507,7 +493,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
     }
 
     private DDSpan startSpan() {
-      final DDSpan span = new DDSpan(timestampMicro, buildSpanContext(), spanEventFactory);
+      final DDSpan span = new DDSpan(timestampMicro, buildSpanContext());
       if (sampler instanceof RateByServiceSampler) {
         ((RateByServiceSampler) sampler).initializeSamplingPriority(span);
       }
