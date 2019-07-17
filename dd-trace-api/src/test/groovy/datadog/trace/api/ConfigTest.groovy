@@ -881,7 +881,7 @@ class ConfigTest extends Specification {
 
     where:
     path                                                        | expectedKey
-    getClass().getClassLoader().getResource("apikey").getFile() | "test-api-key\n"
+    getClass().getClassLoader().getResource("apikey").getFile() | "test-api-key"
     "/path/that/doesnt/exist"                                   | "default-api-key"
   }
 }

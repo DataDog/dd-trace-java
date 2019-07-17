@@ -360,7 +360,8 @@ public class Config {
     if (profilingApiKeyFile != null) {
       try {
         tmpProfilingApiKey =
-            new String(Files.readAllBytes(Paths.get(profilingApiKeyFile)), StandardCharsets.UTF_8);
+            new String(Files.readAllBytes(Paths.get(profilingApiKeyFile)), StandardCharsets.UTF_8)
+                .trim();
       } catch (final IOException e) {
         log.error("Cannot read API key from file {}, skipping", profilingApiKeyFile, e);
       }
