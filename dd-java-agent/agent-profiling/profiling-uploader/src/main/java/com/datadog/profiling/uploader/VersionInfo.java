@@ -12,9 +12,11 @@ public class VersionInfo {
   static final String JAVA_LANG = "java";
   static final String JAVA_VERSION = System.getProperty("java.version", "unknown");
   static final String JAVA_VM_NAME = System.getProperty("java.vm.name", "unknown");
+  static final String JAVA_VM_VENDOR = System.getProperty("java.vm.vendor", "unknown");
   static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
   static final String DATADOG_META_LANG_VERSION = "Datadog-Meta-Lang-Version";
   static final String DATADOG_META_LANG_INTERPRETER = "Datadog-Meta-Lang-Interpreter";
+  static final String DATADOG_META_LANG_INTERPRETER_VENDOR = "Datadog-Meta-Lang-Interpreter-Vendor";
   static final String DATADOG_META_TRACER_VERSION = "Datadog-Meta-Tracer-Version";
 
   static final String VERSION;

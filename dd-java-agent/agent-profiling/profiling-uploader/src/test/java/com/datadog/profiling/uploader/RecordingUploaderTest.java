@@ -303,6 +303,9 @@ public class RecordingUploaderTest {
         VersionInfo.JAVA_VM_NAME,
         recordedRequest.getHeader(VersionInfo.DATADOG_META_LANG_INTERPRETER));
     assertEquals(
+        VersionInfo.JAVA_VM_VENDOR,
+        recordedRequest.getHeader(VersionInfo.DATADOG_META_LANG_INTERPRETER_VENDOR));
+    assertEquals(
         "Stubbed-Test-Version", recordedRequest.getHeader(VersionInfo.DATADOG_META_TRACER_VERSION));
   }
 
