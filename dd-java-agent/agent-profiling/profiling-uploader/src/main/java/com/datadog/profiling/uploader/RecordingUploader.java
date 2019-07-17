@@ -166,6 +166,7 @@ public final class RecordingUploader {
             .addHeader(VersionInfo.DATADOG_META_LANG, VersionInfo.JAVA_LANG)
             .addHeader(VersionInfo.DATADOG_META_LANG_VERSION, VersionInfo.JAVA_VERSION)
             .addHeader(VersionInfo.DATADOG_META_LANG_INTERPRETER, VersionInfo.JAVA_VM_NAME)
+            .addHeader(VersionInfo.DATADOG_META_LANG_INTERPRETER_VENDOR, VersionInfo.JAVA_VM_VENDOR)
             .addHeader(VersionInfo.DATADOG_META_TRACER_VERSION, VersionInfo.VERSION)
             .post(requestBody)
             .build();
