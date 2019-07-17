@@ -147,8 +147,7 @@ public class Config {
   public static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
 
   public static final boolean DEFAULT_PROFILING_ENABLED = false;
-  public static final String DEFAULT_PROFILING_URL =
-      "http://localhost:5000/api/v0/profiling/jfr-chunk";
+  public static final String DEFAULT_PROFILING_URL = "https://intake.profile.datadoghq.com";
   public static final int DEFAULT_PROFILING_STARTUP_DELAY = 10;
   public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
   public static final int DEFAULT_PROFILING_RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
