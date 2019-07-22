@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.util.GlobalTracer;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -32,8 +31,10 @@ public final class ScalaExecutorInstrumentation extends AbstractExecutorInstrume
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME, State.class.getName());
+    Map<String, String> map = new HashMap<>();
+    map.put(ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME, State.class.getName());
+    map.put(Runnable.class.getName(), State.class.getName());
+    return map;
   }
 
   @Override

@@ -53,6 +53,7 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
         "javax.management.NotificationBroadcasterSupport$1",
         "kotlinx.coroutines.scheduling.CoroutineScheduler",
         "scala.concurrent.Future$InternalCallbackExecutor$",
+        "scala.concurrent.ExecutionContext",
         "scala.concurrent.impl.ExecutionContextImpl",
         "scala.concurrent.impl.ExecutionContextImpl$$anon$1",
         "scala.concurrent.forkjoin.ForkJoinPool",
@@ -103,7 +104,8 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
   public ElementMatcher<TypeDescription> typeMatcher() {
     final ElementMatcher.Junction<TypeDescription> matcher =
         not(isInterface()).and(safeHasSuperType(named(Executor.class.getName())));
-    if (TRACE_ALL_EXECUTORS) {
+    if (true) {
+//    if (TRACE_ALL_EXECUTORS) {
       return matcher;
     }
     return matcher.and(

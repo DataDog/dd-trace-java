@@ -24,10 +24,12 @@ object AkkaHttpTestAsyncWebServer {
       }
     case HttpRequest(GET, Uri.Path("/scheduler"), _, _, _) =>
       Future {
-        system.scheduler.scheduleOnce(50 milliseconds) {
+
+        system.scheduler.scheduleOnce(200 milliseconds) {
+          System.out.println("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBb " + system.scheduler.getClass().getCanonicalName)
           tracedMethod()
         }
-        Thread.sleep(100)
+        Thread.sleep(300)
         HttpResponse(entity = "Scheduled.")
       }
     case HttpRequest(GET, Uri.Path("/throw-handler"), _, _, _) =>
