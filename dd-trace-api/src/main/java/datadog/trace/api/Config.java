@@ -158,7 +158,7 @@ public class Config {
   // always-on periodic profile
   public static final int DEFAULT_PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO = 1;
   public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_TIMEOUT = 30; // seconds
-  public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_IO_TIMEOUT = 5; // seconds
+  public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_IO_TIMEOUT = 10; // seconds
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
