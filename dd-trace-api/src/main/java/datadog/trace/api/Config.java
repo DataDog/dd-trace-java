@@ -106,6 +106,9 @@ public class Config {
       "profiling.periodic.config.override.path";
   public static final String PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH =
       "profiling.continuous.config.override.path";
+  public static final String PROFILING_UPLOAD_REQUEST_TIMEOUT = "profiling.upload.request.timeout";
+  public static final String PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT =
+      "profiling.upload.request.io-operation.timeout";
 
   public static final String RUNTIME_ID_TAG = "runtime-id";
   public static final String SERVICE_TAG = "service";
@@ -154,6 +157,8 @@ public class Config {
   public static final int DEFAULT_PROFILING_RECORDING_MAX_AGE = 5 * 60; // 5 mins
   // always-on periodic profile
   public static final int DEFAULT_PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO = 1;
+  public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_TIMEOUT = 30; // seconds
+  public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT = 10; // seconds
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
@@ -237,6 +242,8 @@ public class Config {
   @Getter private final int profilingRecordingMaxAge;
   @Getter private final String profilingPeriodicConfigOverridePath;
   @Getter private final String profilingContinuousConfigOverridePath;
+  @Getter private final int profilingUploadRequestTimeout;
+  @Getter private final int profilingUploadRequestIOOperationTimeout;
 
   // Read order: System Properties -> Env Variables, [-> default value]
   // Values from an optionally provided properties file
@@ -387,6 +394,13 @@ public class Config {
         getSettingFromEnvironment(PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, null);
     profilingContinuousConfigOverridePath =
         getSettingFromEnvironment(PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, null);
+    profilingUploadRequestTimeout =
+        getIntegerSettingFromEnvironment(
+            PROFILING_UPLOAD_REQUEST_TIMEOUT, DEFAULT_PROFILING_UPLOAD_REQUEST_TIMEOUT);
+    profilingUploadRequestIOOperationTimeout =
+        getIntegerSettingFromEnvironment(
+            PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT,
+            DEFAULT_PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT);
 
     log.debug("New instance: {}", this);
   }
@@ -524,6 +538,14 @@ public class Config {
         properties.getProperty(
             PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH,
             parent.profilingContinuousConfigOverridePath);
+    profilingUploadRequestTimeout =
+        getPropertyIntegerValue(
+            properties, PROFILING_UPLOAD_REQUEST_TIMEOUT, parent.profilingUploadRequestTimeout);
+    profilingUploadRequestIOOperationTimeout =
+        getPropertyIntegerValue(
+            properties,
+            PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT,
+            parent.profilingUploadRequestIOOperationTimeout);
 
     log.debug("New instance: {}", this);
   }

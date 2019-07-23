@@ -36,7 +36,9 @@ public class ProfilingAgent {
             new RecordingUploader(
                 config.getProfilingUrl(),
                 config.getProfilingApiKey(),
-                config.getMergedProfilingTags());
+                config.getMergedProfilingTags(),
+                Duration.ofSeconds(config.getProfilingUploadRequestTimeout()),
+                Duration.ofSeconds(config.getProfilingUploadRequestIOOperationTimeout()));
 
         PROFILER =
             new ProfilingSystem(
