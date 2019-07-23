@@ -84,7 +84,7 @@ public class RecordingUploaderTest {
 
   // TODO: Add a test to verify overall reauest timout rather than IO timeout
   private final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
-  private final Duration REQUEST_IO_TIMEOUT = Duration.ofSeconds(5);
+  private final Duration REQUEST_IO_OPERATION_TIMEOUT = Duration.ofSeconds(5);
 
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;
@@ -97,7 +97,7 @@ public class RecordingUploaderTest {
     url = server.url(URL_PATH);
     uploader =
         new RecordingUploader(
-            url.toString(), APIKEY_VALUE, TAGS, REQUEST_TIMEOUT, REQUEST_IO_TIMEOUT);
+            url.toString(), APIKEY_VALUE, TAGS, REQUEST_TIMEOUT, REQUEST_IO_OPERATION_TIMEOUT);
   }
 
   @AfterEach
@@ -202,7 +202,7 @@ public class RecordingUploaderTest {
     server.enqueue(
         new MockResponse()
             .setHeadersDelay(
-                REQUEST_IO_TIMEOUT.plus(Duration.ofMillis(1000)).toMillis(),
+                REQUEST_IO_OPERATION_TIMEOUT.plus(Duration.ofMillis(1000)).toMillis(),
                 TimeUnit.MILLISECONDS));
     server.enqueue(new MockResponse().setResponseCode(200));
 
@@ -353,7 +353,7 @@ public class RecordingUploaderTest {
       server.enqueue(
           new MockResponse()
               .setHeadersDelay(
-                  REQUEST_IO_TIMEOUT.plus(Duration.ofMillis(1000)).toMillis(),
+                  REQUEST_IO_OPERATION_TIMEOUT.plus(Duration.ofMillis(1000)).toMillis(),
                   TimeUnit.MILLISECONDS)
               .setResponseCode(200));
     }

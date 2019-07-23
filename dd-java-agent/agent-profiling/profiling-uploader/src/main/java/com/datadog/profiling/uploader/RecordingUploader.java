@@ -98,16 +98,16 @@ public final class RecordingUploader {
       final String apiKey,
       final Map<String, String> tags,
       final Duration uploadRequestTimeout,
-      final Duration uploadRequestIOTimeout) {
+      final Duration uploadRequestIOOperationTimeout) {
     this.url = url;
     this.apiKey = apiKey;
     this.tags = tagsToList(tags);
 
     client =
         new OkHttpClient.Builder()
-            .connectTimeout(uploadRequestIOTimeout)
-            .writeTimeout(uploadRequestIOTimeout)
-            .readTimeout(uploadRequestIOTimeout)
+            .connectTimeout(uploadRequestIOOperationTimeout)
+            .writeTimeout(uploadRequestIOOperationTimeout)
+            .readTimeout(uploadRequestIOOperationTimeout)
             .callTimeout(uploadRequestTimeout)
             .build();
 

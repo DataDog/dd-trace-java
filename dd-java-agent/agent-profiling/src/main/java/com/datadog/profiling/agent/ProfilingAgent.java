@@ -38,7 +38,7 @@ public class ProfilingAgent {
                 config.getProfilingApiKey(),
                 config.getMergedProfilingTags(),
                 Duration.ofSeconds(config.getProfilingUploadRequestTimeout()),
-                Duration.ofSeconds(config.getProfilingUploadRequestIOTimeout()));
+                Duration.ofSeconds(config.getProfilingUploadRequestIOOperationTimeout()));
 
         PROFILER =
             new ProfilingSystem(

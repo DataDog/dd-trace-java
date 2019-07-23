@@ -40,7 +40,7 @@ import static datadog.trace.api.Config.PROFILING_RECORDING_MAX_SIZE
 import static datadog.trace.api.Config.PROFILING_STARTUP_DELAY
 import static datadog.trace.api.Config.PROFILING_TAGS
 import static datadog.trace.api.Config.PROFILING_UPLOAD_PERIOD
-import static datadog.trace.api.Config.PROFILING_UPLOAD_REQUEST_IO_TIMEOUT
+import static datadog.trace.api.Config.PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT
 import static datadog.trace.api.Config.PROFILING_UPLOAD_REQUEST_TIMEOUT
 import static datadog.trace.api.Config.PROFILING_URL
 import static datadog.trace.api.Config.PROPAGATION_STYLE_EXTRACT
@@ -124,7 +124,7 @@ class ConfigTest extends Specification {
     config.profilingPeriodicConfigOverridePath == null
     config.profilingContinuousConfigOverridePath == null
     config.profilingUploadRequestTimeout == 30
-    config.profilingUploadRequestIOTimeout == 5
+    config.profilingUploadRequestIOOperationTimeout == 5
 
     config.toString().contains("unnamed-java-app")
 
@@ -181,7 +181,7 @@ class ConfigTest extends Specification {
     prop.setProperty(PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, "/periodic/path")
     prop.setProperty(PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
     prop.setProperty(PROFILING_UPLOAD_REQUEST_TIMEOUT, "1116")
-    prop.setProperty(PROFILING_UPLOAD_REQUEST_IO_TIMEOUT, "1117")
+    prop.setProperty(PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT, "1117")
 
     when:
     Config config = Config.get(prop)
@@ -227,7 +227,7 @@ class ConfigTest extends Specification {
     config.profilingPeriodicConfigOverridePath == "/periodic/path"
     config.profilingContinuousConfigOverridePath == "/continuous/path"
     config.profilingUploadRequestTimeout == 1116
-    config.profilingUploadRequestIOTimeout == 1117
+    config.profilingUploadRequestIOOperationTimeout == 1117
   }
 
   def "specify overrides via system properties"() {
@@ -274,7 +274,7 @@ class ConfigTest extends Specification {
     System.setProperty(PREFIX + PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, "/periodic/path")
     System.setProperty(PREFIX + PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
     System.setProperty(PREFIX + PROFILING_UPLOAD_REQUEST_TIMEOUT, "1116")
-    System.setProperty(PREFIX + PROFILING_UPLOAD_REQUEST_IO_TIMEOUT, "1117")
+    System.setProperty(PREFIX + PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT, "1117")
 
     when:
     Config config = new Config()
@@ -320,7 +320,7 @@ class ConfigTest extends Specification {
     config.profilingPeriodicConfigOverridePath == "/periodic/path"
     config.profilingContinuousConfigOverridePath == "/continuous/path"
     config.profilingUploadRequestTimeout == 1116
-    config.profilingUploadRequestIOTimeout == 1117
+    config.profilingUploadRequestIOOperationTimeout == 1117
   }
 
   def "specify overrides via env vars"() {
