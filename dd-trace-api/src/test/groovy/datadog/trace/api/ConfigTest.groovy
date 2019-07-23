@@ -124,7 +124,7 @@ class ConfigTest extends Specification {
     config.profilingPeriodicConfigOverridePath == null
     config.profilingContinuousConfigOverridePath == null
     config.profilingUploadRequestTimeout == 30
-    config.profilingUploadRequestIOOperationTimeout == 5
+    config.profilingUploadRequestIOOperationTimeout == 10
 
     config.toString().contains("unnamed-java-app")
 
