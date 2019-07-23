@@ -58,9 +58,6 @@ public final class RecordingUploader {
 
   static final String TAGS_PARAM = "tags[]";
 
-  // TODO: Review timeout value to make sure we are not loosing data
-  static final Duration HTTP_TIMEOUT =
-      Duration.ofSeconds(5); // 5 seconds for connect/read/write operations
   static final int MAX_RUNNING_REQUESTS = 10;
   static final int MAX_ENQUEUED_REQUESTS = 20;
 
@@ -96,17 +93,22 @@ public final class RecordingUploader {
   private final String url;
   private final List<String> tags;
 
-  public RecordingUploader(final String url, final String apiKey, final Map<String, String> tags) {
+  public RecordingUploader(
+      final String url,
+      final String apiKey,
+      final Map<String, String> tags,
+      final Duration uploadRequestTimeout,
+      final Duration uploadRequestIOTimeout) {
     this.url = url;
     this.apiKey = apiKey;
     this.tags = tagsToList(tags);
 
     client =
         new OkHttpClient.Builder()
-            .connectTimeout(HTTP_TIMEOUT)
-            .writeTimeout(HTTP_TIMEOUT)
-            .readTimeout(HTTP_TIMEOUT)
-            .callTimeout(HTTP_TIMEOUT)
+            .connectTimeout(uploadRequestIOTimeout)
+            .writeTimeout(uploadRequestIOTimeout)
+            .readTimeout(uploadRequestIOTimeout)
+            .callTimeout(uploadRequestTimeout)
             .build();
 
     client.dispatcher().setMaxRequests(MAX_RUNNING_REQUESTS);
