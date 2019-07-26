@@ -7,8 +7,8 @@ import akka.stream.ActorMaterializer
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Trace
 
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
+//import scala.concurrent.duration._
 
 object AkkaHttpTestAsyncWebServer {
   val port = PortUtils.randomOpenPort()
@@ -16,22 +16,23 @@ object AkkaHttpTestAsyncWebServer {
   implicit val materializer = ActorMaterializer()
   // needed for the future flatMap/onComplete in the end
   implicit val executionContext = system.dispatcher
+
   val asyncHandler: HttpRequest => Future[HttpResponse] = {
     case HttpRequest(GET, Uri.Path("/test"), _, _, _) =>
       Future {
         tracedMethod()
         HttpResponse(entity = "Hello unit test.")
       }
-    case HttpRequest(GET, Uri.Path("/scheduler"), _, _, _) =>
-      Future {
-
-        system.scheduler.scheduleOnce(200 milliseconds) {
-          System.out.println("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBb " + system.scheduler.getClass().getCanonicalName)
-          tracedMethod()
-        }
-        Thread.sleep(300)
-        HttpResponse(entity = "Scheduled.")
-      }
+//    case HttpRequest(GET, Uri.Path("/scheduler"), _, _, _) =>
+//      Future {
+//
+//        system.scheduler.scheduleOnce(200 milliseconds) {
+//          System.out.println("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBb " + system.scheduler.getClass().getCanonicalName)
+//          tracedMethod()
+//        }
+//        Thread.sleep(300)
+//        HttpResponse(entity = "Scheduled.")
+//      }
     case HttpRequest(GET, Uri.Path("/throw-handler"), _, _, _) =>
       sys.error("Oh no handler")
     case HttpRequest(GET, Uri.Path("/throw-callback"), _, _, _) =>
@@ -68,6 +69,8 @@ object AkkaHttpTestAsyncWebServer {
   @Trace
   def tracedMethod(): Unit = {
   }
+
+  def methodTracedWithFuture
 }
 
 object AkkaHttpTestSyncWebServer {
