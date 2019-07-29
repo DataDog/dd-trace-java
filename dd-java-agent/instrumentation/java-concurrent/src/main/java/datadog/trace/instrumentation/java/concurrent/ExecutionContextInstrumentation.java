@@ -30,76 +30,76 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-@Slf4j
-@AutoService(Instrumenter.class)
-public final class ExecutionContextInstrumentation extends Instrumenter.Default {
-
-  public ExecutionContextInstrumentation() {
-    super(AbstractExecutorInstrumentation.EXEC_NAME);
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-//    return named("akka.actor.LightArrayRevolverScheduler");
-    return not(isInterface())
-        .and(safeHasSuperType(named(ExecutionContext.class.getName())));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      AbstractExecutorInstrumentation.class.getPackage().getName() + ".ExecutorInstrumentationUtils"
-    };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> map = new HashMap<>();
-    map.put(Runnable.class.getName(), State.class.getName());
-    return Collections.unmodifiableMap(map);
-  }
-
-  @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    System.out.println("JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ");
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+//@Slf4j
+////@AutoService(Instrumenter.class)
+//public final class ExecutionContextInstrumentation extends Instrumenter.Default {
+//
+//  public ExecutionContextInstrumentation() {
+//    super(AbstractExecutorInstrumentation.EXEC_NAME);
+//  }
+//
+//  @Override
+//  public ElementMatcher<TypeDescription> typeMatcher() {
+////    return named("akka.actor.LightArrayRevolverScheduler");
+//    return not(isInterface())
+//        .and(safeHasSuperType(named(ExecutionContext.class.getName())));
+//  }
+//
+//  @Override
+//  public String[] helperClassNames() {
+//    return new String[] {
+//      AbstractExecutorInstrumentation.class.getPackage().getName() + ".ExecutorInstrumentationUtils"
+//    };
+//  }
+//
+//  @Override
+//  public Map<String, String> contextStore() {
+//    final Map<String, String> map = new HashMap<>();
+//    map.put(Runnable.class.getName(), State.class.getName());
+//    return Collections.unmodifiableMap(map);
+//  }
+//
+//  @Override
+//  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
+////    System.out.println("JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ");
+//    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+////    transformers.put(
+////      named("scheduleOnce")
+////        .and(takesArgument(1, named(Runnable.class.getName()))),
+////      RunnableTaskStateAdvice.class.getName());
 //    transformers.put(
-//      named("scheduleOnce")
-//        .and(takesArgument(1, named(Runnable.class.getName()))),
+//      named("execute")
+//        .and(takesArgument(0, named(Runnable.class.getName()))),
 //      RunnableTaskStateAdvice.class.getName());
-    transformers.put(
-      named("execute")
-        .and(takesArgument(0, named(Runnable.class.getName()))),
-      RunnableTaskStateAdvice.class.getName());
-    return transformers;
-  }
-
-
-  public static class RunnableTaskStateAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static State enterJobSubmit(
-      @Advice.Argument(value = 0, readOnly = false) final Runnable task) {
-//      @Advice.Argument(value = 1, readOnly = false) final Runnable task) {
-      System.out.println("SUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU");
-      final Scope scope = GlobalTracer.get().scopeManager().active();
-      if (scope != null) {
-        final ContextStore<Runnable, State> contextStore =
-          InstrumentationContext.get(Runnable.class, State.class);
-        return ExecutorInstrumentationUtils.setupState(contextStore, task, (TraceScope) scope);
-      }
-      return null;
-//      if (ExecutorInstrumentationUtils.shouldAttachStateToTask(task, executor)) {
+//    return transformers;
+//  }
+//
+//
+//  public static class RunnableTaskStateAdvice {
+//
+//    @Advice.OnMethodEnter(suppress = Throwable.class)
+//    public static State enterJobSubmit(
+//      @Advice.Argument(value = 0, readOnly = false) final Runnable task) {
+////      @Advice.Argument(value = 1, readOnly = false) final Runnable task) {
+////      System.out.println("SUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU");
+//      final Scope scope = GlobalTracer.get().scopeManager().active();
+//      if (scope != null) {
+//        final ContextStore<Runnable, State> contextStore =
+//          InstrumentationContext.get(Runnable.class, State.class);
+//        return ExecutorInstrumentationUtils.setupState(contextStore, task, (TraceScope) scope);
 //      }
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exitJobSubmit(
-      @Advice.Enter final State state,
-      @Advice.Thrown final Throwable throwable) {
-      if (null != state && null != throwable) {
-        // state.closeContinuation();
-      }
-    }
-  }
-}
+//      return null;
+////      if (ExecutorInstrumentationUtils.shouldAttachStateToTask(task, executor)) {
+////      }
+//    }
+//
+//    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+//    public static void exitJobSubmit(
+//      @Advice.Enter final State state,
+//      @Advice.Thrown final Throwable throwable) {
+//      if (null != state && null != throwable) {
+//        // state.closeContinuation();
+//      }
+//    }
+//  }
+//}

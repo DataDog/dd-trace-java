@@ -49,12 +49,20 @@ object AkkaHttpTestAsyncWebServer {
       }
   }
 
+  def requestHandler(request: HttpRequest)(implicit executionContext: ExecutionContext): Future[HttpResponse] = {
+    def callAService(): Future[HttpResponse] = Future {
+      tracedMethod()
+      HttpResponse(entity = "Hello!")
+    }
+    callAService()
+  }
+
   private var binding: ServerBinding = null
 
   def start(): Unit = synchronized {
     if (null == binding) {
       import scala.concurrent.duration._
-      binding = Await.result(Http().bindAndHandleAsync(asyncHandler, "localhost", port), 10 seconds)
+      binding = Await.result(Http().bindAndHandleAsync(requestHandler, "localhost", port), 10 seconds)
     }
   }
 
@@ -69,8 +77,6 @@ object AkkaHttpTestAsyncWebServer {
   @Trace
   def tracedMethod(): Unit = {
   }
-
-  def methodTracedWithFuture
 }
 
 object AkkaHttpTestSyncWebServer {
