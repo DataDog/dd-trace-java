@@ -1,5 +1,6 @@
 package datadog.trace.agent.test.utils
 
+import datadog.opentracing.DDSpan
 import datadog.trace.agent.decorator.BaseDecorator
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.context.TraceScope
@@ -26,7 +27,7 @@ class TraceUtils {
   }
 
   @SneakyThrows
-  static <T extends Object> Object runUnderTrace(final String rootOperationName, final Callable<T> r) {
+  static <T> T runUnderTrace(final String rootOperationName, final Callable<T> r) {
     final Scope scope = GlobalTracer.get().buildSpan(rootOperationName).startActive(true)
     DECORATOR.afterStart(scope)
     ((TraceScope) scope).setAsyncPropagation(true)
@@ -42,12 +43,20 @@ class TraceUtils {
     }
   }
 
-  static basicSpan(TraceAssert trace, int index, String spanName, Throwable exception = null) {
+  static basicSpan(TraceAssert trace, int index, String spanName, Object parentSpan = null, Throwable exception = null) {
+    basicSpan(trace, index, spanName, spanName, parentSpan, exception)
+  }
+
+  static basicSpan(TraceAssert trace, int index, String operation, String resource, Object parentSpan = null, Throwable exception = null) {
     trace.span(index) {
-      parent()
+      if (parentSpan == null) {
+        parent()
+      } else {
+        childOf((DDSpan) parentSpan)
+      }
       serviceName "unnamed-java-app"
-      operationName spanName
-      resourceName spanName
+      operationName operation
+      resourceName resource
       errored exception != null
       tags {
         defaultTags()

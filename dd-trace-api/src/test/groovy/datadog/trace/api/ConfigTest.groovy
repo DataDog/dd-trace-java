@@ -816,7 +816,7 @@ class ConfigTest extends Specification {
     def config = Config.get(properties)
 
     then:
-    config.localRootSpanTags.get('_dd.hostname') == InetAddress.localHost.hostName
+    config.localRootSpanTags.containsKey('_dd.hostname')
   }
 
   def "verify fallback to properties file"() {

@@ -21,7 +21,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static org.junit.Assume.assumeTrue
 
-abstract class HttpClientTest<T extends HttpClientDecorator> extends AgentTestRunner {
+abstract class HttpClientTest<DECORATOR extends HttpClientDecorator> extends AgentTestRunner {
   protected static final BODY_METHODS = ["POST", "PUT"]
 
   @AutoCleanup
@@ -54,7 +54,7 @@ abstract class HttpClientTest<T extends HttpClientDecorator> extends AgentTestRu
   }
 
   @Shared
-  T decorator = decorator()
+  DECORATOR clientDecorator = decorator()
 
   /**
    * Make the request and return the status code response
@@ -63,7 +63,7 @@ abstract class HttpClientTest<T extends HttpClientDecorator> extends AgentTestRu
    */
   abstract int doRequest(String method, URI uri, Map<String, String> headers = [:], Closure callback = null)
 
-  abstract T decorator()
+  abstract DECORATOR decorator()
 
   Integer statusOnRedirectError() {
     return null
@@ -118,6 +118,8 @@ abstract class HttpClientTest<T extends HttpClientDecorator> extends AgentTestRu
     where:
     method << BODY_METHODS
   }
+
+  //FIXME: add tests for POST with large/chunked data
 
   @Unroll
   def "basic #method request with split-by-domain"() {
@@ -176,10 +178,7 @@ abstract class HttpClientTest<T extends HttpClientDecorator> extends AgentTestRu
     assertTraces(1) {
       trace(0, size(3)) {
         basicSpan(it, 0, "parent")
-        span(1) {
-          operationName "child"
-          childOf span(0)
-        }
+        basicSpan(it, 1, "child", span(0))
         clientSpan(it, 2, span(0), method, false)
       }
     }
@@ -191,7 +190,7 @@ abstract class HttpClientTest<T extends HttpClientDecorator> extends AgentTestRu
   def "trace request with callback and no parent"() {
     when:
     def status = doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"]) {
-      runUnderTrace("child") {
+      runUnderTrace("callback") {
         // Ensure consistent ordering of traces for assertion.
         TEST_WRITER.waitForTraces(1)
       }
@@ -205,10 +204,7 @@ abstract class HttpClientTest<T extends HttpClientDecorator> extends AgentTestRu
         clientSpan(it, 0, null, method, false)
       }
       trace(1, 1) {
-        span(0) {
-          operationName "child"
-          parent()
-        }
+        basicSpan(it, 0, "callback")
       }
     }
 
@@ -306,7 +302,7 @@ abstract class HttpClientTest<T extends HttpClientDecorator> extends AgentTestRu
     and:
     assertTraces(1) {
       trace(0, 2) {
-        basicSpan(it, 0, "parent", thrownException)
+        basicSpan(it, 0, "parent", null, thrownException)
         clientSpan(it, 1, span(0), method, false, false, uri, null, thrownException)
       }
     }
@@ -333,7 +329,7 @@ abstract class HttpClientTest<T extends HttpClientDecorator> extends AgentTestRu
         if (exception) {
           errorTags(exception.class, exception.message)
         }
-        "$Tags.COMPONENT.key" decorator.component()
+        "$Tags.COMPONENT.key" clientDecorator.component()
         if (status) {
           "$Tags.HTTP_STATUS.key" status
         }
