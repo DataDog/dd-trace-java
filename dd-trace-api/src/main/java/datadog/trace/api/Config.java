@@ -159,8 +159,9 @@ public class Config {
   public static final int DEFAULT_PROFILING_RECORDING_MAX_AGE = 5 * 60; // 5 mins
   // always-on periodic profile
   public static final int DEFAULT_PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO = 1;
+  // TODO: Should we make this one setting?
   public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_TIMEOUT = 30; // seconds
-  public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT = 10; // seconds
+  public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT = 30; // seconds
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
