@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,9 @@ public final class ProfilingSystem {
   static final String RECORDING_NAME = "dd-profiling";
 
   private static final long TERMINATION_TIMEOUT = 10;
+
+  // startup delay will be randomized to be somewhere between 'startupDelay' and 'startupDelay' plus this value
+  private static final long STARTUP_DELAY_JITTER_MAX_MS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.MINUTES);
 
   private final ScheduledExecutorService executorService;
   private final Controller controller;
@@ -122,7 +126,7 @@ public final class ProfilingSystem {
               TimeUnit.MILLISECONDS);
           started = true;
         },
-        startupDelay.toMillis(),
+        startupDelay.toMillis() + ThreadLocalRandom.current().nextLong(STARTUP_DELAY_JITTER_MAX_MS),
         TimeUnit.MILLISECONDS);
   }
 
