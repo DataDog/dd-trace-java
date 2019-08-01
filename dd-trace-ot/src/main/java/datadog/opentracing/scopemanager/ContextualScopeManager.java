@@ -1,6 +1,6 @@
 package datadog.opentracing.scopemanager;
 
-import datadog.opentracing.DDSpan;
+import datadog.opentracing.DDSpanContext;
 import datadog.trace.context.ScopeListener;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
@@ -22,8 +22,9 @@ public class ContextualScopeManager implements ScopeManager {
         return context.activate(span, finishOnClose);
       }
     }
-    if (span instanceof DDSpan) {
-      return new ContinuableScope(this, (DDSpan) span, finishOnClose);
+    if (span.context() instanceof DDSpanContext) {
+      return new ContinuableScope(
+          this, span, ((DDSpanContext) span.context()).getTrace(), finishOnClose);
     } else {
       return new SimpleScope(this, span, finishOnClose);
     }

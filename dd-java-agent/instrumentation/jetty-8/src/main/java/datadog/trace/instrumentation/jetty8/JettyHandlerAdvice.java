@@ -1,15 +1,15 @@
 package datadog.trace.instrumentation.jetty8;
 
+import static datadog.trace.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.agent.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
+import static datadog.trace.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.jetty8.HttpServletRequestGetter.GETTER;
 import static datadog.trace.instrumentation.jetty8.JettyDecorator.DECORATE;
 
 import datadog.trace.api.DDTags;
-import datadog.trace.context.TraceScope;
-import io.opentracing.Scope;
-import io.opentracing.Span;
-import io.opentracing.SpanContext;
-import io.opentracing.propagation.Format;
-import io.opentracing.tag.Tags;
+import datadog.trace.instrumentation.api.AgentScope;
+import datadog.trace.instrumentation.api.AgentSpan;
 import io.opentracing.util.GlobalTracer;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.servlet.http.HttpServletRequest;
@@ -19,35 +19,26 @@ import net.bytebuddy.asm.Advice;
 public class JettyHandlerAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static Scope startSpan(
-      @Advice.This final Object source, @Advice.Argument(2) final HttpServletRequest req) {
+  public static AgentScope onEnter(
+      @Advice.This final Object source,
+      @Advice.Argument(2) final HttpServletRequest httpServletRequest) {
 
     if (req.getAttribute(DD_SPAN_ATTRIBUTE) != null) {
       // Request already being traced elsewhere.
       return null;
     }
 
-    final SpanContext extractedContext =
-        GlobalTracer.get()
-            .extract(Format.Builtin.HTTP_HEADERS, new HttpServletRequestExtractAdapter(req));
-    final Scope scope =
-        GlobalTracer.get()
-            .buildSpan("jetty.request")
-            .ignoreActiveSpan()
-            .asChildOf(extractedContext)
-            .withTag("span.origin.type", source.getClass().getName())
-            .startActive(false);
+    final AgentSpan.Context extractedContext = propagate().extract(httpServletRequest, GETTER);
 
-    final Span span = scope.span();
-    DECORATE.afterStart(span);
-    DECORATE.onConnection(span, req);
-    DECORATE.onRequest(span, req);
-    final String resourceName = req.getMethod() + " " + source.getClass().getName();
-    span.setTag(DDTags.RESOURCE_NAME, resourceName);
+    final AgentSpan span = startSpan(DECORATE, extractedContext);
+    DECORATE.onConnection(span, httpServletRequest);
+    DECORATE.onRequest(span, httpServletRequest);
 
-    if (scope instanceof TraceScope) {
-      ((TraceScope) scope).setAsyncPropagation(true);
-    }
+    final String resourceName = httpServletRequest.getMethod() + " " + source.getClass().getName();
+    span.setMetadata(DDTags.RESOURCE_NAME, resourceName);
+
+    final AgentScope scope = activateSpan(span);
+    scope.setAsyncPropagation(true);
     req.setAttribute(DD_SPAN_ATTRIBUTE, span);
     return scope;
   }
@@ -56,18 +47,18 @@ public class JettyHandlerAdvice {
   public static void stopSpan(
       @Advice.Argument(2) final HttpServletRequest req,
       @Advice.Argument(3) final HttpServletResponse resp,
-      @Advice.Enter final Scope scope,
+      @Advice.Enter final AgentScope scope,
       @Advice.Thrown final Throwable throwable) {
     if (scope != null) {
-      final Span span = scope.span();
+      final AgentSpan span = scope.span();
       if (req.getUserPrincipal() != null) {
-        span.setTag(DDTags.USER_NAME, req.getUserPrincipal().getName());
+        span.setMetadata(DDTags.USER_NAME, req.getUserPrincipal().getName());
       }
       if (throwable != null) {
         DECORATE.onResponse(span, resp);
         if (resp.getStatus() == HttpServletResponse.SC_OK) {
           // exception is thrown in filter chain, but status code is incorrect
-          Tags.HTTP_STATUS.set(span, 500);
+          span.setMetadata("http.status_code", 500);
         }
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);

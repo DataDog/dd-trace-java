@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.servlet3;
 
 import datadog.trace.agent.decorator.HttpServerDecorator;
-import io.opentracing.Span;
+import datadog.trace.instrumentation.api.AgentSpan;
 import java.net.URI;
 import java.net.URISyntaxException;
 import javax.servlet.ServletException;
@@ -15,6 +15,11 @@ public class Servlet3Decorator
   @Override
   protected String[] instrumentationNames() {
     return new String[] {"servlet", "servlet-3"};
+  }
+
+  @Override
+  public String spanName() {
+    return "servlet.request";
   }
 
   @Override
@@ -53,10 +58,10 @@ public class Servlet3Decorator
   }
 
   @Override
-  public Span onRequest(final Span span, final HttpServletRequest request) {
+  public AgentSpan onRequest(final AgentSpan span, final HttpServletRequest request) {
     assert span != null;
     if (request != null) {
-      span.setTag("servlet.context", request.getContextPath());
+      span.setMetadata("servlet.context", request.getContextPath());
     }
     return super.onRequest(span, request);
   }

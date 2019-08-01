@@ -1,11 +1,11 @@
 package datadog.opentracing.scopemanager;
 
-import datadog.opentracing.DDSpan;
 import datadog.opentracing.DDSpanContext;
 import datadog.opentracing.PendingTrace;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
+import io.opentracing.Span;
 import java.io.Closeable;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -19,7 +19,11 @@ public class ContinuableScope implements Scope, TraceScope {
   /**
    * Span contained by this scope. Async scopes will hold a reference to the parent scope's span.
    */
-  private final DDSpan spanUnderScope;
+  private final Span spanUnderScope;
+
+  /** Collection of finish and unfinished spans waiting for completion before reporting. */
+  private final PendingTrace pendingTrace;
+
   /** If true, finish the span when openCount hits 0. */
   private final boolean finishOnClose;
   /** Count of open scope and continuations */
@@ -33,22 +37,25 @@ public class ContinuableScope implements Scope, TraceScope {
 
   ContinuableScope(
       final ContextualScopeManager scopeManager,
-      final DDSpan spanUnderScope,
+      final Span spanUnderScope,
+      final PendingTrace pendingTrace,
       final boolean finishOnClose) {
-    this(scopeManager, new AtomicInteger(1), null, spanUnderScope, finishOnClose);
+    this(scopeManager, new AtomicInteger(1), null, spanUnderScope, pendingTrace, finishOnClose);
   }
 
   private ContinuableScope(
       final ContextualScopeManager scopeManager,
       final AtomicInteger openCount,
       final Continuation continuation,
-      final DDSpan spanUnderScope,
+      final Span spanUnderScope,
+      final PendingTrace pendingTrace,
       final boolean finishOnClose) {
     assert spanUnderScope != null : "span must not be null";
     this.scopeManager = scopeManager;
     this.openCount = openCount;
     this.continuation = continuation;
     this.spanUnderScope = spanUnderScope;
+    this.pendingTrace = pendingTrace;
     this.finishOnClose = finishOnClose;
     toRestore = scopeManager.tlsScope.get();
     scopeManager.tlsScope.set(this);
@@ -60,7 +67,7 @@ public class ContinuableScope implements Scope, TraceScope {
   @Override
   public void close() {
     if (null != continuation) {
-      spanUnderScope.context().getTrace().cancelContinuation(continuation);
+      pendingTrace.cancelContinuation(continuation);
     }
 
     if (openCount.decrementAndGet() == 0 && finishOnClose) {
@@ -87,7 +94,7 @@ public class ContinuableScope implements Scope, TraceScope {
   }
 
   @Override
-  public DDSpan span() {
+  public Span span() {
     return spanUnderScope;
   }
 
@@ -137,14 +144,15 @@ public class ContinuableScope implements Scope, TraceScope {
     public ContinuableScope activate() {
       if (used.compareAndSet(false, true)) {
         final ContinuableScope scope =
-            new ContinuableScope(scopeManager, openCount, this, spanUnderScope, finishOnClose);
+            new ContinuableScope(
+                scopeManager, openCount, this, spanUnderScope, pendingTrace, finishOnClose);
         log.debug("Activating continuation {}, scope: {}", this, scope);
         return scope;
       } else {
         log.debug(
             "Failed to activate continuation. Reusing a continuation not allowed.  Returning a new scope. Spans will not be linked.");
         return new ContinuableScope(
-            scopeManager, new AtomicInteger(1), null, spanUnderScope, finishOnClose);
+            scopeManager, new AtomicInteger(1), null, spanUnderScope, pendingTrace, finishOnClose);
       }
     }
 

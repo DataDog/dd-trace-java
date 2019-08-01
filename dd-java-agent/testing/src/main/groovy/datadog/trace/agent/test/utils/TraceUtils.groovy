@@ -3,42 +3,49 @@ package datadog.trace.agent.test.utils
 import datadog.opentracing.DDSpan
 import datadog.trace.agent.decorator.BaseDecorator
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.context.TraceScope
-import io.opentracing.Scope
-import io.opentracing.util.GlobalTracer
 import lombok.SneakyThrows
 
 import java.util.concurrent.Callable
 
+import static datadog.trace.instrumentation.api.AgentTracer.activateSpan
+import static datadog.trace.instrumentation.api.AgentTracer.startSpan
+
 class TraceUtils {
 
-  private static final BaseDecorator DECORATOR = new BaseDecorator() {
-    protected String[] instrumentationNames() {
-      return new String[0]
-    }
+  private static BaseDecorator decorator(String spanName) {
+    return new BaseDecorator() {
+      protected String[] instrumentationNames() {
+        return new String[0]
+      }
 
-    protected String spanType() {
-      return null
-    }
+      @Override
+      String spanName() {
+        return spanName
+      }
 
-    protected String component() {
-      return null
+      protected String spanType() {
+        return null
+      }
+
+      protected String component() {
+        return null
+      }
     }
   }
 
   @SneakyThrows
   static <T> T runUnderTrace(final String rootOperationName, final Callable<T> r) {
-    final Scope scope = GlobalTracer.get().buildSpan(rootOperationName).startActive(true)
-    DECORATOR.afterStart(scope)
-    ((TraceScope) scope).setAsyncPropagation(true)
-
+    def decorator = decorator(rootOperationName)
+    def span = startSpan(decorator)
+    def scope = activateSpan(span)
     try {
+      scope.setAsyncPropagation(true)
       return r.call()
     } catch (final Exception e) {
-      DECORATOR.onError(scope, e)
+      decorator.onError(scope, e)
       throw e
     } finally {
-      DECORATOR.beforeFinish(scope)
+      span.finish()
       scope.close()
     }
   }

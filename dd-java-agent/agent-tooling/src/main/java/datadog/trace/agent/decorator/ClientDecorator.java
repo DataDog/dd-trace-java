@@ -1,24 +1,23 @@
 package datadog.trace.agent.decorator;
 
+import datadog.trace.instrumentation.api.AgentSpan;
 import datadog.trace.api.DDTags;
-import io.opentracing.Span;
-import io.opentracing.tag.Tags;
 
 public abstract class ClientDecorator extends BaseDecorator {
 
   protected abstract String service();
 
   protected String spanKind() {
-    return Tags.SPAN_KIND_CLIENT;
+    return "client";
   }
 
   @Override
-  public Span afterStart(final Span span) {
+  public AgentSpan afterStart(final AgentSpan span) {
     assert span != null;
     if (service() != null) {
-      span.setTag(DDTags.SERVICE_NAME, service());
+      span.setMetadata(DDTags.SERVICE_NAME, service());
     }
-    Tags.SPAN_KIND.set(span, spanKind());
+    span.setMetadata("span.kind", spanKind());
     return super.afterStart(span);
   }
 }
