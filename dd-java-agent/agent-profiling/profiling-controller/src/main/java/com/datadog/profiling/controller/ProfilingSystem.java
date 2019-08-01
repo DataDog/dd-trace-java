@@ -17,12 +17,15 @@ package com.datadog.profiling.controller;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+
+import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 
 /** Sets up the profiling strategy and schedules the profiling recordings. */
@@ -31,9 +34,6 @@ public final class ProfilingSystem {
   static final String RECORDING_NAME = "dd-profiling";
 
   private static final long TERMINATION_TIMEOUT = 10;
-
-  // startup delay will be randomized to be somewhere between 'startupDelay' and 'startupDelay' plus this value
-  private static final long STARTUP_DELAY_JITTER_MAX_MS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.MINUTES);
 
   private final ScheduledExecutorService executorService;
   private final Controller controller;
@@ -54,7 +54,8 @@ public final class ProfilingSystem {
    *
    * @param controller implementation specific controller of profiling machinery
    * @param dataListener the listener for data being produced
-   * @param startupDelay delay before starting jfr
+   * @param startupDelayMin minimal delay before starting jfr
+   * @param startupDelayMax maximal delay before starting jfr - ignored if less than {@literal startupDelayMin}
    * @param uploadPeriod how often to upload data
    * @param continuousToPeriodicUploadsRatio how often to run and upload periodic recordings, given
    *     in units of {@code uploadPeriod}
@@ -63,36 +64,85 @@ public final class ProfilingSystem {
   public ProfilingSystem(
       final Controller controller,
       final RecordingDataListener dataListener,
-      final Duration startupDelay,
+      final Duration startupDelayMin,
+      final Duration startupDelayMax,
       final Duration uploadPeriod,
       final int continuousToPeriodicUploadsRatio)
       throws ConfigurationException {
     this(
         controller,
         dataListener,
-        startupDelay,
+        startupDelayMin,
+        startupDelayMax,
         uploadPeriod,
         continuousToPeriodicUploadsRatio,
         Executors.newScheduledThreadPool(1, new ProfilingThreadFactory()));
   }
 
-  /** Constructor visible for testing. */
+  /**
+   * Constructor providing automatically randomized startupDelay
+   * @param controller implementation specific controller of profiling machinery
+   * @param dataListener the listener for data being produced
+   * @param startupDelay minimal delay before starting jfr
+   * @param uploadPeriod how often to upload data
+   * @param continuousToPeriodicUploadsRatio how often to run and upload periodic recordings, given
+   *     in units of {@code uploadPeriod}
+   * @throws ConfigurationException if the configuration information was bad.
+   */
+  public ProfilingSystem(
+    final Controller controller,
+    final RecordingDataListener dataListener,
+    final Duration startupDelay,
+    final Duration uploadPeriod,
+    final int continuousToPeriodicUploadsRatio)
+    throws ConfigurationException {
+    this(
+      controller, dataListener, startupDelay,
+      startupDelay.plus(uploadPeriod.multipliedBy(continuousToPeriodicUploadsRatio)),
+      uploadPeriod, continuousToPeriodicUploadsRatio
+    );
+  }
+
+  /* Constructors visible for testing. */
+  /**
+   * Used solely in test. Turns off the startup delay randomization.
+   * @param controller implementation specific controller of profiling machinery
+   * @param dataListener the listener for data being produced
+   * @param startupDelay minimal delay before starting jfr
+   * @param uploadPeriod how often to upload data
+   * @param continuousToPeriodicUploadsRatio how often to run and upload periodic recordings, given
+   *     in units of {@code uploadPeriod}
+   * @param executorService the executor service implementation to use for the profiling system scheduling
+   * @throws ConfigurationException if the configuration information was bad.
+   */
+  ProfilingSystem(
+    final Controller controller,
+    final RecordingDataListener dataListener,
+    final Duration startupDelay,
+    final Duration uploadPeriod,
+    final int continuousToPeriodicUploadsRatio,
+    final ScheduledExecutorService executorService)
+    throws ConfigurationException {
+    this(controller, dataListener, startupDelay, startupDelay, uploadPeriod, continuousToPeriodicUploadsRatio, executorService);
+  }
+
   ProfilingSystem(
       final Controller controller,
       final RecordingDataListener dataListener,
-      final Duration startupDelay,
+      final Duration startupDelayMin,
+      final Duration startupDelayMax,
       final Duration uploadPeriod,
       final int continuousToPeriodicUploadsRatio,
       final ScheduledExecutorService executorService)
       throws ConfigurationException {
     this.controller = controller;
     this.dataListener = dataListener;
-    this.startupDelay = startupDelay;
+    this.startupDelay = ranodomizeDuration(startupDelayMin, startupDelayMax);
     this.uploadPeriod = uploadPeriod;
     this.executorService = executorService;
     this.continuousToPeriodicUploadsRatio = continuousToPeriodicUploadsRatio;
 
-    if (startupDelay.isNegative()) {
+    if (startupDelayMin.isNegative()) {
       throw new ConfigurationException("Startup delay must not be negative.");
     }
 
@@ -104,10 +154,22 @@ public final class ProfilingSystem {
       throw new ConfigurationException(
           "Continuous to periodic uploads ratio must not be negative.");
     }
+    log.info(
+      "Initializng profiling system: startupDelay = {}ms, uploadPeriod = {}ms, continuousToPeriodicUploadsRation = {}",
+      startupDelay.toMillis(), uploadPeriod.toMillis(), continuousToPeriodicUploadsRatio
+    );
+  }
+
+  private static Duration ranodomizeDuration(Duration durationMin, Duration durationMax) {
+    Duration duration = durationMin;
+    if (durationMax.compareTo(durationMin) > 0) {
+      duration = Duration.of(ThreadLocalRandom.current().nextLong(durationMin.toMillis(), durationMax.toMillis()), ChronoUnit.MILLIS);
+    }
+    return duration;
   }
 
   public final void start() {
-    // Delay JFR initialization. This code is run from 'premain' and there is a known but in JVM
+    // Delay JFR initialization. This code is run from 'premain' and there is a known bug in JVM
     // which makes it crash if JFR is run before 'main' starts.
     // See https://bugs.openjdk.java.net/browse/JDK-8227011
     executorService.schedule(
@@ -126,7 +188,7 @@ public final class ProfilingSystem {
               TimeUnit.MILLISECONDS);
           started = true;
         },
-        startupDelay.toMillis() + ThreadLocalRandom.current().nextLong(STARTUP_DELAY_JITTER_MAX_MS),
+        startupDelay.toMillis(),
         TimeUnit.MILLISECONDS);
   }
 
@@ -157,6 +219,11 @@ public final class ProfilingSystem {
 
   public boolean isStarted() {
     return started;
+  }
+
+  @VisibleForTesting
+  final Duration startupDelay() {
+    return startupDelay;
   }
 
   private final class SnapshotRecording implements Runnable {

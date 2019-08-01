@@ -18,9 +18,7 @@ package com.datadog.profiling.controller;
 import static com.datadog.profiling.controller.RecordingType.CONTINUOUS;
 import static com.datadog.profiling.controller.RecordingType.PERIODIC;
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.after;
@@ -38,6 +36,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -86,7 +86,7 @@ public class ProfilingSystemTest {
   public void testShutdown() throws ConfigurationException {
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ofMillis(10), Duration.ofMillis(300), 0, pool);
+            controller, listener, Duration.ofMillis(10), Duration.ofMillis(300),0, pool);
     startProfilingSystem(system);
     verify(controller).createContinuousRecording(any());
     system.shutdown();
@@ -336,6 +336,48 @@ public class ProfilingSystemTest {
     system.shutdown();
   }
 
+  @Test
+  public void testRandomizedStartupDelay() throws ConfigurationException {
+    final Duration startupDelayMin = Duration.ofMillis(100);
+    final Duration startupDelayMax = Duration.ofMillis(500);
+
+    final ProfilingSystem system =
+      new ProfilingSystem(controller, listener, startupDelayMin, startupDelayMax, Duration.ofMillis(100), 0, pool);
+
+    Duration randomizedDelay = system.startupDelay();
+
+    // the actual startup delay should fall in <startupDelayMin, startupDelayMax> interval
+    assertNotEquals(1, startupDelayMin.compareTo(randomizedDelay));
+    assertNotEquals(-1, startupDelayMax.compareTo(randomizedDelay));
+  }
+
+  @Test
+  public void testFixedStartupDelayWrongInterval() throws ConfigurationException {
+    final Duration startupDelayMin = Duration.ofMillis(100);
+    // force the max duration be less then the min duration
+    final Duration startupDelayMax = startupDelayMin.minus(startupDelayMin.dividedBy(2));
+
+    final ProfilingSystem system =
+      new ProfilingSystem(controller, listener, startupDelayMin, startupDelayMax, Duration.ofMillis(100), 0, pool);
+
+    Duration randomizedDelay = system.startupDelay();
+
+    // wrong interval def will cause the startupDelayMax to be disregarded
+    assertEquals(0, startupDelayMin.compareTo(randomizedDelay));
+  }
+
+  @Test
+  public void testFixedStartupDelayFallback() throws ConfigurationException {
+    final Duration startupDelay = Duration.ofMillis(100);
+
+    final ProfilingSystem system =
+      new ProfilingSystem(controller, listener, startupDelay, Duration.ofMillis(100), 0, pool);
+
+    Duration randomizedDelay = system.startupDelay();
+
+    assertEquals(0, startupDelay.compareTo(randomizedDelay));
+  }
+
   private Answer<Object> generateMockRecordingData(
       final List<RecordingData> generatedRecordingData) {
     return (InvocationOnMock invocation) -> {
@@ -347,8 +389,10 @@ public class ProfilingSystemTest {
     };
   }
 
-  private void startProfilingSystem(final ProfilingSystem system) {
+  private long startProfilingSystem(final ProfilingSystem system) {
     system.start();
+    long tsStart = System.currentTimeMillis();
     await().until(system::isStarted);
+    return tsStart;
   }
 }

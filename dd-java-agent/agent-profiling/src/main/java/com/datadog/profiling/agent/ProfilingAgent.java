@@ -40,13 +40,18 @@ public class ProfilingAgent {
                 Duration.ofSeconds(config.getProfilingUploadRequestTimeout()),
                 Duration.ofSeconds(config.getProfilingUploadRequestIOOperationTimeout()));
 
+        Duration startupDelay = Duration.ofSeconds(config.getProfilingStartupDelay());
+        Duration uploadPeriod = Duration.ofSeconds(config.getProfilingUploadPeriod());
+        int pctpuRatio = config.getProfilingContinuousToPeriodicUploadsRatio();
+
         PROFILER =
             new ProfilingSystem(
                 controller,
                 uploader::upload,
-                Duration.ofSeconds(config.getProfilingStartupDelay()),
-                Duration.ofSeconds(config.getProfilingUploadPeriod()),
-                config.getProfilingContinuousToPeriodicUploadsRatio());
+                startupDelay,
+                startupDelay.plus(uploadPeriod.multipliedBy(pctpuRatio)),
+                uploadPeriod,
+                pctpuRatio);
         PROFILER.start();
         log.info("Periodic profiling has started!");
 
