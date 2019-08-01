@@ -25,7 +25,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 
 /** Sets up the profiling strategy and schedules the profiling recordings. */
@@ -221,7 +220,9 @@ public final class ProfilingSystem {
     return started;
   }
 
-  @VisibleForTesting
+  /**
+   *  VisibleForTesting
+   */
   final Duration startupDelay() {
     return startupDelay;
   }

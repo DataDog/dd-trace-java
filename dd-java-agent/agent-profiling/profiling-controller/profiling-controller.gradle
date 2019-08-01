@@ -10,7 +10,6 @@ excludedClassesCoverage += [
 
 dependencies {
   compile deps.slf4j
-  compile deps.guava
   compile project(':dd-trace-api')
 
   testCompile deps.junit5
