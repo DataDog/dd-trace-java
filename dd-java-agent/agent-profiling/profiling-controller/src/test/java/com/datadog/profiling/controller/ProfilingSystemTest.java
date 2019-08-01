@@ -36,8 +36,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.atomic.AtomicLong;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -86,7 +84,7 @@ public class ProfilingSystemTest {
   public void testShutdown() throws ConfigurationException {
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ofMillis(10), Duration.ofMillis(300),0, pool);
+            controller, listener, Duration.ofMillis(10), Duration.ofMillis(300), 0, pool);
     startProfilingSystem(system);
     verify(controller).createContinuousRecording(any());
     system.shutdown();
@@ -342,7 +340,14 @@ public class ProfilingSystemTest {
     final Duration startupDelayMax = Duration.ofMillis(500);
 
     final ProfilingSystem system =
-      new ProfilingSystem(controller, listener, startupDelayMin, startupDelayMax, Duration.ofMillis(100), 0, pool);
+        new ProfilingSystem(
+            controller,
+            listener,
+            startupDelayMin,
+            startupDelayMax,
+            Duration.ofMillis(100),
+            0,
+            pool);
 
     Duration randomizedDelay = system.startupDelay();
 
@@ -358,7 +363,14 @@ public class ProfilingSystemTest {
     final Duration startupDelayMax = startupDelayMin.minus(startupDelayMin.dividedBy(2));
 
     final ProfilingSystem system =
-      new ProfilingSystem(controller, listener, startupDelayMin, startupDelayMax, Duration.ofMillis(100), 0, pool);
+        new ProfilingSystem(
+            controller,
+            listener,
+            startupDelayMin,
+            startupDelayMax,
+            Duration.ofMillis(100),
+            0,
+            pool);
 
     Duration randomizedDelay = system.startupDelay();
 
@@ -371,7 +383,7 @@ public class ProfilingSystemTest {
     final Duration startupDelay = Duration.ofMillis(100);
 
     final ProfilingSystem system =
-      new ProfilingSystem(controller, listener, startupDelay, Duration.ofMillis(100), 0, pool);
+        new ProfilingSystem(controller, listener, startupDelay, Duration.ofMillis(100), 0, pool);
 
     Duration randomizedDelay = system.startupDelay();
 
