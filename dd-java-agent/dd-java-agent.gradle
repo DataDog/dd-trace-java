@@ -82,7 +82,6 @@ shadowJar {
 
   dependencies {
     exclude(dependency("org.projectlombok:lombok:$versions.lombok"))
-    exclude(dependency("com.google.guava:guava:$versions.lombok"))
   }
 }
 

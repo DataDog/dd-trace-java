@@ -401,10 +401,8 @@ public class ProfilingSystemTest {
     };
   }
 
-  private long startProfilingSystem(final ProfilingSystem system) {
+  private void startProfilingSystem(final ProfilingSystem system) {
     system.start();
-    long tsStart = System.currentTimeMillis();
     await().until(system::isStarted);
-    return tsStart;
   }
 }
