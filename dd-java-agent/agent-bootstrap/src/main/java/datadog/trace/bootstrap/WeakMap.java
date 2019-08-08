@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicReference;
@@ -18,7 +19,10 @@ public interface WeakMap<K, V> {
 
   void putIfAbsent(K key, V value);
 
+
   V getOrCreate(K key, ValueSupplier<V> supplier);
+
+  Iterator<Map.Entry<K, V>> iterator();
 
   @Slf4j
   class Provider {
@@ -117,6 +121,11 @@ public interface WeakMap<K, V> {
       }
 
       return map.get(key);
+    }
+
+    @Override
+    public Iterator<Map.Entry<K, V>> iterator() {
+      return map.entrySet().iterator();
     }
 
     @Override

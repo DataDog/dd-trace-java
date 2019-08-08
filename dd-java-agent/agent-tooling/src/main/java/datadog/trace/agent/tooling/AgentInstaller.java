@@ -36,7 +36,7 @@ public class AgentInstaller {
   }
 
   public static final DDLocationStrategy LOCATION_STRATEGY = new DDLocationStrategy();
-  public static final AgentBuilder.PoolStrategy POOL_STRATEGY = new DDCachingPoolStrategy();
+  public static final DDCachingPoolStrategy POOL_STRATEGY = new DDCachingPoolStrategy();
   private static volatile Instrumentation INSTRUMENTATION;
 
   public static Instrumentation getInstrumentation() {
@@ -152,7 +152,11 @@ public class AgentInstaller {
     }
     log.debug("Installed {} instrumenter(s)", numInstrumenters);
 
-    return agentBuilder.installOn(inst);
+    ResettableClassFileTransformer transformer = agentBuilder.installOn(inst);
+
+    POOL_STRATEGY.startCleanUpThread();
+
+    return transformer;
   }
 
   private static ElementMatcher.Junction<Object> matchesConfiguredExcludes() {
