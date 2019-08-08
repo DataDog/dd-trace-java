@@ -5,10 +5,7 @@ import static net.bytebuddy.agent.builder.AgentBuilder.PoolStrategy;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 import datadog.trace.bootstrap.WeakMap;
-
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -16,7 +13,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
@@ -37,16 +33,18 @@ import net.bytebuddy.pool.TypePool;
  * <p>See eviction policy below.
  */
 public class DDCachingPoolStrategy implements PoolStrategy {
-  private static final WeakMap<ClassLoader, TypePool.CacheProvider> typePoolCache = WeakMap.Provider.newWeakMap();
+  private static final WeakMap<ClassLoader, TypePool.CacheProvider> typePoolCache =
+      WeakMap.Provider.newWeakMap();
 
   ScheduledExecutorService cleaner = Executors.newScheduledThreadPool(1);
 
-  Runnable cleanupProcess = new Runnable() {
-    @Override
-    public void run() {
-      clear();
-    }
-  };
+  Runnable cleanupProcess =
+      new Runnable() {
+        @Override
+        public void run() {
+          clear();
+        }
+      };
 
   @Override
   public TypePool typePool(final ClassFileLocator classFileLocator, final ClassLoader classLoader) {
@@ -76,7 +74,7 @@ public class DDCachingPoolStrategy implements PoolStrategy {
 
   public void clear() {
     Iterator<Map.Entry<ClassLoader, TypePool.CacheProvider>> iterator = typePoolCache.iterator();
-    while(iterator.hasNext()) {
+    while (iterator.hasNext()) {
       Map.Entry<ClassLoader, TypePool.CacheProvider> next = iterator.next();
       next.getValue().clear();
     }

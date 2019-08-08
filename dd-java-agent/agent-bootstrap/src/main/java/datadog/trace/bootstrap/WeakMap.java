@@ -19,7 +19,6 @@ public interface WeakMap<K, V> {
 
   void putIfAbsent(K key, V value);
 
-
   V getOrCreate(K key, ValueSupplier<V> supplier);
 
   Iterator<Map.Entry<K, V>> iterator();
