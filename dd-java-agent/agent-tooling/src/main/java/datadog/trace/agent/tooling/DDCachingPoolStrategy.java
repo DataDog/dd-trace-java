@@ -45,6 +45,7 @@ public class DDCachingPoolStrategy implements PoolStrategy {
             public Thread newThread(Runnable r) {
               Thread thread = new Thread(r);
               thread.setDaemon(true);
+              thread.setName("dd-cache-pool-cleaner");
               return thread;
             }
           });
@@ -76,11 +77,7 @@ public class DDCachingPoolStrategy implements PoolStrategy {
   }
 
   public void startCleanUpThread() {
-    cleaner.scheduleAtFixedRate(cleanupProcess, 0, 30, TimeUnit.SECONDS);
-  }
-
-  public void shutdownCleanUpThread() {
-    cleaner.shutdown();
+    cleaner.scheduleAtFixedRate(cleanupProcess, 0, 1, TimeUnit.MINUTES);
   }
 
   public void clear() {
