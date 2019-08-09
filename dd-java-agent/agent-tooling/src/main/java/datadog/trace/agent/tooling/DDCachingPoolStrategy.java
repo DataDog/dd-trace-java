@@ -12,6 +12,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.type.TypeDescription;
@@ -36,9 +37,19 @@ public class DDCachingPoolStrategy implements PoolStrategy {
   private static final WeakMap<ClassLoader, TypePool.CacheProvider> typePoolCache =
       WeakMap.Provider.newWeakMap();
 
-  ScheduledExecutorService cleaner = Executors.newScheduledThreadPool(1);
+  private ScheduledExecutorService cleaner =
+      Executors.newScheduledThreadPool(
+          1,
+          new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable r) {
+              Thread thread = new Thread(r);
+              thread.setDaemon(true);
+              return thread;
+            }
+          });
 
-  Runnable cleanupProcess =
+  private Runnable cleanupProcess =
       new Runnable() {
         @Override
         public void run() {
