@@ -7,7 +7,7 @@ import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
-public interface WeakMap<K, V> {
+public interface WeakMap<K, V> extends Iterable<Map.Entry<K, V>> {
 
   int size();
 
@@ -20,8 +20,6 @@ public interface WeakMap<K, V> {
   void putIfAbsent(K key, V value);
 
   V getOrCreate(K key, ValueSupplier<V> supplier);
-
-  Iterator<Map.Entry<K, V>> iterator();
 
   @Slf4j
   class Provider {
