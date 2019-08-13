@@ -5,7 +5,10 @@ import static net.bytebuddy.agent.builder.AgentBuilder.PoolStrategy;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableMap;
 import datadog.trace.bootstrap.WeakMap;
+
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -37,6 +40,26 @@ public class DDCachingPoolStrategy implements PoolStrategy {
   private static final WeakMap<ClassLoader, TypePool.CacheProvider> typePoolCache =
       WeakMap.Provider.newWeakMap();
 
+  /** Cache expiration timeout. */
+  private int cacheExpireTimeout;
+
+  /** Cache clean-up interval. */
+  private int cacheCleanupInterval;
+
+  private TimeUnit timeUnit;
+
+  public DDCachingPoolStrategy() {
+    // By default both cache expiration time and clean up thread interval are set to 60 seconds.
+    this(1, 1, TimeUnit.MINUTES);
+  }
+
+  public DDCachingPoolStrategy(
+      int cacheExpireTimeout, int cacheCleanupInterval, TimeUnit timeUnit) {
+    this.cacheExpireTimeout = cacheExpireTimeout;
+    this.cacheCleanupInterval = cacheCleanupInterval;
+    this.timeUnit = timeUnit;
+  }
+
   private ScheduledExecutorService cleaner =
       Executors.newScheduledThreadPool(
           1,
@@ -67,7 +90,7 @@ public class DDCachingPoolStrategy implements PoolStrategy {
       synchronized (key) {
         cache = typePoolCache.get(key);
         if (null == cache) {
-          cache = EvictingCacheProvider.withObjectType();
+          cache = EvictingCacheProvider.withObjectType(this.cacheExpireTimeout, this.timeUnit);
           typePoolCache.put(key, cache);
         }
       }
@@ -77,14 +100,16 @@ public class DDCachingPoolStrategy implements PoolStrategy {
   }
 
   public void startCleanUpThread() {
-    cleaner.scheduleAtFixedRate(cleanupProcess, 0, 1, TimeUnit.MINUTES);
+    cleaner.scheduleAtFixedRate(cleanupProcess, 0, this.cacheCleanupInterval, this.timeUnit);
   }
 
   public void clear() {
     Iterator<Map.Entry<ClassLoader, TypePool.CacheProvider>> iterator = typePoolCache.iterator();
     while (iterator.hasNext()) {
       Map.Entry<ClassLoader, TypePool.CacheProvider> next = iterator.next();
-      next.getValue().clear();
+      if (next.getValue() instanceof EvictingCacheProvider) {
+        ((EvictingCacheProvider) next.getValue()).cleanUpExpired();
+      }
     }
   }
 
@@ -95,17 +120,19 @@ public class DDCachingPoolStrategy implements PoolStrategy {
     private final Cache<String, TypePool.Resolution> cache;
 
     /** Creates a new simple cache. */
-    private EvictingCacheProvider() {
+    private EvictingCacheProvider(int cacheExpireSeconds, TimeUnit timeUnit) {
       cache =
           CacheBuilder.newBuilder()
               .initialCapacity(100)
               .maximumSize(1000)
-              .expireAfterAccess(1, TimeUnit.MINUTES)
+              .expireAfterAccess(cacheExpireSeconds, timeUnit)
               .build();
     }
 
-    private static TypePool.CacheProvider withObjectType() {
-      final TypePool.CacheProvider cacheProvider = new EvictingCacheProvider();
+    private static TypePool.CacheProvider withObjectType(
+        int cacheExpireSeconds, TimeUnit timeUnit) {
+      final TypePool.CacheProvider cacheProvider =
+          new EvictingCacheProvider(cacheExpireSeconds, timeUnit);
       cacheProvider.register(
           Object.class.getName(), new TypePool.Resolution.Simple(TypeDescription.OBJECT));
       return cacheProvider;
@@ -113,13 +140,18 @@ public class DDCachingPoolStrategy implements PoolStrategy {
 
     @Override
     public TypePool.Resolution find(final String name) {
-      return cache.getIfPresent(name);
+      TypePool.Resolution found = cache.getIfPresent(name);
+      System.out.format("Looking for %s: %s\n", name, found);
+      return found;
     }
 
     @Override
     public TypePool.Resolution register(final String name, final TypePool.Resolution resolution) {
+      System.out.format("Registering %s: %s\n", name, resolution);
       try {
-        return cache.get(name, new ResolutionProvider(resolution));
+        TypePool.Resolution resolution1 = cache.get(name, new ResolutionProvider(resolution));
+        ImmutableMap<String, TypePool.Resolution> allPresent = cache.getAllPresent(Arrays.asList(name));
+        return resolution1;
       } catch (final ExecutionException e) {
         return resolution;
       }
@@ -129,6 +161,11 @@ public class DDCachingPoolStrategy implements PoolStrategy {
     public void clear() {
       cache.invalidateAll();
       // Cache#invalidate() invalidates all the keys but do not actually remove them.
+      this.cleanUpExpired();
+    }
+
+    /** Cleanup from cache only expired items. */
+    public void cleanUpExpired() {
       cache.cleanUp();
     }
 
@@ -141,6 +178,7 @@ public class DDCachingPoolStrategy implements PoolStrategy {
 
       @Override
       public TypePool.Resolution call() {
+        System.out.printf("Not found so returning %s\n", value);
         return value;
       }
     }
