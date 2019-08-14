@@ -14,7 +14,9 @@ import io.opentracing.tag.Tags
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import spock.lang.Shared
+import spock.lang.Unroll
 
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -22,13 +24,17 @@ import static datadog.trace.agent.test.asserts.TraceAssert.assertTrace
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static org.junit.Assume.assumeTrue
 
-abstract class HttpServerTest<DECORATOR extends HttpServerDecorator> extends AgentTestRunner {
+@Unroll
+abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> extends AgentTestRunner {
 
+  @Shared
+  SERVER server
   @Shared
   OkHttpClient client = OkHttpUtils.client()
   @Shared
@@ -44,16 +50,19 @@ abstract class HttpServerTest<DECORATOR extends HttpServerDecorator> extends Age
   DECORATOR serverDecorator = decorator()
 
   def setupSpec() {
-    startServer(port)
+    server = startServer(port)
+    println getClass().name + " http server started at: http://localhost:$port/"
   }
 
-  abstract void startServer(int port)
+  abstract SERVER startServer(int port)
 
   def cleanupSpec() {
-    stopServer()
+    stopServer(server)
+    server = null
+    println getClass().name + " http server stopped at: http://localhost:$port/"
   }
 
-  abstract void stopServer()
+  abstract void stopServer(SERVER server)
 
   abstract DECORATOR decorator()
 
@@ -67,26 +76,36 @@ abstract class HttpServerTest<DECORATOR extends HttpServerDecorator> extends Age
     true
   }
 
+  boolean testExceptionBody() {
+    true
+  }
+
   enum ServerEndpoint {
     SUCCESS("success", 200, "success"),
+    REDIRECT("redirect", 302, "/redirected"),
     ERROR("error", 500, "controller error"),
     EXCEPTION("exception", 500, "controller exception"),
-    REDIRECT("redirect", 302, null),
     NOT_FOUND("notFound", 404, "not found"),
     AUTH_REQUIRED("authRequired", 200, null),
 
     private final String path
     final int status
     final String body
+    final Boolean errored
 
     ServerEndpoint(String path, int status, String body) {
       this.path = path
       this.status = status
       this.body = body
+      this.errored = status >= 500
     }
 
     String getPath() {
       return "/$path"
+    }
+
+    String rawPath() {
+      return path
     }
 
     URI resolve(URI address) {
@@ -108,32 +127,38 @@ abstract class HttpServerTest<DECORATOR extends HttpServerDecorator> extends Age
 
   static <T> T controller(ServerEndpoint endpoint, Closure<T> closure) {
     if (endpoint == NOT_FOUND) {
-      closure()
-    } else {
-      runUnderTrace("controller", closure)
+      return closure()
     }
+    return runUnderTrace("controller", closure)
   }
 
-  def "test success"() {
+  def "test success with #count requests"() {
     setup:
     def request = request(SUCCESS, method, body).build()
-    def response = client.newCall(request).execute()
+    List<Response> responses = (1..count).collect {
+      return client.newCall(request).execute()
+    }
 
     expect:
-    response.code() == SUCCESS.status
-    response.body().string() == SUCCESS.body
+    responses.each { response ->
+      assert response.code() == SUCCESS.status
+      assert response.body().string() == SUCCESS.body
+    }
 
     and:
-    cleanAndAssertTraces(1) {
-      trace(0, 2) {
-        serverSpan(it, 0)
-        controllerSpan(it, 1, span(0))
+    cleanAndAssertTraces(count) {
+      (1..count).eachWithIndex { val, i ->
+        trace(i, 2) {
+          serverSpan(it, 0)
+          controllerSpan(it, 1, span(0))
+        }
       }
     }
 
     where:
     method = "GET"
     body = null
+    count << [1, 4, 50] // make multiple requests.
   }
 
   def "test success with parent"() {
@@ -163,6 +188,30 @@ abstract class HttpServerTest<DECORATOR extends HttpServerDecorator> extends Age
     body = null
   }
 
+  def "test redirect"() {
+    setup:
+    def request = request(REDIRECT, method, body).build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == REDIRECT.status
+    response.header("location") == REDIRECT.body ||
+      response.header("location") == "${address.resolve(REDIRECT.body)}"
+    response.body().contentLength() < 1
+
+    and:
+    cleanAndAssertTraces(1) {
+      trace(0, 2) {
+        serverSpan(it, 0, null, null, method, REDIRECT)
+        controllerSpan(it, 1, span(0))
+      }
+    }
+
+    where:
+    method = "GET"
+    body = null
+  }
+
   def "test error"() {
     setup:
     def request = request(ERROR, method, body).build()
@@ -175,7 +224,7 @@ abstract class HttpServerTest<DECORATOR extends HttpServerDecorator> extends Age
     and:
     cleanAndAssertTraces(1) {
       trace(0, 2) {
-        serverSpan(it, 0, null, null, method, ERROR, true)
+        serverSpan(it, 0, null, null, method, ERROR)
         controllerSpan(it, 1, span(0))
       }
     }
@@ -192,12 +241,14 @@ abstract class HttpServerTest<DECORATOR extends HttpServerDecorator> extends Age
 
     expect:
     response.code() == EXCEPTION.status
-    response.body().string() == EXCEPTION.body
+    if (testExceptionBody()) {
+      assert response.body().string() == EXCEPTION.body
+    }
 
     and:
     cleanAndAssertTraces(1) {
       trace(0, 2) {
-        serverSpan(it, 0, null, null, method, EXCEPTION, true)
+        serverSpan(it, 0, null, null, method, EXCEPTION)
         controllerSpan(it, 1, span(0), EXCEPTION.body)
       }
     }
@@ -237,17 +288,20 @@ abstract class HttpServerTest<DECORATOR extends HttpServerDecorator> extends Age
     final Closure spec) {
 
     // If this is failing, make sure HttpServerTestAdvice is applied correctly.
-    TEST_WRITER.waitForTraces(size + 1)
+    TEST_WRITER.waitForTraces(size * 2)
     // TEST_WRITER is a CopyOnWriteArrayList, which doesn't support remove()
-    def toRemove = TEST_WRITER.find {
+    def toRemove = TEST_WRITER.findAll {
       it.size() == 1 && it.get(0).operationName == "TEST_SPAN"
     }
-    assertTrace(toRemove, 1) {
-      basicSpan(it, 0, "TEST_SPAN", "ServerEntry")
+    toRemove.each {
+      assertTrace(it, 1) {
+        basicSpan(it, 0, "TEST_SPAN", "ServerEntry")
+      }
     }
-    TEST_WRITER.remove(toRemove)
+    assert toRemove.size() == size
+    TEST_WRITER.removeAll(toRemove)
 
-    super.assertTraces(size, spec)
+    assertTraces(size, spec)
   }
 
   void controllerSpan(TraceAssert trace, int index, Object parent, String errorMessage = null) {
@@ -267,13 +321,13 @@ abstract class HttpServerTest<DECORATOR extends HttpServerDecorator> extends Age
   }
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void serverSpan(TraceAssert trace, int index, String traceID = null, String parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS, boolean error = false) {
+  void serverSpan(TraceAssert trace, int index, String traceID = null, String parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
     trace.span(index) {
       serviceName expectedServiceName()
       operationName expectedOperationName()
       resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
       spanType DDSpanTypes.HTTP_SERVER
-      errored error
+      errored endpoint.errored
       if (parentID != null) {
         traceId traceID
         parentId parentID
@@ -283,8 +337,8 @@ abstract class HttpServerTest<DECORATOR extends HttpServerDecorator> extends Age
       tags {
         defaultTags(true)
         "$Tags.COMPONENT.key" serverDecorator.component()
-        if (error) {
-          "$Tags.ERROR.key" error
+        if (endpoint.errored) {
+          "$Tags.ERROR.key" endpoint.errored
         }
         "$Tags.HTTP_STATUS.key" endpoint.status
         "$Tags.HTTP_URL.key" "${endpoint.resolve(address)}"
@@ -306,6 +360,7 @@ abstract class HttpServerTest<DECORATOR extends HttpServerDecorator> extends Age
   def setup() {
     ENABLE_TEST_ADVICE.set(true)
   }
+
   def cleanup() {
     ENABLE_TEST_ADVICE.set(false)
   }
