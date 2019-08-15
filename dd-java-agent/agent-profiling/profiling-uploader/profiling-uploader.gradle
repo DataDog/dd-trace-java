@@ -13,7 +13,7 @@ dependencies {
 
   compile project(':dd-java-agent:agent-profiling:profiling-controller')
 
-  compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.14.1'
+  compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.14.2'
 
   testCompile deps.junit5
   testCompile deps.guava
