@@ -17,7 +17,6 @@ package com.datadog.profiling.controller;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -52,38 +51,8 @@ public final class ProfilingSystem {
    *
    * @param controller implementation specific controller of profiling machinery
    * @param dataListener the listener for data being produced
-   * @param startupDelayMin minimal delay before starting jfr
-   * @param startupDelayMax maximal delay before starting jfr - ignored if less than {@literal
-   *     startupDelayMin}
-   * @param uploadPeriod how often to upload data
-   * @param continuousToPeriodicUploadsRatio how often to run and upload periodic recordings, given
-   *     in units of {@code uploadPeriod}
-   * @throws ConfigurationException if the configuration information was bad.
-   */
-  public ProfilingSystem(
-      final Controller controller,
-      final RecordingDataListener dataListener,
-      final Duration startupDelayMin,
-      final Duration startupDelayMax,
-      final Duration uploadPeriod,
-      final int continuousToPeriodicUploadsRatio)
-      throws ConfigurationException {
-    this(
-        controller,
-        dataListener,
-        startupDelayMin,
-        startupDelayMax,
-        uploadPeriod,
-        continuousToPeriodicUploadsRatio,
-        Executors.newScheduledThreadPool(1, new ProfilingThreadFactory()));
-  }
-
-  /**
-   * Constructor providing automatically randomized startupDelay
-   *
-   * @param controller implementation specific controller of profiling machinery
-   * @param dataListener the listener for data being produced
-   * @param startupDelay minimal delay before starting jfr
+   * @param startupDelay delay before starting jfr
+   * @param startupDelayRandomRange randomization range for startup delay
    * @param uploadPeriod how often to upload data
    * @param continuousToPeriodicUploadsRatio how often to run and upload periodic recordings, given
    *     in units of {@code uploadPeriod}
@@ -93,6 +62,7 @@ public final class ProfilingSystem {
       final Controller controller,
       final RecordingDataListener dataListener,
       final Duration startupDelay,
+      final Duration startupDelayRandomRange,
       final Duration uploadPeriod,
       final int continuousToPeriodicUploadsRatio)
       throws ConfigurationException {
@@ -100,61 +70,35 @@ public final class ProfilingSystem {
         controller,
         dataListener,
         startupDelay,
-        startupDelay.plus(uploadPeriod.multipliedBy(continuousToPeriodicUploadsRatio)),
-        uploadPeriod,
-        continuousToPeriodicUploadsRatio);
-  }
-
-  /* Constructors visible for testing. */
-  /**
-   * Used solely in test. Turns off the startup delay randomization.
-   *
-   * @param controller implementation specific controller of profiling machinery
-   * @param dataListener the listener for data being produced
-   * @param startupDelay minimal delay before starting jfr
-   * @param uploadPeriod how often to upload data
-   * @param continuousToPeriodicUploadsRatio how often to run and upload periodic recordings, given
-   *     in units of {@code uploadPeriod}
-   * @param executorService the executor service implementation to use for the profiling system
-   *     scheduling
-   * @throws ConfigurationException if the configuration information was bad.
-   */
-  ProfilingSystem(
-      final Controller controller,
-      final RecordingDataListener dataListener,
-      final Duration startupDelay,
-      final Duration uploadPeriod,
-      final int continuousToPeriodicUploadsRatio,
-      final ScheduledExecutorService executorService)
-      throws ConfigurationException {
-    this(
-        controller,
-        dataListener,
-        startupDelay,
-        startupDelay,
+        startupDelayRandomRange,
         uploadPeriod,
         continuousToPeriodicUploadsRatio,
-        executorService);
+        Executors.newScheduledThreadPool(1, new ProfilingThreadFactory()),
+        ThreadLocalRandom.current());
   }
 
   ProfilingSystem(
       final Controller controller,
       final RecordingDataListener dataListener,
-      final Duration startupDelayMin,
-      final Duration startupDelayMax,
+      final Duration baseStartupDelay,
+      final Duration startupDelayRandomRange,
       final Duration uploadPeriod,
       final int continuousToPeriodicUploadsRatio,
-      final ScheduledExecutorService executorService)
+      final ScheduledExecutorService executorService,
+      final ThreadLocalRandom threadLocalRandom)
       throws ConfigurationException {
     this.controller = controller;
     this.dataListener = dataListener;
-    this.startupDelay = ranodomizeDuration(startupDelayMin, startupDelayMax);
     this.uploadPeriod = uploadPeriod;
     this.executorService = executorService;
     this.continuousToPeriodicUploadsRatio = continuousToPeriodicUploadsRatio;
 
-    if (startupDelayMin.isNegative()) {
+    if (baseStartupDelay.isNegative()) {
       throw new ConfigurationException("Startup delay must not be negative.");
+    }
+
+    if (startupDelayRandomRange.isNegative()) {
+      throw new ConfigurationException("Startup delay random range must not be negative.");
     }
 
     if (uploadPeriod.isNegative() || uploadPeriod.isZero()) {
@@ -165,25 +109,17 @@ public final class ProfilingSystem {
       throw new ConfigurationException(
           "Continuous to periodic uploads ratio must not be negative.");
     }
-    log.info(
-        "Initializng profiling system: startupDelay = {}ms, uploadPeriod = {}ms, continuousToPeriodicUploadsRation = {}",
-        startupDelay.toMillis(),
-        uploadPeriod.toMillis(),
-        continuousToPeriodicUploadsRatio);
-  }
 
-  private static Duration ranodomizeDuration(Duration durationMin, Duration durationMax) {
-    Duration duration = durationMin;
-    if (durationMax.compareTo(durationMin) > 0) {
-      duration =
-          Duration.of(
-              ThreadLocalRandom.current().nextLong(durationMin.toMillis(), durationMax.toMillis()),
-              ChronoUnit.MILLIS);
-    }
-    return duration;
+    startupDelay = randomizeDuration(threadLocalRandom, baseStartupDelay, startupDelayRandomRange);
   }
 
   public final void start() {
+    log.info(
+        "Starting profiling system: startupDelay = {}ms, uploadPeriod = {}ms, continuousToPeriodicUploadsRation = {}",
+        startupDelay.toMillis(),
+        uploadPeriod.toMillis(),
+        continuousToPeriodicUploadsRatio);
+
     // Delay JFR initialization. This code is run from 'premain' and there is a known bug in JVM
     // which makes it crash if JFR is run before 'main' starts.
     // See https://bugs.openjdk.java.net/browse/JDK-8227011
@@ -237,8 +173,13 @@ public final class ProfilingSystem {
   }
 
   /** VisibleForTesting */
-  final Duration startupDelay() {
+  final Duration getStartupDelay() {
     return startupDelay;
+  }
+
+  private static Duration randomizeDuration(
+      final ThreadLocalRandom random, final Duration duration, final Duration range) {
+    return duration.plus(Duration.ofMillis(random.nextLong(range.toMillis())));
   }
 
   private final class SnapshotRecording implements Runnable {
