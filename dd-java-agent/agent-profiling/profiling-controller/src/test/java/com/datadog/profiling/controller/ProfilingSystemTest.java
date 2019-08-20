@@ -18,7 +18,9 @@ package com.datadog.profiling.controller;
 import static com.datadog.profiling.controller.RecordingType.CONTINUOUS;
 import static com.datadog.profiling.controller.RecordingType.PERIODIC;
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.after;
@@ -36,6 +38,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,13 +57,13 @@ import org.mockito.stubbing.Answer;
 @MockitoSettings(strictness = Strictness.LENIENT)
 public class ProfilingSystemTest {
 
-  // Time in MS when all things should have been done by
+  // Time in milliseconds when all things should have been done by
   // Should be noticeably bigger than one recording iteration
   private static final long REASONABLE_TIMEOUT = 5000;
 
   private final ScheduledThreadPoolExecutor pool = new ScheduledThreadPoolExecutor(1);
-  // private final AtomicInteger counter = new AtomicInteger();
 
+  @Mock private ThreadLocalRandom threadLocalRandom;
   @Mock private Controller controller;
   @Mock private OngoingRecording continuousRecording;
   @Mock private OngoingRecording periodicRecording;
@@ -84,7 +87,14 @@ public class ProfilingSystemTest {
   public void testShutdown() throws ConfigurationException {
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ofMillis(10), Duration.ofMillis(300), 0, pool);
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ZERO,
+            Duration.ofMillis(300),
+            0,
+            pool,
+            threadLocalRandom);
     startProfilingSystem(system);
     verify(controller).createContinuousRecording(any());
     system.shutdown();
@@ -97,7 +107,14 @@ public class ProfilingSystemTest {
   public void testShutdownWithRunningProfilingRecording() throws ConfigurationException {
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ofMillis(10), Duration.ofMillis(300), 1, pool);
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ZERO,
+            Duration.ofMillis(300),
+            1,
+            pool,
+            threadLocalRandom);
     startProfilingSystem(system);
     verify(controller).createPeriodicRecording(any());
     system.shutdown();
@@ -128,7 +145,14 @@ public class ProfilingSystemTest {
         .createPeriodicRecording(any());
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ofMillis(10), Duration.ofMillis(100), 2, pool);
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ofMillis(5),
+            Duration.ofMillis(100),
+            2,
+            pool,
+            threadLocalRandom);
     startProfilingSystem(system);
     // Make sure we actually started the recording before terminating
     verify(controller, timeout(300)).createPeriodicRecording(any());
@@ -140,7 +164,14 @@ public class ProfilingSystemTest {
   public void testCanShutDownWithoutStarting() throws ConfigurationException {
     final ProfilingSystem system =
         new ProfilingSystem(
-            controller, listener, Duration.ofMillis(10), Duration.ofMillis(300), 1, pool);
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ofMillis(5),
+            Duration.ofMillis(300),
+            1,
+            pool,
+            threadLocalRandom);
     system.shutdown();
     assertTrue(pool.isTerminated());
   }
@@ -148,7 +179,13 @@ public class ProfilingSystemTest {
   @Test
   public void testDoesntSendDataIfNotStarted() throws InterruptedException, ConfigurationException {
     final ProfilingSystem system =
-        new ProfilingSystem(controller, listener, Duration.ofMillis(10), Duration.ofMillis(1), 1);
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ofMillis(5),
+            Duration.ofMillis(1),
+            1);
     Thread.sleep(50);
     system.shutdown();
     verify(controller, never()).createPeriodicRecording(any());
@@ -161,7 +198,13 @@ public class ProfilingSystemTest {
       throws InterruptedException, ConfigurationException {
     when(continuousRecording.snapshot(any(), any())).thenReturn(recordingData);
     final ProfilingSystem system =
-        new ProfilingSystem(controller, listener, Duration.ofMillis(10), Duration.ofMillis(10), 0);
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ofMillis(5),
+            Duration.ofMillis(10),
+            0);
     startProfilingSystem(system);
     Thread.sleep(200);
     system.shutdown();
@@ -176,7 +219,27 @@ public class ProfilingSystemTest {
         ConfigurationException.class,
         () -> {
           new ProfilingSystem(
-              controller, listener, Duration.ofMillis(-10), Duration.ofMillis(200), 1);
+              controller,
+              listener,
+              Duration.ofMillis(-10),
+              Duration.ZERO,
+              Duration.ofMillis(200),
+              1);
+        });
+  }
+
+  @Test
+  public void testProfilingSystemNegativeStartupRandomRangeDelay() {
+    assertThrows(
+        ConfigurationException.class,
+        () -> {
+          new ProfilingSystem(
+              controller,
+              listener,
+              Duration.ofMillis(10),
+              Duration.ofMillis(-20),
+              Duration.ofMillis(200),
+              1);
         });
   }
 
@@ -186,7 +249,12 @@ public class ProfilingSystemTest {
         ConfigurationException.class,
         () -> {
           new ProfilingSystem(
-              controller, listener, Duration.ofMillis(10), Duration.ofMillis(-200), 1);
+              controller,
+              listener,
+              Duration.ofMillis(10),
+              Duration.ofMillis(20),
+              Duration.ofMillis(-200),
+              1);
         });
   }
 
@@ -196,7 +264,12 @@ public class ProfilingSystemTest {
         ConfigurationException.class,
         () -> {
           new ProfilingSystem(
-              controller, listener, Duration.ofMillis(10), Duration.ofMillis(200), -1);
+              controller,
+              listener,
+              Duration.ofMillis(10),
+              Duration.ofMillis(20),
+              Duration.ofMillis(200),
+              -1);
         });
   }
 
@@ -217,7 +290,15 @@ public class ProfilingSystemTest {
             });
 
     final ProfilingSystem system =
-        new ProfilingSystem(controller, listener, Duration.ofMillis(10), uploadPeriod, 2, pool);
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ofMillis(5),
+            uploadPeriod,
+            2,
+            pool,
+            threadLocalRandom);
     startProfilingSystem(system);
 
     final ArgumentCaptor<RecordingType> recordingTypeCaptor =
@@ -277,7 +358,15 @@ public class ProfilingSystemTest {
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
     final ProfilingSystem system =
-        new ProfilingSystem(controller, listener, Duration.ofMillis(10), uploadPeriod, 1, pool);
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ofMillis(5),
+            uploadPeriod,
+            1,
+            pool,
+            threadLocalRandom);
     startProfilingSystem(system);
 
     final ArgumentCaptor<RecordingData> captor = ArgumentCaptor.forClass(RecordingData.class);
@@ -303,7 +392,15 @@ public class ProfilingSystemTest {
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
     final ProfilingSystem system =
-        new ProfilingSystem(controller, listener, Duration.ofMillis(10), uploadPeriod, 0, pool);
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ofMillis(5),
+            uploadPeriod,
+            0,
+            pool,
+            threadLocalRandom);
     startProfilingSystem(system);
 
     final ArgumentCaptor<RecordingData> captor = ArgumentCaptor.forClass(RecordingData.class);
@@ -323,7 +420,15 @@ public class ProfilingSystemTest {
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
     final ProfilingSystem system =
-        new ProfilingSystem(controller, listener, Duration.ofMillis(10), uploadPeriod, 0, pool);
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ofMillis(5),
+            uploadPeriod,
+            0,
+            pool,
+            threadLocalRandom);
     startProfilingSystem(system);
 
     final ArgumentCaptor<RecordingData> captor = ArgumentCaptor.forClass(RecordingData.class);
@@ -336,58 +441,45 @@ public class ProfilingSystemTest {
 
   @Test
   public void testRandomizedStartupDelay() throws ConfigurationException {
-    final Duration startupDelayMin = Duration.ofMillis(100);
-    final Duration startupDelayMax = Duration.ofMillis(500);
+    final Duration startupDelay = Duration.ofMillis(100);
+    final Duration startupDelayRandomRange = Duration.ofMillis(500);
+    final Duration additionalRandomDelay = Duration.ofMillis(300);
+
+    when(threadLocalRandom.nextLong(startupDelayRandomRange.toMillis()))
+        .thenReturn(additionalRandomDelay.toMillis());
 
     final ProfilingSystem system =
         new ProfilingSystem(
             controller,
             listener,
-            startupDelayMin,
-            startupDelayMax,
+            startupDelay,
+            startupDelayRandomRange,
             Duration.ofMillis(100),
             0,
-            pool);
+            pool,
+            threadLocalRandom);
 
-    Duration randomizedDelay = system.startupDelay();
+    final Duration randomizedDelay = system.getStartupDelay();
 
-    // the actual startup delay should fall in <startupDelayMin, startupDelayMax> interval
-    assertNotEquals(1, startupDelayMin.compareTo(randomizedDelay));
-    assertNotEquals(-1, startupDelayMax.compareTo(randomizedDelay));
+    assertEquals(startupDelay.plus(additionalRandomDelay), randomizedDelay);
   }
 
   @Test
-  public void testFixedStartupDelayWrongInterval() throws ConfigurationException {
-    final Duration startupDelayMin = Duration.ofMillis(100);
-    // force the max duration be less then the min duration
-    final Duration startupDelayMax = startupDelayMin.minus(startupDelayMin.dividedBy(2));
-
-    final ProfilingSystem system =
-        new ProfilingSystem(
-            controller,
-            listener,
-            startupDelayMin,
-            startupDelayMax,
-            Duration.ofMillis(100),
-            0,
-            pool);
-
-    Duration randomizedDelay = system.startupDelay();
-
-    // wrong interval def will cause the startupDelayMax to be disregarded
-    assertEquals(0, startupDelayMin.compareTo(randomizedDelay));
-  }
-
-  @Test
-  public void testFixedStartupDelayFallback() throws ConfigurationException {
+  public void testFixedStartupDelay() throws ConfigurationException {
     final Duration startupDelay = Duration.ofMillis(100);
 
     final ProfilingSystem system =
-        new ProfilingSystem(controller, listener, startupDelay, Duration.ofMillis(100), 0, pool);
+        new ProfilingSystem(
+            controller,
+            listener,
+            startupDelay,
+            Duration.ZERO,
+            Duration.ofMillis(100),
+            0,
+            pool,
+            threadLocalRandom);
 
-    Duration randomizedDelay = system.startupDelay();
-
-    assertEquals(0, startupDelay.compareTo(randomizedDelay));
+    assertEquals(startupDelay, system.getStartupDelay());
   }
 
   private Answer<Object> generateMockRecordingData(
