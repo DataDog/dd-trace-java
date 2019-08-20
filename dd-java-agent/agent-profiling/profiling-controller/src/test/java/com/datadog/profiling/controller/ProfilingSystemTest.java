@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.atLeastOnce;
@@ -76,6 +77,7 @@ public class ProfilingSystemTest {
         .thenReturn(continuousRecording);
     when(controller.createPeriodicRecording(ProfilingSystem.RECORDING_NAME))
         .thenReturn(periodicRecording);
+    when(threadLocalRandom.nextInt(eq(1), anyInt())).thenReturn(1);
   }
 
   @AfterEach
@@ -395,6 +397,60 @@ public class ProfilingSystemTest {
             CONTINUOUS,
             CONTINUOUS,
             PERIODIC),
+        recordingTypeCaptor.getAllValues());
+    assertEquals(generatedRecordingData, recordingDataCaptor.getAllValues());
+
+    system.shutdown();
+  }
+
+  @Test
+  public void test2ContinuousAnd1PeriodicRecordingsRandomPeriodicStart()
+      throws ConfigurationException {
+    final Duration uploadPeriod = Duration.ofMillis(300);
+    final List<RecordingData> generatedRecordingData = new ArrayList<>();
+    when(continuousRecording.snapshot(any(), any()))
+        .thenAnswer(generateMockRecordingData(generatedRecordingData));
+    when(threadLocalRandom.nextInt(1, 3)).thenReturn(2);
+
+    final List<OngoingRecording> generatedPeriodicRecordings = new ArrayList<>();
+    when(controller.createPeriodicRecording(ProfilingSystem.RECORDING_NAME))
+        .thenAnswer(
+            (InvocationOnMock invocation) -> {
+              final OngoingRecording recording = mock(OngoingRecording.class);
+              generatedPeriodicRecordings.add(recording);
+              return recording;
+            });
+
+    final ProfilingSystem system =
+        new ProfilingSystem(
+            controller,
+            listener,
+            Duration.ofMillis(10),
+            Duration.ofMillis(5),
+            uploadPeriod,
+            3,
+            pool,
+            threadLocalRandom);
+    startProfilingSystem(system);
+
+    final ArgumentCaptor<RecordingType> recordingTypeCaptor =
+        ArgumentCaptor.forClass(RecordingType.class);
+    final ArgumentCaptor<RecordingData> recordingDataCaptor =
+        ArgumentCaptor.forClass(RecordingData.class);
+    verify(listener, timeout(REASONABLE_TIMEOUT).times(10))
+        .onNewData(recordingTypeCaptor.capture(), recordingDataCaptor.capture());
+    assertEquals(
+        ImmutableList.of(
+            CONTINUOUS,
+            PERIODIC,
+            CONTINUOUS,
+            CONTINUOUS,
+            PERIODIC,
+            CONTINUOUS,
+            CONTINUOUS,
+            PERIODIC,
+            CONTINUOUS,
+            CONTINUOUS),
         recordingTypeCaptor.getAllValues());
     assertEquals(generatedRecordingData, recordingDataCaptor.getAllValues());
 
