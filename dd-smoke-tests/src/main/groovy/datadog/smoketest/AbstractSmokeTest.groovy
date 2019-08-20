@@ -7,8 +7,8 @@ import spock.lang.Specification
 abstract class AbstractSmokeTest extends Specification {
 
   public static final PROFILING_API_KEY = "org2_api_key"
-  public static final PROFILING_START_DELAY_SECONDS = 5
-  public static final int PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS = 10
+  public static final PROFILING_START_DELAY_SECONDS = 1
+  public static final int PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS = 5
 
   @Shared
   protected String workingDirectory = System.getProperty("user.dir")

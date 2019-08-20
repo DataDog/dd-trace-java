@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +52,7 @@ public final class ProfilingSystem {
    * @param controller implementation specific controller of profiling machinery
    * @param dataListener the listener for data being produced
    * @param startupDelay delay before starting jfr
+   * @param startupDelayRandomRange randomization range for startup delay
    * @param uploadPeriod how often to upload data
    * @param continuousToPeriodicUploadsRatio how often to run and upload periodic recordings, given
    *     in units of {@code uploadPeriod}
@@ -60,6 +62,7 @@ public final class ProfilingSystem {
       final Controller controller,
       final RecordingDataListener dataListener,
       final Duration startupDelay,
+      final Duration startupDelayRandomRange,
       final Duration uploadPeriod,
       final int continuousToPeriodicUploadsRatio)
       throws ConfigurationException {
@@ -67,29 +70,35 @@ public final class ProfilingSystem {
         controller,
         dataListener,
         startupDelay,
+        startupDelayRandomRange,
         uploadPeriod,
         continuousToPeriodicUploadsRatio,
-        Executors.newScheduledThreadPool(1, new ProfilingThreadFactory()));
+        Executors.newScheduledThreadPool(1, new ProfilingThreadFactory()),
+        ThreadLocalRandom.current());
   }
 
-  /** Constructor visible for testing. */
   ProfilingSystem(
       final Controller controller,
       final RecordingDataListener dataListener,
-      final Duration startupDelay,
+      final Duration baseStartupDelay,
+      final Duration startupDelayRandomRange,
       final Duration uploadPeriod,
       final int continuousToPeriodicUploadsRatio,
-      final ScheduledExecutorService executorService)
+      final ScheduledExecutorService executorService,
+      final ThreadLocalRandom threadLocalRandom)
       throws ConfigurationException {
     this.controller = controller;
     this.dataListener = dataListener;
-    this.startupDelay = startupDelay;
     this.uploadPeriod = uploadPeriod;
     this.executorService = executorService;
     this.continuousToPeriodicUploadsRatio = continuousToPeriodicUploadsRatio;
 
-    if (startupDelay.isNegative()) {
+    if (baseStartupDelay.isNegative()) {
       throw new ConfigurationException("Startup delay must not be negative.");
+    }
+
+    if (startupDelayRandomRange.isNegative()) {
+      throw new ConfigurationException("Startup delay random range must not be negative.");
     }
 
     if (uploadPeriod.isNegative() || uploadPeriod.isZero()) {
@@ -100,10 +109,20 @@ public final class ProfilingSystem {
       throw new ConfigurationException(
           "Continuous to periodic uploads ratio must not be negative.");
     }
+
+    // Note: is is important to not keep reference to the threadLocalRandom beyond the constructor
+    // since it is expected to be thread local.
+    startupDelay = randomizeDuration(threadLocalRandom, baseStartupDelay, startupDelayRandomRange);
   }
 
   public final void start() {
-    // Delay JFR initialization. This code is run from 'premain' and there is a known but in JVM
+    log.info(
+        "Starting profiling system: startupDelay = {}ms, uploadPeriod = {}ms, continuousToPeriodicUploadsRation = {}",
+        startupDelay.toMillis(),
+        uploadPeriod.toMillis(),
+        continuousToPeriodicUploadsRatio);
+
+    // Delay JFR initialization. This code is run from 'premain' and there is a known bug in JVM
     // which makes it crash if JFR is run before 'main' starts.
     // See https://bugs.openjdk.java.net/browse/JDK-8227011
     executorService.schedule(
@@ -153,6 +172,16 @@ public final class ProfilingSystem {
 
   public boolean isStarted() {
     return started;
+  }
+
+  /** VisibleForTesting */
+  final Duration getStartupDelay() {
+    return startupDelay;
+  }
+
+  private static Duration randomizeDuration(
+      final ThreadLocalRandom random, final Duration duration, final Duration range) {
+    return duration.plus(Duration.ofMillis(random.nextLong(range.toMillis())));
   }
 
   private final class SnapshotRecording implements Runnable {
