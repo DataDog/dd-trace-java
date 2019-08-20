@@ -187,7 +187,7 @@ public final class ProfilingSystem {
   private final class SnapshotRecording implements Runnable {
 
     private Instant lastSnapshot;
-    // 1 to account for recording that is already running
+    // 1 to account for non periodic recording that is already running
     private int periodicRecordingCounter = 1;
 
     SnapshotRecording(final Instant startTime) {
@@ -224,7 +224,7 @@ public final class ProfilingSystem {
 
       if (continuousToPeriodicUploadsRatio > 1) {
         periodicRecordingCounter++;
-        if (periodicRecordingCounter == continuousToPeriodicUploadsRatio) {
+        if (periodicRecordingCounter >= continuousToPeriodicUploadsRatio) {
           periodicRecordingCounter = 0;
           final OngoingRecording newRecording = controller.createPeriodicRecording(RECORDING_NAME);
           if (!periodicRecordingRef.compareAndSet(null, newRecording)) {
