@@ -110,6 +110,8 @@ public final class ProfilingSystem {
           "Continuous to periodic uploads ratio must not be negative.");
     }
 
+    // Note: is is important to not keep reference to the threadLocalRandom beyond the constructor
+    // since it is expected to be thread local.
     startupDelay = randomizeDuration(threadLocalRandom, baseStartupDelay, startupDelayRandomRange);
   }
 
