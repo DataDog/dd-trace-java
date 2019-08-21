@@ -197,8 +197,7 @@ public final class ProfilingSystem {
   private final class SnapshotRecording implements Runnable {
 
     private Instant lastSnapshot;
-    // 1 to account for non periodic recording that is already running
-    private int periodicRecordingCounter = 1;
+    private int periodicRecordingCounter;
 
     SnapshotRecording(final int periodicRecordingCounterStart, final Instant startTime) {
       periodicRecordingCounter = periodicRecordingCounterStart;
