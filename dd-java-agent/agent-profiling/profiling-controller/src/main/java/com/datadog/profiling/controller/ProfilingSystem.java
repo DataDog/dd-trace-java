@@ -200,6 +200,7 @@ public final class ProfilingSystem {
     private int periodicRecordingCounter;
 
     SnapshotRecording(final int periodicRecordingCounterStart, final Instant startTime) {
+      assert periodicRecordingCounterStart > 0;
       periodicRecordingCounter = periodicRecordingCounterStart;
       lastSnapshot = startTime;
     }
