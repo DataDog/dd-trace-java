@@ -9,7 +9,9 @@ import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.nio.file.NoSuchFileException;
 import java.security.Permission;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
@@ -18,12 +20,17 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class InternalJarURLHandler extends URLStreamHandler {
   private final Set<String> availableFiles = new HashSet<>();
+  private final Map<String, byte[]> filenameToBytes = new HashMap<>();
   private final String jarFilename;
   private final ClassLoader classloaderForJarResource;
 
   InternalJarURLHandler(final String jarFilename, final ClassLoader classloaderForJarResource) {
     this.jarFilename = jarFilename;
     this.classloaderForJarResource = classloaderForJarResource;
+
+    // "/" is used as the default url of the jar
+    // This is called by the SecureClassLoader trying to obtain permissions
+    filenameToBytes.put("/", new byte[] {});
 
     final InputStream jarStream =
         jarFilename == null ? null : classloaderForJarResource.getResourceAsStream(jarFilename);
@@ -51,10 +58,8 @@ public class InternalJarURLHandler extends URLStreamHandler {
 
     byte[] bytes = null;
 
-    if ("/".equals(filename)) {
-      // "/" is used as the default url of the jar
-      // This is called by the SecureClassLoader trying to obtain permissions
-      bytes = new byte[] {};
+    if (filenameToBytes.containsKey(filename)) {
+      bytes = filenameToBytes.get(filename);
     } else if (availableFiles.contains(filename)) {
       final InputStream jarStream =
           jarFilename == null ? null : classloaderForJarResource.getResourceAsStream(jarFilename);
@@ -66,6 +71,7 @@ public class InternalJarURLHandler extends URLStreamHandler {
           while (entry != null) {
             if (filename.equals("/" + entry.getName())) {
               bytes = getBytes(inputStream);
+              filenameToBytes.put(filename, bytes);
               break;
             }
 
