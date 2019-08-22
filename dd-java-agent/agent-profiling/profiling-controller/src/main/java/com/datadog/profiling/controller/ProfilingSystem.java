@@ -40,6 +40,7 @@ public final class ProfilingSystem {
   private final Duration startupDelay;
   private final Duration uploadPeriod;
   private final int continuousToPeriodicUploadsRatio;
+  private final int periodicRecordingCounterStart;
 
   private OngoingRecording continuousRecording;
   private final AtomicReference<OngoingRecording> periodicRecordingRef =
@@ -113,6 +114,15 @@ public final class ProfilingSystem {
     // Note: is is important to not keep reference to the threadLocalRandom beyond the constructor
     // since it is expected to be thread local.
     startupDelay = randomizeDuration(threadLocalRandom, baseStartupDelay, startupDelayRandomRange);
+
+    if (continuousToPeriodicUploadsRatio > 1) {
+      // Lower value for periodicRecordingCounterStart 1 to account for non periodic recording that
+      // is already running.
+      periodicRecordingCounterStart =
+          threadLocalRandom.nextInt(1, continuousToPeriodicUploadsRatio);
+    } else {
+      periodicRecordingCounterStart = 1;
+    }
   }
 
   public final void start() {
@@ -135,7 +145,7 @@ public final class ProfilingSystem {
           }
 
           executorService.scheduleAtFixedRate(
-              new SnapshotRecording(now),
+              new SnapshotRecording(periodicRecordingCounterStart, now),
               uploadPeriod.toMillis(),
               uploadPeriod.toMillis(),
               TimeUnit.MILLISECONDS);
@@ -187,10 +197,10 @@ public final class ProfilingSystem {
   private final class SnapshotRecording implements Runnable {
 
     private Instant lastSnapshot;
-    // 1 to account for recording that is already running
-    private int periodicRecordingCounter = 1;
+    private int periodicRecordingCounter;
 
-    SnapshotRecording(final Instant startTime) {
+    SnapshotRecording(final int periodicRecordingCounterStart, final Instant startTime) {
+      periodicRecordingCounter = periodicRecordingCounterStart;
       lastSnapshot = startTime;
     }
 
@@ -224,7 +234,7 @@ public final class ProfilingSystem {
 
       if (continuousToPeriodicUploadsRatio > 1) {
         periodicRecordingCounter++;
-        if (periodicRecordingCounter == continuousToPeriodicUploadsRatio) {
+        if (periodicRecordingCounter >= continuousToPeriodicUploadsRatio) {
           periodicRecordingCounter = 0;
           final OngoingRecording newRecording = controller.createPeriodicRecording(RECORDING_NAME);
           if (!periodicRecordingRef.compareAndSet(null, newRecording)) {
