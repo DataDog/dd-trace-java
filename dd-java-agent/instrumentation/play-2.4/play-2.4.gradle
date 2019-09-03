@@ -1,50 +1,58 @@
-// Set properties before any plugins get loaded
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
-}
-
-apply from: "${rootDir}/gradle/java.gradle"
-apply from: "${rootDir}/gradle/test-with-scala.gradle"
-
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest
+  // Play doesn't work with Java 9+ until 2.6.12
+  maxJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
 muzzle {
   pass {
     group = 'com.typesafe.play'
     module = 'play_2.11'
-    versions = '[2.4.0,2.7.0-M1)'
+    versions = '[2.4.0,2.6)'
+    assertInverse = true
   }
   pass {
     group = 'com.typesafe.play'
     module = 'play_2.12'
-    versions = '[2.4.0,2.7.0-M1)'
+    versions = '[2.4.0,2.6)'
+    assertInverse = true
+  }
+  pass {
+    group = 'com.typesafe.play'
+    module = 'play_2.13'
+    versions = '[2.4.0,2.6)'
+    assertInverse = true
+  }
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
   }
 }
 
 dependencies {
-  compileOnly group: 'com.typesafe.play', name: 'play_2.11', version: '2.4.0'
-
-  testCompile deps.scala
-  testCompile group: 'com.typesafe.play', name: 'play_2.11', version: '2.4.0'
-  testCompile group: 'com.typesafe.play', name: 'play-test_2.11', version: '2.4.0'
-  testCompile group: 'com.typesafe.play', name: 'play-ws_2.11', version: '2.4.0'
+  main_java8Compile group: 'com.typesafe.play', name: 'play_2.11', version: '2.4.0'
 
   testCompile project(':dd-java-agent:instrumentation:java-concurrent')
-  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
+  testCompile project(':dd-java-agent:instrumentation:netty-4.0')
+  testCompile project(':dd-java-agent:instrumentation:netty-4.1')
   testCompile project(':dd-java-agent:instrumentation:akka-http-10.0')
-  testCompile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.6.0'
 
-  latestDepTestCompile deps.scala
-  latestDepTestCompile group: 'com.typesafe.play', name: 'play_2.11', version: '2.6.+'
-  latestDepTestCompile group: 'com.typesafe.play', name: 'play-test_2.11', version: '2.6.+'
-  latestDepTestCompile group: 'com.typesafe.play', name: 'play-ws_2.11', version: '2.6.+'
-}
+  // Before 2.5, play used netty 3.x which isn't supported, so for better test consistency, we test with just 2.5
+  testCompile group: 'com.typesafe.play', name: 'play-java_2.11', version: '2.5.0'
+  testCompile group: 'com.typesafe.play', name: 'play-java-ws_2.11', version: '2.5.0'
+  testCompile (group: 'com.typesafe.play', name: 'play-test_2.11', version: '2.5.0') {
+    exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
+  }
 
-compileLatestDepTestGroovy {
-  classpath = classpath.plus(files(compileLatestDepTestScala.destinationDir))
-  dependsOn compileLatestDepTestScala
+  latestDepTestCompile group: 'com.typesafe.play', name: 'play-java_2.11', version: '2.5.+'
+  latestDepTestCompile group: 'com.typesafe.play', name: 'play-java-ws_2.11', version: '2.5.+'
+  latestDepTestCompile (group: 'com.typesafe.play', name: 'play-test_2.11', version: '2.5.+') {
+    exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
+  }
 }

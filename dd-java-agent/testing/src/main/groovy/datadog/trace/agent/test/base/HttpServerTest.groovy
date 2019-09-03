@@ -8,9 +8,11 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.context.TraceScope
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 import io.opentracing.tag.Tags
+import io.opentracing.util.GlobalTracer
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -57,6 +59,10 @@ abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> ext
   abstract SERVER startServer(int port)
 
   def cleanupSpec() {
+    if (server == null) {
+      println getClass().name + " can't stop null server"
+      return
+    }
     stopServer(server)
     server = null
     println getClass().name + " http server stopped at: http://localhost:$port/"
@@ -76,8 +82,17 @@ abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> ext
     false
   }
 
+  // Return the handler span's name
+  String reorderHandlerSpan() {
+    null
+  }
+
   boolean reorderControllerSpan() {
-    true
+    false
+  }
+
+  boolean redirectHasBody() {
+    false
   }
 
   boolean testNotFound() {
@@ -134,6 +149,7 @@ abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> ext
   }
 
   static <T> T controller(ServerEndpoint endpoint, Closure<T> closure) {
+    assert ((TraceScope) GlobalTracer.get().scopeManager().active()).asyncPropagating
     if (endpoint == NOT_FOUND) {
       return closure()
     }
@@ -221,7 +237,7 @@ abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> ext
     response.code() == REDIRECT.status
     response.header("location") == REDIRECT.body ||
       response.header("location") == "${address.resolve(REDIRECT.body)}"
-    response.body().contentLength() < 1
+    response.body().contentLength() < 1 || redirectHasBody()
 
     and:
     cleanAndAssertTraces(1) {
@@ -356,7 +372,19 @@ abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> ext
     assert toRemove.size() == size
     TEST_WRITER.removeAll(toRemove)
 
-    if(reorderControllerSpan()) {
+    if (reorderHandlerSpan()) {
+      TEST_WRITER.each {
+        def controllerSpan = it.find {
+          it.operationName == reorderHandlerSpan()
+        }
+        if (controllerSpan) {
+          it.remove(controllerSpan)
+          it.add(controllerSpan)
+        }
+      }
+    }
+
+    if (reorderControllerSpan() || reorderHandlerSpan()) {
       // Some frameworks close the handler span before the controller returns, so we need to manually reorder it.
       TEST_WRITER.each {
         def controllerSpan = it.find {
