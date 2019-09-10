@@ -1,10 +1,13 @@
 package datadog.opentracing
 
-
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 
 class SpanFactory {
+  static {
+    ConfigUtils.makeConfigInstanceModifiable()
+  }
 
   static newSpanOf(long timestampMicro, String threadName = Thread.currentThread().name) {
     def writer = new ListWriter()

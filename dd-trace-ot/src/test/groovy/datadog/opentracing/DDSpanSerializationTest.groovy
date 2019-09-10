@@ -2,6 +2,7 @@ package datadog.opentracing
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.collect.Maps
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
@@ -12,6 +13,9 @@ import org.msgpack.value.ValueType
 import spock.lang.Specification
 
 class DDSpanSerializationTest extends Specification {
+  static {
+    ConfigUtils.makeConfigInstanceModifiable()
+  }
 
   def "serialize spans with sampling #samplingPriority"() throws Exception {
     setup:
