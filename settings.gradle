@@ -1,17 +1,13 @@
 rootProject.name = 'dd-trace-java'
 
-// core tracing projects
+// external apis
 include ':dd-trace-api'
-include ':dd-java-agent:agent-bootstrap'
-include ':dd-trace'
-include ':dd-trace-ext'
-
-// implements for third-party tracing libraries
 include ':dd-trace-ot'
 include ':dd-trace-ot:jfr-openjdk'
 
 // agent projects
 include ':dd-java-agent'
+include ':dd-java-agent:agent-bootstrap'
 include ':dd-java-agent:agent-tooling'
 include ':dd-java-agent:agent-jmxfetch'
 include ':dd-java-agent:agent-profiling'
@@ -92,6 +88,7 @@ include ':dd-java-agent:instrumentation:play-2.4'
 include ':dd-java-agent:instrumentation:play-2.6'
 include ':dd-java-agent:instrumentation:rabbitmq-amqp-2.7'
 include ':dd-java-agent:instrumentation:ratpack-1.4'
+include ':dd-java-agent:instrumentation:rxjava-1'
 include ':dd-java-agent:instrumentation:reactor-core-3.1'
 include ':dd-java-agent:instrumentation:servlet-2'
 include ':dd-java-agent:instrumentation:servlet-3'
