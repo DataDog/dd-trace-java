@@ -8,8 +8,8 @@ public class DBStatementAsResourceName extends AbstractDecorator {
 
   public DBStatementAsResourceName() {
     super();
-    this.setMatchingTag(Tags.DB_STATEMENT.getKey());
-    this.setReplacementTag(DDTags.RESOURCE_NAME);
+    setMatchingTag(Tags.DB_STATEMENT.getKey());
+    setReplacementTag(DDTags.RESOURCE_NAME);
   }
 
   @Override
@@ -29,7 +29,7 @@ public class DBStatementAsResourceName extends AbstractDecorator {
       // by the Datadog Trace Agent as `sql.query`; here we're removing
       // a duplicate that will not be obfuscated with the current Datadog
       // Trace Agent version.
-      context.setTag(Tags.DB_STATEMENT.getKey(), null);
+      context.setTagInternal(Tags.DB_STATEMENT.getKey(), null);
       return false;
     }
     return true;

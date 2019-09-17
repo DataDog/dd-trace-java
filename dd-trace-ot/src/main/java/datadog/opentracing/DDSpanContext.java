@@ -268,9 +268,6 @@ public class DDSpanContext implements io.opentracing.SpanContext {
     return baggageItems;
   }
 
-  /* (non-Javadoc)
-   * @see io.opentracing.SpanContext#baggageItems()
-   */
   @Override
   public Iterable<Map.Entry<String, String>> baggageItems() {
     return baggageItems.entrySet();
@@ -331,6 +328,15 @@ public class DDSpanContext implements io.opentracing.SpanContext {
     }
 
     if (addTag) {
+      tags.put(tag, value);
+    }
+  }
+
+  /** Internal method used by decorators, should not ever be called from outside. */
+  public void setTagInternal(final String tag, final Object value) {
+    if (value == null || (value instanceof String && ((String) value).isEmpty())) {
+      tags.remove(tag);
+    } else {
       tags.put(tag, value);
     }
   }
