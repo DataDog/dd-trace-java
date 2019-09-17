@@ -12,11 +12,6 @@ import spock.lang.Specification
 import static io.opentracing.log.Fields.ERROR_OBJECT
 
 class BaseDecoratorTest extends Specification {
-
-  static {
-    ConfigUtils.makeConfigInstanceModifiable()
-  }
-
   @Shared
   def decorator = newDecorator()
 

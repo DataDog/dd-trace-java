@@ -1,10 +1,8 @@
 package datadog.opentracing
 
-
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.opentracing.propagation.ExtractedContext
 import datadog.opentracing.propagation.TagContext
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.sampling.RateByServiceSampler
@@ -18,10 +16,6 @@ import java.util.concurrent.TimeUnit
 import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
 
 class DDSpanTest extends Specification {
-  static {
-    ConfigUtils.makeConfigInstanceModifiable()
-  }
-
   def writer = new ListWriter()
   def sampler = new RateByServiceSampler()
   def tracer = new DDTracer(DEFAULT_SERVICE_NAME, writer, sampler, [:])

@@ -11,10 +11,6 @@ import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Specification
 
 class DefaultInstrumenterTest extends Specification {
-  static {
-    ConfigUtils.makeConfigInstanceModifiable()
-  }
-
   @Rule
   public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
   @Rule
@@ -99,8 +95,10 @@ class DefaultInstrumenterTest extends Specification {
 
   def "configure default env var as #value"() {
     setup:
-    environmentVariables.set("DD_INTEGRATIONS_ENABLED", value)
-    ConfigUtils.resetConfig()
+    ConfigUtils.updateConfig {
+      environmentVariables.set("DD_INTEGRATIONS_ENABLED", value)
+    }
+
     def target = new TestDefaultInstrumenter("test")
     target.instrument(new AgentBuilder.Default())
 

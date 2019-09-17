@@ -2,19 +2,11 @@ package datadog.trace.agent.test.utils
 
 import datadog.trace.api.Config
 import lombok.SneakyThrows
-import net.bytebuddy.agent.ByteBuddyAgent
-import net.bytebuddy.agent.builder.AgentBuilder
-import net.bytebuddy.dynamic.ClassFileLocator
-import net.bytebuddy.dynamic.Transformer
 
+import java.lang.reflect.Field
+import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.util.concurrent.Callable
-
-import static net.bytebuddy.description.modifier.FieldManifestation.VOLATILE
-import static net.bytebuddy.description.modifier.Ownership.STATIC
-import static net.bytebuddy.description.modifier.Visibility.PUBLIC
-import static net.bytebuddy.matcher.ElementMatchers.named
-import static net.bytebuddy.matcher.ElementMatchers.none
 
 class ConfigUtils {
   private static class ConfigInstance {
@@ -81,34 +73,39 @@ class ConfigUtils {
   // Keep track of config instance already made modifiable
   private static isConfigInstanceModifiable = false
 
-  static void makeConfigInstanceModifiable() {
+  private static Field getModifiersField() {
+    // Sometime between Java8 and 12, Field.class was added to the fieldFilterMap of Reflection.class
+    // so Field.getDeclaredField("modifiers") doesn't work.  This is a workaround
+
+    Method method = Class.class.getDeclaredMethod("getDeclaredFields0", Boolean.TYPE)
+    method.setAccessible(true)
+    Field[] fields = (Field[]) method.invoke(Field.class, false)
+
+    for (Field field : fields) {
+      if ("modifiers".equals(field.getName())) {
+        return field
+      }
+    }
+
+    // This can't happen
+    throw new RuntimeException("Unable to get modifiers field")
+  }
+
+  private static void changeModifiers(Field field, int modifierMask) {
+    Field modifiersField = getModifiersField()
+    modifiersField.setAccessible(true)
+    modifiersField.setInt(field, modifierMask)
+    field.setAccessible(true)
+  }
+
+  private static void makeConfigInstanceModifiable() {
     if (isConfigInstanceModifiable) {
       return
     }
 
-    def instrumentation = ByteBuddyAgent.install()
-    final transformer =
-      new AgentBuilder.Default()
-        .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-        .with(AgentBuilder.RedefinitionStrategy.Listener.ErrorEscalating.FAIL_FAST)
-        // Config is injected into the bootstrap, so we need to provide a locator.
-        .with(
-          new AgentBuilder.LocationStrategy.Simple(
-            ClassFileLocator.ForClassLoader.ofSystemLoader()))
-        .ignore(none()) // Allow transforming bootstrap classes
-        .type(named("datadog.trace.api.Config"))
-        .transform { builder, typeDescription, classLoader, module ->
-          builder
-            .field(named("INSTANCE"))
-            .transform(Transformer.ForField.withModifiers(PUBLIC, STATIC, VOLATILE))
-        }
-        // Making runtimeId modifiable so that it can be preserved when resetting config in tests
-        .transform { builder, typeDescription, classLoader, module ->
-          builder
-            .field(named("runtimeId"))
-            .transform(Transformer.ForField.withModifiers(PUBLIC, VOLATILE))
-        }
-        .installOn(instrumentation)
+    changeModifiers(ConfigInstance.FIELD, Modifier.PUBLIC | Modifier.STATIC | Modifier.VOLATILE)
+    changeModifiers(ConfigInstance.RUNTIME_ID_FIELD, Modifier.PUBLIC | Modifier.VOLATILE)
+
     isConfigInstanceModifiable = true
 
     final field = ConfigInstance.FIELD
@@ -122,8 +119,5 @@ class ConfigUtils {
     assert !Modifier.isStatic(ConfigInstance.RUNTIME_ID_FIELD.getModifiers())
     assert Modifier.isVolatile(runtimeIdField.getModifiers())
     assert !Modifier.isFinal(runtimeIdField.getModifiers())
-
-    // No longer needed (Unless class gets retransformed somehow).
-    instrumentation.removeTransformer(transformer)
   }
 }
