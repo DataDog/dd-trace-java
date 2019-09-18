@@ -17,11 +17,7 @@ class ConfigUtils {
 
   @SneakyThrows
   synchronized static <T extends Object> Object withConfigOverride(final String name, final String value, final Callable<T> r) {
-    // Ensure the class was retransformed properly in AgentTestRunner.makeConfigInstanceModifiable()
-    assert Modifier.isPublic(ConfigInstance.FIELD.getModifiers())
-    assert Modifier.isStatic(ConfigInstance.FIELD.getModifiers())
-    assert Modifier.isVolatile(ConfigInstance.FIELD.getModifiers())
-    assert !Modifier.isFinal(ConfigInstance.FIELD.getModifiers())
+    makeConfigInstanceModifiable()
 
     def existingConfig = Config.get()
     Properties properties = new Properties()
@@ -44,23 +40,6 @@ class ConfigUtils {
   static updateConfig(final Callable r) {
     makeConfigInstanceModifiable()
     r.call()
-    resetConfig()
-  }
-
-  /**
-   * Reset the global configuration. Please note that Runtime ID is preserved to the pre-existing value.
-   */
-  static void resetConfig() {
-    // Ensure the class was re-transformed properly in AgentTestRunner.makeConfigInstanceModifiable()
-    assert Modifier.isPublic(ConfigInstance.FIELD.getModifiers())
-    assert Modifier.isStatic(ConfigInstance.FIELD.getModifiers())
-    assert Modifier.isVolatile(ConfigInstance.FIELD.getModifiers())
-    assert !Modifier.isFinal(ConfigInstance.FIELD.getModifiers())
-
-    assert Modifier.isPublic(ConfigInstance.RUNTIME_ID_FIELD.getModifiers())
-    assert !Modifier.isStatic(ConfigInstance.RUNTIME_ID_FIELD.getModifiers())
-    assert Modifier.isVolatile(ConfigInstance.RUNTIME_ID_FIELD.getModifiers())
-    assert !Modifier.isFinal(ConfigInstance.RUNTIME_ID_FIELD.getModifiers())
 
     def previousConfig = ConfigInstance.FIELD.get(null)
     def newConfig = new Config()
@@ -100,24 +79,26 @@ class ConfigUtils {
 
   private static void makeConfigInstanceModifiable() {
     if (isConfigInstanceModifiable) {
+      assertFieldState()
       return
     }
 
     changeModifiers(ConfigInstance.FIELD, Modifier.PUBLIC | Modifier.STATIC | Modifier.VOLATILE)
     changeModifiers(ConfigInstance.RUNTIME_ID_FIELD, Modifier.PUBLIC | Modifier.VOLATILE)
 
+    assertFieldState()
     isConfigInstanceModifiable = true
+  }
 
-    final field = ConfigInstance.FIELD
-    assert Modifier.isPublic(field.getModifiers())
-    assert Modifier.isStatic(field.getModifiers())
-    assert Modifier.isVolatile(field.getModifiers())
-    assert !Modifier.isFinal(field.getModifiers())
+  private static void assertFieldState() {
+    assert Modifier.isPublic(ConfigInstance.FIELD.getModifiers())
+    assert Modifier.isStatic(ConfigInstance.FIELD.getModifiers())
+    assert Modifier.isVolatile(ConfigInstance.FIELD.getModifiers())
+    assert !Modifier.isFinal(ConfigInstance.FIELD.getModifiers())
 
-    final runtimeIdField = ConfigInstance.RUNTIME_ID_FIELD
-    assert Modifier.isPublic(runtimeIdField.getModifiers())
+    assert Modifier.isPublic(ConfigInstance.RUNTIME_ID_FIELD.getModifiers())
     assert !Modifier.isStatic(ConfigInstance.RUNTIME_ID_FIELD.getModifiers())
-    assert Modifier.isVolatile(runtimeIdField.getModifiers())
-    assert !Modifier.isFinal(runtimeIdField.getModifiers())
+    assert Modifier.isVolatile(ConfigInstance.RUNTIME_ID_FIELD.getModifiers())
+    assert !Modifier.isFinal(ConfigInstance.RUNTIME_ID_FIELD.getModifiers())
   }
 }

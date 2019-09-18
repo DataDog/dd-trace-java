@@ -57,7 +57,9 @@ class DefaultInstrumenterTest extends Specification {
 
   def "default disabled can override to enabled"() {
     setup:
-    System.setProperty("dd.integration.test.enabled", "$enabled")
+    ConfigUtils.updateConfig {
+      System.setProperty("dd.integration.test.enabled", "$enabled")
+    }
     def target = new TestDefaultInstrumenter("test") {
       @Override
       protected boolean defaultEnabled() {
@@ -115,8 +117,10 @@ class DefaultInstrumenterTest extends Specification {
 
   def "configure sys prop enabled for #value when default is disabled"() {
     setup:
-    System.setProperty("dd.integrations.enabled", "false")
-    System.setProperty("dd.integration.${value}.enabled", "true")
+    ConfigUtils.updateConfig {
+      System.setProperty("dd.integrations.enabled", "false")
+      System.setProperty("dd.integration.${value}.enabled", "true")
+    }
     def target = new TestDefaultInstrumenter(name, altName)
     target.instrument(new AgentBuilder.Default())
 
@@ -137,8 +141,10 @@ class DefaultInstrumenterTest extends Specification {
 
   def "configure env var enabled for #value when default is disabled"() {
     setup:
-    environmentVariables.set("DD_INTEGRATIONS_ENABLED", "false")
-    environmentVariables.set("DD_INTEGRATION_${value}_ENABLED", "true")
+    ConfigUtils.updateConfig {
+      environmentVariables.set("DD_INTEGRATIONS_ENABLED", "false")
+      environmentVariables.set("DD_INTEGRATION_${value}_ENABLED", "true")
+    }
     def target = new TestDefaultInstrumenter(name, altName)
     target.instrument(new AgentBuilder.Default())
 
