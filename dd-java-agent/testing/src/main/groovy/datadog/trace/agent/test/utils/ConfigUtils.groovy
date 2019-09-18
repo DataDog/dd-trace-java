@@ -56,9 +56,9 @@ class ConfigUtils {
     // Sometime between Java8 and 12, Field.class was added to the fieldFilterMap of Reflection.class
     // so Field.getDeclaredField("modifiers") doesn't work.  This is a workaround
 
-    Method method = Class.class.getDeclaredMethod("getDeclaredFields0", Boolean.TYPE)
+    Method method = Class.getDeclaredMethod("getDeclaredFields0", Boolean.TYPE)
     method.setAccessible(true)
-    Field[] fields = (Field[]) method.invoke(Field.class, false)
+    Field[] fields = (Field[]) method.invoke(Field, false)
 
     for (Field field : fields) {
       if ("modifiers".equals(field.getName())) {
