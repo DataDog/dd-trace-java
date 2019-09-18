@@ -23,7 +23,7 @@ class ConfigUtils {
     Properties properties = new Properties()
     properties.put(name, value)
     ConfigInstance.FIELD.set(null, new Config(properties, existingConfig))
-    assert Config.get() != existingConfig
+    assert !Config.get().is(existingConfig)
     try {
       return r.call()
     } finally {

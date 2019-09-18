@@ -177,8 +177,10 @@ class BaseDecoratorTest extends Specification {
     dec.traceAnalyticsSampleRate == (Float) expectedRate
 
     cleanup:
-    System.clearProperty("dd.${integName}.analytics.enabled")
-    System.clearProperty("dd.${integName}.analytics.sample-rate")
+    ConfigUtils.updateConfig {
+      System.clearProperty("dd.${integName}.analytics.enabled")
+      System.clearProperty("dd.${integName}.analytics.sample-rate")
+    }
 
     where:
     enabled | integName | sampleRate | expectedEnabled | expectedRate

@@ -18,7 +18,7 @@ import static datadog.trace.api.DDTags.EVENT_SAMPLE_RATE
 import static java.util.Collections.emptyMap
 
 class SpanDecoratorTest extends Specification {
-  static {
+  def setupSpec() {
     ConfigUtils.updateConfig {
       System.setProperty("dd.$Config.SPLIT_BY_TAGS", "sn.tag1,sn.tag2")
     }
@@ -29,8 +29,14 @@ class SpanDecoratorTest extends Specification {
       System.clearProperty("dd.$Config.SPLIT_BY_TAGS")
     }
   }
-  def tracer = new DDTracer(new LoggingWriter())
-  def span = SpanFactory.newSpanOf(tracer)
+
+  def tracer
+  def span
+
+  def setup() {
+    tracer = new DDTracer(new LoggingWriter())
+    span = SpanFactory.newSpanOf(tracer)
+  }
 
   def "adding span personalisation using Decorators"() {
     setup:
