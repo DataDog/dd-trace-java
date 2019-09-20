@@ -1,6 +1,5 @@
 import datadog.opentracing.decorators.ErrorFlag
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Trace
 import dd.test.trace.annotation.SayTracedHello
 import io.opentracing.tag.Tags
@@ -8,13 +7,6 @@ import io.opentracing.tag.Tags
 import java.util.concurrent.Callable
 
 class TraceAnnotationsTest extends AgentTestRunner {
-
-  static {
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace.annotations")
-    }
-  }
-
   def "test simple case annotations"() {
     setup:
     // Test single span in new trace

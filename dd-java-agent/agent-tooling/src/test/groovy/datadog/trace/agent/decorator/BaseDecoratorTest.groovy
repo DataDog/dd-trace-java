@@ -1,21 +1,20 @@
 package datadog.trace.agent.decorator
 
-
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDTags
 import io.opentracing.Scope
 import io.opentracing.Span
 import io.opentracing.tag.Tags
+import org.junit.Rule
+import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Shared
 import spock.lang.Specification
 
+import static datadog.trace.agent.test.utils.ConfigUtils.withNewConfig
 import static io.opentracing.log.Fields.ERROR_OBJECT
 
 class BaseDecoratorTest extends Specification {
-
-  static {
-    ConfigUtils.makeConfigInstanceModifiable()
-  }
+  @Rule
+  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
 
   @Shared
   def decorator = newDecorator()
@@ -169,21 +168,17 @@ class BaseDecoratorTest extends Specification {
 
   def "test analytics rate enabled:#enabled, integration:#integName, sampleRate:#sampleRate"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.properties.setProperty("dd.${integName}.analytics.enabled", "true")
-      System.properties.setProperty("dd.${integName}.analytics.sample-rate", "$sampleRate")
-    }
+    System.properties.setProperty("dd.${integName}.analytics.enabled", "true")
+    System.properties.setProperty("dd.${integName}.analytics.sample-rate", "$sampleRate")
 
     when:
-    BaseDecorator dec = newDecorator(enabled)
+    BaseDecorator dec = withNewConfig {
+      newDecorator(enabled)
+    }
 
     then:
     dec.traceAnalyticsEnabled == expectedEnabled
     dec.traceAnalyticsSampleRate == (Float) expectedRate
-
-    cleanup:
-    System.clearProperty("dd.${integName}.analytics.enabled")
-    System.clearProperty("dd.${integName}.analytics.sample-rate")
 
     where:
     enabled | integName | sampleRate | expectedEnabled | expectedRate

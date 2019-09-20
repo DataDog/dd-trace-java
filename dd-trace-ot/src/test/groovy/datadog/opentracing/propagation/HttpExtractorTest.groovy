@@ -1,6 +1,6 @@
 package datadog.opentracing.propagation
 
-import datadog.trace.agent.test.utils.ConfigUtils
+
 import datadog.trace.api.Config
 import io.opentracing.SpanContext
 import io.opentracing.propagation.TextMapExtractAdapter
@@ -12,10 +12,6 @@ import static datadog.trace.api.Config.PropagationStyle.B3
 import static datadog.trace.api.Config.PropagationStyle.DATADOG
 
 class HttpExtractorTest extends Specification {
-  static {
-    ConfigUtils.makeConfigInstanceModifiable()
-  }
-
   @Shared
   String outOfRangeTraceId = UINT64_MAX.add(BigInteger.ONE)
 

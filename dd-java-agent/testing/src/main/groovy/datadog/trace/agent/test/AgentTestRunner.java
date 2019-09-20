@@ -23,8 +23,10 @@ import io.opentracing.Tracer;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,6 +44,7 @@ import org.junit.runner.RunWith;
 import org.slf4j.LoggerFactory;
 import org.spockframework.runtime.model.SpecMetadata;
 import spock.lang.Specification;
+import spock.util.environment.RestoreSystemProperties;
 
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
@@ -61,6 +64,7 @@ import spock.lang.Specification;
 @RunWith(SpockRunner.class)
 @SpecMetadata(filename = "AgentTestRunner.java", line = 0)
 @Slf4j
+@RestoreSystemProperties
 public abstract class AgentTestRunner extends Specification {
   private static final long TIMEOUT_MILLIS = 10 * 1000;
   /**
@@ -82,13 +86,14 @@ public abstract class AgentTestRunner extends Specification {
   private static final Instrumentation INSTRUMENTATION;
   private static volatile ClassFileTransformer activeTransformer = null;
 
+  // Groovy puts GStringImpl into the map so <Object, Object> generics are necessary
+  protected static Map<Object, Object> PRE_AGENT_SYS_PROPS;
+
   static {
     INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
 
     ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.WARN);
     ((Logger) LoggerFactory.getLogger("datadog")).setLevel(Level.DEBUG);
-
-    ConfigUtils.makeConfigInstanceModifiable();
 
     TEST_WRITER =
         new ListWriter() {
@@ -142,7 +147,34 @@ public abstract class AgentTestRunner extends Specification {
   }
 
   @BeforeClass
-  public static synchronized void agentSetup() throws Exception {
+  public static void agentSetup() {
+    if (PRE_AGENT_SYS_PROPS == null) {
+      runAgentInstallation();
+    } else {
+      for (final Map.Entry<Object, Object> entry : PRE_AGENT_SYS_PROPS.entrySet()) {
+        System.setProperty(entry.getKey().toString(), entry.getValue().toString());
+      }
+      ConfigUtils.withNewConfig(
+          new Callable() {
+            @Override
+            public Object call() {
+              runAgentInstallation();
+              return null;
+            }
+          });
+    }
+  }
+
+  @Before
+  public void reapplySystemProperties() {
+    if (PRE_AGENT_SYS_PROPS != null) {
+      for (final Map.Entry<Object, Object> entry : PRE_AGENT_SYS_PROPS.entrySet()) {
+        System.setProperty(entry.getKey().toString(), entry.getValue().toString());
+      }
+    }
+  }
+
+  public static synchronized void runAgentInstallation() {
     if (null != activeTransformer) {
       throw new IllegalStateException("transformer already in place: " + activeTransformer);
     }

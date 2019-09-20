@@ -987,7 +987,7 @@ public class Config {
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize
-  private static final Config INSTANCE = new Config();
+  private static Config INSTANCE = new Config();
 
   public static Config get() {
     return INSTANCE;
@@ -999,5 +999,10 @@ public class Config {
     } else {
       return new Config(properties, INSTANCE);
     }
+  }
+
+  /** For testing only */
+  static void set(final Config config) {
+    INSTANCE = config;
   }
 }

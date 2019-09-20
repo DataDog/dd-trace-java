@@ -44,6 +44,7 @@ import static datadog.trace.api.Config.WRITER_TYPE
 class ConfigTest extends Specification {
   @Rule
   public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
+
   @Rule
   public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
 
@@ -742,9 +743,6 @@ class ConfigTest extends Specification {
 
     then:
     config.serviceName == "set-in-properties"
-
-    cleanup:
-    System.clearProperty(PREFIX + CONFIGURATION_FILE)
   }
 
   def "verify fallback to properties file has lower priority than system property"() {
@@ -757,10 +755,6 @@ class ConfigTest extends Specification {
 
     then:
     config.serviceName == "set-in-system"
-
-    cleanup:
-    System.clearProperty(PREFIX + CONFIGURATION_FILE)
-    System.clearProperty(PREFIX + SERVICE_NAME)
   }
 
   def "verify fallback to properties file has lower priority than env var"() {
@@ -775,8 +769,6 @@ class ConfigTest extends Specification {
     config.serviceName == "set-in-env"
 
     cleanup:
-    System.clearProperty(PREFIX + CONFIGURATION_FILE)
-    System.clearProperty(PREFIX + SERVICE_NAME)
     environmentVariables.clear("DD_SERVICE_NAME")
   }
 
@@ -789,8 +781,5 @@ class ConfigTest extends Specification {
 
     then:
     config.serviceName == 'unnamed-java-app'
-
-    cleanup:
-    System.clearProperty(PREFIX + CONFIGURATION_FILE)
   }
 }
