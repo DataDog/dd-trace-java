@@ -17,11 +17,8 @@ class TraceConfigTest extends AgentTestRunner {
   }
 
   def "test configuration based trace"() {
-    expect:
-    new ConfigTracedCallable().call() == "Hello!"
-
     when:
-    TEST_WRITER.waitForTraces(1)
+    new ConfigTracedCallable().call() == "Hello!"
 
     then:
     assertTraces(1) {
