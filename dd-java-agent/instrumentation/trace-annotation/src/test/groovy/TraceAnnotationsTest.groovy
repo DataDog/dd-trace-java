@@ -292,6 +292,7 @@ class TraceAnnotationsTest extends AgentTestRunner {
     SayTracedHello.fromCallable()
 
     then:
+    System.getProperty("dd.trace.annotations") == null
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -313,6 +314,7 @@ class TraceAnnotationsTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(2)
 
     then:
+    System.getProperty("dd.trace.annotations") == null
     assertTraces(2) {
       trace(0, 1) {
         span(0) {
