@@ -24,6 +24,7 @@ import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -44,7 +45,6 @@ import org.junit.runner.RunWith;
 import org.slf4j.LoggerFactory;
 import org.spockframework.runtime.model.SpecMetadata;
 import spock.lang.Specification;
-import spock.util.environment.RestoreSystemProperties;
 
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
@@ -64,7 +64,6 @@ import spock.util.environment.RestoreSystemProperties;
 @RunWith(SpockRunner.class)
 @SpecMetadata(filename = "AgentTestRunner.java", line = 0)
 @Slf4j
-@RestoreSystemProperties
 public abstract class AgentTestRunner extends Specification {
   private static final long TIMEOUT_MILLIS = 10 * 1000;
   /**
@@ -85,6 +84,8 @@ public abstract class AgentTestRunner extends Specification {
 
   private static final Instrumentation INSTRUMENTATION;
   private static volatile ClassFileTransformer activeTransformer = null;
+
+  private static Properties ORIGINAL_SYS_PROPS;
 
   // Groovy puts GStringImpl into the map so <Object, Object> generics are necessary
   protected static Map<Object, Object> PRE_AGENT_SYS_PROPS;
@@ -148,6 +149,9 @@ public abstract class AgentTestRunner extends Specification {
 
   @BeforeClass
   public static void agentSetup() {
+    ORIGINAL_SYS_PROPS = new Properties();
+    ORIGINAL_SYS_PROPS.putAll(System.getProperties());
+
     if (PRE_AGENT_SYS_PROPS == null) {
       runAgentInstallation();
     } else {
@@ -167,6 +171,8 @@ public abstract class AgentTestRunner extends Specification {
 
   @Before
   public void reapplySystemProperties() {
+    System.setProperties(ORIGINAL_SYS_PROPS);
+
     if (PRE_AGENT_SYS_PROPS != null) {
       for (final Map.Entry<Object, Object> entry : PRE_AGENT_SYS_PROPS.entrySet()) {
         System.setProperty(entry.getKey().toString(), entry.getValue().toString());
@@ -218,6 +224,8 @@ public abstract class AgentTestRunner extends Specification {
 
   @AfterClass
   public static synchronized void agentCleanup() {
+    System.setProperties(ORIGINAL_SYS_PROPS);
+
     if (null != activeTransformer) {
       INSTRUMENTATION.removeTransformer(activeTransformer);
       activeTransformer = null;
