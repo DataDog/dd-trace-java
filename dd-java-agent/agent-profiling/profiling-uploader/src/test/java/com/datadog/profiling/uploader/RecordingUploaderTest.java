@@ -21,7 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
@@ -50,8 +52,11 @@ import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-/** Unit tests for the chunk uploader. */
+/** Unit tests for the recording uploader. */
+@ExtendWith(MockitoExtension.class)
 public class RecordingUploaderTest {
 
   private static final String URL_PATH = "/v0.1/lalalala";
@@ -82,7 +87,7 @@ public class RecordingUploaderTest {
   private static final int RECORDING_START = 1000;
   private static final int RECORDING_END = 1100;
 
-  // TODO: Add a test to verify overall reauest timout rather than IO timeout
+  // TODO: Add a test to verify overall request timeout rather than IO timeout
   private final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
   private final Duration REQUEST_IO_OPERATION_TIMEOUT = Duration.ofSeconds(5);
 
@@ -95,6 +100,7 @@ public class RecordingUploaderTest {
   public void setup() throws IOException {
     server.start();
     url = server.url(URL_PATH);
+
     uploader =
         new RecordingUploader(
             url.toString(), APIKEY_VALUE, TAGS, REQUEST_TIMEOUT, REQUEST_IO_OPERATION_TIMEOUT);
@@ -224,6 +230,8 @@ public class RecordingUploaderTest {
     uploader.upload(RECORDING_TYPE, recording);
 
     verify(recording).release();
+    verify(recording).getStream();
+    verifyNoMoreInteractions(recording);
   }
 
   @Test
@@ -399,7 +407,7 @@ public class RecordingUploaderTest {
   }
 
   private RecordingData mockRecordingData(final String recordingResource) throws IOException {
-    final RecordingData recordingData = mock(RecordingData.class);
+    final RecordingData recordingData = mock(RecordingData.class, withSettings().lenient());
     when(recordingData.getStream())
         .thenReturn(
             Thread.currentThread().getContextClassLoader().getResourceAsStream(recordingResource));
