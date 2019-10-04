@@ -36,7 +36,9 @@ dependencies {
   latestDepTestCompile group: 'org.apache.kafka', name: 'kafka_2.11', version: '+'
   latestDepTestCompile group: 'org.apache.kafka', name: 'kafka-clients', version: '+'
   latestDepTestCompile group: 'org.apache.kafka', name: 'kafka-streams', version: '+'
-  latestDepTestCompile group: 'org.springframework.kafka', name: 'spring-kafka', version: '+'
-  latestDepTestCompile group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '+'
+  // FIXME: kafka-spring 2.3 has breaking API changes, we need to add tests for it at some point,
+  // for now we just limit versions here.
+  latestDepTestCompile group: 'org.springframework.kafka', name: 'spring-kafka', version: '2.2.+'
+  latestDepTestCompile group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '2.2.+'
   latestDepTestCompile group: 'org.assertj', name: 'assertj-core', version: '3.+'
 }
