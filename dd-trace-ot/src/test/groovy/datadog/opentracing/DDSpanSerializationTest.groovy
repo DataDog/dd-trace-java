@@ -127,7 +127,9 @@ class DDSpanSerializationTest extends Specification {
     value                                                       | _
     BigInteger.ZERO                                             | _
     BigInteger.ONE                                              | _
+    8223372036854775807G                                        | _
     BigInteger.valueOf(Long.MAX_VALUE).subtract(BigInteger.ONE) | _
     BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE)      | _
+    BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE)      | _
   }
 }
