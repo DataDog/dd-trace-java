@@ -117,13 +117,14 @@ public final class RecordingUploader {
               new InetSocketAddress(
                   config.getProfilingProxyHost(), config.getProfilingProxyPort()));
       clientBuilder.proxy(proxy);
-      if (config.getProfilingProxyUsername() != null
-          && config.getProfilingProxyPassword() != null) {
+      if (config.getProfilingProxyUsername() != null) {
+        // Empty password by default
+        final String password =
+            config.getProfilingProxyPassword() == null ? "" : config.getProfilingProxyPassword();
         clientBuilder.proxyAuthenticator(
             (route, response) -> {
               final String credential =
-                  Credentials.basic(
-                      config.getProfilingProxyUsername(), config.getProfilingProxyPassword());
+                  Credentials.basic(config.getProfilingProxyUsername(), password);
               return response
                   .request()
                   .newBuilder()

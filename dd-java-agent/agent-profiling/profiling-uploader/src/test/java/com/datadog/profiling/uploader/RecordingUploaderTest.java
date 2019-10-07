@@ -213,6 +213,27 @@ public class RecordingUploaderTest {
   }
 
   @Test
+  public void testRequestWithProxyDefaultPassword() throws IOException, InterruptedException {
+    final String backendUrl = "http://intake.profilinf.datadoghq.com:1234" + URL_PATH;
+    when(config.getProfilingUrl()).thenReturn(backendUrl);
+    when(config.getProfilingProxyHost()).thenReturn(server.url("").host());
+    when(config.getProfilingProxyPort()).thenReturn(server.url("").port());
+    when(config.getProfilingProxyUsername()).thenReturn("username");
+
+    uploader = new RecordingUploader(config);
+
+    server.enqueue(new MockResponse().setResponseCode(407).addHeader("Proxy-Authenticate: Basic"));
+    server.enqueue(new MockResponse().setResponseCode(200));
+
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_1_CHUNK));
+
+    final RecordedRequest recordedFirstRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    final RecordedRequest recordedSecondRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    assertEquals(
+        Credentials.basic("username", ""), recordedSecondRequest.getHeader("Proxy-Authorization"));
+  }
+
+  @Test
   public void testRecordingClosed() throws IOException {
     server.enqueue(new MockResponse().setResponseCode(200));
 
