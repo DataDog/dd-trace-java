@@ -14,9 +14,13 @@ dependencies {
 
   testCompile deps.junit5
   testCompile deps.guava
-  testCompile group: 'org.mockito', name: 'mockito-core', version: '2.28.2'
-  testCompile group: 'org.mockito', name: 'mockito-junit-jupiter', version: '2.28.2'
-  testCompile group: 'org.awaitility', name: 'awaitility', version: '3.1.6'
+  testCompile group: 'org.mockito', name: 'mockito-core', version: '3.1.0'
+  testCompile group: 'org.mockito', name: 'mockito-junit-jupiter', version: '3.1.0'
+  // Mockito dependency above pulls older version of Bytebuddy that fails to work on java13,
+  // so force correct version here. Note: we can remove this once Mockito upgrades.
+  testCompile deps.bytebuddy
+  testCompile deps.bytebuddyagent
+  testCompile group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8
