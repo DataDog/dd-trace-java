@@ -1,7 +1,6 @@
 package datadog.trace.agent.test.log.injection
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.CorrelationIdentifier
 import io.opentracing.Scope
 import io.opentracing.util.GlobalTracer
@@ -13,7 +12,6 @@ import java.util.concurrent.atomic.AtomicReference
  * satisfy in order to support log injection.
  */
 abstract class LogContextInjectionTestBase extends AgentTestRunner {
-
   /**
    * Set in the framework-specific context the given value at the given key
    */
@@ -25,9 +23,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
   abstract get(String key)
 
   static {
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.logs.injection", "true")
-    }
+    PRE_AGENT_SYS_PROPS = ["dd.logs.injection": "true"]
   }
 
   def "Log context shows trace and span ids for active scope"() {
@@ -67,9 +63,6 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
 
   def "Log context is scoped by thread"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.logs.injection", "true")
-    }
     AtomicReference<String> thread1TraceId = new AtomicReference<>()
     AtomicReference<String> thread2TraceId = new AtomicReference<>()
 

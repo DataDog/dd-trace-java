@@ -7,6 +7,7 @@ import datadog.opentracing.DDSpan;
 import datadog.opentracing.DDTracer;
 import datadog.opentracing.PendingTrace;
 import datadog.trace.agent.test.asserts.ListWriterAssert;
+import datadog.trace.agent.test.utils.ConfigUtils;
 import datadog.trace.agent.test.utils.GlobalTracerUtils;
 import datadog.trace.agent.tooling.AgentInstaller;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -23,8 +24,10 @@ import io.opentracing.Tracer;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -80,6 +83,9 @@ public abstract class AgentTestRunner extends DDSpecification {
 
   private static final Instrumentation INSTRUMENTATION;
   private static volatile ClassFileTransformer activeTransformer = null;
+
+  // Groovy puts GStringImpl into the map so <Object, Object> generics are necessary
+  protected static Map<Object, Object> PRE_AGENT_SYS_PROPS;
 
   static {
     INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
@@ -139,7 +145,34 @@ public abstract class AgentTestRunner extends DDSpecification {
   }
 
   @BeforeClass
-  public static synchronized void agentSetup() throws Exception {
+  public static void agentSetup() {
+    if (PRE_AGENT_SYS_PROPS == null) {
+      runAgentInstallation();
+    } else {
+      for (final Map.Entry<Object, Object> entry : PRE_AGENT_SYS_PROPS.entrySet()) {
+        System.setProperty(entry.getKey().toString(), entry.getValue().toString());
+      }
+      ConfigUtils.withNewConfig(
+          new Callable() {
+            @Override
+            public Object call() {
+              runAgentInstallation();
+              return null;
+            }
+          });
+    }
+  }
+
+  @Before
+  public void reapplySystemProperties() {
+    if (PRE_AGENT_SYS_PROPS != null) {
+      for (final Map.Entry<Object, Object> entry : PRE_AGENT_SYS_PROPS.entrySet()) {
+        System.setProperty(entry.getKey().toString(), entry.getValue().toString());
+      }
+    }
+  }
+
+  public static synchronized void runAgentInstallation() {
     if (null != activeTransformer) {
       throw new IllegalStateException("transformer already in place: " + activeTransformer);
     }

@@ -5,17 +5,8 @@ import datadog.trace.instrumentation.trace_annotation.TraceConfigInstrumentation
 import java.util.concurrent.Callable
 
 class TraceConfigTest extends AgentTestRunner {
-
   static {
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.trace.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call]")
-    }
-  }
-
-  def specCleanup() {
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace.methods")
-    }
+    PRE_AGENT_SYS_PROPS = ["dd.trace.methods": "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call]"]
   }
 
   class ConfigTracedCallable implements Callable<String> {
@@ -26,11 +17,8 @@ class TraceConfigTest extends AgentTestRunner {
   }
 
   def "test configuration based trace"() {
-    expect:
-    new ConfigTracedCallable().call() == "Hello!"
-
     when:
-    TEST_WRITER.waitForTraces(1)
+    new ConfigTracedCallable().call() == "Hello!"
 
     then:
     assertTraces(1) {
@@ -45,19 +33,19 @@ class TraceConfigTest extends AgentTestRunner {
 
   def "test configuration #value"() {
     setup:
-    ConfigUtils.updateConfig {
-      if (value) {
-        System.properties.setProperty("dd.trace.methods", value)
-      } else {
-        System.clearProperty("dd.trace.methods")
-      }
+    if (value) {
+      System.properties.setProperty("dd.trace.methods", value)
+    } else {
+      System.clearProperty("dd.trace.methods")
     }
 
-    expect:
-    new TraceConfigInstrumentation().classMethodsToTrace == expected
+    when:
+    Map result = ConfigUtils.withNewConfig {
+      new TraceConfigInstrumentation().classMethodsToTrace
+    }
 
-    cleanup:
-    System.clearProperty("dd.trace.methods")
+    then:
+    result == expected
 
     where:
     value                                                           | expected

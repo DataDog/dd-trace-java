@@ -1,6 +1,5 @@
 import datadog.opentracing.decorators.ErrorFlag
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Trace
 import dd.test.trace.annotation.SayTracedHello
 import io.opentracing.tag.Tags
@@ -8,19 +7,12 @@ import io.opentracing.tag.Tags
 import java.util.concurrent.Callable
 
 class TraceAnnotationsTest extends AgentTestRunner {
-
-  static {
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace.annotations")
-    }
-  }
-
   def "test simple case annotations"() {
-    setup:
+    when:
     // Test single span in new trace
     SayTracedHello.sayHello()
 
-    expect:
+    then:
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -39,11 +31,11 @@ class TraceAnnotationsTest extends AgentTestRunner {
   }
 
   def "test simple case with only operation name set"() {
-    setup:
+    when:
     // Test single span in new trace
     SayTracedHello.sayHA()
 
-    expect:
+    then:
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -63,11 +55,11 @@ class TraceAnnotationsTest extends AgentTestRunner {
   }
 
   def "test simple case with only resource name set"() {
-    setup:
+    when:
     // Test single span in new trace
     SayTracedHello.sayHelloOnlyResourceSet()
 
-    expect:
+    then:
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -86,11 +78,11 @@ class TraceAnnotationsTest extends AgentTestRunner {
   }
 
   def "test simple case with both resource and operation name set"() {
-    setup:
+    when:
     // Test single span in new trace
     SayTracedHello.sayHAWithResource()
 
-    expect:
+    then:
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -243,17 +235,14 @@ class TraceAnnotationsTest extends AgentTestRunner {
 
   def "test exception exit"() {
     setup:
-
     TEST_TRACER.addDecorator(new ErrorFlag())
 
-    Throwable error = null
-    try {
-      SayTracedHello.sayERROR()
-    } catch (final Throwable ex) {
-      error = ex
-    }
+    when:
+    SayTracedHello.sayERROR()
 
-    expect:
+    then:
+    def ex = thrown(RuntimeException)
+
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -262,7 +251,7 @@ class TraceAnnotationsTest extends AgentTestRunner {
           errored true
           tags {
             "$Tags.COMPONENT.key" "trace"
-            errorTags(error.class)
+            errorTags(ex.class)
             defaultTags()
           }
         }
@@ -275,14 +264,12 @@ class TraceAnnotationsTest extends AgentTestRunner {
 
     TEST_TRACER.addDecorator(new ErrorFlag())
 
-    Throwable error = null
-    try {
-      SayTracedHello.sayERRORWithResource()
-    } catch (final Throwable ex) {
-      error = ex
-    }
+    when:
+    SayTracedHello.sayERRORWithResource()
 
-    expect:
+    then:
+    def ex = thrown(RuntimeException)
+
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -291,7 +278,7 @@ class TraceAnnotationsTest extends AgentTestRunner {
           errored true
           tags {
             "$Tags.COMPONENT.key" "trace"
-            errorTags(error.class)
+            errorTags(ex.class)
             defaultTags()
           }
         }
@@ -300,11 +287,11 @@ class TraceAnnotationsTest extends AgentTestRunner {
   }
 
   def "test annonymous class annotations"() {
-    setup:
+    when:
     // Test anonymous classes with package.
     SayTracedHello.fromCallable()
 
-    expect:
+    then:
     assertTraces(1) {
       trace(0, 1) {
         span(0) {

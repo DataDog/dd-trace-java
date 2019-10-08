@@ -8,12 +8,8 @@ import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.matcher.ElementMatcher
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
-import org.junit.contrib.java.lang.system.RestoreSystemProperties
 
 class DefaultInstrumenterTest extends DDSpecification {
-
-  @Rule
-  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
   @Rule
   public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
 
@@ -59,13 +55,12 @@ class DefaultInstrumenterTest extends DDSpecification {
   def "default disabled can override to enabled"() {
     setup:
     System.setProperty("dd.integration.test.enabled", "$enabled")
-    def target = new TestDefaultInstrumenter("test") {
-      @Override
-      protected boolean defaultEnabled() {
-        return false
-      }
+
+    def target
+    ConfigUtils.withNewConfig {
+      target = new TestDefaultInstrumenterDefaultDisabled("test")
+      target.instrument(new AgentBuilder.Default())
     }
-    target.instrument(new AgentBuilder.Default())
 
     expect:
     target.enabled == enabled
@@ -77,11 +72,12 @@ class DefaultInstrumenterTest extends DDSpecification {
 
   def "configure default sys prop as #value"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.integrations.enabled", value)
+    System.setProperty("dd.integrations.enabled", value)
+    def target
+    ConfigUtils.withNewConfig {
+      target = new TestDefaultInstrumenter("test")
+      target.instrument(new AgentBuilder.Default())
     }
-    def target = new TestDefaultInstrumenter("test")
-    target.instrument(new AgentBuilder.Default())
 
     expect:
     target.enabled == enabled
@@ -97,9 +93,11 @@ class DefaultInstrumenterTest extends DDSpecification {
   def "configure default env var as #value"() {
     setup:
     environmentVariables.set("DD_INTEGRATIONS_ENABLED", value)
-    ConfigUtils.resetConfig()
-    def target = new TestDefaultInstrumenter("test")
-    target.instrument(new AgentBuilder.Default())
+    def target
+    ConfigUtils.withNewConfig {
+      target = new TestDefaultInstrumenter("test")
+      target.instrument(new AgentBuilder.Default())
+    }
 
     expect:
     target.enabled == enabled
@@ -116,8 +114,12 @@ class DefaultInstrumenterTest extends DDSpecification {
     setup:
     System.setProperty("dd.integrations.enabled", "false")
     System.setProperty("dd.integration.${value}.enabled", "true")
-    def target = new TestDefaultInstrumenter(name, altName)
-    target.instrument(new AgentBuilder.Default())
+
+    def target
+    ConfigUtils.withNewConfig {
+      target = new TestDefaultInstrumenter(name, altName)
+      target.instrument(new AgentBuilder.Default())
+    }
 
     expect:
     target.enabled == enabled
@@ -138,8 +140,12 @@ class DefaultInstrumenterTest extends DDSpecification {
     setup:
     environmentVariables.set("DD_INTEGRATIONS_ENABLED", "false")
     environmentVariables.set("DD_INTEGRATION_${value}_ENABLED", "true")
-    def target = new TestDefaultInstrumenter(name, altName)
-    target.instrument(new AgentBuilder.Default())
+
+    def target
+    ConfigUtils.withNewConfig {
+      target = new TestDefaultInstrumenter(name, altName)
+      target.instrument(new AgentBuilder.Default())
+    }
 
     expect:
     System.getenv("DD_INTEGRATION_${value}_ENABLED") == "true"
@@ -188,6 +194,23 @@ class DefaultInstrumenterTest extends DDSpecification {
     @Override
     Map<ElementMatcher, String> transformers() {
       return Collections.emptyMap()
+    }
+  }
+
+  class TestDefaultInstrumenterDefaultDisabled extends TestDefaultInstrumenter {
+    TestDefaultInstrumenterDefaultDisabled(
+      String instrumentationName) {
+      super(instrumentationName)
+    }
+
+    TestDefaultInstrumenterDefaultDisabled(
+      String instrumentationName, String additionalName) {
+      super(instrumentationName, [additionalName])
+    }
+
+    @Override
+    protected boolean defaultEnabled() {
+      return false
     }
   }
 }

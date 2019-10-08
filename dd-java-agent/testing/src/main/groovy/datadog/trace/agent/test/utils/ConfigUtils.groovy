@@ -11,42 +11,35 @@ class ConfigUtils {
   static final CONFIG_INSTANCE_FIELD = Config.getDeclaredField("INSTANCE")
   static final RUNTIME_ID_FIELD = Config.getDeclaredField("runtimeId")
 
-  @SneakyThrows
-  synchronized static <T extends Object> Object withConfigOverride(final String name, final String value, final Callable<T> r) {
-    // Ensure the class was retransformed properly in DDSpecification.makeConfigInstanceModifiable()
-    assert Modifier.isPublic(CONFIG_INSTANCE_FIELD.getModifiers())
-    assert Modifier.isStatic(CONFIG_INSTANCE_FIELD.getModifiers())
-    assert Modifier.isVolatile(CONFIG_INSTANCE_FIELD.getModifiers())
-    assert !Modifier.isFinal(CONFIG_INSTANCE_FIELD.getModifiers())
+  /**
+   * Runs the callable with a new config based on the current config
+   */
+  synchronized static <T extends Object> T withConfigOverride(final String name, final String value, final Callable r) {
+    return withConfigOverride(Collections.singletonMap(name, value), r)
+  }
 
-    def existingConfig = Config.get()
+  /**
+   * Runs the callable with a new config based on the current config
+   */
+  synchronized static <T extends Object> T withConfigOverride(Map<String, String> overrides, final Callable r) {
     Properties properties = new Properties()
-    properties.put(name, value)
-    CONFIG_INSTANCE_FIELD.set(null, new Config(properties, existingConfig))
-    assert Config.get() != existingConfig
-    try {
-      return r.call()
-    } finally {
-      CONFIG_INSTANCE_FIELD.set(null, existingConfig)
-    }
+
+    // Can't use putAll.  Groovy puts GStringImpl and other such things in maps
+    overrides.each { k, v -> properties.put(k.toString(), v.toString()) }
+
+    return runWithConfig(r, new Config(properties, Config.get()))
   }
 
   /**
-   * Provides an callback to set up the testing environment and reset the global configuration after system properties and envs are set.
-   *
-   * @param r
-   * @return
+   * Runs the callable with a new config generated from the current environment
    */
-  static updateConfig(final Callable r) {
-    r.call()
-    resetConfig()
+  synchronized static <T extends Object> T withNewConfig(final Callable<T> r) {
+    return runWithConfig(r, new Config())
   }
 
-  /**
-   * Reset the global configuration. Please note that Runtime ID is preserved to the pre-existing value.
-   */
-  static void resetConfig() {
-    // Ensure the class was re-transformed properly in DDSpecification.makeConfigInstanceModifiable()
+  @SneakyThrows
+  private synchronized static <T extends Object> T runWithConfig(Callable<T> r, Config newConfig) {
+    // Ensure the class was retransformed properly in DDSpecification.makeConfigInstanceModifiable()
     assert Modifier.isPublic(CONFIG_INSTANCE_FIELD.getModifiers())
     assert Modifier.isStatic(CONFIG_INSTANCE_FIELD.getModifiers())
     assert Modifier.isVolatile(CONFIG_INSTANCE_FIELD.getModifiers())
@@ -58,10 +51,16 @@ class ConfigUtils {
     assert !Modifier.isFinal(RUNTIME_ID_FIELD.getModifiers())
 
     def previousConfig = CONFIG_INSTANCE_FIELD.get(null)
-    def newConfig = new Config()
     CONFIG_INSTANCE_FIELD.set(null, newConfig)
+
     if (previousConfig != null) {
       RUNTIME_ID_FIELD.set(newConfig, RUNTIME_ID_FIELD.get(previousConfig))
+    }
+
+    try {
+      return r.call()
+    } finally {
+      CONFIG_INSTANCE_FIELD.set(null, previousConfig)
     }
   }
 }

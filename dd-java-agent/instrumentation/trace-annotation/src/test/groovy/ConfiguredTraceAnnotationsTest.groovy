@@ -8,15 +8,8 @@ import java.util.concurrent.Callable
 import static datadog.trace.instrumentation.trace_annotation.TraceAnnotationsInstrumentation.DEFAULT_ANNOTATIONS
 
 class ConfiguredTraceAnnotationsTest extends AgentTestRunner {
-
   static {
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.trace.annotations", "package.Class\$Name;${OuterClass.InterestingMethod.name}")
-    }
-  }
-
-  def specCleanup() {
-    System.clearProperty("dd.trace.annotations")
+    PRE_AGENT_SYS_PROPS = ["dd.trace.annotations": "package.Class\$Name;${OuterClass.InterestingMethod.name}"]
   }
 
   def "test disabled nr annotation"() {
@@ -28,13 +21,13 @@ class ConfiguredTraceAnnotationsTest extends AgentTestRunner {
   }
 
   def "test custom annotation based trace"() {
-    expect:
-    new AnnotationTracedCallable().call() == "Hello!"
-
     when:
-    TEST_WRITER.waitForTraces(1)
+    def result = ConfigUtils.withNewConfig {
+      new AnnotationTracedCallable().call()
+    }
 
     then:
+    result == "Hello!"
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -47,16 +40,19 @@ class ConfiguredTraceAnnotationsTest extends AgentTestRunner {
 
   def "test configuration #value"() {
     setup:
-    ConfigUtils.updateConfig {
-      if (value) {
-        System.properties.setProperty("dd.trace.annotations", value)
-      } else {
-        System.clearProperty("dd.trace.annotations")
-      }
+    if (value) {
+      System.properties.setProperty("dd.trace.annotations", value)
+    } else {
+      System.clearProperty("dd.trace.annotations")
     }
 
-    expect:
-    new TraceAnnotationsInstrumentation().additionalTraceAnnotations == expected.toSet()
+    when:
+    Set result = ConfigUtils.withNewConfig {
+      new TraceAnnotationsInstrumentation().additionalTraceAnnotations
+    }
+
+    then:
+    result == expected.toSet()
 
     where:
     value                               | expected

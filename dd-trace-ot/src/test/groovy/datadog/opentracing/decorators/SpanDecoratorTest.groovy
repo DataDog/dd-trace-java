@@ -1,5 +1,6 @@
 package datadog.opentracing.decorators
 
+import datadog.opentracing.DDSpan
 import datadog.opentracing.DDSpanContext
 import datadog.opentracing.DDTracer
 import datadog.opentracing.SpanFactory
@@ -18,19 +19,17 @@ import static datadog.trace.api.DDTags.EVENT_SAMPLE_RATE
 import static java.util.Collections.emptyMap
 
 class SpanDecoratorTest extends DDSpecification {
-  static {
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.$Config.SPLIT_BY_TAGS", "sn.tag1,sn.tag2")
-    }
-  }
+  DDTracer tracer
+  DDSpan span
 
-  def cleanupSpec() {
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.$Config.SPLIT_BY_TAGS")
+  def setup() {
+    System.setProperty("dd.$Config.SPLIT_BY_TAGS", "sn.tag1,sn.tag2")
+
+    tracer = ConfigUtils.withNewConfig {
+      new DDTracer(new LoggingWriter())
     }
+    span = SpanFactory.newSpanOf(tracer)
   }
-  def tracer = new DDTracer(new LoggingWriter())
-  def span = SpanFactory.newSpanOf(tracer)
 
   def "adding span personalisation using Decorators"() {
     setup:
@@ -54,16 +53,18 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "set service name"() {
     setup:
-    tracer = new DDTracer(
-      "wrong-service",
-      new LoggingWriter(),
-      new AllSampler(),
-      "some-runtime-id",
-      emptyMap(),
-      emptyMap(),
-      mapping,
-      emptyMap()
-    )
+    tracer = ConfigUtils.withNewConfig {
+      new DDTracer(
+        "wrong-service",
+        new LoggingWriter(),
+        new AllSampler(),
+        "some-runtime-id",
+        emptyMap(),
+        emptyMap(),
+        mapping,
+        emptyMap()
+      )
+    }
 
     when:
     def span = tracer.buildSpan("some span").withTag(tag, name).start()
@@ -137,16 +138,18 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "set service name from servlet.context with context '#context' for service #serviceName"() {
     setup:
-    tracer = new DDTracer(
-      serviceName,
-      new LoggingWriter(),
-      new AllSampler(),
-      "some-runtime-id",
-      emptyMap(),
-      emptyMap(),
-      mapping,
-      emptyMap()
-    )
+    tracer = ConfigUtils.withNewConfig {
+      new DDTracer(
+        serviceName,
+        new LoggingWriter(),
+        new AllSampler(),
+        "some-runtime-id",
+        emptyMap(),
+        emptyMap(),
+        mapping,
+        emptyMap()
+      )
+    }
 
     when:
     def span = tracer.buildSpan("some span").start()

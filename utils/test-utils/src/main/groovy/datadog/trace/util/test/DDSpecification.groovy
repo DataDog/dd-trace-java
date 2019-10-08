@@ -27,6 +27,8 @@ abstract class DDSpecification extends Specification {
     makeConfigInstanceModifiable()
   }
 
+  private static Properties ORIGINAL_SYS_PROPS
+
   // Keep track of config instance already made modifiable
   private static isConfigInstanceModifiable = false
 
@@ -74,5 +76,18 @@ abstract class DDSpecification extends Specification {
 
     // No longer needed (Unless class gets retransformed somehow).
     instrumentation.removeTransformer(transformer)
+  }
+
+  void setupSpec() {
+    ORIGINAL_SYS_PROPS = new Properties()
+    ORIGINAL_SYS_PROPS.putAll(System.getProperties())
+  }
+
+  void cleanupSpec() {
+    System.setProperties(new Properties(ORIGINAL_SYS_PROPS))
+  }
+
+  void setup() {
+    System.setProperties(new Properties(ORIGINAL_SYS_PROPS))
   }
 }
