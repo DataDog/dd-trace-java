@@ -35,6 +35,10 @@ import static datadog.trace.api.Config.PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH
 import static datadog.trace.api.Config.PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO
 import static datadog.trace.api.Config.PROFILING_ENABLED
 import static datadog.trace.api.Config.PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH
+import static datadog.trace.api.Config.PROFILING_PROXY_HOST
+import static datadog.trace.api.Config.PROFILING_PROXY_PASSWORD
+import static datadog.trace.api.Config.PROFILING_PROXY_PORT
+import static datadog.trace.api.Config.PROFILING_PROXY_USERNAME
 import static datadog.trace.api.Config.PROFILING_RECORDING_MAX_AGE
 import static datadog.trace.api.Config.PROFILING_RECORDING_MAX_SIZE
 import static datadog.trace.api.Config.PROFILING_STARTUP_DELAY
@@ -127,6 +131,10 @@ class ConfigTest extends Specification {
     config.profilingContinuousConfigOverridePath == null
     config.profilingUploadRequestTimeout == 30
     config.profilingUploadRequestIOOperationTimeout == 30
+    config.profilingProxyHost == null
+    config.profilingProxyPort == Config.DEFAULT_PROFILING_PROXY_PORT
+    config.profilingProxyUsername == null
+    config.profilingProxyPassword == null
 
     config.toString().contains("unnamed-java-app")
 
@@ -185,6 +193,10 @@ class ConfigTest extends Specification {
     prop.setProperty(PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
     prop.setProperty(PROFILING_UPLOAD_REQUEST_TIMEOUT, "1116")
     prop.setProperty(PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT, "1117")
+    prop.setProperty(PROFILING_PROXY_HOST, "proxy-host")
+    prop.setProperty(PROFILING_PROXY_PORT, "1118")
+    prop.setProperty(PROFILING_PROXY_USERNAME, "proxy-username")
+    prop.setProperty(PROFILING_PROXY_PASSWORD, "proxy-password")
 
     when:
     Config config = Config.get(prop)
@@ -232,6 +244,10 @@ class ConfigTest extends Specification {
     config.profilingContinuousConfigOverridePath == "/continuous/path"
     config.profilingUploadRequestTimeout == 1116
     config.profilingUploadRequestIOOperationTimeout == 1117
+    config.profilingProxyHost == "proxy-host"
+    config.profilingProxyPort == 1118
+    config.profilingProxyUsername == "proxy-username"
+    config.profilingProxyPassword == "proxy-password"
   }
 
   def "specify overrides via system properties"() {
@@ -280,6 +296,10 @@ class ConfigTest extends Specification {
     System.setProperty(PREFIX + PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
     System.setProperty(PREFIX + PROFILING_UPLOAD_REQUEST_TIMEOUT, "1116")
     System.setProperty(PREFIX + PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT, "1117")
+    System.setProperty(PREFIX + PROFILING_PROXY_HOST, "proxy-host")
+    System.setProperty(PREFIX + PROFILING_PROXY_PORT, "1118")
+    System.setProperty(PREFIX + PROFILING_PROXY_USERNAME, "proxy-username")
+    System.setProperty(PREFIX + PROFILING_PROXY_PASSWORD, "proxy-password")
 
     when:
     Config config = new Config()
@@ -327,6 +347,10 @@ class ConfigTest extends Specification {
     config.profilingContinuousConfigOverridePath == "/continuous/path"
     config.profilingUploadRequestTimeout == 1116
     config.profilingUploadRequestIOOperationTimeout == 1117
+    config.profilingProxyHost == "proxy-host"
+    config.profilingProxyPort == 1118
+    config.profilingProxyUsername == "proxy-username"
+    config.profilingProxyPassword == "proxy-password"
   }
 
   def "specify overrides via env vars"() {

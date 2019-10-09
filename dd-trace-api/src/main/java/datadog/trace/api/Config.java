@@ -113,6 +113,10 @@ public class Config {
   public static final String PROFILING_UPLOAD_REQUEST_TIMEOUT = "profiling.upload.request.timeout";
   public static final String PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT =
       "profiling.upload.request.io-operation.timeout";
+  public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
+  public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
+  public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
+  public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
 
   public static final String RUNTIME_ID_TAG = "runtime-id";
   public static final String SERVICE_TAG = "service";
@@ -165,6 +169,7 @@ public class Config {
   // TODO: Should we make this one setting?
   public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_TIMEOUT = 30; // seconds
   public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT = 30; // seconds
+  public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
@@ -252,6 +257,10 @@ public class Config {
   @Getter private final String profilingContinuousConfigOverridePath;
   @Getter private final int profilingUploadRequestTimeout;
   @Getter private final int profilingUploadRequestIOOperationTimeout;
+  @Getter private final String profilingProxyHost;
+  @Getter private final int profilingProxyPort;
+  @Getter private final String profilingProxyUsername;
+  @Getter private final String profilingProxyPassword;
 
   // Read order: System Properties -> Env Variables, [-> default value]
   // Values from an optionally provided properties file
@@ -414,6 +423,11 @@ public class Config {
         getIntegerSettingFromEnvironment(
             PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT,
             DEFAULT_PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT);
+    profilingProxyHost = getSettingFromEnvironment(PROFILING_PROXY_HOST, null);
+    profilingProxyPort =
+        getIntegerSettingFromEnvironment(PROFILING_PROXY_PORT, DEFAULT_PROFILING_PROXY_PORT);
+    profilingProxyUsername = getSettingFromEnvironment(PROFILING_PROXY_USERNAME, null);
+    profilingProxyPassword = getSettingFromEnvironment(PROFILING_PROXY_PASSWORD, null);
 
     log.debug("New instance: {}", this);
   }
@@ -565,6 +579,13 @@ public class Config {
             properties,
             PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT,
             parent.profilingUploadRequestIOOperationTimeout);
+    profilingProxyHost = properties.getProperty(PROFILING_PROXY_HOST, parent.profilingProxyHost);
+    profilingProxyPort =
+        getPropertyIntegerValue(properties, PROFILING_PROXY_PORT, parent.profilingProxyPort);
+    profilingProxyUsername =
+        properties.getProperty(PROFILING_PROXY_USERNAME, parent.profilingProxyUsername);
+    profilingProxyPassword =
+        properties.getProperty(PROFILING_PROXY_PASSWORD, parent.profilingProxyPassword);
 
     log.debug("New instance: {}", this);
   }

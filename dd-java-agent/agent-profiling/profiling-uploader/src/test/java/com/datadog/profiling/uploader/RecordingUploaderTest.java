@@ -33,6 +33,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.common.io.ByteStreams;
+import datadog.trace.api.Config;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -53,6 +54,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /** Unit tests for the recording uploader. */
@@ -91,6 +93,8 @@ public class RecordingUploaderTest {
   private final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
   private final Duration REQUEST_IO_OPERATION_TIMEOUT = Duration.ofSeconds(5);
 
+  @Mock private Config config;
+
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;
 
@@ -101,9 +105,14 @@ public class RecordingUploaderTest {
     server.start();
     url = server.url(URL_PATH);
 
-    uploader =
-        new RecordingUploader(
-            url.toString(), APIKEY_VALUE, TAGS, REQUEST_TIMEOUT, REQUEST_IO_OPERATION_TIMEOUT);
+    when(config.getProfilingUrl()).thenReturn(url.toString());
+    when(config.getProfilingApiKey()).thenReturn(APIKEY_VALUE);
+    when(config.getMergedProfilingTags()).thenReturn(TAGS);
+    when(config.getProfilingUploadRequestTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
+    when(config.getProfilingUploadRequestIOOperationTimeout())
+        .thenReturn((int) REQUEST_IO_OPERATION_TIMEOUT.getSeconds());
+
+    uploader = new RecordingUploader(config);
   }
 
   @AfterEach
@@ -163,6 +172,65 @@ public class RecordingUploaderTest {
         expectedBytes,
         (byte[])
             Iterables.getFirst(parameters.get(RecordingUploader.CHUNK_DATA_PARAM), new byte[] {}));
+  }
+
+  @Test
+  public void testRequestWithProxy() throws IOException, InterruptedException {
+    final String backendHost = "intake.profilinf.datadoghq.com:1234";
+    final String backendUrl = "http://" + backendHost + URL_PATH;
+    when(config.getProfilingUrl()).thenReturn(backendUrl);
+    when(config.getProfilingProxyHost()).thenReturn(server.url("").host());
+    when(config.getProfilingProxyPort()).thenReturn(server.url("").port());
+    when(config.getProfilingProxyUsername()).thenReturn("username");
+    when(config.getProfilingProxyPassword()).thenReturn("password");
+
+    uploader = new RecordingUploader(config);
+
+    server.enqueue(new MockResponse().setResponseCode(407).addHeader("Proxy-Authenticate: Basic"));
+    server.enqueue(new MockResponse().setResponseCode(200));
+
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_1_CHUNK));
+
+    final RecordedRequest recordedFirstRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    assertEquals(server.url(""), recordedFirstRequest.getRequestUrl());
+    assertEquals(
+        Credentials.basic(APIKEY_VALUE, ""), recordedFirstRequest.getHeader("Authorization"));
+    assertNull(recordedFirstRequest.getHeader("Proxy-Authorization"));
+    assertEquals(backendHost, recordedFirstRequest.getHeader("Host"));
+    assertEquals(
+        String.format("POST %s HTTP/1.1", backendUrl), recordedFirstRequest.getRequestLine());
+
+    final RecordedRequest recordedSecondRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    assertEquals(server.url(""), recordedSecondRequest.getRequestUrl());
+    assertEquals(
+        Credentials.basic(APIKEY_VALUE, ""), recordedSecondRequest.getHeader("Authorization"));
+    assertEquals(
+        Credentials.basic("username", "password"),
+        recordedSecondRequest.getHeader("Proxy-Authorization"));
+    assertEquals(backendHost, recordedSecondRequest.getHeader("Host"));
+    assertEquals(
+        String.format("POST %s HTTP/1.1", backendUrl), recordedSecondRequest.getRequestLine());
+  }
+
+  @Test
+  public void testRequestWithProxyDefaultPassword() throws IOException, InterruptedException {
+    final String backendUrl = "http://intake.profilinf.datadoghq.com:1234" + URL_PATH;
+    when(config.getProfilingUrl()).thenReturn(backendUrl);
+    when(config.getProfilingProxyHost()).thenReturn(server.url("").host());
+    when(config.getProfilingProxyPort()).thenReturn(server.url("").port());
+    when(config.getProfilingProxyUsername()).thenReturn("username");
+
+    uploader = new RecordingUploader(config);
+
+    server.enqueue(new MockResponse().setResponseCode(407).addHeader("Proxy-Authenticate: Basic"));
+    server.enqueue(new MockResponse().setResponseCode(200));
+
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_1_CHUNK));
+
+    final RecordedRequest recordedFirstRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    final RecordedRequest recordedSecondRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    assertEquals(
+        Credentials.basic("username", ""), recordedSecondRequest.getHeader("Proxy-Authorization"));
   }
 
   @Test

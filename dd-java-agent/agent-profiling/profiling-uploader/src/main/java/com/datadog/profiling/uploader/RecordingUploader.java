@@ -18,7 +18,10 @@ package com.datadog.profiling.uploader;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.ChunkReader;
+import datadog.trace.api.Config;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
@@ -93,24 +96,45 @@ public final class RecordingUploader {
   private final String url;
   private final List<String> tags;
 
-  public RecordingUploader(
-      final String url,
-      final String apiKey,
-      final Map<String, String> tags,
-      final Duration uploadRequestTimeout,
-      final Duration uploadRequestIOOperationTimeout) {
-    this.url = url;
-    this.apiKey = apiKey;
-    this.tags = tagsToList(tags);
+  public RecordingUploader(final Config config) {
+    url = config.getProfilingUrl();
+    apiKey = config.getProfilingApiKey();
+    tags = tagsToList(config.getMergedProfilingTags());
 
-    client =
+    final Duration ioOperationTimeout =
+        Duration.ofSeconds(config.getProfilingUploadRequestIOOperationTimeout());
+    final OkHttpClient.Builder clientBuilder =
         new OkHttpClient.Builder()
-            .connectTimeout(uploadRequestIOOperationTimeout)
-            .writeTimeout(uploadRequestIOOperationTimeout)
-            .readTimeout(uploadRequestIOOperationTimeout)
-            .callTimeout(uploadRequestTimeout)
-            .build();
+            .connectTimeout(ioOperationTimeout)
+            .writeTimeout(ioOperationTimeout)
+            .readTimeout(ioOperationTimeout)
+            .callTimeout(Duration.ofSeconds(config.getProfilingUploadRequestTimeout()));
 
+    if (config.getProfilingProxyHost() != null) {
+      final Proxy proxy =
+          new Proxy(
+              Proxy.Type.HTTP,
+              new InetSocketAddress(
+                  config.getProfilingProxyHost(), config.getProfilingProxyPort()));
+      clientBuilder.proxy(proxy);
+      if (config.getProfilingProxyUsername() != null) {
+        // Empty password by default
+        final String password =
+            config.getProfilingProxyPassword() == null ? "" : config.getProfilingProxyPassword();
+        clientBuilder.proxyAuthenticator(
+            (route, response) -> {
+              final String credential =
+                  Credentials.basic(config.getProfilingProxyUsername(), password);
+              return response
+                  .request()
+                  .newBuilder()
+                  .header("Proxy-Authorization", credential)
+                  .build();
+            });
+      }
+    }
+
+    client = clientBuilder.build();
     client.dispatcher().setMaxRequests(MAX_RUNNING_REQUESTS);
     // We are mainly talking to the same(ish) host so we need to raise this limit
     client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);

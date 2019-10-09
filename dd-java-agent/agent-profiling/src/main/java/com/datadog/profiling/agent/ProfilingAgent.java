@@ -32,13 +32,7 @@ public class ProfilingAgent {
       try {
         final Controller controller = ControllerFactory.createController(config);
 
-        final RecordingUploader uploader =
-            new RecordingUploader(
-                config.getProfilingUrl(),
-                config.getProfilingApiKey(),
-                config.getMergedProfilingTags(),
-                Duration.ofSeconds(config.getProfilingUploadRequestTimeout()),
-                Duration.ofSeconds(config.getProfilingUploadRequestIOOperationTimeout()));
+        final RecordingUploader uploader = new RecordingUploader(config);
 
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartupDelay());
         final Duration uploadPeriod = Duration.ofSeconds(config.getProfilingUploadPeriod());
