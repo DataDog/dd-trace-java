@@ -277,7 +277,7 @@ public class ProfilingSystemTest {
 
   @Test
   public void testAlternatingContinuousAndPeriodicRecordings() throws ConfigurationException {
-    final Duration uploadPeriod = Duration.ofMillis(300);
+    final Duration uploadPeriod = Duration.ofMillis(500);
     final List<RecordingData> generatedRecordingData = new ArrayList<>();
     when(continuousRecording.snapshot(any(), any()))
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
@@ -330,7 +330,7 @@ public class ProfilingSystemTest {
       final RecordingData recording = recordingDataCaptor.getAllValues().get(i);
       assertTrue(
           // There may be slight variation in processing time so we give it 10ms of leeway
-          recording.getStart().plus(uploadPeriod).isBefore(recording.getEnd().plusMillis(10)),
+          recording.getStart().plus(uploadPeriod).isBefore(recording.getEnd().plusMillis(100)),
           "recording "
               + i
               + " has required duration: "
@@ -345,7 +345,7 @@ public class ProfilingSystemTest {
         firstRecordingStart
             .plus(uploadPeriod)
             // It looks like jobs get scheduled slightly earlier so we give a 10ms of leeway
-            .isBefore(secondRecordingStart.plusMillis(10)),
+            .isBefore(secondRecordingStart.plusMillis(100)),
         "recordings have required period: "
             + firstRecordingStart.plus(uploadPeriod)
             + " is before "
