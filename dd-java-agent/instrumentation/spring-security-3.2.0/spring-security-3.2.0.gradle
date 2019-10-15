@@ -1,0 +1,21 @@
+muzzle {
+  pass {
+    group = 'org.springframework'
+    module = 'spring-security'
+    versions = "[5.2.0.RELEASE,)"
+  //  extraDependency "javax.servlet:javax.servlet.api:3.0.0"
+    assertInverse = true
+  }
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.springframework.security', name: 'spring-security-bom', version: '5.2.0.RELEASE'
+  compileOnly group: 'org.springframework.security', name: 'spring-security-config', version: '5.2.0.RELEASE'
+  compileOnly group: 'org.springframework.security', name: 'spring-security-core', version: '5.2.0.RELEASE'
+  compileOnly group: 'org.springframework.security', name: 'spring-security-web', version: '5.2.0.RELEASE'
+
+
+}
+
