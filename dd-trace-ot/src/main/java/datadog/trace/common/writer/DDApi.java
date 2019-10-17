@@ -111,6 +111,11 @@ public class DDApi {
 
   boolean sendSerializedTraces(
       final int representativeCount, final Integer sizeInBytes, final List<byte[]> traces) {
+    return sendSerializedTraces2(representativeCount, sizeInBytes, traces).success();
+  }
+
+  Response sendSerializedTraces2(
+      final int representativeCount, final Integer sizeInBytes, final List<byte[]> traces) {
     try {
       final RequestBody body =
           new RequestBody() {
@@ -150,7 +155,7 @@ public class DDApi {
               .put(body)
               .build();
 
-      try (final Response response = httpClient.newCall(request).execute()) {
+      try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
         if (response.code() != 200) {
           if (log.isDebugEnabled()) {
             log.debug(
@@ -170,7 +175,7 @@ public class DDApi {
                 response.message(),
                 TimeUnit.MILLISECONDS.toMinutes(MILLISECONDS_BETWEEN_ERROR_LOG));
           }
-          return false;
+          return new Response(false);
         }
 
         log.debug(
@@ -190,7 +195,7 @@ public class DDApi {
         } catch (final JsonParseException e) {
           log.debug("Failed to parse DD agent response: " + responseString, e);
         }
-        return true;
+        return new Response(true);
       }
     } catch (final IOException e) {
       if (log.isDebugEnabled()) {
@@ -211,7 +216,7 @@ public class DDApi {
             e.getMessage(),
             TimeUnit.MILLISECONDS.toMinutes(MILLISECONDS_BETWEEN_ERROR_LOG));
       }
-      return false;
+      return new Response(false);
     }
   }
 
@@ -230,7 +235,7 @@ public class DDApi {
       final RequestBody body = RequestBody.create(MSGPACK, OBJECT_MAPPER.writeValueAsBytes(data));
       final Request request = prepareRequest(url).put(body).build();
 
-      try (final Response response = client.newCall(request).execute()) {
+      try (final okhttp3.Response response = client.newCall(request).execute()) {
         return response.code() == 200;
       }
     } catch (final IOException e) {
@@ -283,6 +288,18 @@ public class DDApi {
   @Override
   public String toString() {
     return "DDApi { tracesUrl=" + tracesUrl + " }";
+  }
+
+  public static class Response {
+    private final boolean success;
+
+    protected Response(final boolean success) {
+      this.success = success;
+    }
+
+    public boolean success() {
+      return this.success;
+    }
   }
 
   public interface ResponseListener {
