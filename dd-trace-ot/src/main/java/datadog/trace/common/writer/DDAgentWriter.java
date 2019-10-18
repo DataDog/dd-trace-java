@@ -294,23 +294,21 @@ public class DDAgentWriter implements Writer {
               @Override
               public void run() {
                 try {
-                  final boolean sent =
+                  final DDApi.Response response =
                       api.sendSerializedTraces(representativeCount, sizeInBytes, toSend);
 
-                  if ( sent ) {
-                    monitor.onSend(DDAgentWriter.this, representativeCount, sizeInBytes);
-                  } else {
-                    monitor.onFailedSend(DDAgentWriter.this, representativeCount, sizeInBytes, null);
-                  }
-
-                  if (sent) {
+                  if (response.success()) {
                     log.debug("Successfully sent {} traces to the API", toSend.size());
+
+                    monitor.onSend(DDAgentWriter.this, representativeCount, sizeInBytes);
                   } else {
                     log.debug(
                         "Failed to send {} traces (representing {}) of size {} bytes to the API",
                         toSend.size(),
                         representativeCount,
                         sizeInBytes);
+
+                    monitor.onFailedSend(DDAgentWriter.this, representativeCount, sizeInBytes, null);
                   }
                 } catch (final Throwable e) {
                   log.debug("Failed to send traces to the API: {}", e.getMessage());
