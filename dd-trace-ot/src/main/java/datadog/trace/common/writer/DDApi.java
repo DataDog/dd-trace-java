@@ -87,7 +87,8 @@ public class DDApi {
    * Send traces to the DD agent
    *
    * @param traces the traces to be sent
-   * @return a Response object -- encapsulating success of communication, sending, and result parsing
+   * @return a Response object -- encapsulating success of communication, sending, and result
+   *     parsing
    */
   public Response sendTraces(final List<List<DDSpan>> traces) {
     final List<byte[]> serializedTraces = new ArrayList<>(traces.size());
@@ -295,50 +296,37 @@ public class DDApi {
   /**
    * Encapsulates an attempted response from the Datadog agent.
    *
-   * If communication fails or times out, the Response will NOT
-   * be successful and will lack status code, but will have an
-   * exception.
+   * <p>If communication fails or times out, the Response will NOT be successful and will lack
+   * status code, but will have an exception.
    *
-   * If an communication occurs, the Response will have a status
-   * code and will be marked as success or fail in accordance with
-   * the code.
+   * <p>If an communication occurs, the Response will have a status code and will be marked as
+   * success or fail in accordance with the code.
    *
-   * NOTE: A successful communication may still contain an
-   * exception if there was a problem parsing the response from
-   * the Datadog agent.
+   * <p>NOTE: A successful communication may still contain an exception if there was a problem
+   * parsing the response from the Datadog agent.
    */
   public static final class Response {
-    /**
-     * Factory method for a successful request with a trivial response body
-     */
+    /** Factory method for a successful request with a trivial response body */
     public static final Response success(final int status) {
       return new Response(true, status, null, null);
     }
 
-    /**
-     * Factory method for a successful request with a well-formed JSON response body
-     */
+    /** Factory method for a successful request with a well-formed JSON response body */
     public static final Response success(final int status, final JsonNode json) {
       return new Response(true, status, json, null);
     }
 
-    /**
-     * Factory method for a successful request will a malformed response body
-     */
+    /** Factory method for a successful request will a malformed response body */
     public static final Response success(final int status, final Throwable exception) {
       return new Response(true, status, null, exception);
     }
 
-    /**
-     * Factory method for a request that receive an error status in response
-     */
+    /** Factory method for a request that receive an error status in response */
     public static final Response failed(final int status) {
       return new Response(false, status, null, null);
     }
 
-    /**
-     * Factory method for a failed communication attempt
-     */
+    /** Factory method for a failed communication attempt */
     public static final Response failed(final Throwable exception) {
       return new Response(false, null, null, exception);
     }
@@ -349,11 +337,10 @@ public class DDApi {
     private final Throwable exception;
 
     protected Response(
-      final boolean success,
-      final Integer status,
-      final JsonNode json,
-      final Throwable exception)
-    {
+        final boolean success,
+        final Integer status,
+        final JsonNode json,
+        final Throwable exception) {
       this.success = success;
       this.status = status;
       this.json = json;
