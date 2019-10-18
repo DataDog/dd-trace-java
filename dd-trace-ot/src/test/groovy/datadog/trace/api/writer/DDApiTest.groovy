@@ -34,13 +34,13 @@ class DDApiTest extends DDSpecification {
 
     expect:
     client.tracesUrl.toString() == "http://localhost:${agent.address.port}/v0.4/traces"
-    client.sendTraces([])
+    client.sendTraces([]).success()
 
     cleanup:
     agent.close()
   }
 
-  def "non-200 response results in false returned"() {
+  def "non-200 response"() {
     setup:
     def agent = httpServer {
       handlers {
@@ -53,7 +53,7 @@ class DDApiTest extends DDSpecification {
 
     expect:
     client.tracesUrl.toString() == "http://localhost:${agent.address.port}/v0.3/traces"
-    !client.sendTraces([])
+    !client.sendTraces([]).success()
 
     cleanup:
     agent.close()
@@ -72,7 +72,7 @@ class DDApiTest extends DDSpecification {
 
     expect:
     client.tracesUrl.toString() == "http://localhost:${agent.address.port}/v0.4/traces"
-    client.sendTraces(traces)
+    client.sendTraces(traces).success()
     agent.lastRequest.contentType == "application/msgpack"
     agent.lastRequest.headers.get("Datadog-Meta-Lang") == "java"
     agent.lastRequest.headers.get("Datadog-Meta-Lang-Version") == System.getProperty("java.version", "unknown")
@@ -161,7 +161,7 @@ class DDApiTest extends DDSpecification {
 
     expect:
     client.tracesUrl.toString() == "http://localhost:${v3Agent.address.port}/v0.3/traces"
-    client.sendTraces([])
+    client.sendTraces([]).success()
 
     cleanup:
     v3Agent.close()
@@ -214,7 +214,7 @@ class DDApiTest extends DDSpecification {
     def client = new DDApi("localhost", agent.address.port, null)
 
     when:
-    def success = client.sendTraces(traces)
+    def success = client.sendTraces(traces).success()
     then:
     success
     receivedContentLength.get() == expectedLength
