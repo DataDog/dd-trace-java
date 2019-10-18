@@ -13,6 +13,8 @@ import com.lmax.disruptor.EventTranslatorOneArg;
 import com.lmax.disruptor.SleepingWaitStrategy;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
+import com.timgroup.statsd.NonBlockingStatsDClient;
+import com.timgroup.statsd.StatsDClient;
 import datadog.opentracing.DDSpan;
 import datadog.trace.common.util.DaemonThreadFactory;
 import java.util.ArrayList;
@@ -26,9 +28,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
-
-import com.timgroup.statsd.StatsDClient;
-import com.timgroup.statsd.NonBlockingStatsDClient;
 
 /**
  * This writer buffers traces and sends them to the provided DDApi instance.
@@ -50,13 +49,23 @@ public class DDAgentWriter implements Writer {
 
     void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete);
 
-    void onSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace);
+    void onSerialize(
+        final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace);
 
-    void onFailedSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause);
+    void onFailedSerialize(
+        final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause);
 
-    void onSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response);
+    void onSend(
+        final DDAgentWriter agentWriter,
+        final int representativeCount,
+        final int sizeInBytes,
+        final DDApi.Response response);
 
-    void onFailedSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response);
+    void onFailedSend(
+        final DDAgentWriter agentWriter,
+        final int representativeCount,
+        final int sizeInBytes,
+        final DDApi.Response response);
   }
 
   private static final int DISRUPTOR_BUFFER_SIZE = 8192;
@@ -131,9 +140,11 @@ public class DDAgentWriter implements Writer {
   public final long getDisruptorCapacity() {
     return disruptor.getRingBuffer().getBufferSize();
   }
+
   public final long getDisruptorUtilizedCapacity() {
     return getDisruptorCapacity() - getDisruptorRemainingCapacity();
   }
+
   public final long getDisruptorRemainingCapacity() {
     return disruptor.getRingBuffer().remainingCapacity();
   }
@@ -142,7 +153,7 @@ public class DDAgentWriter implements Writer {
   public void write(final List<DDSpan> trace) {
     // We can't add events after shutdown otherwise it will never complete shutting down.
     if (running) {
-        final boolean published = disruptor.getRingBuffer().tryPublishEvent(TRANSLATOR, trace);
+      final boolean published = disruptor.getRingBuffer().tryPublishEvent(TRANSLATOR, trace);
 
       if (published) {
         monitor.onPublish(DDAgentWriter.this, trace);
@@ -320,14 +331,21 @@ public class DDAgentWriter implements Writer {
                         representativeCount,
                         sizeInBytes);
 
-                    monitor.onFailedSend(DDAgentWriter.this, representativeCount, sizeInBytes, response);
+                    monitor.onFailedSend(
+                        DDAgentWriter.this, representativeCount, sizeInBytes, response);
                   }
                 } catch (final Throwable e) {
                   log.debug("Failed to send traces to the API: {}", e.getMessage());
 
-                  // DQH - 10/2019 - DDApi should wrap most exceptions itself, so this really shouldn't occur.
-                  // However, just to be safe to start, create a failed Response to handle any spurious Throwable-s.
-                  monitor.onFailedSend(DDAgentWriter.this, representativeCount, sizeInBytes, DDApi.Response.failed(e));
+                  // DQH - 10/2019 - DDApi should wrap most exceptions itself, so this really
+                  // shouldn't occur.
+                  // However, just to be safe to start, create a failed Response to handle any
+                  // spurious Throwable-s.
+                  monitor.onFailedSend(
+                      DDAgentWriter.this,
+                      representativeCount,
+                      sizeInBytes,
+                      DDApi.Response.failed(e));
                 } finally {
                   apiPhaser.arrive(); // Flush completed.
                 }
@@ -366,32 +384,43 @@ public class DDAgentWriter implements Writer {
     public void onFailedPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {}
 
     @Override
-    public void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete) {}
+    public void onScheduleFlush(
+        final DDAgentWriter agentWriter, final boolean previousIncomplete) {}
 
     @Override
-    public void onSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace) {}
+    public void onSerialize(
+        final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace) {}
 
     @Override
-    public void onFailedSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause) {}
+    public void onFailedSerialize(
+        final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause) {}
 
     @Override
-    public void onSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response) {}
+    public void onSend(
+        final DDAgentWriter agentWriter,
+        final int representativeCount,
+        final int sizeInBytes,
+        final DDApi.Response response) {}
 
     @Override
-    public void onFailedSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response) {}
+    public void onFailedSend(
+        final DDAgentWriter agentWriter,
+        final int representativeCount,
+        final int sizeInBytes,
+        final DDApi.Response response) {}
   }
 
   private static final class StatsdMonitor implements Monitor {
-    private final StatsDClient statsd = new NonBlockingStatsDClient(
-      // TODO: DQH - Switch to production prefix
-      "poc.tracer",
-      // TODO: DQH - Switch to agent host property
-      "localhost",
-      // TODO: DQH - Switch to agent port property
-      8125,
-      // TODO: DQH - Java tags
-      new String[] {}
-    );
+    private final StatsDClient statsd =
+        new NonBlockingStatsDClient(
+            // TODO: DQH - Switch to production prefix
+            "poc.tracer",
+            // TODO: DQH - Switch to agent host property
+            "localhost",
+            // TODO: DQH - Switch to agent port property
+            8125,
+            // TODO: DQH - Java tags
+            new String[] {});
 
     @Override
     public void onStart(final DDAgentWriter agentWriter) {
@@ -399,8 +428,7 @@ public class DDAgentWriter implements Writer {
     }
 
     @Override
-    public void onShutdown(final DDAgentWriter agentWriter, final boolean flushSuccess) {
-    }
+    public void onShutdown(final DDAgentWriter agentWriter, final boolean flushSuccess) {}
 
     @Override
     public void onPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {
@@ -419,27 +447,43 @@ public class DDAgentWriter implements Writer {
     }
 
     @Override
-    public void onSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace) {
-      // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't map precisely
+    public void onSerialize(
+        final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace) {
+      // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
+      // map precisely
       statsd.count("queue.accepted_size", serializedTrace.length);
     }
 
     @Override
-    public void onFailedSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause) {
-      // TODO - DQH - make a new stat for serialization failure -- or maybe count this towards api.errors???
+    public void onFailedSerialize(
+        final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause) {
+      // TODO - DQH - make a new stat for serialization failure -- or maybe count this towards
+      // api.errors???
     }
 
     @Override
-    public void onSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response) {
+    public void onSend(
+        final DDAgentWriter agentWriter,
+        final int representativeCount,
+        final int sizeInBytes,
+        final DDApi.Response response) {
       onSendAttempt(agentWriter, representativeCount, sizeInBytes, response);
     }
 
     @Override
-    public void onFailedSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response) {
+    public void onFailedSend(
+        final DDAgentWriter agentWriter,
+        final int representativeCount,
+        final int sizeInBytes,
+        final DDApi.Response response) {
       onSendAttempt(agentWriter, representativeCount, sizeInBytes, response);
     }
 
-    private void onSendAttempt(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response) {
+    private void onSendAttempt(
+        final DDAgentWriter agentWriter,
+        final int representativeCount,
+        final int sizeInBytes,
+        final DDApi.Response response) {
       statsd.incrementCounter("api.requests");
       statsd.recordGaugeValue("queue.length", representativeCount);
       // TODO: missing queue.spans (# of spans being sent)
