@@ -83,13 +83,18 @@ public class DDApi {
     }
   }
 
+
+  public boolean legacySendTraces(final List<List<DDSpan>> traces) {
+    return this.sendTraces(traces).success();
+  }
+
   /**
    * Send traces to the DD agent
    *
    * @param traces the traces to be sent
-   * @return the staus code returned
+   * @return a Response object -- encapsulating success of communication, sending, and result parsing
    */
-  public boolean sendTraces(final List<List<DDSpan>> traces) {
+  public Response sendTraces(final List<List<DDSpan>> traces) {
     final List<byte[]> serializedTraces = new ArrayList<>(traces.size());
     int sizeInBytes = 0;
     for (final List<DDSpan> trace : traces) {
@@ -102,7 +107,7 @@ public class DDApi {
       }
     }
 
-    return legacySendSerializedTraces(serializedTraces.size(), sizeInBytes, serializedTraces);
+    return sendSerializedTraces(serializedTraces.size(), sizeInBytes, serializedTraces);
   }
 
   byte[] serializeTrace(final List<DDSpan> trace) throws JsonProcessingException {
