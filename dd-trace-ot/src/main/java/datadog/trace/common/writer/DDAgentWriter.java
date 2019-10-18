@@ -36,6 +36,26 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class DDAgentWriter implements Writer {
+  public interface Monitor {
+    void onStart(final DDAgentWriter agentWriter);
+
+    void onShutdown(final DDAgentWriter agentWriter, final boolean flushSuccess);
+
+    void onPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace);
+
+    void onFailedPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause);
+
+    void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete);
+
+    void onSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace);
+
+    void onFailedSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause);
+
+    void onSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes);
+
+    void onFailedSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final Throwable optionalCause);
+  }
+
   private static final int DISRUPTOR_BUFFER_SIZE = 8192;
   private static final int FLUSH_PAYLOAD_BYTES = 5_000_000; // 5 MB
   private static final int FLUSH_PAYLOAD_DELAY = 1; // 1/second
@@ -71,6 +91,8 @@ public class DDAgentWriter implements Writer {
   private final Phaser apiPhaser;
   private volatile boolean running = false;
 
+  private final Monitor monitor = new NoopMonitor();
+
   public DDAgentWriter() {
     this(new DDApi(DEFAULT_AGENT_HOST, DEFAULT_TRACE_AGENT_PORT, DEFAULT_AGENT_UNIX_DOMAIN_SOCKET));
   }
@@ -102,18 +124,28 @@ public class DDAgentWriter implements Writer {
     apiPhaser.register(); // Register on behalf of the scheduled executor thread.
   }
 
+
+
   @Override
   public void write(final List<DDSpan> trace) {
     // We can't add events after shutdown otherwise it will never complete shutting down.
     if (running) {
-      final boolean published = disruptor.getRingBuffer().tryPublishEvent(TRANSLATOR, trace);
-      if (!published) {
+        final boolean published = disruptor.getRingBuffer().tryPublishEvent(TRANSLATOR, trace);
+
+      if (published) {
+        monitor.onPublish(DDAgentWriter.this, trace);
+      } else {
         // We're discarding the trace, but we still want to count it.
         traceCount.incrementAndGet();
+
         log.debug("Trace written to overfilled buffer. Counted but dropping trace: {}", trace);
+
+        monitor.onFailedPublish(this, trace, null);
       }
     } else {
       log.debug("Trace written after shutdown. Ignoring trace: {}", trace);
+
+      monitor.onFailedPublish(this, trace, null);
     }
   }
 
@@ -131,11 +163,16 @@ public class DDAgentWriter implements Writer {
     disruptor.start();
     running = true;
     scheduleFlush();
+
+    monitor.onStart(this);
   }
 
   @Override
   public void close() {
     running = false;
+
+    boolean flushSuccess = true;
+
     // We have to shutdown scheduled executor first to make sure no flush events issued after
     // disruptor has been shutdown.
     // Otherwise those events will never be processed and flush call will wait forever.
@@ -144,13 +181,17 @@ public class DDAgentWriter implements Writer {
       scheduledWriterExecutor.awaitTermination(flushFrequencySeconds, SECONDS);
     } catch (final InterruptedException e) {
       log.warn("Waiting for flush executor shutdown interrupted.", e);
+
+      flushSuccess = false;
     }
-    flush();
+    flushSuccess |= flush();
     disruptor.shutdown();
+
+    monitor.onShutdown(this, flushSuccess);
   }
 
   /** This method will block until the flush is complete. */
-  public void flush() {
+  public boolean flush() {
     if (running) {
       log.info("Flushing any remaining traces.");
       // Register with the phaser so we can block until the flush completion.
@@ -159,9 +200,15 @@ public class DDAgentWriter implements Writer {
       try {
         // Allow thread to be interrupted.
         apiPhaser.awaitAdvanceInterruptibly(apiPhaser.arriveAndDeregister());
+
+        return true;
       } catch (final InterruptedException e) {
         log.warn("Waiting for flush interrupted.", e);
+
+        return false;
       }
+    } else {
+      return false;
     }
   }
 
@@ -175,9 +222,13 @@ public class DDAgentWriter implements Writer {
       final ScheduledFuture<?> previous =
           flushSchedule.getAndSet(
               scheduledWriterExecutor.schedule(flushTask, flushFrequencySeconds, SECONDS));
-      if (previous != null) {
+
+      final boolean previousIncomplete = (previous != null);
+      if (previousIncomplete) {
         previous.cancel(true);
       }
+
+      monitor.onScheduleFlush(this, previousIncomplete);
     }
   }
 
@@ -205,10 +256,16 @@ public class DDAgentWriter implements Writer {
           final byte[] serializedTrace = api.serializeTrace(trace);
           payloadSize += serializedTrace.length;
           serializedTraces.add(serializedTrace);
+
+          monitor.onSerialize(DDAgentWriter.this, trace, serializedTrace);
         } catch (final JsonProcessingException e) {
           log.warn("Error serializing trace", e);
+
+          monitor.onFailedSerialize(DDAgentWriter.this, trace, e);
         } catch (final Throwable e) {
           log.debug("Error while serializing trace", e);
+
+          monitor.onFailedSerialize(DDAgentWriter.this, trace, e);
         }
       }
       if (event.shouldFlush || payloadSize >= FLUSH_PAYLOAD_BYTES) {
@@ -239,6 +296,13 @@ public class DDAgentWriter implements Writer {
                 try {
                   final boolean sent =
                       api.sendSerializedTraces(representativeCount, sizeInBytes, toSend);
+
+                  if ( sent ) {
+                    monitor.onSend(DDAgentWriter.this, representativeCount, sizeInBytes);
+                  } else {
+                    monitor.onFailedSend(DDAgentWriter.this, representativeCount, sizeInBytes, null);
+                  }
+
                   if (sent) {
                     log.debug("Successfully sent {} traces to the API", toSend.size());
                   } else {
@@ -250,6 +314,8 @@ public class DDAgentWriter implements Writer {
                   }
                 } catch (final Throwable e) {
                   log.debug("Failed to send traces to the API: {}", e.getMessage());
+
+                  monitor.onFailedSend(DDAgentWriter.this, representativeCount, sizeInBytes, e);
                 } finally {
                   apiPhaser.arrive(); // Flush completed.
                 }
@@ -272,5 +338,34 @@ public class DDAgentWriter implements Writer {
     public Event<T> newInstance() {
       return new Event<>();
     }
+  }
+
+  private static final class NoopMonitor implements Monitor {
+    @Override
+    public void onStart(final DDAgentWriter agentWriter) {}
+
+    @Override
+    public void onShutdown(final DDAgentWriter agentWriter, final boolean flushSuccess) {}
+
+    @Override
+    public void onPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {}
+
+    @Override
+    public void onFailedPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause) {}
+
+    @Override
+    public void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete) {}
+
+    @Override
+    public void onSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace) {}
+
+    @Override
+    public void onFailedSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause) {}
+
+    @Override
+    public void onSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes) {}
+
+    @Override
+    public void onFailedSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final Throwable optionalCause) {}
   }
 }
