@@ -27,6 +27,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
+import com.timgroup.statsd.StatsDClient;
+import com.timgroup.statsd.NonBlockingStatsDClient;
+
 /**
  * This writer buffers traces and sends them to the provided DDApi instance.
  *
@@ -376,5 +379,81 @@ public class DDAgentWriter implements Writer {
 
     @Override
     public void onFailedSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response) {}
+  }
+
+  private static final class StatsdMonitor implements Monitor {
+    private final StatsDClient statsd = new NonBlockingStatsDClient(
+      // TODO: DQH - Switch to production prefix
+      "poc.tracer",
+      // TODO: DQH - Switch to agent host property
+      "localhost",
+      // TODO: DQH - Switch to agent port property
+      8125,
+      // TODO: DQH - Java tags
+      new String[] {}
+    );
+
+    @Override
+    public void onStart(final DDAgentWriter agentWriter) {
+      statsd.recordGaugeValue("queue.max_length", agentWriter.getDisruptorCapacity());
+    }
+
+    @Override
+    public void onShutdown(final DDAgentWriter agentWriter, final boolean flushSuccess) {
+    }
+
+    @Override
+    public void onPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {
+      statsd.incrementCounter("queue.accepted");
+      statsd.count("queue.accepted_lengths", trace.size());
+    }
+
+    @Override
+    public void onFailedPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {
+      statsd.incrementCounter("queue.dropped");
+    }
+
+    @Override
+    public void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete) {
+      // not recorded
+    }
+
+    @Override
+    public void onSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace) {
+      // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't map precisely
+      statsd.count("queue.accepted_size", serializedTrace.length);
+    }
+
+    @Override
+    public void onFailedSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause) {
+      // TODO - DQH - make a new stat for serialization failure -- or maybe count this towards api.errors???
+    }
+
+    @Override
+    public void onSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response) {
+      onSendAttempt(agentWriter, representativeCount, sizeInBytes, response);
+    }
+
+    @Override
+    public void onFailedSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response) {
+      onSendAttempt(agentWriter, representativeCount, sizeInBytes, response);
+    }
+
+    private void onSendAttempt(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response) {
+      statsd.incrementCounter("api.requests");
+      statsd.recordGaugeValue("queue.length", representativeCount);
+      // TODO: missing queue.spans (# of spans being sent)
+      statsd.recordGaugeValue("queue.size", sizeInBytes);
+
+      if (response.exception() != null) {
+        // covers communication errors -- both not receiving a response or
+        // receiving malformed response (even when otherwise successful)
+        statsd.incrementCounter("api.errors");
+      }
+
+      if (response.status() != null) {
+        statsd.incrementCounter("api.responses", "status: " + response.status());
+      }
+    }
   }
 }

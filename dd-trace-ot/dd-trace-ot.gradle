@@ -33,6 +33,9 @@ dependencies {
   compile deps.opentracing
   compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
+  // DQH - This is probably wrong.  We need to decide how to package dogstatd with the agent.
+  compile group: 'com.datadoghq', name: 'java-dogstatsd-client', version: '2.1.1'
+
   compile deps.jackson
   compile deps.slf4j
   compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.11.0' // Last version to support Java7
