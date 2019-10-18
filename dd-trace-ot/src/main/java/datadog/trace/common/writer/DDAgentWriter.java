@@ -43,7 +43,7 @@ public class DDAgentWriter implements Writer {
 
     void onPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace);
 
-    void onFailedPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause);
+    void onFailedPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace);
 
     void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete);
 
@@ -149,12 +149,12 @@ public class DDAgentWriter implements Writer {
 
         log.debug("Trace written to overfilled buffer. Counted but dropping trace: {}", trace);
 
-        monitor.onFailedPublish(this, trace, null);
+        monitor.onFailedPublish(this, trace);
       }
     } else {
       log.debug("Trace written after shutdown. Ignoring trace: {}", trace);
 
-      monitor.onFailedPublish(this, trace, null);
+      monitor.onFailedPublish(this, trace);
     }
   }
 
@@ -360,7 +360,7 @@ public class DDAgentWriter implements Writer {
     public void onPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {}
 
     @Override
-    public void onFailedPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause) {}
+    public void onFailedPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {}
 
     @Override
     public void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete) {}
