@@ -104,6 +104,8 @@ public class DDApi {
         serializedTraces.add(serializedTrace);
       } catch (final JsonProcessingException e) {
         log.warn("Error serializing trace", e);
+
+        // TODO: DQH - Incorporate the failed serialization into the Response object???
       }
     }
 
