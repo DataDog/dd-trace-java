@@ -435,7 +435,8 @@ public class Config {
 
     metricsEnabled = getPropertyBooleanValue(properties, METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
     metricsStatsdHost = properties.getProperty(METRICS_STATSD_HOST, jmxFetchStatsdHost);
-    metricsStatsdPort = getPropertyIntegerValue(properties, METRICS_STATSD_PORT, jmxFetchStatsdPort);
+    metricsStatsdPort =
+        getPropertyIntegerValue(properties, METRICS_STATSD_PORT, jmxFetchStatsdPort);
 
     logsInjectionEnabled =
         getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
