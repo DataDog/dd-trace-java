@@ -102,19 +102,20 @@ public class DDApi {
       }
     }
 
-    return sendSerializedTraces(serializedTraces.size(), sizeInBytes, serializedTraces);
+    return legacySendSerializedTraces(serializedTraces.size(), sizeInBytes, serializedTraces);
   }
 
   byte[] serializeTrace(final List<DDSpan> trace) throws JsonProcessingException {
     return OBJECT_MAPPER.writeValueAsBytes(trace);
   }
 
-  boolean sendSerializedTraces(
+  @Deprecated
+  boolean legacySendSerializedTraces(
       final int representativeCount, final Integer sizeInBytes, final List<byte[]> traces) {
-    return sendSerializedTraces2(representativeCount, sizeInBytes, traces).success();
+    return sendSerializedTraces(representativeCount, sizeInBytes, traces).success();
   }
 
-  Response sendSerializedTraces2(
+  Response sendSerializedTraces(
       final int representativeCount, final Integer sizeInBytes, final List<byte[]> traces) {
     try {
       final RequestBody body =
