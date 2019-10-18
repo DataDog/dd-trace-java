@@ -188,14 +188,19 @@ public class DDApi {
           if (!"".equals(responseString) && !"OK".equalsIgnoreCase(responseString)) {
             final JsonNode parsedResponse = OBJECT_MAPPER.readTree(responseString);
             final String endpoint = tracesUrl.toString();
+
             for (final ResponseListener listener : responseListeners) {
               listener.onResponse(endpoint, parsedResponse);
             }
+            return Response.success(response.code(), parsedResponse);
           }
+
+          return Response.success(response.code());
         } catch (final JsonParseException e) {
           log.debug("Failed to parse DD agent response: " + responseString, e);
+
+          return Response.success(response.code(), e);
         }
-        return Response.success(response.code());
       }
     } catch (final IOException e) {
       if (log.isDebugEnabled()) {
@@ -306,29 +311,55 @@ public class DDApi {
    * the Datadog agent.
    */
   public static final class Response {
+    /**
+     * Factory method for a successful request with a trivial response body
+     */
     public static final Response success(final int status) {
-      return new Response(true, status, null);
+      return new Response(true, status, null, null);
     }
 
+    /**
+     * Factory method for a successful request with a well-formed JSON response body
+     */
+    public static final Response success(final int status, final JsonNode json) {
+      return new Response(true, status, json, null);
+    }
+
+    /**
+     * Factory method for a successful request will a malformed response body
+     */
+    public static final Response success(final int status, final Throwable exception) {
+      return new Response(true, status, null, exception);
+    }
+
+    /**
+     * Factory method for a request that receive an error status in response
+     */
     public static final Response failed(final int status) {
-      return new Response(false, status, null);
+      return new Response(false, status, null, null);
     }
 
+    /**
+     * Factory method for a failed communication attempt
+     */
     public static final Response failed(final Throwable exception) {
-      return new Response(false, null, exception);
+      return new Response(false, null, null, exception);
     }
 
     private final boolean success;
     private final Integer status;
+    private final JsonNode json;
     private final Throwable exception;
 
     protected Response(
       final boolean success,
       final Integer status,
+      final JsonNode json,
       final Throwable exception)
     {
       this.success = success;
       this.status = status;
+      this.json = json;
       this.exception = exception;
     }
 
@@ -339,6 +370,10 @@ public class DDApi {
     // TODO: DQH - In Java 8, switch to OptionalInteger
     public final Integer status() {
       return this.status;
+    }
+
+    public final JsonNode json() {
+      return this.json;
     }
 
     // TODO: DQH - In Java 8, switch to Optional<Throwable>?
