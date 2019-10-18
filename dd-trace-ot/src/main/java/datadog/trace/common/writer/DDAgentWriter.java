@@ -124,7 +124,16 @@ public class DDAgentWriter implements Writer {
     apiPhaser.register(); // Register on behalf of the scheduled executor thread.
   }
 
-
+  // Exposing some statistics for consumption by monitors
+  public final long getDisruptorCapacity() {
+    return disruptor.getRingBuffer().getBufferSize();
+  }
+  public final long getDisruptorUtilizedCapacity() {
+    return getDisruptorCapacity() - getDisruptorRemainingCapacity();
+  }
+  public final long getDisruptorRemainingCapacity() {
+    return disruptor.getRingBuffer().remainingCapacity();
+  }
 
   @Override
   public void write(final List<DDSpan> trace) {
