@@ -83,11 +83,6 @@ public class DDApi {
     }
   }
 
-
-  public boolean legacySendTraces(final List<List<DDSpan>> traces) {
-    return this.sendTraces(traces).success();
-  }
-
   /**
    * Send traces to the DD agent
    *
@@ -114,12 +109,6 @@ public class DDApi {
 
   byte[] serializeTrace(final List<DDSpan> trace) throws JsonProcessingException {
     return OBJECT_MAPPER.writeValueAsBytes(trace);
-  }
-
-  @Deprecated
-  boolean legacySendSerializedTraces(
-      final int representativeCount, final Integer sizeInBytes, final List<byte[]> traces) {
-    return sendSerializedTraces(representativeCount, sizeInBytes, traces).success();
   }
 
   Response sendSerializedTraces(
