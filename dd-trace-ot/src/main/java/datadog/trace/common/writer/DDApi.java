@@ -175,7 +175,7 @@ public class DDApi {
                 response.message(),
                 TimeUnit.MILLISECONDS.toMinutes(MILLISECONDS_BETWEEN_ERROR_LOG));
           }
-          return new Response(false);
+          return Response.failed(response.code());
         }
 
         log.debug(
@@ -195,7 +195,7 @@ public class DDApi {
         } catch (final JsonParseException e) {
           log.debug("Failed to parse DD agent response: " + responseString, e);
         }
-        return new Response(true);
+        return Response.success(response.code());
       }
     } catch (final IOException e) {
       if (log.isDebugEnabled()) {
@@ -216,7 +216,7 @@ public class DDApi {
             e.getMessage(),
             TimeUnit.MILLISECONDS.toMinutes(MILLISECONDS_BETWEEN_ERROR_LOG));
       }
-      return new Response(false);
+      return Response.failed(e);
     }
   }
 
@@ -290,15 +290,60 @@ public class DDApi {
     return "DDApi { tracesUrl=" + tracesUrl + " }";
   }
 
-  public static class Response {
-    private final boolean success;
-
-    protected Response(final boolean success) {
-      this.success = success;
+  /**
+   * Encapsulates an attempted response from the Datadog agent.
+   *
+   * If communication fails or times out, the Response will NOT
+   * be successful and will lack status code, but will have an
+   * exception.
+   *
+   * If an communication occurs, the Response will have a status
+   * code and will be marked as success or fail in accordance with
+   * the code.
+   *
+   * NOTE: A successful communication may still contain an
+   * exception if there was a problem parsing the response from
+   * the Datadog agent.
+   */
+  public static final class Response {
+    public static final Response success(final int status) {
+      return new Response(true, status, null);
     }
 
-    public boolean success() {
+    public static final Response failed(final int status) {
+      return new Response(false, status, null);
+    }
+
+    public static final Response failed(final Throwable exception) {
+      return new Response(false, null, exception);
+    }
+
+    private final boolean success;
+    private final Integer status;
+    private final Throwable exception;
+
+    protected Response(
+      final boolean success,
+      final Integer status,
+      final Throwable exception)
+    {
+      this.success = success;
+      this.status = status;
+      this.exception = exception;
+    }
+
+    public final boolean success() {
       return this.success;
+    }
+
+    // TODO: DQH - In Java 8, switch to OptionalInteger
+    public final Integer status() {
+      return this.status;
+    }
+
+    // TODO: DQH - In Java 8, switch to Optional<Throwable>?
+    public final Throwable exception() {
+      return this.exception;
     }
   }
 
