@@ -87,6 +87,11 @@ public class Config {
   public static final String JMX_FETCH_STATSD_HOST = "jmxfetch.statsd.host";
   public static final String JMX_FETCH_STATSD_PORT = "jmxfetch.statsd.port";
 
+  // TODO: DQH - better name
+  public static final String METRICS_ENABLED = "metrics.enabled";
+  public static final String METRICS_STATSD_HOST = "metrics.statsd.host";
+  public static final String METRICS_STATSD_PORT = "metrics.statsd.port";
+
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
 
   public static final String SERVICE_TAG = "service";
@@ -126,6 +131,9 @@ public class Config {
   private static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
 
   public static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;
+
+  public static final boolean DEFAULT_METRICS_ENABLED = false;
+  // No default constants for metrics statsd support -- falls back to jmx fetch values
 
   public static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
 
@@ -189,6 +197,10 @@ public class Config {
   @Getter private final Integer jmxFetchRefreshBeansPeriod;
   @Getter private final String jmxFetchStatsdHost;
   @Getter private final Integer jmxFetchStatsdPort;
+
+  @Getter private final boolean metricsEnabled;
+  @Getter private final String metricsStatsdHost;
+  @Getter private final int metricsStatsdPort;
 
   @Getter private final boolean logsInjectionEnabled;
 
@@ -299,6 +311,10 @@ public class Config {
     jmxFetchStatsdHost = getSettingFromEnvironment(JMX_FETCH_STATSD_HOST, null);
     jmxFetchStatsdPort =
         getIntegerSettingFromEnvironment(JMX_FETCH_STATSD_PORT, DEFAULT_JMX_FETCH_STATSD_PORT);
+
+    metricsEnabled = getBooleanSettingFromEnvironment(METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
+    metricsStatsdHost = getSettingFromEnvironment(METRICS_STATSD_HOST, jmxFetchStatsdHost);
+    metricsStatsdPort = getIntegerSettingFromEnvironment(METRICS_STATSD_PORT, jmxFetchStatsdPort);
 
     logsInjectionEnabled =
         getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
@@ -416,6 +432,10 @@ public class Config {
     jmxFetchStatsdHost = properties.getProperty(JMX_FETCH_STATSD_HOST, parent.jmxFetchStatsdHost);
     jmxFetchStatsdPort =
         getPropertyIntegerValue(properties, JMX_FETCH_STATSD_PORT, parent.jmxFetchStatsdPort);
+
+    metricsEnabled = getPropertyBooleanValue(properties, METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
+    metricsStatsdHost = properties.getProperty(METRICS_STATSD_HOST, jmxFetchStatsdHost);
+    metricsStatsdPort = getPropertyIntegerValue(properties, METRICS_STATSD_PORT, jmxFetchStatsdPort);
 
     logsInjectionEnabled =
         getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
