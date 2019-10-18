@@ -51,9 +51,9 @@ public class DDAgentWriter implements Writer {
 
     void onFailedSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause);
 
-    void onSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes);
+    void onSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response);
 
-    void onFailedSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final Throwable optionalCause);
+    void onFailedSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response);
   }
 
   private static final int DISRUPTOR_BUFFER_SIZE = 8192;
@@ -300,7 +300,7 @@ public class DDAgentWriter implements Writer {
                   if (response.success()) {
                     log.debug("Successfully sent {} traces to the API", toSend.size());
 
-                    monitor.onSend(DDAgentWriter.this, representativeCount, sizeInBytes);
+                    monitor.onSend(DDAgentWriter.this, representativeCount, sizeInBytes, response);
                   } else {
                     log.debug(
                         "Failed to send {} traces (representing {}) of size {} bytes to the API",
@@ -308,12 +308,14 @@ public class DDAgentWriter implements Writer {
                         representativeCount,
                         sizeInBytes);
 
-                    monitor.onFailedSend(DDAgentWriter.this, representativeCount, sizeInBytes, null);
+                    monitor.onFailedSend(DDAgentWriter.this, representativeCount, sizeInBytes, response);
                   }
                 } catch (final Throwable e) {
                   log.debug("Failed to send traces to the API: {}", e.getMessage());
 
-                  monitor.onFailedSend(DDAgentWriter.this, representativeCount, sizeInBytes, e);
+                  // DQH - 10/2019 - DDApi should wrap most exceptions itself, so this really shouldn't occur.
+                  // However, just to be safe to start, create a failed Response to handle any spurious Throwable-s.
+                  monitor.onFailedSend(DDAgentWriter.this, representativeCount, sizeInBytes, DDApi.Response.failed(e));
                 } finally {
                   apiPhaser.arrive(); // Flush completed.
                 }
@@ -361,9 +363,9 @@ public class DDAgentWriter implements Writer {
     public void onFailedSerialize(final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause) {}
 
     @Override
-    public void onSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes) {}
+    public void onSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response) {}
 
     @Override
-    public void onFailedSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final Throwable optionalCause) {}
+    public void onFailedSend(final DDAgentWriter agentWriter, final int representativeCount, final int sizeInBytes, final DDApi.Response response) {}
   }
 }
