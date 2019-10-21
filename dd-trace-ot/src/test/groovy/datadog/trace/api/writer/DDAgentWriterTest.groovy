@@ -195,7 +195,7 @@ class DDAgentWriterTest extends DDSpecification {
     writer.traceCount.get() == 0
   }
 
-  def "monitor happy path"() {
+  def createMinimalTrace() {
     def minimalContext = new DDSpanContext(
       "1",
       "1",
@@ -214,7 +214,13 @@ class DDAgentWriterTest extends DDSpecification {
     def minimalSpan = new DDSpan(0, minimalContext)
     def minimalTrace = [minimalSpan]
 
+    return minimalTrace
+  }
+
+  def "monitor happy path"() {
     setup:
+    def minimalTrace = createMinimalTrace()
+
     // DQH -- need to set-up a dummy agent for the final send callback to work
     def agent = httpServer {
       handlers {
