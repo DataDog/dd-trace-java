@@ -142,6 +142,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(JMX_FETCH_REFRESH_BEANS_PERIOD, "200")
     prop.setProperty(JMX_FETCH_STATSD_HOST, "statsd host")
     prop.setProperty(JMX_FETCH_STATSD_PORT, "321")
+    prop.setProperty(METRICS_ENABLED, "true")
     prop.setProperty(METRICS_STATSD_HOST, "metrics statsd host")
     prop.setProperty(METRICS_STATSD_PORT, "654")
 
@@ -177,6 +178,7 @@ class ConfigTest extends DDSpecification {
     config.jmxFetchRefreshBeansPeriod == 200
     config.jmxFetchStatsdHost == "statsd host"
     config.jmxFetchStatsdPort == 321
+    config.metricsEnabled == true
     config.metricsStatsdHost == "metrics statsd host"
     config.metricsStatsdPort == 654
   }
@@ -213,8 +215,9 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + JMX_FETCH_REFRESH_BEANS_PERIOD, "200")
     System.setProperty(PREFIX + JMX_FETCH_STATSD_HOST, "statsd host")
     System.setProperty(PREFIX + JMX_FETCH_STATSD_PORT, "321")
-    System.setProperty(PREFIX + METRICS_STATSD_HOST, "metrics statsd host");
-    System.setProperty(PREFIX + METRICS_STATSD_PORT, "654");
+    System.setProperty(PREFIX + METRICS_ENABLED, "true")
+    System.setProperty(PREFIX + METRICS_STATSD_HOST, "metrics statsd host")
+    System.setProperty(PREFIX + METRICS_STATSD_PORT, "654")
 
     when:
     Config config = new Config()
@@ -248,6 +251,7 @@ class ConfigTest extends DDSpecification {
     config.jmxFetchRefreshBeansPeriod == 200
     config.jmxFetchStatsdHost == "statsd host"
     config.jmxFetchStatsdPort == 321
+    config.metricsEnabled == true
     config.metricsStatsdHost == "metrics statsd host"
     config.metricsStatsdPort == 654
   }
