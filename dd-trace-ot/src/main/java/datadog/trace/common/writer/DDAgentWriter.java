@@ -268,7 +268,7 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public String toString() {
-    return "DDAgentWriter { api=" + api + " }";
+    return "DDAgentWriter { api=" + api + ", monitor=" + monitor + " }";
   }
 
   private void scheduleFlush() {
@@ -439,9 +439,16 @@ public class DDAgentWriter implements Writer {
         final int representativeCount,
         final int sizeInBytes,
         final DDApi.Response response) {}
+
+    @Override
+    public String toString() {
+      return "NoOp";
+    }
   }
 
   public static final class StatsdMonitor implements Monitor {
+    private final String host;
+    private final int port;
     private final StatsDClient statsd;
 
     // DQH - Made a conscious choice to not take a Config object here.
@@ -449,6 +456,9 @@ public class DDAgentWriter implements Writer {
     // so it can decide which Monitor variant to create.
 
     public StatsdMonitor(final String host, final int port) {
+      this.host = host;
+      this.port = port;
+
       statsd =
           new NonBlockingStatsDClient(
               // TODO: DQH - Switch to production prefix
@@ -535,6 +545,10 @@ public class DDAgentWriter implements Writer {
       if (response.status() != null) {
         statsd.incrementCounter("api.responses", "status: " + response.status());
       }
+    }
+
+    public String toString() {
+      return "Statsd { host=" + host + ":" + port + " }";
     }
   }
 }
