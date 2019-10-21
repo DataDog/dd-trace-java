@@ -422,16 +422,21 @@ public class DDAgentWriter implements Writer {
   }
 
   private static final class StatsdMonitor implements Monitor {
-    private final StatsDClient statsd =
-        new NonBlockingStatsDClient(
-            // TODO: DQH - Switch to production prefix
-            "poc.tracer",
-            // TODO: DQH - Switch to agent host property
-            "localhost",
-            // TODO: DQH - Switch to agent port property
-            8125,
-            // TODO: DQH - Java tags
-            new String[] {});
+    private final StatsDClient statsd;
+
+    // DQH - Made a conscious choice to not take a Config object here.
+    // Letting the creating of the Monitor take the Config,
+    // so it can decide which Monitor variant to create.
+
+    public StatsdMonitor(final String host, final int port) {
+      statsd = new NonBlockingStatsDClient(
+        // TODO: DQH - Switch to production prefix
+        "poc.tracer",
+        host,
+        port,
+        // TODO: standard Java tags
+        new String[] {});
+    }
 
     @Override
     public void onStart(final DDAgentWriter agentWriter) {
