@@ -258,4 +258,93 @@ class DDAgentWriterTest extends DDSpecification {
     cleanup:
     agent.close()
   }
+
+  def "monitor agent returns error"() {
+    setup:
+    def minimalTrace = createMinimalTrace()
+
+    // DQH -- need to set-up a dummy agent for the final send callback to work
+    def first = true;
+    def agent = httpServer {
+      handlers {
+        put("v0.4/traces") {
+          // DQH - DDApi sniffs for end point existence, so respond with 200 the first time
+          if (first) {
+            response.status(200).send()
+            first = false
+          } else {
+            response.status(500).send()
+          }
+        }
+      }
+    }
+    def api = new DDApi("localhost", agent.address.port, null)
+    def monitor = Mock(DDAgentWriter.Monitor)
+    def writer = new DDAgentWriter(api, monitor)
+
+    when:
+    writer.start()
+
+    then:
+    1 * monitor.onStart(writer)
+
+    when:
+    writer.write(minimalTrace)
+    writer.flush()
+
+    then:
+    1 * monitor.onPublish(writer, minimalTrace)
+    1 * monitor.onSerialize(writer, minimalTrace, _)
+    1 * monitor.onScheduleFlush(writer, _)
+    1 * monitor.onFailedSend(writer, 1, _, { response -> !response.success() && response.status() == 500 })
+
+    when:
+    writer.close()
+
+    then:
+    1 * monitor.onShutdown(writer, true)
+
+    cleanup:
+    agent.close()
+  }
+
+  def "unreachable agent test"() {
+    setup:
+    def minimalTrace = createMinimalTrace()
+
+    def api = new DDApi("localhost", 8192, null) {
+      DDApi.Response sendSerializedTraces(
+        int representativeCount,
+        Integer sizeInBytes,
+        List<byte[]> traces)
+      {
+        // simulating a communication failure to a server
+        return DDApi.Response.failed(new IOException("comm error"));
+      }
+    }
+    def monitor = Mock(DDAgentWriter.Monitor)
+    def writer = new DDAgentWriter(api, monitor)
+
+    when:
+    writer.start()
+
+    then:
+    1 * monitor.onStart(writer)
+
+    when:
+    writer.write(minimalTrace)
+    writer.flush()
+
+    then:
+    1 * monitor.onPublish(writer, minimalTrace)
+    1 * monitor.onSerialize(writer, minimalTrace, _)
+    1 * monitor.onScheduleFlush(writer, _)
+    1 * monitor.onFailedSend(writer, 1, _, { response -> !response.success() && response.status() == null })
+
+    when:
+    writer.close()
+
+    then:
+    1 * monitor.onShutdown(writer, true)
+  }
 }
