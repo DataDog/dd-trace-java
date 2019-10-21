@@ -74,8 +74,20 @@ public interface Writer extends Closeable {
       if (!config.isMetricsEnabled()) {
         return new DDAgentWriter.NoopMonitor();
       } else {
-        return new DDAgentWriter.StatsdMonitor(
-            config.getMetricsStatsdHost(), config.getMetricsStatsdPort());
+        String host = config.getMetricsStatsdHost();
+        if (host == null) {
+          host = config.getJmxFetchStatsdHost();
+        }
+        if (host == null) {
+          host = config.getAgentHost();
+        }
+
+        Integer port = config.getMetricsStatsdPort();
+        if (port == null) {
+          port = config.getJmxFetchStatsdPort();
+        }
+
+        return new DDAgentWriter.StatsdMonitor(host, port);
       }
     }
 
