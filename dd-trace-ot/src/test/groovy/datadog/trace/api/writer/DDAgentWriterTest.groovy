@@ -264,7 +264,7 @@ class DDAgentWriterTest extends DDSpecification {
     def minimalTrace = createMinimalTrace()
 
     // DQH -- need to set-up a dummy agent for the final send callback to work
-    def first = true;
+    def first = true
     def agent = httpServer {
       handlers {
         put("v0.4/traces") {
@@ -319,7 +319,7 @@ class DDAgentWriterTest extends DDSpecification {
         List<byte[]> traces)
       {
         // simulating a communication failure to a server
-        return DDApi.Response.failed(new IOException("comm error"));
+        return DDApi.Response.failed(new IOException("comm error"))
       }
     }
     def monitor = Mock(DDAgentWriter.Monitor)
