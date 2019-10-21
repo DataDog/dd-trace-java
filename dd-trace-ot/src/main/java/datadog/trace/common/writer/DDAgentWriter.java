@@ -39,14 +39,15 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DDAgentWriter implements Writer {
   /**
-   * Callback interface for monitoring the health of the DDAgentWriter.
-   * Provides hooks for major lifecycle events...
+   * Callback interface for monitoring the health of the DDAgentWriter. Provides hooks for major
+   * lifecycle events...
+   *
    * <ul>
-   * <li>start</li>
-   * <li>shutdown</li>
-   * <li>publishing to disruptor</li>
-   * <li>serializing</li>
-   * <li>sending to agent</li>
+   *   <li>start
+   *   <li>shutdown
+   *   <li>publishing to disruptor
+   *   <li>serializing
+   *   <li>sending to agent
    * </ul>
    */
   public interface Monitor {
@@ -429,13 +430,14 @@ public class DDAgentWriter implements Writer {
     // so it can decide which Monitor variant to create.
 
     public StatsdMonitor(final String host, final int port) {
-      statsd = new NonBlockingStatsDClient(
-        // TODO: DQH - Switch to production prefix
-        "poc.tracer",
-        host,
-        port,
-        // TODO: standard Java tags
-        new String[] {});
+      statsd =
+          new NonBlockingStatsDClient(
+              // TODO: DQH - Switch to production prefix
+              "poc.tracer",
+              host,
+              port,
+              // TODO: standard Java tags
+              new String[] {});
     }
 
     @Override
