@@ -67,7 +67,7 @@ public interface Writer extends Closeable {
 
     private static final DDApi createApi(final Config config) {
       return new DDApi(
-        config.getAgentHost(), config.getAgentPort(), config.getAgentUnixDomainSocket());
+          config.getAgentHost(), config.getAgentPort(), config.getAgentUnixDomainSocket());
     }
 
     private Builder() {}
