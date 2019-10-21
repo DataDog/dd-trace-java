@@ -38,6 +38,17 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class DDAgentWriter implements Writer {
+  /**
+   * Callback interface for monitoring the health of the DDAgentWriter.
+   * Provides hooks for major lifecycle events...
+   * <ul>
+   * <li>start</li>
+   * <li>shutdown</li>
+   * <li>publishing to disruptor</li>
+   * <li>serializing</li>
+   * <li>sending to agent</li>
+   * </ul>
+   */
   public interface Monitor {
     void onStart(final DDAgentWriter agentWriter);
 
