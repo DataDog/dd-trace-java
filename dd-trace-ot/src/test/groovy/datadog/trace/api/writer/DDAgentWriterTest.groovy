@@ -254,5 +254,8 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     1 * monitor.onShutdown(writer, true)
+
+    cleanup:
+    agent.close()
   }
 }
