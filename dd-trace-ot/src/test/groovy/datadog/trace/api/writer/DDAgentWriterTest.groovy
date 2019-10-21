@@ -13,6 +13,7 @@ import spock.lang.Timeout
 import java.util.concurrent.TimeUnit
 
 import static datadog.opentracing.SpanFactory.newSpanOf
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.common.writer.DDAgentWriter.DISRUPTOR_BUFFER_SIZE
 
 @Timeout(20)
@@ -178,24 +179,6 @@ class DDAgentWriterTest extends DDSpecification {
     maxedPayloadTraceCount = ((int) (DDAgentWriter.FLUSH_PAYLOAD_BYTES / traceSize)) + 1
   }
 
-  def "monitor lifecycle"() {
-    setup:
-    def monitor = Mock(DDAgentWriter.Monitor)
-    def writer = new DDAgentWriter(api, monitor)
-
-    when:
-    writer.start()
-
-    then:
-    1 * monitor.onStart(writer)
-
-    when:
-    writer.close()
-
-    then:
-    1 * monitor.onShutdown(writer, true)
-  }
-
   def "check that are no interactions after close"() {
 
     setup:
@@ -210,5 +193,60 @@ class DDAgentWriterTest extends DDSpecification {
     then:
     0 * _
     writer.traceCount.get() == 0
+  }
+
+  def "monitor happy path"() {
+    def minimalContext = new DDSpanContext(
+      "1",
+      "1",
+      "0",
+      "",
+      "",
+      "",
+      PrioritySampling.UNSET,
+      "",
+      Collections.emptyMap(),
+      false,
+      "",
+      Collections.emptyMap(),
+      Mock(PendingTrace),
+      Mock(DDTracer))
+    def minimalSpan = new DDSpan(0, minimalContext)
+    def minimalTrace = [minimalSpan]
+
+    setup:
+    // DQH -- need to set-up a dummy agent for the final send callback to work
+    def agent = httpServer {
+      handlers {
+        put("v0.4/traces") {
+          response.status(200).send()
+        }
+      }
+    }
+    def api = new DDApi("localhost", agent.address.port, null)
+    def monitor = Mock(DDAgentWriter.Monitor)
+    def writer = new DDAgentWriter(api, monitor)
+
+    when:
+    writer.start()
+
+    then:
+    1 * monitor.onStart(writer)
+
+    when:
+    writer.write(minimalTrace)
+    writer.flush()
+
+    then:
+    1 * monitor.onPublish(writer, minimalTrace)
+    1 * monitor.onSerialize(writer, minimalTrace, _)
+    1 * monitor.onScheduleFlush(writer, _)
+    1 * monitor.onSend(writer, 1, _, { response -> response.success() && response.status() == 200 })
+
+    when:
+    writer.close()
+
+    then:
+    1 * monitor.onShutdown(writer, true)
   }
 }
