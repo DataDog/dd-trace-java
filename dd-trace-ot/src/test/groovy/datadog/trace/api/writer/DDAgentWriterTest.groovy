@@ -178,6 +178,24 @@ class DDAgentWriterTest extends DDSpecification {
     maxedPayloadTraceCount = ((int) (DDAgentWriter.FLUSH_PAYLOAD_BYTES / traceSize)) + 1
   }
 
+  def "monitor lifecycle"() {
+    setup:
+    def monitor = Mock(DDAgentWriter.Monitor)
+    def writer = new DDAgentWriter(api, monitor)
+
+    when:
+    writer.start()
+
+    then:
+    1 * monitor.onStart(writer)
+
+    when:
+    writer.close()
+
+    then:
+    1 * monitor.onShutdown(writer, true)
+  }
+
   def "check that are no interactions after close"() {
 
     setup:
