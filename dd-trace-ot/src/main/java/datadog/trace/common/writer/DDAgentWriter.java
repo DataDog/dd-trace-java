@@ -115,14 +115,21 @@ public class DDAgentWriter implements Writer {
   private final Phaser apiPhaser;
   private volatile boolean running = false;
 
-  private final Monitor monitor = new NoopMonitor();
+  private final Monitor monitor;
 
   public DDAgentWriter() {
-    this(new DDApi(DEFAULT_AGENT_HOST, DEFAULT_TRACE_AGENT_PORT, DEFAULT_AGENT_UNIX_DOMAIN_SOCKET));
+    this(
+        new DDApi(DEFAULT_AGENT_HOST, DEFAULT_TRACE_AGENT_PORT, DEFAULT_AGENT_UNIX_DOMAIN_SOCKET),
+        new NoopMonitor());
   }
 
-  public DDAgentWriter(final DDApi api) {
-    this(api, DISRUPTOR_BUFFER_SIZE, FLUSH_PAYLOAD_DELAY);
+  public DDAgentWriter(final DDApi api, final Monitor monitor) {
+    this(api, monitor, DISRUPTOR_BUFFER_SIZE, FLUSH_PAYLOAD_DELAY);
+  }
+
+  /** Old signature (pre-Monitor) used in tests */
+  private DDAgentWriter(final DDApi api) {
+    this(api, new NoopMonitor());
   }
 
   /**
@@ -133,8 +140,17 @@ public class DDAgentWriter implements Writer {
    * @param flushFrequencySeconds value < 1 disables scheduled flushes
    */
   private DDAgentWriter(final DDApi api, final int disruptorSize, final int flushFrequencySeconds) {
+    this(api, new NoopMonitor(), disruptorSize, flushFrequencySeconds);
+  }
+
+  private DDAgentWriter(
+      final DDApi api,
+      final Monitor monitor,
+      final int disruptorSize,
+      final int flushFrequencySeconds) {
     this.api = api;
-    this.flushFrequencySeconds = flushFrequencySeconds;
+    this.monitor = monitor;
+
     disruptor =
         new Disruptor<>(
             new DisruptorEventFactory<List<DDSpan>>(),
@@ -143,7 +159,10 @@ public class DDAgentWriter implements Writer {
             ProducerType.MULTI,
             new SleepingWaitStrategy(0, TimeUnit.MILLISECONDS.toNanos(5)));
     disruptor.handleEventsWith(new TraceConsumer());
+
+    this.flushFrequencySeconds = flushFrequencySeconds;
     scheduledWriterExecutor = Executors.newScheduledThreadPool(1, SCHEDULED_FLUSH_THREAD_FACTORY);
+
     apiPhaser = new Phaser(); // Ensure API calls are completed when flushing
     apiPhaser.register(); // Register on behalf of the scheduled executor thread.
   }
@@ -382,7 +401,7 @@ public class DDAgentWriter implements Writer {
     }
   }
 
-  private static final class NoopMonitor implements Monitor {
+  public static final class NoopMonitor implements Monitor {
     @Override
     public void onStart(final DDAgentWriter agentWriter) {}
 
@@ -422,7 +441,7 @@ public class DDAgentWriter implements Writer {
         final DDApi.Response response) {}
   }
 
-  private static final class StatsdMonitor implements Monitor {
+  public static final class StatsdMonitor implements Monitor {
     private final StatsDClient statsd;
 
     // DQH - Made a conscious choice to not take a Config object here.

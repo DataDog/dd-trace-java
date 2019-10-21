@@ -62,12 +62,21 @@ public interface Writer extends Closeable {
     }
 
     private static Writer createAgentWriter(final Config config) {
-      return new DDAgentWriter(createApi(config));
+      return new DDAgentWriter(createApi(config), createMonitor(config));
     }
 
     private static final DDApi createApi(final Config config) {
       return new DDApi(
           config.getAgentHost(), config.getAgentPort(), config.getAgentUnixDomainSocket());
+    }
+
+    private static final DDAgentWriter.Monitor createMonitor(final Config config) {
+      if (!config.isMetricsEnabled()) {
+        return new DDAgentWriter.NoopMonitor();
+      } else {
+        return new DDAgentWriter.StatsdMonitor(
+            config.getMetricsStatsdHost(), config.getMetricsStatsdPort());
+      }
     }
 
     private Builder() {}
