@@ -177,7 +177,7 @@ class ConfigTest extends DDSpecification {
     config.jmxFetchRefreshBeansPeriod == 200
     config.jmxFetchStatsdHost == "statsd host"
     config.jmxFetchStatsdPort == 321
-    config.metricsStatsdHost = "metrics stats host"
+    config.metricsStatsdHost == "metrics statsd host"
     config.metricsStatsdPort == 654
   }
 
@@ -213,6 +213,8 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + JMX_FETCH_REFRESH_BEANS_PERIOD, "200")
     System.setProperty(PREFIX + JMX_FETCH_STATSD_HOST, "statsd host")
     System.setProperty(PREFIX + JMX_FETCH_STATSD_PORT, "321")
+    System.setProperty(PREFIX + METRICS_STATSD_HOST, "metrics statsd host");
+    System.setProperty(PREFIX + METRICS_STATSD_PORT, "654");
 
     when:
     Config config = new Config()
@@ -246,6 +248,8 @@ class ConfigTest extends DDSpecification {
     config.jmxFetchRefreshBeansPeriod == 200
     config.jmxFetchStatsdHost == "statsd host"
     config.jmxFetchStatsdPort == 321
+    config.metricsStatsdHost == "metrics statsd host"
+    config.metricsStatsdPort == 654
   }
 
   def "specify overrides via env vars"() {
