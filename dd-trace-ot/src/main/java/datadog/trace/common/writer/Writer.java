@@ -62,9 +62,12 @@ public interface Writer extends Closeable {
     }
 
     private static Writer createAgentWriter(final Config config) {
-      return new DDAgentWriter(
-          new DDApi(
-              config.getAgentHost(), config.getAgentPort(), config.getAgentUnixDomainSocket()));
+      return new DDAgentWriter(createApi(config));
+    }
+
+    private static final DDApi createApi(final Config config) {
+      return new DDApi(
+        config.getAgentHost(), config.getAgentPort(), config.getAgentUnixDomainSocket());
     }
 
     private Builder() {}
