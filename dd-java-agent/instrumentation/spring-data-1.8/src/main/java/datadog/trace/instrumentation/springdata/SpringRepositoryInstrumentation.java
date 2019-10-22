@@ -44,7 +44,9 @@ public final class SpringRepositoryInstrumentation extends Instrumenter.Default 
     return new String[] {
       "datadog.trace.agent.decorator.BaseDecorator",
       "datadog.trace.agent.decorator.ClientDecorator",
-      packageName + ".SpringDataDecorator"
+      packageName + ".SpringDataDecorator",
+      getClass().getName() + "$RepositoryInterceptor",
+      getClass().getName() + "$InterceptingRepositoryProxyPostProcessor",
     };
   }
 
@@ -60,6 +62,12 @@ public final class SpringRepositoryInstrumentation extends Instrumenter.Default 
         @Advice.This RepositoryFactorySupport repositoryFactorySupport) {
       repositoryFactorySupport.addRepositoryProxyPostProcessor(
           InterceptingRepositoryProxyPostProcessor.INSTANCE);
+    }
+
+    // Muzzle doesn't detect the "Override" implementation dependency, so we have to help it.
+    private void muzzleCheck(final RepositoryProxyPostProcessor processor) {
+      processor.postProcess(null, null);
+      // (see usage in InterceptingRepositoryProxyPostProcessor below)
     }
   }
 
