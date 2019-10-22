@@ -268,7 +268,13 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public String toString() {
-    return "DDAgentWriter { api=" + api + ", monitor=" + monitor + " }";
+    String str = "DDAgentWriter { api=" + api;
+    if ( !(monitor instanceof NoopMonitor) ) {
+      str += ", monitor=" + monitor;
+    }
+    str += " }";
+
+    return str;
   }
 
   private void scheduleFlush() {
