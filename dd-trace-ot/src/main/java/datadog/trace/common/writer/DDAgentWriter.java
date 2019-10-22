@@ -5,6 +5,7 @@ import static datadog.trace.api.Config.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.Config.DEFAULT_TRACE_AGENT_PORT;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.opentracing.DDTraceOTInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.lmax.disruptor.EventFactory;
 import com.lmax.disruptor.EventHandler;
@@ -453,6 +454,14 @@ public class DDAgentWriter implements Writer {
   }
 
   public static final class StatsdMonitor implements Monitor {
+    public static final String PREFIX = "datadog.tracer";
+
+    public static final String LANG_TAG = "lang";
+    public static final String LANG_VERSION_TAG = "lang_version";
+    public static final String LANG_INTERPRETER_TAG = "lang_interpreter";
+    public static final String LANG_INTERPRETER_VENDOR_TAG = "lang_interpreter_vendor";
+    public static final String TRACER_VERSION_TAG = "tracer_version";
+
     private final String host;
     private final int port;
     private final StatsDClient statsd;
@@ -467,12 +476,24 @@ public class DDAgentWriter implements Writer {
 
       statsd =
           new NonBlockingStatsDClient(
-              // TODO: DQH - Switch to production prefix
-              "poc.tracer",
+              PREFIX,
               host,
               port,
-              // TODO: standard Java tags
-              new String[] {});
+              getDefaultTags());
+    }
+
+    protected static final String[] getDefaultTags() {
+      return new String[] {
+        tag(LANG_TAG, "java"),
+        tag(LANG_VERSION_TAG, DDTraceOTInfo.JAVA_VERSION),
+        tag(LANG_INTERPRETER_TAG, DDTraceOTInfo.JAVA_VM_NAME),
+        tag(LANG_INTERPRETER_VENDOR_TAG, DDTraceOTInfo.JAVA_VM_VENDOR),
+        tag(TRACER_VERSION_TAG, DDTraceOTInfo.VERSION)
+      };
+    }
+
+    private static final String tag(final String tagPrefix, final String tagValue) {
+      return tagPrefix + ":" + tagValue;
     }
 
     @Override
