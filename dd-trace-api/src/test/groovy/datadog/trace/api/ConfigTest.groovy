@@ -97,8 +97,8 @@ class ConfigTest extends DDSpecification {
     config.jmxFetchStatsdHost == null
     config.jmxFetchStatsdPort == DEFAULT_JMX_FETCH_STATSD_PORT
     config.metricsEnabled == false
-    config.metricsStatsdHost == config.jmxFetchStatsdHost
-    config.metricsStatsdPort == config.jmxFetchStatsdPort
+    config.metricsStatsdHost == null
+    config.metricsStatsdPort == null
     config.toString().contains("unnamed-java-app")
 
     where:
