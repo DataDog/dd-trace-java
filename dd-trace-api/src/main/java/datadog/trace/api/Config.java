@@ -198,9 +198,10 @@ public class Config {
   @Getter private final String jmxFetchStatsdHost;
   @Getter private final Integer jmxFetchStatsdPort;
 
+  // These values are default to those of jmx fetch values as needed
   @Getter private final boolean metricsEnabled;
   @Getter private final String metricsStatsdHost;
-  @Getter private final int metricsStatsdPort;
+  @Getter private final Integer metricsStatsdPort;
 
   @Getter private final boolean logsInjectionEnabled;
 
@@ -312,9 +313,10 @@ public class Config {
     jmxFetchStatsdPort =
         getIntegerSettingFromEnvironment(JMX_FETCH_STATSD_PORT, DEFAULT_JMX_FETCH_STATSD_PORT);
 
+    // Writer.Builder createMonitor will use the values of the JMX fetch & agent to fill-in defaults
     metricsEnabled = getBooleanSettingFromEnvironment(METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
-    metricsStatsdHost = getSettingFromEnvironment(METRICS_STATSD_HOST, jmxFetchStatsdHost);
-    metricsStatsdPort = getIntegerSettingFromEnvironment(METRICS_STATSD_PORT, jmxFetchStatsdPort);
+    metricsStatsdHost = getSettingFromEnvironment(METRICS_STATSD_HOST, null);
+    metricsStatsdPort = getIntegerSettingFromEnvironment(METRICS_STATSD_PORT, null);
 
     logsInjectionEnabled =
         getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
