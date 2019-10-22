@@ -87,7 +87,7 @@ public interface Writer extends Closeable {
           port = config.getJmxFetchStatsdPort();
         }
 
-        return new DDAgentWriter.StatsdMonitor(host, port);
+        return new DDAgentWriter.StatsDMonitor(host, port);
       }
     }
 
