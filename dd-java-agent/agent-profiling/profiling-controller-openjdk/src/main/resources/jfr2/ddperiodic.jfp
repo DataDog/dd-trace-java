@@ -138,3 +138,4 @@ jdk.FileForce#stackTrace=true
 jdk.FileForce#threshold=10 ms
 jdk.JavaExceptionThrow#enabled=false
 jdk.JavaExceptionThrow#stackTrace=true
+datadog.Scope#threshold=10ms
