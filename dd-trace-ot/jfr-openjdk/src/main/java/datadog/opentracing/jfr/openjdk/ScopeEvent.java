@@ -49,6 +49,7 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
 
   @Override
   public void finish() {
+    end();
     if (shouldCommit()) {
       traceId = spanContext.getTraceId();
       spanId = spanContext.getSpanId();
@@ -56,8 +57,6 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
       serviceName = spanContext.getServiceName();
       resourceName = spanContext.getResourceName();
       operationName = spanContext.getOperationName();
-
-      end();
       commit();
     }
   }
