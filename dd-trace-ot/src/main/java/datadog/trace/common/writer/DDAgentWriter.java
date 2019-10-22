@@ -453,7 +453,7 @@ public class DDAgentWriter implements Writer {
     }
   }
 
-  public static final class StatsdMonitor implements Monitor {
+  public static final class StatsDMonitor implements Monitor {
     public static final String PREFIX = "datadog.tracer";
 
     public static final String LANG_TAG = "lang";
@@ -470,7 +470,7 @@ public class DDAgentWriter implements Writer {
     // Letting the creating of the Monitor take the Config,
     // so it can decide which Monitor variant to create.
 
-    public StatsdMonitor(final String host, final int port) {
+    public StatsDMonitor(final String host, final int port) {
       this.host = host;
       this.port = port;
 
