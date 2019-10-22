@@ -570,7 +570,7 @@ public class DDAgentWriter implements Writer {
     }
 
     public String toString() {
-      return "Statsd { host=" + host + ":" + port + " }";
+      return "StatsD { host=" + host + ":" + port + " }";
     }
   }
 }

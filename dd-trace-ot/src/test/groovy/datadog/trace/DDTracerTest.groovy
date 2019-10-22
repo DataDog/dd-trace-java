@@ -63,6 +63,7 @@ class DDTracerTest extends DDSpecification {
     def tracer = new DDTracer(new Config())
 
     then:
+    tracer.writer.toString() == "DDAgentWriter { api=DDApi { tracesUrl=http://localhost:8126/v0.3/traces }, monitor=StatsD { host=localhost:8125 } }"
     tracer.writer.monitor instanceof DDAgentWriter.StatsDMonitor
   }
 
