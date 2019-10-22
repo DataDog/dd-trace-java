@@ -5,7 +5,6 @@ import static datadog.trace.api.Config.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.Config.DEFAULT_TRACE_AGENT_PORT;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.opentracing.DDTraceOTInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.lmax.disruptor.EventFactory;
 import com.lmax.disruptor.EventHandler;
@@ -17,6 +16,7 @@ import com.lmax.disruptor.dsl.ProducerType;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import datadog.opentracing.DDSpan;
+import datadog.opentracing.DDTraceOTInfo;
 import datadog.trace.common.util.DaemonThreadFactory;
 import java.util.ArrayList;
 import java.util.List;
@@ -270,7 +270,7 @@ public class DDAgentWriter implements Writer {
   @Override
   public String toString() {
     String str = "DDAgentWriter { api=" + api;
-    if ( !(monitor instanceof NoopMonitor) ) {
+    if (!(monitor instanceof NoopMonitor)) {
       str += ", monitor=" + monitor;
     }
     str += " }";
@@ -474,12 +474,7 @@ public class DDAgentWriter implements Writer {
       this.host = host;
       this.port = port;
 
-      statsd =
-          new NonBlockingStatsDClient(
-              PREFIX,
-              host,
-              port,
-              getDefaultTags());
+      statsd = new NonBlockingStatsDClient(PREFIX, host, port, getDefaultTags());
     }
 
     protected static final String[] getDefaultTags() {
