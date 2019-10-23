@@ -237,4 +237,5 @@ jdk.ZStatisticsCounter#threshold=10 ms
 jdk.ZStatisticsCounter#enabled=true
 jdk.ZStatisticsSampler#enabled=true
 jdk.ZStatisticsSampler#threshold=10 ms
-datadog.Scope#threshold=10ms
+datadog.Scope#enabled=true
+datadog.Scope#threshold=10 ms
