@@ -269,6 +269,11 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public String toString() {
+    // DQH - I don't particularly like the instanceof check,
+    // but I decided it was preferable to adding an isNoop method onto
+    // Monitoror checking the result of Monitor#toString() to determine
+    // if something is *probably* the NoopMonitor.
+
     String str = "DDAgentWriter { api=" + api;
     if (!(monitor instanceof NoopMonitor)) {
       str += ", monitor=" + monitor;
