@@ -313,7 +313,8 @@ public class Config {
         getIntegerSettingFromEnvironment(JMX_FETCH_STATSD_PORT, DEFAULT_JMX_FETCH_STATSD_PORT);
 
     // Writer.Builder createMonitor will use the values of the JMX fetch & agent to fill-in defaults
-    healthMetricsEnabled = getBooleanSettingFromEnvironment(HEALTH_METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
+    healthMetricsEnabled =
+        getBooleanSettingFromEnvironment(HEALTH_METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
     healthMetricsStatsdHost = getSettingFromEnvironment(HEALTH_METRICS_STATSD_HOST, null);
     healthMetricsStatsdPort = getIntegerSettingFromEnvironment(HEALTH_METRICS_STATSD_PORT, null);
 
@@ -434,10 +435,13 @@ public class Config {
     jmxFetchStatsdPort =
         getPropertyIntegerValue(properties, JMX_FETCH_STATSD_PORT, parent.jmxFetchStatsdPort);
 
-    healthMetricsEnabled = getPropertyBooleanValue(properties, HEALTH_METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
-    healthMetricsStatsdHost = properties.getProperty(HEALTH_METRICS_STATSD_HOST, parent.healthMetricsStatsdHost);
+    healthMetricsEnabled =
+        getPropertyBooleanValue(properties, HEALTH_METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
+    healthMetricsStatsdHost =
+        properties.getProperty(HEALTH_METRICS_STATSD_HOST, parent.healthMetricsStatsdHost);
     healthMetricsStatsdPort =
-        getPropertyIntegerValue(properties, HEALTH_METRICS_STATSD_PORT, parent.healthMetricsStatsdPort);
+        getPropertyIntegerValue(
+            properties, HEALTH_METRICS_STATSD_PORT, parent.healthMetricsStatsdPort);
 
     logsInjectionEnabled =
         getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
