@@ -169,15 +169,15 @@ public class DDAgentWriter implements Writer {
   }
 
   // Exposing some statistics for consumption by monitors
-  public final long getDisruptorCapacity() {
+  public final long getBufferCapacity() {
     return disruptor.getRingBuffer().getBufferSize();
   }
 
-  public final long getDisruptorUtilizedCapacity() {
-    return getDisruptorCapacity() - getDisruptorRemainingCapacity();
+  public final long getBufferUtilizedCapacity() {
+    return getBufferCapacity() - getBufferRemainingCapacity();
   }
 
-  public final long getDisruptorRemainingCapacity() {
+  public final long getBufferRemainingCapacity() {
     return disruptor.getRingBuffer().remainingCapacity();
   }
 
@@ -498,7 +498,7 @@ public class DDAgentWriter implements Writer {
 
     @Override
     public void onStart(final DDAgentWriter agentWriter) {
-      statsd.recordGaugeValue("queue.max_length", agentWriter.getDisruptorCapacity());
+      statsd.recordGaugeValue("queue.max_length", agentWriter.getBufferCapacity());
     }
 
     @Override
