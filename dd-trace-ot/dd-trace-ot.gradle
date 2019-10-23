@@ -58,11 +58,6 @@ dependencies {
   }
 }
 
-shadowJar {
-  // relocate dogstatsd to an internal name to avoid conflicts
-  relocate 'com.timgroup.statsd', 'datadog.trace.agent.statsd'
-}
-
 jmh {
 //  include = [".*URLAsResourceNameBenchmark"]
 //  include = ['some regular expression'] // include pattern (regular expression) for benchmarks to be executed
