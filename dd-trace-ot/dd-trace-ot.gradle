@@ -1,6 +1,5 @@
 plugins {
   id "me.champeau.gradle.jmh" version "0.5.0-rc-2"
-  id "com.github.johnrengelman.shadow" version "4.0.4"
 }
 
 description = 'dd-trace-ot'
@@ -8,19 +7,16 @@ description = 'dd-trace-ot'
 apply from: "${rootDir}/gradle/java.gradle"
 apply from: "${rootDir}/gradle/publish.gradle"
 
-// TODO - DQH - FIXME: Setting minimumBranchCoverage wasn't playing nice
-//   with the shadow plug-in.  Need to find a work-around.
-
-//minimumBranchCoverage = 0.5
-//minimumInstructionCoverage = 0.6
-//excludedClassesCoverage += [
-//  'datadog.trace.common.writer.ListWriter',
-//  'datadog.trace.common.writer.LoggingWriter',
-//  'datadog.trace.common.sampling.PrioritySampling',
-//  // This code is copied from okHttp samples and we have integration tests to verify that it works.
-//  'datadog.trace.common.writer.unixdomainsockets.TunnelingUnixSocket',
-//  'datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory'
-//]
+minimumBranchCoverage = 0.5
+minimumInstructionCoverage = 0.6
+excludedClassesCoverage += [
+  'datadog.trace.common.writer.ListWriter',
+  'datadog.trace.common.writer.LoggingWriter',
+  'datadog.trace.common.sampling.PrioritySampling',
+  // This code is copied from okHttp samples and we have integration tests to verify that it works.
+  'datadog.trace.common.writer.unixdomainsockets.TunnelingUnixSocket',
+  'datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory'
+]
 
 apply plugin: 'org.unbroken-dome.test-sets'
 
@@ -37,7 +33,6 @@ dependencies {
   compile deps.opentracing
   compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
-  // DQH - This is probably wrong.  We need to decide how to package dogstatd with the agent.
   compile group: 'com.datadoghq', name: 'java-dogstatsd-client', version: '2.1.1'
 
   compile deps.jackson
