@@ -15,7 +15,7 @@ import org.junit.contrib.java.lang.system.RestoreSystemProperties
 
 import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.Config.HEADER_TAGS
-import static datadog.trace.api.Config.METRICS_ENABLED
+import static datadog.trace.api.Config.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.api.Config.PRIORITY_SAMPLING
 import static datadog.trace.api.Config.SERVICE_MAPPING
@@ -57,7 +57,7 @@ class DDTracerTest extends DDSpecification {
 
   def "verify enabling health monitor"() {
     setup:
-    System.setProperty(PREFIX + METRICS_ENABLED, "true")
+    System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, "true")
 
     when:
     def tracer = new DDTracer(new Config())

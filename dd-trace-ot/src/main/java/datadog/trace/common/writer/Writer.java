@@ -71,10 +71,10 @@ public interface Writer extends Closeable {
     }
 
     private static final DDAgentWriter.Monitor createMonitor(final Config config) {
-      if (!config.isMetricsEnabled()) {
+      if (!config.isHealthMetricsEnabled()) {
         return new DDAgentWriter.NoopMonitor();
       } else {
-        String host = config.getMetricsStatsdHost();
+        String host = config.getHealthMetricsStatsdHost();
         if (host == null) {
           host = config.getJmxFetchStatsdHost();
         }
@@ -82,7 +82,7 @@ public interface Writer extends Closeable {
           host = config.getAgentHost();
         }
 
-        Integer port = config.getMetricsStatsdPort();
+        Integer port = config.getHealthMetricsStatsdPort();
         if (port == null) {
           port = config.getJmxFetchStatsdPort();
         }
