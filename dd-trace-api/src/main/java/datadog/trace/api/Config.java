@@ -436,7 +436,7 @@ public class Config {
         getPropertyIntegerValue(properties, JMX_FETCH_STATSD_PORT, parent.jmxFetchStatsdPort);
 
     healthMetricsEnabled =
-        getPropertyBooleanValue(properties, HEALTH_METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
+        getPropertyBooleanValue(properties, HEALTH_METRICS_ENABLED, parent.healthMetricsEnabled);
     healthMetricsStatsdHost =
         properties.getProperty(HEALTH_METRICS_STATSD_HOST, parent.healthMetricsStatsdHost);
     healthMetricsStatsdPort =
