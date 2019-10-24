@@ -399,14 +399,13 @@ class DDAgentWriterTest extends DDSpecification {
     numFailedPublish == 0
 
     when:
-    // send enough traces to fill the sending queue (16+)
+    // send many traces to flood the sender queue...
     (1..20).each {
       writer.write(minimalTrace)
     }
-    writer.flush()
 
     then:
-    // should be spilling into the disruptor, but shouldn't be rejecting yet
+    // might spill back into the Disruptor slightly, but sender queue is currently unbounded
     numFailedPublish == 0
 
     when:
@@ -416,7 +415,8 @@ class DDAgentWriterTest extends DDSpecification {
     }
 
     then:
-    numFailedPublish >= 0
+    // Disruptor still doesn't reject because the sender queue is unbounded
+    numFailedPublish == 0
 
     cleanup:
     writer.close()
