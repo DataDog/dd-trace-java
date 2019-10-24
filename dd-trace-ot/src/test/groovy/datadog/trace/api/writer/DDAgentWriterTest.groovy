@@ -349,6 +349,7 @@ class DDAgentWriterTest extends DDSpecification {
   }
 
   def "slow response test"() {
+    def numPublished = 0
     def numFailedPublish = 0
 
     setup:
@@ -375,13 +376,10 @@ class DDAgentWriterTest extends DDSpecification {
 
     // This test focuses just on failed publish, so not verifying every callback
     def monitor = Stub(DDAgentWriter.Monitor)
-    monitor.onStart(writer) >> {}
-    monitor.onEnd(writer) >> {}
-    monitor.onPublish(writer, _) >> {}
-    monitor.onSerialize(writer, _) >> {}
-    monitor.onScheduleFlush(writer, _) >> {}
-
-    monitor.onFailedPublish(writer, _) >> {
+    monitor.onPublish(_, _) >> {
+      numPublished += 1
+    }
+    monitor.onFailedPublish(_, _) >> {
       numFailedPublish += 1
     }
 
@@ -396,6 +394,7 @@ class DDAgentWriterTest extends DDSpecification {
     writer.flush()
 
     then:
+    numPublished == 1
     numFailedPublish == 0
 
     when:
@@ -406,6 +405,7 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     // might spill back into the Disruptor slightly, but sender queue is currently unbounded
+    numPublished == 1 + 20
     numFailedPublish == 0
 
     when:
@@ -416,7 +416,8 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     // Disruptor still doesn't reject because the sender queue is unbounded
-    numFailedPublish == 0
+    (numPublished + numFailedPublish) == (1 + 20 + bufferSize * 2)
+    numFailedPublish >= 0
 
     cleanup:
     writer.close()
