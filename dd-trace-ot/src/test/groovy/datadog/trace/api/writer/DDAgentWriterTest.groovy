@@ -347,4 +347,79 @@ class DDAgentWriterTest extends DDSpecification {
     then:
     1 * monitor.onShutdown(writer, true)
   }
+
+  def "slow response test"() {
+    def numFailedPublish = 0
+
+    setup:
+    def minimalTrace = createMinimalTrace()
+
+    // Need to set-up a dummy agent for the final send callback to work
+    def first = true
+    def agent = httpServer {
+      handlers {
+        put("v0.4/traces") {
+          // DDApi sniffs for end point existence, so respond quickly the first time
+          // then slowly thereafter
+
+          if (!first) {
+            // Long enough to stall the pipeline, but not long enough to fail
+            Thread.sleep(2_500)
+          }
+          response.status(200).send()
+          first = false
+        }
+      }
+    }
+    def api = new DDApi("localhost", agent.address.port, null)
+
+    // This test focuses just on failed publish, so not verifying every callback
+    def monitor = Stub(DDAgentWriter.Monitor)
+    monitor.onStart(writer) >> {}
+    monitor.onEnd(writer) >> {}
+    monitor.onPublish(writer, _) >> {}
+    monitor.onSerialize(writer, _) >> {}
+    monitor.onScheduleFlush(writer, _) >> {}
+
+    monitor.onFailedPublish(writer, _) >> {
+      numFailedPublish += 1
+    }
+
+    def bufferSize = 32
+    def writer = new DDAgentWriter(api, monitor, bufferSize, DDAgentWriter.FLUSH_PAYLOAD_DELAY)
+    writer.start()
+
+    when:
+    // write & flush a single trace -- the slow agent response will cause
+    // additional writes to back-up the sending queue
+    writer.write(minimalTrace)
+    writer.flush()
+
+    then:
+    numFailedPublish == 0
+
+    when:
+    // send enough traces to fill the sending queue (16+)
+    (1..20).each {
+      writer.write(minimalTrace)
+    }
+    writer.flush()
+
+    then:
+    // should be spilling into the disruptor, but shouldn't be rejecting yet
+    numFailedPublish == 0
+
+    when:
+    // now, fill-up the disruptor buffer as well
+    (1..bufferSize * 2).each {
+      writer.write(minimalTrace)
+    }
+
+    then:
+    numFailedPublish >= 0
+
+    cleanup:
+    writer.close()
+    agent.close()
+  }
 }
