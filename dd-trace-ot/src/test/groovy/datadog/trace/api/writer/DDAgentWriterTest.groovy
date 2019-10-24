@@ -425,7 +425,7 @@ class DDAgentWriterTest extends DDSpecification {
     agent.close()
   }
 
-  def "multi-threaded"() {
+  def "multi threaded"() {
     def numPublished = new AtomicInteger(0)
     def numFailedPublish = new AtomicInteger(0)
     def numRepSent = new AtomicInteger(0)
@@ -434,7 +434,6 @@ class DDAgentWriterTest extends DDSpecification {
     def minimalTrace = createMinimalTrace()
 
     // Need to set-up a dummy agent for the final send callback to work
-    def first = true
     def agent = httpServer {
       handlers {
         put("v0.4/traces") {
