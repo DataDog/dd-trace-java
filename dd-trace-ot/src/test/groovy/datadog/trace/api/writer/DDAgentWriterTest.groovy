@@ -11,6 +11,7 @@ import datadog.trace.util.test.DDSpecification
 import spock.lang.Timeout
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.opentracing.SpanFactory.newSpanOf
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
@@ -418,6 +419,68 @@ class DDAgentWriterTest extends DDSpecification {
     // Disruptor still doesn't reject because the sender queue is unbounded
     (numPublished + numFailedPublish) == (1 + 20 + bufferSize * 2)
     numFailedPublish >= 0
+
+    cleanup:
+    writer.close()
+    agent.close()
+  }
+
+  def "multi-threaded"() {
+    def numPublished = new AtomicInteger(0)
+    def numFailedPublish = new AtomicInteger(0)
+    def numRepSent = new AtomicInteger(0)
+
+    setup:
+    def minimalTrace = createMinimalTrace()
+
+    // Need to set-up a dummy agent for the final send callback to work
+    def first = true
+    def agent = httpServer {
+      handlers {
+        put("v0.4/traces") {
+          response.status(200).send()
+        }
+      }
+    }
+    def api = new DDApi("localhost", agent.address.port, null)
+
+    // This test focuses just on failed publish, so not verifying every callback
+    def monitor = Stub(DDAgentWriter.Monitor)
+    monitor.onPublish(_, _) >> {
+      numPublished.incrementAndGet()
+    }
+    monitor.onFailedPublish(_, _) >> {
+      numFailedPublish.incrementAndGet()
+    }
+    monitor.onSend(_, _, _, _) >> { writer, repCount, sizeInBytes, response ->
+      numRepSent.addAndGet(repCount)
+    }
+
+    def writer = new DDAgentWriter(api, monitor)
+    writer.start()
+
+    when:
+    def producer = {
+      (1..100).each {
+        writer.write(minimalTrace)
+      }
+    } as Runnable
+
+    def t1 = new Thread(producer)
+    t1.start()
+
+    def t2 = new Thread(producer)
+    t2.start()
+
+    t1.join()
+    t2.join()
+
+    writer.flush()
+
+    then:
+    def totalTraces = 100 + 100
+    numPublished.get() == totalTraces
+    numRepSent.get() == totalTraces
 
     cleanup:
     writer.close()
