@@ -10,11 +10,33 @@ muzzle {
 
 apply from: "${rootDir}/gradle/java.gradle"
 
+apply plugin: 'org.unbroken-dome.test-sets'
+
+//testSets {
+ // latestDepTest {
+//    dirName = 'test'
+//  }
+//}
 dependencies {
   compileOnly group: 'org.springframework.security', name: 'spring-security-bom', version: '5.2.0.RELEASE'
   compileOnly group: 'org.springframework.security', name: 'spring-security-config', version: '5.2.0.RELEASE'
   compileOnly group: 'org.springframework.security', name: 'spring-security-core', version: '5.2.0.RELEASE'
   compileOnly group: 'org.springframework.security', name: 'spring-security-web', version: '5.2.0.RELEASE'
+
+
+  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '2.1.9.RELEASE'
+  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.1.9.RELEASE'
+  testCompile group: 'org.springframework.ldap', name: 'spring-ldap-core', version: '2.3.2.RELEASE'
+  testCompile group: 'org.springframework', name: 'spring-web', version: '5.2.0.RELEASE'
+  testCompile group: 'org.springframework.security', name: 'spring-security-ldap', version: '5.2.0.RELEASE'
+
+  testCompile group: 'org.springframework', name: 'spring-context', version: '5.2.0.RELEASE'
+  testCompile group: 'org.springframework', name: 'spring-tx', version: '5.2.0.RELEASE'
+
+  testCompile group: 'com.unboundid', name: 'unboundid-ldapsdk', version: '4.0.12'
+  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.1.9.RELEASE'
+
+  testCompile group: 'org.spockframework', name: 'spock-spring', version: '1.1-groovy-2.4'
 
 
 }

@@ -53,7 +53,8 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
         isMethod()
             .and(isPublic())
             .and(named("authenticate"))
-            .and(takesArgument(0, named("org.springframework.security.core.Authentication"))),
+            .and(takesArgument(0, named("org.springframework.security.core.Authentication")))
+            .and(takesArguments(1)),
         AuthenticateAdvice.class.getName());
   }
 
@@ -61,11 +62,17 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static Scope StartSpan(
-        @Advice.Argument(0) final org.springframework.security.core.Authentication auth) {
+        @Advice.Argument(0) final org.springframework.security.core.Authentication auth,
+        @Advice.This(optional = true) Object thiz) {
+
+      System.out.println("CTECTE  " + thiz.getClass().getName());
+
       final Scope scope = GlobalTracer.get().buildSpan("authentication").startActive(true);
       Span span = scope.span();
+      // span.setTag("class:", thiz.getClass().getName());
       DECORATOR.afterStart(span);
       span = DECORATOR.setTagsFromAuth(span, auth);
+
       return scope;
     }
 
@@ -75,6 +82,13 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
         @Advice.Return org.springframework.security.core.Authentication auth,
         @Advice.Thrown final Throwable throwable) {
       Span span = scope.span();
+      if (auth != null) {
+        // Updates
+        span = DECORATOR.setTagsFromAuth(span, auth);
+      } else {
+        System.out.println("returned auth is null");
+      }
+
       if (throwable != null) {
         Tags.ERROR.set(span, Boolean.TRUE);
         span.log(Collections.singletonMap(ERROR_OBJECT, throwable));

@@ -21,7 +21,7 @@ public class SpringSecurityDecorator extends BaseDecorator {
 
   // @Override
   protected String service() {
-    return "spring-security"; // Overridden by onConnection
+    return "spring-security";
   }
 
   @Override
@@ -50,9 +50,9 @@ public class SpringSecurityDecorator extends BaseDecorator {
 
     Object principal = auth.getPrincipal();
     if (principal != null) {
-      System.out.println("principal != null");
+
       if (principal instanceof UserDetails) {
-        System.out.println("principal instanceof UserDetails");
+
         UserDetails ud = (UserDetails) principal;
         String username = ud.getUsername();
         if (username != null && !username.isEmpty()) {
@@ -65,7 +65,7 @@ public class SpringSecurityDecorator extends BaseDecorator {
         Boolean isCredentialsNonExpired = ud.isCredentialsNonExpired();
         span.setTag("authentication.principal.is_credentials_non_locked", isCredentialsNonExpired);
 
-        // TO MODIFY AND TEST
+        // TESTED
         Collection<? extends GrantedAuthority> coll = ud.getAuthorities();
         int i = 0;
         for (GrantedAuthority authority : coll) {
