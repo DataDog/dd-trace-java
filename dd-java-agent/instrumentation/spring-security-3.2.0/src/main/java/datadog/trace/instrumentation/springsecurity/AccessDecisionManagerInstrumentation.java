@@ -1,19 +1,17 @@
 package datadog.trace.instrumentation.springsecurity;
 
 import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springsecurity.SpringSecurityDecorator.DECORATOR;
-import static io.opentracing.log.Fields.ERROR_OBJECT;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import io.opentracing.Scope;
-import io.opentracing.Span;
-import io.opentracing.tag.Tags;
-import io.opentracing.util.GlobalTracer;
+import datadog.trace.instrumentation.api.AgentScope;
+import datadog.trace.instrumentation.api.AgentSpan;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -62,13 +60,12 @@ public final class AccessDecisionManagerInstrumentation extends Instrumenter.Def
   public static class AccessDecisionAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static Scope StartSpan(
+    public static AgentScope StartSpan(
         @Advice.Argument(0) final org.springframework.security.core.Authentication auth,
         @Advice.Argument(1) final Object object,
         @Advice.Argument(2) final Collection<ConfigAttribute> configAttributes) {
+      AgentSpan span = startSpan("access_decision");
 
-      final Scope scope = GlobalTracer.get().buildSpan("access_decision").startActive(true);
-      Span span = scope.span();
       DECORATOR.afterStart(span);
       span = DECORATOR.setTagsFromAuth(span, auth);
 
@@ -83,17 +80,17 @@ public final class AccessDecisionManagerInstrumentation extends Instrumenter.Def
         span.setTag("request.URL", fi.getRequestUrl());
       }
 
-      return scope;
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final Scope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
 
       if (throwable != null) {
-        final Span span = scope.span();
-        Tags.ERROR.set(span, Boolean.TRUE);
-        span.log(Collections.singletonMap(ERROR_OBJECT, throwable));
+        AgentSpan span = scope.span();
+        span.setError(Boolean.TRUE);
+        span.addThrowable(throwable);
       }
 
       scope.close();

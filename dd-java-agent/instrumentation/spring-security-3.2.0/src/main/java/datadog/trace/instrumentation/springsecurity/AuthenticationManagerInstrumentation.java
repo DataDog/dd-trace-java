@@ -1,18 +1,16 @@
 package datadog.trace.instrumentation.springsecurity;
 
 import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springsecurity.SpringSecurityDecorator.DECORATOR;
-import static io.opentracing.log.Fields.ERROR_OBJECT;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.*;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import io.opentracing.Scope;
-import io.opentracing.Span;
-import io.opentracing.tag.Tags;
-import io.opentracing.util.GlobalTracer;
-import java.util.Collections;
+import datadog.trace.instrumentation.api.AgentScope;
+import datadog.trace.instrumentation.api.AgentSpan;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -61,27 +59,27 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
   public static class AuthenticateAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static Scope StartSpan(
+    public static AgentScope StartSpan(
         @Advice.Argument(0) final org.springframework.security.core.Authentication auth,
         @Advice.This(optional = true) Object thiz) {
 
       System.out.println("CTECTE  " + thiz.getClass().getName());
-
-      final Scope scope = GlobalTracer.get().buildSpan("authentication").startActive(true);
-      Span span = scope.span();
+      AgentSpan span = startSpan("authentication");
+      // final Scope scope = GlobalTracer.get().buildSpan("authentication").startActive(true);
+      // AgentSpan span = scope.span();
       // span.setTag("class:", thiz.getClass().getName());
       DECORATOR.afterStart(span);
       span = DECORATOR.setTagsFromAuth(span, auth);
 
-      return scope;
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final Scope scope,
+        @Advice.Enter final AgentScope scope,
         @Advice.Return org.springframework.security.core.Authentication auth,
         @Advice.Thrown final Throwable throwable) {
-      Span span = scope.span();
+      AgentSpan span = scope.span();
       if (auth != null) {
         // Updates
         span = DECORATOR.setTagsFromAuth(span, auth);
@@ -90,8 +88,9 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
       }
 
       if (throwable != null) {
-        Tags.ERROR.set(span, Boolean.TRUE);
-        span.log(Collections.singletonMap(ERROR_OBJECT, throwable));
+        span.setError(Boolean.TRUE);
+
+        span.addThrowable(throwable);
       }
 
       scope.close();

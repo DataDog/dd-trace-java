@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.springsecurity;
 
 import datadog.trace.agent.decorator.BaseDecorator;
 import datadog.trace.api.DDTags;
-import io.opentracing.Span;
+import datadog.trace.instrumentation.api.AgentSpan;
 import java.util.Collection;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -38,13 +38,13 @@ public class SpringSecurityDecorator extends BaseDecorator {
     return null;
   }
 
-  public Span afterStart(final Span span) {
+  public AgentSpan afterStart(final AgentSpan span) {
     assert span != null;
     span.setTag(DDTags.SERVICE_NAME, service());
     return super.afterStart(span);
   }
 
-  public Span setTagsFromAuth(Span span, Authentication auth) {
+  public AgentSpan setTagsFromAuth(AgentSpan span, Authentication auth) {
     assert span != null;
     assert auth != null;
 
