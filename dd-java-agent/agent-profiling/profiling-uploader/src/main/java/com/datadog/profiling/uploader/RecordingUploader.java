@@ -17,13 +17,12 @@ package com.datadog.profiling.uploader;
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
-import com.datadog.profiling.uploader.util.ChunkReader;
+import com.google.common.io.ByteStreams;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -49,15 +48,11 @@ public final class RecordingUploader {
   static final String TYPE_PARAM = "type";
   static final String RUNTIME_PARAM = "runtime";
 
-  // This is just the requested times. Later we will do this right, with per chunk info.
-  // Also this information should not have to be repeated in every request.
   static final String RECORDING_START_PARAM = "recording-start";
   static final String RECORDING_END_PARAM = "recording-end";
 
-  // May want to defined these somewhere where they can be shared in the public API
-  static final String CHUNK_SEQUENCE_NUMBER_PARAM = "chunk-seq-num";
-
-  static final String CHUNK_DATA_PARAM = "chunk-data";
+  // TODO: We should rename parameter to just `data`
+  static final String DATA_PARAM = "chunk-data";
 
   static final String TAGS_PARAM = "tags[]";
 
@@ -68,16 +63,15 @@ public final class RecordingUploader {
   static final String RECORDING_TYPE_PREFIX = "jfr-";
   static final String RECORDING_RUNTIME = "jvm";
 
-  private static final Headers CHUNK_DATA_HEADERS =
+  private static final Headers DATA_HEADERS =
       Headers.of(
-          "Content-Disposition",
-          "form-data; name=\"" + CHUNK_DATA_PARAM + "\"; filename=\"chunk\"");
+          "Content-Disposition", "form-data; name=\"" + DATA_PARAM + "\"; filename=\"recording\"");
 
   private static final Callback RESPONSE_CALLBACK =
       new Callback() {
         @Override
         public void onFailure(final Call call, final IOException e) {
-          log.error("Failed to upload chunk", e);
+          log.error("Failed to upload recording", e);
         }
 
         @Override
@@ -85,7 +79,10 @@ public final class RecordingUploader {
           if (response.isSuccessful()) {
             log.debug("Upload done");
           } else {
-            log.error("Failed to upload chunk: unexpected response code: " + response);
+            log.error(
+                "Failed to upload recording: unexpected response code {} {}",
+                response.message(),
+                response.code());
           }
           response.close();
         }
@@ -143,18 +140,18 @@ public final class RecordingUploader {
   public void upload(final RecordingType type, final RecordingData data) {
     try {
       if (canEnqueueMoreRequests()) {
-        final Iterator<byte[]> chunkIterator = ChunkReader.readChunks(data.getStream());
-        int chunkCounter = 0;
-        while (chunkIterator.hasNext()) {
-          uploadChunk(type, data, chunkCounter++, chunkIterator.next());
-        }
+        makeUploadRequest(type, data);
       } else {
         log.error("Cannot upload data: too many enqueued requests!");
       }
     } catch (final IllegalStateException | IOException e) {
-      log.error("Problem uploading recording chunk!", e);
+      log.error("Problem uploading recording!", e);
     } finally {
-      // Chunk loader closes stream automatically - only need to release RecordingData
+      try {
+        data.getStream().close();
+      } catch (final IllegalStateException | IOException e) {
+        log.error("Problem closing recording stream", e);
+      }
       data.release();
     }
   }
@@ -163,9 +160,12 @@ public final class RecordingUploader {
     client.dispatcher().executorService().shutdown();
   }
 
-  private void uploadChunk(
-      final RecordingType type, final RecordingData data, final int chunkId, final byte[] chunk) {
-    log.debug("Uploading chunk {} [{}] (Size={} bytes)", data.getName(), chunkId, chunk.length);
+  private void makeUploadRequest(final RecordingType type, final RecordingData data)
+      throws IOException {
+    // TODO: we some point we would want to compress this. But this may be already compressed: see
+    // com.datadog.profiling.uploader.util.IOToolkit
+    final byte[] bytes = ByteStreams.toByteArray(data.getStream());
+    log.debug("Uploading recording {} [{}] (Size={} bytes)", data.getName(), bytes.length);
 
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder()
@@ -176,12 +176,11 @@ public final class RecordingUploader {
             .addFormDataPart(RUNTIME_PARAM, RECORDING_RUNTIME)
             // Note that toString is well defined for instants - ISO-8601
             .addFormDataPart(RECORDING_START_PARAM, data.getStart().toString())
-            .addFormDataPart(RECORDING_END_PARAM, data.getEnd().toString())
-            .addFormDataPart(CHUNK_SEQUENCE_NUMBER_PARAM, String.valueOf(chunkId));
+            .addFormDataPart(RECORDING_END_PARAM, data.getEnd().toString());
     for (final String tag : tags) {
       bodyBuilder.addFormDataPart(TAGS_PARAM, tag);
     }
-    bodyBuilder.addPart(CHUNK_DATA_HEADERS, RequestBody.create(OCTET_STREAM, chunk));
+    bodyBuilder.addPart(DATA_HEADERS, RequestBody.create(OCTET_STREAM, bytes));
     final RequestBody requestBody = bodyBuilder.build();
 
     final Request request =
@@ -201,14 +200,11 @@ public final class RecordingUploader {
   }
 
   private boolean canEnqueueMoreRequests() {
-    // This is a soft limit since recording data may contain many chunks which are
-    // uploaded with multiple requests.
     return client.dispatcher().queuedCallsCount() < MAX_ENQUEUED_REQUESTS;
   }
 
   private List<String> tagsToList(final Map<String, String> tags) {
-    return tags.entrySet()
-        .stream()
+    return tags.entrySet().stream()
         .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
         .map(e -> e.getKey() + ":" + e.getValue())
         .collect(Collectors.toList());
