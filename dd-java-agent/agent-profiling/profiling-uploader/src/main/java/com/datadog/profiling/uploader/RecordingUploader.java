@@ -164,6 +164,12 @@ public final class RecordingUploader {
       throws IOException {
     // TODO: we some point we would want to compress this. But this may be already compressed: see
     // com.datadog.profiling.uploader.util.IOToolkit
+    // TODO: it would be really nice to avoid copy here, but:
+    // * if JFR doesn't write file to disk we seem to not be able to get size of the recording
+    // without reading whole stream
+    // * OkHTTP doesn't provide firect way to send uploads from streams - and workarounds would
+    // require stream that allows
+    //   'repeatable reads' because we may need to resend that data.
     final byte[] bytes = ByteStreams.toByteArray(data.getStream());
     log.debug("Uploading recording {} [{}] (Size={} bytes)", data.getName(), bytes.length);
 
