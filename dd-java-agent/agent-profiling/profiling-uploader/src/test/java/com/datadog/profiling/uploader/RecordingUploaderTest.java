@@ -347,7 +347,7 @@ public class RecordingUploaderTest {
       server.enqueue(
           new MockResponse()
               .setHeadersDelay(
-                  REQUEST_IO_OPERATION_TIMEOUT.plus(Duration.ofMillis(1000)).toMillis(),
+                  REQUEST_IO_OPERATION_TIMEOUT.plus(Duration.ofMillis(2000)).toMillis(),
                   TimeUnit.MILLISECONDS)
               .setResponseCode(200));
     }
