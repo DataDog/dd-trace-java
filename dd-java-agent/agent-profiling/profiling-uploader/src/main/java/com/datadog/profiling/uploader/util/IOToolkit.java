@@ -61,7 +61,8 @@ import java.util.zip.ZipInputStream;
 /**
  * Common functionality you might want when you're working with I/O.
  *
- * <p>Temporary copy from JMC project. Use JMC 7 once available on Maven Central.
+ * <p>Temporary copy from JMC project. Use JMC 7 once available on Maven Central. Note: we are not
+ * using this at the moment, but we may need it later if we decide start compressing recordings
  */
 public final class IOToolkit {
   private static final int ZIP_MAGIC[] = new int[] {80, 75, 3, 4};

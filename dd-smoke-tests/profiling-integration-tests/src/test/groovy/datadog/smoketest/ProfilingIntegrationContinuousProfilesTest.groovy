@@ -51,17 +51,9 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     server.enqueue(new MockResponse().setResponseCode(200))
 
     when:
-    RecordedRequest firstRequest
-    Multimap<String, Object> firstRequestParameters
-    while (true) {
-      firstRequest = server.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS)
-      firstRequestParameters =
-        ProfilingTestUtils.parseProfilingRequestParameters(firstRequest)
-      // Skip non-first chunks
-      if (firstRequestParameters.get("chunk-seq-num").get(0) == "0") {
-        break
-      }
-    }
+    RecordedRequest firstRequest = server.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS)
+    Multimap<String, Object> firstRequestParameters =
+      ProfilingTestUtils.parseProfilingRequestParameters(firstRequest)
 
     then:
     firstRequest.getRequestUrl().toString() == profilingUrl
@@ -86,21 +78,12 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     requestTags.get("runtime-id") != null
     requestTags.get("host") == InetAddress.getLocalHost().getHostName()
 
-    firstRequestParameters.get("chunk-seq-num").get(0) == "0"
     firstRequestParameters.get("chunk-data").get(0) != null
 
     when:
-    RecordedRequest secondRequest
-    Multimap<String, Object> secondRequestParameters
-    while (true) {
-      secondRequest = server.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS)
-      secondRequestParameters =
-        ProfilingTestUtils.parseProfilingRequestParameters(secondRequest)
-      // Skip non-first chunks
-      if (secondRequestParameters.get("chunk-seq-num").get(0) == "0") {
-        break
-      }
-    }
+    RecordedRequest secondRequest = server.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS)
+    Multimap<String, Object> secondRequestParameters =
+      ProfilingTestUtils.parseProfilingRequestParameters(secondRequest)
 
     then:
     secondRequest.getRequestUrl().toString() == profilingUrl
@@ -112,7 +95,6 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     period > TimeUnit.SECONDS.toMillis(PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS - 2)
     period < TimeUnit.SECONDS.toMillis(PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS + 2)
 
-    secondRequestParameters.get("chunk-seq-num").get(0) == "0"
     firstRequestParameters.get("chunk-data").get(0) != null
 
     IItemCollection events = JfrLoaderToolkit.loadEvents(new ByteArrayInputStream(secondRequestParameters.get("chunk-data").get(0)))

@@ -32,7 +32,7 @@ abstract class AbstractSmokeTest extends Specification {
     }
 
     profilingPort = PortUtils.randomOpenPort()
-    profilingUrl = "http://localhost:${profilingPort}/api/v0/profiling/chunk"
+    profilingUrl = "http://localhost:${profilingPort}/api/v1/input"
 
     defaultJavaProperties = [
       "-javaagent:${shadowJarPath}",
@@ -41,7 +41,7 @@ abstract class AbstractSmokeTest extends Specification {
       "-Ddd.profiling.enabled=true",
       "-Ddd.profiling.start.delay=${PROFILING_START_DELAY_SECONDS}",
       "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
-      "-Ddd.profiling.url=http://localhost:${profilingPort}/api/v0/profiling/chunk",
+      "-Ddd.profiling.url=http://localhost:${profilingPort}/api/v1/input",
       "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
       "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
     ]
