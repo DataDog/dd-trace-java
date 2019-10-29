@@ -90,6 +90,8 @@ public class RecordingUploaderTest {
   private final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
   private final Duration REQUEST_IO_OPERATION_TIMEOUT = Duration.ofSeconds(5);
 
+  private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
+
   @Mock private Config config;
 
   private final MockWebServer server = new MockWebServer();
@@ -342,13 +344,19 @@ public class RecordingUploaderTest {
 
   @Test
   public void testTooManyRequests() throws IOException, InterruptedException {
+    // We need to make sure that initial requests that fill up the queue hang to the duration of the
+    // test. So we specify insanely large timeout here.
+    when(config.getProfilingUploadRequestTimeout())
+        .thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
+    when(config.getProfilingUploadRequestIOOperationTimeout())
+        .thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
+    uploader = new RecordingUploader(config);
+
     // We have to block all parallel requests to make sure queue is kept full
     for (int i = 0; i < RecordingUploader.MAX_RUNNING_REQUESTS; i++) {
       server.enqueue(
           new MockResponse()
-              .setHeadersDelay(
-                  REQUEST_IO_OPERATION_TIMEOUT.plus(Duration.ofMillis(2000)).toMillis(),
-                  TimeUnit.MILLISECONDS)
+              .setHeadersDelay(FOREVER_REQUEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
               .setResponseCode(200));
     }
     server.enqueue(new MockResponse().setResponseCode(200));
