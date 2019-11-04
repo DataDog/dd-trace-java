@@ -3,9 +3,8 @@ package datadog.trace.instrumentation.kafka_streams;
 import datadog.trace.agent.decorator.ClientDecorator;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
-import io.opentracing.Scope;
-import io.opentracing.Span;
-import io.opentracing.tag.Tags;
+import datadog.trace.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.api.Tags;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
 
 public class KafkaStreamsDecorator extends ClientDecorator {
@@ -36,8 +35,7 @@ public class KafkaStreamsDecorator extends ClientDecorator {
     return DDSpanTypes.MESSAGE_CONSUMER;
   }
 
-  public void onConsume(final Scope scope, final StampedRecord record) {
-    final Span span = scope.span();
+  public void onConsume(final AgentSpan span, final StampedRecord record) {
     if (record != null) {
       final String topic = record.topic() == null ? "kafka" : record.topic();
       span.setTag(DDTags.RESOURCE_NAME, "Consume Topic " + topic);

@@ -178,6 +178,11 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentSpan getLocalRootSpan() {
+      return this;
+    }
+
+    @Override
     public Context context() {
       return NoopContext.INSTANCE;
     }
@@ -203,7 +208,9 @@ public class AgentTracer {
     }
 
     @Override
-    public void setAsyncPropagation(final boolean value) {}
+    public AgentScope setAsyncPropagation(final boolean value) {
+      return this;
+    }
 
     @Override
     public void close() {}

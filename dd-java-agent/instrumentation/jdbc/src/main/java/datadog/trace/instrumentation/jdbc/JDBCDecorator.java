@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.jdbc;
 import datadog.trace.agent.decorator.DatabaseClientDecorator;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
-import io.opentracing.Span;
-import io.opentracing.tag.Tags;
+import datadog.trace.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.api.Tags;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -54,7 +54,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     }
   }
 
-  public Span onConnection(final Span span, final Connection connection) {
+  public AgentSpan onConnection(final AgentSpan span, final Connection connection) {
     DBInfo dbInfo = JDBCMaps.connectionInfo.get(connection);
     /**
      * Logic to get the DBInfo from a JDBC Connection, if the connection was not created via
@@ -81,25 +81,25 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     }
 
     if (dbInfo != null) {
-      Tags.DB_TYPE.set(span, dbInfo.getType());
+      span.setTag(Tags.DB_TYPE, dbInfo.getType());
       span.setTag(DDTags.SERVICE_NAME, dbInfo.getType());
     }
     return super.onConnection(span, dbInfo);
   }
 
   @Override
-  public Span onStatement(final Span span, final String statement) {
+  public AgentSpan onStatement(final AgentSpan span, final String statement) {
     final String resourceName = statement == null ? DB_QUERY : statement;
     span.setTag(DDTags.RESOURCE_NAME, resourceName);
-    Tags.COMPONENT.set(span, "java-jdbc-statement");
+    span.setTag(Tags.COMPONENT, "java-jdbc-statement");
     return super.onStatement(span, statement);
   }
 
-  public Span onPreparedStatement(final Span span, final PreparedStatement statement) {
+  public AgentSpan onPreparedStatement(final AgentSpan span, final PreparedStatement statement) {
     final String sql = JDBCMaps.preparedStatements.get(statement);
     final String resourceName = sql == null ? DB_QUERY : sql;
     span.setTag(DDTags.RESOURCE_NAME, resourceName);
-    Tags.COMPONENT.set(span, "java-jdbc-prepared_statement");
+    span.setTag(Tags.COMPONENT, "java-jdbc-prepared_statement");
     return super.onStatement(span, sql);
   }
 }

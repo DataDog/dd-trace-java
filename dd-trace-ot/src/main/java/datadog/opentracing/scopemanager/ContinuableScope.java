@@ -7,7 +7,6 @@ import datadog.opentracing.jfr.DDScopeEvent;
 import datadog.opentracing.jfr.DDScopeEventFactory;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
-import io.opentracing.Scope;
 import java.io.Closeable;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ContinuableScope implements Scope, TraceScope {
+public class ContinuableScope implements DDScope, TraceScope {
   /** ScopeManager holding the thread-local to this scope. */
   private final ContextualScopeManager scopeManager;
   /**
@@ -31,7 +30,7 @@ public class ContinuableScope implements Scope, TraceScope {
   /** Count of open scope and continuations */
   private final AtomicInteger openCount;
   /** Scope to placed in the thread local after close. May be null. */
-  private final Scope toRestore;
+  private final DDScope toRestore;
   /** Continuation that created this scope. May be null. */
   private final Continuation continuation;
   /** Flag to propagate this scope across async boundaries. */

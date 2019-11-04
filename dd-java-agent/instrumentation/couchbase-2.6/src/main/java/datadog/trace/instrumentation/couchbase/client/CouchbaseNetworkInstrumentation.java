@@ -13,8 +13,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import io.opentracing.Span;
-import io.opentracing.tag.Tags;
+import datadog.trace.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.api.Tags;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -37,7 +37,7 @@ public class CouchbaseNetworkInstrumentation extends Instrumenter.Default {
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "com.couchbase.client.core.message.CouchbaseRequest", Span.class.getName());
+        "com.couchbase.client.core.message.CouchbaseRequest", AgentSpan.class.getName());
   }
 
   @Override
@@ -61,17 +61,17 @@ public class CouchbaseNetworkInstrumentation extends Instrumenter.Default {
         @Advice.FieldValue("remoteSocket") final String remoteSocket,
         @Advice.FieldValue("localSocket") final String localSocket,
         @Advice.Argument(1) final CouchbaseRequest request) {
-      final ContextStore<CouchbaseRequest, Span> contextStore =
-          InstrumentationContext.get(CouchbaseRequest.class, Span.class);
+      final ContextStore<CouchbaseRequest, AgentSpan> contextStore =
+          InstrumentationContext.get(CouchbaseRequest.class, AgentSpan.class);
 
-      final Span span = contextStore.get(request);
+      final AgentSpan span = contextStore.get(request);
       if (span != null) {
-        Tags.PEER_HOSTNAME.set(span, remoteHostname);
+        span.setTag(Tags.PEER_HOSTNAME, remoteHostname);
 
         if (remoteSocket != null) {
           final int splitIndex = remoteSocket.lastIndexOf(":");
           if (splitIndex != -1) {
-            Tags.PEER_PORT.set(span, Integer.valueOf(remoteSocket.substring(splitIndex + 1)));
+            span.setTag(Tags.PEER_PORT, Integer.parseInt(remoteSocket.substring(splitIndex + 1)));
           }
         }
 

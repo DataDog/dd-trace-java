@@ -6,12 +6,12 @@ import datadog.trace.agent.decorator.BaseDecorator;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.WeakMap;
-import io.opentracing.Scope;
-import io.opentracing.Span;
-import io.opentracing.tag.Tags;
+import datadog.trace.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.api.Tags;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.ws.rs.HttpMethod;
@@ -37,11 +37,11 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     return "jax-rs-controller";
   }
 
-  public void onControllerStart(final Scope scope, final Scope parent, final Method method) {
-    final String resourceName = getPathResourceName(method);
+  public void onControllerStart(
+      final AgentSpan span, final AgentSpan parent, final Class target, final Method method) {
+    final String resourceName = getPathResourceName(target, method);
     updateParent(parent, resourceName);
 
-    final Span span = scope.span();
     span.setTag(DDTags.SPAN_TYPE, DDSpanTypes.HTTP_SERVER);
 
     // When jax-rs is the root, we want to name using the path, otherwise use the class/method.
@@ -49,16 +49,16 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     if (isRootScope && !resourceName.isEmpty()) {
       span.setTag(DDTags.RESOURCE_NAME, resourceName);
     } else {
-      span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(method));
+      span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForClass(target) + "." + method.getName());
     }
   }
 
-  private void updateParent(final Scope scope, final String resourceName) {
-    if (scope == null) {
+  private void updateParent(AgentSpan span, final String resourceName) {
+    if (span == null) {
       return;
     }
-    final Span span = scope.span();
-    Tags.COMPONENT.set(span, "jax-rs");
+    span = span.getLocalRootSpan();
+    span.setTag(Tags.COMPONENT, "jax-rs");
 
     if (!resourceName.isEmpty()) {
       span.setTag(DDTags.RESOURCE_NAME, resourceName);
@@ -71,8 +71,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
    *
    * @return The result can be an empty string but will never be {@code null}.
    */
-  private String getPathResourceName(final Method method) {
-    final Class<?> target = method.getDeclaringClass();
+  private String getPathResourceName(final Class target, final Method method) {
     Map<Method, String> classMap = resourceNames.get(target);
 
     if (classMap == null) {
@@ -85,7 +84,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     String resourceName = classMap.get(method);
     if (resourceName == null) {
       final String httpMethod = locateHttpMethod(method);
-      final LinkedList<Path> paths = gatherPaths(method);
+      final List<Path> paths = gatherPaths(target, method);
       resourceName = buildResourceName(httpMethod, paths);
       classMap.put(method, resourceName);
     }
@@ -103,13 +102,13 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     return httpMethod;
   }
 
-  private LinkedList<Path> gatherPaths(final Method method) {
-    Class<?> target = method.getDeclaringClass();
-    final LinkedList<Path> paths = new LinkedList<>();
-    while (target != Object.class) {
+  private List<Path> gatherPaths(Class<Object> target, final Method method) {
+    final List<Path> paths = new ArrayList();
+    while (target != null && target != Object.class) {
       final Path annotation = target.getAnnotation(Path.class);
       if (annotation != null) {
-        paths.push(annotation);
+        paths.add(annotation);
+        break; // Annotation overridden, no need to continue.
       }
       target = target.getSuperclass();
     }
@@ -120,7 +119,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     return paths;
   }
 
-  private String buildResourceName(final String httpMethod, final LinkedList<Path> paths) {
+  private String buildResourceName(final String httpMethod, final List<Path> paths) {
     final String resourceName;
     final StringBuilder resourceNameBuilder = new StringBuilder();
     if (httpMethod != null) {

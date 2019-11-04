@@ -13,6 +13,9 @@ import static datadog.trace.api.Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.Config.DEFAULT_JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.Config.GLOBAL_TAGS
 import static datadog.trace.api.Config.HEADER_TAGS
+import static datadog.trace.api.Config.HEALTH_METRICS_ENABLED
+import static datadog.trace.api.Config.HEALTH_METRICS_STATSD_HOST
+import static datadog.trace.api.Config.HEALTH_METRICS_STATSD_PORT
 import static datadog.trace.api.Config.HOST_TAG
 import static datadog.trace.api.Config.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
@@ -117,6 +120,10 @@ class ConfigTest extends DDSpecification {
     config.jmxFetchStatsdHost == null
     config.jmxFetchStatsdPort == DEFAULT_JMX_FETCH_STATSD_PORT
 
+    config.healthMetricsEnabled == false
+    config.healthMetricsStatsdHost == null
+    config.healthMetricsStatsdPort == null
+
     config.profilingEnabled == false
     config.profilingUrl == Config.DEFAULT_PROFILING_URL
     config.profilingApiKey == null
@@ -179,6 +186,9 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(JMX_FETCH_REFRESH_BEANS_PERIOD, "200")
     prop.setProperty(JMX_FETCH_STATSD_HOST, "statsd host")
     prop.setProperty(JMX_FETCH_STATSD_PORT, "321")
+    prop.setProperty(HEALTH_METRICS_ENABLED, "true")
+    prop.setProperty(HEALTH_METRICS_STATSD_HOST, "metrics statsd host")
+    prop.setProperty(HEALTH_METRICS_STATSD_PORT, "654")
 
     prop.setProperty(PROFILING_ENABLED, "true")
     prop.setProperty(PROFILING_URL, "new url")
@@ -231,6 +241,10 @@ class ConfigTest extends DDSpecification {
     config.jmxFetchStatsdHost == "statsd host"
     config.jmxFetchStatsdPort == 321
 
+    config.healthMetricsEnabled == true
+    config.healthMetricsStatsdHost == "metrics statsd host"
+    config.healthMetricsStatsdPort == 654
+
     config.profilingEnabled == true
     config.profilingUrl == "new url"
     config.profilingApiKey == "new api key" // we can still override via internal properties object
@@ -282,6 +296,9 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + JMX_FETCH_REFRESH_BEANS_PERIOD, "200")
     System.setProperty(PREFIX + JMX_FETCH_STATSD_HOST, "statsd host")
     System.setProperty(PREFIX + JMX_FETCH_STATSD_PORT, "321")
+    System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, "true")
+    System.setProperty(PREFIX + HEALTH_METRICS_STATSD_HOST, "metrics statsd host")
+    System.setProperty(PREFIX + HEALTH_METRICS_STATSD_PORT, "654")
 
     System.setProperty(PREFIX + PROFILING_ENABLED, "true")
     System.setProperty(PREFIX + PROFILING_URL, "new url")
@@ -333,6 +350,10 @@ class ConfigTest extends DDSpecification {
     config.jmxFetchRefreshBeansPeriod == 200
     config.jmxFetchStatsdHost == "statsd host"
     config.jmxFetchStatsdPort == 321
+
+    config.healthMetricsEnabled == true
+    config.healthMetricsStatsdHost == "metrics statsd host"
+    config.healthMetricsStatsdPort == 654
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"

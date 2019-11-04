@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.elasticsearch;
 
 import datadog.trace.agent.decorator.DatabaseClientDecorator;
 import datadog.trace.api.DDSpanTypes;
-import io.opentracing.Span;
-import io.opentracing.tag.Tags;
+import datadog.trace.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.api.Tags;
 import org.elasticsearch.client.Response;
 
 public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
@@ -45,16 +45,16 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
     return null;
   }
 
-  public Span onRequest(final Span span, final String method, final String endpoint) {
-    Tags.HTTP_METHOD.set(span, method);
-    Tags.HTTP_URL.set(span, endpoint);
+  public AgentSpan onRequest(final AgentSpan span, final String method, final String endpoint) {
+    span.setTag(Tags.HTTP_METHOD, method);
+    span.setTag(Tags.HTTP_URL, endpoint);
     return span;
   }
 
-  public Span onResponse(final Span span, final Response response) {
+  public AgentSpan onResponse(final AgentSpan span, final Response response) {
     if (response != null && response.getHost() != null) {
-      Tags.PEER_HOSTNAME.set(span, response.getHost().getHostName());
-      Tags.PEER_PORT.set(span, response.getHost().getPort());
+      span.setTag(Tags.PEER_HOSTNAME, response.getHost().getHostName());
+      span.setTag(Tags.PEER_PORT, response.getHost().getPort());
     }
     return span;
   }
