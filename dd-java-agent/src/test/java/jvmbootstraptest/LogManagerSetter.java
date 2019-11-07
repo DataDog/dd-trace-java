@@ -153,7 +153,7 @@ public class LogManagerSetter {
   }
 
   private static void assertProfilingStartupDelayed(final String message) {
-    if (isJavaBefore9()) {
+    if (isJavaBefore9WithJFR()) {
       customAssert(isProfilingStarted(false), false, message);
     } else {
       customAssert(
@@ -214,17 +214,12 @@ public class LogManagerSetter {
       return false;
     }
 
-    final String jfrClassResourceName = "jdk.jfr.Recording".replace('.', '/') + ".class";
-    return Thread.currentThread().getContextClassLoader().getResourceAsStream(jfrClassResourceName)
-        != null;
+    return isJFRSupported();
   }
 
   private static boolean isJFRSupported() {
-    try {
-      Class.forName("jdk.jfr.Recording");
-      return true;
-    } catch (final ClassNotFoundException e) {
-      return false;
-    }
+    final String jfrClassResourceName = "jdk.jfr.Recording".replace('.', '/') + ".class";
+    return Thread.currentThread().getContextClassLoader().getResourceAsStream(jfrClassResourceName)
+        != null;
   }
 }
