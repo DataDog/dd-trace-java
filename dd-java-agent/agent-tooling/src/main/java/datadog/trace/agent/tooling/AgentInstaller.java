@@ -130,6 +130,7 @@ public class AgentInstaller {
             .or(nameContains("CGLIB$$"))
             .or(nameContains("javassist"))
             .or(nameContains(".asm."))
+            .or(nameContains("$__sisu"))
             .or(nameMatches("com\\.mchange\\.v2\\.c3p0\\..*Proxy"))
             .or(isAnnotatedWith(named("javax.decorator.Decorator")))
             .or(matchesConfiguredExcludes());
@@ -270,13 +271,7 @@ public class AgentInstaller {
         final String typeName,
         final ClassLoader classLoader,
         final JavaModule javaModule,
-        final boolean b) {
-      for (final Map.Entry<String, Runnable> entry : classLoadCallbacks.entrySet()) {
-        if (entry.getKey().equals(typeName)) {
-          entry.getValue().run();
-        }
-      }
-    }
+        final boolean b) {}
 
     @Override
     public void onTransformation(
@@ -303,10 +298,16 @@ public class AgentInstaller {
 
     @Override
     public void onComplete(
-        final String s,
+        final String typeName,
         final ClassLoader classLoader,
         final JavaModule javaModule,
-        final boolean b) {}
+        final boolean b) {
+      for (final Map.Entry<String, Runnable> entry : classLoadCallbacks.entrySet()) {
+        if (entry.getKey().equals(typeName)) {
+          entry.getValue().run();
+        }
+      }
+    }
   }
 
   private AgentInstaller() {}
