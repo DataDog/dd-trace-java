@@ -16,6 +16,8 @@ import jdk.jfr.StackTrace;
 @StackTrace(false)
 public final class ScopeEvent extends Event implements DDScopeEvent {
 
+  private static final int IDS_RADIX = 16;
+
   private final transient DDSpanContext spanContext;
 
   @Label("Trace Id")
@@ -51,9 +53,9 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
   public void finish() {
     end();
     if (shouldCommit()) {
-      traceId = spanContext.getTraceId();
-      spanId = spanContext.getSpanId();
-      parentId = spanContext.getParentId();
+      traceId = spanContext.getTraceId().toString(IDS_RADIX);
+      spanId = spanContext.getSpanId().toString(IDS_RADIX);
+      parentId = spanContext.getParentId().toString(IDS_RADIX);
       serviceName = spanContext.getServiceName();
       resourceName = spanContext.getResourceName();
       operationName = spanContext.getOperationName();
