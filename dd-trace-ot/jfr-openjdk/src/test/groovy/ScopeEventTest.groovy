@@ -17,6 +17,7 @@ import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
 @Requires({ jvm.java11Compatible })
 class ScopeEventTest extends Specification {
 
+  private static final int IDS_RADIX = 16
   private static final Duration SLEEP_DURATION = Duration.ofSeconds(1)
 
   def writer = new ListWriter()
@@ -24,9 +25,9 @@ class ScopeEventTest extends Specification {
 
   def parentContext =
     new DDSpanContext(
-      "123",
-      "432",
-      "222",
+      123,
+      432,
+      222,
       "fakeService",
       "fakeOperation",
       "fakeResource",
@@ -36,7 +37,7 @@ class ScopeEventTest extends Specification {
       false,
       "fakeType",
       null,
-      new PendingTrace(tracer, "123", [:]),
+      new PendingTrace(tracer, 123, [:]),
       tracer)
   def builder = tracer.buildSpan("test operation")
     .asChildOf(parentContext)
@@ -60,9 +61,9 @@ class ScopeEventTest extends Specification {
     def event = events[0]
     event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
-    event.getString("traceId") == span.context().traceId
-    event.getString("spanId") == span.context().spanId
-    event.getString("parentId") == span.context().parentId
+    event.getString("traceId") == span.context().traceId.toString(IDS_RADIX)
+    event.getString("spanId") == span.context().spanId.toString(IDS_RADIX)
+    event.getString("parentId") == span.context().parentId.toString(IDS_RADIX)
     event.getString("serviceName") == "test service"
     event.getString("resourceName") == "test resource"
     event.getString("operationName") == "test operation"
@@ -88,9 +89,9 @@ class ScopeEventTest extends Specification {
     def event = events[0]
     event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
-    event.getString("traceId") == span.context().traceId
-    event.getString("spanId") == span.context().spanId
-    event.getString("parentId") == span.context().parentId
+    event.getString("traceId") == span.context().traceId.toString(IDS_RADIX)
+    event.getString("spanId") == span.context().spanId.toString(IDS_RADIX)
+    event.getString("parentId") == span.context().parentId.toString(IDS_RADIX)
     event.getString("serviceName") == "test service"
     event.getString("resourceName") == "test resource"
     event.getString("operationName") == "test operation"
