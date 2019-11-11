@@ -117,6 +117,8 @@ public class Config {
   public static final String PROFILING_UPLOAD_REQUEST_TIMEOUT = "profiling.upload.request.timeout";
   public static final String PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT =
       "profiling.upload.request.io-operation.timeout";
+  public static final String PROFILING_UPLOAD_COMPRESSION_LEVEL =
+      "profiling.upload.compression.level";
   public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
   public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
@@ -176,6 +178,7 @@ public class Config {
   // TODO: Should we make this one setting?
   public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_TIMEOUT = 30; // seconds
   public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT = 30; // seconds
+  public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION_LEVEL = "on";
   public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
@@ -269,6 +272,7 @@ public class Config {
   @Getter private final String profilingContinuousConfigOverridePath;
   @Getter private final int profilingUploadRequestTimeout;
   @Getter private final int profilingUploadRequestIOOperationTimeout;
+  @Getter private final String profilingUploadCompressionLevel;
   @Getter private final String profilingProxyHost;
   @Getter private final int profilingProxyPort;
   @Getter private final String profilingProxyUsername;
@@ -441,6 +445,9 @@ public class Config {
         getIntegerSettingFromEnvironment(
             PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT,
             DEFAULT_PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT);
+    profilingUploadCompressionLevel =
+        getSettingFromEnvironment(
+            PROFILING_UPLOAD_COMPRESSION_LEVEL, DEFAULT_PROFILING_UPLOAD_COMPRESSION_LEVEL);
     profilingProxyHost = getSettingFromEnvironment(PROFILING_PROXY_HOST, null);
     profilingProxyPort =
         getIntegerSettingFromEnvironment(PROFILING_PROXY_PORT, DEFAULT_PROFILING_PROXY_PORT);
@@ -605,6 +612,9 @@ public class Config {
             properties,
             PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT,
             parent.profilingUploadRequestIOOperationTimeout);
+    profilingUploadCompressionLevel =
+        properties.getProperty(
+            PROFILING_UPLOAD_COMPRESSION_LEVEL, parent.profilingUploadCompressionLevel);
     profilingProxyHost = properties.getProperty(PROFILING_PROXY_HOST, parent.profilingProxyHost);
     profilingProxyPort =
         getPropertyIntegerValue(properties, PROFILING_PROXY_PORT, parent.profilingProxyPort);

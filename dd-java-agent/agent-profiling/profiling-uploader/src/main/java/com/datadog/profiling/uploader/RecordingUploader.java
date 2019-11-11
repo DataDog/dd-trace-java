@@ -17,9 +17,10 @@ package com.datadog.profiling.uploader;
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
-import com.google.common.io.ByteStreams;
+import com.datadog.profiling.uploader.util.StreamUtils;
 import datadog.trace.api.Config;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
@@ -88,10 +89,16 @@ public final class RecordingUploader {
         }
       };
 
+  @FunctionalInterface
+  private interface Compression {
+    byte[] compress(InputStream is) throws IOException;
+  }
+
   private final OkHttpClient client;
   private final String apiKey;
   private final String url;
   private final List<String> tags;
+  private final Compression compression;
 
   public RecordingUploader(final Config config) {
     url = config.getProfilingUrl();
@@ -130,11 +137,38 @@ public final class RecordingUploader {
             });
       }
     }
+    compression = getCompression(config.getProfilingUploadCompressionLevel());
 
     client = clientBuilder.build();
     client.dispatcher().setMaxRequests(MAX_RUNNING_REQUESTS);
     // We are mainly talking to the same(ish) host so we need to raise this limit
     client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
+  }
+
+  private Compression getCompression(String level) {
+    CompressionLevel cLevel = CompressionLevel.of(level);
+    log.debug("Uploader compression level = {}", cLevel);
+    Compression compression;
+    // currently only gzip and off are supported
+    // this needs to be updated once more compression levels are added
+    switch (cLevel) {
+      case ON:
+        {
+          compression = StreamUtils::zipStream;
+          break;
+        }
+      case OFF:
+        {
+          compression = StreamUtils::readStream;
+          break;
+        }
+      default:
+        {
+          log.warn("Unrecognizable compression level: {}. Defaulting to 'on'.", cLevel);
+          compression = StreamUtils::zipStream;
+        }
+    }
+    return compression;
   }
 
   public void upload(final RecordingType type, final RecordingData data) {
@@ -167,11 +201,11 @@ public final class RecordingUploader {
     // TODO: it would be really nice to avoid copy here, but:
     // * if JFR doesn't write file to disk we seem to not be able to get size of the recording
     // without reading whole stream
-    // * OkHTTP doesn't provide firect way to send uploads from streams - and workarounds would
+    // * OkHTTP doesn't provide direct way to send uploads from streams - and workarounds would
     // require stream that allows
     //   'repeatable reads' because we may need to resend that data.
-    final byte[] bytes = ByteStreams.toByteArray(data.getStream());
-    log.debug("Uploading recording {} [{}] (Size={} bytes)", data.getName(), bytes.length);
+    final byte[] bytes = compression.compress(data.getStream());
+    log.debug("Uploading recording {} [{}] (Size={} bytes)", data.getName(), type, bytes.length);
 
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder()

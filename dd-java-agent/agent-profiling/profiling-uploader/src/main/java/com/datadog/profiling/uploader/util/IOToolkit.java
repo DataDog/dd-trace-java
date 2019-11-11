@@ -65,8 +65,8 @@ import java.util.zip.ZipInputStream;
  * using this at the moment, but we may need it later if we decide start compressing recordings
  */
 public final class IOToolkit {
-  private static final int ZIP_MAGIC[] = new int[] {80, 75, 3, 4};
-  private static final int GZ_MAGIC[] = new int[] {31, 139};
+  static final int ZIP_MAGIC[] = new int[] {80, 75, 3, 4};
+  static final int GZ_MAGIC[] = new int[] {31, 139};
 
   private IOToolkit() {
     throw new Error("Don't"); // $NON-NLS-1$

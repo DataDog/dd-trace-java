@@ -49,6 +49,7 @@ import static datadog.trace.api.Config.PROFILING_TAGS
 import static datadog.trace.api.Config.PROFILING_UPLOAD_PERIOD
 import static datadog.trace.api.Config.PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT
 import static datadog.trace.api.Config.PROFILING_UPLOAD_REQUEST_TIMEOUT
+import static datadog.trace.api.Config.PROFILING_UPLOAD_COMPRESSION_LEVEL
 import static datadog.trace.api.Config.PROFILING_URL
 import static datadog.trace.api.Config.PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.Config.PROPAGATION_STYLE_INJECT
@@ -203,6 +204,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
     prop.setProperty(PROFILING_UPLOAD_REQUEST_TIMEOUT, "1116")
     prop.setProperty(PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT, "1117")
+    prop.setProperty(PROFILING_UPLOAD_COMPRESSION_LEVEL, "off")
     prop.setProperty(PROFILING_PROXY_HOST, "proxy-host")
     prop.setProperty(PROFILING_PROXY_PORT, "1118")
     prop.setProperty(PROFILING_PROXY_USERNAME, "proxy-username")
@@ -251,6 +253,7 @@ class ConfigTest extends DDSpecification {
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartupDelay == 1111
     config.profilingUploadPeriod == 1112
+    config.profilingUploadCompressionLevel == "off"
     config.profilingContinuousToPeriodicUploadsRatio == 1113
     config.profilingRecordingMaxSize == 1114
     config.profilingRecordingMaxAge == 1115
@@ -313,6 +316,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
     System.setProperty(PREFIX + PROFILING_UPLOAD_REQUEST_TIMEOUT, "1116")
     System.setProperty(PREFIX + PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT, "1117")
+    System.setProperty(PREFIX + PROFILING_UPLOAD_COMPRESSION_LEVEL, "off")
     System.setProperty(PREFIX + PROFILING_PROXY_HOST, "proxy-host")
     System.setProperty(PREFIX + PROFILING_PROXY_PORT, "1118")
     System.setProperty(PREFIX + PROFILING_PROXY_USERNAME, "proxy-username")
@@ -368,6 +372,7 @@ class ConfigTest extends DDSpecification {
     config.profilingContinuousConfigOverridePath == "/continuous/path"
     config.profilingUploadRequestTimeout == 1116
     config.profilingUploadRequestIOOperationTimeout == 1117
+    config.profilingUploadCompressionLevel == "off"
     config.profilingProxyHost == "proxy-host"
     config.profilingProxyPort == 1118
     config.profilingProxyUsername == "proxy-username"

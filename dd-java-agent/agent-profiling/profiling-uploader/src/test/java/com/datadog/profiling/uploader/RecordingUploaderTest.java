@@ -30,6 +30,7 @@ import static org.mockito.Mockito.withSettings;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.testing.ProfilingTestUtils;
+import com.datadog.profiling.uploader.util.StreamUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -53,6 +54,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -124,8 +127,12 @@ public class RecordingUploaderTest {
     }
   }
 
-  @Test
-  public void testRequestParameters() throws IOException, InterruptedException {
+  @ParameterizedTest
+  @ValueSource(strings = {"on", "off", "invalid"})
+  public void testRequestParameters(String compression) throws IOException, InterruptedException {
+    when(config.getProfilingUploadCompressionLevel()).thenReturn(compression);
+    uploader = new RecordingUploader(config);
+
     server.enqueue(new MockResponse().setResponseCode(200));
 
     uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
@@ -165,7 +172,9 @@ public class RecordingUploaderTest {
             Thread.currentThread().getContextClassLoader().getResourceAsStream(RECORDING_RESOURCE));
     assertArrayEquals(
         expectedBytes,
-        (byte[]) Iterables.getFirst(parameters.get(RecordingUploader.DATA_PARAM), new byte[] {}));
+        StreamUtils.unpack(
+            (byte[])
+                Iterables.getFirst(parameters.get(RecordingUploader.DATA_PARAM), new byte[] {})));
   }
 
   @Test
