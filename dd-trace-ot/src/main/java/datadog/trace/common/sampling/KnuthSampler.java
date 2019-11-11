@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class KnuthSampler implements RateSampler {
-  private static final BigInteger HASH_CONSTANT = new BigInteger("1111111111111111111");
+  private static final BigInteger KNUTH_FACTOR = new BigInteger("1111111111111111111");
   private static final BigDecimal TRACE_ID_MAX_AS_BIG_DECIMAL =
       new BigDecimal(DDTracer.TRACE_ID_MAX);
   private static final BigInteger MODULUS = new BigInteger("2").pow(64);
@@ -31,7 +31,7 @@ public class KnuthSampler implements RateSampler {
     } else if (rate == 0) {
       sampled = false;
     } else {
-      sampled = span.getTraceId().multiply(HASH_CONSTANT).mod(MODULUS).compareTo(cutoff) < 0;
+      sampled = span.getTraceId().multiply(KNUTH_FACTOR).mod(MODULUS).compareTo(cutoff) < 0;
     }
 
     log.debug("{} - Span is sampled: {}", span, sampled);
