@@ -8,6 +8,13 @@ import datadog.opentracing.ContainerInfo;
 import datadog.opentracing.DDSpan;
 import datadog.opentracing.DDTraceOTInfo;
 import datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory;
+import lombok.extern.slf4j.Slf4j;
+import okhttp3.*;
+import okio.BufferedSink;
+import org.msgpack.core.MessagePack;
+import org.msgpack.core.MessagePacker;
+import org.msgpack.jackson.dataformat.MessagePackFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -15,17 +22,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
-import okhttp3.HttpUrl;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-import okio.BufferedSink;
-import org.msgpack.core.MessagePack;
-import org.msgpack.core.MessagePacker;
-import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 /** The API pointing to a DD agent */
 @Slf4j
@@ -108,8 +104,12 @@ public class DDApi {
     return sendSerializedTraces(serializedTraces.size(), sizeInBytes, serializedTraces);
   }
 
-  byte[] serializeTrace(final List<DDSpan> trace) throws JsonProcessingException {
+  static byte[] serializeTrace(final List<DDSpan> trace) throws JsonProcessingException {
     return OBJECT_MAPPER.writeValueAsBytes(trace);
+  }
+
+  Response send(Request request) {
+    return sendSerializedTraces(request.numRepresentedTraces(), request.payloadSize, request.serializedTraces());
   }
 
   Response sendSerializedTraces(
@@ -147,7 +147,7 @@ public class DDApi {
               out.close();
             }
           };
-      final Request request =
+      final okhttp3.Request request =
           prepareRequest(tracesUrl)
               .addHeader(X_DATADOG_TRACE_COUNT, String.valueOf(representativeCount))
               .put(body)
@@ -236,7 +236,7 @@ public class DDApi {
     try {
       final OkHttpClient client = buildHttpClient(unixDomainSocketPath);
       final RequestBody body = RequestBody.create(MSGPACK, OBJECT_MAPPER.writeValueAsBytes(data));
-      final Request request = prepareRequest(url).put(body).build();
+      final okhttp3.Request request = prepareRequest(url).put(body).build();
 
       try (final okhttp3.Response response = client.newCall(request).execute()) {
         return response.code() == 200;
@@ -270,9 +270,9 @@ public class DDApi {
         .build();
   }
 
-  private static Request.Builder prepareRequest(final HttpUrl url) {
-    final Request.Builder builder =
-        new Request.Builder()
+  private static okhttp3.Request.Builder prepareRequest(final HttpUrl url) {
+    final okhttp3.Request.Builder builder =
+        new okhttp3.Request.Builder()
             .url(url)
             .addHeader(DATADOG_META_LANG, "java")
             .addHeader(DATADOG_META_LANG_VERSION, DDTraceOTInfo.JAVA_VERSION)
@@ -291,6 +291,120 @@ public class DDApi {
   @Override
   public String toString() {
     return "DDApi { tracesUrl=" + tracesUrl + " }";
+  }
+
+
+  /**
+   *
+   */
+  public static final class Request {
+    private final List<byte[]> serializedTraces;
+    private final int numRepresentedTraces;
+    private final int numDroppedTraces;
+    private final int numSerializedSpans;
+    private final int payloadSize;
+
+    private Request(
+      final int numRepresentedTraces,
+      final List<byte[]> serializedTraces,
+      final int numDroppedTraces,
+      final int numSerializedSpans,
+      final int payloadSize)
+    {
+      this.numRepresentedTraces = numRepresentedTraces;
+      this.serializedTraces = Collections.unmodifiableList(serializedTraces);
+      this.numDroppedTraces = numDroppedTraces;
+      this.numSerializedSpans = numSerializedSpans;
+      this.payloadSize = payloadSize;
+    }
+
+    public int numRepresentedTraces() {
+      return numRepresentedTraces;
+    }
+
+    protected List<byte[]> serializedTraces() {
+      return this.serializedTraces;
+    }
+
+    public int numSerializedTraces() {
+      return serializedTraces.size();
+    }
+
+    public int numDroppedTraces() {
+      return numDroppedTraces;
+    }
+
+    public int numSerializedSpans() {
+      return numSerializedSpans;
+    }
+
+    public int payloadSize() {
+      return payloadSize;
+    }
+
+    public static final class Builder {
+      private final List<byte[]> serializedTraces;
+      private int numRepresentedTraces = 0;
+      private int numDroppedTraces = 0;
+      private int numSerializedSpans = 0;
+      private int payloadSize = 0;
+
+      public Builder() {
+        serializedTraces = new ArrayList<>();
+      }
+
+      public Builder(final int initialCapacity) {
+        serializedTraces = new ArrayList<>(initialCapacity);
+      }
+
+      public final Builder addDropped() {
+        return addDropped(1);
+      }
+
+      public final Builder addDropped(int count) {
+        numDroppedTraces += count;
+        numRepresentedTraces += count;
+
+        return this;
+      }
+
+      public final Builder add(List<DDSpan> trace) {
+        try {
+          final byte[] serializedTrace = serializeTrace(trace);
+          serializedTraces.add(serializedTrace);
+
+          payloadSize += serializedTrace.length;
+          numSerializedSpans += trace.size();
+
+          numRepresentedTraces += 1;
+        } catch (final JsonProcessingException e) {
+          // TODO: DQH - Incorporate the failed serialization into the Response object???
+          DDApi.log.warn("Error serializing trace", e);
+
+          numDroppedTraces += 1;
+          numRepresentedTraces += 1;
+        }
+
+        return this;
+      }
+
+      public final int numSerializedTraces() {
+        return this.serializedTraces.size();
+      }
+
+      public final int payloadSize() {
+        return payloadSize;
+      }
+
+      public final Request build() {
+        return new Request(
+          numRepresentedTraces,
+          serializedTraces,
+          numDroppedTraces,
+          numSerializedSpans,
+          payloadSize);
+      }
+    }
   }
 
   /**

@@ -1,16 +1,6 @@
 package datadog.trace.common.writer;
 
-import static datadog.trace.api.Config.DEFAULT_AGENT_HOST;
-import static datadog.trace.api.Config.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
-import static datadog.trace.api.Config.DEFAULT_TRACE_AGENT_PORT;
-import static java.util.concurrent.TimeUnit.SECONDS;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.lmax.disruptor.EventFactory;
-import com.lmax.disruptor.EventHandler;
-import com.lmax.disruptor.EventTranslator;
-import com.lmax.disruptor.EventTranslatorOneArg;
-import com.lmax.disruptor.SleepingWaitStrategy;
+import com.lmax.disruptor.*;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
 import com.timgroup.statsd.NonBlockingStatsDClient;
@@ -18,17 +8,14 @@ import com.timgroup.statsd.StatsDClient;
 import datadog.opentracing.DDSpan;
 import datadog.opentracing.DDTraceOTInfo;
 import datadog.trace.common.util.DaemonThreadFactory;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Phaser;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static datadog.trace.api.Config.*;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * This writer buffers traces and sends them to the provided DDApi instance.
@@ -43,34 +30,37 @@ public class DDAgentWriter implements Writer {
   private static final int FLUSH_PAYLOAD_BYTES = 5_000_000; // 5 MB
   private static final int FLUSH_PAYLOAD_DELAY = 1; // 1/second
 
-  private static final EventTranslatorOneArg<Event<List<DDSpan>>, List<DDSpan>> TRANSLATOR =
-      new EventTranslatorOneArg<Event<List<DDSpan>>, List<DDSpan>>() {
+  private static final EventTranslatorOneArg<TraceEvent, List<DDSpan>> TRANSLATOR =
+      new EventTranslatorOneArg<TraceEvent, List<DDSpan>>() {
         @Override
         public void translateTo(
-            final Event<List<DDSpan>> event, final long sequence, final List<DDSpan> trace) {
-          event.data = trace;
+            final TraceEvent event, final long sequence, final List<DDSpan> trace) {
+          event.trace = trace;
         }
       };
-  private static final EventTranslator<Event<List<DDSpan>>> FLUSH_TRANSLATOR =
-      new EventTranslator<Event<List<DDSpan>>>() {
+  private static final EventTranslator<TraceEvent> FLUSH_TRANSLATOR =
+      new EventTranslator<TraceEvent>() {
         @Override
-        public void translateTo(final Event<List<DDSpan>> event, final long sequence) {
+        public void translateTo(final TraceEvent event, final long sequence) {
           event.shouldFlush = true;
         }
       };
 
   private static final ThreadFactory DISRUPTOR_THREAD_FACTORY =
       new DaemonThreadFactory("dd-trace-disruptor");
-  private static final ThreadFactory SCHEDULED_FLUSH_THREAD_FACTORY =
+
+  private static final ThreadFactory SENDER_THREAD_FACTORY =
       new DaemonThreadFactory("dd-trace-writer");
 
-  private final Runnable flushTask = new FlushTask();
   private final DDApi api;
-  private final int flushFrequencySeconds;
-  private final Disruptor<Event<List<DDSpan>>> disruptor;
-  private final ScheduledExecutorService scheduledWriterExecutor;
-  private final AtomicInteger traceCount = new AtomicInteger(0);
-  private final AtomicReference<ScheduledFuture<?>> flushSchedule = new AtomicReference<>();
+  private final Disruptor<TraceEvent> disruptor;
+
+  private final BlockingQueue<DDApi.Request> requestQueue = new ArrayBlockingQueue<>(16);
+  private final Sender sender;
+  private final Thread senderThread;
+
+  private final AtomicInteger droppedCount = new AtomicInteger(0);
+
   private final Phaser apiPhaser;
   private volatile boolean running = false;
 
@@ -112,18 +102,18 @@ public class DDAgentWriter implements Writer {
 
     disruptor =
         new Disruptor<>(
-            new DisruptorEventFactory<List<DDSpan>>(),
+            new TraceEventFactory(),
             Math.max(2, Integer.highestOneBit(disruptorSize - 1) << 1), // Next power of 2
             DISRUPTOR_THREAD_FACTORY,
             ProducerType.MULTI,
             new SleepingWaitStrategy(0, TimeUnit.MILLISECONDS.toNanos(5)));
     disruptor.handleEventsWith(new TraceConsumer());
 
-    this.flushFrequencySeconds = flushFrequencySeconds;
-    scheduledWriterExecutor = Executors.newScheduledThreadPool(1, SCHEDULED_FLUSH_THREAD_FACTORY);
-
     apiPhaser = new Phaser(); // Ensure API calls are completed when flushing
-    apiPhaser.register(); // Register on behalf of the scheduled executor thread.
+
+    sender = new Sender(flushFrequencySeconds, 5);
+    sender.register();
+    senderThread = SENDER_THREAD_FACTORY.newThread(sender);
   }
 
   // Exposing some statistics for consumption by monitors
@@ -149,7 +139,7 @@ public class DDAgentWriter implements Writer {
         monitor.onPublish(DDAgentWriter.this, trace);
       } else {
         // We're discarding the trace, but we still want to count it.
-        traceCount.incrementAndGet();
+        droppedCount.incrementAndGet();
         log.debug("Trace written to overfilled buffer. Counted but dropping trace: {}", trace);
 
         monitor.onFailedPublish(this, trace);
@@ -163,7 +153,7 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public void incrementTraceCount() {
-    traceCount.incrementAndGet();
+    // DQH - What is this for?
   }
 
   public DDApi getApi() {
@@ -173,8 +163,8 @@ public class DDAgentWriter implements Writer {
   @Override
   public void start() {
     disruptor.start();
+    senderThread.start();
     running = true;
-    scheduleFlush();
 
     monitor.onStart(this);
   }
@@ -183,43 +173,38 @@ public class DDAgentWriter implements Writer {
   public void close() {
     running = false;
 
-    boolean flushSuccess = true;
-
-    // We have to shutdown scheduled executor first to make sure no flush events issued after
-    // disruptor has been shutdown.
-    // Otherwise those events will never be processed and flush call will wait forever.
-    scheduledWriterExecutor.shutdown();
+    // interrupt the sender thread
+    senderThread.interrupt();
     try {
-      scheduledWriterExecutor.awaitTermination(flushFrequencySeconds, SECONDS);
+      senderThread.join();
     } catch (final InterruptedException e) {
       log.warn("Waiting for flush executor shutdown interrupted.", e);
-
-      flushSuccess = false;
     }
-    flushSuccess |= flush();
+
     disruptor.shutdown();
 
-    monitor.onShutdown(this, flushSuccess);
+    monitor.onShutdown(this, false);
   }
 
   /** This method will block until the flush is complete. */
   public boolean flush() {
-    if (running) {
-      log.info("Flushing any remaining traces.");
-      // Register with the phaser so we can block until the flush completion.
-      apiPhaser.register();
-      disruptor.publishEvent(FLUSH_TRANSLATOR);
-      try {
-        // Allow thread to be interrupted.
-        apiPhaser.awaitAdvanceInterruptibly(apiPhaser.arriveAndDeregister());
+    if (!running) {
+      return false;
+    }
 
-        return true;
-      } catch (final InterruptedException e) {
-        log.warn("Waiting for flush interrupted.", e);
+    log.info("Flushing any remaining traces.");
+    flushDisruptor();
 
-        return false;
-      }
-    } else {
+    // Register with the phaser so we can block until the flush completion.
+    apiPhaser.register();
+    try {
+      // Allow thread to be interrupted.
+      apiPhaser.awaitAdvanceInterruptibly(apiPhaser.arriveAndDeregister());
+
+      return true;
+    } catch (final InterruptedException e) {
+      log.warn("Waiting for flush interrupted.", e);
+
       return false;
     }
   }
@@ -240,133 +225,207 @@ public class DDAgentWriter implements Writer {
     return str;
   }
 
-  private void scheduleFlush() {
-    if (flushFrequencySeconds > 0 && !scheduledWriterExecutor.isShutdown()) {
-      final ScheduledFuture<?> previous =
-          flushSchedule.getAndSet(
-              scheduledWriterExecutor.schedule(flushTask, flushFrequencySeconds, SECONDS));
+  private void flushDisruptor() {
+    disruptor.publishEvent(FLUSH_TRANSLATOR);
 
-      final boolean previousIncomplete = (previous != null);
-      if (previousIncomplete) {
-        previous.cancel(true);
+    monitor.onScheduleFlush(this, false);
+  }
+
+  private DDApi.Response sendImpl(DDApi.Request apiRequest) {
+    try {
+      final DDApi.Response apiResponse = api.send(apiRequest);
+
+      if (apiResponse.success()) {
+        log.debug("Successfully sent {} traces to the API", apiRequest.numSerializedTraces());
+      } else {
+        log.debug(
+          "Failed to send {} traces (representing {}) of size {} bytes to the API",
+          apiRequest.numSerializedTraces(),
+          apiRequest.numRepresentedTraces(),
+          apiRequest.payloadSize());
       }
 
-      monitor.onScheduleFlush(this, previousIncomplete);
+      return apiResponse;
+    } catch (final Throwable e) {
+      log.debug("Failed to send traces to the API: {}", e.getMessage());
+
+      // DQH - 10/2019 - DDApi should wrap most exceptions itself, so this really
+      // shouldn't occur.
+      // However, just to be safe to start, create a failed Response to handle any
+      // spurious Throwable-s.
+      return DDApi.Response.failed(e);
     }
   }
 
-  private class FlushTask implements Runnable {
-    @Override
-    public void run() {
-      // Don't call flush() because it would block the thread also used for sending the traces.
-      disruptor.publishEvent(FLUSH_TRANSLATOR);
-    }
-  }
-
-  /** This class is intentionally not threadsafe. */
-  private class TraceConsumer implements EventHandler<Event<List<DDSpan>>> {
-    private List<byte[]> serializedTraces = new ArrayList<>();
-    private int payloadSize = 0;
+  /*
+   * This class is not thread-safe.  Disruptor is configured to have a single
+   * consumer thread.  The exchange between producer threads & this consumer
+   * are handled via volatile fields on the TraceEvent class.
+   */
+  private class TraceConsumer implements EventHandler<TraceEvent> {
+    private DDApi.Request.Builder apiRequestBuilder = new DDApi.Request.Builder();
 
     @Override
     public void onEvent(
-        final Event<List<DDSpan>> event, final long sequence, final boolean endOfBatch) {
-      final List<DDSpan> trace = event.data;
-      event.data = null; // clear the event for reuse.
+        final TraceEvent traceEvent, final long sequence, final boolean endOfBatch) {
+
+      final boolean shouldFlush = traceEvent.shouldFlush;
+      final List<DDSpan> trace = traceEvent.trace;
+      traceEvent.reset();
+
       if (trace != null) {
-        traceCount.incrementAndGet();
-        try {
-          final byte[] serializedTrace = api.serializeTrace(trace);
-          payloadSize += serializedTrace.length;
-          serializedTraces.add(serializedTrace);
-
-          monitor.onSerialize(DDAgentWriter.this, trace, serializedTrace);
-        } catch (final JsonProcessingException e) {
-          log.warn("Error serializing trace", e);
-
-          monitor.onFailedSerialize(DDAgentWriter.this, trace, e);
-        } catch (final Throwable e) {
-          log.debug("Error while serializing trace", e);
-
-          monitor.onFailedSerialize(DDAgentWriter.this, trace, e);
-        }
+        apiRequestBuilder.add(trace);
       }
-      if (event.shouldFlush || payloadSize >= FLUSH_PAYLOAD_BYTES) {
-        reportTraces();
-        event.shouldFlush = false;
+      if (shouldFlush || apiRequestBuilder.payloadSize() >= FLUSH_PAYLOAD_BYTES) {
+        prepareRequest();
       }
     }
 
-    private void reportTraces() {
-      try {
-        if (serializedTraces.isEmpty()) {
-          apiPhaser.arrive(); // Allow flush to return
-          return;
-          // scheduleFlush called in finally block.
-        }
-        final List<byte[]> toSend = serializedTraces;
-        serializedTraces = new ArrayList<>(toSend.size());
-        // ^ Initialize with similar size to reduce arraycopy churn.
-
-        final int representativeCount = traceCount.getAndSet(0);
-        final int sizeInBytes = payloadSize;
-
-        // Run the actual IO task on a different thread to avoid blocking the consumer.
-        scheduledWriterExecutor.execute(
-            new Runnable() {
-              @Override
-              public void run() {
-                try {
-                  final DDApi.Response response =
-                      api.sendSerializedTraces(representativeCount, sizeInBytes, toSend);
-
-                  if (response.success()) {
-                    log.debug("Successfully sent {} traces to the API", toSend.size());
-
-                    monitor.onSend(DDAgentWriter.this, representativeCount, sizeInBytes, response);
-                  } else {
-                    log.debug(
-                        "Failed to send {} traces (representing {}) of size {} bytes to the API",
-                        toSend.size(),
-                        representativeCount,
-                        sizeInBytes);
-
-                    monitor.onFailedSend(
-                        DDAgentWriter.this, representativeCount, sizeInBytes, response);
-                  }
-                } catch (final Throwable e) {
-                  log.debug("Failed to send traces to the API: {}", e.getMessage());
-
-                  // DQH - 10/2019 - DDApi should wrap most exceptions itself, so this really
-                  // shouldn't occur.
-                  // However, just to be safe to start, create a failed Response to handle any
-                  // spurious Throwable-s.
-                  monitor.onFailedSend(
-                      DDAgentWriter.this,
-                      representativeCount,
-                      sizeInBytes,
-                      DDApi.Response.failed(e));
-                } finally {
-                  apiPhaser.arrive(); // Flush completed.
-                }
-              }
-            });
-      } finally {
-        payloadSize = 0;
-        scheduleFlush();
+    private void prepareRequest() {
+      if (apiRequestBuilder.numSerializedTraces() == 0) {
+        sender.arrive();
+        return;
       }
+
+      final int numDropped = droppedCount.getAndSet(0);
+
+      final DDApi.Request apiRequest = apiRequestBuilder
+        .addDropped(numDropped)
+        .build();
+      requestQueue.offer(apiRequest);
+
+      // Initialize with similar size to reduce arraycopy churn.
+      apiRequestBuilder = new DDApi.Request.Builder(apiRequest.numSerializedTraces());
     }
   }
 
-  private static class Event<T> {
-    private volatile boolean shouldFlush = false;
-    private volatile T data = null;
+  static final class TraceEvent {
+    private volatile boolean shouldFlush;
+    private volatile List<DDSpan> trace;
+
+    TraceEvent() {
+      this.reset();
+    }
+
+    void reset() {
+      this.shouldFlush = false;
+      this.trace = null;
+    }
   }
 
-  private static class DisruptorEventFactory<T> implements EventFactory<Event<T>> {
+  private static final class TraceEventFactory implements EventFactory<TraceEvent> {
     @Override
-    public Event<T> newInstance() {
-      return new Event<>();
+    public TraceEvent newInstance() {
+      return new TraceEvent();
+    }
+  }
+
+  /**
+   * The Sender is currently run in a single thread, so
+   * the mutable fields are not volatile.
+   */
+  private final class Sender implements Runnable {
+    private final int minFlushDelaySecs;
+    private final int maxFlushDelaySecs;
+    private final int numRetries;
+
+    private int flushDelaySecs;
+
+    public Sender(
+      final int flushDelaySecs,
+      final int numRetries)
+    {
+      this.minFlushDelaySecs = flushDelaySecs;
+      this.maxFlushDelaySecs = flushDelaySecs << numRetries;
+      this.numRetries = numRetries;
+
+      this.flushDelaySecs = this.minFlushDelaySecs;
+    }
+
+    void register() {
+      apiPhaser.register();
+    }
+
+    void arrive() {
+      apiPhaser.arrive();
+    }
+
+    public final void run() {
+      while (true) {
+        final DDApi.Request request;
+
+        try {
+          request = requestQueue.poll(flushDelaySecs, TimeUnit.SECONDS);
+        } catch (final InterruptedException e) {
+          break;
+        }
+
+        if (request == null) {
+          // a full delay has passed without a request -- prepare a new request
+          flushDisruptor();
+          continue;
+        }
+
+        try {
+          send(request);
+        } finally {
+          arrive();
+        }
+      }
+    }
+
+    void send(DDApi.Request request) {
+      DDApi.Response response = sendImpl(request);
+
+      if (response.success()) {
+        monitor.onSend(DDAgentWriter.this, request, false, response);
+
+        decreaseDelay();
+        return;
+      } else {
+        boolean willRetry = (numRetries != 0) && shouldRetry(response);
+        monitor.onFailedSend(DDAgentWriter.this, request, false, response, willRetry);
+
+        increaseDelay();
+
+        if (!willRetry) {
+          return;
+        }
+      }
+
+      for (int retry = 1; retry <= numRetries; retry += 1) {
+        response = sendImpl(request);
+
+        if (response.success()) {
+          monitor.onSend(DDAgentWriter.this, request, true, response);
+
+          decreaseDelay();
+          return;
+        } else {
+          boolean shouldRetry = shouldRetry(response);
+          boolean willRetryAgain = (retry < numRetries) && shouldRetry(response);
+
+          monitor.onFailedSend(DDAgentWriter.this, request, true, response, willRetryAgain);
+
+          increaseDelay();
+
+          if (!willRetryAgain) {
+            return;
+          }
+        }
+      }
+    }
+
+    private boolean shouldRetry(DDApi.Response response) {
+      return (response.exception() != null);
+    }
+
+    private void increaseDelay() {
+      flushDelaySecs = Math.min(maxFlushDelaySecs, flushDelaySecs << 1);
+    }
+
+    private void decreaseDelay() {
+      flushDelaySecs = Math.max(minFlushDelaySecs, flushDelaySecs >> 1);
     }
   }
 
@@ -393,23 +452,18 @@ public class DDAgentWriter implements Writer {
 
     void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete);
 
-    void onSerialize(
-        final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace);
-
-    void onFailedSerialize(
-        final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause);
-
     void onSend(
         final DDAgentWriter agentWriter,
-        final int representativeCount,
-        final int sizeInBytes,
+        final DDApi.Request request,
+        final boolean retrying,
         final DDApi.Response response);
 
     void onFailedSend(
         final DDAgentWriter agentWriter,
-        final int representativeCount,
-        final int sizeInBytes,
-        final DDApi.Response response);
+        final DDApi.Request request,
+        final boolean retrying,
+        final DDApi.Response response,
+        final boolean willRetry);
   }
 
   public static final class NoopMonitor implements Monitor {
@@ -430,26 +484,19 @@ public class DDAgentWriter implements Writer {
         final DDAgentWriter agentWriter, final boolean previousIncomplete) {}
 
     @Override
-    public void onSerialize(
-        final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace) {}
-
-    @Override
-    public void onFailedSerialize(
-        final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause) {}
-
-    @Override
     public void onSend(
         final DDAgentWriter agentWriter,
-        final int representativeCount,
-        final int sizeInBytes,
+        final DDApi.Request request,
+        final boolean retrying,
         final DDApi.Response response) {}
 
     @Override
     public void onFailedSend(
         final DDAgentWriter agentWriter,
-        final int representativeCount,
-        final int sizeInBytes,
-        final DDApi.Response response) {}
+        final DDApi.Request request,
+        final boolean retrying,
+        final DDApi.Response response,
+        final boolean willRetry) {}
 
     @Override
     public String toString() {
@@ -499,6 +546,7 @@ public class DDAgentWriter implements Writer {
 
     @Override
     public void onStart(final DDAgentWriter agentWriter) {
+      // DQH - Also resent onSend, so it stays present in the UIx`
       statsd.recordGaugeValue("queue.max_length", agentWriter.getDisruptorCapacity());
     }
 
@@ -507,13 +555,16 @@ public class DDAgentWriter implements Writer {
 
     @Override
     public void onPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {
-      statsd.incrementCounter("queue.accepted");
+      statsd.count("queue.accepted", 1);
+      statsd.count("queue.dropped", 0);
       statsd.count("queue.accepted_lengths", trace.size());
     }
 
     @Override
     public void onFailedPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {
-      statsd.incrementCounter("queue.dropped");
+      statsd.count("queue.accepted", 0);
+      statsd.count("queue.dropped", 1);
+      statsd.count("queue.accepted_lengths", trace.size());
     }
 
     @Override
@@ -522,52 +573,60 @@ public class DDAgentWriter implements Writer {
     }
 
     @Override
-    public void onSerialize(
-        final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace) {
-      // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
-      // map precisely
-      statsd.count("queue.accepted_size", serializedTrace.length);
-    }
-
-    @Override
-    public void onFailedSerialize(
-        final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause) {
-      // TODO - DQH - make a new stat for serialization failure -- or maybe count this towards
-      // api.errors???
-    }
-
-    @Override
     public void onSend(
         final DDAgentWriter agentWriter,
-        final int representativeCount,
-        final int sizeInBytes,
+        final DDApi.Request request,
+        final boolean retrying,
         final DDApi.Response response) {
-      onSendAttempt(agentWriter, representativeCount, sizeInBytes, response);
+      onSendAttempt(agentWriter, request, retrying, response);
+
+      if (retrying) {
+        statsd.count("api.recovered.traces", request.numSerializedTraces());
+        statsd.count("api.recovered.spans", request.numSerializedSpans());
+
+        statsd.count("api.lost.traces", 0);
+        statsd.count("api.lost.spans", 0);
+      }
+
+      statsd.recordGaugeValue("queue.max_length", agentWriter.getDisruptorCapacity());
     }
 
     @Override
     public void onFailedSend(
         final DDAgentWriter agentWriter,
-        final int representativeCount,
-        final int sizeInBytes,
-        final DDApi.Response response) {
-      onSendAttempt(agentWriter, representativeCount, sizeInBytes, response);
+        final DDApi.Request request,
+        final boolean retrying,
+        final DDApi.Response response,
+        final boolean willRetry) {
+      onSendAttempt(agentWriter, request, retrying, response);
+
+      if (!willRetry) {
+        statsd.count("api.lost.traces", request.numSerializedTraces());
+        statsd.count("api.lost.spans", request.numSerializedSpans());
+      }
     }
 
     private void onSendAttempt(
         final DDAgentWriter agentWriter,
-        final int representativeCount,
-        final int sizeInBytes,
+        final DDApi.Request request,
+        final boolean retrying,
         final DDApi.Response response) {
       statsd.incrementCounter("api.requests");
-      statsd.recordGaugeValue("queue.length", representativeCount);
-      // TODO: missing queue.spans (# of spans being sent)
-      statsd.recordGaugeValue("queue.size", sizeInBytes);
+      if (retrying) {
+        statsd.count("api.retries", 1);
+      } else {
+        statsd.count("api.retries", 0);
+      }
+
+      statsd.recordGaugeValue("queue.length", request.numSerializedSpans());
+      statsd.recordGaugeValue("queue.size", request.payloadSize());
 
       if (response.exception() != null) {
         // covers communication errors -- both not receiving a response or
         // receiving malformed response (even when otherwise successful)
-        statsd.incrementCounter("api.errors");
+        statsd.count("api.errors", 1);
+      } else {
+        statsd.count("api.errors", 0);
       }
 
       if (response.status() != null) {
