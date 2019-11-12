@@ -35,13 +35,9 @@ public class OkHttp3Instrumentation extends Instrumenter.Default {
       "datadog.trace.agent.decorator.ClientDecorator",
       "datadog.trace.agent.decorator.HttpClientDecorator",
       packageName + ".OkHttpClientDecorator",
-      packageName + ".OkHttpClientDecorator$1",
       packageName + ".RequestBuilderInjectAdapter",
       packageName + ".TagWrapper",
       packageName + ".TracingInterceptor",
-      packageName + ".TracingCallFactory",
-      packageName + ".TracingCallFactory$NetworkInterceptor",
-      packageName + ".TracingCallFactory$1",
     };
   }
 
@@ -62,15 +58,7 @@ public class OkHttp3Instrumentation extends Instrumenter.Default {
         }
       }
       final TracingInterceptor interceptor = new TracingInterceptor();
-      //removing this causes error to be thrown
       builder.addInterceptor(interceptor);
-      //removing this stops distributed tracing and the normal interceptor span has less metadata
-      //builder.addNetworkInterceptor(interceptor);
-      builder.addNetworkInterceptor(interceptor);
-
-
-      //order of the builder adding them doesn't seem to matter which means that is something called in builder.addInterceptor(interceptor); that matters, not that builder.addInterceptor
-      //specifically sets something up for builder.addNetworkInterceptor(interceptor);, at least not when it's originally called
     }
   }
 }
