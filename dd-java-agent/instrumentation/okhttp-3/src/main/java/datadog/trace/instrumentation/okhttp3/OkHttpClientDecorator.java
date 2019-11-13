@@ -16,7 +16,7 @@ public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response
 
   @Override
   protected String service() {
-    return null;
+    return "okhttp";
   }
 
   @Override

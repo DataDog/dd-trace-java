@@ -35,8 +35,6 @@ public class OkHttp3Instrumentation extends Instrumenter.Default {
       "datadog.trace.agent.decorator.ClientDecorator",
       "datadog.trace.agent.decorator.HttpClientDecorator",
       packageName + ".OkHttpClientDecorator",
-      packageName + ".RequestBuilderInjectAdapter",
-      packageName + ".TagWrapper",
       packageName + ".TracingInterceptor",
     };
   }
