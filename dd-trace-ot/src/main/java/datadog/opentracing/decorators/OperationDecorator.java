@@ -2,7 +2,6 @@ package datadog.opentracing.decorators;
 
 import datadog.opentracing.DDSpanContext;
 import io.opentracing.tag.Tags;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;

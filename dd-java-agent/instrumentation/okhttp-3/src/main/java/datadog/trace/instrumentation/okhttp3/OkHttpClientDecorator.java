@@ -1,22 +1,21 @@
 package datadog.trace.instrumentation.okhttp3;
 
 import datadog.trace.agent.decorator.HttpClientDecorator;
+import java.net.URI;
 import okhttp3.Request;
 import okhttp3.Response;
-
-import java.net.URI;
 
 public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response> {
   public static final OkHttpClientDecorator DECORATE = new OkHttpClientDecorator();
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[]{"okhttp", "okhttp-3"};
+    return new String[] {"okhttp", "okhttp-3"};
   }
 
   @Override
   protected String service() {
-    return "okhttp";
+    return null;
   }
 
   @Override

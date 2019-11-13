@@ -1,32 +1,30 @@
 package datadog.trace.instrumentation.okhttp3;
 
-import datadog.trace.instrumentation.api.AgentScope;
-import datadog.trace.instrumentation.api.AgentSpan;
-import lombok.extern.slf4j.Slf4j;
-import okhttp3.Interceptor;
-import okhttp3.Request;
-import okhttp3.Response;
-
-import java.io.IOException;
-
 import static datadog.trace.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.okhttp3.RequestBuilderInjectAdapter.SETTER;
 
+import datadog.trace.instrumentation.api.AgentScope;
+import datadog.trace.instrumentation.api.AgentSpan;
+import java.io.IOException;
+import lombok.extern.slf4j.Slf4j;
+import okhttp3.Interceptor;
+import okhttp3.Request;
+import okhttp3.Response;
 
 @Slf4j
 public class TracingInterceptor implements Interceptor {
   @Override
   public Response intercept(final Chain chain) throws IOException {
-
     if (chain.request().header("Datadog-Meta-Lang") != null) {
       log.error("there's a chain.request.header(Datadog-Meta-Lang");
       return chain.proceed(chain.request());
     }
 
     final AgentSpan span = startSpan("okhttp.request");
+
     try (final AgentScope scope = activateSpan(span, true)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, chain.request());
@@ -47,5 +45,4 @@ public class TracingInterceptor implements Interceptor {
       return response;
     }
   }
-
 }
