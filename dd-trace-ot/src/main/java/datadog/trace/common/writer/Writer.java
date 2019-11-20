@@ -2,6 +2,7 @@ package datadog.trace.common.writer;
 
 import datadog.opentracing.DDSpan;
 import datadog.trace.api.Config;
+import datadog.trace.common.util.HealthMetrics;
 import java.io.Closeable;
 import java.util.List;
 import java.util.Properties;
@@ -71,23 +72,13 @@ public interface Writer extends Closeable {
     }
 
     private static final DDAgentWriter.Monitor createMonitor(final Config config) {
-      if (!config.isHealthMetricsEnabled()) {
+      HealthMetrics healthMetrics = new HealthMetrics.Builder().fromConfig(config).build();
+
+      if (!healthMetrics.isEnabled()) {
         return new DDAgentWriter.NoopMonitor();
       } else {
-        String host = config.getHealthMetricsStatsdHost();
-        if (host == null) {
-          host = config.getJmxFetchStatsdHost();
-        }
-        if (host == null) {
-          host = config.getAgentHost();
-        }
-
-        Integer port = config.getHealthMetricsStatsdPort();
-        if (port == null) {
-          port = config.getJmxFetchStatsdPort();
-        }
-
-        return new DDAgentWriter.StatsDMonitor(host, port);
+        return new DDAgentWriter.StatsDMonitor(
+            healthMetrics.getHostInfo(), healthMetrics.getStatsDClient());
       }
     }
 

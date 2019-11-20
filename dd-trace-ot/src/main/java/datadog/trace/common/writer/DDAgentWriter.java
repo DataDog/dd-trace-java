@@ -13,10 +13,8 @@ import com.lmax.disruptor.EventTranslatorOneArg;
 import com.lmax.disruptor.SleepingWaitStrategy;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
-import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import datadog.opentracing.DDSpan;
-import datadog.opentracing.DDTraceOTInfo;
 import datadog.trace.common.util.DaemonThreadFactory;
 import java.util.ArrayList;
 import java.util.List;
@@ -458,43 +456,17 @@ public class DDAgentWriter implements Writer {
   }
 
   public static final class StatsDMonitor implements Monitor {
-    public static final String PREFIX = "datadog.tracer";
-
-    public static final String LANG_TAG = "lang";
-    public static final String LANG_VERSION_TAG = "lang_version";
-    public static final String LANG_INTERPRETER_TAG = "lang_interpreter";
-    public static final String LANG_INTERPRETER_VENDOR_TAG = "lang_interpreter_vendor";
-    public static final String TRACER_VERSION_TAG = "tracer_version";
-
     private final String hostInfo;
     private final StatsDClient statsd;
 
-    // DQH - Made a conscious choice to not take a Config object here.
-    // Letting the creating of the Monitor take the Config,
-    // so it can decide which Monitor variant to create.
-    public StatsDMonitor(final String host, final int port) {
-      hostInfo = host + ":" + port;
-      statsd = new NonBlockingStatsDClient(PREFIX, host, port, getDefaultTags());
+    public StatsDMonitor(final String hostInfo, final StatsDClient statsd) {
+      this.hostInfo = hostInfo;
+      this.statsd = statsd;
     }
 
     // Currently, intended for testing
     private StatsDMonitor(final StatsDClient statsd) {
-      hostInfo = null;
-      this.statsd = statsd;
-    }
-
-    protected static final String[] getDefaultTags() {
-      return new String[] {
-        tag(LANG_TAG, "java"),
-        tag(LANG_VERSION_TAG, DDTraceOTInfo.JAVA_VERSION),
-        tag(LANG_INTERPRETER_TAG, DDTraceOTInfo.JAVA_VM_NAME),
-        tag(LANG_INTERPRETER_VENDOR_TAG, DDTraceOTInfo.JAVA_VM_VENDOR),
-        tag(TRACER_VERSION_TAG, DDTraceOTInfo.VERSION)
-      };
-    }
-
-    private static final String tag(final String tagPrefix, final String tagValue) {
-      return tagPrefix + ":" + tagValue;
+      this(null, statsd);
     }
 
     @Override
