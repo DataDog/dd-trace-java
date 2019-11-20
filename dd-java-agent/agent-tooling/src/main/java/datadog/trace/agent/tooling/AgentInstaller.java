@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.api.Config;
+import datadog.trace.common.util.HealthMetrics;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -54,15 +55,39 @@ public class AgentInstaller {
       final Instrumentation inst, final AgentBuilder.Listener... listeners) {
     INSTRUMENTATION = inst;
 
-    AgentBuilder agentBuilder =
-        new AgentBuilder.Default()
-            .disableClassFormatChanges()
-            .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-            .with(new RedefinitionLoggingListener())
+    HealthMetrics healthMetrics = new HealthMetrics.Builder().fromConfig(Config.get()).build();
+
+    AgentBuilder agentBuilder = new AgentBuilder.Default().disableClassFormatChanges();
+
+    {
+      AgentBuilder.RedefinitionListenable redefBuilder =
+          agentBuilder
+              .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
+              .with(new RedefinitionLoggingListener());
+
+      if (healthMetrics.isEnabled()) {
+        redefBuilder = redefBuilder.with(new HealthClassRedefinitionListener(healthMetrics));
+      }
+
+      agentBuilder = redefBuilder;
+    }
+
+    agentBuilder =
+        agentBuilder
             .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
             .with(AgentTooling.poolStrategy())
             .with(new TransformLoggingListener())
-            .with(new ClassLoadListener())
+            .with(new ClassLoadListener());
+
+    if (healthMetrics.isEnabled()) {
+      ClassLoader agentClassLoader = AgentInstaller.class.getClassLoader();
+
+      agentBuilder =
+          agentBuilder.with(new HealthClassLoadingListener(healthMetrics, agentClassLoader));
+    }
+
+    agentBuilder =
+        agentBuilder
             .with(AgentTooling.locationStrategy())
             // FIXME: we cannot enable it yet due to BB/JVM bug, see
             // https://github.com/raphw/byte-buddy/issues/558
@@ -148,9 +173,13 @@ public class AgentInstaller {
         numInstrumenters++;
       } catch (final Exception | LinkageError e) {
         log.error("Unable to load instrumentation {}", instrumenter.getClass().getName(), e);
+        healthMetrics
+            .getStatsDClient()
+            .increment("instrumenter.activation.errors", "exception:" + e.getClass().getName());
       }
     }
     log.debug("Installed {} instrumenter(s)", numInstrumenters);
+    healthMetrics.getStatsDClient().count("instrumenters.enabled", numInstrumenters);
 
     return agentBuilder.installOn(inst);
   }
@@ -321,6 +350,131 @@ public class AgentInstaller {
           }
         }
       }
+    }
+  }
+
+  /**
+   * Listener that tracks metrics on class loading & transformation TODO: DQH - Add tracking of JMX
+   * Fetch as well
+   */
+  private static final class HealthClassLoadingListener implements AgentBuilder.Listener {
+    private final HealthMetrics healthMetrics;
+    private final ClassLoader agentClassLoader;
+
+    private HealthClassLoadingListener(
+        final HealthMetrics healthMetrics, final ClassLoader agentClassLoader) {
+      this.healthMetrics = healthMetrics;
+      this.agentClassLoader = agentClassLoader;
+    }
+
+    @Override
+    public void onDiscovery(
+        final String typeName,
+        final ClassLoader classLoader,
+        final JavaModule module,
+        final boolean loaded) {}
+
+    @Override
+    public void onTransformation(
+        final TypeDescription typeDescription,
+        final ClassLoader classLoader,
+        final JavaModule javaModule,
+        final boolean loaded,
+        final DynamicType dynamicType) {
+
+      healthMetrics.getStatsDClient().increment("transformed.classes");
+    }
+
+    @Override
+    public void onIgnored(
+        final TypeDescription typeDescription,
+        final ClassLoader classLoader,
+        final JavaModule module,
+        final boolean loaded) {
+
+      healthMetrics.getStatsDClient().increment("ignored.classes");
+    }
+
+    @Override
+    public void onComplete(
+        final String typeName,
+        final ClassLoader classLoader,
+        final JavaModule javaModule,
+        final boolean loaded) {
+
+      // DQH - Might be better to just source this from ClassLoadingMxBean as a gauge
+      healthMetrics.getStatsDClient().increment("loaded.classes");
+
+      // Logic here is a bit brittle
+      // If the ClassLoader is the agentClassLoader, then it was loaded for instrumentation.
+      // There are currently 2 DatadogClassLoader instances: the agentClassLoader & the
+      // jmxFetchClassLoader.
+      // So if it is a DatadogClassLoader and isn't the agentClassLoader, then its the
+      // jmxFetchClassLoader.
+      // Lastly Datadog instrumentation classes outside the Datadog ClassLoaders are probably
+      // injected helpers.
+      if (classLoader == this.agentClassLoader) {
+        healthMetrics.getStatsDClient().increment("instrumentation.loaded.classes");
+      } else if (isDatadogLoader(classLoader)) {
+        healthMetrics.getStatsDClient().increment("jmxfetch.loaded.classes");
+      } else if (isInstrumentationClass(typeName)) {
+        healthMetrics.getStatsDClient().increment("instrumentation.injected.classes");
+      }
+    }
+
+    private static final boolean isDatadogLoader(final ClassLoader classLoader) {
+      // To be more exact, we could check the full name or compare with agentClassLoader.getClass()
+      return classLoader.getClass().getSimpleName().equals("DatadogClassLoader");
+    }
+
+    private static final boolean isInstrumentationClass(final String className) {
+      return className.startsWith("datadog.trace.instrumentation");
+    }
+
+    @Override
+    public void onError(
+        final String s,
+        final ClassLoader classLoader,
+        final JavaModule javaModule,
+        final boolean loaded,
+        final Throwable throwable) {
+      healthMetrics
+          .getStatsDClient()
+          .increment("instrumentation.errors", "exception:" + throwable.getClass().getName());
+    }
+  }
+
+  private static final class HealthClassRedefinitionListener
+      implements AgentBuilder.RedefinitionStrategy.Listener {
+    private final HealthMetrics healthMetrics;
+
+    private HealthClassRedefinitionListener(final HealthMetrics healthMetrics) {
+      this.healthMetrics = healthMetrics;
+    }
+
+    @Override
+    public void onBatch(final int index, final List<Class<?>> batch, final List<Class<?>> types) {}
+
+    @Override
+    public Iterable<? extends List<Class<?>>> onError(
+        final int index,
+        final List<Class<?>> batch,
+        final Throwable throwable,
+        final List<Class<?>> types) {
+
+      healthMetrics
+          .getStatsDClient()
+          .increment("redefinition.errors", "exception:" + throwable.getClass().getName());
+
+      return Collections.emptyList();
+    }
+
+    @Override
+    public void onComplete(
+        final int amount,
+        final List<Class<?>> types,
+        final Map<List<Class<?>>, Throwable> failures) {
+      healthMetrics.getStatsDClient().count("redefined.classes", amount);
     }
   }
 
