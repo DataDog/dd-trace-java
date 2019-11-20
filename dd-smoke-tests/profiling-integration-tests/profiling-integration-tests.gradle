@@ -6,11 +6,20 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_11
   // Zulu has backported profiling support
   forceJdk = ['ZULU8', 'ZULU11', '12']
+  jmcVersion = '8.0.0-SNAPSHOT'
 }
 
 apply from: "${rootDir}/gradle/java.gradle"
 
 description = 'Profiling Integration Tests.'
+
+repositories {
+  jcenter()
+  maven {
+    url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
+  }
+}
+
 
 jar {
   manifest {
@@ -26,34 +35,15 @@ task fetchJmc(type: Exec) {
   commandLine 'git', 'submodule', 'update', '--init', "${rootDir}/vendor/jmc"
 }
 
-task buildJmc(type: Exec) {
-  group 'Build Setup'
-
-  workingDir "${rootDir}/vendor/jmc/core/"
-  commandLine "mvn", "package", "dependency:copy-dependencies", "-DoutputDirectory=${rootDir}/vendor/jmc-libs"
-  def libsPath = file("${rootDir}/vendor/jmc-libs")
-  outputs.dir libsPath
-  if (libsPath == null || libsPath.list() == null || libsPath.list().length == 0) {
-    outputs.upToDateWhen { false }
-  }
-
-  dependsOn fetchJmc
-}
-
 dependencies {
   compile project(':dd-trace-api')
 
   testCompile project(':dd-smoke-tests')
   testCompile project(':dd-java-agent:agent-profiling:profiling-testing')
-
-  // FIXME: since JMC is not released on maven instead of simply doing this:
-  //testCompile "org.openjdk.jmc:flightrecorder:7.1.0-SNAPSHOT"
-  // We have to do this ugly and slow thing:
-  testCompile(fileTree("${rootDir}/vendor/jmc-libs/") {
-    include '*.jar'
-    builtBy buildJmc
-  })
-
+  testCompile "org.openjdk.jmc:common:$jmcVersion"
+  testCompile "org.openjdk.jmc:flightrecorder:$jmcVersion"
+  testCompile "org.openjdk.jmc:flightrecorder.rules:$jmcVersion"
+  testCompile "org.openjdk.jmc:flightrecorder.rules.jdk:$jmcVersion"
 }
 
 tasks.withType(Test).configureEach {
