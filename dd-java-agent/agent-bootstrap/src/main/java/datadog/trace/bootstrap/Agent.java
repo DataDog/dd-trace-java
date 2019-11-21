@@ -404,7 +404,6 @@ public class Agent {
     // nothing to do with JDK but this should be safe because only thing this does is to delay
     // tracer install
     final String jfrClassResourceName = "jdk.jfr.Recording".replace('.', '/') + ".class";
-    return Thread.currentThread().getContextClassLoader().getResourceAsStream(jfrClassResourceName)
-        != null;
+    return Thread.currentThread().getContextClassLoader().getResource(jfrClassResourceName) != null;
   }
 }

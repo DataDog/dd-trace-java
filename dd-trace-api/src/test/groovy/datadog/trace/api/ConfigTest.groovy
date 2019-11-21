@@ -46,10 +46,10 @@ import static datadog.trace.api.Config.PROFILING_RECORDING_MAX_AGE
 import static datadog.trace.api.Config.PROFILING_RECORDING_MAX_SIZE
 import static datadog.trace.api.Config.PROFILING_STARTUP_DELAY
 import static datadog.trace.api.Config.PROFILING_TAGS
+import static datadog.trace.api.Config.PROFILING_UPLOAD_COMPRESSION_LEVEL
 import static datadog.trace.api.Config.PROFILING_UPLOAD_PERIOD
 import static datadog.trace.api.Config.PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT
 import static datadog.trace.api.Config.PROFILING_UPLOAD_REQUEST_TIMEOUT
-import static datadog.trace.api.Config.PROFILING_UPLOAD_COMPRESSION_LEVEL
 import static datadog.trace.api.Config.PROFILING_URL
 import static datadog.trace.api.Config.PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.Config.PROPAGATION_STYLE_INJECT
@@ -64,6 +64,10 @@ import static datadog.trace.api.Config.TRACE_AGENT_PORT
 import static datadog.trace.api.Config.TRACE_ENABLED
 import static datadog.trace.api.Config.TRACE_REPORT_HOSTNAME
 import static datadog.trace.api.Config.TRACE_RESOLVER_ENABLED
+import static datadog.trace.api.Config.TRACE_SAMPLING_DEFAULT_RATE
+import static datadog.trace.api.Config.TRACE_SAMPLING_OPERATION_RULES
+import static datadog.trace.api.Config.TRACE_SAMPLING_RATE_LIMIT
+import static datadog.trace.api.Config.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.Config.WRITER_TYPE
 
 class ConfigTest extends DDSpecification {
@@ -190,6 +194,10 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(HEALTH_METRICS_ENABLED, "true")
     prop.setProperty(HEALTH_METRICS_STATSD_HOST, "metrics statsd host")
     prop.setProperty(HEALTH_METRICS_STATSD_PORT, "654")
+    prop.setProperty(TRACE_SAMPLING_SERVICE_RULES, "a:1")
+    prop.setProperty(TRACE_SAMPLING_OPERATION_RULES, "b:1")
+    prop.setProperty(TRACE_SAMPLING_DEFAULT_RATE, ".5")
+    prop.setProperty(TRACE_SAMPLING_RATE_LIMIT, "200")
 
     prop.setProperty(PROFILING_ENABLED, "true")
     prop.setProperty(PROFILING_URL, "new url")
@@ -246,6 +254,10 @@ class ConfigTest extends DDSpecification {
     config.healthMetricsEnabled == true
     config.healthMetricsStatsdHost == "metrics statsd host"
     config.healthMetricsStatsdPort == 654
+    config.traceSamplingServiceRules == [a: "1"]
+    config.traceSamplingOperationRules == [b: "1"]
+    config.traceSamplingDefaultRate == 0.5
+    config.traceSamplingRateLimit == 200
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
@@ -302,6 +314,10 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, "true")
     System.setProperty(PREFIX + HEALTH_METRICS_STATSD_HOST, "metrics statsd host")
     System.setProperty(PREFIX + HEALTH_METRICS_STATSD_PORT, "654")
+    System.setProperty(PREFIX + TRACE_SAMPLING_SERVICE_RULES, "a:1")
+    System.setProperty(PREFIX + TRACE_SAMPLING_OPERATION_RULES, "b:1")
+    System.setProperty(PREFIX + TRACE_SAMPLING_DEFAULT_RATE, ".5")
+    System.setProperty(PREFIX + TRACE_SAMPLING_RATE_LIMIT, "200")
 
     System.setProperty(PREFIX + PROFILING_ENABLED, "true")
     System.setProperty(PREFIX + PROFILING_URL, "new url")
@@ -358,6 +374,10 @@ class ConfigTest extends DDSpecification {
     config.healthMetricsEnabled == true
     config.healthMetricsStatsdHost == "metrics statsd host"
     config.healthMetricsStatsdPort == 654
+    config.traceSamplingServiceRules == [a: "1"]
+    config.traceSamplingOperationRules == [b: "1"]
+    config.traceSamplingDefaultRate == 0.5
+    config.traceSamplingRateLimit == 200
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
@@ -736,6 +756,35 @@ class ConfigTest extends DDSpecification {
     defaultValue = 10.0
   }
 
+  def "test getDoubleSettingFromEnvironment(#name)"() {
+    setup:
+    environmentVariables.set("DD_ENV_ZERO_TEST", "0.0")
+    environmentVariables.set("DD_ENV_FLOAT_TEST", "1.0")
+    environmentVariables.set("DD_FLOAT_TEST", "0.2")
+
+    System.setProperty("dd.prop.zero.test", "0")
+    System.setProperty("dd.prop.float.test", "0.3")
+    System.setProperty("dd.float.test", "0.4")
+    System.setProperty("dd.garbage.test", "garbage")
+    System.setProperty("dd.negative.test", "-1")
+
+    expect:
+    Config.getDoubleSettingFromEnvironment(name, defaultValue) == (double) expected
+
+    where:
+    name              | expected
+    "env.zero.test"   | 0.0
+    "prop.zero.test"  | 0
+    "env.float.test"  | 1.0
+    "prop.float.test" | 0.3
+    "float.test"      | 0.4
+    "negative.test"   | -1.0
+    "garbage.test"    | 10.0
+    "default.test"    | 10.0
+
+    defaultValue = 10.0
+  }
+
   def "verify mapping configs on tracer"() {
     setup:
     System.setProperty(PREFIX + SERVICE_MAPPING, mapString)
@@ -936,6 +985,36 @@ class ConfigTest extends DDSpecification {
 
     cleanup:
     System.clearProperty(PREFIX + CONFIGURATION_FILE)
+  }
+
+  def "get analytics sample rate"() {
+    setup:
+    environmentVariables.set("DD_FOO_ANALYTICS_SAMPLE_RATE", "0.5")
+    environmentVariables.set("DD_BAR_ANALYTICS_SAMPLE_RATE", "0.9")
+
+    System.setProperty("dd.baz.analytics.sample-rate", "0.7")
+    System.setProperty("dd.buzz.analytics.sample-rate", "0.3")
+
+    when:
+    String[] array = services.toArray(new String[0])
+    def value = Config.get().getInstrumentationAnalyticsSampleRate(array)
+
+    then:
+    value == expected
+
+    where:
+    services                | expected
+    ["foo"]                 | 0.5f
+    ["baz"]                 | 0.7f
+    ["doesnotexist"]        | 1.0f
+    ["doesnotexist", "foo"] | 0.5f
+    ["doesnotexist", "baz"] | 0.7f
+    ["foo", "bar"]          | 0.5f
+    ["bar", "foo"]          | 0.9f
+    ["baz", "buzz"]         | 0.7f
+    ["buzz", "baz"]         | 0.3f
+    ["foo", "baz"]          | 0.5f
+    ["baz", "foo"]          | 0.7f
   }
 
   def "verify secret loaded from file: #path"() {
