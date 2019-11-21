@@ -44,6 +44,7 @@ import okhttp3.Response;
 public final class RecordingUploader {
   private static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
+  static final String URL_PATH = "/v1/input/";
   static final String RECORDING_NAME_PARAM = "recording-name";
   static final String FORMAT_PARAM = "format";
   static final String TYPE_PARAM = "type";
@@ -63,8 +64,6 @@ public final class RecordingUploader {
   static final String RECORDING_FORMAT = "jfr";
   static final String RECORDING_TYPE_PREFIX = "jfr-";
   static final String RECORDING_RUNTIME = "jvm";
-
-  static final String PROFILING_URL_PATH = "/v1/input/";
 
   private static final Headers DATA_HEADERS =
       Headers.of(
@@ -97,12 +96,14 @@ public final class RecordingUploader {
   }
 
   private final OkHttpClient client;
+  private final String apiKey;
   private final String url;
   private final List<String> tags;
   private final Compression compression;
 
   public RecordingUploader(final Config config) {
     url = createProfilingUrl(config);
+    apiKey = config.getProfilingApiKey();
     tags = tagsToList(config.getMergedProfilingTags());
 
     final Duration ioOperationTimeout =
@@ -145,10 +146,10 @@ public final class RecordingUploader {
     client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
   }
 
-  private Compression getCompression(String level) {
-    CompressionLevel cLevel = CompressionLevel.of(level);
+  private Compression getCompression(final String level) {
+    final CompressionLevel cLevel = CompressionLevel.of(level);
     log.debug("Uploader compression level = {}", cLevel);
-    Compression compression;
+    final Compression compression;
     // currently only gzip and off are supported
     // this needs to be updated once more compression levels are added
     switch (cLevel) {
@@ -226,6 +227,7 @@ public final class RecordingUploader {
     final Request request =
         new Request.Builder()
             .url(url)
+            .addHeader("Authorization", Credentials.basic(apiKey, ""))
             // Note: this header is also used to disable tracing of profiling requests
             .addHeader(VersionInfo.DATADOG_META_LANG, VersionInfo.JAVA_LANG)
             .addHeader(VersionInfo.DATADOG_META_LANG_VERSION, VersionInfo.JAVA_VERSION)
@@ -250,7 +252,7 @@ public final class RecordingUploader {
         .collect(Collectors.toList());
   }
 
-  private static String createProfilingUrl(Config config) {
-    return config.getProfilingUrl() + PROFILING_URL_PATH + "/" + config.getProfilingApiKey();
+  private static String createProfilingUrl(final Config config) {
+    return config.getProfilingUrl() + URL_PATH + config.getProfilingApiKey();
   }
 }
