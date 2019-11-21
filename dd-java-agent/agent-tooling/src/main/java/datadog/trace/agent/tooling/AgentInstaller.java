@@ -10,15 +10,23 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
+import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.common.util.HealthMetrics;
 import java.lang.instrument.Instrumentation;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryManagerMXBean;
+import java.lang.management.MemoryPoolMXBean;
+import java.lang.management.MemoryUsage;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
@@ -83,7 +91,9 @@ public class AgentInstaller {
       ClassLoader agentClassLoader = AgentInstaller.class.getClassLoader();
 
       agentBuilder =
-          agentBuilder.with(new HealthClassLoadingListener(healthMetrics, agentClassLoader));
+          agentBuilder
+              .with(new HealthClassLoadingListener(healthMetrics, agentClassLoader))
+              .with(new HealthMemoryRegionListener(healthMetrics));
     }
 
     agentBuilder =
@@ -475,6 +485,129 @@ public class AgentInstaller {
         final List<Class<?>> types,
         final Map<List<Class<?>>, Throwable> failures) {
       healthMetrics.getStatsDClient().count("redefined.classes", amount);
+    }
+  }
+
+  /**
+   * Classloading Listener primarily intended to track native memory regions for class loading & JIT
+   * cache.
+   */
+  // TODO: DQH Nov 2019 - For the limited tracking currently being done this location
+  //  works well; however, we may want to move this to Timer / background thread later.
+  private static final class HealthMemoryRegionListener extends AgentBuilder.Listener.Adapter {
+    private final HealthMetrics healthMetrics;
+
+    private final int updateRateMs = 15 * 1_000;
+    private final AtomicLong lastUpdateMs = new AtomicLong(System.currentTimeMillis());
+
+    private final MemoryMXBean memoryMxBean;
+
+    private final List<MemoryPoolMXBean> metaspacePoolMxBeans;
+    private final List<MemoryPoolMXBean> codeCachePoolMxBeans;
+
+    private HealthMemoryRegionListener(final HealthMetrics healthMetrics) {
+      this.healthMetrics = healthMetrics;
+
+      List<MemoryPoolMXBean> metaspacePoolMxBeans = null;
+      List<MemoryPoolMXBean> codeCachePoolMxBeans = null;
+
+      // Different JVM versions break metaspace & codecache into multiple pools
+      // Fortunately, the MemoryManagers are stable (at least 8-12) so accumulate the
+      // pools belonging to a particular manager.
+      for (MemoryManagerMXBean memoryManagerMxBean : ManagementFactory.getMemoryManagerMXBeans()) {
+        if (memoryManagerMxBean.getName().equals("Metaspace Manager")) {
+          metaspacePoolMxBeans = getPools(memoryManagerMxBean);
+        } else if (memoryManagerMxBean.getName().equals("CodeCacheManager")) {
+          codeCachePoolMxBeans = getPools(memoryManagerMxBean);
+        }
+      }
+
+      this.metaspacePoolMxBeans = metaspacePoolMxBeans;
+      this.codeCachePoolMxBeans = codeCachePoolMxBeans;
+
+      this.memoryMxBean = ManagementFactory.getMemoryMXBean();
+    }
+
+    private static final List<MemoryPoolMXBean> getPools(
+        final MemoryManagerMXBean memoryManagerMXBean) {
+      List<String> names = Arrays.asList(memoryManagerMXBean.getMemoryPoolNames());
+
+      List<MemoryPoolMXBean> poolMxBeans = new ArrayList<>(names.size());
+      for (MemoryPoolMXBean memoryPoolMXBean : ManagementFactory.getMemoryPoolMXBeans()) {
+        if (names.contains(memoryPoolMXBean.getName())) {
+          poolMxBeans.add(memoryPoolMXBean);
+        }
+      }
+      return Collections.unmodifiableList(poolMxBeans);
+    }
+
+    @Override
+    public void onComplete(
+        final String typeName,
+        final ClassLoader classLoader,
+        final JavaModule module,
+        final boolean loaded) {
+      long curTimeMs = System.currentTimeMillis();
+
+      // Multiple threads arriving at the same time,
+      // CAS to determine which thread sends the update.
+      long lastUpdateMs = this.lastUpdateMs.get();
+      if (lastUpdateMs + updateRateMs > curTimeMs) {
+        boolean set = this.lastUpdateMs.compareAndSet(lastUpdateMs, curTimeMs);
+
+        if (set) {
+          sendStats();
+        }
+      }
+    }
+
+    private final void sendStats() {
+      if (memoryMxBean != null) sendMemoryStats();
+      if (metaspacePoolMxBeans != null) sendPoolStats("metaspace", metaspacePoolMxBeans);
+      if (codeCachePoolMxBeans != null) sendPoolStats("codecache", codeCachePoolMxBeans);
+    }
+
+    private final void sendMemoryStats() {
+      MemoryUsage heapUsage = memoryMxBean.getHeapMemoryUsage();
+      if (heapUsage != null) sendUsageStats("heap", heapUsage);
+
+      MemoryUsage nonHeapUsage = memoryMxBean.getNonHeapMemoryUsage();
+      if (nonHeapUsage != null) sendUsageStats("nonheap", nonHeapUsage);
+    }
+
+    private final void sendUsageStats(final String regionName, final MemoryUsage memUsage) {
+      StatsDClient statsDClient = healthMetrics.getStatsDClient();
+
+      statsDClient.gauge(regionName + ".init", memUsage.getInit());
+      statsDClient.gauge(regionName + ".used", memUsage.getUsed());
+      statsDClient.gauge(regionName + ".committed", memUsage.getCommitted());
+      statsDClient.gauge(regionName + ".max", memUsage.getMax());
+    }
+
+    private final void sendPoolStats(
+        final String regionName, final List<MemoryPoolMXBean> memoryPoolMxBeans) {
+      long init = 0;
+      long used = 0;
+      long committed = 0;
+      long max = 0;
+
+      for (MemoryPoolMXBean memoryPoolMxBean : memoryPoolMxBeans) {
+        MemoryUsage usage = memoryPoolMxBean.getUsage();
+        if (usage == null) {
+          continue;
+        }
+
+        init += usage.getInit();
+        used += usage.getUsed();
+        committed += usage.getCommitted();
+        max = (max == -1 || usage.getMax() == -1) ? -1 : max + usage.getMax();
+      }
+
+      StatsDClient statsDClient = healthMetrics.getStatsDClient();
+      statsDClient.gauge(regionName + ".init", init);
+      statsDClient.gauge(regionName + ".used", used);
+      statsDClient.gauge(regionName + ".committed", committed);
+      statsDClient.gauge(regionName + ".max", max);
     }
   }
 
