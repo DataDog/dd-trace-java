@@ -63,8 +63,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class RecordingUploaderTest {
 
-  private static final String URL_PATH = "/v0.1/lalalala";
   private static final String APIKEY_VALUE = "testkey";
+  private static final String URL_PATH = "/lalala";
   private static final String RECORDING_RESOURCE = "test-recording.jfr";
   private static final String RECODING_NAME_PREFIX = "test-recording-";
   private static final RecordingType RECORDING_TYPE = RecordingType.CONTINUOUS;
@@ -105,9 +105,9 @@ public class RecordingUploaderTest {
   @BeforeEach
   public void setup() throws IOException {
     server.start();
-    url = server.url(URL_PATH);
+    url = server.url(URL_PATH + RecordingUploader.URL_PATH + APIKEY_VALUE);
 
-    when(config.getProfilingUrl()).thenReturn(url.toString());
+    when(config.getProfilingUrl()).thenReturn(server.url(URL_PATH).toString());
     when(config.getProfilingApiKey()).thenReturn(APIKEY_VALUE);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadRequestTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
@@ -129,7 +129,8 @@ public class RecordingUploaderTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"on", "off", "invalid"})
-  public void testRequestParameters(String compression) throws IOException, InterruptedException {
+  public void testRequestParameters(final String compression)
+      throws IOException, InterruptedException {
     when(config.getProfilingUploadCompressionLevel()).thenReturn(compression);
     uploader = new RecordingUploader(config);
 
@@ -179,9 +180,14 @@ public class RecordingUploaderTest {
 
   @Test
   public void testRequestWithProxy() throws IOException, InterruptedException {
-    final String backendHost = "intake.profilinf.datadoghq.com:1234";
-    final String backendUrl = "http://" + backendHost + URL_PATH;
-    when(config.getProfilingUrl()).thenReturn(backendUrl);
+    final String backendHost = "intake.profiling.datadoghq.com:1234";
+    final String backendUrl =
+        "http://intake.profiling.datadoghq.com:1234"
+            + URL_PATH
+            + RecordingUploader.URL_PATH
+            + APIKEY_VALUE;
+    when(config.getProfilingUrl())
+        .thenReturn("http://intake.profiling.datadoghq.com:1234" + URL_PATH);
     when(config.getProfilingProxyHost()).thenReturn(server.url("").host());
     when(config.getProfilingProxyPort()).thenReturn(server.url("").port());
     when(config.getProfilingProxyUsername()).thenReturn("username");
@@ -217,8 +223,13 @@ public class RecordingUploaderTest {
 
   @Test
   public void testRequestWithProxyDefaultPassword() throws IOException, InterruptedException {
-    final String backendUrl = "http://intake.profilinf.datadoghq.com:1234" + URL_PATH;
-    when(config.getProfilingUrl()).thenReturn(backendUrl);
+    final String backendUrl =
+        "http://intake.profiling.datadoghq.com:1234"
+            + URL_PATH
+            + RecordingUploader.URL_PATH
+            + APIKEY_VALUE;
+    when(config.getProfilingUrl())
+        .thenReturn("http://intake.profiling.datadoghq.com:1234" + URL_PATH);
     when(config.getProfilingProxyHost()).thenReturn(server.url("").host());
     when(config.getProfilingProxyPort()).thenReturn(server.url("").port());
     when(config.getProfilingProxyUsername()).thenReturn("username");
