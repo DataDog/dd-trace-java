@@ -44,6 +44,7 @@ import okhttp3.Response;
 public final class RecordingUploader {
   private static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
+  static final String URL_PATH = "/v1/input/";
   static final String RECORDING_NAME_PARAM = "recording-name";
   static final String FORMAT_PARAM = "format";
   static final String TYPE_PARAM = "type";
@@ -101,7 +102,7 @@ public final class RecordingUploader {
   private final Compression compression;
 
   public RecordingUploader(final Config config) {
-    url = config.getProfilingUrl();
+    url = createProfilingUrl(config);
     apiKey = config.getProfilingApiKey();
     tags = tagsToList(config.getMergedProfilingTags());
 
@@ -145,10 +146,10 @@ public final class RecordingUploader {
     client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
   }
 
-  private Compression getCompression(String level) {
-    CompressionLevel cLevel = CompressionLevel.of(level);
+  private Compression getCompression(final String level) {
+    final CompressionLevel cLevel = CompressionLevel.of(level);
     log.debug("Uploader compression level = {}", cLevel);
-    Compression compression;
+    final Compression compression;
     // currently only gzip and off are supported
     // this needs to be updated once more compression levels are added
     switch (cLevel) {
@@ -249,5 +250,9 @@ public final class RecordingUploader {
         .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
         .map(e -> e.getKey() + ":" + e.getValue())
         .collect(Collectors.toList());
+  }
+
+  private static String createProfilingUrl(final Config config) {
+    return config.getProfilingUrl() + URL_PATH + config.getProfilingApiKey();
   }
 }
