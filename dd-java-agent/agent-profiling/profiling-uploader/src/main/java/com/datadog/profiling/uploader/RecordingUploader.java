@@ -258,6 +258,8 @@ public final class RecordingUploader {
     for (final String segment : URL_PATH_SEGMENTS) {
       builder = builder.addPathSegment(segment);
     }
-    return builder.addPathSegment(config.getProfilingApiKey()).build();
+    // Adding API key to url has implications that we would rather avoid for now
+    // builder = builder.addPathSegment(config.getProfilingApiKey())
+    return builder.build();
   }
 }

@@ -32,7 +32,7 @@ abstract class AbstractSmokeTest extends Specification {
     }
 
     profilingPort = PortUtils.randomOpenPort()
-    profilingUrl = "http://localhost:${profilingPort}/v1/input/" + PROFILING_API_KEY
+    profilingUrl = "http://localhost:${profilingPort}/v1/input"
 
     defaultJavaProperties = [
       "-javaagent:${shadowJarPath}",
