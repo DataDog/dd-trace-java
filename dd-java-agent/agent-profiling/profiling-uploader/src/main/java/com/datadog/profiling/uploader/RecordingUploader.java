@@ -32,6 +32,7 @@ import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Credentials;
 import okhttp3.Headers;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
@@ -44,7 +45,7 @@ import okhttp3.Response;
 public final class RecordingUploader {
   private static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
-  static final String URL_PATH = "/v1/input/";
+  static final String[] URL_PATH_SEGMENTS = {"v1", "input"};
   static final String RECORDING_NAME_PARAM = "recording-name";
   static final String FORMAT_PARAM = "format";
   static final String TYPE_PARAM = "type";
@@ -97,7 +98,7 @@ public final class RecordingUploader {
 
   private final OkHttpClient client;
   private final String apiKey;
-  private final String url;
+  private final HttpUrl url;
   private final List<String> tags;
   private final Compression compression;
 
@@ -252,7 +253,11 @@ public final class RecordingUploader {
         .collect(Collectors.toList());
   }
 
-  private static String createProfilingUrl(final Config config) {
-    return config.getProfilingUrl() + URL_PATH + config.getProfilingApiKey();
+  private static HttpUrl createProfilingUrl(final Config config) {
+    HttpUrl.Builder builder = HttpUrl.get(config.getProfilingUrl()).newBuilder();
+    for (final String segment : URL_PATH_SEGMENTS) {
+      builder = builder.addPathSegment(segment);
+    }
+    return builder.addPathSegment(config.getProfilingApiKey()).build();
   }
 }
