@@ -9,7 +9,7 @@ public class URLAsResourceName extends AbstractDecorator {
 
   // Matches any path segments with numbers in them. (exception for versioning: "/v1/")
   public static final Pattern PATH_MIXED_ALPHANUMERICS =
-      Pattern.compile("(?<=/)(?![vV]\\d{1,2}/)(?:[^\\/\\d\\?]*[\\d]+[^\\/\\?]*)");
+      Pattern.compile("(?<=/)(?![vV]\\d{1,2}((alpha|beta)\\d{0,2})?/)(?:[^\\/\\d\\?]*[\\d]+[^\\/\\?]*)");
 
   public URLAsResourceName() {
     super();
