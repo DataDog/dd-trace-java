@@ -8,11 +8,9 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.context.TraceScope
+import datadog.trace.instrumentation.api.Tags
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
-import io.opentracing.tag.Tags
-import io.opentracing.util.GlobalTracer
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -30,6 +28,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.instrumentation.api.AgentTracer.activeScope
+import static datadog.trace.instrumentation.api.AgentTracer.activeSpan
 import static org.junit.Assume.assumeTrue
 
 @Unroll
@@ -152,8 +152,8 @@ abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> ext
   }
 
   static <T> T controller(ServerEndpoint endpoint, Closure<T> closure) {
-    assert GlobalTracer.get().activeSpan() != null: "Controller should have a parent span."
-    assert ((TraceScope) GlobalTracer.get().scopeManager().active()).asyncPropagating: "Scope should be propagating async."
+    assert activeSpan() != null: "Controller should have a parent span."
+    assert activeScope().asyncPropagating: "Scope should be propagating async."
     if (endpoint == NOT_FOUND) {
       return closure()
     }
@@ -199,11 +199,11 @@ abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> ext
 
   def "test success with parent"() {
     setup:
-    def traceId = "123"
-    def parentId = "456"
+    def traceId = 123G
+    def parentId = 456G
     def request = request(SUCCESS, method, body)
-      .header("x-datadog-trace-id", traceId)
-      .header("x-datadog-parent-id", parentId)
+      .header("x-datadog-trace-id", traceId.toString())
+      .header("x-datadog-parent-id", parentId.toString())
       .build()
     def response = client.newCall(request).execute()
 
@@ -425,7 +425,7 @@ abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> ext
   }
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void serverSpan(TraceAssert trace, int index, String traceID = null, String parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+  void serverSpan(TraceAssert trace, int index, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
     trace.span(index) {
       serviceName expectedServiceName()
       operationName expectedOperationName()
@@ -440,21 +440,21 @@ abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> ext
       }
       tags {
         defaultTags(true)
-        "$Tags.COMPONENT.key" serverDecorator.component()
+        "$Tags.COMPONENT" serverDecorator.component()
         if (endpoint.errored) {
-          "$Tags.ERROR.key" endpoint.errored
+          "$Tags.ERROR" endpoint.errored
         }
-        "$Tags.HTTP_STATUS.key" endpoint.status
-        "$Tags.HTTP_URL.key" "${endpoint.resolve(address)}"
+        "$Tags.HTTP_STATUS" endpoint.status
+        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
 //        if (tagQueryString) {
 //          "$DDTags.HTTP_QUERY" uri.query
 //          "$DDTags.HTTP_FRAGMENT" { it == null || it == uri.fragment } // Optional
 //        }
-        "$Tags.PEER_HOSTNAME.key" { it == "localhost" || it == "127.0.0.1" }
-        "$Tags.PEER_PORT.key" Integer
-        "$Tags.PEER_HOST_IPV4.key" { it == null || it == "127.0.0.1" } // Optional
-        "$Tags.HTTP_METHOD.key" method
-        "$Tags.SPAN_KIND.key" Tags.SPAN_KIND_SERVER
+        "$Tags.PEER_HOSTNAME" { it == "localhost" || it == "127.0.0.1" }
+        "$Tags.PEER_PORT" Integer
+        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
+        "$Tags.HTTP_METHOD" method
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
       }
     }
   }

@@ -11,10 +11,11 @@ import io.dropwizard.setup.Environment
 import io.dropwizard.testing.ConfigOverride
 import io.dropwizard.testing.DropwizardTestSupport
 import io.opentracing.tag.Tags
+import org.eclipse.jetty.servlet.ServletHandler
+
 import javax.ws.rs.GET
 import javax.ws.rs.Path
 import javax.ws.rs.core.Response
-import org.eclipse.jetty.servlet.ServletHandler
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -22,7 +23,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 class DropwizardTest extends HttpServerTest<DropwizardTestSupport, Servlet3Decorator> {
-  
+
   @Override
   DropwizardTestSupport startServer(int port) {
     def testSupport = new DropwizardTestSupport(testApp(),
@@ -94,7 +95,7 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport, Servlet3Decor
   }
 
   @Override
-  void serverSpan(TraceAssert trace, int index, String traceID = null, String parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+  void serverSpan(TraceAssert trace, int index, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
     trace.span(index) {
       serviceName expectedServiceName()
       operationName expectedOperationName()
@@ -140,8 +141,11 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport, Servlet3Decor
     }
   }
 
-  @Path("/")
-  static class ServiceResource {
+  @Path("/ignored1")
+  static interface TestInterface {}
+
+  @Path("/ignored2")
+  static abstract class AbstractClass implements TestInterface {
 
     @GET
     @Path("success")
@@ -158,6 +162,10 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport, Servlet3Decor
         Response.status(REDIRECT.status).location(new URI(REDIRECT.body)).build()
       }
     }
+  }
+
+  @Path("/ignored3")
+  static class ParentClass extends AbstractClass {
 
     @GET
     @Path("error-status")
@@ -176,4 +184,7 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport, Servlet3Decor
       return null
     }
   }
+
+  @Path("/")
+  static class ServiceResource extends ParentClass {}
 }

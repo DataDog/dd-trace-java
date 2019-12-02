@@ -2,14 +2,14 @@ package datadog.trace.agent.test.asserts
 
 import datadog.opentracing.DDSpan
 import datadog.trace.api.Config
+import datadog.trace.instrumentation.api.Tags
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
-import io.opentracing.tag.Tags
 
 import java.util.regex.Pattern
 
 class TagsAssert {
-  private final String spanParentId
+  private final BigInteger spanParentId
   private final Map<String, Object> tags
   private final Set<String> assertedTags = new TreeSet<>()
 
@@ -43,14 +43,14 @@ class TagsAssert {
 
     // FIXME: DQH - Too much conditional logic?  Maybe create specialized methods for client & server cases
 
-    boolean isRoot = ("0" == spanParentId)
+    boolean isRoot = (0G == spanParentId)
     if (isRoot || distributedRootSpan) {
       assert tags[Config.RUNTIME_ID_TAG] == Config.get().runtimeId
     } else {
       assert tags[Config.RUNTIME_ID_TAG] == null
     }
 
-    boolean isServer = (tags[Tags.SPAN_KIND.key] == Tags.SPAN_KIND_SERVER)
+    boolean isServer = (tags[Tags.SPAN_KIND] == Tags.SPAN_KIND_SERVER)
     if (isRoot || distributedRootSpan || isServer) {
       assert tags[Config.LANGUAGE_TAG_KEY] == Config.LANGUAGE_TAG_VALUE
     } else {

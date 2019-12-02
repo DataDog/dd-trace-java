@@ -11,7 +11,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.common.sampling.RateByServiceSampler;
+import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.DDApi;
@@ -28,6 +28,7 @@ import io.opentracing.propagation.TextMapInject;
 import io.opentracing.tag.Tag;
 import java.io.Closeable;
 import java.lang.ref.WeakReference;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -48,6 +49,10 @@ import lombok.extern.slf4j.Slf4j;
 /** DDTracer makes it easy to send traces and span to DD using the OpenTracing API. */
 @Slf4j
 public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace.api.Tracer {
+  // UINT64 max value
+  public static final BigInteger TRACE_ID_MAX =
+      BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
+  public static final BigInteger TRACE_ID_MIN = BigInteger.ZERO;
 
   /** Default service name if none provided on the trace or span */
   final String serviceName;
@@ -326,8 +331,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
 
   @Override
   public Span activeSpan() {
-    final Scope active = scopeManager.active();
-    return active == null ? null : active.span();
+    return scopeManager.activeSpan();
   }
 
   @Override
@@ -343,7 +347,12 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
   @Override
   public <T> void inject(final SpanContext spanContext, final Format<T> format, final T carrier) {
     if (carrier instanceof TextMapInject) {
-      injector.inject((DDSpanContext) spanContext, (TextMapInject) carrier);
+      final DDSpanContext ddSpanContext = (DDSpanContext) spanContext;
+
+      final DDSpan rootSpan = ddSpanContext.getTrace().getRootSpan();
+      setSamplingPriorityIfNecessary(rootSpan);
+
+      injector.inject(ddSpanContext, (TextMapInject) carrier);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }
@@ -385,10 +394,28 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
       }
     }
     incrementTraceCount();
-    // TODO: current trace implementation doesn't guarantee that first span is the root span
-    // We may want to reconsider way this check is done.
-    if (!writtenTrace.isEmpty() && sampler.sample(writtenTrace.get(0))) {
-      writer.write(writtenTrace);
+
+    if (!writtenTrace.isEmpty()) {
+      final DDSpan rootSpan = (DDSpan) writtenTrace.get(0).getLocalRootSpan();
+      setSamplingPriorityIfNecessary(rootSpan);
+
+      final DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
+      if (sampler.sample(spanToSample)) {
+        writer.write(writtenTrace);
+      }
+    }
+  }
+
+  void setSamplingPriorityIfNecessary(final DDSpan rootSpan) {
+    // There's a race where multiple threads can see PrioritySampling.UNSET here
+    // This check skips potential complex sampling priority logic when we know its redundant
+    // Locks inside DDSpanContext ensure the correct behavior in the race case
+
+    if (sampler instanceof PrioritySampler
+        && rootSpan != null
+        && rootSpan.context().getSamplingPriority() == PrioritySampling.UNSET) {
+
+      ((PrioritySampler) sampler).setSamplingPriority(rootSpan);
     }
   }
 
@@ -401,7 +428,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
   public String getTraceId() {
     final Span activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
-      return ((DDSpan) activeSpan).getTraceId();
+      return ((DDSpan) activeSpan).getTraceId().toString();
     }
     return "0";
   }
@@ -410,7 +437,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
   public String getSpanId() {
     final Span activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
-      return ((DDSpan) activeSpan).getSpanId();
+      return ((DDSpan) activeSpan).getSpanId().toString();
     }
     return "0";
   }
@@ -483,11 +510,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
     }
 
     private DDSpan startSpan() {
-      final DDSpan span = new DDSpan(timestampMicro, buildSpanContext());
-      if (sampler instanceof RateByServiceSampler) {
-        ((RateByServiceSampler) sampler).initializeSamplingPriority(span);
-      }
-      return span;
+      return new DDSpan(timestampMicro, buildSpanContext());
     }
 
     @Override
@@ -605,10 +628,15 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
       return this;
     }
 
-    private String generateNewId() {
-      // TODO: expand the range of numbers generated to be from 1 to uint 64 MAX
-      // Ensure the generated ID is in a valid range:
-      return String.valueOf(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE));
+    private BigInteger generateNewId() {
+      // It is **extremely** unlikely to generate the value "0" but we still need to handle that
+      // case
+      BigInteger value;
+      do {
+        value = new BigInteger(63, ThreadLocalRandom.current());
+      } while (value.signum() == 0);
+
+      return value;
     }
 
     /**
@@ -618,9 +646,9 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
      * @return the context
      */
     private DDSpanContext buildSpanContext() {
-      final String traceId;
-      final String spanId = generateNewId();
-      final String parentSpanId;
+      final BigInteger traceId;
+      final BigInteger spanId = generateNewId();
+      final BigInteger parentSpanId;
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
       final int samplingPriority;
@@ -630,9 +658,9 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
       SpanContext parentContext = parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
-        final Scope scope = scopeManager.active();
-        if (scope != null) {
-          parentContext = scope.span().context();
+        final Span activeSpan = scopeManager.activeSpan();
+        if (activeSpan != null) {
+          parentContext = activeSpan.context();
         }
       }
 
@@ -662,7 +690,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
         } else {
           // Start a new trace
           traceId = generateNewId();
-          parentSpanId = "0";
+          parentSpanId = BigInteger.ZERO;
           samplingPriority = PrioritySampling.UNSET;
           baggage = null;
         }

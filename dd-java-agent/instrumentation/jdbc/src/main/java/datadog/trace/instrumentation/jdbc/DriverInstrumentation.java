@@ -55,7 +55,7 @@ public final class DriverInstrumentation extends Instrumenter.Default {
             .and(takesArgument(0, String.class))
             .and(takesArgument(1, Properties.class))
             .and(returns(named("java.sql.Connection"))),
-        DriverAdvice.class.getName());
+        DriverInstrumentation.class.getName() + "$DriverAdvice");
   }
 
   public static class DriverAdvice {
@@ -64,6 +64,10 @@ public final class DriverInstrumentation extends Instrumenter.Default {
         @Advice.Argument(0) final String url,
         @Advice.Argument(1) final Properties props,
         @Advice.Return final Connection connection) {
+      if (connection == null) {
+        // Exception was probably thrown.
+        return;
+      }
       final DBInfo dbInfo = JDBCConnectionUrlParser.parse(url, props);
       JDBCMaps.connectionInfo.put(connection, dbInfo);
     }

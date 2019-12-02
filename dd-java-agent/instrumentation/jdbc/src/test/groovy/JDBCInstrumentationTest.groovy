@@ -4,7 +4,7 @@ import com.zaxxer.hikari.HikariDataSource
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
-import io.opentracing.tag.Tags
+import datadog.trace.instrumentation.api.Tags
 import javax.sql.DataSource
 import org.apache.derby.jdbc.EmbeddedDriver
 import org.h2.Driver
@@ -19,6 +19,7 @@ import java.sql.ResultSet
 import java.sql.Statement
 
 import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class JDBCInstrumentationTest extends AgentTestRunner {
@@ -166,10 +167,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     resultSet.getInt(1) == 3
     assertTraces(1) {
       trace(0, 2) {
-        span(0) {
-          operationName "parent"
-          parent()
-        }
+        basicSpan(it, 0, "parent")
         span(1) {
           serviceName renameService ? dbName.toLowerCase() : driver
           operationName "${driver}.query"
@@ -229,10 +227,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     resultSet.getInt(1) == 3
     assertTraces(1) {
       trace(0, 2) {
-        span(0) {
-          operationName "parent"
-          parent()
-        }
+        basicSpan(it, 0, "parent")
         span(1) {
           operationName "${driver}.query"
           serviceName driver
@@ -284,10 +279,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     resultSet.getInt(1) == 3
     assertTraces(1) {
       trace(0, 2) {
-        span(0) {
-          operationName "parent"
-          parent()
-        }
+        basicSpan(it, 0, "parent")
         span(1) {
           operationName "${driver}.query"
           serviceName driver
@@ -339,10 +331,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     resultSet.getInt(1) == 3
     assertTraces(1) {
       trace(0, 2) {
-        span(0) {
-          operationName "parent"
-          parent()
-        }
+        basicSpan(it, 0, "parent")
         span(1) {
           operationName "${driver}.query"
           serviceName driver
@@ -394,10 +383,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     statement.updateCount == 0
     assertTraces(1) {
       trace(0, 2) {
-        span(0) {
-          operationName "parent"
-          parent()
-        }
+        basicSpan(it, 0, "parent")
         span(1) {
           operationName "${driver}.query"
           serviceName driver
@@ -452,10 +438,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     }
     assertTraces(1) {
       trace(0, 2) {
-        span(0) {
-          operationName "parent"
-          parent()
-        }
+        basicSpan(it, 0, "parent")
         span(1) {
           operationName "${driver}.query"
           serviceName driver
@@ -523,10 +506,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     rs.getInt(1) == 3
     assertTraces(1) {
       trace(0, 2) {
-        span(0) {
-          operationName "parent"
-          parent()
-        }
+        basicSpan(it, 0, "parent")
         span(1) {
           operationName "${driver}.query"
           serviceName driver

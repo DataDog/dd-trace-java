@@ -1,5 +1,9 @@
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator
+import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl
+import org.glassfish.jersey.client.JerseyClientBuilder
+import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder
+
 import javax.ws.rs.client.Client
 import javax.ws.rs.client.ClientBuilder
 import javax.ws.rs.client.Entity
@@ -7,9 +11,6 @@ import javax.ws.rs.client.Invocation
 import javax.ws.rs.client.WebTarget
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
-import org.apache.cxf.jaxrs.client.spec.ClientBuilderImpl
-import org.glassfish.jersey.client.JerseyClientBuilder
-import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder
 
 abstract class JaxRsClientTest extends HttpClientTest<JaxRsClientDecorator> {
 
@@ -37,10 +38,6 @@ abstract class JaxRsClientTest extends HttpClientTest<JaxRsClientDecorator> {
     return "jax-rs.client.call"
   }
 
-  boolean testRedirects() {
-    false
-  }
-
   abstract ClientBuilder builder()
 }
 
@@ -50,6 +47,10 @@ class JerseyClientTest extends JaxRsClientTest {
   ClientBuilder builder() {
     return new JerseyClientBuilder()
   }
+
+  boolean testCircularRedirects() {
+    false
+  }
 }
 
 class ResteasyClientTest extends JaxRsClientTest {
@@ -58,6 +59,11 @@ class ResteasyClientTest extends JaxRsClientTest {
   ClientBuilder builder() {
     return new ResteasyClientBuilder()
   }
+
+  boolean testRedirects() {
+    false
+  }
+
 }
 
 class CxfClientTest extends JaxRsClientTest {
@@ -65,6 +71,10 @@ class CxfClientTest extends JaxRsClientTest {
   @Override
   ClientBuilder builder() {
     return new ClientBuilderImpl()
+  }
+
+  boolean testRedirects() {
+    false
   }
 
   boolean testConnectionFailure() {

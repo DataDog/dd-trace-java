@@ -17,7 +17,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.api.AgentScope;
 import datadog.trace.instrumentation.api.AgentSpan;
-import io.opentracing.tag.Tags;
+import datadog.trace.instrumentation.api.Tags;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -69,10 +69,10 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
     final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
     transformers.put(
         named("bindAndHandleSync").and(takesArgument(0, named("scala.Function1"))),
-        AkkaHttpSyncAdvice.class.getName());
+        AkkaHttpServerInstrumentation.class.getName() + "$AkkaHttpSyncAdvice");
     transformers.put(
         named("bindAndHandleAsync").and(takesArgument(0, named("scala.Function1"))),
-        AkkaHttpAsyncAdvice.class.getName());
+        AkkaHttpServerInstrumentation.class.getName() + "$AkkaHttpAsyncAdvice");
     return transformers;
   }
 
@@ -122,7 +122,7 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
 
     public static void finishSpan(final AgentSpan span, final Throwable t) {
       DECORATE.onError(span, t);
-      span.setTag(Tags.HTTP_STATUS.getKey(), 500);
+      span.setTag(Tags.HTTP_STATUS, 500);
       DECORATE.beforeFinish(span);
 
       final TraceScope scope = activeScope();

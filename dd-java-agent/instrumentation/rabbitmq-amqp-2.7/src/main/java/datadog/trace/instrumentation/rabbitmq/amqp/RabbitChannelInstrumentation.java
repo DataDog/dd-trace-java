@@ -36,7 +36,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.instrumentation.api.AgentScope;
 import datadog.trace.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.api.AgentSpan.Context;
-import io.opentracing.tag.Tags;
+import datadog.trace.instrumentation.api.Tags;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -93,19 +93,19 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
                         .or(named("basicGet"))))
             .and(isPublic())
             .and(canThrow(IOException.class).or(canThrow(InterruptedException.class))),
-        ChannelMethodAdvice.class.getName());
+        RabbitChannelInstrumentation.class.getName() + "$ChannelMethodAdvice");
     transformers.put(
         isMethod().and(named("basicPublish")).and(takesArguments(6)),
-        ChannelPublishAdvice.class.getName());
+        RabbitChannelInstrumentation.class.getName() + "$ChannelPublishAdvice");
     transformers.put(
         isMethod().and(named("basicGet")).and(takesArgument(0, String.class)),
-        ChannelGetAdvice.class.getName());
+        RabbitChannelInstrumentation.class.getName() + "$ChannelGetAdvice");
     transformers.put(
         isMethod()
             .and(named("basicConsume"))
             .and(takesArgument(0, String.class))
             .and(takesArgument(6, named("com.rabbitmq.client.Consumer"))),
-        ChannelConsumeAdvice.class.getName());
+        RabbitChannelInstrumentation.class.getName() + "$ChannelConsumeAdvice");
     return transformers;
   }
 
@@ -123,7 +123,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       final AgentSpan span =
           startSpan("amqp.command")
               .setTag(DDTags.RESOURCE_NAME, method)
-              .setTag(Tags.PEER_PORT.getKey(), connection.getPort());
+              .setTag(Tags.PEER_PORT, connection.getPort());
       DECORATE.afterStart(span);
       DECORATE.onPeerConnection(span, connection.getAddress());
       return activateSpan(span, true);
@@ -246,7 +246,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       if (response != null) {
         span.setTag("message.size", response.getBody().length);
       }
-      span.setTag(Tags.PEER_PORT.getKey(), connection.getPort());
+      span.setTag(Tags.PEER_PORT, connection.getPort());
       try (final AgentScope scope = activateSpan(span, false)) {
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onGet(span, queue);

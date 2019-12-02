@@ -63,6 +63,10 @@ public class Config {
   public static final String TRACE_EXECUTORS = "trace.executors";
   public static final String TRACE_METHODS = "trace.methods";
   public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
+  public static final String TRACE_SAMPLING_SERVICE_RULES = "trace.sampling.service.rules";
+  public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
+  public static final String TRACE_SAMPLING_DEFAULT_RATE = "trace.sampling.default.rate";
+  public static final String TRACE_SAMPLING_RATE_LIMIT = "trace.sampling.rate.limit";
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
   public static final String HEADER_TAGS = "trace.header.tags";
   public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
@@ -86,6 +90,10 @@ public class Config {
   public static final String JMX_FETCH_REFRESH_BEANS_PERIOD = "jmxfetch.refresh-beans-period";
   public static final String JMX_FETCH_STATSD_HOST = "jmxfetch.statsd.host";
   public static final String JMX_FETCH_STATSD_PORT = "jmxfetch.statsd.port";
+
+  public static final String HEALTH_METRICS_ENABLED = "trace.health.metrics.enabled";
+  public static final String HEALTH_METRICS_STATSD_HOST = "trace.health.metrics.statsd.host";
+  public static final String HEALTH_METRICS_STATSD_PORT = "trace.health.metrics.statsd.port";
 
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
 
@@ -127,6 +135,9 @@ public class Config {
 
   public static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;
 
+  public static final boolean DEFAULT_METRICS_ENABLED = false;
+  // No default constants for metrics statsd support -- falls back to jmx fetch values
+
   public static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
@@ -138,6 +149,7 @@ public class Config {
   private static final String DEFAULT_TRACE_METHODS = null;
   public static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
   public static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
+  public static final double DEFAULT_TRACE_SAMPLING_RATE_LIMIT = 100;
 
   public enum PropagationStyle {
     DATADOG,
@@ -190,6 +202,11 @@ public class Config {
   @Getter private final String jmxFetchStatsdHost;
   @Getter private final Integer jmxFetchStatsdPort;
 
+  // These values are default-ed to those of jmx fetch values as needed
+  @Getter private final boolean healthMetricsEnabled;
+  @Getter private final String healthMetricsStatsdHost;
+  @Getter private final Integer healthMetricsStatsdPort;
+
   @Getter private final boolean logsInjectionEnabled;
 
   @Getter private final boolean reportHostName;
@@ -202,6 +219,11 @@ public class Config {
   @Getter private final List<String> traceExecutors;
 
   @Getter private final boolean traceAnalyticsEnabled;
+
+  @Getter private final Map<String, String> traceSamplingServiceRules;
+  @Getter private final Map<String, String> traceSamplingOperationRules;
+  @Getter private final Double traceSamplingDefaultRate;
+  @Getter private final Double traceSamplingRateLimit;
 
   // Values from an optionally provided properties file
   private static Properties propertiesFromConfigFile;
@@ -300,6 +322,12 @@ public class Config {
     jmxFetchStatsdPort =
         getIntegerSettingFromEnvironment(JMX_FETCH_STATSD_PORT, DEFAULT_JMX_FETCH_STATSD_PORT);
 
+    // Writer.Builder createMonitor will use the values of the JMX fetch & agent to fill-in defaults
+    healthMetricsEnabled =
+        getBooleanSettingFromEnvironment(HEALTH_METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
+    healthMetricsStatsdHost = getSettingFromEnvironment(HEALTH_METRICS_STATSD_HOST, null);
+    healthMetricsStatsdPort = getIntegerSettingFromEnvironment(HEALTH_METRICS_STATSD_PORT, null);
+
     logsInjectionEnabled =
         getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
 
@@ -317,6 +345,14 @@ public class Config {
 
     traceAnalyticsEnabled =
         getBooleanSettingFromEnvironment(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
+
+    traceSamplingServiceRules = getMapSettingFromEnvironment(TRACE_SAMPLING_SERVICE_RULES, null);
+    traceSamplingOperationRules =
+        getMapSettingFromEnvironment(TRACE_SAMPLING_OPERATION_RULES, null);
+    traceSamplingDefaultRate = getDoubleSettingFromEnvironment(TRACE_SAMPLING_DEFAULT_RATE, null);
+    traceSamplingRateLimit =
+        getDoubleSettingFromEnvironment(
+            TRACE_SAMPLING_RATE_LIMIT, DEFAULT_TRACE_SAMPLING_RATE_LIMIT);
 
     log.debug("New instance: {}", this);
   }
@@ -417,6 +453,14 @@ public class Config {
     jmxFetchStatsdPort =
         getPropertyIntegerValue(properties, JMX_FETCH_STATSD_PORT, parent.jmxFetchStatsdPort);
 
+    healthMetricsEnabled =
+        getPropertyBooleanValue(properties, HEALTH_METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
+    healthMetricsStatsdHost =
+        properties.getProperty(HEALTH_METRICS_STATSD_HOST, parent.healthMetricsStatsdHost);
+    healthMetricsStatsdPort =
+        getPropertyIntegerValue(
+            properties, HEALTH_METRICS_STATSD_PORT, parent.healthMetricsStatsdPort);
+
     logsInjectionEnabled =
         getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
 
@@ -433,6 +477,19 @@ public class Config {
 
     traceAnalyticsEnabled =
         getPropertyBooleanValue(properties, TRACE_ANALYTICS_ENABLED, parent.traceAnalyticsEnabled);
+
+    traceSamplingServiceRules =
+        getPropertyMapValue(
+            properties, TRACE_SAMPLING_SERVICE_RULES, parent.traceSamplingServiceRules);
+    traceSamplingOperationRules =
+        getPropertyMapValue(
+            properties, TRACE_SAMPLING_OPERATION_RULES, parent.traceSamplingOperationRules);
+    traceSamplingDefaultRate =
+        getPropertyDoubleValue(
+            properties, TRACE_SAMPLING_DEFAULT_RATE, parent.traceSamplingDefaultRate);
+    traceSamplingRateLimit =
+        getPropertyDoubleValue(
+            properties, TRACE_SAMPLING_RATE_LIMIT, parent.traceSamplingRateLimit);
 
     log.debug("New instance: {}", this);
   }
@@ -672,6 +729,22 @@ public class Config {
   }
 
   /**
+   * Calls {@link #getSettingFromEnvironment(String, String)} and converts the result to a Double.
+   *
+   * @deprecated This method should only be used internally. Use the explicit getter instead.
+   */
+  public static Double getDoubleSettingFromEnvironment(
+      final String name, final Double defaultValue) {
+    final String value = getSettingFromEnvironment(name, null);
+    try {
+      return value == null ? defaultValue : Double.valueOf(value);
+    } catch (final NumberFormatException e) {
+      log.warn("Invalid configuration for " + name, e);
+      return defaultValue;
+    }
+  }
+
+  /**
    * Calls {@link #getSettingFromEnvironment(String, String)} and converts the result to a Integer.
    */
   private static Integer getIntegerSettingFromEnvironment(
@@ -767,6 +840,12 @@ public class Config {
       final Properties properties, final String name, final Integer defaultValue) {
     final String value = properties.getProperty(name);
     return value == null || value.trim().isEmpty() ? defaultValue : Integer.valueOf(value);
+  }
+
+  private static Double getPropertyDoubleValue(
+      final Properties properties, final String name, final Double defaultValue) {
+    final String value = properties.getProperty(name);
+    return value == null || value.trim().isEmpty() ? defaultValue : Double.valueOf(value);
   }
 
   private static <T extends Enum<T>> Set<T> getPropertySetValue(
