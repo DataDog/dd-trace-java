@@ -18,7 +18,6 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.security.access.ConfigAttribute;
-import org.springframework.security.web.FilterInvocation;
 
 /* Instrumentation of
 org.springframework.security.access
@@ -30,8 +29,10 @@ public interface AccessDecisionManager
   InsufficientAuthenticationException
 
 */
+
 @AutoService(Instrumenter.class)
 public final class AccessDecisionManagerInstrumentation extends Instrumenter.Default {
+  public static final String DELIMITER = ", ";
 
   public AccessDecisionManagerInstrumentation() {
     super("spring-security");
@@ -66,19 +67,10 @@ public final class AccessDecisionManagerInstrumentation extends Instrumenter.Def
         @Advice.Argument(2) final Collection<ConfigAttribute> configAttributes) {
       AgentSpan span = startSpan("access_decision");
 
-      DECORATOR.afterStart(span);
+      span = DECORATOR.afterStart(span);
       span = DECORATOR.setTagsFromAuth(span, auth);
-
-      for (ConfigAttribute ca : configAttributes) {
-        span.setTag(" config.attribute:", ca.getAttribute());
-      }
-
-      if (object != null && (object instanceof org.springframework.security.web.FilterInvocation)) {
-        FilterInvocation fi = (FilterInvocation) object;
-
-        span.setTag("request.fullURL", fi.getFullRequestUrl());
-        span.setTag("request.URL", fi.getRequestUrl());
-      }
+      span = DECORATOR.setTagsFromSecuredObject(span, object);
+      span = DECORATOR.setTagsFromConfigAttributes(span, configAttributes);
 
       return activateSpan(span, true);
     }

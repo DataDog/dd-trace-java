@@ -63,12 +63,11 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
         @Advice.Argument(0) final org.springframework.security.core.Authentication auth,
         @Advice.This(optional = true) Object thiz) {
 
-      System.out.println("CTECTE  " + thiz.getClass().getName());
       AgentSpan span = startSpan("authentication");
       // final Scope scope = GlobalTracer.get().buildSpan("authentication").startActive(true);
       // AgentSpan span = scope.span();
       // span.setTag("class:", thiz.getClass().getName());
-      DECORATOR.afterStart(span);
+      span = DECORATOR.afterStart(span);
       span = DECORATOR.setTagsFromAuth(span, auth);
 
       return activateSpan(span, true);
@@ -89,7 +88,6 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
 
       if (throwable != null) {
         span.setError(Boolean.TRUE);
-
         span.addThrowable(throwable);
       }
 
