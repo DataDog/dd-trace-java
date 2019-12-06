@@ -137,19 +137,24 @@ public final class ProfilingSystem {
     // See https://bugs.openjdk.java.net/browse/JDK-8227011
     executorService.schedule(
         () -> {
-          final Instant now = Instant.now();
-          continuousRecording = controller.createContinuousRecording(RECORDING_NAME);
+          try {
+            final Instant now = Instant.now();
+            continuousRecording = controller.createContinuousRecording(RECORDING_NAME);
 
-          if (continuousToPeriodicUploadsRatio == 1) {
-            periodicRecordingRef.set(controller.createPeriodicRecording(RECORDING_NAME));
+            if (continuousToPeriodicUploadsRatio == 1) {
+              periodicRecordingRef.set(controller.createPeriodicRecording(RECORDING_NAME));
+            }
+
+            executorService.scheduleAtFixedRate(
+                new SnapshotRecording(periodicRecordingCounterStart, now),
+                uploadPeriod.toMillis(),
+                uploadPeriod.toMillis(),
+                TimeUnit.MILLISECONDS);
+            started = true;
+          } catch (final Throwable t) {
+            log.error("Fatal exception during profiling startup", t);
+            throw t;
           }
-
-          executorService.scheduleAtFixedRate(
-              new SnapshotRecording(periodicRecordingCounterStart, now),
-              uploadPeriod.toMillis(),
-              uploadPeriod.toMillis(),
-              TimeUnit.MILLISECONDS);
-          started = true;
         },
         startupDelay.toMillis(),
         TimeUnit.MILLISECONDS);
@@ -206,41 +211,47 @@ public final class ProfilingSystem {
 
     @Override
     public void run() {
-      RecordingType recordingType = RecordingType.CONTINUOUS;
-
-      if (continuousToPeriodicUploadsRatio == 1) {
-        // Periodic recording is already running continuously
-        recordingType = RecordingType.PERIODIC;
-      } else if (continuousToPeriodicUploadsRatio > 1) {
-        final OngoingRecording periodicRecording = periodicRecordingRef.getAndSet(null);
-        if (periodicRecording != null) {
-          // Just stop the recording - we will get the data in snapshot
-          periodicRecording.close();
-          recordingType = RecordingType.PERIODIC;
-        }
-      }
-
       try {
-        final RecordingData recording = continuousRecording.snapshot(lastSnapshot, Instant.now());
-        // The hope here is that we do not get chunk rotated after taking snapshot and before we
-        // take this timestamp otherwise we will start losing data.
-        lastSnapshot = Instant.now();
-        if (recording != null) {
-          dataListener.onNewData(recordingType, recording);
-        }
-      } catch (final Exception e) {
-        log.error("Cannot upload snapshot", e);
-      }
+        RecordingType recordingType = RecordingType.CONTINUOUS;
 
-      if (continuousToPeriodicUploadsRatio > 1) {
-        periodicRecordingCounter++;
-        if (periodicRecordingCounter >= continuousToPeriodicUploadsRatio) {
-          periodicRecordingCounter = 0;
-          final OngoingRecording newRecording = controller.createPeriodicRecording(RECORDING_NAME);
-          if (!periodicRecordingRef.compareAndSet(null, newRecording)) {
-            newRecording.close(); // should never happen
+        if (continuousToPeriodicUploadsRatio == 1) {
+          // Periodic recording is already running continuously
+          recordingType = RecordingType.PERIODIC;
+        } else if (continuousToPeriodicUploadsRatio > 1) {
+          final OngoingRecording periodicRecording = periodicRecordingRef.getAndSet(null);
+          if (periodicRecording != null) {
+            // Just stop the recording - we will get the data in snapshot
+            periodicRecording.close();
+            recordingType = RecordingType.PERIODIC;
           }
         }
+
+        try {
+          final RecordingData recording = continuousRecording.snapshot(lastSnapshot, Instant.now());
+          // The hope here is that we do not get chunk rotated after taking snapshot and before we
+          // take this timestamp otherwise we will start losing data.
+          lastSnapshot = Instant.now();
+          if (recording != null) {
+            dataListener.onNewData(recordingType, recording);
+          }
+        } catch (final Exception e) {
+          log.error("Cannot upload snapshot", e);
+        }
+
+        if (continuousToPeriodicUploadsRatio > 1) {
+          periodicRecordingCounter++;
+          if (periodicRecordingCounter >= continuousToPeriodicUploadsRatio) {
+            periodicRecordingCounter = 0;
+            final OngoingRecording newRecording =
+                controller.createPeriodicRecording(RECORDING_NAME);
+            if (!periodicRecordingRef.compareAndSet(null, newRecording)) {
+              newRecording.close(); // should never happen
+            }
+          }
+        }
+      } catch (final Throwable t) {
+        log.error("Fatal exception in profiling thread", t);
+        throw t;
       }
     }
   }
