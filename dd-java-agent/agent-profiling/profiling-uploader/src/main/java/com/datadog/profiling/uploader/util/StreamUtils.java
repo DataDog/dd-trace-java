@@ -6,6 +6,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipInputStream;
@@ -21,10 +23,10 @@ public final class StreamUtils {
    *     unrecognized compression
    * @throws IOException
    */
-  public static byte[] unpack(byte[] compressed) throws IOException {
+  public static byte[] unpack(final byte[] compressed) throws IOException {
     InputStream is = new ByteArrayInputStream(compressed);
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    try (OutputStream os = baos) {
+    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    try (final OutputStream os = baos) {
       if (isZip(is)) {
         is = new ZipInputStream(is);
       } else if (isGzip(is)) {
@@ -36,39 +38,127 @@ public final class StreamUtils {
   }
 
   /**
-   * Zip compress the given input stream. If the stream is already zip-compressed (gzip, zip) the
-   * original data will be returned.
+   * Consumes array or bytes along with offset and length and turns it into something usable.
+   *
+   * <p>Main idea here is that we may end up having array with valuable data siting somehere in the
+   * middle and we can avoid additional copies by allowing user to deal with this directly and
+   * convert it into whatever format it needs in most efficient way.
+   *
+   * @param <T> result type
+   */
+  @FunctionalInterface
+  public interface BytesConsumer<T> {
+    T consume(byte[] bytes, int offset, int length);
+  }
+
+  /**
+   * Read a stream into a consumer zip-compressing content. If the stream is already zip-compressed
+   * (gzip, zip) the original data will be returned.
    *
    * @param is the input stream
    * @return zipped contents of the input stream or the the original content if the stream is
    *     already compressed
    * @throws IOException
    */
-  public static byte[] zipStream(InputStream is) throws IOException {
+  public static <T> T zipStream(
+      InputStream is, final int expectedSize, final BytesConsumer<T> consumer) throws IOException {
     is = ensureMarkSupported(is);
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-    // if the input stream is already compressed just pass-through to the ByteArrayOutputStream
-    // instance
-    try (OutputStream zipped = isCompressed(is) ? baos : new GZIPOutputStream(baos)) {
-      copy(is, zipped);
+    if (isCompressed(is)) {
+      return readStream(is, expectedSize, consumer);
+    } else {
+      final FastByteArrayOutputStream baos = new FastByteArrayOutputStream(expectedSize);
+      try (final OutputStream zipped = new GZIPOutputStream(baos)) {
+        copy(is, zipped);
+      }
+      return baos.consume(consumer);
     }
-    return baos.toByteArray();
   }
 
   /**
-   * Read a stream as byte array
+   * Read a stream into a consumer.
+   *
+   * <p>Note: the idea here comes from Guava's {@link com.google.common.io.ByteStreams}, but we
+   * cannot use that directly because it is not public and is not flexible enough
    *
    * @param is the input stream
+   * @param expectedSize expected result size to preallocate buffers
+   * @param consumer consumer to convert byte array to result
    * @return the stream data
    * @throws IOException
    */
-  public static byte[] readStream(InputStream is) throws IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    try (ByteArrayOutputStream out = baos) {
-      copy(is, out);
+  public static <T> T readStream(
+      final InputStream is, final int expectedSize, final BytesConsumer<T> consumer)
+      throws IOException {
+    final byte[] bytes = new byte[expectedSize];
+    int remaining = expectedSize;
+
+    while (remaining > 0) {
+      final int offset = expectedSize - remaining;
+      final int read = is.read(bytes, offset, remaining);
+      if (read == -1) {
+        // end of stream before reading expectedSize bytes just return the bytes read so far
+        // 'offset' here is offset in 'bytes' buffer - which essentially represents length of data
+        // read so far.
+        return consumer.consume(bytes, 0, offset);
+      }
+      remaining -= read;
     }
-    return baos.toByteArray();
+
+    // the stream was longer, so read the rest manually
+    final List<BufferChunk> additionalChunks = new ArrayList<>();
+    int additionalChunksLength = 0;
+
+    while (true) {
+      final BufferChunk chunk = new BufferChunk(Math.max(32, is.available()));
+      final int readLength = chunk.readFrom(is);
+      if (readLength < 0) {
+        break;
+      } else {
+        additionalChunks.add(chunk);
+        additionalChunksLength += readLength;
+      }
+    }
+
+    // now assemble resulting array
+    final byte[] result = new byte[bytes.length + additionalChunksLength];
+    System.arraycopy(bytes, 0, result, 0, bytes.length);
+    int offset = bytes.length;
+    for (final BufferChunk chunk : additionalChunks) {
+      offset += chunk.appendToArray(result, offset);
+    }
+    return consumer.consume(result, 0, result.length);
+  }
+
+  private static class BufferChunk {
+
+    private int size = 0;
+    private final byte[] buf;
+
+    public BufferChunk(final int initialSize) {
+      buf = new byte[initialSize];
+    }
+
+    public int readFrom(final InputStream is) throws IOException {
+      size = is.read(buf, 0, buf.length);
+      return size;
+    }
+
+    public int appendToArray(final byte[] array, final int offset) {
+      System.arraycopy(buf, 0, array, offset, size);
+      return size;
+    }
+  }
+
+  // Helper ByteArrayOutputStream that avoids some data copies
+  private static final class FastByteArrayOutputStream extends ByteArrayOutputStream {
+
+    public FastByteArrayOutputStream(final int size) {
+      super(size);
+    }
+
+    <T> T consume(final BytesConsumer<T> consumer) throws IOException {
+      return consumer.consume(buf, 0, count);
+    }
   }
 
   /**
@@ -84,7 +174,6 @@ public final class StreamUtils {
     while ((length = is.read(buffer)) > 0) {
       os.write(buffer, 0, length);
     }
-    os.flush();
   }
 
   /**
@@ -94,7 +183,7 @@ public final class StreamUtils {
    * @return {@literal true} if the stream is compressed in a supported format
    * @throws IOException
    */
-  public static boolean isCompressed(InputStream is) throws IOException {
+  public static boolean isCompressed(final InputStream is) throws IOException {
     checkMarkSupported(is);
     return isGzip(is) || isZip(is);
   }
@@ -106,7 +195,7 @@ public final class StreamUtils {
    * @return {@literal true} if the stream represents GZip data
    * @throws IOException
    */
-  public static boolean isGzip(InputStream is) throws IOException {
+  public static boolean isGzip(final InputStream is) throws IOException {
     checkMarkSupported(is);
     is.mark(IOToolkit.GZ_MAGIC.length);
     try {
@@ -123,7 +212,7 @@ public final class StreamUtils {
    * @return {@literal true} if the stream represents Zip data
    * @throws IOException
    */
-  public static boolean isZip(InputStream is) throws IOException {
+  public static boolean isZip(final InputStream is) throws IOException {
     checkMarkSupported(is);
     is.mark(IOToolkit.ZIP_MAGIC.length);
     try {
@@ -140,7 +229,7 @@ public final class StreamUtils {
     return is;
   }
 
-  private static void checkMarkSupported(InputStream is) throws IOException {
+  private static void checkMarkSupported(final InputStream is) throws IOException {
     if (!is.markSupported()) {
       throw new IOException("Can not check headers on streams not supporting mark() method");
     }

@@ -93,7 +93,7 @@ public final class RecordingUploader {
 
   @FunctionalInterface
   private interface Compression {
-    byte[] compress(InputStream is) throws IOException;
+    RequestBody compress(InputStream is, int expectedSize) throws IOException;
   }
 
   private final OkHttpClient client;
@@ -150,24 +150,26 @@ public final class RecordingUploader {
   private Compression getCompression(final String level) {
     final CompressionLevel cLevel = CompressionLevel.of(level);
     log.debug("Uploader compression level = {}", cLevel);
+    final StreamUtils.BytesConsumer<RequestBody> consumer =
+        (bytes, offset, length) -> RequestBody.create(OCTET_STREAM, bytes, offset, length);
     final Compression compression;
     // currently only gzip and off are supported
     // this needs to be updated once more compression levels are added
     switch (cLevel) {
       case ON:
         {
-          compression = StreamUtils::zipStream;
+          compression = (is, expectedSize) -> StreamUtils.zipStream(is, expectedSize, consumer);
           break;
         }
       case OFF:
         {
-          compression = StreamUtils::readStream;
+          compression = (is, expectedSize) -> StreamUtils.readStream(is, expectedSize, consumer);
           break;
         }
       default:
         {
           log.warn("Unrecognizable compression level: {}. Defaulting to 'on'.", cLevel);
-          compression = StreamUtils::zipStream;
+          compression = (is, expectedSize) -> StreamUtils.zipStream(is, expectedSize, consumer);
         }
     }
     return compression;
@@ -206,8 +208,10 @@ public final class RecordingUploader {
     // * OkHTTP doesn't provide direct way to send uploads from streams - and workarounds would
     // require stream that allows
     //   'repeatable reads' because we may need to resend that data.
-    final byte[] bytes = compression.compress(data.getStream());
-    log.debug("Uploading recording {} [{}] (Size={} bytes)", data.getName(), type, bytes.length);
+    // FIXME: let's do expected size properly!!!
+    final RequestBody body = compression.compress(data.getStream(), 100);
+    log.debug(
+        "Uploading recording {} [{}] (Size={} bytes)", data.getName(), type, body.contentLength());
 
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder()
@@ -222,7 +226,7 @@ public final class RecordingUploader {
     for (final String tag : tags) {
       bodyBuilder.addFormDataPart(TAGS_PARAM, tag);
     }
-    bodyBuilder.addPart(DATA_HEADERS, RequestBody.create(OCTET_STREAM, bytes));
+    bodyBuilder.addPart(DATA_HEADERS, body);
     final RequestBody requestBody = bodyBuilder.build();
 
     final Request request =
@@ -246,8 +250,7 @@ public final class RecordingUploader {
   }
 
   private List<String> tagsToList(final Map<String, String> tags) {
-    return tags.entrySet()
-        .stream()
+    return tags.entrySet().stream()
         .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
         .map(e -> e.getKey() + ":" + e.getValue())
         .collect(Collectors.toList());
