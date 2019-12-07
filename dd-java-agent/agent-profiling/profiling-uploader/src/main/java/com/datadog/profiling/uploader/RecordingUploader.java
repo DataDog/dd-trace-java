@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -91,16 +92,16 @@ public final class RecordingUploader {
         }
       };
 
-  @FunctionalInterface
-  private interface Compression {
-    RequestBody compress(InputStream is, int expectedSize) throws IOException;
-  }
+  static final int SEED_EXPECTED_REQUEST_SIZE = 2 * 1024 * 1024; // 2MB;
+  static final int REQUEST_SIZE_HISTORY_SIZE = 10;
+  static final double REQUEST_SIZE_COEFFICIENT = 1.2;
 
   private final OkHttpClient client;
   private final String apiKey;
   private final HttpUrl url;
   private final List<String> tags;
   private final Compression compression;
+  private final List<Integer> requestSizeHistory;
 
   public RecordingUploader(final Config config) {
     url = createProfilingUrl(config);
@@ -139,12 +140,44 @@ public final class RecordingUploader {
             });
       }
     }
-    compression = getCompression(config.getProfilingUploadCompressionLevel());
 
     client = clientBuilder.build();
     client.dispatcher().setMaxRequests(MAX_RUNNING_REQUESTS);
     // We are mainly talking to the same(ish) host so we need to raise this limit
     client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
+
+    compression = getCompression(config.getProfilingUploadCompressionLevel());
+
+    requestSizeHistory = new LinkedList<>();
+    requestSizeHistory.add(SEED_EXPECTED_REQUEST_SIZE);
+  }
+
+  public void upload(final RecordingType type, final RecordingData data) {
+    try {
+      if (canEnqueueMoreRequests()) {
+        makeUploadRequest(type, data);
+      } else {
+        log.error("Cannot upload data: too many enqueued requests!");
+      }
+    } catch (final IllegalStateException | IOException e) {
+      log.error("Problem uploading recording!", e);
+    } finally {
+      try {
+        data.getStream().close();
+      } catch (final IllegalStateException | IOException e) {
+        log.error("Problem closing recording stream", e);
+      }
+      data.release();
+    }
+  }
+
+  public void shutdown() {
+    client.dispatcher().executorService().shutdown();
+  }
+
+  @FunctionalInterface
+  private interface Compression {
+    RequestBody compress(InputStream is, int expectedSize) throws IOException;
   }
 
   private Compression getCompression(final String level) {
@@ -175,43 +208,23 @@ public final class RecordingUploader {
     return compression;
   }
 
-  public void upload(final RecordingType type, final RecordingData data) {
-    try {
-      if (canEnqueueMoreRequests()) {
-        makeUploadRequest(type, data);
-      } else {
-        log.error("Cannot upload data: too many enqueued requests!");
-      }
-    } catch (final IllegalStateException | IOException e) {
-      log.error("Problem uploading recording!", e);
-    } finally {
-      try {
-        data.getStream().close();
-      } catch (final IllegalStateException | IOException e) {
-        log.error("Problem closing recording stream", e);
-      }
-      data.release();
-    }
-  }
-
-  public void shutdown() {
-    client.dispatcher().executorService().shutdown();
-  }
-
   private void makeUploadRequest(final RecordingType type, final RecordingData data)
       throws IOException {
-    // TODO: we some point we would want to compress this. But this may be already compressed: see
-    // com.datadog.profiling.uploader.util.IOToolkit
     // TODO: it would be really nice to avoid copy here, but:
     // * if JFR doesn't write file to disk we seem to not be able to get size of the recording
     // without reading whole stream
     // * OkHTTP doesn't provide direct way to send uploads from streams - and workarounds would
-    // require stream that allows
-    //   'repeatable reads' because we may need to resend that data.
-    // FIXME: let's do expected size properly!!!
-    final RequestBody body = compression.compress(data.getStream(), 100);
+    // require stream that allows 'repeatable reads' because we may need to resend that data.
+    final RequestBody body = compression.compress(data.getStream(), getExpectedRequestSize());
     log.debug(
-        "Uploading recording {} [{}] (Size={} bytes)", data.getName(), type, body.contentLength());
+        "Uploading recording {} [{}] (Size={}/{} bytes)",
+        data.getName(),
+        type,
+        body.contentLength(),
+        getExpectedRequestSize());
+
+    // The body data is stored in byte array so we naturally get size limit that will fit into int
+    updateUploadSizesHistory((int) body.contentLength());
 
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder()
@@ -245,12 +258,32 @@ public final class RecordingUploader {
     client.newCall(request).enqueue(RESPONSE_CALLBACK);
   }
 
+  private int getExpectedRequestSize() {
+    synchronized (requestSizeHistory) {
+      int size = 0;
+      for (final int s : requestSizeHistory) {
+        size += s;
+      }
+      return (int) ((size / requestSizeHistory.size()) * REQUEST_SIZE_COEFFICIENT);
+    }
+  }
+
+  private void updateUploadSizesHistory(final int newSize) {
+    synchronized (requestSizeHistory) {
+      while (requestSizeHistory.size() >= REQUEST_SIZE_HISTORY_SIZE) {
+        requestSizeHistory.remove(0);
+      }
+      requestSizeHistory.add(newSize);
+    }
+  }
+
   private boolean canEnqueueMoreRequests() {
     return client.dispatcher().queuedCallsCount() < MAX_ENQUEUED_REQUESTS;
   }
 
   private List<String> tagsToList(final Map<String, String> tags) {
-    return tags.entrySet().stream()
+    return tags.entrySet()
+        .stream()
         .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
         .map(e -> e.getKey() + ":" + e.getValue())
         .collect(Collectors.toList());
