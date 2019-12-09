@@ -260,11 +260,14 @@ public final class RecordingUploader {
 
   private int getExpectedRequestSize() {
     synchronized (requestSizeHistory) {
+      // We have added seed value, so history cannot be empty
       int size = 0;
       for (final int s : requestSizeHistory) {
-        size += s;
+        if (s > size) {
+          size = s;
+        }
       }
-      return (int) ((size / requestSizeHistory.size()) * REQUEST_SIZE_COEFFICIENT);
+      return (int) (size * REQUEST_SIZE_COEFFICIENT);
     }
   }
 
