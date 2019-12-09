@@ -13,13 +13,6 @@ apply from: "${rootDir}/gradle/java.gradle"
 
 description = 'Profiling Integration Tests.'
 
-repositories {
-  jcenter()
-  maven {
-    url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
-  }
-}
-
 jar {
   manifest {
     attributes(

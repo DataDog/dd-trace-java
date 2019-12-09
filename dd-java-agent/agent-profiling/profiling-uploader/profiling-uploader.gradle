@@ -10,12 +10,6 @@ excludedClassesCoverage += [
   'com.datadog.profiling.uploader.VersionInfo'
 ]
 
-repositories {
-  maven {
-    url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
-  }
-}
-
 dependencies {
   compile deps.slf4j
   compile project(':dd-trace-api')
