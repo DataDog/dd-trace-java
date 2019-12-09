@@ -1,42 +1,21 @@
 package com.datadog.profiling.uploader.util;
 
 import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-import java.util.zip.ZipInputStream;
+import org.openjdk.jmc.common.io.IOToolkit;
 
 /** A collection of I/O stream related helper methods */
 public final class StreamUtils {
-  /**
-   * Unpack a stream with supported compression (zip, gzip). If the stream is not compressed or the
-   * compression is not recognized it will return the original content.
-   *
-   * @param compressed the input data
-   * @return unpacked contents of the input stream or the original ones if not compresses or
-   *     unrecognized compression
-   * @throws IOException
-   */
-  public static byte[] unpack(final byte[] compressed) throws IOException {
-    InputStream is = new ByteArrayInputStream(compressed);
-    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    try (final OutputStream os = baos) {
-      if (isZip(is)) {
-        is = new ZipInputStream(is);
-      } else if (isGzip(is)) {
-        is = new GZIPInputStream(is);
-      }
-      copy(is, os);
-    }
-    return baos.toByteArray();
-  }
 
+  // JMC's IOToolkit hides this from us...
+  static final int ZIP_MAGIC[] = new int[] {80, 75, 3, 4};
+  static final int GZ_MAGIC[] = new int[] {31, 139};
   /**
    * Consumes array or bytes along with offset and length and turns it into something usable.
    *
@@ -52,7 +31,7 @@ public final class StreamUtils {
   }
 
   /**
-   * Read a stream into a consumer zip-compressing content. If the stream is already zip-compressed
+   * Read a stream into a consumer gzip-compressing content. If the stream is already compressed
    * (gzip, zip) the original data will be returned.
    *
    * @param is the input stream
@@ -60,7 +39,7 @@ public final class StreamUtils {
    *     already compressed
    * @throws IOException
    */
-  public static <T> T zipStream(
+  public static <T> T gzipStream(
       InputStream is, final int expectedSize, final BytesConsumer<T> consumer) throws IOException {
     is = ensureMarkSupported(is);
     if (isCompressed(is)) {
@@ -78,7 +57,7 @@ public final class StreamUtils {
    * Read a stream into a consumer.
    *
    * <p>Note: the idea here comes from Guava's {@link com.google.common.io.ByteStreams}, but we
-   * cannot use that directly because it is not public and is not flexible enough
+   * cannot use that directly because it is not public and is not flexible enough.
    *
    * @param is the input stream
    * @param expectedSize expected result size to preallocate buffers
@@ -168,7 +147,7 @@ public final class StreamUtils {
    * @param os output
    * @throws IOException
    */
-  public static void copy(final InputStream is, final OutputStream os) throws IOException {
+  private static void copy(final InputStream is, final OutputStream os) throws IOException {
     int length;
     final byte[] buffer = new byte[8192];
     while ((length = is.read(buffer)) > 0) {
@@ -183,7 +162,7 @@ public final class StreamUtils {
    * @return {@literal true} if the stream is compressed in a supported format
    * @throws IOException
    */
-  public static boolean isCompressed(final InputStream is) throws IOException {
+  private static boolean isCompressed(final InputStream is) throws IOException {
     checkMarkSupported(is);
     return isGzip(is) || isZip(is);
   }
@@ -195,11 +174,11 @@ public final class StreamUtils {
    * @return {@literal true} if the stream represents GZip data
    * @throws IOException
    */
-  public static boolean isGzip(final InputStream is) throws IOException {
+  private static boolean isGzip(final InputStream is) throws IOException {
     checkMarkSupported(is);
-    is.mark(IOToolkit.GZ_MAGIC.length);
+    is.mark(GZ_MAGIC.length);
     try {
-      return IOToolkit.hasMagic(is, IOToolkit.GZ_MAGIC);
+      return IOToolkit.hasMagic(is, GZ_MAGIC);
     } finally {
       is.reset();
     }
@@ -212,11 +191,11 @@ public final class StreamUtils {
    * @return {@literal true} if the stream represents Zip data
    * @throws IOException
    */
-  public static boolean isZip(final InputStream is) throws IOException {
+  private static boolean isZip(final InputStream is) throws IOException {
     checkMarkSupported(is);
-    is.mark(IOToolkit.ZIP_MAGIC.length);
+    is.mark(ZIP_MAGIC.length);
     try {
-      return IOToolkit.hasMagic(is, IOToolkit.ZIP_MAGIC);
+      return IOToolkit.hasMagic(is, ZIP_MAGIC);
     } finally {
       is.reset();
     }

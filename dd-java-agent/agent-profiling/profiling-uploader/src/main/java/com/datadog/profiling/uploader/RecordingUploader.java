@@ -193,7 +193,7 @@ public final class RecordingUploader {
     switch (cLevel) {
       case ON:
         {
-          compression = (is, expectedSize) -> StreamUtils.zipStream(is, expectedSize, consumer);
+          compression = (is, expectedSize) -> StreamUtils.gzipStream(is, expectedSize, consumer);
           break;
         }
       case OFF:
@@ -204,7 +204,7 @@ public final class RecordingUploader {
       default:
         {
           log.warn("Unrecognizable compression level: {}. Defaulting to 'on'.", cLevel);
-          compression = (is, expectedSize) -> StreamUtils.zipStream(is, expectedSize, consumer);
+          compression = (is, expectedSize) -> StreamUtils.gzipStream(is, expectedSize, consumer);
         }
     }
     return compression;
