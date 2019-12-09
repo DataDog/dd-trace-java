@@ -135,7 +135,11 @@ public final class StreamUtils {
       super(size);
     }
 
-    <T> T consume(final BytesConsumer<T> consumer) throws IOException {
+    /**
+     * ByteArrayOutputStream's API doesn't allow us to get data without a copy. We add this method
+     * to support this.
+     */
+    <T> T consume(final BytesConsumer<T> consumer) {
       return consumer.consume(buf, 0, count);
     }
   }
