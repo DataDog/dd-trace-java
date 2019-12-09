@@ -24,7 +24,8 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
-import java.util.LinkedList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -93,6 +94,7 @@ public final class RecordingUploader {
       };
 
   static final int SEED_EXPECTED_REQUEST_SIZE = 2 * 1024 * 1024; // 2MB;
+  // Should this be guessed somehow from how often we run periodic profiles?
   static final int REQUEST_SIZE_HISTORY_SIZE = 10;
   static final double REQUEST_SIZE_COEFFICIENT = 1.2;
 
@@ -101,7 +103,7 @@ public final class RecordingUploader {
   private final HttpUrl url;
   private final List<String> tags;
   private final Compression compression;
-  private final List<Integer> requestSizeHistory;
+  private final Deque<Integer> requestSizeHistory;
 
   public RecordingUploader(final Config config) {
     url = createProfilingUrl(config);
@@ -148,7 +150,7 @@ public final class RecordingUploader {
 
     compression = getCompression(config.getProfilingUploadCompressionLevel());
 
-    requestSizeHistory = new LinkedList<>();
+    requestSizeHistory = new ArrayDeque<>(REQUEST_SIZE_HISTORY_SIZE);
     requestSizeHistory.add(SEED_EXPECTED_REQUEST_SIZE);
   }
 
@@ -274,9 +276,9 @@ public final class RecordingUploader {
   private void updateUploadSizesHistory(final int newSize) {
     synchronized (requestSizeHistory) {
       while (requestSizeHistory.size() >= REQUEST_SIZE_HISTORY_SIZE) {
-        requestSizeHistory.remove(0);
+        requestSizeHistory.removeLast();
       }
-      requestSizeHistory.add(newSize);
+      requestSizeHistory.offerFirst(newSize);
     }
   }
 
