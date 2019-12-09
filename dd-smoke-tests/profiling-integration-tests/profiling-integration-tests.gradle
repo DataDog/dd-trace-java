@@ -20,19 +20,12 @@ repositories {
   }
 }
 
-
 jar {
   manifest {
     attributes(
       'Main-Class': 'datadog.smoketest.profiling.ProfilingTestApplication'
     )
   }
-}
-
-task fetchJmc(type: Exec) {
-  group 'Build Setup'
-  description 'Initializes and updates jmc git submodule'
-  commandLine 'git', 'submodule', 'update', '--init', "${rootDir}/vendor/jmc"
 }
 
 dependencies {
