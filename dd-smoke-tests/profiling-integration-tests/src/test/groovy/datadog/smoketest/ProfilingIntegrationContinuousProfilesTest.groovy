@@ -2,7 +2,6 @@ package datadog.smoketest
 
 import com.datadog.profiling.testing.ProfilingTestUtils
 import com.google.common.collect.Multimap
-import okhttp3.Credentials
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
@@ -57,7 +56,7 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
 
     then:
     firstRequest.getRequestUrl().toString() == profilingUrl
-    firstRequest.getHeader("Authorization") == Credentials.basic(PROFILING_API_KEY, "")
+    firstRequest.getHeader("DD-API-KEY") == PROFILING_API_KEY
 
     firstRequestParameters.get("recording-name").get(0) == 'dd-profiling'
     firstRequestParameters.get("format").get(0) == "jfr"
@@ -87,7 +86,7 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
 
     then:
     secondRequest.getRequestUrl().toString() == profilingUrl
-    secondRequest.getHeader("Authorization") == Credentials.basic(PROFILING_API_KEY, "")
+    secondRequest.getHeader("DD-API-KEY") == PROFILING_API_KEY
 
     secondRequestParameters.get("recording-name").get(0) == 'dd-profiling'
     def secondStartTime = Instant.parse(secondRequestParameters.get("recording-start").get(0))

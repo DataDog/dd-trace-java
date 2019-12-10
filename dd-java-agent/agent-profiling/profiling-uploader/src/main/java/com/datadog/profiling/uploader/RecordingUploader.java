@@ -61,6 +61,8 @@ public final class RecordingUploader {
 
   static final String TAGS_PARAM = "tags[]";
 
+  static final String HEADER_DD_API_KEY = "DD-API-KEY";
+
   static final int MAX_RUNNING_REQUESTS = 10;
   static final int MAX_ENQUEUED_REQUESTS = 20;
 
@@ -248,7 +250,7 @@ public final class RecordingUploader {
     final Request request =
         new Request.Builder()
             .url(url)
-            .addHeader("Authorization", Credentials.basic(apiKey, ""))
+            .addHeader(HEADER_DD_API_KEY, apiKey)
             // Note: this header is also used to disable tracing of profiling requests
             .addHeader(VersionInfo.DATADOG_META_LANG, VersionInfo.JAVA_LANG)
             .addHeader(VersionInfo.DATADOG_META_LANG_VERSION, VersionInfo.JAVA_VERSION)
