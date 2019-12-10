@@ -119,6 +119,9 @@ repositories {
   mavenLocal()
   jcenter()
   mavenCentral()
+  maven {
+    url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
+  }
 }
 
 dependencies {

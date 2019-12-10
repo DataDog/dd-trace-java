@@ -13,26 +13,12 @@ apply from: "${rootDir}/gradle/java.gradle"
 
 description = 'Profiling Integration Tests.'
 
-repositories {
-  jcenter()
-  maven {
-    url "https://adoptopenjdk.jfrog.io/adoptopenjdk/jmc-libs-snapshots"
-  }
-}
-
-
 jar {
   manifest {
     attributes(
       'Main-Class': 'datadog.smoketest.profiling.ProfilingTestApplication'
     )
   }
-}
-
-task fetchJmc(type: Exec) {
-  group 'Build Setup'
-  description 'Initializes and updates jmc git submodule'
-  commandLine 'git', 'submodule', 'update', '--init', "${rootDir}/vendor/jmc"
 }
 
 dependencies {

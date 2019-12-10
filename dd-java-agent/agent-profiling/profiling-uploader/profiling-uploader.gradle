@@ -1,8 +1,11 @@
+// Set properties before any plugins get loaded
+ext {
+  jmcVersion = '8.0.0-SNAPSHOT'
+}
+
 apply from: "${rootDir}/gradle/java.gradle"
 
 excludedClassesCoverage += [
-  // This is mainly JFR copy-paste and should be removed at some point
-  'com.datadog.profiling.uploader.util.*',
   // This is just a static declaration that is hard to test
   'com.datadog.profiling.uploader.VersionInfo'
 ]
@@ -12,6 +15,8 @@ dependencies {
   compile project(':dd-trace-api')
 
   compile project(':dd-java-agent:agent-profiling:profiling-controller')
+
+  compile "org.openjdk.jmc:common:$jmcVersion"
 
   compile deps.guava
   compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.14.4'

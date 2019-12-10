@@ -3,7 +3,7 @@ apply from: "${rootDir}/gradle/java.gradle"
 excludedClassesCoverage += [
   // ControllerFactory gets better tested in actual controller implementations
   'com.datadog.profiling.controller.ControllerFactory',
-  // There are some copde paths that is impossible/very-very hard to hit
+  // There are some code paths that is impossible/very-very hard to hit
   'com.datadog.profiling.controller.ProfilingSystem.StartRecording',
   'com.datadog.profiling.controller.ProfilingSystem.StopRecording'
 ]

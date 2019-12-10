@@ -24,6 +24,8 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -91,16 +93,17 @@ public final class RecordingUploader {
         }
       };
 
-  @FunctionalInterface
-  private interface Compression {
-    byte[] compress(InputStream is) throws IOException;
-  }
+  static final int SEED_EXPECTED_REQUEST_SIZE = 2 * 1024 * 1024; // 2MB;
+  // Should this be guessed somehow from how often we run periodic profiles?
+  static final int REQUEST_SIZE_HISTORY_SIZE = 10;
+  static final double REQUEST_SIZE_COEFFICIENT = 1.2;
 
   private final OkHttpClient client;
   private final String apiKey;
   private final HttpUrl url;
   private final List<String> tags;
   private final Compression compression;
+  private final Deque<Integer> requestSizeHistory;
 
   public RecordingUploader(final Config config) {
     url = createProfilingUrl(config);
@@ -139,38 +142,16 @@ public final class RecordingUploader {
             });
       }
     }
-    compression = getCompression(config.getProfilingUploadCompressionLevel());
 
     client = clientBuilder.build();
     client.dispatcher().setMaxRequests(MAX_RUNNING_REQUESTS);
     // We are mainly talking to the same(ish) host so we need to raise this limit
     client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
-  }
 
-  private Compression getCompression(final String level) {
-    final CompressionLevel cLevel = CompressionLevel.of(level);
-    log.debug("Uploader compression level = {}", cLevel);
-    final Compression compression;
-    // currently only gzip and off are supported
-    // this needs to be updated once more compression levels are added
-    switch (cLevel) {
-      case ON:
-        {
-          compression = StreamUtils::zipStream;
-          break;
-        }
-      case OFF:
-        {
-          compression = StreamUtils::readStream;
-          break;
-        }
-      default:
-        {
-          log.warn("Unrecognizable compression level: {}. Defaulting to 'on'.", cLevel);
-          compression = StreamUtils::zipStream;
-        }
-    }
-    return compression;
+    compression = getCompression(config.getProfilingUploadCompressionLevel());
+
+    requestSizeHistory = new ArrayDeque<>(REQUEST_SIZE_HISTORY_SIZE);
+    requestSizeHistory.add(SEED_EXPECTED_REQUEST_SIZE);
   }
 
   public void upload(final RecordingType type, final RecordingData data) {
@@ -196,18 +177,57 @@ public final class RecordingUploader {
     client.dispatcher().executorService().shutdown();
   }
 
+  @FunctionalInterface
+  private interface Compression {
+    RequestBody compress(InputStream is, int expectedSize) throws IOException;
+  }
+
+  private Compression getCompression(final String level) {
+    final CompressionLevel cLevel = CompressionLevel.of(level);
+    log.debug("Uploader compression level = {}", cLevel);
+    final StreamUtils.BytesConsumer<RequestBody> consumer =
+        (bytes, offset, length) -> RequestBody.create(OCTET_STREAM, bytes, offset, length);
+    final Compression compression;
+    // currently only gzip and off are supported
+    // this needs to be updated once more compression levels are added
+    switch (cLevel) {
+      case ON:
+        {
+          compression = (is, expectedSize) -> StreamUtils.gzipStream(is, expectedSize, consumer);
+          break;
+        }
+      case OFF:
+        {
+          compression = (is, expectedSize) -> StreamUtils.readStream(is, expectedSize, consumer);
+          break;
+        }
+      default:
+        {
+          log.warn("Unrecognizable compression level: {}. Defaulting to 'on'.", cLevel);
+          compression = (is, expectedSize) -> StreamUtils.gzipStream(is, expectedSize, consumer);
+        }
+    }
+    return compression;
+  }
+
   private void makeUploadRequest(final RecordingType type, final RecordingData data)
       throws IOException {
-    // TODO: we some point we would want to compress this. But this may be already compressed: see
-    // com.datadog.profiling.uploader.util.IOToolkit
+    final int expectedRqeustSize = getExpectedRequestSize();
     // TODO: it would be really nice to avoid copy here, but:
     // * if JFR doesn't write file to disk we seem to not be able to get size of the recording
     // without reading whole stream
     // * OkHTTP doesn't provide direct way to send uploads from streams - and workarounds would
-    // require stream that allows
-    //   'repeatable reads' because we may need to resend that data.
-    final byte[] bytes = compression.compress(data.getStream());
-    log.debug("Uploading recording {} [{}] (Size={} bytes)", data.getName(), type, bytes.length);
+    // require stream that allows 'repeatable reads' because we may need to resend that data.
+    final RequestBody body = compression.compress(data.getStream(), expectedRqeustSize);
+    log.debug(
+        "Uploading recording {} [{}] (Size={}/{} bytes)",
+        data.getName(),
+        type,
+        body.contentLength(),
+        expectedRqeustSize);
+
+    // The body data is stored in byte array so we naturally get size limit that will fit into int
+    updateUploadSizesHistory((int) body.contentLength());
 
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder()
@@ -222,7 +242,7 @@ public final class RecordingUploader {
     for (final String tag : tags) {
       bodyBuilder.addFormDataPart(TAGS_PARAM, tag);
     }
-    bodyBuilder.addPart(DATA_HEADERS, RequestBody.create(OCTET_STREAM, bytes));
+    bodyBuilder.addPart(DATA_HEADERS, body);
     final RequestBody requestBody = bodyBuilder.build();
 
     final Request request =
@@ -239,6 +259,28 @@ public final class RecordingUploader {
             .build();
 
     client.newCall(request).enqueue(RESPONSE_CALLBACK);
+  }
+
+  private int getExpectedRequestSize() {
+    synchronized (requestSizeHistory) {
+      // We have added seed value, so history cannot be empty
+      int size = 0;
+      for (final int s : requestSizeHistory) {
+        if (s > size) {
+          size = s;
+        }
+      }
+      return (int) (size * REQUEST_SIZE_COEFFICIENT);
+    }
+  }
+
+  private void updateUploadSizesHistory(final int newSize) {
+    synchronized (requestSizeHistory) {
+      while (requestSizeHistory.size() >= REQUEST_SIZE_HISTORY_SIZE) {
+        requestSizeHistory.removeLast();
+      }
+      requestSizeHistory.offerFirst(newSize);
+    }
   }
 
   private boolean canEnqueueMoreRequests() {

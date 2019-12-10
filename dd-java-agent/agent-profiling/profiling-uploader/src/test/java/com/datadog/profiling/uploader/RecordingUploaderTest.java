@@ -30,14 +30,16 @@ import static org.mockito.Mockito.withSettings;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.testing.ProfilingTestUtils;
-import com.datadog.profiling.uploader.util.StreamUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.common.io.ByteStreams;
 import datadog.trace.api.Config;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -45,6 +47,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.GZIPInputStream;
 import okhttp3.Credentials;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
@@ -173,11 +176,13 @@ public class RecordingUploaderTest {
     final byte[] expectedBytes =
         ByteStreams.toByteArray(
             Thread.currentThread().getContextClassLoader().getResourceAsStream(RECORDING_RESOURCE));
-    assertArrayEquals(
-        expectedBytes,
-        StreamUtils.unpack(
-            (byte[])
-                Iterables.getFirst(parameters.get(RecordingUploader.DATA_PARAM), new byte[] {})));
+
+    byte[] uploadedBytes =
+        (byte[]) Iterables.getFirst(parameters.get(RecordingUploader.DATA_PARAM), new byte[] {});
+    if (compression.equals("on") || compression.equals("invalid")) {
+      uploadedBytes = unGzip(uploadedBytes);
+    }
+    assertArrayEquals(expectedBytes, uploadedBytes);
   }
 
   @Test
@@ -430,5 +435,12 @@ public class RecordingUploaderTest {
     when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(RECORDING_START));
     when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(RECORDING_END));
     return recordingData;
+  }
+
+  private byte[] unGzip(final byte[] compressed) throws IOException {
+    final InputStream stream = new GZIPInputStream(new ByteArrayInputStream(compressed));
+    final ByteArrayOutputStream result = new ByteArrayOutputStream();
+    ByteStreams.copy(stream, result);
+    return result.toByteArray();
   }
 }
