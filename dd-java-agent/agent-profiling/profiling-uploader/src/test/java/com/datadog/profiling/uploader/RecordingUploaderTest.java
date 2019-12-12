@@ -146,7 +146,7 @@ public class RecordingUploaderTest {
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(url, recordedRequest.getRequestUrl());
 
-    assertEquals(Credentials.basic(APIKEY_VALUE, ""), recordedRequest.getHeader("Authorization"));
+    assertEquals(APIKEY_VALUE, recordedRequest.getHeader("DD-API-KEY"));
 
     final Multimap<String, Object> parameters =
         ProfilingTestUtils.parseProfilingRequestParameters(recordedRequest);
@@ -206,8 +206,7 @@ public class RecordingUploaderTest {
 
     final RecordedRequest recordedFirstRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(server.url(""), recordedFirstRequest.getRequestUrl());
-    assertEquals(
-        Credentials.basic(APIKEY_VALUE, ""), recordedFirstRequest.getHeader("Authorization"));
+    assertEquals(APIKEY_VALUE, recordedFirstRequest.getHeader("DD-API-KEY"));
     assertNull(recordedFirstRequest.getHeader("Proxy-Authorization"));
     assertEquals(backendHost, recordedFirstRequest.getHeader("Host"));
     assertEquals(
@@ -215,8 +214,7 @@ public class RecordingUploaderTest {
 
     final RecordedRequest recordedSecondRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(server.url(""), recordedSecondRequest.getRequestUrl());
-    assertEquals(
-        Credentials.basic(APIKEY_VALUE, ""), recordedSecondRequest.getHeader("Authorization"));
+    assertEquals(APIKEY_VALUE, recordedSecondRequest.getHeader("DD-API-KEY"));
     assertEquals(
         Credentials.basic("username", "password"),
         recordedSecondRequest.getHeader("Proxy-Authorization"));
