@@ -58,4 +58,4 @@ dependencies {
   latestDepTestCompile group: 'com.amazonaws', name: 'aws-java-sdk-ec2', version: '+'
 }
 
-test.dependsOn test_before_1_11_106
+check.dependsOn test_before_1_11_106

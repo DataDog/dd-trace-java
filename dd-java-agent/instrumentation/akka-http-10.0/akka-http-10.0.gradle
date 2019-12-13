@@ -101,8 +101,10 @@ dependencies {
   latestDepTestCompile project(':dd-java-agent:instrumentation:trace-annotation')
 }
 
+// If not set to check, intellij will fail to run a test class in the "test" sourceset since the tests in "lagomTest"
+// won't match the filter. Only needs to be set to check when the source directory is not "test"
 check.dependsOn lagomTest
-check.dependsOn version101Test
+test.dependsOn version101Test
 
 compileVersion101TestGroovy {
   classpath = classpath.plus(files(compileVersion101TestScala.destinationDir))
