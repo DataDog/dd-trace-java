@@ -7,7 +7,6 @@ import com.amazonaws.SdkClientException
 import com.amazonaws.auth.AWSCredentialsProviderChain
 import com.amazonaws.auth.AWSStaticCredentialsProvider
 import com.amazonaws.auth.AnonymousAWSCredentials
-import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider
 import com.amazonaws.auth.InstanceProfileCredentialsProvider
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider
@@ -17,6 +16,8 @@ import com.amazonaws.handlers.RequestHandler2
 import com.amazonaws.regions.Regions
 import com.amazonaws.retry.PredefinedRetryPolicies
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder
+import com.amazonaws.services.kinesis.AmazonKinesisAsyncClient
+import com.amazonaws.services.kinesis.AmazonKinesisClient
 import com.amazonaws.services.rds.AmazonRDSClientBuilder
 import com.amazonaws.services.rds.model.DeleteOptionGroupRequest
 import com.amazonaws.services.s3.AmazonS3Client
@@ -24,6 +25,8 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.instrumentation.api.Tags
+import datadog.trace.instrumentation.aws.v0.KinesisTracingRequestHandler
+import datadog.trace.instrumentation.aws.v0.TracingRequestHandler
 import org.apache.http.conn.HttpHostConnectException
 import org.apache.http.impl.execchain.RequestAbortedException
 import spock.lang.AutoCleanup
@@ -91,23 +94,23 @@ class AWSClientTest extends AgentTestRunner {
 
   def "request handler is hooked up with constructor"() {
     setup:
-    String accessKey = "asdf"
-    String secretKey = "qwerty"
-    def credentials = new BasicAWSCredentials(accessKey, secretKey)
-    def client = new AmazonS3Client(credentials)
+    def client = clientClass.getConstructor([] as Class<?>[]).newInstance()
     if (addHandler) {
       client.addRequestHandler(new RequestHandler2() {})
     }
 
     expect:
     client.requestHandler2s != null
-    client.requestHandler2s.size() == size
-    client.requestHandler2s.get(0).getClass().getSimpleName() == "TracingRequestHandler"
+    client.requestHandler2s.size() == expectedSize
+    client.requestHandler2s.get(0).getClass() == expectedHandlerClass
 
     where:
-    addHandler | size
-    true       | 2
-    false      | 1
+
+    clientClass              | addHandler || expectedHandlerClass         | expectedSize
+    AmazonS3Client           | false      || TracingRequestHandler        | 1
+    AmazonS3Client           | true       || TracingRequestHandler        | 2
+    AmazonKinesisClient      | true       || KinesisTracingRequestHandler | 2
+    AmazonKinesisAsyncClient | false      || KinesisTracingRequestHandler | 1
   }
 
   def "send #operation request with mocked response"() {
