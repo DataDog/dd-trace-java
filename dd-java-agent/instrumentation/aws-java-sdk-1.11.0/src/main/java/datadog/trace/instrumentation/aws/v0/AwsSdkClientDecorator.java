@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
@@ -36,8 +37,13 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         DDTags.RESOURCE_NAME,
         remapServiceName(awsServiceName) + "." + remapOperationName(awsOperation));
 
+    onOriginalRequest(span, request.getOriginalRequest());
+
     return span;
   }
+
+  public void onOriginalRequest(
+      final AgentSpan span, final AmazonWebServiceRequest originalRequest) {}
 
   @Override
   public AgentSpan onResponse(final AgentSpan span, final Response response) {

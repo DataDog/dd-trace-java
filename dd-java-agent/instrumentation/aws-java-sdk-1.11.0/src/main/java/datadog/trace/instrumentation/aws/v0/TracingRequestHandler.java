@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.DECORATE;
 
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.Request;
@@ -14,7 +13,17 @@ import datadog.trace.instrumentation.api.AgentSpan;
 
 /** Tracing Request Handler */
 public class TracingRequestHandler extends RequestHandler2 {
-  public static TracingRequestHandler INSTANCE = new TracingRequestHandler();
+  public static final TracingRequestHandler INSTANCE = new TracingRequestHandler();
+
+  private final AwsSdkClientDecorator decorator;
+
+  private TracingRequestHandler() {
+    this(AwsSdkClientDecorator.DECORATE);
+  }
+
+  TracingRequestHandler(final AwsSdkClientDecorator decorator) {
+    this.decorator = decorator;
+  }
 
   // Note: aws1.x sdk doesn't have any truly async clients so we can store scope in request context
   // safely.
@@ -29,8 +38,8 @@ public class TracingRequestHandler extends RequestHandler2 {
   @Override
   public void beforeRequest(final Request<?> request) {
     final AgentSpan span = startSpan("aws.command");
-    DECORATE.afterStart(span);
-    DECORATE.onRequest(span, request);
+    decorator.afterStart(span);
+    decorator.onRequest(span, request);
     request.addHandlerContext(SCOPE_CONTEXT_KEY, activateSpan(span, true));
   }
 
@@ -39,8 +48,8 @@ public class TracingRequestHandler extends RequestHandler2 {
     final AgentScope scope = request.getHandlerContext(SCOPE_CONTEXT_KEY);
     if (scope != null) {
       request.addHandlerContext(SCOPE_CONTEXT_KEY, null);
-      DECORATE.onResponse(scope.span(), response);
-      DECORATE.beforeFinish(scope.span());
+      decorator.onResponse(scope.span(), response);
+      decorator.beforeFinish(scope.span());
       scope.close();
     }
   }
@@ -50,8 +59,8 @@ public class TracingRequestHandler extends RequestHandler2 {
     final AgentScope scope = request.getHandlerContext(SCOPE_CONTEXT_KEY);
     if (scope != null) {
       request.addHandlerContext(SCOPE_CONTEXT_KEY, null);
-      DECORATE.onError(scope.span(), e);
-      DECORATE.beforeFinish(scope.span());
+      decorator.onError(scope.span(), e);
+      decorator.beforeFinish(scope.span());
       scope.close();
     }
   }
