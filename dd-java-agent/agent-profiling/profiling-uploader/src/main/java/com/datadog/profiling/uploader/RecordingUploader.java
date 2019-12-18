@@ -18,6 +18,7 @@ package com.datadog.profiling.uploader;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.StreamUtils;
+import com.datadog.profiling.util.ProfilingThreadFactory;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,11 +29,17 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Call;
 import okhttp3.Callback;
+import okhttp3.ConnectionPool;
 import okhttp3.Credentials;
+import okhttp3.Dispatcher;
 import okhttp3.Headers;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -70,6 +77,8 @@ public final class RecordingUploader {
   static final String RECORDING_TYPE_PREFIX = "jfr-";
   static final String RECORDING_RUNTIME = "jvm";
 
+  static final int TERMINATION_TIMEOUT = 5;
+
   private static final Headers DATA_HEADERS =
       Headers.of(
           "Content-Disposition", "form-data; name=\"" + DATA_PARAM + "\"; filename=\"recording\"");
@@ -100,6 +109,7 @@ public final class RecordingUploader {
   static final int REQUEST_SIZE_HISTORY_SIZE = 10;
   static final double REQUEST_SIZE_COEFFICIENT = 1.2;
 
+  private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
   private final String apiKey;
   private final HttpUrl url;
@@ -112,6 +122,20 @@ public final class RecordingUploader {
     apiKey = config.getProfilingApiKey();
     tags = tagsToList(config.getMergedProfilingTags());
 
+    // This is the same thing OkHttp Dispatcher is doing except thread naming and deamonization
+    okHttpExecutorService =
+        new ThreadPoolExecutor(
+            0,
+            Integer.MAX_VALUE,
+            60,
+            TimeUnit.SECONDS,
+            new SynchronousQueue<>(),
+            new ProfilingThreadFactory("dd-profiler-http-dispatcher"));
+    // Reusing connections causes non daemon threads to be created which causes agent to prevent app
+    // from exiting. See https://github.com/square/okhttp/issues/4029 for some details.
+    final ConnectionPool connectionPool =
+        new ConnectionPool(MAX_RUNNING_REQUESTS, 1, TimeUnit.SECONDS);
+
     final Duration ioOperationTimeout =
         Duration.ofSeconds(config.getProfilingUploadRequestIOOperationTimeout());
     final OkHttpClient.Builder clientBuilder =
@@ -119,7 +143,9 @@ public final class RecordingUploader {
             .connectTimeout(ioOperationTimeout)
             .writeTimeout(ioOperationTimeout)
             .readTimeout(ioOperationTimeout)
-            .callTimeout(Duration.ofSeconds(config.getProfilingUploadRequestTimeout()));
+            .callTimeout(Duration.ofSeconds(config.getProfilingUploadRequestTimeout()))
+            .dispatcher(new Dispatcher(okHttpExecutorService))
+            .connectionPool(connectionPool);
 
     if (config.getProfilingProxyHost() != null) {
       final Proxy proxy =
@@ -176,7 +202,16 @@ public final class RecordingUploader {
   }
 
   public void shutdown() {
-    client.dispatcher().executorService().shutdown();
+    okHttpExecutorService.shutdownNow();
+    try {
+      okHttpExecutorService.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
+    } catch (final InterruptedException e) {
+      // Note: this should only happen in main thread right before exiting, so eating up interrupted
+      // state should be fine.
+      log.error("Wait for executor shutdown interrupted");
+    }
+
+    client.connectionPool().evictAll();
   }
 
   @FunctionalInterface
