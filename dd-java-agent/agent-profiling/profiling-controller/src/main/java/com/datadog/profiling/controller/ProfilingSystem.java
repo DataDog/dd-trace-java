@@ -15,11 +15,11 @@
  */
 package com.datadog.profiling.controller;
 
+import com.datadog.profiling.util.ProfilingThreadFactory;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -74,7 +74,8 @@ public final class ProfilingSystem {
         startupDelayRandomRange,
         uploadPeriod,
         continuousToPeriodicUploadsRatio,
-        Executors.newScheduledThreadPool(1, new ProfilingThreadFactory()),
+        Executors.newScheduledThreadPool(
+            1, new ProfilingThreadFactory("dd-profiler-recording-scheduler")),
         ThreadLocalRandom.current());
   }
 
@@ -253,17 +254,6 @@ public final class ProfilingSystem {
         log.error("Fatal exception in profiling thread", t);
         throw t;
       }
-    }
-  }
-
-  private static final class ProfilingThreadFactory implements ThreadFactory {
-    private static final ThreadGroup THREAD_GROUP = new ThreadGroup("Datadog Profiler");
-
-    @Override
-    public Thread newThread(final Runnable r) {
-      final Thread t = new Thread(THREAD_GROUP, r, "dd-profiler-recording-scheduler");
-      t.setDaemon(true);
-      return t;
     }
   }
 }
