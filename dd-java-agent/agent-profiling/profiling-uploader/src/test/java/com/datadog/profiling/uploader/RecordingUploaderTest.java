@@ -68,8 +68,6 @@ public class RecordingUploaderTest {
 
   private static final String APIKEY_VALUE = "testkey";
   private static final String URL_PATH = "/lalala";
-  private static final String FIXED_URL_PATH =
-      "/" + String.join("/", RecordingUploader.URL_PATH_SEGMENTS);
   private static final String RECORDING_RESOURCE = "test-recording.jfr";
   private static final String RECODING_NAME_PREFIX = "test-recording-";
   private static final RecordingType RECORDING_TYPE = RecordingType.CONTINUOUS;
@@ -110,7 +108,7 @@ public class RecordingUploaderTest {
   @BeforeEach
   public void setup() throws IOException {
     server.start();
-    url = server.url(URL_PATH + FIXED_URL_PATH);
+    url = server.url(URL_PATH);
 
     when(config.getProfilingUrl()).thenReturn(server.url(URL_PATH).toString());
     when(config.getProfilingApiKey()).thenReturn(APIKEY_VALUE);
@@ -188,8 +186,7 @@ public class RecordingUploaderTest {
   @Test
   public void testRequestWithProxy() throws IOException, InterruptedException {
     final String backendHost = "intake.profiling.datadoghq.com:1234";
-    final String backendUrl =
-        "http://intake.profiling.datadoghq.com:1234" + URL_PATH + FIXED_URL_PATH;
+    final String backendUrl = "http://intake.profiling.datadoghq.com:1234" + URL_PATH;
     when(config.getProfilingUrl())
         .thenReturn("http://intake.profiling.datadoghq.com:1234" + URL_PATH);
     when(config.getProfilingProxyHost()).thenReturn(server.url("").host());
@@ -225,8 +222,7 @@ public class RecordingUploaderTest {
 
   @Test
   public void testRequestWithProxyDefaultPassword() throws IOException, InterruptedException {
-    final String backendUrl =
-        "http://intake.profiling.datadoghq.com:1234" + URL_PATH + FIXED_URL_PATH;
+    final String backendUrl = "http://intake.profiling.datadoghq.com:1234" + URL_PATH;
     when(config.getProfilingUrl())
         .thenReturn("http://intake.profiling.datadoghq.com:1234" + URL_PATH);
     when(config.getProfilingProxyHost()).thenReturn(server.url("").host());
