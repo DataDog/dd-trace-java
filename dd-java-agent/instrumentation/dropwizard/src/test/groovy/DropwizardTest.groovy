@@ -2,6 +2,8 @@ import datadog.opentracing.DDSpan
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
+import datadog.trace.instrumentation.api.Tags
 import datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import io.dropwizard.Application
@@ -10,15 +12,15 @@ import io.dropwizard.setup.Bootstrap
 import io.dropwizard.setup.Environment
 import io.dropwizard.testing.ConfigOverride
 import io.dropwizard.testing.DropwizardTestSupport
-import io.opentracing.tag.Tags
-import org.eclipse.jetty.servlet.ServletHandler
-
 import javax.ws.rs.GET
 import javax.ws.rs.Path
+import javax.ws.rs.QueryParam
 import javax.ws.rs.core.Response
+import org.eclipse.jetty.servlet.ServletHandler
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
@@ -85,11 +87,11 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport, Servlet3Decor
       errored endpoint == EXCEPTION
       childOf(parent as DDSpan)
       tags {
-        "$Tags.COMPONENT.key" JaxRsAnnotationsDecorator.DECORATE.component()
-        defaultTags()
+        "$Tags.COMPONENT" JaxRsAnnotationsDecorator.DECORATE.component()
         if (endpoint == EXCEPTION) {
           errorTags(Exception, EXCEPTION.body)
         }
+        defaultTags()
       }
     }
   }
@@ -109,23 +111,25 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport, Servlet3Decor
         parent()
       }
       tags {
+        "$Tags.COMPONENT" serverDecorator.component()
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+        "$Tags.PEER_HOSTNAME" { it == "localhost" || it == "127.0.0.1" }
+        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
+        "$Tags.PEER_PORT" Integer
+        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
+        "$Tags.HTTP_METHOD" method
+        "$Tags.HTTP_STATUS" endpoint.status
         "span.origin.type" ServletHandler.CachedChain.name
-
-        defaultTags(true)
-        "$Tags.COMPONENT.key" serverDecorator.component()
         if (endpoint.errored) {
-          "$Tags.ERROR.key" endpoint.errored
+          "$Tags.ERROR" endpoint.errored
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }
           "error.stack" { it == null || it instanceof String }
         }
-        "$Tags.HTTP_STATUS.key" endpoint.status
-        "$Tags.HTTP_URL.key" "${endpoint.resolve(address)}"
-        "$Tags.PEER_HOSTNAME.key" { it == "localhost" || it == "127.0.0.1" }
-        "$Tags.PEER_PORT.key" Integer
-        "$Tags.PEER_HOST_IPV4.key" { it == null || it == "127.0.0.1" } // Optional
-        "$Tags.HTTP_METHOD.key" method
-        "$Tags.SPAN_KIND.key" Tags.SPAN_KIND_SERVER
+        if (endpoint.query) {
+          "$DDTags.HTTP_QUERY" endpoint.query
+        }
+        defaultTags(true)
       }
     }
   }
@@ -152,6 +156,14 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport, Servlet3Decor
     Response success() {
       controller(SUCCESS) {
         Response.status(SUCCESS.status).entity(SUCCESS.body).build()
+      }
+    }
+
+    @GET
+    @Path("query")
+    Response query_param(@QueryParam("some") String param) {
+      controller(QUERY_PARAM) {
+        Response.status(QUERY_PARAM.status).entity("some=$param".toString()).build()
       }
     }
 

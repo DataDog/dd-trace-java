@@ -6,6 +6,7 @@ import datadog.trace.agent.test.asserts.SpanAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
@@ -77,9 +78,9 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext,
           spanType "web"
           errored false
           tags {
-            "component" "spring-webmvc"
+            "$Tags.COMPONENT" "spring-webmvc"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "view.type" RedirectView.name
-            "span.kind" "server"
             defaultTags()
           }
         }
@@ -102,10 +103,10 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext,
       tags {
         "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        defaultTags()
         if (endpoint == EXCEPTION) {
           errorTags(Exception, EXCEPTION.body)
         }
+        defaultTags()
       }
     }
   }
@@ -125,24 +126,26 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext,
         parent()
       }
       tags {
+        "$Tags.COMPONENT" serverDecorator.component()
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+        "$Tags.PEER_HOSTNAME" { it == "localhost" || it == "127.0.0.1" }
+        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
+        "$Tags.PEER_PORT" Integer
+        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
+        "$Tags.HTTP_METHOD" method
+        "$Tags.HTTP_STATUS" endpoint.status
         "span.origin.type" ApplicationFilterChain.name
         "servlet.path" endpoint.path
-
-        defaultTags(true)
-        "$Tags.COMPONENT" serverDecorator.component()
         if (endpoint.errored) {
           "$Tags.ERROR" endpoint.errored
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }
           "error.stack" { it == null || it instanceof String }
         }
-        "$Tags.HTTP_STATUS" endpoint.status
-        "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
-        "$Tags.PEER_HOSTNAME" { it == "localhost" || it == "127.0.0.1" }
-        "$Tags.PEER_PORT" Integer
-        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
-        "$Tags.HTTP_METHOD" method
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+        if (endpoint.query) {
+          "$DDTags.HTTP_QUERY" endpoint.query
+        }
+        defaultTags(true)
       }
     }
   }

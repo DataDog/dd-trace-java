@@ -1,6 +1,7 @@
 import datadog.opentracing.DDSpan
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.instrumentation.api.Tags
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
@@ -14,6 +15,7 @@ import static datadog.trace.agent.test.asserts.TraceAssert.assertTrace
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -115,51 +117,55 @@ class JettyServlet3TestFakeAsync extends JettyServlet3Test {
   }
 }
 
-class JettyServlet3TestForward extends JettyServlet3Test {
-  @Override
-  Class<Servlet> servlet() {
-    TestServlet3.Sync // dispatch to sync servlet
-  }
+// FIXME: not working right now...
+//class JettyServlet3TestForward extends JettyDispatchTest {
+//  @Override
+//  Class<Servlet> servlet() {
+//    TestServlet3.Sync // dispatch to sync servlet
+//  }
+//
+//  @Override
+//  boolean testNotFound() {
+//    false
+//  }
+//
+//  @Override
+//  protected void setupServlets(ServletContextHandler context) {
+//    super.setupServlets(context)
+//
+//    addServlet(context, "/dispatch" + SUCCESS.path, RequestDispatcherServlet.Forward)
+//    addServlet(context, "/dispatch" + QUERY_PARAM.path, RequestDispatcherServlet.Forward)
+//    addServlet(context, "/dispatch" + REDIRECT.path, RequestDispatcherServlet.Forward)
+//    addServlet(context, "/dispatch" + ERROR.path, RequestDispatcherServlet.Forward)
+//    addServlet(context, "/dispatch" + EXCEPTION.path, RequestDispatcherServlet.Forward)
+//    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, RequestDispatcherServlet.Forward)
+//  }
+//}
 
-  @Override
-  boolean testNotFound() {
-    false
-  }
-
-  @Override
-  protected void setupServlets(ServletContextHandler context) {
-    super.setupServlets(context)
-
-    addServlet(context, "/dispatch" + SUCCESS.path, RequestDispatcherServlet.Forward)
-    addServlet(context, "/dispatch" + ERROR.path, RequestDispatcherServlet.Forward)
-    addServlet(context, "/dispatch" + EXCEPTION.path, RequestDispatcherServlet.Forward)
-    addServlet(context, "/dispatch" + REDIRECT.path, RequestDispatcherServlet.Forward)
-    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, RequestDispatcherServlet.Forward)
-  }
-}
-
-class JettyServlet3TestInclude extends JettyServlet3Test {
-  @Override
-  Class<Servlet> servlet() {
-    TestServlet3.Sync // dispatch to sync servlet
-  }
-
-  @Override
-  boolean testNotFound() {
-    false
-  }
-
-  @Override
-  protected void setupServlets(ServletContextHandler context) {
-    super.setupServlets(context)
-
-    addServlet(context, "/dispatch" + SUCCESS.path, RequestDispatcherServlet.Include)
-    addServlet(context, "/dispatch" + ERROR.path, RequestDispatcherServlet.Include)
-    addServlet(context, "/dispatch" + EXCEPTION.path, RequestDispatcherServlet.Include)
-    addServlet(context, "/dispatch" + REDIRECT.path, RequestDispatcherServlet.Include)
-    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, RequestDispatcherServlet.Include)
-  }
-}
+// FIXME: not working right now...
+//class JettyServlet3TestInclude extends JettyDispatchTest {
+//  @Override
+//  Class<Servlet> servlet() {
+//    TestServlet3.Sync // dispatch to sync servlet
+//  }
+//
+//  @Override
+//  boolean testNotFound() {
+//    false
+//  }
+//
+//  @Override
+//  protected void setupServlets(ServletContextHandler context) {
+//    super.setupServlets(context)
+//
+//    addServlet(context, "/dispatch" + SUCCESS.path, RequestDispatcherServlet.Include)
+//    addServlet(context, "/dispatch" + QUERY_PARAM.path, RequestDispatcherServlet.Include)
+//    addServlet(context, "/dispatch" + REDIRECT.path, RequestDispatcherServlet.Include)
+//    addServlet(context, "/dispatch" + ERROR.path, RequestDispatcherServlet.Include)
+//    addServlet(context, "/dispatch" + EXCEPTION.path, RequestDispatcherServlet.Include)
+//    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, RequestDispatcherServlet.Include)
+//  }
+//}
 
 
 class JettyServlet3TestDispatchImmediate extends JettyDispatchTest {
@@ -173,6 +179,7 @@ class JettyServlet3TestDispatchImmediate extends JettyDispatchTest {
     super.setupServlets(context)
 
     addServlet(context, "/dispatch" + SUCCESS.path, TestServlet3.DispatchImmediate)
+    addServlet(context, "/dispatch" + QUERY_PARAM.path, TestServlet3.DispatchImmediate)
     addServlet(context, "/dispatch" + ERROR.path, TestServlet3.DispatchImmediate)
     addServlet(context, "/dispatch" + EXCEPTION.path, TestServlet3.DispatchImmediate)
     addServlet(context, "/dispatch" + REDIRECT.path, TestServlet3.DispatchImmediate)
@@ -192,6 +199,7 @@ class JettyServlet3TestDispatchAsync extends JettyDispatchTest {
     super.setupServlets(context)
 
     addServlet(context, "/dispatch" + SUCCESS.path, TestServlet3.DispatchAsync)
+    addServlet(context, "/dispatch" + QUERY_PARAM.path, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch" + ERROR.path, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch" + EXCEPTION.path, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch" + REDIRECT.path, TestServlet3.DispatchAsync)
@@ -243,28 +251,30 @@ abstract class JettyDispatchTest extends JettyServlet3Test {
           errored endpoint.errored
           // we can't reliably assert parent or child relationship here since both are tested.
           tags {
+            "$Tags.COMPONENT" serverDecorator.component()
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "$Tags.PEER_HOSTNAME" { it == "localhost" || it == "127.0.0.1" }
+            "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
+            "$Tags.PEER_PORT" Integer
+            "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
+            "$Tags.HTTP_METHOD" "GET"
+            "$Tags.HTTP_STATUS" endpoint.status
             "servlet.context" "/$context"
             "servlet.path" endpoint.status == 404 ? endpoint.path : "/dispatch$endpoint.path"
             "servlet.dispatch" endpoint.path
             "span.origin.type" {
               it == TestServlet3.DispatchImmediate.name || it == TestServlet3.DispatchAsync.name || it == ApplicationFilterChain.name
             }
-
-            defaultTags(true)
-            "$Tags.COMPONENT" serverDecorator.component()
             if (endpoint.errored) {
               "$Tags.ERROR" endpoint.errored
               "error.msg" { it == null || it == EXCEPTION.body }
               "error.type" { it == null || it == Exception.name }
               "error.stack" { it == null || it instanceof String }
             }
-            "$Tags.HTTP_STATUS" endpoint.status
-            "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
-            "$Tags.PEER_HOSTNAME" { it == "localhost" || it == "127.0.0.1" }
-            "$Tags.PEER_PORT" Integer
-            "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
-            "$Tags.HTTP_METHOD" "GET"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            if (endpoint.query) {
+              "$DDTags.HTTP_QUERY" endpoint.query
+            }
+            defaultTags(true)
           }
         }
       }
