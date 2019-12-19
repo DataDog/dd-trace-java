@@ -26,7 +26,7 @@ class ProfilingIntegrationShutdownTest extends AbstractSmokeTest {
     command.addAll(defaultJavaProperties)
     command.add("-Ddd.profiling.continuous.to.periodic.upload.ratio=1") // Make all profiles periodic
     command.addAll((String[]) ["-jar", profilingShadowJar])
-    command.add(Integer.toString(RUN_APP_FOR));
+    command.add(Integer.toString(RUN_APP_FOR))
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
     return processBuilder
@@ -44,7 +44,7 @@ class ProfilingIntegrationShutdownTest extends AbstractSmokeTest {
     }
   }
 
-  def "test clean shutdown"() {
+  def "test that profiling agent doesn't prevent app from exiting"() {
     setup:
     server.enqueue(new MockResponse().setResponseCode(200))
 
