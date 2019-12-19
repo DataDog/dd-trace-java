@@ -185,7 +185,8 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
         defaultSpanTags,
         serviceNameMappings,
         taggedHeaders,
-        Config.get().getPartialFlushMinSpans());
+        Config.get().getPartialFlushMinSpans(),
+        DDDecoratorsFactory.createBuiltinDecorators());
   }
 
   /**
@@ -208,22 +209,47 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
         defaultSpanTags,
         serviceNameMappings,
         taggedHeaders,
-        Config.get().getPartialFlushMinSpans());
+        Config.get().getPartialFlushMinSpans(),
+        DDDecoratorsFactory.createBuiltinDecorators());
   }
 
-  public DDTracer(
-      final String serviceName,
-      final Writer writer,
-      final Sampler sampler,
-      final Map<String, String> localRootSpanTags,
-      final Map<String, String> defaultSpanTags,
-      final Map<String, String> serviceNameMappings,
-      final Map<String, String> taggedHeaders,
-      final int partialFlushMinSpans) {
+   public DDTracer(
+       final String serviceName,
+       final Writer writer,
+       final Sampler sampler,
+       final Map<String, String> localRootSpanTags,
+       final Map<String, String> defaultSpanTags,
+       final Map<String, String> serviceNameMappings,
+       final Map<String, String> taggedHeaders,
+       final int partialFlushMinSpans) {
+     this(
+          serviceName,
+          writer,
+          sampler,
+          localRootSpanTags,
+          defaultSpanTags,
+          serviceNameMappings,
+          taggedHeaders,
+          partialFlushMinSpans,
+          DDDecoratorsFactory.createBuiltinDecorators());
+  }
+
+  
+   public DDTracer(
+       final String serviceName,
+       final Writer writer,
+       final Sampler sampler,
+       final Map<String, String> localRootSpanTags,
+       final Map<String, String> defaultSpanTags,
+       final Map<String, String> serviceNameMappings,
+       final Map<String, String> taggedHeaders,
+       final int partialFlushMinSpans,
+       final List<AbstractDecorator> decorators) {
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
     assert serviceNameMappings != null;
     assert taggedHeaders != null;
+    assert decorators != null;
 
     this.serviceName = serviceName;
     this.writer = writer;
@@ -254,7 +280,6 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
 
     log.info("New instance: {}", this);
 
-    final List<AbstractDecorator> decorators = DDDecoratorsFactory.createBuiltinDecorators();
     for (final AbstractDecorator decorator : decorators) {
       addDecorator(decorator);
     }
