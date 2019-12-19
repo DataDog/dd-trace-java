@@ -213,25 +213,25 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
         DDDecoratorsFactory.createBuiltinDecorators());
   }
 
-   public DDTracer(
-       final String serviceName,
-       final Writer writer,
-       final Sampler sampler,
-       final Map<String, String> localRootSpanTags,
-       final Map<String, String> defaultSpanTags,
-       final Map<String, String> serviceNameMappings,
-       final Map<String, String> taggedHeaders,
-       final int partialFlushMinSpans) {
-     this(
-          serviceName,
-          writer,
-          sampler,
-          localRootSpanTags,
-          defaultSpanTags,
-          serviceNameMappings,
-          taggedHeaders,
-          partialFlushMinSpans,
-          DDDecoratorsFactory.createBuiltinDecorators());
+  public DDTracer(
+      final String serviceName,
+      final Writer writer,
+      final Sampler sampler,
+      final Map<String, String> localRootSpanTags,
+      final Map<String, String> defaultSpanTags,
+      final Map<String, String> serviceNameMappings,
+      final Map<String, String> taggedHeaders,
+      final int partialFlushMinSpans) {
+    this(
+        serviceName,
+        writer,
+        sampler,
+        localRootSpanTags,
+        defaultSpanTags,
+        serviceNameMappings,
+        taggedHeaders,
+        partialFlushMinSpans,
+        DDDecoratorsFactory.createBuiltinDecorators());
   }
 
   
