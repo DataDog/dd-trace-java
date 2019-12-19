@@ -235,16 +235,16 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
   }
 
   
-   public DDTracer(
-       final String serviceName,
-       final Writer writer,
-       final Sampler sampler,
-       final Map<String, String> localRootSpanTags,
-       final Map<String, String> defaultSpanTags,
-       final Map<String, String> serviceNameMappings,
-       final Map<String, String> taggedHeaders,
-       final int partialFlushMinSpans,
-       final List<AbstractDecorator> decorators) {
+  public DDTracer(
+      final String serviceName,
+      final Writer writer,
+      final Sampler sampler,
+      final Map<String, String> localRootSpanTags,
+      final Map<String, String> defaultSpanTags,
+      final Map<String, String> serviceNameMappings,
+      final Map<String, String> taggedHeaders,
+      final int partialFlushMinSpans,
+      final List<AbstractDecorator> decorators) {
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
     assert serviceNameMappings != null;
