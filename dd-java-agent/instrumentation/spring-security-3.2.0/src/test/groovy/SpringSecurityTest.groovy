@@ -18,28 +18,6 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.core.GrantedAuthority
 import spock.lang.Shared
 
-// we oot/docs/current/api/org/springframework/boot/test/context/SpringBootTest.html
-////https://www.baeldung.com/springbootconfiguration-annotation
-////As a result, the @SpringBootConfiguration annotation is the primary source for configuration in applications. Generally, the class that defines the main() method is a good candidate for this annotation.
-////The recommendation is to only have one @SpringBootConfigurationneed to start the applictaion with the javagent, do the request ( post login, get page) and check the generated spans
-//https://docs.spring.io/spring-b or @SpringBootApplication for your application. Most applications will simply use @SpringBootApplication.
-
-/*
- -b, --cookie STRING/FILE  Read cookies from STRING/FILE (H)
- -c, --cookie-jar FILE  Write cookies to FILE after operation (H)
- -L, --location      Follow redirects (H)
-
-
-
-  curl -c youhou http://localhost:8080/login
-  curl -d 'username=bob&password=azerty' -b youhou -L http://localhost:8080/login
-
-  client(true)=>  "-L"
-
-   */
-
-
-//@Import(WebSecurityConfig)
 @SpringBootTest( webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT,classes = AuthenticatingLdapApplication)
 class SpringSecurityTest extends AgentTestRunner {
 
@@ -57,17 +35,11 @@ class SpringSecurityTest extends AgentTestRunner {
   context.refresh()
     authManager= context.getBean(AuthenticationManager)
     accessManager = context.getBean(AccessDecisionManager)
-
   }
 
-
-
-  //tests for access
-
-def "access decision first test"() {
+ def "access decision test one"() {
 
     setup:
-
 
     def grantedAuthorityList = new ArrayList<GrantedAuthority>()
     grantedAuthorityList.add(new GrantedAuthority() {
@@ -77,30 +49,17 @@ def "access decision first test"() {
       }
     })
 
-
-//    UserDetails user = new User("bob","azerty", grantedAuthorityList);
-//    UserDetails user = new User("bob","azerty", grantedAuthorityList);
-
     def request = new MockHttpServletRequest('GET', "http://localhost:8080/hello")
     def filterInvocation = new org.springframework.security.web.FilterInvocation(request, new MockHttpServletResponse(), new MockFilterChain())
-
-
 
     when:
 
     Authentication query = new UsernamePasswordAuthenticationToken("bob","azerty", grantedAuthorityList  )
-
     Authentication response = authManager.authenticate(query)
-
-
     List list =  new ArrayList<ConfigAttribute>()
-
     ConfigAttribute ca = new SecurityConfig("ROLE_YOUHOU")
     list.add(ca)
-
     accessManager.decide(response, filterInvocation, list)
-
-
 
     then:
     thrown(AccessDeniedException)
@@ -108,13 +67,15 @@ def "access decision first test"() {
     assertTraces(2) {
       trace(0, 1) {
         span(0) {
-          operationName "authentication"
+          operationName "security"
+          spanType "web"
           errored false
         }
       }
       trace(1, 1) {
         span(0) {
-          operationName "access_decision"
+          operationName "security"
+          spanType "web"
           errored true
         }
       }
@@ -134,8 +95,7 @@ def "access decision first test"() {
         return "ROLE_DEVELOPERS"
       }
     })
-
-    //UserDetails user = new User("bob","azerty", grantedAuthorityList);
+    
 
     def request = new MockHttpServletRequest('GET', "http://localhost:8080/hello")
     def filterInvocation = new org.springframework.security.web.FilterInvocation(request, new MockHttpServletResponse(), new MockFilterChain())
@@ -155,13 +115,15 @@ def "access decision first test"() {
     assertTraces(2) {
       trace(0, 1) {
         span(0) {
-          operationName "authentication"
+          operationName "security"
+          spanType "web"
           errored false
         }
       }
       trace(1, 1) {
         span(0) {
-          operationName "access_decision"
+          operationName "security"
+          spanType "web"
           errored false
         }
       }
@@ -177,7 +139,7 @@ def "access decision first test"() {
   def "Login success"() {
 
     setup:
-    Authentication upat = new UsernamePasswordAuthenticationToken("bob","azerty", new ArrayList<GrantedAuthority>() )
+    Authentication upat = new UsernamePasswordAuthenticationToken("bob", "azerty", new ArrayList<GrantedAuthority>())
 
     when:
 
@@ -188,23 +150,24 @@ def "access decision first test"() {
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
-          operationName "authentication"
+          operationName "security"
           errored false
+          spanType "web"
           tags {
             "$Tags.COMPONENT.key" "spring-security"
-            "authentication.principal.is_credentials_non_locked" true
-            "authentication.principal" "bob"
-            "authentication.authority" "ROLE_DEVELOPERS"
-            "authentication.isAuthenticated" true
-            "authentication.principal.is_account_non_expired" true
-            "authentication.principal.is_account_non_locked" true
-            "authentication.principal.username" "bob"
+            "authentication.name" "bob"
+            "authentication.is_authenticated" true
+            "authentication.userdetails.authority" "ROLE_DEVELOPERS"
+            "authentication.userdetails.is_account_non_expired" true
+            "authentication.userdetails.is_account_non_locked" true
+            "authentication.userdetails.is_credentials_non_locked" true
+            "authentication.userdetails.username" "bob"
             defaultTags()
           }
         }
       }
-    }
 
+    }
   }
 
   def "wrong password"() {
@@ -222,13 +185,14 @@ def "access decision first test"() {
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
-          operationName "authentication"
+          operationName "security"
           errored true
+          spanType "web"
           tags {
                "$Tags.COMPONENT.key" "spring-security"
-              "authentication.principal" "bob"
+              "authentication.name" "bob"
+              "authentication.is_authenticated" true
               "error.type" "org.springframework.security.authentication.BadCredentialsException"
-              "authentication.isAuthenticated" true
               "error" true
               "error.msg" "Bad credentials"
               "error.stack" String
@@ -239,6 +203,8 @@ def "access decision first test"() {
     }
 
   }
+
+
   def "unknown login"() {
 
     setup:
@@ -254,13 +220,14 @@ def "access decision first test"() {
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
-          operationName "authentication"
+          operationName "security"
           errored true
+          spanType "web"
           tags {
             "$Tags.COMPONENT.key" "spring-security"
-            "authentication.principal" "toto"
+            "authentication.name" "toto"
             "error.type" "org.springframework.security.authentication.BadCredentialsException"
-            "authentication.isAuthenticated" true
+            "authentication.is_authenticated" true
             "error" true
             "error.msg" "Bad credentials"
             "error.stack" String
@@ -273,7 +240,6 @@ def "access decision first test"() {
   }
 
 }
-
 
 
 

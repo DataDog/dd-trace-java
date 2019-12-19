@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.springsecurity;
 
 import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.api.DDTags.RESOURCE_NAME;
 import static datadog.trace.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springsecurity.SpringSecurityDecorator.DECORATOR;
@@ -65,12 +66,15 @@ public final class AccessDecisionManagerInstrumentation extends Instrumenter.Def
         @Advice.Argument(0) final org.springframework.security.core.Authentication auth,
         @Advice.Argument(1) final Object object,
         @Advice.Argument(2) final Collection<ConfigAttribute> configAttributes) {
-      AgentSpan span = startSpan("access_decision");
+      AgentSpan span = startSpan("security");
 
       span = DECORATOR.afterStart(span);
-      span = DECORATOR.setTagsFromAuth(span, auth);
-      span = DECORATOR.setTagsFromSecuredObject(span, object);
-      span = DECORATOR.setTagsFromConfigAttributes(span, configAttributes);
+      DECORATOR.setTagsFromAuth(span, auth);
+      DECORATOR.setTagsFromSecuredObject(span, object);
+      DECORATOR.setTagsFromConfigAttributes(span, configAttributes);
+
+      String resource_name = "access_decision" + " " + DECORATOR.securedObject();
+      span.setTag(RESOURCE_NAME, resource_name);
 
       return activateSpan(span, true);
     }

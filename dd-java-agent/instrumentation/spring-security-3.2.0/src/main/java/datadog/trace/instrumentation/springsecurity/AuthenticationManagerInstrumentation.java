@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.springsecurity;
 
 import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.api.DDTags.RESOURCE_NAME;
 import static datadog.trace.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springsecurity.SpringSecurityDecorator.DECORATOR;
@@ -63,12 +64,13 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
         @Advice.Argument(0) final org.springframework.security.core.Authentication auth,
         @Advice.This(optional = true) Object thiz) {
 
-      AgentSpan span = startSpan("authentication");
-      // final Scope scope = GlobalTracer.get().buildSpan("authentication").startActive(true);
-      // AgentSpan span = scope.span();
-      // span.setTag("class:", thiz.getClass().getName());
+      AgentSpan span = startSpan("security");
       span = DECORATOR.afterStart(span);
-      span = DECORATOR.setTagsFromAuth(span, auth);
+      if (auth != null) {
+        String resource_name = "authenticate" + " " + auth.getName();
+        span.setTag(RESOURCE_NAME, resource_name);
+        DECORATOR.setTagsFromAuth(span, auth);
+      }
 
       return activateSpan(span, true);
     }
@@ -79,18 +81,15 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
         @Advice.Return org.springframework.security.core.Authentication auth,
         @Advice.Thrown final Throwable throwable) {
       AgentSpan span = scope.span();
-      if (auth != null) {
-        // Updates
-        span = DECORATOR.setTagsFromAuth(span, auth);
-      } else {
-        System.out.println("returned auth is null");
-      }
 
+      if (auth != null) {
+        // updates if authentication was a success
+        DECORATOR.setTagsFromAuth(span, auth);
+      }
       if (throwable != null) {
         span.setError(Boolean.TRUE);
         span.addThrowable(throwable);
       }
-
       scope.close();
     }
   }
