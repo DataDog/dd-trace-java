@@ -4,6 +4,7 @@ import datadog.trace.agent.decorator.BaseDecorator;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.instrumentation.api.AgentSpan;
+import java.util.Collection;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,8 +15,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.util.SimpleMethodInvocation;
 import org.springframework.security.web.FilterInvocation;
 import org.springframework.security.web.authentication.WebAuthenticationDetails;
-
-import java.util.Collection;
 
 @Slf4j
 public class SpringSecurityDecorator extends BaseDecorator {
