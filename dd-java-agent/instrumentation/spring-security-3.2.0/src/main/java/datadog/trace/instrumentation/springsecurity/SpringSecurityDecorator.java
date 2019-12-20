@@ -80,8 +80,7 @@ public class SpringSecurityDecorator extends BaseDecorator {
     if (object != null) {
       if (object instanceof org.springframework.security.web.FilterInvocation) {
         FilterInvocation fi = (FilterInvocation) object;
-        securedObject = fi.getHttpRequest().getRequestURL().toString();
-
+        securedObject = fi.getRequest().getRequestURL().toString();
       }
       if (object instanceof org.springframework.security.util.SimpleMethodInvocation) {
         SimpleMethodInvocation smi = (SimpleMethodInvocation) object;
