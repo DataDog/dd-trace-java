@@ -172,5 +172,10 @@ public class AkkaServerFlowWrapper {
     public void onPull() throws Exception {
       graph.pull(responseInlet);
     }
+
+    @Override
+    public void onDownstreamFinish() throws Exception, Exception {
+      graph.cancel(responseInlet);
+    }
   }
 }

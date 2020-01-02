@@ -29,7 +29,7 @@ class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object, AkkaHttpS
   boolean redirectHasBody() {
     true
   }
-  
+
   @Override
   def startServer(int port) {
     AkkaHttpTestWebServer.start(port)
