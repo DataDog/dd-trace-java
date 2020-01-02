@@ -8,7 +8,7 @@ import datadog.trace.instrumentation.api.Tags
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
-abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object, AkkaHttpServerDecorator> {
+class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object, AkkaHttpServerDecorator> {
 
   @Override
   AkkaHttpServerDecorator decorator() {
@@ -25,16 +25,21 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object, 
     false
   }
 
+  @Override
+  boolean redirectHasBody() {
+    true
+  }
+
 // FIXME: This doesn't work because we don't support bindAndHandle.
-//  @Override
-//  def startServer(int port) {
-//    AkkaHttpTestWebServer.start(port)
-//  }
-//
-//  @Override
-//  void stopServer(Object ignore) {
-//    AkkaHttpTestWebServer.stop()
-//  }
+  @Override
+  def startServer(int port) {
+    AkkaHttpTestWebServer.start(port)
+  }
+
+  @Override
+  void stopServer(Object ignore) {
+    AkkaHttpTestWebServer.stop()
+  }
 
   void serverSpan(TraceAssert trace, int index, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
     trace.span(index) {

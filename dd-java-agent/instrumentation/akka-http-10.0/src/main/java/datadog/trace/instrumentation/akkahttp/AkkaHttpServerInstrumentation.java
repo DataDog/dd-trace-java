@@ -9,9 +9,11 @@ import static datadog.trace.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import akka.NotUsed;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
 import akka.stream.Materializer;
+import akka.stream.scaladsl.Flow;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.context.TraceScope;
@@ -50,6 +52,13 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
       AkkaHttpServerInstrumentation.class.getName() + "$DatadogAsyncWrapper",
       AkkaHttpServerInstrumentation.class.getName() + "$DatadogAsyncWrapper$1",
       AkkaHttpServerInstrumentation.class.getName() + "$DatadogAsyncWrapper$2",
+      packageName + ".AkkaServerFlowWrapper",
+      packageName + ".AkkaServerFlowWrapper$WrappedServerGraphStage",
+      packageName + ".AkkaServerFlowWrapper$WrappedServerFlowLogic",
+      packageName + ".AkkaServerFlowWrapper$HttpRequestInHandler",
+      packageName + ".AkkaServerFlowWrapper$HttpRequestOutHandler",
+      packageName + ".AkkaServerFlowWrapper$HttpResponseInHandler",
+      packageName + ".AkkaServerFlowWrapper$HttpResponseOutHandler",
       packageName + ".AkkaHttpServerHeaders",
       "datadog.trace.agent.decorator.BaseDecorator",
       "datadog.trace.agent.decorator.ServerDecorator",
@@ -67,12 +76,15 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
     // Instead, we're instrumenting the bindAndHandle function helpers by
     // wrapping the scala functions with our own handlers.
     final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+    //    transformers.put(
+    //        named("bindAndHandleSync").and(takesArgument(0, named("scala.Function1"))),
+    //        AkkaHttpServerInstrumentation.class.getName() + "$AkkaHttpSyncAdvice");
+    //    transformers.put(
+    //        named("bindAndHandleAsync").and(takesArgument(0, named("scala.Function1"))),
+    //        AkkaHttpServerInstrumentation.class.getName() + "$AkkaHttpAsyncAdvice");
     transformers.put(
-        named("bindAndHandleSync").and(takesArgument(0, named("scala.Function1"))),
-        AkkaHttpServerInstrumentation.class.getName() + "$AkkaHttpSyncAdvice");
-    transformers.put(
-        named("bindAndHandleAsync").and(takesArgument(0, named("scala.Function1"))),
-        AkkaHttpServerInstrumentation.class.getName() + "$AkkaHttpAsyncAdvice");
+        named("bindAndHandle").and(takesArgument(0, named("akka.stream.scaladsl.Flow"))),
+        AkkaHttpServerInstrumentation.class.getName() + "$AkkaHttpFlowAdvice");
     return transformers;
   }
 
@@ -92,6 +104,15 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
             Function1<HttpRequest, Future<HttpResponse>> handler,
         @Advice.Argument(value = 7) final Materializer materializer) {
       handler = new DatadogAsyncWrapper(handler, materializer.executionContext());
+    }
+  }
+
+  public static class AkkaHttpFlowAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void wrapFlow(
+        @Advice.Argument(value = 0, readOnly = false)
+            Flow<HttpRequest, HttpResponse, NotUsed> handler) {
+      handler = AkkaServerFlowWrapper.wrap(handler);
     }
   }
 

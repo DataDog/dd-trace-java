@@ -3,9 +3,11 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.ExceptionHandler
+import akka.http.scaladsl.server.{ExceptionHandler, StandardRoute}
 import akka.stream.ActorMaterializer
+import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
+import groovy.lang.Closure
 
 import scala.concurrent.Await
 
@@ -19,7 +21,7 @@ object AkkaHttpTestWebServer {
   val exceptionHandler = ExceptionHandler {
     case ex: Exception => complete(HttpResponse(status = EXCEPTION.getStatus).withEntity(ex.getMessage))
   }
-
+  
   val route = { //handleExceptions(exceptionHandler) {
     path(SUCCESS.rawPath) {
       complete(HttpResponse(status = SUCCESS.getStatus).withEntity(SUCCESS.getBody))
@@ -32,6 +34,14 @@ object AkkaHttpTestWebServer {
     } ~ path(EXCEPTION.rawPath) {
       failWith(new Exception(EXCEPTION.getBody))
     }
+  }
+
+  def controllerSpan(path: HttpServerTest.ServerEndpoint, route: StandardRoute): StandardRoute = {
+    HttpServerTest.controller(path, new Closure[StandardRoute](()) {
+      def doCall(): StandardRoute = {
+        route
+      }
+    })
   }
 
   private var binding: ServerBinding = null
