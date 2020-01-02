@@ -92,7 +92,7 @@ public class AkkaServerFlowWrapper {
     }
 
     @Override
-    public void onUpstreamFailure(final Throwable ex) throws Exception, Exception {
+    public void onUpstreamFailure(final Throwable ex) throws Exception {
       final AgentSpan span = activeSpan();
       if (span != null) {
         finishSpan(span, ex);
@@ -149,6 +149,12 @@ public class AkkaServerFlowWrapper {
       activeScope().close();
 
       super.onUpstreamFailure(ex);
+    }
+
+    @Override
+    public void onUpstreamFinish() throws Exception {
+      activeScope().close();
+      super.onUpstreamFinish();
     }
   }
 

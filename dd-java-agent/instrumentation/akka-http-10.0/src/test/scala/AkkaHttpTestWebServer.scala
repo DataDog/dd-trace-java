@@ -3,7 +3,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{ExceptionHandler, StandardRoute}
+import akka.http.scaladsl.server.ExceptionHandler
 import akka.stream.ActorMaterializer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint._
@@ -21,27 +21,26 @@ object AkkaHttpTestWebServer {
   val exceptionHandler = ExceptionHandler {
     case ex: Exception => complete(HttpResponse(status = EXCEPTION.getStatus).withEntity(ex.getMessage))
   }
-  
-  val route = { //handleExceptions(exceptionHandler) {
-    path(SUCCESS.rawPath) {
-      complete(HttpResponse(status = SUCCESS.getStatus).withEntity(SUCCESS.getBody))
-    } ~ path(QUERY_PARAM.rawPath) {
-      complete(HttpResponse(status = QUERY_PARAM.getStatus).withEntity(SUCCESS.getBody))
-    } ~ path(REDIRECT.rawPath) {
-      redirect(Uri(REDIRECT.getBody), StatusCodes.Found)
-    } ~ path(ERROR.rawPath) {
-      complete(HttpResponse(status = ERROR.getStatus).withEntity(ERROR.getBody))
-    } ~ path(EXCEPTION.rawPath) {
-      failWith(new Exception(EXCEPTION.getBody))
-    }
-  }
 
-  def controllerSpan(path: HttpServerTest.ServerEndpoint, route: StandardRoute): StandardRoute = {
-    HttpServerTest.controller(path, new Closure[StandardRoute](()) {
-      def doCall(): StandardRoute = {
-        route
+  val route = {
+    extractRequest { req =>
+      val endpoint = HttpServerTest.ServerEndpoint.forPath(req.uri.path.toString())
+      handleExceptions(exceptionHandler) {
+        complete(HttpServerTest.controller(endpoint, new Closure[HttpResponse](()) {
+          def doCall(): HttpResponse = {
+            val resp = HttpResponse(status = endpoint.getStatus) //.withHeaders(headers.Type)resp.contentType = "text/plain"
+            endpoint match {
+              case SUCCESS => resp.withEntity(endpoint.getBody)
+              case QUERY_PARAM => resp.withEntity(req.uri.queryString().orNull)
+              case REDIRECT => resp.withHeaders(headers.Location(endpoint.getBody))
+              case ERROR => resp.withEntity(endpoint.getBody)
+              case EXCEPTION => throw new Exception(endpoint.getBody)
+              case _ => HttpResponse(status = NOT_FOUND.getStatus).withEntity(NOT_FOUND.getBody)
+            }
+          }
+        }))
       }
-    })
+    }
   }
 
   private var binding: ServerBinding = null

@@ -29,8 +29,7 @@ class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object, AkkaHttpS
   boolean redirectHasBody() {
     true
   }
-
-// FIXME: This doesn't work because we don't support bindAndHandle.
+  
   @Override
   def startServer(int port) {
     AkkaHttpTestWebServer.start(port)
