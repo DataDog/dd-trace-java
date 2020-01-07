@@ -3,8 +3,15 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import akka.NotUsed;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
-import akka.japi.function.Function;
+import akka.stream.Attributes;
+import akka.stream.BidiShape;
+import akka.stream.Inlet;
+import akka.stream.Outlet;
+import akka.stream.Shape;
 import akka.stream.scaladsl.BidiFlow;
+import akka.stream.stage.AbstractInOutHandler;
+import akka.stream.stage.GraphStage;
+import akka.stream.stage.GraphStageLogic;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.test.base.HttpServerTestAdvice;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -30,42 +37,135 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
     @Advice.OnMethodExit
     public static void methodExit(
         @Advice.Return(readOnly = false)
-            BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed> response) {
+            BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed>
+                requestTimeoutSupportLayer) {
       final BidiFlowWrapper wrapper = new BidiFlowWrapper();
       final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed> testSpanFlow =
-          akka.stream.javadsl.BidiFlow.fromFunctions(
-                  wrapper.responseFunction, wrapper.requestFunction)
-              .asScala();
-      response = testSpanFlow.atop(response);
+          akka.stream.javadsl.BidiFlow.fromGraph(wrapper).asScala();
+      requestTimeoutSupportLayer = testSpanFlow.atop(requestTimeoutSupportLayer);
     }
 
-    public static class BidiFlowWrapper {
-      public final Function<HttpRequest, HttpRequest> requestFunction;
-      public final Function<HttpResponse, HttpResponse> responseFunction;
+    public static class BidiFlowWrapper
+        extends GraphStage<BidiShape<HttpResponse, HttpResponse, HttpRequest, HttpRequest>> {
+      private final Inlet<HttpRequest> requestInlet = Inlet.create("Datadog.test.requestIn");
+      private final Outlet<HttpRequest> requestOutlet = Outlet.create("Datadog.test.requestOut");
+      private final Inlet<HttpResponse> responseInlet = Inlet.create("Datadog.test.responseIn");
+      private final Outlet<HttpResponse> responseOutlet = Outlet.create("Datadog.test.responseOut");
+      private final BidiShape<HttpResponse, HttpResponse, HttpRequest, HttpRequest> shape =
+          new BidiShape<>(responseInlet, responseOutlet, requestInlet, requestOutlet);
+
+      @Override
+      public GraphStageLogic createLogic(final Attributes inheritedAttributes) throws Exception {
+        return new BidiFlowWrapperLogic(
+            shape, requestInlet, requestOutlet, responseInlet, responseOutlet);
+      }
+
+      @Override
+      public BidiShape<HttpResponse, HttpResponse, HttpRequest, HttpRequest> shape() {
+        return shape;
+      }
+    }
+
+    public static class BidiFlowWrapperLogic extends GraphStageLogic {
+      final HttpRequestHandler httpRequestHandler;
+      final HttpResponseHandler httpResponseHandler;
       final Queue<AgentScope> agentScopes = new LinkedBlockingQueue<>();
 
-      public BidiFlowWrapper() {
-        requestFunction = new HttpRequestFunction();
-        responseFunction = new HttpResponseFunction();
+      public BidiFlowWrapperLogic(
+          final Shape shape,
+          final Inlet<HttpRequest> requestInlet,
+          final Outlet<HttpRequest> requestOutlet,
+          final Inlet<HttpResponse> responseInlet,
+          final Outlet<HttpResponse> responseOutlet) {
+        super(shape);
+
+        httpRequestHandler = new HttpRequestHandler(this, requestInlet, requestOutlet);
+        httpResponseHandler = new HttpResponseHandler(this, responseInlet, responseOutlet);
+
+        setHandler(requestInlet, httpRequestHandler);
+        setHandler(requestOutlet, httpRequestHandler);
+        setHandler(responseInlet, httpResponseHandler);
+        setHandler(responseOutlet, httpResponseHandler);
+      }
+    }
+
+    public static class HttpRequestHandler extends AbstractInOutHandler {
+      final BidiFlowWrapperLogic graph;
+      final Inlet<HttpRequest> requestInlet;
+      final Outlet<HttpRequest> requestOutlet;
+
+      public HttpRequestHandler(
+          final BidiFlowWrapperLogic graph,
+          final Inlet<HttpRequest> requestInlet,
+          final Outlet<HttpRequest> requestOutlet) {
+        this.graph = graph;
+        this.requestInlet = requestInlet;
+        this.requestOutlet = requestOutlet;
       }
 
-      public class HttpRequestFunction implements Function<HttpRequest, HttpRequest> {
-        @Override
-        public HttpRequest apply(final HttpRequest httpRequest) throws Exception {
-          final AgentScope scope = HttpServerTestAdvice.ServerEntryAdvice.methodEnter();
-          if (scope != null) {
-            agentScopes.add(scope);
-          }
-          return httpRequest;
+      @Override
+      public void onPush() throws Exception {
+        final HttpRequest request = graph.grab(requestInlet);
+
+        final AgentScope scope = HttpServerTestAdvice.ServerEntryAdvice.methodEnter();
+        if (scope != null) {
+          graph.agentScopes.add(scope);
         }
+
+        graph.push(requestOutlet, request);
       }
 
-      public class HttpResponseFunction implements Function<HttpResponse, HttpResponse> {
-        @Override
-        public HttpResponse apply(final HttpResponse httpResponse) throws Exception {
-          HttpServerTestAdvice.ServerEntryAdvice.methodExit(agentScopes.poll());
-          return httpResponse;
-        }
+      @Override
+      public void onUpstreamFailure(final Throwable ex) throws Exception {
+        HttpServerTestAdvice.ServerEntryAdvice.methodExit(graph.agentScopes.poll());
+
+        super.onUpstreamFailure(ex);
+      }
+
+      @Override
+      public void onPull() throws Exception {
+        graph.pull(requestInlet);
+      }
+    }
+
+    public static class HttpResponseHandler extends AbstractInOutHandler {
+      final BidiFlowWrapperLogic graph;
+      final Inlet<HttpResponse> responseInlet;
+      final Outlet<HttpResponse> responseOutlet;
+
+      public HttpResponseHandler(
+          final BidiFlowWrapperLogic graph,
+          final Inlet<HttpResponse> responseInlet,
+          final Outlet<HttpResponse> responseOutlet) {
+        this.graph = graph;
+        this.responseInlet = responseInlet;
+        this.responseOutlet = responseOutlet;
+      }
+
+      @Override
+      public void onPush() throws Exception {
+        final HttpResponse response = graph.grab(responseInlet);
+
+        HttpServerTestAdvice.ServerEntryAdvice.methodExit(graph.agentScopes.poll());
+
+        graph.push(responseOutlet, response);
+      }
+
+      @Override
+      public void onUpstreamFailure(final Throwable ex) throws Exception {
+        HttpServerTestAdvice.ServerEntryAdvice.methodExit(graph.agentScopes.poll());
+
+        super.onUpstreamFailure(ex);
+      }
+
+      @Override
+      public void onPull() throws Exception {
+        graph.pull(responseInlet);
+      }
+
+      @Override
+      public void onDownstreamFinish() throws Exception, Exception {
+        graph.cancel(responseInlet);
       }
     }
   }
