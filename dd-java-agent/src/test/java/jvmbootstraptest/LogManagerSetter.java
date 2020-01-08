@@ -1,5 +1,6 @@
 package jvmbootstraptest;
 
+import java.lang.reflect.Method;
 import java.util.logging.LogManager;
 
 public class LogManagerSetter {
@@ -139,8 +140,14 @@ public class LogManagerSetter {
   private static boolean isTracerInstalled(final boolean wait) {
     // Wait up to 10 seconds for tracer to get installed
     for (int i = 0; i < 20; i++) {
-      if (io.opentracing.util.GlobalTracer.isRegistered()) {
-        return true;
+      try {
+        final Class<?> aClass = Class.forName("datadog.agent.opentracing.util.GlobalTracer");
+        final Method isRegistered = aClass.getMethod("isRegistered");
+        if ((boolean) isRegistered.invoke(null)) {
+          return true;
+        }
+      } catch (final Exception e) {
+        e.printStackTrace();
       }
       if (!wait) {
         break;
