@@ -6,9 +6,7 @@ import static datadog.trace.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.finagle.FinagleServiceDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -33,18 +31,18 @@ public class FinagleServiceInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return safeHasSuperType(named("com.twitter.finagle.Service"))
-        .and(not(nameStartsWith("com.twitter.finagle.http"))); // Ignore built in services
-  }
-
-  @Override
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.agent.decorator.BaseDecorator",
       "datadog.trace.agent.decorator.ServerDecorator",
-      FinagleServiceInstrumentation.class.getName() + "$ScopeClosingListener"
+      FinagleServiceInstrumentation.class.getName() + "$Listener"
     };
+  }
+
+  @Override
+  public ElementMatcher<? super TypeDescription> typeMatcher() {
+    return safeHasSuperType(named("com.twitter.finagle.Service"));
+    // .and(not(nameStartsWith("com.twitter.finagle.http"))); // Ignore built in services
   }
 
   @Override
@@ -59,6 +57,7 @@ public class FinagleServiceInstrumentation extends Instrumenter.Default {
   public static class ServiceWrappingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startSpanOnApply(@Advice.Origin final Method method) {
+
       final AgentSpan span = startSpan("finagle.service");
       DECORATE.afterStart(span);
 
@@ -75,38 +74,34 @@ public class FinagleServiceInstrumentation extends Instrumenter.Default {
         @Advice.Enter final AgentScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Return(readOnly = false) final Future<Response> result) {
-      if (scope == null) {
-        return;
-      }
-
       if (throwable != null) {
         DECORATE.onError(scope, throwable);
         DECORATE.beforeFinish(scope);
         scope.close();
       } else {
-        result.addEventListener(new ScopeClosingListener(scope));
+        TwitterPromiseUtils.setupScopePropagation(result, new Listener(scope));
       }
     }
   }
 
-  public static class ScopeClosingListener implements FutureEventListener<Response> {
+  public static class Listener implements FutureEventListener<Response> {
     private final AgentScope scope;
 
-    public ScopeClosingListener(final AgentScope scope) {
+    public Listener(final AgentScope scope) {
       this.scope = scope;
     }
 
     @Override
     public void onSuccess(final Response value) {
       DECORATE.beforeFinish(scope);
-      scope.close();
+      scope.span().finish();
     }
 
     @Override
     public void onFailure(final Throwable cause) {
       DECORATE.onError(scope, cause);
       DECORATE.beforeFinish(scope);
-      scope.close();
+      scope.span().finish();
     }
   }
 }

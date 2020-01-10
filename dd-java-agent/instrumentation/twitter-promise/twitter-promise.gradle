@@ -19,19 +19,13 @@ muzzle {
 }
 
 dependencies {
-  compileOnly group: 'com.twitter', name: 'finagle-http_2.11', version: '19.1.0'
+  compileOnly group: 'com.twitter', name: 'util-core_2.11', version: '19.1.0'
 
-  compile project(':dd-java-agent:instrumentation:twitter-promise')
-  
   testCompile project(':dd-java-agent:instrumentation:netty-4.1')
   testCompile project(':dd-java-agent:instrumentation:java-concurrent')
   testCompile project(':dd-java-agent:instrumentation:trace-annotation')
-  
-  testCompile group: 'com.twitter', name: 'finagle-http_2.11', version: '19.1.0'
 
-  testCompile(group: 'com.fasterxml.jackson.module', name: 'jackson-module-scala_2.11', version: '2.10.2') {
-    force = true
-  }
+  testCompile group: 'com.twitter', name: 'util-core_2.11', version: '19.1.0'
 
 //  latestDepTestCompile project(':dd-java-agent:instrumentation:java-concurrent')
   // latestDepTestCompile project(':dd-java-agent:instrumentation:trace-annotation')

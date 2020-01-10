@@ -14,7 +14,6 @@ import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.Trace
 import datadog.trace.instrumentation.api.Tags
-import scala.Function1
 import spock.lang.Shared
 
 class FinagleServiceInstrumentationTest extends AgentTestRunner {
@@ -47,7 +46,8 @@ class FinagleServiceInstrumentationTest extends AgentTestRunner {
     request.setContentString(content)
 
     when:
-    Response response = Await.result(client.apply(request), TIMEOUT)
+    Future<Response> responseFuture = client.apply(request)
+    Response response = Await.result(responseFuture, TIMEOUT)
 
     then:
     response.getContentString() == content.reverse()
@@ -70,25 +70,25 @@ class FinagleServiceInstrumentationTest extends AgentTestRunner {
     given:
     def request = Request.apply("/")
     request.setContentString(content)
-    def annotatedClass = new AnnotatedClass()
+    def transformer = new Transformer()
 
     when:
-    String value = Await.result(client.apply(request).flatMap(new Function1<Response, Future<String>>() {
-      @Override
-      Future<String> apply(Response response) {
-        String modified = annotatedClass.doSomething(response.getContentString())
-        return Future.value(modified)
-      }
-    }), TIMEOUT)
+    Future<Response> responseFuture = client.apply(request)
+    Future<String> stringFuture = responseFuture.transformedBy(transformer)
+    String value = Await.result(stringFuture, TIMEOUT)
 
     then:
-    value == content.reverse()
+    value == content.reverse() + "something"
     assertTraces(2) {
       trace(0, 2) {
         nettyServerSpan(it, 0, trace(1).get(0))
         finagleSpan(it, 1, span(0))
+      }
+
+      trace(1, 2) {
+        nettyClientSpan(it, 0)
         span(1) {
-          childOf((DDSpan) span(1))
+          childOf((DDSpan) span(0))
           serviceName "unnamed-java-app"
           operationName "trace.annotation"
           resourceName "AnnotatedClass.doSomething"
@@ -98,10 +98,6 @@ class FinagleServiceInstrumentationTest extends AgentTestRunner {
             defaultTags()
           }
         }
-      }
-
-      trace(1, 1) {
-        nettyClientSpan(it, 0)
       }
     }
 
@@ -191,7 +187,17 @@ class FinagleServiceInstrumentationTest extends AgentTestRunner {
   }
 
 
-  class AnnotatedClass extends FutureTransformer<Request, Response> {
+  class Transformer extends FutureTransformer<Response, String> {
+    @Override
+    Future<String> flatMap(Response value) {
+      return Future.value(doSomething(value.getContentString()))
+    }
+
+    @Override
+    String map(Response value) {
+      return doSomething(value.getContentString())
+    }
+
     @Trace
     String doSomething(String original) {
       return original + "something"
