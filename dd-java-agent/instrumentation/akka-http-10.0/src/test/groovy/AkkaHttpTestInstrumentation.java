@@ -17,9 +17,9 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.test.base.HttpServerTestAdvice;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.instrumentation.api.AgentScope;
+import datadog.trace.instrumentation.api.AgentTracer;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
 
@@ -46,7 +46,6 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
     }
   }
 
-  @Slf4j
   public static class TestGraphStage
       extends GraphStage<BidiShape<HttpResponse, HttpResponse, HttpRequest, HttpRequest>> {
     private final Inlet<HttpRequest> requestInlet = Inlet.create("Datadog.test.requestIn");
@@ -67,7 +66,6 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
               new AbstractInHandler() {
                 @Override
                 public void onPush() throws Exception {
-                  log.debug("HERE", new Exception("Stacktrace"));
                   final HttpRequest request = grab(requestInlet);
 
                   final AgentScope scope = HttpServerTestAdvice.ServerEntryAdvice.methodEnter();
@@ -85,11 +83,13 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
 
                 @Override
                 public void onUpstreamFailure(final Throwable ex) throws Exception, Exception {
-                  final AgentScope agentScope = agentScopes.poll();
-                  HttpServerTestAdvice.ServerEntryAdvice.methodExit(agentScope);
+                  AgentScope agentScope = agentScopes.poll();
                   if (agentScope != null) {
                     agentScope.setAsyncPropagation(false);
+                    agentScope = AgentTracer.activateSpan(agentScope.span(), true);
+                    agentScope.setAsyncPropagation(false);
                   }
+                  HttpServerTestAdvice.ServerEntryAdvice.methodExit(agentScope);
 
                   fail(requestOutlet, ex);
                 }
@@ -116,11 +116,14 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
                 public void onPush() throws Exception {
                   final HttpResponse response = grab(responseInlet);
 
-                  final AgentScope agentScope = agentScopes.poll();
-                  HttpServerTestAdvice.ServerEntryAdvice.methodExit(agentScope);
+                  AgentScope agentScope = agentScopes.poll();
                   if (agentScope != null) {
                     agentScope.setAsyncPropagation(false);
+                    agentScope = AgentTracer.activateSpan(agentScope.span(), true);
+                    agentScope.setAsyncPropagation(false);
                   }
+                  HttpServerTestAdvice.ServerEntryAdvice.methodExit(agentScope);
+
                   push(responseOutlet, response);
                 }
 
@@ -131,11 +134,13 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
 
                 @Override
                 public void onUpstreamFailure(final Throwable ex) throws Exception {
-                  final AgentScope agentScope = agentScopes.poll();
-                  HttpServerTestAdvice.ServerEntryAdvice.methodExit(agentScope);
+                  AgentScope agentScope = agentScopes.poll();
                   if (agentScope != null) {
                     agentScope.setAsyncPropagation(false);
+                    agentScope = AgentTracer.activateSpan(agentScope.span(), true);
+                    agentScope.setAsyncPropagation(false);
                   }
+                  HttpServerTestAdvice.ServerEntryAdvice.methodExit(agentScope);
 
                   fail(responseOutlet, ex);
                 }

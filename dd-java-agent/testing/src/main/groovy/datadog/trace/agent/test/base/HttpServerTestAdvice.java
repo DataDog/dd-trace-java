@@ -8,8 +8,11 @@ import datadog.trace.api.DDTags;
 import datadog.trace.instrumentation.api.AgentScope;
 import datadog.trace.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class HttpServerTestAdvice {
+  public static final Logger log = LoggerFactory.getLogger(HttpServerTestAdvice.class);
 
   /**
    * This advice should be applied at the root of a http server request to validate the
@@ -23,6 +26,7 @@ public abstract class HttpServerTestAdvice {
         return null;
       }
       if (activeSpan() != null) {
+        log.debug("Already an activeSpan: {} {}", activeSpan().getSpanName(), activeSpan());
         return null;
       } else {
         final AgentSpan span = startSpan("TEST_SPAN").setTag(DDTags.RESOURCE_NAME, "ServerEntry");
