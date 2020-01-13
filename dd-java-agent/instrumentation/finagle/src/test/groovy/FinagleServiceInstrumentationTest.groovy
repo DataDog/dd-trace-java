@@ -55,7 +55,7 @@ class FinagleServiceInstrumentationTest extends AgentTestRunner {
     closeAndWait(forwardingClient)
   }
 
-  def static closeAndWait(Closable closable) {
+  static closeAndWait(Closable closable) {
     if (closable != null) {
       Await.ready(closable.close(), TIMEOUT)
     }
@@ -74,7 +74,7 @@ class FinagleServiceInstrumentationTest extends AgentTestRunner {
     then:
     response.getContentString() == content.reverse()
     assertTraces(2) {
-      // FIXME the ordering here is a bit inconsitent
+      // FIXME the ordering here is a bit inconsistent
       trace(0, 1) {
         nettyClientSpan(it, 0)
       }
@@ -99,7 +99,7 @@ class FinagleServiceInstrumentationTest extends AgentTestRunner {
     then:
     response.getContentString() == (content + "forwarded").reverse()
     assertTraces(3) {
-      // FIXME the ordering here is a bit inconsitent.  This one is reversed compare to simple request
+      // FIXME the ordering here is a bit inconsistent.  This one is reversed compare to simple request
       trace(2, 1) {
         nettyClientSpan(it, 0)
       }
@@ -135,7 +135,7 @@ class FinagleServiceInstrumentationTest extends AgentTestRunner {
     then:
     value == content.reverse() + "something"
     assertTraces(3) {
-      // FIXME the ordering here is a bit inconsitent
+      // FIXME the ordering here is a bit inconsistent
       trace(0, 1) {
         nettyClientSpan(it, 0)
       }

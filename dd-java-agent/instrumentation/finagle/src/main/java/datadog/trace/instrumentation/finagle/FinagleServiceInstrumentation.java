@@ -37,6 +37,7 @@ public class FinagleServiceInstrumentation extends Instrumenter.Default {
     return new String[] {
       "datadog.trace.agent.decorator.BaseDecorator",
       "datadog.trace.agent.decorator.ServerDecorator",
+      packageName + ".FinagleServiceDecorator",
       FinagleServiceInstrumentation.class.getName() + "$Listener"
     };
   }
@@ -44,7 +45,6 @@ public class FinagleServiceInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return safeHasSuperType(named("com.twitter.finagle.Service"));
-    // .and(not(nameStartsWith("com.twitter.finagle.http"))); // Ignore built in services
   }
 
   @Override
