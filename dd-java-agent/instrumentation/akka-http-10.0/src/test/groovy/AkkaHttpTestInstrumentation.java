@@ -17,7 +17,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.test.base.HttpServerTestAdvice;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.instrumentation.api.AgentScope;
-import datadog.trace.instrumentation.api.AgentTracer;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -83,12 +82,7 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
 
                 @Override
                 public void onUpstreamFailure(final Throwable ex) throws Exception, Exception {
-                  AgentScope agentScope = agentScopes.poll();
-                  if (agentScope != null) {
-                    agentScope.setAsyncPropagation(false);
-                    agentScope = AgentTracer.activateSpan(agentScope.span(), true);
-                    agentScope.setAsyncPropagation(false);
-                  }
+                  final AgentScope agentScope = agentScopes.poll();
                   HttpServerTestAdvice.ServerEntryAdvice.methodExit(agentScope);
 
                   fail(requestOutlet, ex);
@@ -116,12 +110,7 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
                 public void onPush() throws Exception {
                   final HttpResponse response = grab(responseInlet);
 
-                  AgentScope agentScope = agentScopes.poll();
-                  if (agentScope != null) {
-                    agentScope.setAsyncPropagation(false);
-                    agentScope = AgentTracer.activateSpan(agentScope.span(), true);
-                    agentScope.setAsyncPropagation(false);
-                  }
+                  final AgentScope agentScope = agentScopes.poll();
                   HttpServerTestAdvice.ServerEntryAdvice.methodExit(agentScope);
 
                   push(responseOutlet, response);
@@ -134,12 +123,7 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
 
                 @Override
                 public void onUpstreamFailure(final Throwable ex) throws Exception {
-                  AgentScope agentScope = agentScopes.poll();
-                  if (agentScope != null) {
-                    agentScope.setAsyncPropagation(false);
-                    agentScope = AgentTracer.activateSpan(agentScope.span(), true);
-                    agentScope.setAsyncPropagation(false);
-                  }
+                  final AgentScope agentScope = agentScopes.poll();
                   HttpServerTestAdvice.ServerEntryAdvice.methodExit(agentScope);
 
                   fail(responseOutlet, ex);
