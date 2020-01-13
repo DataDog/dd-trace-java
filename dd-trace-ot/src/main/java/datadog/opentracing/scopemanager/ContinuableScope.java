@@ -82,6 +82,7 @@ public class ContinuableScope implements DDScope, TraceScope {
           "Tried to close {} scope when {} is on top. Ignoring!",
           this,
           scopeManager.tlsScope.get());
+      log.debug("stacktrace", new Exception());
     }
   }
 
