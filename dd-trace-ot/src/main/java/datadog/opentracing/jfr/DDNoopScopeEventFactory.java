@@ -6,6 +6,6 @@ import datadog.opentracing.DDSpanContext;
 public final class DDNoopScopeEventFactory implements DDScopeEventFactory {
   @Override
   public DDScopeEvent create(final DDSpanContext context) {
-    return new DDNoopScopeEvent();
+    return DDNoopScopeEvent.INSTANCE;
   }
 }
