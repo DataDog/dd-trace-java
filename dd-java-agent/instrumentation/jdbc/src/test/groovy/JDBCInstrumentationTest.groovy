@@ -5,11 +5,15 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.instrumentation.api.Tags
+import org.apache.derby.jdbc.EmbeddedDataSource
 import org.apache.derby.jdbc.EmbeddedDriver
 import org.h2.Driver
+import org.h2.jdbcx.JdbcDataSource
 import org.hsqldb.jdbc.JDBCDriver
 import spock.lang.Shared
 import spock.lang.Unroll
+import test.TestConnection
+import test.TestStatement
 
 import javax.sql.DataSource
 import java.sql.CallableStatement
@@ -23,6 +27,9 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class JDBCInstrumentationTest extends AgentTestRunner {
+  static {
+    System.setProperty("dd.integration.jdbc-datasource.enabled", "true")
+  }
 
   @Shared
   def dbName = "jdbcUnitTest"
@@ -475,7 +482,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     "derby" | cpDatasources.get("hikari").get("derby").getConnection()  | "APP"    | "CREATE TABLE PS_DERBY_HIKARI (id INTEGER not NULL, PRIMARY KEY ( id ))"
     "h2"    | cpDatasources.get("c3p0").get("h2").getConnection()       | null     | "CREATE TABLE PS_H2_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"
     "derby" | cpDatasources.get("c3p0").get("derby").getConnection()    | "APP"    | "CREATE TABLE PS_DERBY_C3P0 (id INTEGER not NULL, PRIMARY KEY ( id ))"
-
   }
 
   @Unroll
@@ -485,7 +491,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
 
     when:
     try {
-      connection = new DummyThrowingConnection()
+      connection = new TestConnection(true)
     } catch (Exception e) {
       connection = driverClass.connect(url, null)
     }
@@ -547,6 +553,112 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     true             | "derby" | new EmbeddedDriver() | "jdbc:derby:memory:" + dbName + ";create=true" | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1"
     false            | "h2"    | new Driver()         | "jdbc:h2:mem:" + dbName                        | null     | "SELECT 3;"
     false            | "derby" | new EmbeddedDriver() | "jdbc:derby:memory:" + dbName + ";create=true" | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1"
+  }
+
+  def "calling #datasource.class.simpleName getConnection generates a span when under existing trace"() {
+    setup:
+    assert datasource instanceof DataSource
+    init?.call(datasource)
+
+    when:
+    datasource.getConnection().close()
+
+    then:
+    !TEST_WRITER.any { it.any { it.operationName == "database.connection" } }
+    TEST_WRITER.clear()
+
+    when:
+    runUnderTrace("parent") {
+      datasource.getConnection().close()
+    }
+
+    then:
+    assertTraces(1) {
+      trace(0, recursive ? 3 : 2) {
+        basicSpan(it, 0, "parent")
+
+        span(1) {
+          operationName "database.connection"
+          resourceName "${datasource.class.simpleName}.getConnection"
+          childOf span(0)
+          tags {
+            "$Tags.COMPONENT" "java-jdbc-connection"
+            defaultTags()
+          }
+        }
+        if (recursive) {
+          span(2) {
+            operationName "database.connection"
+            resourceName "${datasource.class.simpleName}.getConnection"
+            childOf span(1)
+            tags {
+              "$Tags.COMPONENT" "java-jdbc-connection"
+              defaultTags()
+            }
+          }
+        }
+      }
+    }
+
+    where:
+    datasource                               | init
+    new JdbcDataSource()                     | { ds -> ds.setURL(jdbcUrls.get("h2")) }
+    new EmbeddedDataSource()                 | { ds -> ds.jdbcurl = jdbcUrls.get("derby") }
+    cpDatasources.get("hikari").get("h2")    | null
+    cpDatasources.get("hikari").get("derby") | null
+    cpDatasources.get("c3p0").get("h2")      | null
+    cpDatasources.get("c3p0").get("derby")   | null
+
+    // Tomcat's pool doesn't work because the getConnection method is
+    // implemented in a parent class that doesn't implement DataSource
+
+    recursive = datasource instanceof EmbeddedDataSource
+  }
+
+  def "test getClientInfo exception"() {
+    setup:
+    Connection connection = new TestConnection(false)
+
+    when:
+    Statement statement = null
+    runUnderTrace("parent") {
+      statement = connection.createStatement()
+      return statement.executeQuery(query)
+    }
+
+    then:
+    assertTraces(1) {
+      trace(0, 2) {
+        basicSpan(it, 0, "parent")
+        span(1) {
+          operationName "${database}.query"
+          serviceName database
+          resourceName query
+          spanType DDSpanTypes.SQL
+          childOf span(0)
+          errored false
+          tags {
+            "$Tags.COMPONENT" "java-jdbc-statement"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" database
+            "span.origin.type" TestStatement.name
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    cleanup:
+    if (statement != null) {
+      statement.close()
+    }
+    if (connection != null) {
+      connection.close()
+    }
+
+    where:
+    database = "testdb"
+    query = "testing 123"
   }
 
   @Unroll
