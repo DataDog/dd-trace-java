@@ -18,8 +18,8 @@ package com.datadog.profiling.uploader;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.StreamUtils;
+import com.datadog.profiling.util.ProfilingThreadFactory;
 import datadog.trace.api.Config;
-import datadog.trace.common.util.DaemonThreadFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
@@ -128,7 +128,7 @@ public final class RecordingUploader {
             60,
             TimeUnit.SECONDS,
             new SynchronousQueue<>(),
-            new DaemonThreadFactory("dd-profiler-http-dispatcher"));
+            new ProfilingThreadFactory("dd-profiler-http-dispatcher"));
     // Reusing connections causes non daemon threads to be created which causes agent to prevent app
     // from exiting. See https://github.com/square/okhttp/issues/4029 for some details.
     final ConnectionPool connectionPool =
