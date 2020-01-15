@@ -1,3 +1,4 @@
+import static datadog.trace.instrumentation.api.AgentTracer.activeScope;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import akka.NotUsed;
@@ -16,7 +17,7 @@ import akka.stream.stage.GraphStageLogic;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.test.base.HttpServerTestAdvice;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.instrumentation.api.AgentScope;
+import datadog.trace.context.TraceScope;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -58,7 +59,7 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
     public GraphStageLogic createLogic(final Attributes inheritedAttributes) throws Exception {
       return new GraphStageLogic(shape) {
         {
-          final Queue<AgentScope> agentScopes = new LinkedBlockingQueue<>();
+          final Queue<TraceScope.Continuation> agentScopes = new LinkedBlockingQueue<>();
 
           setHandler(
               requestInlet,
@@ -67,9 +68,10 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
                 public void onPush() throws Exception {
                   final HttpRequest request = grab(requestInlet);
 
-                  final AgentScope scope = HttpServerTestAdvice.ServerEntryAdvice.methodEnter();
-                  if (scope != null) {
-                    agentScopes.add(scope);
+                  HttpServerTestAdvice.ServerEntryAdvice.methodEnter();
+                  final TraceScope traceScope = activeScope();
+                  if (traceScope != null) {
+                    agentScopes.add(traceScope.capture());
                   }
 
                   push(requestOutlet, request);
@@ -82,8 +84,10 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
 
                 @Override
                 public void onUpstreamFailure(final Throwable ex) throws Exception, Exception {
-                  final AgentScope agentScope = agentScopes.poll();
-                  HttpServerTestAdvice.ServerEntryAdvice.methodExit(agentScope);
+                  final TraceScope.Continuation continuation = agentScopes.poll();
+                  if (continuation != null) {
+                    continuation.activate().close();
+                  }
 
                   fail(requestOutlet, ex);
                 }
@@ -110,8 +114,10 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
                 public void onPush() throws Exception {
                   final HttpResponse response = grab(responseInlet);
 
-                  final AgentScope agentScope = agentScopes.poll();
-                  HttpServerTestAdvice.ServerEntryAdvice.methodExit(agentScope);
+                  final TraceScope.Continuation continuation = agentScopes.poll();
+                  if (continuation != null) {
+                    continuation.activate().close();
+                  }
 
                   push(responseOutlet, response);
                 }
@@ -123,8 +129,10 @@ public class AkkaHttpTestInstrumentation implements Instrumenter {
 
                 @Override
                 public void onUpstreamFailure(final Throwable ex) throws Exception {
-                  final AgentScope agentScope = agentScopes.poll();
-                  HttpServerTestAdvice.ServerEntryAdvice.methodExit(agentScope);
+                  final TraceScope.Continuation continuation = agentScopes.poll();
+                  if (continuation != null) {
+                    continuation.activate().close();
+                  }
 
                   fail(responseOutlet, ex);
                 }

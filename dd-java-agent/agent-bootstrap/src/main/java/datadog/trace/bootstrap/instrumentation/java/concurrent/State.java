@@ -22,7 +22,6 @@ public class State {
   private State() {}
 
   public boolean setContinuation(final TraceScope.Continuation continuation) {
-    log.debug("set continuation " + this, new Exception());
     final boolean result = continuationRef.compareAndSet(null, continuation);
     if (!result) {
       log.debug(

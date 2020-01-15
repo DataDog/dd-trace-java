@@ -35,7 +35,10 @@ public final class RunnableCallableInstrumentation extends Instrumenter.Default 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return not(isInterface())
-        .and(safeHasSuperType(named(Runnable.class.getName()).or(named(Callable.class.getName()))));
+        .and(safeHasSuperType(named(Runnable.class.getName()).or(named(Callable.class.getName()))))
+        .and(not(named("akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask")))
+        .and(not(named("akka.dispatch.TaskInvocation")));
+    //        .and(not(named("akka.dispatch.Mailbox")));
   }
 
   @Override

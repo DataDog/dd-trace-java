@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.java.concurrent;
 
 import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.instrumentation.api.AgentTracer.activeScope;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isInterface;
@@ -114,6 +115,10 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default 
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(@Advice.Enter final TraceScope scope) {
+      // Clean up dandling scopes from async code
+      while (activeScope() != scope) {
+        activeScope().close();
+      }
       AdviceUtils.endTaskScope(scope);
     }
   }
