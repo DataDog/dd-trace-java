@@ -116,7 +116,7 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(@Advice.Enter final TraceScope scope) {
       // Clean up dandling scopes from async code
-      while (activeScope() != scope) {
+      while (activeScope() != scope && activeScope() != null) {
         activeScope().close();
       }
       AdviceUtils.endTaskScope(scope);
