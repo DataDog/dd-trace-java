@@ -83,7 +83,6 @@ public class DDSpan implements Span, MutableSpan {
   }
 
   private void finishAndAddToTrace(final long durationNano) {
-    log.debug("stacktrace", new Exception());
     // ensure a min duration of 1
     if (this.durationNano.compareAndSet(0, Math.max(1, durationNano))) {
       log.debug("Finished: {}", this);

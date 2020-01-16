@@ -226,9 +226,6 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
       }
     }
     log.debug("traceId: {} -- Expired reference. count = {}", traceId, count);
-    for (final WeakReference reference : weakReferences) {
-      log.debug("Reference {}", reference.get());
-    }
   }
 
   private synchronized void write() {

@@ -24,7 +24,6 @@ public class AdviceUtils {
       final TraceScope.Continuation continuation = state.getAndResetContinuation();
       if (continuation != null) {
         final TraceScope scope = continuation.activate();
-        log.debug("startTaskScope() {} {}", task, scope);
         scope.setAsyncPropagation(true);
         return scope;
       }

@@ -44,16 +44,10 @@ public class ExecutorInstrumentationUtils {
    */
   public static <T> State setupState(
       final ContextStore<T, State> contextStore, final T task, final TraceScope scope) {
-    log.debug("stacktrace", new Exception(task.getClass().getName()));
     final State state = contextStore.putIfAbsent(task, State.FACTORY);
     final TraceScope.Continuation continuation = scope.capture();
     if (state.setContinuation(continuation)) {
-      log.debug(
-          "created continuation {} for {} from scope {}, state: {}",
-          continuation,
-          task.getClass().getName(),
-          scope,
-          state);
+      log.debug("created continuation {} from scope {}, state: {}", continuation, scope, state);
     } else {
       continuation.close(false);
     }

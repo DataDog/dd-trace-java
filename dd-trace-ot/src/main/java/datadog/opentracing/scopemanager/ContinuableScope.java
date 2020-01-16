@@ -58,7 +58,6 @@ public class ContinuableScope implements DDScope, TraceScope {
 
   @Override
   public void close() {
-    log.debug("stacktrace", new Exception(toString()));
     if (null != continuation) {
       spanUnderScope.context().getTrace().cancelContinuation(continuation);
     }
@@ -74,7 +73,6 @@ public class ContinuableScope implements DDScope, TraceScope {
     if (scopeManager.tlsScope.get() == this) {
       scopeManager.tlsScope.set(toRestore);
       if (toRestore != null) {
-        log.debug("RESTORE: {}", toRestore);
         for (final ScopeListener listener : scopeManager.scopeListeners) {
           listener.afterScopeActivated();
         }
@@ -136,12 +134,10 @@ public class ContinuableScope implements DDScope, TraceScope {
 
     @Override
     public ContinuableScope activate() {
-      log.debug("stacktrace", new Exception(ContinuableScope.this.toString()));
       if (used.compareAndSet(false, true)) {
         final ContinuableScope scope =
             new ContinuableScope(scopeManager, openCount, this, spanUnderScope, finishOnClose);
-        log.debug(
-            "Activating continuation {}, scope: {} finishOnClose {}", this, scope, finishOnClose);
+        log.debug("Activating continuation {}, scope: {}", this, scope);
         return scope;
       } else {
         log.debug(
@@ -158,7 +154,6 @@ public class ContinuableScope implements DDScope, TraceScope {
 
     @Override
     public void close(final boolean closeContinuationScope) {
-      log.debug("stacktrace", new Exception(toString()));
       if (used.compareAndSet(false, true)) {
         trace.cancelContinuation(this);
         if (closeContinuationScope) {

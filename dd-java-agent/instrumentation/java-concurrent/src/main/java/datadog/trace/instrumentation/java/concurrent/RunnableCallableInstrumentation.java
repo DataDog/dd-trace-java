@@ -38,7 +38,6 @@ public final class RunnableCallableInstrumentation extends Instrumenter.Default 
         .and(safeHasSuperType(named(Runnable.class.getName()).or(named(Callable.class.getName()))))
         .and(not(named("akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask")))
         .and(not(named("akka.dispatch.TaskInvocation")));
-    //        .and(not(named("akka.dispatch.Mailbox")));
   }
 
   @Override
