@@ -57,7 +57,7 @@ public class FinagleServiceInstrumentation extends Instrumenter.Default {
   }
 
   public static class ServiceWrappingAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class, inline = false)
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startSpanOnApply(@Advice.Origin final Method method) {
 
       if (method
@@ -83,7 +83,7 @@ public class FinagleServiceInstrumentation extends Instrumenter.Default {
       return scope;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class, inline = false)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void addSpanFinisherOnExit(
         @Advice.Enter final AgentScope scope,
         @Advice.Thrown final Throwable throwable,
