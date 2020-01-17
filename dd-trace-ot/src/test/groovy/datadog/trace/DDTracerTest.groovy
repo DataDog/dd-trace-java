@@ -14,6 +14,7 @@ import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
+import datadog.trace.common.writer.ddagent.Monitor
 import datadog.trace.util.test.DDSpecification
 import io.opentracing.propagation.TextMapInject
 import org.junit.Rule
@@ -39,7 +40,7 @@ class DDTracerTest extends DDSpecification {
 
   def "verify defaults on tracer"() {
     when:
-    def tracer = new DDTracer()
+    def tracer = DDTracer.builder().build()
 
     then:
     tracer.serviceName == "unnamed-java-app"
@@ -49,7 +50,7 @@ class DDTracerTest extends DDSpecification {
     ((DDAgentWriter) tracer.writer).api.tracesUrl.port() == 8126
     ((DDAgentWriter) tracer.writer).api.tracesUrl.encodedPath() == "/v0.3/traces" ||
       ((DDAgentWriter) tracer.writer).api.tracesUrl.encodedPath() == "/v0.4/traces"
-    tracer.writer.monitor instanceof DDAgentWriter.NoopMonitor
+    tracer.writer.monitor instanceof Monitor.Noop
 
     tracer.spanContextDecorators.size() == 15
 
@@ -62,10 +63,10 @@ class DDTracerTest extends DDSpecification {
     System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, "true")
 
     when:
-    def tracer = new DDTracer(new Config())
+    def tracer = DDTracer.builder().config(new Config()).build()
 
     then:
-    tracer.writer.monitor instanceof DDAgentWriter.StatsDMonitor
+    tracer.writer.monitor instanceof Monitor.StatsD
     tracer.writer.monitor.hostInfo == "localhost:8125"
   }
 
@@ -74,7 +75,7 @@ class DDTracerTest extends DDSpecification {
     setup:
     System.setProperty(PREFIX + PRIORITY_SAMPLING, "false")
     when:
-    def tracer = new DDTracer(new Config())
+    def tracer = DDTracer.builder().config(new Config()).build()
     then:
     tracer.sampler instanceof AllSampler
   }
@@ -84,7 +85,7 @@ class DDTracerTest extends DDSpecification {
     System.setProperty(PREFIX + WRITER_TYPE, "LoggingWriter")
 
     when:
-    def tracer = new DDTracer(new Config())
+    def tracer = DDTracer.builder().config(new Config()).build()
 
     then:
     tracer.writer instanceof LoggingWriter
@@ -97,8 +98,7 @@ class DDTracerTest extends DDSpecification {
     System.setProperty(PREFIX + HEADER_TAGS, mapString)
 
     when:
-    def config = new Config()
-    def tracer = new DDTracer(config)
+    def tracer = DDTracer.builder().config(new Config()).build()
     // Datadog extractor gets placed first
     def taggedHeaders = tracer.extractor.extractors[0].taggedHeaders
 
@@ -116,7 +116,7 @@ class DDTracerTest extends DDSpecification {
   def "verify overriding host"() {
     when:
     System.setProperty(PREFIX + key, value)
-    def tracer = new DDTracer(new Config())
+    def tracer = DDTracer.builder().config(new Config()).build()
 
     then:
     tracer.writer instanceof DDAgentWriter
@@ -131,7 +131,7 @@ class DDTracerTest extends DDSpecification {
   def "verify overriding port"() {
     when:
     System.setProperty(PREFIX + key, value)
-    def tracer = new DDTracer(new Config())
+    def tracer = DDTracer.builder().config(new Config()).build()
 
     then:
     tracer.writer instanceof DDAgentWriter
@@ -147,7 +147,7 @@ class DDTracerTest extends DDSpecification {
   def "Writer is instance of LoggingWriter when property set"() {
     when:
     System.setProperty(PREFIX + "writer.type", "LoggingWriter")
-    def tracer = new DDTracer(new Config())
+    def tracer = DDTracer.builder().config(new Config()).build()
 
     then:
     tracer.writer instanceof LoggingWriter
@@ -172,7 +172,7 @@ class DDTracerTest extends DDSpecification {
   def "Shares TraceCount with DDApi with #key = #value"() {
     setup:
     System.setProperty(PREFIX + key, value)
-    final DDTracer tracer = new DDTracer(new Config())
+    final DDTracer tracer = DDTracer.builder().build()
 
     expect:
     tracer.writer instanceof DDAgentWriter
@@ -186,7 +186,7 @@ class DDTracerTest extends DDSpecification {
 
   def "root tags are applied only to root spans"() {
     setup:
-    def tracer = new DDTracer('my_service', new ListWriter(), new AllSampler(), '', ['only_root': 'value'], [:], [:], [:])
+    def tracer = DDTracer.builder().localRootSpanTags(['only_root': 'value']).build()
     def root = tracer.buildSpan('my_root').start()
     def child = tracer.buildSpan('my_child').asChildOf(root).start()
 
@@ -203,7 +203,7 @@ class DDTracerTest extends DDSpecification {
     given:
     Properties properties = new Properties()
     properties.setProperty("writer.type", "LoggingWriter")
-    def tracer = new DDTracer(new Config(properties, Config.get()))
+    def tracer = DDTracer.builder().withProperties(properties).build()
 
     when:
     def span = tracer.buildSpan("operation").start()
@@ -217,7 +217,7 @@ class DDTracerTest extends DDSpecification {
     given:
     Properties properties = new Properties()
     properties.setProperty("writer.type", "LoggingWriter")
-    def tracer = new DDTracer(new Config(properties, Config.get()))
+    def tracer = DDTracer.builder().withProperties(properties).build()
 
     when:
     def root = tracer.buildSpan("operation").start()
@@ -239,7 +239,7 @@ class DDTracerTest extends DDSpecification {
     given:
     Properties properties = new Properties()
     properties.setProperty("writer.type", "LoggingWriter")
-    def tracer = new DDTracer(new Config(properties, Config.get()))
+    def tracer = DDTracer.builder().withProperties(properties).build()
     def injector = Mock(TextMapInject)
 
     when:
@@ -260,7 +260,7 @@ class DDTracerTest extends DDSpecification {
   def "span priority only set after first injection"() {
     given:
     def sampler = new ControllableSampler()
-    def tracer = new DDTracer("serviceName", new LoggingWriter(), sampler)
+    def tracer = DDTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
     def injector = Mock(TextMapInject)
 
     when:
@@ -293,7 +293,7 @@ class DDTracerTest extends DDSpecification {
   def "injection doesn't override set priority"() {
     given:
     def sampler = new ControllableSampler()
-    def tracer = new DDTracer("serviceName", new LoggingWriter(), sampler)
+    def tracer = DDTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
     def injector = Mock(TextMapInject)
 
     when:
