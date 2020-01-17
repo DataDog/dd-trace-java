@@ -1,7 +1,5 @@
 package dd.trace.instrumentation.springsecurity;
 
-import java.util.Arrays;
-import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.access.AccessDecisionManager;
@@ -15,6 +13,16 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.crypto.password.LdapShaPasswordEncoder;
 import org.springframework.security.web.access.expression.WebExpressionVoter;
+
+import java.util.Arrays;
+import java.util.List;
+
+//spring 3.2.0
+//https://github.com/spring-projects/spring-security/blob/3.2.0.RELEASE/core/src/main/java/org/springframework/security/authentication/encoding/LdapShaPasswordEncoder.java
+//spring 5.2.0
+//https://github.com/spring-projects/spring-security/tree/5.2.0.RELEASE/crypto/src/main/java/org/springframework/security/crypto/password
+//https://github.com/spring-projects/spring-security/commit/3a4a32e654dda7dec5f6908d8f77df028e9cbdd3
+//https://github.com/spring-projects/spring-security/blob/4.2.13.RELEASE/ldap/src/main/java/org/springframework/security/ldap/authentication/PasswordComparisonAuthenticator.java
 
 @Configuration
 @EnableWebSecurity
