@@ -25,7 +25,7 @@ jobs:
 
     - run:
         name: Build Project
-        command: GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M" ./gradlew clean :dd-java-agent:shadowJar compileTestGroovy compileLatestDepTestGroovy compileTestScala compileLatestDepTestScala compileTestJava compileLatestDepTestJava --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+        command: JAVA_HOME=$JAVA_11_HOME GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M" ./gradlew clean :dd-java-agent:shadowJar compileTestGroovy compileLatestDepTestGroovy compileTestScala compileLatestDepTestScala compileTestJava compileLatestDepTestJava --build-cache --parallel --stacktrace --no-daemon --max-workers=8
 
     - run:
         name: Collect Libs
@@ -67,7 +67,7 @@ jobs:
 
     - run:
         name: Run Tests
-        command: GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M" ./gradlew $TEST_TASK --build-cache --parallel --stacktrace --no-daemon --max-workers=6
+        command: JAVA_HOME=$JAVA_11_HOME GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M" ./gradlew $TEST_TASK --build-cache --parallel --stacktrace --no-daemon --max-workers=6
 
     - run:
         name: Collect Reports
@@ -94,7 +94,7 @@ jobs:
     <<: *default_test_job
     environment:
     # We are building on Java8, this is our default JVM so no need to set more homes
-    - TEST_TASK: test jacocoTestReport jacocoTestCoverageVerification
+    - TEST_TASK: testJava8 jacocoTestReport jacocoTestCoverageVerification
 
   test_latest8:
     <<: *default_test_job
@@ -125,7 +125,8 @@ jobs:
   test_11:
     <<: *default_test_job
     environment:
-    - TEST_TASK: testJava11
+    # We are building on Java8, this is our default JVM so no need to set more homes
+    - TEST_TASK: test jacocoTestReport jacocoTestCoverageVerification
 
   test_zulu11:
     <<: *default_test_job
@@ -162,7 +163,7 @@ jobs:
 
     - run:
         name: Run Trace Agent Tests
-        command: ./gradlew traceAgentTest --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+        command: JAVA_HOME=$JAVA_11_HOME ./gradlew traceAgentTest --build-cache --parallel --stacktrace --no-daemon --max-workers=8
 
     - run:
         name: Collect Reports
@@ -194,7 +195,7 @@ jobs:
 
     - run:
         name: Build Project
-        command: GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M" ./gradlew check -PskipTests --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+        command: JAVA_HOME=$JAVA_11_HOME GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M" ./gradlew check -PskipTests --build-cache --parallel --stacktrace --no-daemon --max-workers=8
 
     - run:
         name: Collect Reports
@@ -216,7 +217,7 @@ jobs:
 
     - run:
         name: Verify Muzzle
-        command: SKIP_BUILDSCAN="true" GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4G -Xms64M' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M" ./gradlew muzzle --parallel --stacktrace --no-daemon --max-workers=16
+        command: JAVA_HOME=$JAVA_11_HOME SKIP_BUILDSCAN="true" GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4G -Xms64M' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M" ./gradlew muzzle --parallel --stacktrace --no-daemon --max-workers=16
 
     - save_cache:
         key: dd-trace-java-muzzle-{{ checksum "dd-trace-java.gradle" }}
@@ -236,7 +237,7 @@ jobs:
     - deploy:
         name: Publish master to Artifactory
         command: |
-          ./gradlew \
+          JAVA_HOME=$JAVA_11_HOME ./gradlew \
             -PbintrayUser=${BINTRAY_USER} \
             -PbintrayApiKey=${BINTRAY_API_KEY} \
             -PbuildInfo.build.number=${CIRCLE_BUILD_NUM} \
