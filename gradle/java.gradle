@@ -162,8 +162,6 @@ javadoc {
   options {
     setMemberLevel JavadocMemberLevel.PUBLIC
     setAuthor true
-
-    links "https://docs.oracle.com/javase/8/docs/api/"
   }
 }
 
