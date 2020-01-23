@@ -35,6 +35,8 @@ public class ContinuableScope implements DDScope, TraceScope {
   private final Continuation continuation;
   /** Flag to propagate this scope across async boundaries. */
   private final AtomicBoolean isAsyncPropagating = new AtomicBoolean(false);
+  /** depth of scope on thread */
+  private final int depth;
 
   ContinuableScope(
       final ContextualScopeManager scopeManager,
@@ -62,6 +64,7 @@ public class ContinuableScope implements DDScope, TraceScope {
     event.start();
     toRestore = scopeManager.tlsScope.get();
     scopeManager.tlsScope.set(this);
+    depth = toRestore == null ? 0 : toRestore.depth() + 1;
     for (final ScopeListener listener : scopeManager.scopeListeners) {
       listener.afterScopeActivated();
     }
@@ -104,6 +107,11 @@ public class ContinuableScope implements DDScope, TraceScope {
   @Override
   public DDSpan span() {
     return spanUnderScope;
+  }
+
+  @Override
+  public int depth() {
+    return depth;
   }
 
   @Override

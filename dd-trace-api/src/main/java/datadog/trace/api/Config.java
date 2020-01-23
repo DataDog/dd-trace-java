@@ -70,8 +70,8 @@ public class Config {
   public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
   public static final String TRACE_SAMPLING_SERVICE_RULES = "trace.sampling.service.rules";
   public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
-  public static final String TRACE_SAMPLING_DEFAULT_RATE = "trace.sampling.default.rate";
-  public static final String TRACE_SAMPLING_RATE_LIMIT = "trace.sampling.rate.limit";
+  public static final String TRACE_SAMPLE_RATE = "trace.sample.rate";
+  public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
   public static final String HEADER_TAGS = "trace.header.tags";
   public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
@@ -81,6 +81,7 @@ public class Config {
   public static final String HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN = "trace.http.client.split-by-domain";
   public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE = "trace.db.client.split-by-instance";
   public static final String SPLIT_BY_TAGS = "trace.split-by-tags";
+  public static final String SCOPE_DEPTH_LIMIT = "trace.scope.depth.limit";
   public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";
@@ -159,6 +160,7 @@ public class Config {
   private static final boolean DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN = false;
   private static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
   private static final String DEFAULT_SPLIT_BY_TAGS = "";
+  private static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
   private static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   private static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
   private static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
@@ -195,7 +197,7 @@ public class Config {
   private static final String DEFAULT_TRACE_METHODS = null;
   public static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
   public static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
-  public static final double DEFAULT_TRACE_SAMPLING_RATE_LIMIT = 100;
+  public static final double DEFAULT_TRACE_RATE_LIMIT = 100;
 
   public enum PropagationStyle {
     DATADOG,
@@ -234,6 +236,7 @@ public class Config {
   @Getter private final boolean httpClientSplitByDomain;
   @Getter private final boolean dbClientSplitByInstance;
   @Getter private final Set<String> splitByTags;
+  @Getter private final Integer scopeDepthLimit;
   @Getter private final Integer partialFlushMinSpans;
   @Getter private final boolean runtimeContextFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
@@ -267,8 +270,8 @@ public class Config {
 
   @Getter private final Map<String, String> traceSamplingServiceRules;
   @Getter private final Map<String, String> traceSamplingOperationRules;
-  @Getter private final Double traceSamplingDefaultRate;
-  @Getter private final Double traceSamplingRateLimit;
+  @Getter private final Double traceSampleRate;
+  @Getter private final Double traceRateLimit;
 
   @Getter private final boolean profilingEnabled;
   @Getter private final String profilingUrl;
@@ -354,6 +357,9 @@ public class Config {
             new LinkedHashSet<>(
                 getListSettingFromEnvironment(SPLIT_BY_TAGS, DEFAULT_SPLIT_BY_TAGS)));
 
+    scopeDepthLimit =
+        getIntegerSettingFromEnvironment(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
+
     partialFlushMinSpans =
         getIntegerSettingFromEnvironment(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
 
@@ -412,10 +418,8 @@ public class Config {
     traceSamplingServiceRules = getMapSettingFromEnvironment(TRACE_SAMPLING_SERVICE_RULES, null);
     traceSamplingOperationRules =
         getMapSettingFromEnvironment(TRACE_SAMPLING_OPERATION_RULES, null);
-    traceSamplingDefaultRate = getDoubleSettingFromEnvironment(TRACE_SAMPLING_DEFAULT_RATE, null);
-    traceSamplingRateLimit =
-        getDoubleSettingFromEnvironment(
-            TRACE_SAMPLING_RATE_LIMIT, DEFAULT_TRACE_SAMPLING_RATE_LIMIT);
+    traceSampleRate = getDoubleSettingFromEnvironment(TRACE_SAMPLE_RATE, null);
+    traceRateLimit = getDoubleSettingFromEnvironment(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
     profilingEnabled =
         getBooleanSettingFromEnvironment(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
@@ -536,6 +540,9 @@ public class Config {
                 getPropertyListValue(
                     properties, SPLIT_BY_TAGS, new ArrayList<>(parent.splitByTags))));
 
+    scopeDepthLimit =
+        getPropertyIntegerValue(properties, SCOPE_DEPTH_LIMIT, parent.scopeDepthLimit);
+
     partialFlushMinSpans =
         getPropertyIntegerValue(properties, PARTIAL_FLUSH_MIN_SPANS, parent.partialFlushMinSpans);
 
@@ -601,12 +608,8 @@ public class Config {
     traceSamplingOperationRules =
         getPropertyMapValue(
             properties, TRACE_SAMPLING_OPERATION_RULES, parent.traceSamplingOperationRules);
-    traceSamplingDefaultRate =
-        getPropertyDoubleValue(
-            properties, TRACE_SAMPLING_DEFAULT_RATE, parent.traceSamplingDefaultRate);
-    traceSamplingRateLimit =
-        getPropertyDoubleValue(
-            properties, TRACE_SAMPLING_RATE_LIMIT, parent.traceSamplingRateLimit);
+    traceSampleRate = getPropertyDoubleValue(properties, TRACE_SAMPLE_RATE, parent.traceSampleRate);
+    traceRateLimit = getPropertyDoubleValue(properties, TRACE_RATE_LIMIT, parent.traceRateLimit);
 
     profilingEnabled =
         getPropertyBooleanValue(properties, PROFILING_ENABLED, parent.profilingEnabled);
@@ -780,7 +783,8 @@ public class Config {
   }
 
   public boolean isDecoratorEnabled(final String name) {
-    return getBooleanSettingFromEnvironment("trace." + name.toLowerCase() + ".enabled", true);
+    return getBooleanSettingFromEnvironment("trace." + name + ".enabled", true)
+        && getBooleanSettingFromEnvironment("trace." + name.toLowerCase() + ".enabled", true);
   }
 
   /**

@@ -62,11 +62,11 @@ import static datadog.trace.api.Config.SPAN_TAGS
 import static datadog.trace.api.Config.SPLIT_BY_TAGS
 import static datadog.trace.api.Config.TRACE_AGENT_PORT
 import static datadog.trace.api.Config.TRACE_ENABLED
+import static datadog.trace.api.Config.TRACE_RATE_LIMIT
 import static datadog.trace.api.Config.TRACE_REPORT_HOSTNAME
 import static datadog.trace.api.Config.TRACE_RESOLVER_ENABLED
-import static datadog.trace.api.Config.TRACE_SAMPLING_DEFAULT_RATE
+import static datadog.trace.api.Config.TRACE_SAMPLE_RATE
 import static datadog.trace.api.Config.TRACE_SAMPLING_OPERATION_RULES
-import static datadog.trace.api.Config.TRACE_SAMPLING_RATE_LIMIT
 import static datadog.trace.api.Config.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.Config.WRITER_TYPE
 
@@ -196,8 +196,8 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(HEALTH_METRICS_STATSD_PORT, "654")
     prop.setProperty(TRACE_SAMPLING_SERVICE_RULES, "a:1")
     prop.setProperty(TRACE_SAMPLING_OPERATION_RULES, "b:1")
-    prop.setProperty(TRACE_SAMPLING_DEFAULT_RATE, ".5")
-    prop.setProperty(TRACE_SAMPLING_RATE_LIMIT, "200")
+    prop.setProperty(TRACE_SAMPLE_RATE, ".5")
+    prop.setProperty(TRACE_RATE_LIMIT, "200")
 
     prop.setProperty(PROFILING_ENABLED, "true")
     prop.setProperty(PROFILING_URL, "new url")
@@ -256,8 +256,8 @@ class ConfigTest extends DDSpecification {
     config.healthMetricsStatsdPort == 654
     config.traceSamplingServiceRules == [a: "1"]
     config.traceSamplingOperationRules == [b: "1"]
-    config.traceSamplingDefaultRate == 0.5
-    config.traceSamplingRateLimit == 200
+    config.traceSampleRate == 0.5
+    config.traceRateLimit == 200
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
@@ -316,8 +316,8 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + HEALTH_METRICS_STATSD_PORT, "654")
     System.setProperty(PREFIX + TRACE_SAMPLING_SERVICE_RULES, "a:1")
     System.setProperty(PREFIX + TRACE_SAMPLING_OPERATION_RULES, "b:1")
-    System.setProperty(PREFIX + TRACE_SAMPLING_DEFAULT_RATE, ".5")
-    System.setProperty(PREFIX + TRACE_SAMPLING_RATE_LIMIT, "200")
+    System.setProperty(PREFIX + TRACE_SAMPLE_RATE, ".5")
+    System.setProperty(PREFIX + TRACE_RATE_LIMIT, "200")
 
     System.setProperty(PREFIX + PROFILING_ENABLED, "true")
     System.setProperty(PREFIX + PROFILING_URL, "new url")
@@ -376,8 +376,8 @@ class ConfigTest extends DDSpecification {
     config.healthMetricsStatsdPort == 654
     config.traceSamplingServiceRules == [a: "1"]
     config.traceSamplingOperationRules == [b: "1"]
-    config.traceSamplingDefaultRate == 0.5
-    config.traceSamplingRateLimit == 200
+    config.traceSampleRate == 0.5
+    config.traceRateLimit == 200
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
