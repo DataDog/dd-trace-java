@@ -21,20 +21,10 @@ package com.datadog.profiling.controller;
  */
 public interface Controller {
   /**
-   * Starts a time limited recording using the specified template. Note that the data will not be
-   * available until the recording is done, and some other mechanism will need to be put in place
-   * for that to completed and determined.
-   *
-   * @param recordingName the name under which the recording will be known.
-   * @return the recording object created.
-   */
-  OngoingRecording createPeriodicRecording(String recordingName);
-
-  /**
    * Creates a continuous recording using the specified template.
    *
    * @param recordingName the name under which the recording will be known.
    * @return the recording object created.
    */
-  OngoingRecording createContinuousRecording(String recordingName);
+  OngoingRecording createRecording(String recordingName);
 }

@@ -30,14 +30,11 @@ import jdk.jfr.Recording;
  */
 public final class OpenJdkController implements Controller {
   // Visible for testing
-  static final String JFP_PERIODIC = "jfr2/ddperiodic.jfp";
-  // Visible for testing
-  static final String JFP_CONTINUOUS = "jfr2/ddcontinuous.jfp";
+  static final String JFP = "jfr/dd.jfp";
+  static final int RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
+  static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
 
-  private final int recordingMaxSize;
-  private final Duration recordingMaxAge;
-  private final Map<String, String> continuousRecordingSettings;
-  private final Map<String, String> periodicRecordingSettings;
+  private final Map<String, String> recordingSettings;
 
   /**
    * Main constructor for OpenJDK profiling controller.
@@ -52,37 +49,20 @@ public final class OpenJdkController implements Controller {
     Class.forName("jdk.jfr.FlightRecorder");
 
     try {
-      periodicRecordingSettings =
-          JfpUtils.readNamedJfpResource(
-              JFP_PERIODIC, config.getProfilingPeriodicConfigOverridePath());
-      continuousRecordingSettings =
-          JfpUtils.readNamedJfpResource(
-              JFP_CONTINUOUS, config.getProfilingContinuousConfigOverridePath());
+      recordingSettings =
+          JfpUtils.readNamedJfpResource(JFP, config.getProfilingTemplateOverridePath());
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
-
-    recordingMaxSize = config.getProfilingRecordingMaxSize();
-    recordingMaxAge = Duration.ofSeconds(config.getProfilingRecordingMaxAge());
   }
 
   @Override
-  public OpenJdkOngoingRecording createPeriodicRecording(final String recordingName) {
-    return createRecording(recordingName, periodicRecordingSettings);
-  }
-
-  @Override
-  public OpenJdkOngoingRecording createContinuousRecording(final String recordingName) {
-    return createRecording(recordingName, continuousRecordingSettings);
-  }
-
-  private OpenJdkOngoingRecording createRecording(
-      final String recordingName, final Map<String, String> settings) {
+  public OpenJdkOngoingRecording createRecording(final String recordingName) {
     final Recording recording = new Recording();
     recording.setName(recordingName);
-    recording.setSettings(settings);
-    recording.setMaxSize(recordingMaxSize);
-    recording.setMaxAge(recordingMaxAge);
+    recording.setSettings(recordingSettings);
+    recording.setMaxSize(RECORDING_MAX_SIZE);
+    recording.setMaxAge(RECORDING_MAX_AGE);
     recording.start();
     return new OpenJdkOngoingRecording(recording);
   }

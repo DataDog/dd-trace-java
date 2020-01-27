@@ -1,19 +1,19 @@
 package com.datadog.profiling.uploader;
 
-enum CompressionLevel {
+enum CompressionType {
   /** No compression */
   OFF,
-  /** Default compression level */
+  /** Default compression */
   ON,
-  /** Unknown compression level */
+  /** Unknown compression config value */
   UNKNOWN;
 
-  static CompressionLevel of(String level) {
-    if (level == null) {
+  static CompressionType of(final String type) {
+    if (type == null) {
       return UNKNOWN;
     }
 
-    switch (level.toLowerCase()) {
+    switch (type.toLowerCase()) {
       case "off":
         return OFF;
       case "on":

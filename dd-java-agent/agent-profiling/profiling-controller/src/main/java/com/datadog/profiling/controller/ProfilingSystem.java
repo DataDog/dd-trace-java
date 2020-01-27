@@ -22,7 +22,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
 /** Sets up the profiling strategy and schedules the profiling recordings. */
@@ -39,12 +38,8 @@ public final class ProfilingSystem {
 
   private final Duration startupDelay;
   private final Duration uploadPeriod;
-  private final int continuousToPeriodicUploadsRatio;
-  private final int periodicRecordingCounterStart;
 
-  private OngoingRecording continuousRecording;
-  private final AtomicReference<OngoingRecording> periodicRecordingRef =
-      new AtomicReference<>(null);
+  private OngoingRecording recording;
   private boolean started = false;
 
   /**
@@ -55,8 +50,6 @@ public final class ProfilingSystem {
    * @param startupDelay delay before starting jfr
    * @param startupDelayRandomRange randomization range for startup delay
    * @param uploadPeriod how often to upload data
-   * @param continuousToPeriodicUploadsRatio how often to run and upload periodic recordings, given
-   *     in units of {@code uploadPeriod}
    * @throws ConfigurationException if the configuration information was bad.
    */
   public ProfilingSystem(
@@ -64,8 +57,7 @@ public final class ProfilingSystem {
       final RecordingDataListener dataListener,
       final Duration startupDelay,
       final Duration startupDelayRandomRange,
-      final Duration uploadPeriod,
-      final int continuousToPeriodicUploadsRatio)
+      final Duration uploadPeriod)
       throws ConfigurationException {
     this(
         controller,
@@ -73,7 +65,6 @@ public final class ProfilingSystem {
         startupDelay,
         startupDelayRandomRange,
         uploadPeriod,
-        continuousToPeriodicUploadsRatio,
         Executors.newScheduledThreadPool(
             1, new ProfilingThreadFactory("dd-profiler-recording-scheduler")),
         ThreadLocalRandom.current());
@@ -85,7 +76,6 @@ public final class ProfilingSystem {
       final Duration baseStartupDelay,
       final Duration startupDelayRandomRange,
       final Duration uploadPeriod,
-      final int continuousToPeriodicUploadsRatio,
       final ScheduledExecutorService executorService,
       final ThreadLocalRandom threadLocalRandom)
       throws ConfigurationException {
@@ -93,7 +83,6 @@ public final class ProfilingSystem {
     this.dataListener = dataListener;
     this.uploadPeriod = uploadPeriod;
     this.executorService = executorService;
-    this.continuousToPeriodicUploadsRatio = continuousToPeriodicUploadsRatio;
 
     if (baseStartupDelay.isNegative()) {
       throw new ConfigurationException("Startup delay must not be negative.");
@@ -107,31 +96,16 @@ public final class ProfilingSystem {
       throw new ConfigurationException("Upload period must be positive.");
     }
 
-    if (continuousToPeriodicUploadsRatio < 0) {
-      throw new ConfigurationException(
-          "Continuous to periodic uploads ratio must not be negative.");
-    }
-
     // Note: is is important to not keep reference to the threadLocalRandom beyond the constructor
     // since it is expected to be thread local.
     startupDelay = randomizeDuration(threadLocalRandom, baseStartupDelay, startupDelayRandomRange);
-
-    if (continuousToPeriodicUploadsRatio > 1) {
-      // Lower value for periodicRecordingCounterStart 1 to account for non periodic recording that
-      // is already running.
-      periodicRecordingCounterStart =
-          threadLocalRandom.nextInt(1, continuousToPeriodicUploadsRatio);
-    } else {
-      periodicRecordingCounterStart = 1;
-    }
   }
 
   public final void start() {
     log.info(
-        "Starting profiling system: startupDelay = {}ms, uploadPeriod = {}ms, continuousToPeriodicUploadsRatio = {}",
+        "Starting profiling system: startupDelay = {}ms, uploadPeriod = {}ms",
         startupDelay.toMillis(),
-        uploadPeriod.toMillis(),
-        continuousToPeriodicUploadsRatio);
+        uploadPeriod.toMillis());
 
     // Delay JFR initialization. This code is run from 'premain' and there is a known bug in JVM
     // which makes it crash if JFR is run before 'main' starts.
@@ -140,14 +114,9 @@ public final class ProfilingSystem {
         () -> {
           try {
             final Instant now = Instant.now();
-            continuousRecording = controller.createContinuousRecording(RECORDING_NAME);
-
-            if (continuousToPeriodicUploadsRatio == 1) {
-              periodicRecordingRef.set(controller.createPeriodicRecording(RECORDING_NAME));
-            }
-
+            recording = controller.createRecording(RECORDING_NAME);
             executorService.scheduleAtFixedRate(
-                new SnapshotRecording(periodicRecordingCounterStart, now),
+                new SnapshotRecording(now),
                 uploadPeriod.toMillis(),
                 uploadPeriod.toMillis(),
                 TimeUnit.MILLISECONDS);
@@ -173,16 +142,12 @@ public final class ProfilingSystem {
       log.error("Wait for executor shutdown interrupted");
     }
 
-    // Here we assume that all other threads have been shutdown and we can close remaining
-    // recordings
-    if (continuousRecording != null) {
-      continuousRecording.close();
-    }
-
-    final OngoingRecording recording = periodicRecordingRef.getAndSet(null);
+    // Here we assume that all other threads have been shutdown and we can close running
+    // recording
     if (recording != null) {
       recording.close();
     }
+
     started = false;
   }
 
@@ -203,53 +168,24 @@ public final class ProfilingSystem {
   private final class SnapshotRecording implements Runnable {
 
     private Instant lastSnapshot;
-    private int periodicRecordingCounter;
 
-    SnapshotRecording(final int periodicRecordingCounterStart, final Instant startTime) {
-      periodicRecordingCounter = periodicRecordingCounterStart;
+    SnapshotRecording(final Instant startTime) {
       lastSnapshot = startTime;
     }
 
     @Override
     public void run() {
+      final RecordingType recordingType = RecordingType.CONTINUOUS;
       try {
-        RecordingType recordingType = RecordingType.CONTINUOUS;
-
-        if (continuousToPeriodicUploadsRatio == 1) {
-          // Periodic recording is already running continuously
-          recordingType = RecordingType.PERIODIC;
-        } else if (continuousToPeriodicUploadsRatio > 1) {
-          final OngoingRecording periodicRecording = periodicRecordingRef.getAndSet(null);
-          if (periodicRecording != null) {
-            // Just stop the recording - we will get the data in snapshot
-            periodicRecording.close();
-            recordingType = RecordingType.PERIODIC;
-          }
+        final RecordingData recordingData = recording.snapshot(lastSnapshot, Instant.now());
+        // The hope here is that we do not get chunk rotated after taking snapshot and before we
+        // take this timestamp otherwise we will start losing data.
+        lastSnapshot = Instant.now();
+        if (recordingData != null) {
+          dataListener.onNewData(recordingType, recordingData);
         }
-
-        try {
-          final RecordingData recording = continuousRecording.snapshot(lastSnapshot, Instant.now());
-          // The hope here is that we do not get chunk rotated after taking snapshot and before we
-          // take this timestamp otherwise we will start losing data.
-          lastSnapshot = Instant.now();
-          if (recording != null) {
-            dataListener.onNewData(recordingType, recording);
-          }
-        } catch (final Exception e) {
-          log.error("Cannot upload snapshot", e);
-        }
-
-        if (continuousToPeriodicUploadsRatio > 1) {
-          periodicRecordingCounter++;
-          if (periodicRecordingCounter >= continuousToPeriodicUploadsRatio) {
-            periodicRecordingCounter = 0;
-            final OngoingRecording newRecording =
-                controller.createPeriodicRecording(RECORDING_NAME);
-            if (!periodicRecordingRef.compareAndSet(null, newRecording)) {
-              newRecording.close(); // should never happen
-            }
-          }
-        }
+      } catch (final Exception e) {
+        log.error("Cannot upload snapshot", e);
       } catch (final Throwable t) {
         log.error("Fatal exception in profiling thread", t);
         throw t;

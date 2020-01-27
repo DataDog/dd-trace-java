@@ -103,27 +103,20 @@ public class Config {
 
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
 
-  // FIXME: review naming before releasing
   public static final String PROFILING_ENABLED = "profiling.enabled";
   public static final String PROFILING_URL = "profiling.url";
-  public static final String PROFILING_API_KEY = "profiling.apikey";
-  public static final String PROFILING_API_KEY_FILE = "profiling.apikey.file";
+
+  public static final String PROFILING_API_KEY = "profiling.api-key";
+  public static final String PROFILING_API_KEY_FILE = "profiling.api-key-file";
+  public static final String PROFILING_API_KEY_OLD = "profiling.apikey";
+  public static final String PROFILING_API_KEY_FILE_OLD = "profiling.apikey.file";
   public static final String PROFILING_TAGS = "profiling.tags";
   public static final String PROFILING_STARTUP_DELAY = "profiling.start.delay";
   public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
-  public static final String PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO =
-      "profiling.continuous.to.periodic.upload.ratio";
-  public static final String PROFILING_RECORDING_MAX_SIZE = "profiling.recording.max.size";
-  public static final String PROFILING_RECORDING_MAX_AGE = "profiling.recording.max.age";
-  public static final String PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH =
-      "profiling.periodic.config.override.path";
-  public static final String PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH =
-      "profiling.continuous.config.override.path";
-  public static final String PROFILING_UPLOAD_REQUEST_TIMEOUT = "profiling.upload.request.timeout";
-  public static final String PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT =
-      "profiling.upload.request.io-operation.timeout";
-  public static final String PROFILING_UPLOAD_COMPRESSION_LEVEL =
-      "profiling.upload.compression.level";
+  public static final String PROFILING_TEMPLATE_OVERRIDE_PATH =
+      "profiling.jfr.template.override.path";
+  public static final String PROFILING_UPLOAD_TIMEOUT = "profiling.upload.timeout";
+  public static final String PROFILING_UPLOAD_COMPRESSION = "profiling.upload.compression";
   public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
   public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
@@ -169,7 +162,7 @@ public class Config {
   public static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;
 
   public static final boolean DEFAULT_METRICS_ENABLED = false;
-  // No default constants for metrics statsd support -- falls back to jmx fetch values
+  // No default constants for metrics statsd support -- falls back to jmxfetch values
 
   public static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
 
@@ -178,14 +171,8 @@ public class Config {
       "https://beta-intake.profile.datadoghq.com/v1/input";
   public static final int DEFAULT_PROFILING_STARTUP_DELAY = 10;
   public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
-  public static final int DEFAULT_PROFILING_RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
-  public static final int DEFAULT_PROFILING_RECORDING_MAX_AGE = 5 * 60; // 5 mins
-  // always-on periodic profile
-  public static final int DEFAULT_PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO = 1;
-  // TODO: Should we make this one setting?
-  public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_TIMEOUT = 30; // seconds
-  public static final int DEFAULT_PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT = 30; // seconds
-  public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION_LEVEL = "on";
+  public static final int DEFAULT_PROFILING_UPLOAD_TIMEOUT = 30; // seconds
+  public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
   public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
@@ -279,14 +266,9 @@ public class Config {
   private final Map<String, String> profilingTags;
   @Getter private final int profilingStartupDelay;
   @Getter private final int profilingUploadPeriod;
-  @Getter private final int profilingContinuousToPeriodicUploadsRatio;
-  @Getter private final int profilingRecordingMaxSize;
-  @Getter private final int profilingRecordingMaxAge;
-  @Getter private final String profilingPeriodicConfigOverridePath;
-  @Getter private final String profilingContinuousConfigOverridePath;
-  @Getter private final int profilingUploadRequestTimeout;
-  @Getter private final int profilingUploadRequestIOOperationTimeout;
-  @Getter private final String profilingUploadCompressionLevel;
+  @Getter private final String profilingTemplateOverridePath;
+  @Getter private final int profilingUploadTimeout;
+  @Getter private final String profilingUploadCompression;
   @Getter private final String profilingProxyHost;
   @Getter private final int profilingProxyPort;
   @Getter private final String profilingProxyUsername;
@@ -439,6 +421,22 @@ public class Config {
         log.error("Cannot read API key from file {}, skipping", profilingApiKeyFile, e);
       }
     }
+    if (tmpProfilingApiKey == null) {
+      final String oldProfilingApiKeyFile =
+          getSettingFromEnvironment(PROFILING_API_KEY_FILE_OLD, null);
+      tmpProfilingApiKey =
+          System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
+      if (oldProfilingApiKeyFile != null) {
+        try {
+          tmpProfilingApiKey =
+              new String(
+                      Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
+                  .trim();
+        } catch (final IOException e) {
+          log.error("Cannot read API key from file {}, skipping", profilingApiKeyFile, e);
+        }
+      }
+    }
     profilingApiKey = tmpProfilingApiKey;
 
     profilingTags = getMapSettingFromEnvironment(PROFILING_TAGS, null);
@@ -446,30 +444,14 @@ public class Config {
         getIntegerSettingFromEnvironment(PROFILING_STARTUP_DELAY, DEFAULT_PROFILING_STARTUP_DELAY);
     profilingUploadPeriod =
         getIntegerSettingFromEnvironment(PROFILING_UPLOAD_PERIOD, DEFAULT_PROFILING_UPLOAD_PERIOD);
-    profilingContinuousToPeriodicUploadsRatio =
+    profilingTemplateOverridePath =
+        getSettingFromEnvironment(PROFILING_TEMPLATE_OVERRIDE_PATH, null);
+    profilingUploadTimeout =
         getIntegerSettingFromEnvironment(
-            PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO,
-            DEFAULT_PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO);
-    profilingRecordingMaxSize =
-        getIntegerSettingFromEnvironment(
-            PROFILING_RECORDING_MAX_SIZE, DEFAULT_PROFILING_RECORDING_MAX_SIZE);
-    profilingRecordingMaxAge =
-        getIntegerSettingFromEnvironment(
-            PROFILING_RECORDING_MAX_AGE, DEFAULT_PROFILING_RECORDING_MAX_AGE);
-    profilingPeriodicConfigOverridePath =
-        getSettingFromEnvironment(PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, null);
-    profilingContinuousConfigOverridePath =
-        getSettingFromEnvironment(PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, null);
-    profilingUploadRequestTimeout =
-        getIntegerSettingFromEnvironment(
-            PROFILING_UPLOAD_REQUEST_TIMEOUT, DEFAULT_PROFILING_UPLOAD_REQUEST_TIMEOUT);
-    profilingUploadRequestIOOperationTimeout =
-        getIntegerSettingFromEnvironment(
-            PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT,
-            DEFAULT_PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT);
-    profilingUploadCompressionLevel =
+            PROFILING_UPLOAD_TIMEOUT, DEFAULT_PROFILING_UPLOAD_TIMEOUT);
+    profilingUploadCompression =
         getSettingFromEnvironment(
-            PROFILING_UPLOAD_COMPRESSION_LEVEL, DEFAULT_PROFILING_UPLOAD_COMPRESSION_LEVEL);
+            PROFILING_UPLOAD_COMPRESSION, DEFAULT_PROFILING_UPLOAD_COMPRESSION);
     profilingProxyHost = getSettingFromEnvironment(PROFILING_PROXY_HOST, null);
     profilingProxyPort =
         getIntegerSettingFromEnvironment(PROFILING_PROXY_PORT, DEFAULT_PROFILING_PROXY_PORT);
@@ -620,35 +602,14 @@ public class Config {
         getPropertyIntegerValue(properties, PROFILING_STARTUP_DELAY, parent.profilingStartupDelay);
     profilingUploadPeriod =
         getPropertyIntegerValue(properties, PROFILING_UPLOAD_PERIOD, parent.profilingUploadPeriod);
-    profilingContinuousToPeriodicUploadsRatio =
-        getPropertyIntegerValue(
-            properties,
-            PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO,
-            parent.profilingContinuousToPeriodicUploadsRatio);
-    profilingRecordingMaxSize =
-        getPropertyIntegerValue(
-            properties, PROFILING_RECORDING_MAX_SIZE, parent.profilingRecordingMaxSize);
-    profilingRecordingMaxAge =
-        getPropertyIntegerValue(
-            properties, PROFILING_RECORDING_MAX_AGE, parent.profilingRecordingMaxAge);
-    profilingPeriodicConfigOverridePath =
+    profilingTemplateOverridePath =
         properties.getProperty(
-            PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, parent.profilingPeriodicConfigOverridePath);
-    profilingContinuousConfigOverridePath =
-        properties.getProperty(
-            PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH,
-            parent.profilingContinuousConfigOverridePath);
-    profilingUploadRequestTimeout =
+            PROFILING_TEMPLATE_OVERRIDE_PATH, parent.profilingTemplateOverridePath);
+    profilingUploadTimeout =
         getPropertyIntegerValue(
-            properties, PROFILING_UPLOAD_REQUEST_TIMEOUT, parent.profilingUploadRequestTimeout);
-    profilingUploadRequestIOOperationTimeout =
-        getPropertyIntegerValue(
-            properties,
-            PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT,
-            parent.profilingUploadRequestIOOperationTimeout);
-    profilingUploadCompressionLevel =
-        properties.getProperty(
-            PROFILING_UPLOAD_COMPRESSION_LEVEL, parent.profilingUploadCompressionLevel);
+            properties, PROFILING_UPLOAD_TIMEOUT, parent.profilingUploadTimeout);
+    profilingUploadCompression =
+        properties.getProperty(PROFILING_UPLOAD_COMPRESSION, parent.profilingUploadCompression);
     profilingProxyHost = properties.getProperty(PROFILING_PROXY_HOST, parent.profilingProxyHost);
     profilingProxyPort =
         getPropertyIntegerValue(properties, PROFILING_PROXY_PORT, parent.profilingProxyPort);

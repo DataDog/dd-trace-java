@@ -1,6 +1,6 @@
 package com.datadog.profiling.uploader;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,23 +8,23 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-class CompressionLevelTest {
+class CompressionTypeTest {
   @Test
   void testDefault() {
-    assertEquals(CompressionLevel.UNKNOWN, CompressionLevel.of(""));
-    assertEquals(CompressionLevel.UNKNOWN, CompressionLevel.of(null));
+    assertEquals(CompressionType.UNKNOWN, CompressionType.of(""));
+    assertEquals(CompressionType.UNKNOWN, CompressionType.of(null));
   }
 
   @ParameterizedTest
-  @EnumSource(CompressionLevel.class)
-  void testOn(CompressionLevel level) {
-    for (String checkLevel : permutateCase(level.name())) {
-      assertEquals(level, CompressionLevel.of(checkLevel));
+  @EnumSource(CompressionType.class)
+  void testOn(final CompressionType type) {
+    for (final String checkType : permutateCase(type.name())) {
+      assertEquals(type, CompressionType.of(checkType));
     }
   }
 
   private static List<String> permutateCase(String input) {
-    List<String> output = new ArrayList<>();
+    final List<String> output = new ArrayList<>();
     input = input.toLowerCase();
     // fast track for all-upper and all-lower
     output.add(input);
@@ -33,7 +33,7 @@ class CompressionLevelTest {
     // use bit operations to generate permutations
     long mask = 0L;
     for (int i = 0; i < input.length(); i++) {
-      StringBuilder sb = new StringBuilder();
+      final StringBuilder sb = new StringBuilder();
       mask += 1;
       long check = mask;
       for (int j = 0; j < input.length(); j++) {
