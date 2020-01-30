@@ -37,6 +37,13 @@ testSets {
   latestDepTest {
     dirName = 'test'
   }
+
+  lettuceTest
+}
+
+compileLettuceTestGroovy {
+  sourceCompatibility = 1.8
+  targetCompatibility = 1.8
 }
 
 dependencies {
@@ -50,7 +57,14 @@ dependencies {
   latestDepTestCompile group: 'io.netty', name: 'netty-codec-http', version: '(,5.0)'
   // latest async-http-client incompatable with 5.0+ netty
   latestDepTestCompile group: 'org.asynchttpclient', name: 'async-http-client', version: '+'
+
+  lettuceTestCompile project(':dd-java-agent:instrumentation:java-concurrent')
+  lettuceTestCompile project(':dd-java-agent:instrumentation:lettuce-5')
+  lettuceTestCompile group: 'io.lettuce', name: 'lettuce-core', version: '5.2.0.RELEASE'
+  lettuceTestCompile deps.testcontainers
 }
+
+test.finalizedBy lettuceTest
 
 // We need to force the dependency to the earliest supported version because other libraries declare newer versions.
 configurations.testCompile {
