@@ -1,14 +1,8 @@
 package datadog.trace.instrumentation.reactor.core;
 
-import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
-import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -34,21 +28,14 @@ public final class FluxAndMonoInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return not(isAbstract())
-        .and(
-            safeHasSuperType(
-                named("reactor.core.publisher.Mono").or(named("reactor.core.publisher.Flux"))));
+    return named("reactor.core.publisher.Mono");
   }
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        isMethod()
-            .and(isPublic())
-            .and(named("subscribe"))
-            .and(takesArgument(0, named("reactor.core.CoreSubscriber")))
-            .and(takesArguments(1)),
+        isTypeInitializer(),
         // Cannot reference class directly here because it would lead to class load failure on Java7
-        packageName + ".FluxAndMonoSubscribeAdvice");
+        packageName + ".ReactorHooksAdvice");
   }
 }

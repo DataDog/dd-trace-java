@@ -37,6 +37,7 @@ dependencies {
   // Looks like later versions on reactor need this dependency for some reason even though it is marked as optional.
   latestDepTestCompile group: 'io.micrometer', name: 'micrometer-core', version: '1.+'
 
+  lettuceTestCompile project(':dd-java-agent:instrumentation:lettuce-5')
   lettuceTestCompile group: 'io.lettuce', name: 'lettuce-core', version: '5.2.0.RELEASE'
   lettuceTestCompile group: 'io.micrometer', name: 'micrometer-core', version: '1.+'
   lettuceTestCompile deps.testcontainers
