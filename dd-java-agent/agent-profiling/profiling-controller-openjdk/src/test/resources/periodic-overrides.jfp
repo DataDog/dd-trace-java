@@ -1,2 +1,0 @@
-test.periodic.override#value=100
-jdk.SafepointBegin#enabled=periodic-test-value

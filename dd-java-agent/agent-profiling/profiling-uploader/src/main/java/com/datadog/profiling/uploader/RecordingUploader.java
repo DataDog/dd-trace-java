@@ -103,7 +103,6 @@ public final class RecordingUploader {
       };
 
   static final int SEED_EXPECTED_REQUEST_SIZE = 2 * 1024 * 1024; // 2MB;
-  // Should this be guessed somehow from how often we run periodic profiles?
   static final int REQUEST_SIZE_HISTORY_SIZE = 10;
   static final double REQUEST_SIZE_COEFFICIENT = 1.2;
 
@@ -134,14 +133,14 @@ public final class RecordingUploader {
     final ConnectionPool connectionPool =
         new ConnectionPool(MAX_RUNNING_REQUESTS, 1, TimeUnit.SECONDS);
 
-    final Duration ioOperationTimeout =
-        Duration.ofSeconds(config.getProfilingUploadRequestIOOperationTimeout());
+    // Use same timeout everywhere for simplicity
+    final Duration requestTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
     final OkHttpClient.Builder clientBuilder =
         new OkHttpClient.Builder()
-            .connectTimeout(ioOperationTimeout)
-            .writeTimeout(ioOperationTimeout)
-            .readTimeout(ioOperationTimeout)
-            .callTimeout(Duration.ofSeconds(config.getProfilingUploadRequestTimeout()))
+            .connectTimeout(requestTimeout)
+            .writeTimeout(requestTimeout)
+            .readTimeout(requestTimeout)
+            .callTimeout(requestTimeout)
             .dispatcher(new Dispatcher(okHttpExecutorService))
             .connectionPool(connectionPool);
 
@@ -174,7 +173,7 @@ public final class RecordingUploader {
     // We are mainly talking to the same(ish) host so we need to raise this limit
     client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
 
-    compression = getCompression(config.getProfilingUploadCompressionLevel());
+    compression = getCompression(CompressionType.of(config.getProfilingUploadCompression()));
 
     requestSizeHistory = new ArrayDeque<>(REQUEST_SIZE_HISTORY_SIZE);
     requestSizeHistory.add(SEED_EXPECTED_REQUEST_SIZE);
@@ -217,15 +216,14 @@ public final class RecordingUploader {
     RequestBody compress(InputStream is, int expectedSize) throws IOException;
   }
 
-  private Compression getCompression(final String level) {
-    final CompressionLevel cLevel = CompressionLevel.of(level);
-    log.debug("Uploader compression level = {}", cLevel);
+  private Compression getCompression(final CompressionType type) {
+    log.debug("Uploader compression type={}", type);
     final StreamUtils.BytesConsumer<RequestBody> consumer =
         (bytes, offset, length) -> RequestBody.create(OCTET_STREAM, bytes, offset, length);
     final Compression compression;
     // currently only gzip and off are supported
-    // this needs to be updated once more compression levels are added
-    switch (cLevel) {
+    // this needs to be updated once more compression types are added
+    switch (type) {
       case ON:
         {
           compression = (is, expectedSize) -> StreamUtils.gzipStream(is, expectedSize, consumer);
@@ -238,7 +236,7 @@ public final class RecordingUploader {
         }
       default:
         {
-          log.warn("Unrecognizable compression level: {}. Defaulting to 'on'.", cLevel);
+          log.warn("Unrecognizable compression type: {}. Defaulting to 'on'.", type);
           compression = (is, expectedSize) -> StreamUtils.gzipStream(is, expectedSize, consumer);
         }
     }

@@ -41,19 +41,11 @@ public class ProfilingAgent {
         // this in the future
         final Duration startupDelayRandomRange = uploadPeriod;
 
-        final int profilingContinuousToPeriodicUploadsRatio =
-            config.getProfilingContinuousToPeriodicUploadsRatio();
-
         PROFILER =
             new ProfilingSystem(
-                controller,
-                uploader::upload,
-                startupDelay,
-                startupDelayRandomRange,
-                uploadPeriod,
-                profilingContinuousToPeriodicUploadsRatio);
+                controller, uploader::upload, startupDelay, startupDelayRandomRange, uploadPeriod);
         PROFILER.start();
-        log.info("Periodic profiling has started!");
+        log.info("Profiling has started!");
 
         try {
           /*

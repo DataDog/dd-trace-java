@@ -16,7 +16,6 @@
 package com.datadog.profiling.controller;
 
 import static com.datadog.profiling.controller.RecordingType.CONTINUOUS;
-import static com.datadog.profiling.controller.RecordingType.PERIODIC;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -24,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -33,7 +31,6 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableList;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -66,17 +63,13 @@ public class ProfilingSystemTest {
 
   @Mock private ThreadLocalRandom threadLocalRandom;
   @Mock private Controller controller;
-  @Mock private OngoingRecording continuousRecording;
-  @Mock private OngoingRecording periodicRecording;
+  @Mock private OngoingRecording recording;
   @Mock private RecordingData recordingData;
   @Mock private RecordingDataListener listener;
 
   @BeforeEach
   public void setup() {
-    when(controller.createContinuousRecording(ProfilingSystem.RECORDING_NAME))
-        .thenReturn(continuousRecording);
-    when(controller.createPeriodicRecording(ProfilingSystem.RECORDING_NAME))
-        .thenReturn(periodicRecording);
+    when(controller.createRecording(ProfilingSystem.RECORDING_NAME)).thenReturn(recording);
     when(threadLocalRandom.nextInt(eq(1), anyInt())).thenReturn(1);
   }
 
@@ -94,14 +87,13 @@ public class ProfilingSystemTest {
             Duration.ofMillis(10),
             Duration.ZERO,
             Duration.ofMillis(300),
-            0,
             pool,
             threadLocalRandom);
     startProfilingSystem(system);
-    verify(controller).createContinuousRecording(any());
+    verify(controller).createRecording(any());
     system.shutdown();
 
-    verify(continuousRecording).close();
+    verify(recording).close();
     assertTrue(pool.isTerminated());
   }
 
@@ -114,15 +106,13 @@ public class ProfilingSystemTest {
             Duration.ofMillis(10),
             Duration.ZERO,
             Duration.ofMillis(300),
-            1,
             pool,
             threadLocalRandom);
     startProfilingSystem(system);
-    verify(controller).createPeriodicRecording(any());
+    verify(controller).createRecording(any());
     system.shutdown();
 
-    verify(periodicRecording).close();
-    verify(continuousRecording).close();
+    verify(recording).close();
     assertTrue(pool.isTerminated());
   }
 
@@ -143,8 +133,8 @@ public class ProfilingSystemTest {
               mainThread.interrupt();
               return null;
             })
-        .when(controller)
-        .createPeriodicRecording(any());
+        .when(listener)
+        .onNewData(any(), any());
     final ProfilingSystem system =
         new ProfilingSystem(
             controller,
@@ -152,12 +142,11 @@ public class ProfilingSystemTest {
             Duration.ofMillis(10),
             Duration.ofMillis(5),
             Duration.ofMillis(100),
-            2,
             pool,
             threadLocalRandom);
     startProfilingSystem(system);
     // Make sure we actually started the recording before terminating
-    verify(controller, timeout(300)).createPeriodicRecording(any());
+    verify(controller, timeout(300)).createRecording(any());
     system.shutdown();
     assertTrue(true, "Shutdown exited cleanly after interruption");
   }
@@ -171,7 +160,6 @@ public class ProfilingSystemTest {
             Duration.ofMillis(10),
             Duration.ofMillis(5),
             Duration.ofMillis(300),
-            1,
             pool,
             threadLocalRandom);
     system.shutdown();
@@ -186,32 +174,27 @@ public class ProfilingSystemTest {
             listener,
             Duration.ofMillis(10),
             Duration.ofMillis(5),
-            Duration.ofMillis(1),
-            1);
+            Duration.ofMillis(1));
     Thread.sleep(50);
     system.shutdown();
-    verify(controller, never()).createPeriodicRecording(any());
-    verify(controller, never()).createContinuousRecording(any());
+    verify(controller, never()).createRecording(any());
     verify(listener, never()).onNewData(any(), any());
   }
 
   @Test
   public void testDoesntSendPeriodicRecordingIfPeriodicRecordingIsDisabled()
       throws InterruptedException, ConfigurationException {
-    when(continuousRecording.snapshot(any(), any())).thenReturn(recordingData);
+    when(recording.snapshot(any(), any())).thenReturn(recordingData);
     final ProfilingSystem system =
         new ProfilingSystem(
             controller,
             listener,
             Duration.ofMillis(10),
             Duration.ofMillis(5),
-            Duration.ofMillis(10),
-            0);
+            Duration.ofMillis(10));
     startProfilingSystem(system);
     Thread.sleep(200);
     system.shutdown();
-    verify(controller, never()).createPeriodicRecording(any());
-    verify(listener, never()).onNewData(eq(PERIODIC), any());
     verify(listener, atLeastOnce()).onNewData(CONTINUOUS, recordingData);
   }
 
@@ -221,12 +204,7 @@ public class ProfilingSystemTest {
         ConfigurationException.class,
         () -> {
           new ProfilingSystem(
-              controller,
-              listener,
-              Duration.ofMillis(-10),
-              Duration.ZERO,
-              Duration.ofMillis(200),
-              1);
+              controller, listener, Duration.ofMillis(-10), Duration.ZERO, Duration.ofMillis(200));
         });
   }
 
@@ -240,8 +218,7 @@ public class ProfilingSystemTest {
               listener,
               Duration.ofMillis(10),
               Duration.ofMillis(-20),
-              Duration.ofMillis(200),
-              1);
+              Duration.ofMillis(200));
         });
   }
 
@@ -255,238 +232,8 @@ public class ProfilingSystemTest {
               listener,
               Duration.ofMillis(10),
               Duration.ofMillis(20),
-              Duration.ofMillis(-200),
-              1);
+              Duration.ofMillis(-200));
         });
-  }
-
-  @Test
-  public void testProfilingSystemNegativePeriodicRatioPeriod() {
-    assertThrows(
-        ConfigurationException.class,
-        () -> {
-          new ProfilingSystem(
-              controller,
-              listener,
-              Duration.ofMillis(10),
-              Duration.ofMillis(20),
-              Duration.ofMillis(200),
-              -1);
-        });
-  }
-
-  @Test
-  public void testAlternatingContinuousAndPeriodicRecordings() throws ConfigurationException {
-    final Duration uploadPeriod = Duration.ofMillis(500);
-    final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(continuousRecording.snapshot(any(), any()))
-        .thenAnswer(generateMockRecordingData(generatedRecordingData));
-
-    final List<OngoingRecording> generatedPeriodicRecordings = new ArrayList<>();
-    when(controller.createPeriodicRecording(ProfilingSystem.RECORDING_NAME))
-        .thenAnswer(
-            (InvocationOnMock invocation) -> {
-              final OngoingRecording recording = mock(OngoingRecording.class);
-              generatedPeriodicRecordings.add(recording);
-              return recording;
-            });
-
-    final ProfilingSystem system =
-        new ProfilingSystem(
-            controller,
-            listener,
-            Duration.ofMillis(10),
-            Duration.ofMillis(5),
-            uploadPeriod,
-            2,
-            pool,
-            threadLocalRandom);
-    startProfilingSystem(system);
-
-    final ArgumentCaptor<RecordingType> recordingTypeCaptor =
-        ArgumentCaptor.forClass(RecordingType.class);
-    final ArgumentCaptor<RecordingData> recordingDataCaptor =
-        ArgumentCaptor.forClass(RecordingData.class);
-    verify(listener, timeout(REASONABLE_TIMEOUT).times(6))
-        .onNewData(recordingTypeCaptor.capture(), recordingDataCaptor.capture());
-    assertEquals(
-        ImmutableList.of(CONTINUOUS, PERIODIC, CONTINUOUS, PERIODIC, CONTINUOUS, PERIODIC),
-        recordingTypeCaptor.getAllValues());
-    assertEquals(generatedRecordingData, recordingDataCaptor.getAllValues());
-
-    system.shutdown();
-
-    verify(listener, after(REASONABLE_TIMEOUT).atMost(7))
-        .onNewData(any(), recordingDataCaptor.capture());
-    assertEquals(generatedRecordingData, recordingDataCaptor.getAllValues());
-
-    // Make sure periodic recordings are being closed
-    // TODO: should we somehow check that they are closed at the right time.
-    for (final OngoingRecording recording : generatedPeriodicRecordings) {
-      verify(recording).close();
-    }
-
-    for (int i = 0; i < recordingDataCaptor.getAllValues().size(); i++) {
-      final RecordingData recording = recordingDataCaptor.getAllValues().get(i);
-      assertTrue(
-          // There may be slight variation in processing time so we give it 10ms of leeway
-          recording.getStart().plus(uploadPeriod).isBefore(recording.getEnd().plusMillis(100)),
-          "recording "
-              + i
-              + " has required duration: "
-              + recording.getStart().plus(uploadPeriod)
-              + " is before "
-              + recording.getEnd());
-    }
-
-    final Instant firstRecordingStart = recordingDataCaptor.getAllValues().get(1).getStart();
-    final Instant secondRecordingStart = recordingDataCaptor.getAllValues().get(2).getStart();
-    assertTrue(
-        firstRecordingStart
-            .plus(uploadPeriod)
-            // It looks like jobs get scheduled slightly earlier so we give a 10ms of leeway
-            .isBefore(secondRecordingStart.plusMillis(100)),
-        "recordings have required period: "
-            + firstRecordingStart.plus(uploadPeriod)
-            + " is before "
-            + secondRecordingStart);
-  }
-
-  @Test
-  public void test2ContinuousAnd1PeriodicRecordings() throws ConfigurationException {
-    final Duration uploadPeriod = Duration.ofMillis(300);
-    final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(continuousRecording.snapshot(any(), any()))
-        .thenAnswer(generateMockRecordingData(generatedRecordingData));
-
-    final List<OngoingRecording> generatedPeriodicRecordings = new ArrayList<>();
-    when(controller.createPeriodicRecording(ProfilingSystem.RECORDING_NAME))
-        .thenAnswer(
-            (InvocationOnMock invocation) -> {
-              final OngoingRecording recording = mock(OngoingRecording.class);
-              generatedPeriodicRecordings.add(recording);
-              return recording;
-            });
-
-    final ProfilingSystem system =
-        new ProfilingSystem(
-            controller,
-            listener,
-            Duration.ofMillis(10),
-            Duration.ofMillis(5),
-            uploadPeriod,
-            3,
-            pool,
-            threadLocalRandom);
-    startProfilingSystem(system);
-
-    final ArgumentCaptor<RecordingType> recordingTypeCaptor =
-        ArgumentCaptor.forClass(RecordingType.class);
-    final ArgumentCaptor<RecordingData> recordingDataCaptor =
-        ArgumentCaptor.forClass(RecordingData.class);
-    verify(listener, timeout(REASONABLE_TIMEOUT).times(9))
-        .onNewData(recordingTypeCaptor.capture(), recordingDataCaptor.capture());
-    assertEquals(
-        ImmutableList.of(
-            CONTINUOUS,
-            CONTINUOUS,
-            PERIODIC,
-            CONTINUOUS,
-            CONTINUOUS,
-            PERIODIC,
-            CONTINUOUS,
-            CONTINUOUS,
-            PERIODIC),
-        recordingTypeCaptor.getAllValues());
-    assertEquals(generatedRecordingData, recordingDataCaptor.getAllValues());
-
-    system.shutdown();
-  }
-
-  @Test
-  public void test2ContinuousAnd1PeriodicRecordingsRandomPeriodicStart()
-      throws ConfigurationException {
-    final Duration uploadPeriod = Duration.ofMillis(300);
-    final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(continuousRecording.snapshot(any(), any()))
-        .thenAnswer(generateMockRecordingData(generatedRecordingData));
-    when(threadLocalRandom.nextInt(1, 3)).thenReturn(2);
-
-    final List<OngoingRecording> generatedPeriodicRecordings = new ArrayList<>();
-    when(controller.createPeriodicRecording(ProfilingSystem.RECORDING_NAME))
-        .thenAnswer(
-            (InvocationOnMock invocation) -> {
-              final OngoingRecording recording = mock(OngoingRecording.class);
-              generatedPeriodicRecordings.add(recording);
-              return recording;
-            });
-
-    final ProfilingSystem system =
-        new ProfilingSystem(
-            controller,
-            listener,
-            Duration.ofMillis(10),
-            Duration.ofMillis(5),
-            uploadPeriod,
-            3,
-            pool,
-            threadLocalRandom);
-    startProfilingSystem(system);
-
-    final ArgumentCaptor<RecordingType> recordingTypeCaptor =
-        ArgumentCaptor.forClass(RecordingType.class);
-    final ArgumentCaptor<RecordingData> recordingDataCaptor =
-        ArgumentCaptor.forClass(RecordingData.class);
-    verify(listener, timeout(REASONABLE_TIMEOUT).times(10))
-        .onNewData(recordingTypeCaptor.capture(), recordingDataCaptor.capture());
-    assertEquals(
-        ImmutableList.of(
-            CONTINUOUS,
-            PERIODIC,
-            CONTINUOUS,
-            CONTINUOUS,
-            PERIODIC,
-            CONTINUOUS,
-            CONTINUOUS,
-            PERIODIC,
-            CONTINUOUS,
-            CONTINUOUS),
-        recordingTypeCaptor.getAllValues());
-    assertEquals(generatedRecordingData, recordingDataCaptor.getAllValues());
-
-    system.shutdown();
-  }
-
-  @Test
-  public void testAlwaysOnPeriodicRecording() throws ConfigurationException {
-    final Duration uploadPeriod = Duration.ofMillis(300);
-    final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(continuousRecording.snapshot(any(), any()))
-        .thenAnswer(generateMockRecordingData(generatedRecordingData));
-
-    final ProfilingSystem system =
-        new ProfilingSystem(
-            controller,
-            listener,
-            Duration.ofMillis(10),
-            Duration.ofMillis(5),
-            uploadPeriod,
-            1,
-            pool,
-            threadLocalRandom);
-    startProfilingSystem(system);
-
-    final ArgumentCaptor<RecordingData> captor = ArgumentCaptor.forClass(RecordingData.class);
-    verify(listener, timeout(REASONABLE_TIMEOUT).times(3))
-        .onNewData(eq(PERIODIC), captor.capture());
-    assertEquals(generatedRecordingData, captor.getAllValues());
-    verify(periodicRecording, never()).close();
-
-    system.shutdown();
-
-    verify(listener, after(REASONABLE_TIMEOUT).atMost(4)).onNewData(eq(PERIODIC), captor.capture());
-    assertEquals(generatedRecordingData, captor.getAllValues());
-    verify(periodicRecording).close();
   }
 
   /** Ensure that we continue recording after one recording fails to get created */
@@ -494,7 +241,7 @@ public class ProfilingSystemTest {
   public void testRecordingSnapshotError() throws ConfigurationException {
     final Duration uploadPeriod = Duration.ofMillis(300);
     final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(continuousRecording.snapshot(any(), any()))
+    when(recording.snapshot(any(), any()))
         .thenThrow(new RuntimeException("Test"))
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
@@ -505,7 +252,6 @@ public class ProfilingSystemTest {
             Duration.ofMillis(10),
             Duration.ofMillis(5),
             uploadPeriod,
-            0,
             pool,
             threadLocalRandom);
     startProfilingSystem(system);
@@ -522,7 +268,7 @@ public class ProfilingSystemTest {
   public void testRecordingSnapshotNoData() throws ConfigurationException {
     final Duration uploadPeriod = Duration.ofMillis(300);
     final List<RecordingData> generatedRecordingData = new ArrayList<>();
-    when(continuousRecording.snapshot(any(), any()))
+    when(recording.snapshot(any(), any()))
         .thenReturn(null)
         .thenAnswer(generateMockRecordingData(generatedRecordingData));
 
@@ -533,7 +279,6 @@ public class ProfilingSystemTest {
             Duration.ofMillis(10),
             Duration.ofMillis(5),
             uploadPeriod,
-            0,
             pool,
             threadLocalRandom);
     startProfilingSystem(system);
@@ -562,7 +307,6 @@ public class ProfilingSystemTest {
             startupDelay,
             startupDelayRandomRange,
             Duration.ofMillis(100),
-            0,
             pool,
             threadLocalRandom);
 
@@ -582,7 +326,6 @@ public class ProfilingSystemTest {
             startupDelay,
             Duration.ZERO,
             Duration.ofMillis(100),
-            0,
             pool,
             threadLocalRandom);
 

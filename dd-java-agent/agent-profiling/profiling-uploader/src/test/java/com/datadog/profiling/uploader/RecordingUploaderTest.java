@@ -113,9 +113,7 @@ public class RecordingUploaderTest {
     when(config.getProfilingUrl()).thenReturn(server.url(URL_PATH).toString());
     when(config.getProfilingApiKey()).thenReturn(APIKEY_VALUE);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
-    when(config.getProfilingUploadRequestTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
-    when(config.getProfilingUploadRequestIOOperationTimeout())
-        .thenReturn((int) REQUEST_IO_OPERATION_TIMEOUT.getSeconds());
+    when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
 
     uploader = new RecordingUploader(config);
   }
@@ -134,7 +132,7 @@ public class RecordingUploaderTest {
   @ValueSource(strings = {"on", "off", "invalid"})
   public void testRequestParameters(final String compression)
       throws IOException, InterruptedException {
-    when(config.getProfilingUploadCompressionLevel()).thenReturn(compression);
+    when(config.getProfilingUploadCompression()).thenReturn(compression);
     uploader = new RecordingUploader(config);
 
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -361,10 +359,7 @@ public class RecordingUploaderTest {
   public void testTooManyRequests() throws IOException, InterruptedException {
     // We need to make sure that initial requests that fill up the queue hang to the duration of the
     // test. So we specify insanely large timeout here.
-    when(config.getProfilingUploadRequestTimeout())
-        .thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
-    when(config.getProfilingUploadRequestIOOperationTimeout())
-        .thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
+    when(config.getProfilingUploadTimeout()).thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
     uploader = new RecordingUploader(config);
 
     // We have to block all parallel requests to make sure queue is kept full

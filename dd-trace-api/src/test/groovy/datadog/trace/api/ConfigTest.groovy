@@ -34,22 +34,18 @@ import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.api.Config.PRIORITY_SAMPLING
 import static datadog.trace.api.Config.PROFILING_API_KEY
 import static datadog.trace.api.Config.PROFILING_API_KEY_FILE
-import static datadog.trace.api.Config.PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH
-import static datadog.trace.api.Config.PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO
+import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_OLD
 import static datadog.trace.api.Config.PROFILING_ENABLED
-import static datadog.trace.api.Config.PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH
 import static datadog.trace.api.Config.PROFILING_PROXY_HOST
 import static datadog.trace.api.Config.PROFILING_PROXY_PASSWORD
 import static datadog.trace.api.Config.PROFILING_PROXY_PORT
 import static datadog.trace.api.Config.PROFILING_PROXY_USERNAME
-import static datadog.trace.api.Config.PROFILING_RECORDING_MAX_AGE
-import static datadog.trace.api.Config.PROFILING_RECORDING_MAX_SIZE
 import static datadog.trace.api.Config.PROFILING_STARTUP_DELAY
 import static datadog.trace.api.Config.PROFILING_TAGS
-import static datadog.trace.api.Config.PROFILING_UPLOAD_COMPRESSION_LEVEL
+import static datadog.trace.api.Config.PROFILING_TEMPLATE_OVERRIDE_PATH
+import static datadog.trace.api.Config.PROFILING_UPLOAD_COMPRESSION
 import static datadog.trace.api.Config.PROFILING_UPLOAD_PERIOD
-import static datadog.trace.api.Config.PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT
-import static datadog.trace.api.Config.PROFILING_UPLOAD_REQUEST_TIMEOUT
+import static datadog.trace.api.Config.PROFILING_UPLOAD_TIMEOUT
 import static datadog.trace.api.Config.PROFILING_URL
 import static datadog.trace.api.Config.PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.Config.PROPAGATION_STYLE_INJECT
@@ -89,7 +85,8 @@ class ConfigTest extends DDSpecification {
   private static final DD_AGENT_PORT_LEGACY_ENV = "DD_AGENT_PORT"
   private static final DD_TRACE_REPORT_HOSTNAME = "DD_TRACE_REPORT_HOSTNAME"
 
-  private static final DD_PROFILING_API_KEY = "DD_PROFILING_APIKEY"
+  private static final DD_PROFILING_API_KEY = "DD_PROFILING_API_KEY"
+  private static final DD_PROFILING_API_KEY_OLD = "DD_PROFILING_APIKEY"
 
   def "verify defaults"() {
     when:
@@ -135,14 +132,8 @@ class ConfigTest extends DDSpecification {
     config.mergedProfilingTags == [(HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartupDelay == 10
     config.profilingUploadPeriod == 60
-    config.profilingContinuousToPeriodicUploadsRatio == 1
-    config.profilingRecordingMaxSize == 64 * 1024 * 1024
-    config.profilingRecordingMaxAge == 5 * 60
-    config.profilingRecordingMaxAge == 5 * 60
-    config.profilingPeriodicConfigOverridePath == null
-    config.profilingContinuousConfigOverridePath == null
-    config.profilingUploadRequestTimeout == 30
-    config.profilingUploadRequestIOOperationTimeout == 30
+    config.profilingTemplateOverridePath == null
+    config.profilingUploadTimeout == 30
     config.profilingProxyHost == null
     config.profilingProxyPort == Config.DEFAULT_PROFILING_PROXY_PORT
     config.profilingProxyUsername == null
@@ -205,14 +196,9 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROFILING_TAGS, "f:6,host:test-host")
     prop.setProperty(PROFILING_STARTUP_DELAY, "1111")
     prop.setProperty(PROFILING_UPLOAD_PERIOD, "1112")
-    prop.setProperty(PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO, "1113")
-    prop.setProperty(PROFILING_RECORDING_MAX_SIZE, "1114")
-    prop.setProperty(PROFILING_RECORDING_MAX_AGE, "1115")
-    prop.setProperty(PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, "/periodic/path")
-    prop.setProperty(PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
-    prop.setProperty(PROFILING_UPLOAD_REQUEST_TIMEOUT, "1116")
-    prop.setProperty(PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT, "1117")
-    prop.setProperty(PROFILING_UPLOAD_COMPRESSION_LEVEL, "off")
+    prop.setProperty(PROFILING_TEMPLATE_OVERRIDE_PATH, "/path")
+    prop.setProperty(PROFILING_UPLOAD_TIMEOUT, "1116")
+    prop.setProperty(PROFILING_UPLOAD_COMPRESSION, "off")
     prop.setProperty(PROFILING_PROXY_HOST, "proxy-host")
     prop.setProperty(PROFILING_PROXY_PORT, "1118")
     prop.setProperty(PROFILING_PROXY_USERNAME, "proxy-username")
@@ -265,14 +251,9 @@ class ConfigTest extends DDSpecification {
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartupDelay == 1111
     config.profilingUploadPeriod == 1112
-    config.profilingUploadCompressionLevel == "off"
-    config.profilingContinuousToPeriodicUploadsRatio == 1113
-    config.profilingRecordingMaxSize == 1114
-    config.profilingRecordingMaxAge == 1115
-    config.profilingPeriodicConfigOverridePath == "/periodic/path"
-    config.profilingContinuousConfigOverridePath == "/continuous/path"
-    config.profilingUploadRequestTimeout == 1116
-    config.profilingUploadRequestIOOperationTimeout == 1117
+    config.profilingUploadCompression == "off"
+    config.profilingTemplateOverridePath == "/path"
+    config.profilingUploadTimeout == 1116
     config.profilingProxyHost == "proxy-host"
     config.profilingProxyPort == 1118
     config.profilingProxyUsername == "proxy-username"
@@ -325,14 +306,9 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROFILING_TAGS, "f:6,host:test-host")
     System.setProperty(PREFIX + PROFILING_STARTUP_DELAY, "1111")
     System.setProperty(PREFIX + PROFILING_UPLOAD_PERIOD, "1112")
-    System.setProperty(PREFIX + PROFILING_CONTINUOUS_TO_PERIODIC_UPLOAD_RATIO, "1113")
-    System.setProperty(PREFIX + PROFILING_RECORDING_MAX_SIZE, "1114")
-    System.setProperty(PREFIX + PROFILING_RECORDING_MAX_AGE, "1115")
-    System.setProperty(PREFIX + PROFILING_PERIODIC_CONFIG_OVERRIDE_PATH, "/periodic/path")
-    System.setProperty(PREFIX + PROFILING_CONTINUOUS_CONFIG_OVERRIDE_PATH, "/continuous/path")
-    System.setProperty(PREFIX + PROFILING_UPLOAD_REQUEST_TIMEOUT, "1116")
-    System.setProperty(PREFIX + PROFILING_UPLOAD_REQUEST_IO_OPERATION_TIMEOUT, "1117")
-    System.setProperty(PREFIX + PROFILING_UPLOAD_COMPRESSION_LEVEL, "off")
+    System.setProperty(PREFIX + PROFILING_TEMPLATE_OVERRIDE_PATH, "/path")
+    System.setProperty(PREFIX + PROFILING_UPLOAD_TIMEOUT, "1116")
+    System.setProperty(PREFIX + PROFILING_UPLOAD_COMPRESSION, "off")
     System.setProperty(PREFIX + PROFILING_PROXY_HOST, "proxy-host")
     System.setProperty(PREFIX + PROFILING_PROXY_PORT, "1118")
     System.setProperty(PREFIX + PROFILING_PROXY_USERNAME, "proxy-username")
@@ -385,14 +361,9 @@ class ConfigTest extends DDSpecification {
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartupDelay == 1111
     config.profilingUploadPeriod == 1112
-    config.profilingContinuousToPeriodicUploadsRatio == 1113
-    config.profilingRecordingMaxSize == 1114
-    config.profilingRecordingMaxAge == 1115
-    config.profilingPeriodicConfigOverridePath == "/periodic/path"
-    config.profilingContinuousConfigOverridePath == "/continuous/path"
-    config.profilingUploadRequestTimeout == 1116
-    config.profilingUploadRequestIOOperationTimeout == 1117
-    config.profilingUploadCompressionLevel == "off"
+    config.profilingTemplateOverridePath == "/path"
+    config.profilingUploadTimeout == 1116
+    config.profilingUploadCompression == "off"
     config.profilingProxyHost == "proxy-host"
     config.profilingProxyPort == 1118
     config.profilingProxyUsername == "proxy-username"
@@ -1017,7 +988,7 @@ class ConfigTest extends DDSpecification {
     ["baz", "foo"]          | 0.7f
   }
 
-  def "verify secret loaded from file: #path"() {
+  def "verify api key loaded from file: #path"() {
     setup:
     environmentVariables.set(DD_PROFILING_API_KEY, "default-api-key")
     System.setProperty(PREFIX + PROFILING_API_KEY_FILE, path)
@@ -1032,5 +1003,34 @@ class ConfigTest extends DDSpecification {
     path                                                        | expectedKey
     getClass().getClassLoader().getResource("apikey").getFile() | "test-api-key"
     "/path/that/doesnt/exist"                                   | "default-api-key"
+  }
+
+  def "verify api key loaded from file for old option name: #path"() {
+    setup:
+    environmentVariables.set(DD_PROFILING_API_KEY_OLD, "default-api-key")
+    System.setProperty(PREFIX + PROFILING_API_KEY_FILE_OLD, path)
+
+    when:
+    def config = new Config()
+
+    then:
+    config.profilingApiKey == expectedKey
+
+    where:
+    path                                                            | expectedKey
+    getClass().getClassLoader().getResource("apikey.old").getFile() | "test-api-key-old"
+    "/path/that/doesnt/exist"                                       | "default-api-key"
+  }
+
+  def "verify api key loaded from new option when both new and old are set"() {
+    setup:
+    System.setProperty(PREFIX + PROFILING_API_KEY_FILE_OLD, getClass().getClassLoader().getResource("apikey.old").getFile())
+    System.setProperty(PREFIX + PROFILING_API_KEY_FILE, getClass().getClassLoader().getResource("apikey").getFile())
+
+    when:
+    def config = new Config()
+
+    then:
+    config.profilingApiKey == "test-api-key"
   }
 }
