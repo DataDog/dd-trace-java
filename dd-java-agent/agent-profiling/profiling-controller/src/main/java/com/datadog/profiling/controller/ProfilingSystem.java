@@ -103,7 +103,7 @@ public final class ProfilingSystem {
 
   public final void start() {
     log.info(
-        "Starting profiling system: startupDelay = {}ms, uploadPeriod = {}ms",
+        "Starting profiling system: startupDelay={}ms, uploadPeriod={}ms",
         startupDelay.toMillis(),
         uploadPeriod.toMillis());
 

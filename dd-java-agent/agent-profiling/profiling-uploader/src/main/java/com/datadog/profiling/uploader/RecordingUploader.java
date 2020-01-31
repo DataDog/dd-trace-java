@@ -217,7 +217,7 @@ public final class RecordingUploader {
   }
 
   private Compression getCompression(final CompressionType type) {
-    log.debug("Uploader compression type = {}", type);
+    log.debug("Uploader compression type={}", type);
     final StreamUtils.BytesConsumer<RequestBody> consumer =
         (bytes, offset, length) -> RequestBody.create(OCTET_STREAM, bytes, offset, length);
     final Compression compression;
