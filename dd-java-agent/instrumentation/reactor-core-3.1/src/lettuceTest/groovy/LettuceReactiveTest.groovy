@@ -4,26 +4,22 @@ import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.reactive.RedisStringReactiveCommands
 import org.testcontainers.containers.GenericContainer
-import spock.lang.Ignore
 import spock.lang.Shared
 
 class LettuceReactiveTest extends AgentTestRunner {
   @Shared
   GenericContainer redis = new GenericContainer<>("redis:5.0.3-alpine").withExposedPorts(6379)
 
-  RedisClient client;
+  RedisStringReactiveCommands<String, String> reactive
 
   def setup() {
     redis.start()
-    client = RedisClient.create("redis://localhost:" + redis.getMappedPort(6379))
+    RedisClient client = RedisClient.create("redis://localhost:" + redis.getMappedPort(6379))
+    StatefulRedisConnection<String, String> connection = client.connect()
+    reactive = connection.reactive()
   }
 
-  @Ignore
   def "test"() {
-    given:
-    StatefulRedisConnection<String, String> connection = client.connect()
-    RedisStringReactiveCommands<String, String> reactive = connection.reactive()
-
     when:
     TraceUtils.runUnderTrace("test-parent") {
       reactive.set("a", "1")

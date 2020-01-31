@@ -76,7 +76,6 @@ public class ContinuableScope implements DDScope, TraceScope {
     // The reason is that we get span on construction and span event starts when span is created.
     // This means from JFR perspective scope is included into the span.
     event.finish();
-
     if (null != continuation) {
       spanUnderScope.context().getTrace().cancelContinuation(continuation);
     }

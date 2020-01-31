@@ -106,6 +106,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
         weakReferences.add(span.ref);
         final int count = pendingReferenceCount.incrementAndGet();
         log.debug("traceId: {} -- registered span {}. count = {}", traceId, span, count);
+        log.debug("Stacktrace", new Exception());
       } else {
         log.debug("span {} already registered in trace {}", span, traceId);
       }
