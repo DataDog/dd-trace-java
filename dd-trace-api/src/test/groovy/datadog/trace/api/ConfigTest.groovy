@@ -42,7 +42,7 @@ import static datadog.trace.api.Config.PROFILING_PROXY_PORT
 import static datadog.trace.api.Config.PROFILING_PROXY_USERNAME
 import static datadog.trace.api.Config.PROFILING_STARTUP_DELAY
 import static datadog.trace.api.Config.PROFILING_TAGS
-import static datadog.trace.api.Config.PROFILING_TEMPLATE_OVERRIDE_PATH
+import static datadog.trace.api.Config.PROFILING_TEMPLATE_OVERRIDE_FILE
 import static datadog.trace.api.Config.PROFILING_UPLOAD_COMPRESSION
 import static datadog.trace.api.Config.PROFILING_UPLOAD_PERIOD
 import static datadog.trace.api.Config.PROFILING_UPLOAD_TIMEOUT
@@ -132,7 +132,7 @@ class ConfigTest extends DDSpecification {
     config.mergedProfilingTags == [(HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartupDelay == 10
     config.profilingUploadPeriod == 60
-    config.profilingTemplateOverridePath == null
+    config.profilingTemplateOverrideFile == null
     config.profilingUploadTimeout == 30
     config.profilingProxyHost == null
     config.profilingProxyPort == Config.DEFAULT_PROFILING_PROXY_PORT
@@ -196,7 +196,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROFILING_TAGS, "f:6,host:test-host")
     prop.setProperty(PROFILING_STARTUP_DELAY, "1111")
     prop.setProperty(PROFILING_UPLOAD_PERIOD, "1112")
-    prop.setProperty(PROFILING_TEMPLATE_OVERRIDE_PATH, "/path")
+    prop.setProperty(PROFILING_TEMPLATE_OVERRIDE_FILE, "/path")
     prop.setProperty(PROFILING_UPLOAD_TIMEOUT, "1116")
     prop.setProperty(PROFILING_UPLOAD_COMPRESSION, "off")
     prop.setProperty(PROFILING_PROXY_HOST, "proxy-host")
@@ -252,7 +252,7 @@ class ConfigTest extends DDSpecification {
     config.profilingStartupDelay == 1111
     config.profilingUploadPeriod == 1112
     config.profilingUploadCompression == "off"
-    config.profilingTemplateOverridePath == "/path"
+    config.profilingTemplateOverrideFile == "/path"
     config.profilingUploadTimeout == 1116
     config.profilingProxyHost == "proxy-host"
     config.profilingProxyPort == 1118
@@ -306,7 +306,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROFILING_TAGS, "f:6,host:test-host")
     System.setProperty(PREFIX + PROFILING_STARTUP_DELAY, "1111")
     System.setProperty(PREFIX + PROFILING_UPLOAD_PERIOD, "1112")
-    System.setProperty(PREFIX + PROFILING_TEMPLATE_OVERRIDE_PATH, "/path")
+    System.setProperty(PREFIX + PROFILING_TEMPLATE_OVERRIDE_FILE, "/path")
     System.setProperty(PREFIX + PROFILING_UPLOAD_TIMEOUT, "1116")
     System.setProperty(PREFIX + PROFILING_UPLOAD_COMPRESSION, "off")
     System.setProperty(PREFIX + PROFILING_PROXY_HOST, "proxy-host")
@@ -361,7 +361,7 @@ class ConfigTest extends DDSpecification {
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartupDelay == 1111
     config.profilingUploadPeriod == 1112
-    config.profilingTemplateOverridePath == "/path"
+    config.profilingTemplateOverrideFile == "/path"
     config.profilingUploadTimeout == 1116
     config.profilingUploadCompression == "off"
     config.profilingProxyHost == "proxy-host"

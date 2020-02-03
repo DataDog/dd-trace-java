@@ -24,7 +24,6 @@ class ProfilingIntegrationShutdownTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
-    command.add("-Ddd.profiling.continuous.to.periodic.upload.ratio=1") // Make all profiles periodic
     command.addAll((String[]) ["-jar", profilingShadowJar])
     command.add(Integer.toString(RUN_APP_FOR))
     ProcessBuilder processBuilder = new ProcessBuilder(command)
