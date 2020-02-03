@@ -1,11 +1,15 @@
 package datadog.trace.instrumentation.reactor.core;
 
 import static datadog.trace.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.instrumentation.api.AgentTracer.activeSpan;
 
+import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.api.AgentScope;
 import datadog.trace.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.api.AgentTracer;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
@@ -27,10 +31,15 @@ public class ReactorHooksAdvice {
   public static <T> Function<? super Publisher<T>, ? extends Publisher<T>> tracingOperator() {
     //    return Operators.lift(
     //        s -> !(s instanceof Fuseable.ScalarCallable), (s, sub) -> tracingSubscriber(sub));
-    return Operators.lift((s, sub) -> tracingSubscriber(sub));
+    return Operators.lift((s, sub) -> tracingSubscriber(s, sub));
   }
 
-  public static <T> CoreSubscriber<? super T> tracingSubscriber(final CoreSubscriber<T> delegate) {
+  public static <T> CoreSubscriber<? super T> tracingSubscriber(
+      final Scannable scannable, final CoreSubscriber<T> delegate) {
+    if (scannable instanceof Fuseable.ScalarCallable || scannable instanceof TracingSubscriber) {
+      return delegate;
+    }
+
     final Context context = delegate.currentContext();
     final Optional<AgentSpan> maybeSpan = context.getOrEmpty(AgentSpan.class);
     final AgentSpan span = maybeSpan.orElseGet(AgentTracer::activeSpan);
@@ -39,7 +48,7 @@ public class ReactorHooksAdvice {
     }
 
     try (final AgentScope scope = activateSpan(span, false)) {
-      return new TracingSubscriber<>(delegate, context, scope);
+      return new TracingSubscriber<>(delegate, context, activeScope());
     }
   }
 
@@ -48,14 +57,20 @@ public class ReactorHooksAdvice {
 
     private final Subscriber<T> delegate;
     private final Context context;
-    private final AgentScope parentScope;
+    private final TraceScope parentScope;
+    private final AtomicReference<TraceScope.Continuation> continuation = new AtomicReference<>();
     private Subscription subscription;
 
     public TracingSubscriber(
-        final Subscriber<T> delegate, final Context context, final AgentScope parentScope) {
+        final Subscriber<T> delegate, final Context context, final TraceScope parentScope) {
       this.delegate = delegate;
       this.context = context;
       this.parentScope = parentScope;
+      parentScope.setAsyncPropagation(true);
+      continuation.set(parentScope.capture());
+      if (context != null) {
+        context.put(TraceScope.class, parentScope);
+      }
     }
 
     @Override
@@ -64,19 +79,22 @@ public class ReactorHooksAdvice {
     }
 
     @Override
-    public void onSubscribe(final Subscription s) {
-      subscription = s;
-      try (final AgentScope scope = activateSpan(parentScope.span(), false)) {
+    public void onSubscribe(final Subscription subscription) {
+      this.subscription = subscription;
+
+      final TraceScope.Continuation continuation =
+          this.continuation.getAndSet(parentScope.capture());
+      try (final TraceScope scope = continuation.activate()) {
         delegate.onSubscribe(this);
       }
     }
 
     @Override
-    public Object scanUnsafe(final Attr key) {
-      if (key == Attr.PARENT) {
+    public Object scanUnsafe(final Attr attr) {
+      if (attr == Attr.PARENT) {
         return subscription;
       } else {
-        if (key == Attr.ACTUAL) {
+        if (attr == Attr.ACTUAL) {
           return delegate;
         } else {
           return null;
@@ -86,36 +104,44 @@ public class ReactorHooksAdvice {
 
     @Override
     public void request(final long n) {
-      try (final AgentScope scope = activateSpan(parentScope.span(), false)) {
+      final TraceScope.Continuation continuation =
+          this.continuation.getAndSet(parentScope.capture());
+      try (final TraceScope scope = continuation.activate()) {
         subscription.request(n);
       }
     }
 
     @Override
     public void cancel() {
-      try (final AgentScope scope = activateSpan(parentScope.span(), false)) {
+      final TraceScope.Continuation continuation = this.continuation.getAndSet(null);
+      try (final TraceScope scope = continuation.activate()) {
         subscription.cancel();
       }
     }
 
     @Override
     public void onNext(final T t) {
-      try (final AgentScope scope = activateSpan(parentScope.span(), false)) {
+      final TraceScope.Continuation continuation =
+          this.continuation.getAndSet(parentScope.capture());
+      try (final TraceScope scope = continuation.activate()) {
         delegate.onNext(t);
       }
     }
 
     @Override
     public void onError(final Throwable t) {
-      try (final AgentScope scope = activateSpan(parentScope.span(), false)) {
+      final TraceScope.Continuation continuation = this.continuation.getAndSet(null);
+      try (final TraceScope scope = continuation.activate()) {
         delegate.onError(t);
-        scope.span().addThrowable(t);
+        activeSpan().setError(true);
+        activeSpan().addThrowable(t);
       }
     }
 
     @Override
     public void onComplete() {
-      try (final AgentScope scope = activateSpan(parentScope.span(), false)) {
+      final TraceScope.Continuation continuation = this.continuation.getAndSet(null);
+      try (final TraceScope scope = continuation.activate()) {
         delegate.onComplete();
       }
     }

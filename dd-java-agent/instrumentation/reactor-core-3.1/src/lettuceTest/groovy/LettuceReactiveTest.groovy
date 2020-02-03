@@ -24,7 +24,8 @@ class LettuceReactiveTest extends AgentTestRunner {
     when:
     TraceUtils.runUnderTrace("test-parent") {
       reactive.set("a", "1")
-        .then(reactive.get("a")) // The get here is getting ending up in another trace
+        .log()
+        .then(reactive.get("a").log()) // The get here is getting ending up in another trace
         .block()
     }
     TEST_WRITER.waitForTraces(2)
@@ -43,7 +44,8 @@ class LettuceReactiveTest extends AgentTestRunner {
     when:
     TraceUtils.runUnderTrace("test-parent") {
       reactive.set("a", "1")
-        .then(reactive.get("a")) // The get here is getting ending up in another trace
+        .log()
+        .then(reactive.get("a").log()) // The get here is getting ending up in another trace
         .subscribe()
     }
     TEST_WRITER.waitForTraces(2)
@@ -62,8 +64,10 @@ class LettuceReactiveTest extends AgentTestRunner {
     when:
     TraceUtils.runUnderTrace("test-parent") {
       reactive.set("a", "1")
-        .then(reactive.get("a")) // The get here is getting ending up in another trace
+        .log()
+        .then(reactive.get("a").log()) // The get here is getting ending up in another trace
         .subscribeOn(Schedulers.elastic())
+        .subscribe()
     }
     TEST_WRITER.waitForTraces(2)
 
