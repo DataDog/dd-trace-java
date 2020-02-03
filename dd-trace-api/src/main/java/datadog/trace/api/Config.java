@@ -111,10 +111,10 @@ public class Config {
   public static final String PROFILING_API_KEY_OLD = "profiling.apikey";
   public static final String PROFILING_API_KEY_FILE_OLD = "profiling.apikey.file";
   public static final String PROFILING_TAGS = "profiling.tags";
-  public static final String PROFILING_STARTUP_DELAY = "profiling.start.delay";
+  public static final String PROFILING_STARTUP_DELAY = "profiling.start-delay";
   public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
-  public static final String PROFILING_TEMPLATE_OVERRIDE_PATH =
-      "profiling.jfr.template.override.path";
+  public static final String PROFILING_TEMPLATE_OVERRIDE_FILE =
+      "profiling.jfr-template-override-file";
   public static final String PROFILING_UPLOAD_TIMEOUT = "profiling.upload.timeout";
   public static final String PROFILING_UPLOAD_COMPRESSION = "profiling.upload.compression";
   public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
@@ -266,7 +266,7 @@ public class Config {
   private final Map<String, String> profilingTags;
   @Getter private final int profilingStartupDelay;
   @Getter private final int profilingUploadPeriod;
-  @Getter private final String profilingTemplateOverridePath;
+  @Getter private final String profilingTemplateOverrideFile;
   @Getter private final int profilingUploadTimeout;
   @Getter private final String profilingUploadCompression;
   @Getter private final String profilingProxyHost;
@@ -444,8 +444,8 @@ public class Config {
         getIntegerSettingFromEnvironment(PROFILING_STARTUP_DELAY, DEFAULT_PROFILING_STARTUP_DELAY);
     profilingUploadPeriod =
         getIntegerSettingFromEnvironment(PROFILING_UPLOAD_PERIOD, DEFAULT_PROFILING_UPLOAD_PERIOD);
-    profilingTemplateOverridePath =
-        getSettingFromEnvironment(PROFILING_TEMPLATE_OVERRIDE_PATH, null);
+    profilingTemplateOverrideFile =
+        getSettingFromEnvironment(PROFILING_TEMPLATE_OVERRIDE_FILE, null);
     profilingUploadTimeout =
         getIntegerSettingFromEnvironment(
             PROFILING_UPLOAD_TIMEOUT, DEFAULT_PROFILING_UPLOAD_TIMEOUT);
@@ -602,9 +602,9 @@ public class Config {
         getPropertyIntegerValue(properties, PROFILING_STARTUP_DELAY, parent.profilingStartupDelay);
     profilingUploadPeriod =
         getPropertyIntegerValue(properties, PROFILING_UPLOAD_PERIOD, parent.profilingUploadPeriod);
-    profilingTemplateOverridePath =
+    profilingTemplateOverrideFile =
         properties.getProperty(
-            PROFILING_TEMPLATE_OVERRIDE_PATH, parent.profilingTemplateOverridePath);
+            PROFILING_TEMPLATE_OVERRIDE_FILE, parent.profilingTemplateOverrideFile);
     profilingUploadTimeout =
         getPropertyIntegerValue(
             properties, PROFILING_UPLOAD_TIMEOUT, parent.profilingUploadTimeout);

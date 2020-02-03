@@ -24,7 +24,7 @@ public class OpenJdkControllerTest {
 
   @BeforeEach
   public void setup() throws ConfigurationException, ClassNotFoundException {
-    when(config.getProfilingTemplateOverridePath()).thenReturn(OVERRIDES);
+    when(config.getProfilingTemplateOverrideFile()).thenReturn(OVERRIDES);
     controller = new OpenJdkController(config);
   }
 

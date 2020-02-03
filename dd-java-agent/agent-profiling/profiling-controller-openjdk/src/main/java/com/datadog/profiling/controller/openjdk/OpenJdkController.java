@@ -43,14 +43,14 @@ public final class OpenJdkController implements Controller {
    */
   public OpenJdkController(final Config config)
       throws ConfigurationException, ClassNotFoundException {
-    // Make sure we can load JFR classesbefore declaring that we have successfully created
+    // Make sure we can load JFR classes before declaring that we have successfully created
     // factory and can use it.
     Class.forName("jdk.jfr.Recording");
     Class.forName("jdk.jfr.FlightRecorder");
 
     try {
       recordingSettings =
-          JfpUtils.readNamedJfpResource(JFP, config.getProfilingTemplateOverridePath());
+          JfpUtils.readNamedJfpResource(JFP, config.getProfilingTemplateOverrideFile());
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
