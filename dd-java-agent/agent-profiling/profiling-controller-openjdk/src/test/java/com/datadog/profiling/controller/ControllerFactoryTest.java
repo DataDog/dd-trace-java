@@ -13,7 +13,12 @@ public class ControllerFactoryTest {
 
   @Mock private Config config;
 
-  /** We assume that tests for this module are run only on JVMs that support JFR */
+  /**
+   * We assume that tests for this module are run only on JVMs that support JFR. Ideally we would
+   * want to have a conditional annotation to this, but currently it is somewhat hard to do well,
+   * partially because jfr is available in some java8 versions and not others. Currently we just run
+   * tests with java11 that is guaranteed to have JFR.
+   */
   @Test
   public void testCreateController() throws UnsupportedEnvironmentException {
     assertEquals(

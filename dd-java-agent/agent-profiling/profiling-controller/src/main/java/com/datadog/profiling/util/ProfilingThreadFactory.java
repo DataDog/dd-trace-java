@@ -2,6 +2,7 @@ package com.datadog.profiling.util;
 
 import java.util.concurrent.ThreadFactory;
 
+// FIXME: we should unify all thread factories in common library
 public final class ProfilingThreadFactory implements ThreadFactory {
   private static final ThreadGroup THREAD_GROUP = new ThreadGroup("Datadog Profiler");
 
