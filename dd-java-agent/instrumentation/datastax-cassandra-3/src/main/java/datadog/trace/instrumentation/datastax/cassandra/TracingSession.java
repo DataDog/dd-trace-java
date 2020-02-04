@@ -17,6 +17,7 @@ import com.datastax.driver.core.Statement;
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
@@ -26,7 +27,9 @@ import java.util.concurrent.Executors;
 
 public class TracingSession implements Session {
 
-  private final ExecutorService executorService = Executors.newCachedThreadPool();
+  private static final ExecutorService EXECUTOR_SERVICE =
+      Executors.newCachedThreadPool(new DaemonThreadFactory("dd-cassandra-session-executor"));
+
   private final Session session;
 
   public TracingSession(final Session session) {
@@ -125,7 +128,7 @@ public class TracingSession implements Session {
   public ResultSetFuture executeAsync(final String query) {
     try (final AgentScope scope = startSpanWithScope(query)) {
       final ResultSetFuture future = session.executeAsync(query);
-      future.addListener(createListener(scope.span(), future), executorService);
+      future.addListener(createListener(scope.span(), future), EXECUTOR_SERVICE);
 
       return future;
     }
@@ -135,7 +138,7 @@ public class TracingSession implements Session {
   public ResultSetFuture executeAsync(final String query, final Object... values) {
     try (final AgentScope scope = startSpanWithScope(query)) {
       final ResultSetFuture future = session.executeAsync(query, values);
-      future.addListener(createListener(scope.span(), future), executorService);
+      future.addListener(createListener(scope.span(), future), EXECUTOR_SERVICE);
 
       return future;
     }
@@ -145,7 +148,7 @@ public class TracingSession implements Session {
   public ResultSetFuture executeAsync(final String query, final Map<String, Object> values) {
     try (final AgentScope scope = startSpanWithScope(query)) {
       final ResultSetFuture future = session.executeAsync(query, values);
-      future.addListener(createListener(scope.span(), future), executorService);
+      future.addListener(createListener(scope.span(), future), EXECUTOR_SERVICE);
 
       return future;
     }
@@ -156,7 +159,7 @@ public class TracingSession implements Session {
     final String query = getQuery(statement);
     try (final AgentScope scope = startSpanWithScope(query)) {
       final ResultSetFuture future = session.executeAsync(statement);
-      future.addListener(createListener(scope.span(), future), executorService);
+      future.addListener(createListener(scope.span(), future), EXECUTOR_SERVICE);
 
       return future;
     }
