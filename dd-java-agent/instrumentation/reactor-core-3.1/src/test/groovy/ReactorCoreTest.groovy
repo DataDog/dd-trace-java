@@ -1,8 +1,11 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import groovy.transform.stc.ClosureParams
+import groovy.transform.stc.SimpleType
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import reactor.core.publisher.Flux
@@ -21,7 +24,9 @@ class ReactorCoreTest extends AgentTestRunner {
   @Shared
   def addOne = { i -> addOneFunc(i) }
   @Shared
-  def throwException = { throw new RuntimeException(EXCEPTION_MESSAGE) }
+  def throwException = {
+    throw new RuntimeException(EXCEPTION_MESSAGE)
+  }
 
   def "Publisher '#name' test"() {
     when:
@@ -30,8 +35,8 @@ class ReactorCoreTest extends AgentTestRunner {
     then:
     result == expected
     and:
-    assertTraces(1) {
-      trace(0, workSpans + 2) {
+    sortAndAssertTraces(1) {
+      trace(0, workSpans + 2) { trace ->
         span(0) {
           resourceName "trace-parent"
           operationName "trace-parent"
@@ -85,7 +90,7 @@ class ReactorCoreTest extends AgentTestRunner {
     def exception = thrown RuntimeException
     exception.message == EXCEPTION_MESSAGE
     and:
-    assertTraces(1) {
+    sortAndAssertTraces(1) {
       trace(0, 2) {
         span(0) {
           resourceName "trace-parent"
@@ -125,7 +130,7 @@ class ReactorCoreTest extends AgentTestRunner {
     def exception = thrown RuntimeException
     exception.message == EXCEPTION_MESSAGE
     and:
-    assertTraces(1) {
+    sortAndAssertTraces(1) {
       trace(0, workSpans + 2) {
         span(0) {
           resourceName "trace-parent"
@@ -247,5 +252,24 @@ class ReactorCoreTest extends AgentTestRunner {
   @Trace(operationName = "addOne", resourceName = "addOne")
   def static addOneFunc(int i) {
     return i + 1
+  }
+
+  void sortAndAssertTraces(
+    final int size,
+    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
+    final Closure spec) {
+
+    TEST_WRITER.waitForTraces(size)
+
+    TEST_WRITER.each {
+      it.sort({
+        a, b ->
+          // Intentionally backward because asserts are sorted that way already
+          return b.resourceName <=> a.resourceName
+      })
+    }
+
+    assertTraces(size, spec)
   }
 }

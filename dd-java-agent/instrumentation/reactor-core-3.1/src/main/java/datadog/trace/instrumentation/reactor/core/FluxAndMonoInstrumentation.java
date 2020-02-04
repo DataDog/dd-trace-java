@@ -25,7 +25,7 @@ public final class FluxAndMonoInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("reactor.core.publisher.Mono");
+    return named("reactor.core.publisher.Hooks");
   }
 
   @Override

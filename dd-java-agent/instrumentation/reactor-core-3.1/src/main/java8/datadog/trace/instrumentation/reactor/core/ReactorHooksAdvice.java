@@ -36,7 +36,7 @@ public class ReactorHooksAdvice {
 
   public static <T> CoreSubscriber<? super T> tracingSubscriber(
       final Scannable scannable, final CoreSubscriber<T> delegate) {
-    if (scannable instanceof Fuseable.ScalarCallable || scannable instanceof TracingSubscriber) {
+    if (scannable instanceof TracingSubscriber) {
       return delegate;
     }
 
