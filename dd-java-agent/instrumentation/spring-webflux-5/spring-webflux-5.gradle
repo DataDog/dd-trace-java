@@ -24,13 +24,7 @@ testSets {
 }
 
 dependencies {
-  // We use helpers from this project
-  main_java8CompileOnly project(':dd-java-agent:instrumentation:reactor-core-3.1')
   main_java8CompileOnly group: 'org.springframework', name: 'spring-webflux', version: '5.0.0.RELEASE'
-
-  // We are using utils class from reactor-core instrumentation.
-  // TODO: It is unclear why we need to use `compile` here (instead of 'compileOnly')
-  compile project(':dd-java-agent:instrumentation:reactor-core-3.1')
 
   testCompile project(':dd-java-agent:instrumentation:java-concurrent')
   testCompile project(':dd-java-agent:instrumentation:trace-annotation')

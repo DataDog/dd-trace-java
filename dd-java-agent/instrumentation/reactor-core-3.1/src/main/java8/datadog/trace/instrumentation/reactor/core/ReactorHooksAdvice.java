@@ -103,6 +103,9 @@ public class ReactorHooksAdvice {
 
     @Override
     public void onSubscribe(final Subscription subscription) {
+      log.debug("onSubscribe() {}", toString());
+      log.debug("subscribed to {}@{}", delegate.toString(), delegate.hashCode());
+      log.debug("subscribed by {}@{}", subscription.toString(), subscription.hashCode());
       this.subscription = subscription;
 
       try (final TraceScope scope = maybeScope()) {
@@ -112,6 +115,7 @@ public class ReactorHooksAdvice {
 
     @Override
     public void request(final long n) {
+      log.debug("request() {}", toString());
       try (final TraceScope scope = maybeScope()) {
         subscription.request(n);
       }
@@ -119,6 +123,7 @@ public class ReactorHooksAdvice {
 
     @Override
     public void onNext(final T t) {
+      log.debug("onNext() {}", toString());
       try (final TraceScope scope = maybeScope()) {
         delegate.onNext(t);
       }
@@ -126,6 +131,7 @@ public class ReactorHooksAdvice {
 
     @Override
     public void cancel() {
+      log.debug("cancel() {}", toString());
       try (final TraceScope scope = maybeScopeAndDeactivate()) {
         subscription.cancel();
       }
@@ -133,6 +139,7 @@ public class ReactorHooksAdvice {
 
     @Override
     public void onError(final Throwable t) {
+      log.debug("onError() {}", toString());
       try (final TraceScope scope = maybeScopeAndDeactivate()) {
         delegate.onError(t);
         activeSpan().setError(true);
@@ -142,6 +149,7 @@ public class ReactorHooksAdvice {
 
     @Override
     public void onComplete() {
+      log.debug("onComplete() {}", toString());
       try (final TraceScope scope = maybeScopeAndDeactivate()) {
         delegate.onComplete();
       }

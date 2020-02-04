@@ -9,7 +9,7 @@ import spock.lang.Shared
 
 class LettuceReactiveTest extends AgentTestRunner {
   @Shared
-  GenericContainer redis = new GenericContainer<>("redis:5.0.3-alpine").withExposedPorts(6379)
+  GenericContainer redis = new GenericContainer<>("redis:alpine").withExposedPorts(6379)
 
   RedisStringReactiveCommands<String, String> reactive
 
@@ -24,8 +24,7 @@ class LettuceReactiveTest extends AgentTestRunner {
     when:
     TraceUtils.runUnderTrace("test-parent") {
       reactive.set("a", "1")
-        .log()
-        .then(reactive.get("a").log()) // The get here is getting ending up in another trace
+        .then(reactive.get("a")) // The get here is getting ending up in another trace
         .block()
     }
     TEST_WRITER.waitForTraces(2)
@@ -44,8 +43,7 @@ class LettuceReactiveTest extends AgentTestRunner {
     when:
     TraceUtils.runUnderTrace("test-parent") {
       reactive.set("a", "1")
-        .log()
-        .then(reactive.get("a").log()) // The get here is getting ending up in another trace
+        .then(reactive.get("a")) // The get here is getting ending up in another trace
         .subscribe()
     }
     TEST_WRITER.waitForTraces(2)
@@ -64,8 +62,7 @@ class LettuceReactiveTest extends AgentTestRunner {
     when:
     TraceUtils.runUnderTrace("test-parent") {
       reactive.set("a", "1")
-        .log()
-        .then(reactive.get("a").log()) // The get here is getting ending up in another trace
+        .then(reactive.get("a")) // The get here is getting ending up in another trace
         .subscribeOn(Schedulers.elastic())
         .subscribe()
     }
