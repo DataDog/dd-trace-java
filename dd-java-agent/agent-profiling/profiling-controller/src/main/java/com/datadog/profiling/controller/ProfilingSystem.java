@@ -185,9 +185,9 @@ public final class ProfilingSystem {
           dataListener.onNewData(recordingType, recordingData);
         }
       } catch (final Exception e) {
-        log.error("Cannot upload snapshot", e);
+        log.error("Exception in profiling thread, continuing", e);
       } catch (final Throwable t) {
-        log.error("Fatal exception in profiling thread", t);
+        log.error("Fatal exception in profiling thread, exiting", t);
         throw t;
       }
     }
