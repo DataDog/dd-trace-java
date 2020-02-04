@@ -9,8 +9,10 @@ import datadog.trace.instrumentation.api.AgentScope;
 import datadog.trace.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.api.AgentTracer;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -29,9 +31,7 @@ public class ReactorHooksAdvice {
   }
 
   public static <T> Function<? super Publisher<T>, ? extends Publisher<T>> tracingOperator() {
-    //    return Operators.lift(
-    //        s -> !(s instanceof Fuseable.ScalarCallable), (s, sub) -> tracingSubscriber(sub));
-    return Operators.lift((s, sub) -> tracingSubscriber(s, sub));
+    return Operators.lift(ReactorHooksAdvice::tracingSubscriber);
   }
 
   public static <T> CoreSubscriber<? super T> tracingSubscriber(
@@ -52,13 +52,16 @@ public class ReactorHooksAdvice {
     }
   }
 
+  @Slf4j
   public static class TracingSubscriber<T>
       implements Subscription, CoreSubscriber<T>, Fuseable.QueueSubscription<T>, Scannable {
+
+    private final AtomicBoolean active = new AtomicBoolean(true);
+    private final AtomicReference<TraceScope.Continuation> continuation = new AtomicReference<>();
 
     private final Subscriber<T> delegate;
     private final Context context;
     private final TraceScope parentScope;
-    private final AtomicReference<TraceScope.Continuation> continuation = new AtomicReference<>();
     private Subscription subscription;
 
     public TracingSubscriber(
@@ -66,6 +69,7 @@ public class ReactorHooksAdvice {
       this.delegate = delegate;
       this.context = context;
       this.parentScope = parentScope;
+
       parentScope.setAsyncPropagation(true);
       continuation.set(parentScope.capture());
       if (context != null) {
@@ -78,14 +82,68 @@ public class ReactorHooksAdvice {
       return context;
     }
 
+    private TraceScope maybeScope() {
+      if (active.get()) {
+        final TraceScope.Continuation continuation =
+            this.continuation.getAndSet(parentScope.capture());
+        return continuation.activate();
+      } else {
+        return NoopTraceScope.INSTANCE;
+      }
+    }
+
+    private TraceScope maybeScopeAndDeactivate() {
+      if (active.getAndSet(false)) {
+        final TraceScope.Continuation continuation = this.continuation.getAndSet(null);
+        return continuation.activate();
+      } else {
+        return NoopTraceScope.INSTANCE;
+      }
+    }
+
     @Override
     public void onSubscribe(final Subscription subscription) {
       this.subscription = subscription;
 
-      final TraceScope.Continuation continuation =
-          this.continuation.getAndSet(parentScope.capture());
-      try (final TraceScope scope = continuation.activate()) {
+      try (final TraceScope scope = maybeScope()) {
         delegate.onSubscribe(this);
+      }
+    }
+
+    @Override
+    public void request(final long n) {
+      try (final TraceScope scope = maybeScope()) {
+        subscription.request(n);
+      }
+    }
+
+    @Override
+    public void onNext(final T t) {
+      try (final TraceScope scope = maybeScope()) {
+        delegate.onNext(t);
+      }
+    }
+
+    @Override
+    public void cancel() {
+      try (final TraceScope scope = maybeScopeAndDeactivate()) {
+        subscription.cancel();
+      }
+    }
+
+    @Override
+    public void onError(final Throwable t) {
+      try (final TraceScope scope = maybeScopeAndDeactivate()) {
+        delegate.onError(t);
+        activeSpan().setError(true);
+        activeSpan().addThrowable(t);
+      }
+    }
+
+    @Override
+    public void onComplete() {
+      try (final TraceScope scope = maybeScopeAndDeactivate()) {
+        delegate.onComplete();
       }
     }
 
@@ -99,50 +157,6 @@ public class ReactorHooksAdvice {
         } else {
           return null;
         }
-      }
-    }
-
-    @Override
-    public void request(final long n) {
-      final TraceScope.Continuation continuation =
-          this.continuation.getAndSet(parentScope.capture());
-      try (final TraceScope scope = continuation.activate()) {
-        subscription.request(n);
-      }
-    }
-
-    @Override
-    public void cancel() {
-      final TraceScope.Continuation continuation = this.continuation.getAndSet(null);
-      try (final TraceScope scope = continuation.activate()) {
-        subscription.cancel();
-      }
-    }
-
-    @Override
-    public void onNext(final T t) {
-      final TraceScope.Continuation continuation =
-          this.continuation.getAndSet(parentScope.capture());
-      try (final TraceScope scope = continuation.activate()) {
-        delegate.onNext(t);
-      }
-    }
-
-    @Override
-    public void onError(final Throwable t) {
-      final TraceScope.Continuation continuation = this.continuation.getAndSet(null);
-      try (final TraceScope scope = continuation.activate()) {
-        delegate.onError(t);
-        activeSpan().setError(true);
-        activeSpan().addThrowable(t);
-      }
-    }
-
-    @Override
-    public void onComplete() {
-      final TraceScope.Continuation continuation = this.continuation.getAndSet(null);
-      try (final TraceScope scope = continuation.activate()) {
-        delegate.onComplete();
       }
     }
 
@@ -168,5 +182,25 @@ public class ReactorHooksAdvice {
 
     @Override
     public void clear() {}
+
+    static class NoopTraceScope implements TraceScope {
+      static final NoopTraceScope INSTANCE = new NoopTraceScope();
+
+      @Override
+      public Continuation capture() {
+        return null;
+      }
+
+      @Override
+      public void close() {}
+
+      @Override
+      public boolean isAsyncPropagating() {
+        return false;
+      }
+
+      @Override
+      public void setAsyncPropagation(final boolean value) {}
+    }
   }
 }
