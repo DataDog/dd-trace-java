@@ -45,9 +45,11 @@ jdk.JVMInformation#period=beginChunk
 jdk.InitialSystemProperty#enabled=true
 jdk.InitialSystemProperty#period=beginChunk
 jdk.ExecutionSample#enabled=true
-jdk.ExecutionSample#period=10 ms
+# Note: we use 9 ms sampling rate in a hope to avoid 'lockstep' sampling.
+# Ideally JFR should provide random jitter in sampling to ensure this doesn't happen.
+jdk.ExecutionSample#period=9 ms
 jdk.NativeMethodSample#enabled=true
-jdk.NativeMethodSample#period=10 ms
+jdk.NativeMethodSample#period=9 ms
 jdk.SafepointBegin#enabled=true
 jdk.SafepointBegin#threshold=0 ms
 jdk.SafepointStateSynchronization#enabled=false

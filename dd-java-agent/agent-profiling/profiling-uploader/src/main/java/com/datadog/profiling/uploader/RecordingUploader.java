@@ -245,19 +245,19 @@ public final class RecordingUploader {
 
   private void makeUploadRequest(final RecordingType type, final RecordingData data)
       throws IOException {
-    final int expectedRqeustSize = getExpectedRequestSize();
+    final int expectedRequestSize = getExpectedRequestSize();
     // TODO: it would be really nice to avoid copy here, but:
     // * if JFR doesn't write file to disk we seem to not be able to get size of the recording
     // without reading whole stream
     // * OkHTTP doesn't provide direct way to send uploads from streams - and workarounds would
     // require stream that allows 'repeatable reads' because we may need to resend that data.
-    final RequestBody body = compression.compress(data.getStream(), expectedRqeustSize);
+    final RequestBody body = compression.compress(data.getStream(), expectedRequestSize);
     log.debug(
         "Uploading recording {} [{}] (Size={}/{} bytes)",
         data.getName(),
         type,
         body.contentLength(),
-        expectedRqeustSize);
+        expectedRequestSize);
 
     // The body data is stored in byte array so we naturally get size limit that will fit into int
     updateUploadSizesHistory((int) body.contentLength());
