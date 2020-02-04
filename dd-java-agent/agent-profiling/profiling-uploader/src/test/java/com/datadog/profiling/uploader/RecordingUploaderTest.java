@@ -30,6 +30,7 @@ import static org.mockito.Mockito.withSettings;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.testing.ProfilingTestUtils;
+import com.datadog.profiling.uploader.util.PidHelper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -86,7 +87,15 @@ public class RecordingUploaderTest {
 
   // We sort tags to have expected parameters to have expected result
   private static final Map<String, String> EXPECTED_TAGS =
-      ImmutableMap.of("baz", "123", "foo", "bar");
+      ImmutableMap.of(
+          "baz",
+          "123",
+          "foo",
+          "bar",
+          PidHelper.PID_TAG,
+          PidHelper.PID.toString(),
+          VersionInfo.PROFILER_VERSION_TAG,
+          VersionInfo.VERSION);
 
   private static final int SEQUENCE_NUMBER = 123;
   private static final int RECORDING_START = 1000;
