@@ -7,6 +7,7 @@ ext {
 
     slf4j      : "1.7.29",
     guava      : "20.0", // Last version to support Java 7
+    okhttp     : "3.12.8", // 3.12.x is last version to support Java7
 
     // When upgrading for security fixes, ensure corresponding change is reflected in jmxfetch.
     jackson    : "2.10.0", // https://nvd.nist.gov/vuln/detail/CVE-2019-16942 et al
@@ -39,6 +40,7 @@ ext {
       dependencies.create(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: versions.jackson),
       dependencies.create(group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.18'),
     ],
+    okhttp         : dependencies.create(group: 'com.squareup.okhttp3', name: 'okhttp', version: versions.okhttp),
     bytebuddy      : dependencies.create(group: 'net.bytebuddy', name: 'byte-buddy', version: "${versions.bytebuddy}"),
     bytebuddyagent : dependencies.create(group: 'net.bytebuddy', name: 'byte-buddy-agent', version: "${versions.bytebuddy}"),
     autoservice    : [
