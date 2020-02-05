@@ -19,6 +19,8 @@ public class VersionInfo {
   static final String DATADOG_META_LANG_INTERPRETER_VENDOR = "Datadog-Meta-Lang-Interpreter-Vendor";
   static final String DATADOG_META_TRACER_VERSION = "Datadog-Meta-Tracer-Version";
 
+  static final String PROFILER_VERSION_TAG = "profiler_version";
+
   static final String VERSION;
 
   static {
