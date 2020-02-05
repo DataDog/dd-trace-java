@@ -20,6 +20,7 @@ dependencies {
 
   compile deps.guava
   compile deps.okhttp
+  compile group: 'com.github.jnr', name: 'jnr-posix', version: '3.0.52'
 
   testCompile deps.junit5
   testCompile project(':dd-java-agent:agent-profiling:profiling-testing')

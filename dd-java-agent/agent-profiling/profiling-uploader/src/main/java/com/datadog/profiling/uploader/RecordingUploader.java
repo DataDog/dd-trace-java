@@ -17,6 +17,7 @@ package com.datadog.profiling.uploader;
 
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
+import com.datadog.profiling.uploader.util.PidHelper;
 import com.datadog.profiling.uploader.util.StreamUtils;
 import com.datadog.profiling.util.ProfilingThreadFactory;
 import datadog.trace.api.Config;
@@ -27,6 +28,7 @@ import java.net.Proxy;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -117,7 +119,22 @@ public final class RecordingUploader {
   public RecordingUploader(final Config config) {
     url = config.getProfilingUrl();
     apiKey = config.getProfilingApiKey();
-    tags = tagsToList(config.getMergedProfilingTags());
+
+    /*
+    FIXME: currently `Config` class cannot get access to some pieces of information we need here:
+    * PID (see PidHelper for details),
+    * Profiler version
+    Since Config returns unmodifiable map we have to do copy here.
+    Ideally we should improve this logic and avoid copy, but performace impact is very limtied
+    since we are doing this once on startup only.
+    */
+    final Map<String, String> tagsMap = new HashMap<>(config.getMergedProfilingTags());
+    tagsMap.put(VersionInfo.PROFILER_VERSION_TAG, VersionInfo.VERSION);
+    // PID can be null if we cannot find it out from the system
+    if (PidHelper.PID != null) {
+      tagsMap.put(PidHelper.PID_TAG, PidHelper.PID.toString());
+    }
+    tags = tagsToList(tagsMap);
 
     // This is the same thing OkHttp Dispatcher is doing except thread naming and deamonization
     okHttpExecutorService =
