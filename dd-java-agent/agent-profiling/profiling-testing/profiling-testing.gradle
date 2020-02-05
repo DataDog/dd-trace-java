@@ -7,10 +7,10 @@ excludedClassesCoverage += [
 
 dependencies {
   compile deps.guava
-  compile group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.12.8'
+  compile deps.okhttp
   compile group: 'org.javadelight', name: 'delight-fileupload', version: '0.0.5'
   compile group: 'javax.servlet', name: 'javax.servlet-api', version: '4.0.1'
-  compile group: 'com.squareup.okhttp3', name: 'mockwebserver', version: '3.12.8'
+  compile group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp
 }
 
 /* We use Java8 features, but there is no code needing JFR libraries */
