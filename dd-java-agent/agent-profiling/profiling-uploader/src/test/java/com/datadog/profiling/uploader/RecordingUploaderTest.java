@@ -95,7 +95,7 @@ public class RecordingUploaderTest {
           PidHelper.PID_TAG,
           PidHelper.PID.toString(),
           VersionInfo.PROFILER_VERSION_TAG,
-          VersionInfo.VERSION);
+          "Stubbed-Test-Version");
 
   private static final int SEQUENCE_NUMBER = 123;
   private static final int RECORDING_START = 1000;
@@ -319,17 +319,9 @@ public class RecordingUploaderTest {
     uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
-    assertEquals(VersionInfo.JAVA_LANG, recordedRequest.getHeader(VersionInfo.DATADOG_META_LANG));
     assertEquals(
-        VersionInfo.JAVA_VERSION, recordedRequest.getHeader(VersionInfo.DATADOG_META_LANG_VERSION));
-    assertEquals(
-        VersionInfo.JAVA_VM_NAME,
-        recordedRequest.getHeader(VersionInfo.DATADOG_META_LANG_INTERPRETER));
-    assertEquals(
-        VersionInfo.JAVA_VM_VENDOR,
-        recordedRequest.getHeader(VersionInfo.DATADOG_META_LANG_INTERPRETER_VENDOR));
-    assertEquals(
-        "Stubbed-Test-Version", recordedRequest.getHeader(VersionInfo.DATADOG_META_TRACER_VERSION));
+        RecordingUploader.JAVA_LANG,
+        recordedRequest.getHeader(RecordingUploader.DATADOG_META_LANG));
   }
 
   @Test

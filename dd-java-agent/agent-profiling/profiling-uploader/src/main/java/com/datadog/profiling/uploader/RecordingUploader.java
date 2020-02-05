@@ -70,6 +70,9 @@ public final class RecordingUploader {
 
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
 
+  static final String JAVA_LANG = "java";
+  static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
+
   static final int MAX_RUNNING_REQUESTS = 10;
   static final int MAX_ENQUEUED_REQUESTS = 20;
 
@@ -299,12 +302,8 @@ public final class RecordingUploader {
         new Request.Builder()
             .url(url)
             .addHeader(HEADER_DD_API_KEY, apiKey)
-            // Note: this header is also used to disable tracing of profiling requests
-            .addHeader(VersionInfo.DATADOG_META_LANG, VersionInfo.JAVA_LANG)
-            .addHeader(VersionInfo.DATADOG_META_LANG_VERSION, VersionInfo.JAVA_VERSION)
-            .addHeader(VersionInfo.DATADOG_META_LANG_INTERPRETER, VersionInfo.JAVA_VM_NAME)
-            .addHeader(VersionInfo.DATADOG_META_LANG_INTERPRETER_VENDOR, VersionInfo.JAVA_VM_VENDOR)
-            .addHeader(VersionInfo.DATADOG_META_TRACER_VERSION, VersionInfo.VERSION)
+            // Note: this header is used to disable tracing of profiling requests
+            .addHeader(DATADOG_META_LANG, JAVA_LANG)
             .post(requestBody)
             .build();
 
