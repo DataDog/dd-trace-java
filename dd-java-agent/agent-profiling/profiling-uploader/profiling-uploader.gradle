@@ -7,7 +7,9 @@ apply from: "${rootDir}/gradle/java.gradle"
 
 excludedClassesCoverage += [
   // This is just a static declaration that is hard to test
-  'com.datadog.profiling.uploader.VersionInfo'
+  'com.datadog.profiling.uploader.VersionInfo',
+  // Large parts of this class are jvm specific which makes jacoco really confused since we run it only for 'default' jvm
+  'com.datadog.profiling.uploader.util.PidHelper'
 ]
 
 dependencies {
