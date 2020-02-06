@@ -20,6 +20,7 @@ import org.reactivestreams.Subscription;
 import reactor.core.CoreSubscriber;
 import reactor.core.Fuseable;
 import reactor.core.Scannable;
+import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Operators;
 import reactor.util.context.Context;
@@ -36,7 +37,9 @@ public class ReactorHooksAdvice {
 
   public static <T> CoreSubscriber<? super T> tracingSubscriber(
       final Scannable scannable, final CoreSubscriber<T> delegate) {
-    if (scannable instanceof TracingSubscriber) {
+    // Don't wrap ourselves, and DirectProcessor doesn't always call cancel so we didn't get to
+    // clean up our continuations
+    if (scannable instanceof TracingSubscriber || delegate instanceof DirectProcessor) {
       return delegate;
     }
 
@@ -103,9 +106,6 @@ public class ReactorHooksAdvice {
 
     @Override
     public void onSubscribe(final Subscription subscription) {
-      log.debug("onSubscribe() {}", toString());
-      log.debug("subscribed to {}@{}", delegate.toString(), delegate.hashCode());
-      log.debug("subscribed by {}@{}", subscription.toString(), subscription.hashCode());
       this.subscription = subscription;
 
       try (final TraceScope scope = maybeScope()) {
@@ -115,7 +115,10 @@ public class ReactorHooksAdvice {
 
     @Override
     public void request(final long n) {
-      log.debug("request() {}", toString());
+      if (n <= 0) {
+        cancel();
+        return;
+      }
       try (final TraceScope scope = maybeScope()) {
         subscription.request(n);
       }
@@ -123,7 +126,6 @@ public class ReactorHooksAdvice {
 
     @Override
     public void onNext(final T t) {
-      log.debug("onNext() {}", toString());
       try (final TraceScope scope = maybeScope()) {
         delegate.onNext(t);
       }
@@ -131,7 +133,6 @@ public class ReactorHooksAdvice {
 
     @Override
     public void cancel() {
-      log.debug("cancel() {}", toString());
       try (final TraceScope scope = maybeScopeAndDeactivate()) {
         subscription.cancel();
       }
@@ -139,7 +140,6 @@ public class ReactorHooksAdvice {
 
     @Override
     public void onError(final Throwable t) {
-      log.debug("onError() {}", toString());
       try (final TraceScope scope = maybeScopeAndDeactivate()) {
         delegate.onError(t);
         activeSpan().setError(true);
@@ -149,7 +149,6 @@ public class ReactorHooksAdvice {
 
     @Override
     public void onComplete() {
-      log.debug("onComplete() {}", toString());
       try (final TraceScope scope = maybeScopeAndDeactivate()) {
         delegate.onComplete();
       }
@@ -185,7 +184,7 @@ public class ReactorHooksAdvice {
 
     @Override
     public boolean isEmpty() {
-      return true;
+      return false;
     }
 
     @Override

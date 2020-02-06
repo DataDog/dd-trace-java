@@ -20,8 +20,6 @@ import reactor.util.context.Context;
 @Slf4j
 public class AdviceUtils {
 
-  public static final String PUBLISHER_CONTEXT_KEY =
-      "datadog.trace.instrumentation.reactor.core.Span";
   public static final String SPAN_ATTRIBUTE = "datadog.trace.instrumentation.springwebflux.Span";
   public static final String PARENT_SPAN_ATTRIBUTE =
       "datadog.trace.instrumentation.springwebflux.ParentSpan";
@@ -41,12 +39,12 @@ public class AdviceUtils {
 
   public static <T> Mono<T> setPublisherSpan(final Mono<T> mono, final AgentSpan span) {
     return mono.<T>transform(finishSpanNextOrError())
-        .subscriberContext(Context.of(PUBLISHER_CONTEXT_KEY, span));
+        .subscriberContext(Context.of(AgentSpan.class, span));
   }
 
   public static <T> Flux<T> setPublisherSpan(final Flux<T> flux, final AgentSpan span) {
     return flux.<T>transform(finishSpanNextOrError())
-        .subscriberContext(Context.of(PUBLISHER_CONTEXT_KEY, span));
+        .subscriberContext(Context.of(AgentSpan.class, span));
   }
 
   /**
@@ -119,13 +117,13 @@ public class AdviceUtils {
 
     @Override
     public void onError(final Throwable t) {
-      finishSpanIfPresent(context.getOrDefault(PUBLISHER_CONTEXT_KEY, (AgentSpan) null), t);
+      finishSpanIfPresent(context.getOrDefault(AgentSpan.class, (AgentSpan) null), t);
       subscriber.onError(t);
     }
 
     @Override
     public void onComplete() {
-      finishSpanIfPresent(context.getOrDefault(PUBLISHER_CONTEXT_KEY, (AgentSpan) null), null);
+      finishSpanIfPresent(context.getOrDefault(AgentSpan.class, (AgentSpan) null), null);
       subscriber.onComplete();
     }
 
