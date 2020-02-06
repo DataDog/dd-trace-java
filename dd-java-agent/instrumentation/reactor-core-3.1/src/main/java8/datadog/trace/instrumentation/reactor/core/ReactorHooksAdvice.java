@@ -70,14 +70,12 @@ public class ReactorHooksAdvice {
     public TracingSubscriber(
         final Subscriber<T> delegate, final Context context, final TraceScope parentScope) {
       this.delegate = delegate;
-      this.context = context;
+      this.context = context != null ? context : Context.empty();
       this.parentScope = parentScope;
 
       parentScope.setAsyncPropagation(true);
       continuation.set(parentScope.capture());
-      if (context != null) {
-        context.put(TraceScope.class, parentScope);
-      }
+      context.put(TraceScope.class, parentScope);
     }
 
     @Override
@@ -115,10 +113,6 @@ public class ReactorHooksAdvice {
 
     @Override
     public void request(final long n) {
-      if (n <= 0) {
-        cancel();
-        return;
-      }
       try (final TraceScope scope = maybeScope()) {
         subscription.request(n);
       }
@@ -158,13 +152,11 @@ public class ReactorHooksAdvice {
     public Object scanUnsafe(final Attr attr) {
       if (attr == Attr.PARENT) {
         return subscription;
-      } else {
-        if (attr == Attr.ACTUAL) {
-          return delegate;
-        } else {
-          return null;
-        }
       }
+      if (attr == Attr.ACTUAL) {
+        return delegate;
+      }
+      return null;
     }
 
     @Override

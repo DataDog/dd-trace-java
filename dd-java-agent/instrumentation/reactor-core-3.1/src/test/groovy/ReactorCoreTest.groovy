@@ -36,7 +36,7 @@ class ReactorCoreTest extends AgentTestRunner {
     result == expected
     and:
     sortAndAssertTraces(1) {
-      trace(0, workSpans + 2) { trace ->
+      trace(0, workSpans + 2) {
         span(0) {
           resourceName "trace-parent"
           operationName "trace-parent"
