@@ -3,19 +3,14 @@ import datadog.trace.agent.test.utils.TraceUtils
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.reactive.RedisStringReactiveCommands
-import org.testcontainers.containers.GenericContainer
 import reactor.core.scheduler.Schedulers
-import spock.lang.Shared
 
 class LettuceReactiveTest extends AgentTestRunner {
-  @Shared
-  GenericContainer redis = new GenericContainer<>("redis:alpine").withExposedPorts(6379)
 
   RedisStringReactiveCommands<String, String> reactive
 
   def setup() {
-    redis.start()
-    RedisClient client = RedisClient.create("redis://localhost:" + redis.getMappedPort(6379))
+    RedisClient client = RedisClient.create("redis://localhost:6379")
     StatefulRedisConnection<String, String> connection = client.connect()
     reactive = connection.reactive()
   }

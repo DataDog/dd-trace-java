@@ -55,6 +55,8 @@ jobs:
     - image: memcached
       # This is used by rabbitmq instrumentation tests
     - image: rabbitmq
+      # used in lettuce+reactor intregration tests
+    - image: redis
 
     steps:
     - checkout
