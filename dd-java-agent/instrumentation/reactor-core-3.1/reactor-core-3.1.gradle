@@ -40,7 +40,6 @@ dependencies {
   lettuceTestCompile project(':dd-java-agent:instrumentation:lettuce-5')
   lettuceTestCompile group: 'io.lettuce', name: 'lettuce-core', version: '5.2.0.RELEASE'
   lettuceTestCompile group: 'io.micrometer', name: 'micrometer-core', version: '1.+'
-  lettuceTestCompile deps.testcontainers
 }
 
 test.finalizedBy lettuceTest
