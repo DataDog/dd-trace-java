@@ -15,6 +15,7 @@ public abstract class AbstractWebfluxInstrumentation extends Instrumenter.Defaul
       "datadog.trace.agent.decorator.ServerDecorator",
       packageName + ".SpringWebfluxHttpServerDecorator",
       packageName + ".AdviceUtils",
+      packageName + ".AdviceUtils$SpanFinishingSubscriber",
       packageName + ".RouteOnSuccessOrError"
     };
   }
