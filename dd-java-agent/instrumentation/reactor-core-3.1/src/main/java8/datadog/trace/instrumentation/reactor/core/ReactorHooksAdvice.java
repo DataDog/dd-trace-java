@@ -20,6 +20,7 @@ import org.reactivestreams.Subscription;
 import reactor.core.CoreSubscriber;
 import reactor.core.Fuseable;
 import reactor.core.Scannable;
+import reactor.core.publisher.ConnectableFlux;
 import reactor.core.publisher.DirectProcessor;
 import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Operators;
@@ -32,17 +33,32 @@ public class ReactorHooksAdvice {
   }
 
   public static <T> Function<? super Publisher<T>, ? extends Publisher<T>> tracingOperator() {
-    return Operators.lift(ReactorHooksAdvice::tracingSubscriber);
+    return Operators.lift(
+        (scannable) -> {
+          // Don't wrap ourselves, and DirectProcessor doesn't always call cancel so we didn't get
+          // to clean up our continuations
+          if (scannable instanceof TracingSubscriber) {
+            return false;
+          } else if (scannable instanceof DirectProcessor) {
+            return false;
+          } else if (scannable instanceof Fuseable.ScalarCallable) {
+            return false;
+          } else if (scannable instanceof ConnectableFlux) {
+            return false;
+          }
+          // In reactor 3.1 some built in types are not Scannable, the object before we receive it
+          // is sent through Scannable.from(). When this is done if the object is not a Scannable
+          // then we will get one of 2 constant Scannables which are members of Scannable.Attr
+          if (scannable.getClass().getName().startsWith("reactor.core.Scannable$Attr$")) {
+            return false;
+          }
+          return true;
+        },
+        ReactorHooksAdvice::tracingSubscriber);
   }
 
   public static <T> CoreSubscriber<? super T> tracingSubscriber(
       final Scannable scannable, final CoreSubscriber<T> delegate) {
-    // Don't wrap ourselves, and DirectProcessor doesn't always call cancel so we didn't get to
-    // clean up our continuations
-    if (scannable instanceof TracingSubscriber || delegate instanceof DirectProcessor) {
-      return delegate;
-    }
-
     final Context context = delegate.currentContext();
     final Optional<AgentSpan> maybeSpan = context.getOrEmpty(AgentSpan.class);
     final AgentSpan span = maybeSpan.orElseGet(AgentTracer::activeSpan);

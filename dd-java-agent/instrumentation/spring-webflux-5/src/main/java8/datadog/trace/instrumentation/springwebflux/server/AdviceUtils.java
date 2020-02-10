@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import java.util.function.Function;
@@ -12,7 +14,6 @@ import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.CoreSubscriber;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Operators;
 import reactor.util.context.Context;
@@ -38,13 +39,8 @@ public class AdviceUtils {
   }
 
   public static <T> Mono<T> setPublisherSpan(final Mono<T> mono, final AgentSpan span) {
-    return mono.<T>transform(finishSpanNextOrError())
-        .subscriberContext(Context.of(AgentSpan.class, span));
-  }
-
-  public static <T> Flux<T> setPublisherSpan(final Flux<T> flux, final AgentSpan span) {
-    return flux.<T>transform(finishSpanNextOrError())
-        .subscriberContext(Context.of(AgentSpan.class, span));
+    return mono.<T>transform(finishSpanNextOrError(span))
+        .subscriberContext(c -> c.put(AgentSpan.class, span));
   }
 
   /**
@@ -52,9 +48,10 @@ public class AdviceUtils {
    * versions of reactor-core have easier way to access context but we want to support older
    * versions.
    */
-  public static <T, IP>
-      Function<? super Publisher<T>, ? extends Publisher<T>> finishSpanNextOrError() {
-    return Operators.lift((scannable, subscriber) -> new SpanFinishingSubscriber<>(subscriber));
+  public static <T> Function<? super Publisher<T>, ? extends Publisher<T>> finishSpanNextOrError(
+      final AgentSpan span) {
+    return Operators.lift(
+        (scannable, subscriber) -> new SpanFinishingSubscriber<>(subscriber, span));
   }
 
   public static void finishSpanIfPresent(
@@ -97,17 +94,21 @@ public class AdviceUtils {
 
   public static class SpanFinishingSubscriber<T> implements CoreSubscriber<T> {
 
-    private final Context context;
     private final CoreSubscriber<? super T> subscriber;
+    private final AgentSpan span;
 
-    public SpanFinishingSubscriber(final CoreSubscriber<? super T> subscriber) {
+    public SpanFinishingSubscriber(
+        final CoreSubscriber<? super T> subscriber, final AgentSpan span) {
       this.subscriber = subscriber;
-      context = subscriber.currentContext();
+      this.span = span;
     }
 
     @Override
     public void onSubscribe(final Subscription s) {
-      subscriber.onSubscribe(s);
+      try (final AgentScope scope = activateSpan(span, false)) {
+        scope.setAsyncPropagation(true);
+        subscriber.onSubscribe(s);
+      }
     }
 
     @Override
@@ -117,19 +118,19 @@ public class AdviceUtils {
 
     @Override
     public void onError(final Throwable t) {
-      finishSpanIfPresent(context.getOrDefault(AgentSpan.class, (AgentSpan) null), t);
+      finishSpanIfPresent(span, t);
       subscriber.onError(t);
     }
 
     @Override
     public void onComplete() {
-      finishSpanIfPresent(context.getOrDefault(AgentSpan.class, (AgentSpan) null), null);
+      finishSpanIfPresent(span, null);
       subscriber.onComplete();
     }
 
     @Override
     public Context currentContext() {
-      return context;
+      return subscriber.currentContext();
     }
   }
 }

@@ -20,7 +20,8 @@ public class DispatcherHandlerAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope methodEnter(@Advice.Argument(0) final ServerWebExchange exchange) {
     // Unfortunately Netty EventLoop is not instrumented well enough to attribute all work to the
-    // right things so we have to store span in request itself. We also store parent (netty's) span
+    // right things so we have to store span in request itself. We also store parent (netty's)
+    // span
     // so we could update resource name.
     final AgentSpan parentSpan = activeSpan();
     if (parentSpan != null) {
@@ -41,7 +42,7 @@ public class DispatcherHandlerAdvice {
       @Advice.Enter final AgentScope scope,
       @Advice.Thrown final Throwable throwable,
       @Advice.Argument(0) final ServerWebExchange exchange,
-      @Advice.Return(readOnly = false) Mono<Object> mono) {
+      @Advice.Return(readOnly = false) Mono<Void> mono) {
     if (throwable == null && mono != null) {
       mono = AdviceUtils.setPublisherSpan(mono, scope.span());
     } else if (throwable != null) {

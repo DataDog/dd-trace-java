@@ -107,11 +107,13 @@ class ReactorCoreTest extends AgentTestRunner {
           resourceName "publisher-parent"
           operationName "publisher-parent"
           childOf(span(0))
-          errored true
-          tags {
-            errorTags(RuntimeException, EXCEPTION_MESSAGE)
-            defaultTags()
-          }
+          // MonoError and FluxError are both Fuseable.ScalarCallable which we cannot wrap without
+          // causing a lot of problems
+          //          errored true
+          //          tags {
+          //            errorTags(RuntimeException, EXCEPTION_MESSAGE)
+          //            defaultTags()
+          //          }
         }
       }
     }
