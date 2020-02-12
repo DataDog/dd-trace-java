@@ -8,6 +8,14 @@ import reactor.core.publisher.Mono;
 
 public class DefaultWebClientAdvice {
 
+  @Advice.OnMethodEnter(suppress = Throwable.class)
+  public static void methodEnter(
+      @Advice.Argument(value = 0, readOnly = false) ClientRequest clientRequest) {
+    if (!clientRequest.headers().keySet().contains("x-datadog-trace-id")) {
+      clientRequest = ClientRequest.from(clientRequest).headers(h -> {}).build();
+    }
+  }
+
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(
       @Advice.Thrown final Throwable throwable,

@@ -39,8 +39,7 @@ public class AdviceUtils {
   }
 
   public static <T> Mono<T> setPublisherSpan(final Mono<T> mono, final AgentSpan span) {
-    return mono.<T>transform(finishSpanNextOrError(span))
-        .subscriberContext(c -> c.put(AgentSpan.class, span));
+    return mono.<T>transform(finishSpanNextOrError(span));
   }
 
   /**
@@ -96,11 +95,13 @@ public class AdviceUtils {
 
     private final CoreSubscriber<? super T> subscriber;
     private final AgentSpan span;
+    private final Context context;
 
     public SpanFinishingSubscriber(
         final CoreSubscriber<? super T> subscriber, final AgentSpan span) {
       this.subscriber = subscriber;
       this.span = span;
+      context = subscriber.currentContext().put(AgentSpan.class, span);
     }
 
     @Override
@@ -113,7 +114,10 @@ public class AdviceUtils {
 
     @Override
     public void onNext(final T t) {
-      subscriber.onNext(t);
+      try (final AgentScope scope = activateSpan(span, false)) {
+        scope.setAsyncPropagation(true);
+        subscriber.onNext(t);
+      }
     }
 
     @Override
@@ -130,7 +134,7 @@ public class AdviceUtils {
 
     @Override
     public Context currentContext() {
-      return subscriber.currentContext();
+      return context;
     }
   }
 }

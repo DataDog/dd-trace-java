@@ -39,10 +39,10 @@ public class ReactorHooksAdvice {
           // to clean up our continuations
           if (scannable instanceof TracingSubscriber) {
             return false;
-          } else if (scannable instanceof DirectProcessor) {
-            return false;
-          } else if (scannable instanceof Fuseable.ScalarCallable) {
-            return false;
+            //          } else if (scannable instanceof DirectProcessor) {
+            //            return false;
+            //          } else if (scannable instanceof Fuseable.ScalarCallable) {
+            //            return false;
           } else if (scannable instanceof ConnectableFlux) {
             return false;
           }
@@ -59,6 +59,13 @@ public class ReactorHooksAdvice {
 
   public static <T> CoreSubscriber<? super T> tracingSubscriber(
       final Scannable scannable, final CoreSubscriber<T> delegate) {
+    if (delegate instanceof DirectProcessor) {
+      return delegate;
+    }
+    if (delegate instanceof Fuseable.ScalarCallable) {
+      return delegate;
+    }
+
     final Context context = delegate.currentContext();
     final Optional<AgentSpan> maybeSpan = context.getOrEmpty(AgentSpan.class);
     final AgentSpan span = maybeSpan.orElseGet(AgentTracer::activeSpan);
@@ -67,6 +74,7 @@ public class ReactorHooksAdvice {
     }
 
     try (final AgentScope scope = activateSpan(span, false)) {
+      context.put(AgentSpan.class, span);
       return new TracingSubscriber<>(delegate, context, activeScope());
     }
   }
@@ -91,18 +99,18 @@ public class ReactorHooksAdvice {
 
       parentScope.setAsyncPropagation(true);
       continuation.set(parentScope.capture());
-      context.put(TraceScope.class, parentScope);
-    }
-
-    @Override
-    public Context currentContext() {
-      return context;
     }
 
     private TraceScope maybeScope() {
       if (active.get()) {
         final TraceScope.Continuation continuation =
             this.continuation.getAndSet(parentScope.capture());
+        log.debug(
+            "maybeScope(): {} - {} - {} {}",
+            this,
+            continuation,
+            delegate.getClass().getName(),
+            subscription.getClass().getName());
         return continuation.activate();
       } else {
         return NoopTraceScope.INSTANCE;
@@ -112,10 +120,25 @@ public class ReactorHooksAdvice {
     private TraceScope maybeScopeAndDeactivate() {
       if (active.getAndSet(false)) {
         final TraceScope.Continuation continuation = this.continuation.getAndSet(null);
+        log.debug(
+            "maybeScopeAndDeactivate(): {} - {} - {} {}",
+            this,
+            continuation,
+            delegate.getClass().getName(),
+            subscription.getClass().getName());
         return continuation.activate();
       } else {
         return NoopTraceScope.INSTANCE;
       }
+    }
+
+    /*
+     * Methods from CoreSubscriber
+     */
+
+    @Override
+    public Context currentContext() {
+      return context;
     }
 
     @Override
@@ -128,23 +151,9 @@ public class ReactorHooksAdvice {
     }
 
     @Override
-    public void request(final long n) {
-      try (final TraceScope scope = maybeScope()) {
-        subscription.request(n);
-      }
-    }
-
-    @Override
     public void onNext(final T t) {
       try (final TraceScope scope = maybeScope()) {
         delegate.onNext(t);
-      }
-    }
-
-    @Override
-    public void cancel() {
-      try (final TraceScope scope = maybeScopeAndDeactivate()) {
-        subscription.cancel();
       }
     }
 
@@ -164,6 +173,28 @@ public class ReactorHooksAdvice {
       }
     }
 
+    /*
+     * Methods from Subscription
+     */
+
+    @Override
+    public void request(final long n) {
+      try (final TraceScope scope = maybeScope()) {
+        subscription.request(n);
+      }
+    }
+
+    @Override
+    public void cancel() {
+      try (final TraceScope scope = maybeScopeAndDeactivate()) {
+        subscription.cancel();
+      }
+    }
+
+    /*
+     * Methods from Scannable
+     */
+
     @Override
     public Object scanUnsafe(final Attr attr) {
       if (attr == Attr.PARENT) {
@@ -174,6 +205,10 @@ public class ReactorHooksAdvice {
       }
       return null;
     }
+
+    /*
+     * Methods from Fuseable.QueueSubscription
+     */
 
     @Override
     public int requestFusion(final int requestedMode) {

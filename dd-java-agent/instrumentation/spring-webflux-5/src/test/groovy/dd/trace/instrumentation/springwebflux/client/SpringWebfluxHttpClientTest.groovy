@@ -27,8 +27,8 @@ class SpringWebfluxHttpClientTest extends HttpClientTest<SpringWebfluxHttpClient
       .uri(uri)
       .exchange()
       .doOnSuccessOrError { success, error ->
-        blockUntilChildSpansFinished(1)
         callback?.call()
+        blockUntilChildSpansFinished(1)
       }
       .block()
 
