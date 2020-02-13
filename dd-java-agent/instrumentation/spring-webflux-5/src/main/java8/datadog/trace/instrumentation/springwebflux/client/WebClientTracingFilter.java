@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.springwebflux.client;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springwebflux.client.HttpHeadersInjectAdapter.SETTER;
@@ -8,35 +9,19 @@ import static datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHt
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
+import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
-import reactor.core.CoreSubscriber;
 import reactor.core.publisher.Mono;
-import reactor.util.context.Context;
 
-public class TracingClientResponseMono extends Mono<ClientResponse> {
-
-  private final ClientRequest clientRequest;
-  private final ExchangeFunction exchangeFunction;
-
-  public TracingClientResponseMono(
-      final ClientRequest clientRequest, final ExchangeFunction exchangeFunction) {
-    this.clientRequest = clientRequest;
-    this.exchangeFunction = exchangeFunction;
-  }
-
+public class WebClientTracingFilter implements ExchangeFilterFunction {
   @Override
-  public void subscribe(final CoreSubscriber<? super ClientResponse> subscriber) {
-    final Context context = subscriber.currentContext();
-    final AgentSpan parentSpan =
-        context.<AgentSpan>getOrEmpty(AgentSpan.class).orElseGet(AgentTracer::activeSpan);
-
+  public Mono<ClientResponse> filter(final ClientRequest request, final ExchangeFunction next) {
     final AgentSpan span;
-    if (parentSpan != null) {
-      span = startSpan("http.request", parentSpan.context());
+    if (activeSpan() != null) {
+      span = startSpan("http.request", activeSpan().context());
     } else {
       span = startSpan("http.request");
     }
@@ -44,18 +29,32 @@ public class TracingClientResponseMono extends Mono<ClientResponse> {
     DECORATE.afterStart(span);
 
     try (final AgentScope scope = activateSpan(span, false)) {
-
       scope.setAsyncPropagation(true);
-
       final ClientRequest mutatedRequest =
-          ClientRequest.from(clientRequest)
+          ClientRequest.from(request)
+              .attribute(AgentSpan.class.getName(), span)
               .headers(httpHeaders -> propagate().inject(span, httpHeaders, SETTER))
               .build();
-      exchangeFunction
-          .exchange(mutatedRequest)
-          .subscribe(
-              new TracingClientResponseSubscriber(
-                  subscriber, mutatedRequest, context, span, parentSpan));
+      DECORATE.onRequest(span, mutatedRequest);
+
+      return next.exchange(mutatedRequest)
+          .doOnSuccessOrError(
+              (clientResponse, throwable) -> {
+                if (throwable != null) {
+                  DECORATE.onError(span, throwable);
+                  DECORATE.beforeFinish(span);
+                  span.finish();
+                } else {
+                  DECORATE.onResponse(span, clientResponse);
+                  DECORATE.beforeFinish(span);
+                  span.finish();
+                }
+              })
+          .doOnCancel(
+              () -> {
+                DECORATE.onCancel(span);
+                DECORATE.beforeFinish(span);
+              });
     }
   }
 }

@@ -21,9 +21,7 @@ public final class FluxAndMonoInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ReactorHooksAdvice",
-      packageName + ".ReactorHooksAdvice$TracingSubscriber",
-      packageName + ".ReactorHooksAdvice$TracingSubscriber$NoopTraceScope"
+      packageName + ".ReactorHooksAdvice", packageName + ".ReactorHooksAdvice$TracingSubscriber"
     };
   }
 

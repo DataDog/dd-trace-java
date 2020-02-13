@@ -15,30 +15,14 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class DefaultWebClientInstrumentation extends Instrumenter.Default {
-
-  public DefaultWebClientInstrumentation() {
+public class ReactorHttpClientInstrumentation extends Instrumenter.Default {
+  public ReactorHttpClientInstrumentation() {
     super("spring-webflux", "spring-webflux-client");
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.agent.decorator.BaseDecorator",
-      "datadog.trace.agent.decorator.ClientDecorator",
-      "datadog.trace.agent.decorator.HttpClientDecorator",
-      packageName + ".SpringWebfluxHttpClientDecorator",
-      packageName + ".HttpHeadersInjectAdapter",
-      packageName + ".TracingClientResponseSubscriber",
-      packageName + ".TracingClientResponseSubscriber$1",
-      packageName + ".TracingClientResponseMono",
-    };
-  }
-
-  @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return safeHasSuperType(
-        named("org.springframework.web.reactive.function.client.ExchangeFunction"));
+    return safeHasSuperType(named("reactor.ipc.netty.http.client.HttpClient"));
   }
 
   @Override
@@ -46,10 +30,8 @@ public class DefaultWebClientInstrumentation extends Instrumenter.Default {
     return singletonMap(
         isMethod()
             .and(isPublic())
-            .and(named("exchange"))
-            .and(
-                takesArgument(
-                    0, named("org.springframework.web.reactive.function.client.ClientRequest"))),
-        packageName + ".DefaultWebClientAdvice");
+            .and(named("request"))
+            .and(takesArgument(2, named("java.util.function.Function"))),
+        packageName + ".ReactorHttpClientAdvice");
   }
 }

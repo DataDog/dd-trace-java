@@ -8,6 +8,7 @@ import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.api.AgentScope;
 import datadog.trace.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.api.AgentTracer.NoopTraceScope;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -232,25 +233,5 @@ public class ReactorHooksAdvice {
 
     @Override
     public void clear() {}
-
-    static class NoopTraceScope implements TraceScope {
-      static final NoopTraceScope INSTANCE = new NoopTraceScope();
-
-      @Override
-      public Continuation capture() {
-        return null;
-      }
-
-      @Override
-      public void close() {}
-
-      @Override
-      public boolean isAsyncPropagating() {
-        return false;
-      }
-
-      @Override
-      public void setAsyncPropagation(final boolean value) {}
-    }
   }
 }
