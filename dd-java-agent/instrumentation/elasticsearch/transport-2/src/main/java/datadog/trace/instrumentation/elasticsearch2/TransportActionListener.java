@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.elasticsearch2;
 import static datadog.trace.instrumentation.elasticsearch.ElasticsearchTransportClientDecorator.DECORATE;
 
 import com.google.common.base.Joiner;
-import datadog.trace.instrumentation.api.AgentSpan;
-import datadog.trace.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
@@ -76,7 +76,7 @@ public class TransportActionListener<T extends ActionResponse> implements Action
 
     if (response instanceof BaseNodesResponse) {
       final BaseNodesResponse resp = (BaseNodesResponse) response;
-      if (resp.failures().length > 0) {
+      if (resp.failures() != null && resp.failures().length > 0) {
         span.setTag("elasticsearch.node.failures", resp.failures().length);
       }
       span.setTag("elasticsearch.node.cluster.name", resp.getClusterName().value());

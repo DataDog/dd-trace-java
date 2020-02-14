@@ -38,10 +38,14 @@ public class Agent {
   }
 
   // fields must be managed under class lock
+  private static ClassLoader PARENT_CLASSLOADER = null;
+  private static ClassLoader BOOTSTRAP_PROXY = null;
   private static ClassLoader AGENT_CLASSLOADER = null;
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
+  private static ClassLoader PROFILING_CLASSLOADER = null;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
+    createParentClassloader(bootstrapURL);
     startDatadogAgent(inst, bootstrapURL);
 
     final boolean appUsingCustomLogManager = isAppUsingCustomLogManager();
@@ -76,6 +80,18 @@ public class Agent {
       registerLogManagerCallback(new InstallDatadogTracerCallback(bootstrapURL));
     } else {
       installDatadogTracer();
+    }
+
+    /*
+     * Similar thing happens with Profiler on (at least) zulu-8 because it uses OkHttp which indirectly loads JFR
+     * events which in turn loads LogManager. This is not a problem on newer JDKs because there JFR uses different
+     * logging facility.
+     */
+    if (isJavaBefore9() && appUsingCustomLogManager) {
+      log.debug("Custom logger detected. Delaying Profiling Agent startup.");
+      registerLogManagerCallback(new StartProfilingAgentCallback(inst, bootstrapURL));
+    } else {
+      startProfilingAgent(bootstrapURL);
     }
   }
 
@@ -160,14 +176,54 @@ public class Agent {
     }
   }
 
+  protected static class StartProfilingAgentCallback extends ClassLoadCallBack {
+    StartProfilingAgentCallback(final Instrumentation inst, final URL bootstrapURL) {
+      super(bootstrapURL);
+    }
+
+    @Override
+    public String getName() {
+      return "datadog-profiler";
+    }
+
+    @Override
+    public void execute() {
+      startProfilingAgent(bootstrapURL);
+    }
+  }
+
+  private static synchronized void createParentClassloader(final URL bootstrapURL) {
+    if (PARENT_CLASSLOADER == null) {
+      try {
+        final Class<?> bootstrapProxyClass =
+            ClassLoader.getSystemClassLoader()
+                .loadClass("datadog.trace.bootstrap.DatadogClassLoader$BootstrapClassLoaderProxy");
+        final Constructor constructor = bootstrapProxyClass.getDeclaredConstructor(URL.class);
+        BOOTSTRAP_PROXY = (ClassLoader) constructor.newInstance(bootstrapURL);
+
+        final ClassLoader grandParent;
+        if (isJavaBefore9()) {
+          grandParent = null; // bootstrap
+        } else {
+          // platform classloader is parent of system in java 9+
+          grandParent = getPlatformClassLoader();
+        }
+
+        PARENT_CLASSLOADER = createDatadogClassLoader("shared.isolated", bootstrapURL, grandParent);
+      } catch (final Throwable ex) {
+        log.error("Throwable thrown creating parent classloader", ex);
+      }
+    }
+  }
+
   private static synchronized void startDatadogAgent(
       final Instrumentation inst, final URL bootstrapURL) {
     if (AGENT_CLASSLOADER == null) {
-      final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
       try {
         final ClassLoader agentClassLoader =
-            createDatadogClassLoader("agent-tooling-and-instrumentation.isolated", bootstrapURL);
-        Thread.currentThread().setContextClassLoader(agentClassLoader);
+            createDatadogClassLoader(
+                "agent-tooling-and-instrumentation.isolated", bootstrapURL, PARENT_CLASSLOADER);
+
         final Class<?> agentInstallerClass =
             agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
         final Method agentInstallerMethod =
@@ -176,8 +232,6 @@ public class Agent {
         AGENT_CLASSLOADER = agentClassLoader;
       } catch (final Throwable ex) {
         log.error("Throwable thrown while installing the Datadog Agent", ex);
-      } finally {
-        Thread.currentThread().setContextClassLoader(contextLoader);
       }
     }
   }
@@ -186,11 +240,9 @@ public class Agent {
     if (AGENT_CLASSLOADER == null) {
       throw new IllegalStateException("Datadog agent should have been started already");
     }
-    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     // TracerInstaller.installGlobalTracer can be called multiple times without any problem
     // so there is no need to have a 'datadogTracerInstalled' flag here.
     try {
-      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
       // install global tracer
       final Class<?> tracerInstallerClass =
           AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.TracerInstaller");
@@ -200,8 +252,6 @@ public class Agent {
       logVersionInfoMethod.invoke(null);
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
-    } finally {
-      Thread.currentThread().setContextClassLoader(contextLoader);
     }
   }
 
@@ -210,7 +260,7 @@ public class Agent {
       final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
       try {
         final ClassLoader jmxFetchClassLoader =
-            createDatadogClassLoader("agent-jmxfetch.isolated", bootstrapURL);
+            createDatadogClassLoader("agent-jmxfetch.isolated", bootstrapURL, PARENT_CLASSLOADER);
         Thread.currentThread().setContextClassLoader(jmxFetchClassLoader);
         final Class<?> jmxFetchAgentClass =
             jmxFetchClassLoader.loadClass("datadog.trace.agent.jmxfetch.JMXFetch");
@@ -219,6 +269,32 @@ public class Agent {
         JMXFETCH_CLASSLOADER = jmxFetchClassLoader;
       } catch (final Throwable ex) {
         log.error("Throwable thrown while starting JmxFetch", ex);
+      } finally {
+        Thread.currentThread().setContextClassLoader(contextLoader);
+      }
+    }
+  }
+
+  private static synchronized void startProfilingAgent(final URL bootstrapURL) {
+    if (PROFILING_CLASSLOADER == null) {
+      final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+      try {
+        final ClassLoader profilingClassLoader =
+            createDatadogClassLoader("agent-profiling.isolated", bootstrapURL, PARENT_CLASSLOADER);
+        Thread.currentThread().setContextClassLoader(profilingClassLoader);
+        final Class<?> profilingAgentClass =
+            profilingClassLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
+        final Method profilingInstallerMethod = profilingAgentClass.getMethod("run");
+        profilingInstallerMethod.invoke(null);
+        PROFILING_CLASSLOADER = profilingClassLoader;
+      } catch (final ClassFormatError e) {
+        /*
+        Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
+        (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
+        */
+        log.error("Cannot start profiling agent ", e);
+      } catch (final Throwable ex) {
+        log.error("Throwable thrown while starting profiling agent", ex);
       } finally {
         Thread.currentThread().setContextClassLoader(contextLoader);
       }
@@ -251,20 +327,16 @@ public class Agent {
    * @return Datadog Classloader
    */
   private static ClassLoader createDatadogClassLoader(
-      final String innerJarFilename, final URL bootstrapURL) throws Exception {
-    final ClassLoader agentParent;
-    if (isJavaBefore9()) {
-      agentParent = null; // bootstrap
-    } else {
-      // platform classloader is parent of system in java 9+
-      agentParent = getPlatformClassLoader();
-    }
+      final String innerJarFilename, final URL bootstrapURL, final ClassLoader parent)
+      throws Exception {
 
     final Class<?> loaderClass =
         ClassLoader.getSystemClassLoader().loadClass("datadog.trace.bootstrap.DatadogClassLoader");
     final Constructor constructor =
-        loaderClass.getDeclaredConstructor(URL.class, String.class, ClassLoader.class);
-    return (ClassLoader) constructor.newInstance(bootstrapURL, innerJarFilename, agentParent);
+        loaderClass.getDeclaredConstructor(
+            URL.class, String.class, ClassLoader.class, ClassLoader.class);
+    return (ClassLoader)
+        constructor.newInstance(bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent);
   }
 
   private static ClassLoader getPlatformClassLoader()

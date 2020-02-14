@@ -2,10 +2,10 @@ package datadog.trace.instrumentation.servlet.dispatcher;
 
 import static datadog.trace.agent.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
-import static datadog.trace.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.instrumentation.api.AgentTracer.propagate;
-import static datadog.trace.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.servlet.ServletRequestSetter.SETTER;
 import static datadog.trace.instrumentation.servlet.dispatcher.RequestDispatcherDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
@@ -19,8 +19,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.instrumentation.api.AgentScope;
-import datadog.trace.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletRequest;
@@ -71,6 +71,7 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
     public static AgentScope start(
         @Advice.Origin("#m") final String method,
         @Advice.This final RequestDispatcher dispatcher,
+        @Advice.Local("_requestSpan") Object requestSpan,
         @Advice.Argument(0) final ServletRequest request) {
       if (activeSpan() == null) {
         // Don't want to generate a new top-level span
@@ -87,8 +88,9 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
       // In case we lose context, inject trace into to the request.
       propagate().inject(span, request, SETTER);
 
-      // temporarily remove from request to avoid spring resource name bubbling up:
-      request.removeAttribute(DD_SPAN_ATTRIBUTE);
+      // temporarily replace from request to avoid spring resource name bubbling up:
+      requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
+      request.setAttribute(DD_SPAN_ATTRIBUTE, span);
 
       return activateSpan(span, true).setAsyncPropagation(true);
     }
@@ -96,14 +98,17 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stop(
         @Advice.Enter final AgentScope scope,
+        @Advice.Local("_requestSpan") final Object requestSpan,
         @Advice.Argument(0) final ServletRequest request,
         @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
 
-      // now add it back...
-      request.setAttribute(DD_SPAN_ATTRIBUTE, scope.span());
+      if (requestSpan != null) {
+        // now add it back...
+        request.setAttribute(DD_SPAN_ATTRIBUTE, requestSpan);
+      }
 
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
