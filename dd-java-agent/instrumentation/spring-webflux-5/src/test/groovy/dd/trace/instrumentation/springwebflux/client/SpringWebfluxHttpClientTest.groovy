@@ -26,7 +26,6 @@ class SpringWebfluxHttpClientTest extends HttpClientTest<SpringWebfluxHttpClient
   void setupBeforeTests() {
     super.setupBeforeTests()
     Hooks.onEachOperator(ReactorHooksAdvice.tracingOperator())
-    Hooks.onLastOperator(ReactorHooksAdvice.tracingOperator())
   }
 
   @Override
