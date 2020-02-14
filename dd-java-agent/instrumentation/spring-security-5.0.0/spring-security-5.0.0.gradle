@@ -32,8 +32,6 @@ dependencies {
   testCompile group: 'org.springframework', name: 'spring-tx', version: '5.0.0.RELEASE'
   testCompile group: 'org.springframework.security', name: 'spring-security-ldap', version: '5.0.0.RELEASE'
   testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.1.9.RELEASE'
-  //testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '2.1.9.RELEASE' //pull spring security config 5.1.6, spring security web 5.1.6
-  //version 'spring-boot-starter-security', version: '1.0.0 RELEASE' pull spring security config 3.2.3 spring security web 3.2.3
   testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '2.1.9.RELEASE'
   testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version:  '2.1.9.RELEASE'
   testCompile group: 'org.springframework.ldap', name: 'spring-ldap-core', version: '2.3.2.RELEASE'
