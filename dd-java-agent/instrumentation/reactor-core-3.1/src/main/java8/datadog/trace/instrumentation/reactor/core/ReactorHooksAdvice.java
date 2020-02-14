@@ -41,6 +41,8 @@ public class ReactorHooksAdvice {
           // operator
           if (scannable instanceof TracingSubscriber) {
             return false;
+          } else if (scannable instanceof Fuseable.ScalarCallable) {
+            return false;
           } else if (scannable instanceof ConnectableFlux) {
             return false;
           }
