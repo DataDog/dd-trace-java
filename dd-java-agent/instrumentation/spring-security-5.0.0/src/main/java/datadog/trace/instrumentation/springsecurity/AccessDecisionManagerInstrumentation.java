@@ -59,9 +59,6 @@ public final class AccessDecisionManagerInstrumentation extends Instrumenter.Def
         AccessDecisionManagerInstrumentation.class.getName() + "$AccessDecisionAdvice");
   }
 
-
-
-
   public static class AccessDecisionAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
