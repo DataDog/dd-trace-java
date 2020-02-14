@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.springsecurity;
 import datadog.trace.agent.decorator.BaseDecorator;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
-import datadog.trace.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collection;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
