@@ -54,7 +54,7 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
             .and(named("authenticate"))
             .and(takesArgument(0, named("org.springframework.security.core.Authentication")))
             .and(takesArguments(1)),
-        AuthenticateAdvice.class.getName());
+        AuthenticationManagerInstrumentation.class.getName() + "$AuthenticateAdvice");
   }
 
   public static class AuthenticateAdvice {

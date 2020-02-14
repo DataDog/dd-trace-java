@@ -56,8 +56,11 @@ public final class AccessDecisionManagerInstrumentation extends Instrumenter.Def
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
         isMethod().and(isPublic()).and(named("decide")).and(takesArguments(3)),
-        AccessDecisionAdvice.class.getName());
+        AccessDecisionManagerInstrumentation.class.getName() + "$AccessDecisionAdvice");
   }
+
+
+
 
   public static class AccessDecisionAdvice {
 

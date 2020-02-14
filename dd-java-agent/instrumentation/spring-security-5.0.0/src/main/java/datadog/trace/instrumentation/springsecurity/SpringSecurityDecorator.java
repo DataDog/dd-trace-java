@@ -116,7 +116,7 @@ public class SpringSecurityDecorator extends BaseDecorator {
         str += authority.getAuthority().toString();
       }
       if (coll.size() != 0) {
-        span.setTag("authentication.userdetails.authority", str.substring(DELIMITER.length()));
+        span.setTag("authentication.userdetails.authorities", str.substring(DELIMITER.length()));
       }
     }
 
