@@ -125,19 +125,5 @@ public class SpringSecurityDecorator extends BaseDecorator {
     boolean isAuthenticated = auth.isAuthenticated();
     span.setTag("authentication.is_authenticated", isAuthenticated);
 
-    Object details = auth.getDetails();
-    if (details != null && details instanceof WebAuthenticationDetails) {
-      WebAuthenticationDetails wad = (WebAuthenticationDetails) details;
-
-      String sessionID = wad.getSessionId();
-      if (sessionID != null && !sessionID.isEmpty()) {
-        span.setTag("authentication.webdetails.sessionID", sessionID);
-      }
-
-      String remoteAddress = wad.getRemoteAddress();
-      if (remoteAddress != null && !remoteAddress.isEmpty()) {
-        span.setTag("authentication.webdetails.remoteAddress", remoteAddress);
-      }
-    }
   }
 }

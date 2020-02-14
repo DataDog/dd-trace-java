@@ -157,7 +157,7 @@ class SpringSecurityTest extends AgentTestRunner {
             "$Tags.COMPONENT.key" "spring-security"
             "authentication.name" "bob"
             "authentication.is_authenticated" true
-            "authentication.userdetails.authority" "ROLE_DEVELOPERS"
+            "authentication.userdetails.authorities" "ROLE_DEVELOPERS"
             "authentication.userdetails.is_account_non_expired" true
             "authentication.userdetails.is_account_non_locked" true
             "authentication.userdetails.is_credentials_non_locked" true
