@@ -36,14 +36,11 @@ public class ReactorHooksAdvice {
   public static <T> Function<? super Publisher<T>, ? extends Publisher<T>> tracingOperator() {
     return Operators.lift(
         (scannable) -> {
-          // Don't wrap ourselves, and DirectProcessor doesn't always call cancel so we didn't get
-          // to clean up our continuations
+          // Don't wrap ourselves, and ConnectableFlux causes an exception in early reactor versions
+          // due to not having the correct super types for being handled by the LiftFunction
+          // operator
           if (scannable instanceof TracingSubscriber) {
             return false;
-            //          } else if (scannable instanceof DirectProcessor) {
-            //            return false;
-            //          } else if (scannable instanceof Fuseable.ScalarCallable) {
-            //            return false;
           } else if (scannable instanceof ConnectableFlux) {
             return false;
           }
@@ -106,12 +103,6 @@ public class ReactorHooksAdvice {
       if (active.get()) {
         final TraceScope.Continuation continuation =
             this.continuation.getAndSet(parentScope.capture());
-        log.debug(
-            "maybeScope(): {} - {} - {} {}",
-            this,
-            continuation,
-            delegate.getClass().getName(),
-            subscription.getClass().getName());
         return continuation.activate();
       } else {
         return NoopTraceScope.INSTANCE;
@@ -121,12 +112,6 @@ public class ReactorHooksAdvice {
     private TraceScope maybeScopeAndDeactivate() {
       if (active.getAndSet(false)) {
         final TraceScope.Continuation continuation = this.continuation.getAndSet(null);
-        log.debug(
-            "maybeScopeAndDeactivate(): {} - {} - {} {}",
-            this,
-            continuation,
-            delegate.getClass().getName(),
-            subscription.getClass().getName());
         return continuation.activate();
       } else {
         return NoopTraceScope.INSTANCE;

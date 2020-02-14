@@ -233,6 +233,8 @@ class SpringWebfluxTest extends AgentTestRunner {
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           parent()
+          // TODO this shouldn't be like this
+          errored true
           tags {
             "$Tags.COMPONENT" "netty"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -242,6 +244,9 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 404
+            // Because of the way reactor has been instrumented to propagate errors we end up tagging this
+            // on both spans
+            errorTags(ResponseStatusException, String)
             defaultTags()
           }
         }
@@ -366,7 +371,9 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" url
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
-            "error" true
+            // Because of the way reactor has been instrumented to propagate errors we end up tagging this
+            // on both spans
+            errorTags(RuntimeException, "bad things happen")
             defaultTags()
           }
         }

@@ -48,8 +48,6 @@ public class DispatcherHandlerAdvice {
     } else if (throwable != null) {
       AdviceUtils.finishSpanIfPresent(exchange, throwable);
     }
-    if (scope != null) {
-      scope.close();
-    }
+    scope.close();
   }
 }

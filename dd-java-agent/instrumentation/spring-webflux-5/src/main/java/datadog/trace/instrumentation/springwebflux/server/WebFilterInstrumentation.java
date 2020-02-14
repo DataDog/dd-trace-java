@@ -1,11 +1,9 @@
-package datadog.trace.instrumentation.springwebflux.client;
+package datadog.trace.instrumentation.springwebflux.server;
 
-import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -15,28 +13,26 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class ReactorHttpClientInstrumentation extends Instrumenter.Default {
-  public ReactorHttpClientInstrumentation() {
-    super("spring-webflux", "spring-webflux-client");
+public class WebFilterInstrumentation extends Instrumenter.Default {
+  public WebFilterInstrumentation() {
+    super("spring-webflux", "spring-webflux-server");
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".ReactorHttpClientAdvice$Handler"};
+    return new String[] {
+      packageName + ".FilterCustomizer", packageName + ".TracingWebFilter",
+    };
   }
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return safeHasSuperType(named("reactor.ipc.netty.http.client.HttpClient"));
+    return named("org.springframework.web.server.adapter.WebHttpHandlerBuilder");
   }
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        isMethod()
-            .and(isPublic())
-            .and(named("request"))
-            .and(takesArgument(2, named("java.util.function.Function"))),
-        packageName + ".ReactorHttpClientAdvice");
+        isMethod().and(isPublic()).and(named("build")), packageName + ".WebFilterAdvice");
   }
 }
