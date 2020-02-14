@@ -32,9 +32,6 @@ public final class FluxAndMonoInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
-        isTypeInitializer(),
-        // Cannot reference class directly here because it would lead to class load failure on Java7
-        packageName + ".ReactorHooksAdvice");
+    return singletonMap(isTypeInitializer(), packageName + ".ReactorHooksAdvice");
   }
 }

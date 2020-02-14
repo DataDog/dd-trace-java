@@ -38,7 +38,7 @@ public class ReactorHooksAdvice {
         (scannable) -> {
           // Don't wrap ourselves, and ConnectableFlux causes an exception in early reactor versions
           // due to not having the correct super types for being handled by the LiftFunction
-          // operator
+          // operator, Fuseable.ScalarCallable causes errors to break on newer versions of reactor
           if (scannable instanceof TracingSubscriber) {
             return false;
           } else if (scannable instanceof Fuseable.ScalarCallable) {
@@ -66,7 +66,7 @@ public class ReactorHooksAdvice {
       return delegate;
     }
 
-    final Context context = delegate.currentContext();
+    Context context = delegate.currentContext();
     final Optional<AgentSpan> maybeSpan = context.getOrEmpty(AgentSpan.class);
     final AgentSpan span = maybeSpan.orElseGet(AgentTracer::activeSpan);
     if (span == null) {
@@ -74,7 +74,9 @@ public class ReactorHooksAdvice {
     }
 
     try (final AgentScope scope = activateSpan(span, false)) {
-      context.put(AgentSpan.class, span);
+      if (context.getOrDefault(AgentSpan.class, null) != span) {
+        context = context.put(AgentSpan.class, span);
+      }
       return new TracingSubscriber<>(delegate, context, activeScope());
     }
   }
@@ -94,7 +96,7 @@ public class ReactorHooksAdvice {
     public TracingSubscriber(
         final Subscriber<T> delegate, final Context context, final TraceScope parentScope) {
       this.delegate = delegate;
-      this.context = context != null ? context : Context.empty();
+      this.context = context;
       this.parentScope = parentScope;
 
       parentScope.setAsyncPropagation(true);

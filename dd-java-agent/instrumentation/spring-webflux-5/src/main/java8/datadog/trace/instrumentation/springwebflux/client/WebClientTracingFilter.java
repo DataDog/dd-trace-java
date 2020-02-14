@@ -54,6 +54,7 @@ public class WebClientTracingFilter implements ExchangeFilterFunction {
               () -> {
                 DECORATE.onCancel(span);
                 DECORATE.beforeFinish(span);
+                span.finish();
               });
     }
   }

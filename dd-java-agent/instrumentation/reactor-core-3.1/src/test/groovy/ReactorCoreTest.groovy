@@ -108,7 +108,7 @@ class ReactorCoreTest extends AgentTestRunner {
           operationName "publisher-parent"
           childOf(span(0))
           // MonoError and FluxError are both Fuseable.ScalarCallable which we cannot wrap without
-          // causing a lot of problems
+          // causing a lot of problems in other places where we integrate with reactor, like webflux
           //          errored true
           //          tags {
           //            errorTags(RuntimeException, EXCEPTION_MESSAGE)
