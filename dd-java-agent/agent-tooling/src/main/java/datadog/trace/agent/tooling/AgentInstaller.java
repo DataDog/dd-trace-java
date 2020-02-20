@@ -143,15 +143,17 @@ public class AgentInstaller {
       agentBuilder = agentBuilder.with(listener);
     }
     int numInstrumenters = 0;
-    for (final Instrumenter instrumenter :
-        ServiceLoader.load(Instrumenter.class, AgentInstaller.class.getClassLoader())) {
-      log.debug("Loading instrumentation {}", instrumenter.getClass().getName());
+    if (Config.get().isIntegrationsEnabled()) {
+      for (final Instrumenter instrumenter :
+          ServiceLoader.load(Instrumenter.class, AgentInstaller.class.getClassLoader())) {
+        log.debug("Loading instrumentation {}", instrumenter.getClass().getName());
 
-      try {
-        agentBuilder = instrumenter.instrument(agentBuilder);
-        numInstrumenters++;
-      } catch (final Exception | LinkageError e) {
-        log.error("Unable to load instrumentation {}", instrumenter.getClass().getName(), e);
+        try {
+          agentBuilder = instrumenter.instrument(agentBuilder);
+          numInstrumenters++;
+        } catch (final Exception | LinkageError e) {
+          log.error("Unable to load instrumentation {}", instrumenter.getClass().getName(), e);
+        }
       }
     }
     log.debug("Installed {} instrumenter(s)", numInstrumenters);
