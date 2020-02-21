@@ -3,11 +3,14 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeTypeDefinitionName;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeErasureMatcher.safeAsErasure;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.build.HashCodeAndEqualsPlugin;
 import net.bytebuddy.description.type.TypeDefinition;
@@ -37,6 +40,15 @@ import net.bytebuddy.matcher.ElementMatcher;
 class SafeHasSuperTypeMatcher<T extends TypeDescription>
     extends ElementMatcher.Junction.AbstractBase<T> {
 
+  private final Cache<TypeDefinition, Boolean> cache =
+      CacheBuilder.newBuilder()
+          // .weakKeys()
+          .concurrencyLevel(8)
+          .initialCapacity(5)
+          .maximumSize(100000)
+          .expireAfterAccess(60, TimeUnit.SECONDS)
+          .build();
+
   /** The matcher to apply to any super type of the matched type. */
   private final ElementMatcher<? super TypeDescription.Generic> matcher;
 
@@ -57,13 +69,29 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
     final Set<TypeDescription> checkedInterfaces = new HashSet<>();
     // We do not use foreach loop and iterator interface here because we need to catch exceptions
     // in {@code getSuperClass} calls
-    TypeDefinition typeDefinition = target;
+    TypeDefinition typeDefinition = target.asErasure();
     while (typeDefinition != null) {
+      final Boolean cached = cache.getIfPresent(typeDefinition);
+      if (cached != null) {
+        /*log.error(
+        "Cache hit ({}): {}, {}",
+        matcher,
+        typeDefinition,
+        System.identityHashCode(typeDefinition));*/
+        return cached;
+      }
       if (((!interfacesOnly || typeDefinition.isInterface())
               && matcher.matches(typeDefinition.asGenericType()))
           || hasInterface(typeDefinition, checkedInterfaces)) {
+        /*log.error(
+        "Cache miss ({}): {}, {}",
+        matcher,
+        typeDefinition,
+        System.identityHashCode(typeDefinition));*/
+        cache.put(typeDefinition, true);
         return true;
       }
+      cache.put(typeDefinition, false);
       typeDefinition = safeGetSuperClass(typeDefinition);
     }
     return false;
@@ -81,10 +109,33 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
     for (final TypeDefinition interfaceType : safeGetInterfaces(typeDefinition)) {
       final TypeDescription erasure = safeAsErasure(interfaceType);
       if (erasure != null) {
-        if (checkedInterfaces.add(interfaceType.asErasure())
-            && (matcher.matches(interfaceType.asGenericType())
-                || hasInterface(interfaceType, checkedInterfaces))) {
-          return true;
+        final Boolean cached = cache.getIfPresent(erasure);
+        if (cached != null) {
+          if (cached) {
+            /*log.error(
+            "Interface cache hit ({}): {}, {}",
+            matcher,
+            erasure,
+            System.identityHashCode(erasure));*/
+            return true;
+          }
+        } else {
+          /*log.error(
+          "Interface cache miss ({}): {}, {}",
+          matcher,
+          erasure,
+          System.identityHashCode(erasure));*/
+          if (checkedInterfaces.add(erasure)) {
+            if (matcher.matches(interfaceType.asGenericType())) {
+              cache.put(erasure, true);
+              return true;
+            }
+            if (hasInterface(interfaceType, checkedInterfaces)) {
+              cache.put(erasure, true);
+              return true;
+            }
+            cache.put(erasure, false);
+          }
         }
       }
     }
