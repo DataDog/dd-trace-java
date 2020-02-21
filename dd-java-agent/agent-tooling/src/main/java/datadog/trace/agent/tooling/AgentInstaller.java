@@ -58,7 +58,7 @@ public class AgentInstaller {
         new AgentBuilder.Default()
             .disableClassFormatChanges()
             .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-            .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
+            .with(AgentBuilder.DescriptionStrategy.Default.HYBRID)
             .with(AgentTooling.poolStrategy())
             .with(new ClassLoadListener())
             .with(AgentTooling.locationStrategy())
