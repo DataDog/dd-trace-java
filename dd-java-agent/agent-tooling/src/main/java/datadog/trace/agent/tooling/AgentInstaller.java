@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
+import datadog.trace.agent.tooling.bytebuddy.matcher.ThreadLocalCache;
 import datadog.trace.api.Config;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -92,8 +93,11 @@ public class AgentInstaller {
       }
     }
     log.debug("Installed {} instrumenter(s)", numInstrumenters);
-
-    return agentBuilder.installOn(inst);
+    try {
+      return agentBuilder.installOn(inst);
+    } finally {
+      ThreadLocalCache.clearCache();
+    }
   }
 
   private static void addByteBuddyRawSetting() {

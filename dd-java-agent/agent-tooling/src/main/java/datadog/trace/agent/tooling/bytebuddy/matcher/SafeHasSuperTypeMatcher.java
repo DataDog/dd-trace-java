@@ -4,9 +4,11 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.sa
 import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeErasureMatcher.safeAsErasure;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.build.HashCodeAndEqualsPlugin;
@@ -54,6 +56,10 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
 
   @Override
   public boolean matches(final T target) {
+    Boolean result = ThreadLocalCache.get(target.getTypeName());
+    if (result != null) {
+      return result;
+    }
     final Set<TypeDescription> checkedInterfaces = new HashSet<>();
     // We do not use foreach loop and iterator interface here because we need to catch exceptions
     // in {@code getSuperClass} calls
@@ -62,10 +68,12 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
       if (((!interfacesOnly || typeDefinition.isInterface())
               && matcher.matches(typeDefinition.asGenericType()))
           || hasInterface(typeDefinition, checkedInterfaces)) {
+        ThreadLocalCache.put(target.getTypeName(), true);
         return true;
       }
       typeDefinition = safeGetSuperClass(typeDefinition);
     }
+    ThreadLocalCache.put(target.getTypeName(), false);
     return false;
   }
 
