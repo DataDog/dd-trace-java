@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.jaxrs.v1;
 
 import static datadog.trace.agent.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClassNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+
 import com.sun.jersey.api.client.ClientHandler;
 import com.sun.jersey.api.client.ClientRequest;
 import com.sun.jersey.api.client.ClientResponse;
@@ -21,11 +22,12 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public final class JaxRsClientV1Instrumentation extends Instrumenter.Default {
@@ -36,7 +38,7 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return implementsInterface(named("com.sun.jersey.api.client.ClientHandler"));
+    return hasInterfaceNamed("com.sun.jersey.api.client.ClientHandler");
   }
 
   @Override
@@ -54,8 +56,8 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Default {
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
         named("handle")
-            .and(takesArgument(0, extendsClass(named("com.sun.jersey.api.client.ClientRequest"))))
-            .and(returns(extendsClass(named("com.sun.jersey.api.client.ClientResponse")))),
+            .and(takesArgument(0, extendsClassNamed("com.sun.jersey.api.client.ClientRequest")))
+            .and(returns(extendsClassNamed("com.sun.jersey.api.client.ClientResponse"))),
         JaxRsClientV1Instrumentation.class.getName() + "$HandleAdvice");
   }
 

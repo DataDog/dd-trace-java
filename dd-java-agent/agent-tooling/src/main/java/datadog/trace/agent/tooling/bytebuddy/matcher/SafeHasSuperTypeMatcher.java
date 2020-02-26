@@ -3,15 +3,16 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeTypeDefinitionName;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeErasureMatcher.safeAsErasure;
 
+import lombok.extern.slf4j.Slf4j;
+import net.bytebuddy.description.type.TypeDefinition;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
-import net.bytebuddy.description.type.TypeDefinition;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 /**
  * An element matcher that matches a super type. This is different from {@link
@@ -58,8 +59,8 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
     TypeDefinition typeDefinition = target;
     while (typeDefinition != null) {
       if (((!interfacesOnly || typeDefinition.isInterface())
-              && matcher.matches(typeDefinition.asGenericType()))
-          || hasInterface(typeDefinition, checkedInterfaces)) {
+        && matcher.matches(typeDefinition.asGenericType()))
+        || hasInterface(typeDefinition, checkedInterfaces)) {
         return true;
       }
       typeDefinition = safeGetSuperClass(typeDefinition);

@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClassNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
@@ -9,10 +9,10 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.context.TraceScope;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.asm.Advice;
@@ -20,6 +20,8 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
+
+import java.util.Map;
 
 /**
  * Sometimes classes do lazy initialization for scheduling of tasks. If this is done during a trace
@@ -36,7 +38,7 @@ public final class AsyncPropagatingDisableInstrumentation implements Instrumente
           new ImmutableMap.Builder<
                   ElementMatcher<? super TypeDescription>,
                   ElementMatcher<? super MethodDescription>>()
-              .put(extendsClass(named("rx.Scheduler$Worker")), named("schedulePeriodically"))
+              .put(extendsClassNamed("rx.Scheduler$Worker"), named("schedulePeriodically"))
               .build();
 
   @Override

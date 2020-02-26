@@ -1,24 +1,26 @@
 package datadog.trace.instrumentation.jaxrs2;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import javax.ws.rs.container.AsyncResponse;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import javax.ws.rs.container.AsyncResponse;
 
 @AutoService(Instrumenter.class)
 public final class JaxRsAsyncResponseInstrumentation extends Instrumenter.Default {
@@ -35,7 +37,7 @@ public final class JaxRsAsyncResponseInstrumentation extends Instrumenter.Defaul
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return implementsInterface(named("javax.ws.rs.container.AsyncResponse"));
+    return hasInterfaceNamed("javax.ws.rs.container.AsyncResponse");
   }
 
   @Override

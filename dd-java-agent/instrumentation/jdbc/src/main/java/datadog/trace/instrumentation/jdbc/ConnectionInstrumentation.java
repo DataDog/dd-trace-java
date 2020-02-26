@@ -1,21 +1,21 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
-import java.sql.PreparedStatement;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.sql.PreparedStatement;
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public final class ConnectionInstrumentation extends Instrumenter.Default {
@@ -26,7 +26,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return implementsInterface(named("java.sql.Connection"));
+    return hasInterfaceNamed("java.sql.Connection");
   }
 
   @Override
@@ -42,7 +42,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
         nameStartsWith("prepare")
             .and(takesArgument(0, String.class))
             // Also include CallableStatement, which is a sub type of PreparedStatement
-            .and(returns(hasInterface(named("java.sql.PreparedStatement")))),
+            .and(returns(hasInterfaceNamed("java.sql.PreparedStatement"))),
         ConnectionInstrumentation.class.getName() + "$ConnectionPrepareAdvice");
   }
 

@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.reactor.core;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClassNamed;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -11,11 +11,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public final class FluxAndMonoInstrumentation extends Instrumenter.Default {
@@ -36,8 +38,7 @@ public final class FluxAndMonoInstrumentation extends Instrumenter.Default {
   public ElementMatcher<TypeDescription> typeMatcher() {
     return not(isAbstract())
         .and(
-            extendsClass(
-                named("reactor.core.publisher.Mono").or(named("reactor.core.publisher.Flux"))));
+            extendsClassNamed("reactor.core.publisher.Mono").or(extendsClassNamed("reactor.core.publisher.Flux")));
   }
 
   @Override

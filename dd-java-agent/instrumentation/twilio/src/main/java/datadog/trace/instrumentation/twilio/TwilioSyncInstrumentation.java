@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.twilio;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClassNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.DECORATE;
@@ -12,15 +12,17 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
+
 import com.twilio.Twilio;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.util.Map;
 
 /** Instrument the Twilio SDK to identify calls as a seperate service. */
 @AutoService(Instrumenter.class)
@@ -35,12 +37,11 @@ public class TwilioSyncInstrumentation extends Instrumenter.Default {
   public net.bytebuddy.matcher.ElementMatcher<
           ? super net.bytebuddy.description.type.TypeDescription>
       typeMatcher() {
-    return extendsClass(
-        named("com.twilio.base.Creator")
-            .or(named("com.twilio.base.Deleter"))
-            .or(named("com.twilio.base.Fetcher"))
-            .or(named("com.twilio.base.Reader"))
-            .or(named("com.twilio.base.Updater")));
+    return extendsClassNamed("com.twilio.base.Creator")
+            .or(extendsClassNamed("com.twilio.base.Deleter"))
+            .or(extendsClassNamed("com.twilio.base.Fetcher"))
+            .or(extendsClassNamed("com.twilio.base.Reader"))
+            .or(extendsClassNamed("com.twilio.base.Updater"));
   }
 
   /** Return the helper classes which will be available for use in instrumentation. */

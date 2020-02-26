@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.rmi.context.client;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClassNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.rmi.context.ContextPropagator.PROPAGATOR;
 import static java.util.Collections.singletonMap;
@@ -9,17 +9,19 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.rmi.server.ObjID;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import sun.rmi.transport.Connection;
+
+import java.rmi.server.ObjID;
+import java.util.Map;
 
 /**
  * Main entry point for transferring context between RMI service.
@@ -51,7 +53,7 @@ public class RmiClientContextInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return extendsClass(named("sun.rmi.transport.StreamRemoteCall"));
+    return extendsClassNamed("sun.rmi.transport.StreamRemoteCall");
   }
 
   @Override

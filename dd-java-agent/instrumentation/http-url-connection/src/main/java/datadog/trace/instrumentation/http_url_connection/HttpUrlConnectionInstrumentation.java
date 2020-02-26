@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.http_url_connection;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClassNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -14,19 +14,21 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.net.HttpURLConnection;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
+
+import java.net.HttpURLConnection;
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public class HttpUrlConnectionInstrumentation extends Instrumenter.Default {
@@ -41,7 +43,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Default {
         .or(ElementMatchers.<TypeDescription>nameStartsWith("sun.net"))
         // This class is a simple delegator. Skip because it does not update its `connected` field.
         .and(not(named("sun.net.www.protocol.https.HttpsURLConnectionImpl")))
-        .and(extendsClass(named("java.net.HttpURLConnection")));
+        .and(extendsClassNamed("java.net.HttpURLConnection"));
   }
 
   @Override

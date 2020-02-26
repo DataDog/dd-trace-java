@@ -1,26 +1,26 @@
 package datadog.trace.instrumentation.hibernate.core.v4_3;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.SharedSessionContract;
 import org.hibernate.procedure.ProcedureCall;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public class SessionInstrumentation extends Instrumenter.Default {
@@ -52,7 +52,7 @@ public class SessionInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return implementsInterface(named("org.hibernate.SharedSessionContract"));
+    return hasInterfaceNamed("org.hibernate.SharedSessionContract");
   }
 
   @Override
@@ -60,7 +60,7 @@ public class SessionInstrumentation extends Instrumenter.Default {
     final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
 
     transformers.put(
-        isMethod().and(returns(hasInterface(named("org.hibernate.procedure.ProcedureCall")))),
+        isMethod().and(returns(hasInterfaceNamed("org.hibernate.procedure.ProcedureCall"))),
         SessionInstrumentation.class.getName() + "$GetProcedureCallAdvice");
 
     return transformers;

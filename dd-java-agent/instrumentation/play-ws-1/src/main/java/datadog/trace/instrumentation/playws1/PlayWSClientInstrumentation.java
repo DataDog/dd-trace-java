@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.playws1;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.playws1.HeadersInjectAdapter.SETTER;
@@ -14,15 +14,17 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import play.shaded.ahc.org.asynchttpclient.AsyncHandler;
 import play.shaded.ahc.org.asynchttpclient.Request;
+
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public class PlayWSClientInstrumentation extends Instrumenter.Default {
@@ -36,7 +38,7 @@ public class PlayWSClientInstrumentation extends Instrumenter.Default {
     // It also delegates to another AsyncHttpClient
     return nameStartsWith("play.")
         .<TypeDescription>and(
-            hasInterface(named("play.shaded.ahc.org.asynchttpclient.AsyncHttpClient"))
+            hasInterfaceNamed("play.shaded.ahc.org.asynchttpclient.AsyncHttpClient")
                 .and(not(named("play.api.libs.ws.ahc.cache.CachingAsyncHttpClient"))));
   }
 

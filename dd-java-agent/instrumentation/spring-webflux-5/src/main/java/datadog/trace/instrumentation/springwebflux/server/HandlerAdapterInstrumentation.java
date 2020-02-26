@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -11,11 +11,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public final class HandlerAdapterInstrumentation extends AbstractWebfluxInstrumentation {
@@ -23,7 +25,7 @@ public final class HandlerAdapterInstrumentation extends AbstractWebfluxInstrume
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return not(isAbstract())
-        .and(implementsInterface(named("org.springframework.web.reactive.HandlerAdapter")));
+        .and(hasInterfaceNamed("org.springframework.web.reactive.HandlerAdapter"));
   }
 
   @Override

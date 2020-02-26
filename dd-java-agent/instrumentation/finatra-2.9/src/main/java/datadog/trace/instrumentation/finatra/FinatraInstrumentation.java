@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.finatra;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClassNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -13,6 +13,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+
 import com.twitter.finagle.http.Request;
 import com.twitter.finagle.http.Response;
 import com.twitter.util.Future;
@@ -23,13 +24,14 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import java.lang.reflect.Method;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import scala.Some;
+
+import java.lang.reflect.Method;
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public class FinatraInstrumentation extends Instrumenter.Default {
@@ -52,7 +54,7 @@ public class FinatraInstrumentation extends Instrumenter.Default {
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return nameStartsWith("com.twitter.finatra.")
         .<TypeDescription>and(
-            extendsClass(named("com.twitter.finatra.http.internal.routing.Route")));
+            extendsClassNamed("com.twitter.finatra.http.internal.routing.Route"));
   }
 
   @Override

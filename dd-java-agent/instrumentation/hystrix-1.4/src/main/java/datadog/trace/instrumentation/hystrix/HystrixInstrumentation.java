@@ -1,22 +1,24 @@
 package datadog.trace.instrumentation.hystrix;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClassNamed;
 import static datadog.trace.instrumentation.hystrix.HystrixDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
+
 import com.netflix.hystrix.HystrixInvokableInfo;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.rxjava.TracedOnSubscribe;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import rx.Observable;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public class HystrixInstrumentation extends Instrumenter.Default {
@@ -29,9 +31,8 @@ public class HystrixInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return extendsClass(
-        named("com.netflix.hystrix.HystrixCommand")
-            .or(named("com.netflix.hystrix.HystrixObservableCommand")));
+    return extendsClassNamed("com.netflix.hystrix.HystrixCommand")
+            .or(extendsClassNamed("com.netflix.hystrix.HystrixObservableCommand"));
   }
 
   @Override

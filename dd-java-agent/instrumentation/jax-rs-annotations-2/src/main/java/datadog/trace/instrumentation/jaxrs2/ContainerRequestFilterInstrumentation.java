@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.jaxrs2;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -8,14 +8,16 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Map;
-import javax.ws.rs.container.ContainerRequestContext;
-import javax.ws.rs.container.ContainerRequestFilter;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.util.Map;
+import javax.ws.rs.container.ContainerRequestContext;
+import javax.ws.rs.container.ContainerRequestFilter;
 
 /**
  * This adds the filter class name to the request properties. The class name is used by <code>
@@ -30,7 +32,7 @@ public class ContainerRequestFilterInstrumentation extends Instrumenter.Default 
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return implementsInterface(named("javax.ws.rs.container.ContainerRequestFilter"));
+    return hasInterfaceNamed("javax.ws.rs.container.ContainerRequestFilter");
   }
 
   @Override

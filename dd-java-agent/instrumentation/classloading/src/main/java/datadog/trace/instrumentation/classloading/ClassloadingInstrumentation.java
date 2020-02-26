@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.classloading;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClassNamed;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
@@ -12,14 +12,16 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Constants;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.util.Map;
 
 /*
  * Some class loaders do not delegate to their parent, so classes in those class loaders
@@ -44,7 +46,7 @@ public final class ClassloadingInstrumentation extends Instrumenter.Default {
     return not(named("java.lang.ClassLoader"))
         .and(not(named("com.ibm.oti.vm.BootstrapClassLoader")))
         .and(not(named("datadog.trace.bootstrap.AgentClassLoader")))
-        .and(extendsClass(named("java.lang.ClassLoader")));
+        .and(extendsClassNamed("java.lang.ClassLoader"));
   }
 
   @Override

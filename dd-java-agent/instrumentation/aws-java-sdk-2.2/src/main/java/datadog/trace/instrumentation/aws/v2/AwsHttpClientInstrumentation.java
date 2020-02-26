@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.aws.v2;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClassNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -8,15 +8,17 @@ import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.context.TraceScope;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRequestStage;
+
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * Separate instrumentation class to close aws request scope right after request has been submitted
@@ -29,12 +31,11 @@ public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrum
   public ElementMatcher<TypeDescription> typeMatcher() {
     return nameStartsWith("software.amazon.awssdk.")
         .and(
-            extendsClass(
-                named(
+            extendsClassNamed(
                         "software.amazon.awssdk.core.internal.http.pipeline.stages.MakeHttpRequestStage")
                     .or(
-                        named(
-                            "software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRequestStage"))));
+                      extendsClassNamed(
+                            "software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRequestStage")));
   }
 
   @Override

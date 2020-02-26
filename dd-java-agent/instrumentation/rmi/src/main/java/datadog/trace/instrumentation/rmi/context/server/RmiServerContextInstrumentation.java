@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.rmi.context.server;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClassNamed;
 import static datadog.trace.instrumentation.rmi.context.ContextPropagator.DD_CONTEXT_CALL_ID;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -9,13 +9,15 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import sun.rmi.transport.Target;
+
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public class RmiServerContextInstrumentation extends Instrumenter.Default {
@@ -26,7 +28,7 @@ public class RmiServerContextInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return extendsClass(named("sun.rmi.transport.ObjectTable"));
+    return extendsClassNamed("sun.rmi.transport.ObjectTable");
   }
 
   @Override

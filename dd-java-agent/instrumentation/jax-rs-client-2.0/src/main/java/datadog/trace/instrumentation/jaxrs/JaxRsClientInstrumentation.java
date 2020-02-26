@@ -1,20 +1,22 @@
 package datadog.trace.instrumentation.jaxrs;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClassNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Map;
-import javax.ws.rs.client.Client;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.util.Map;
+import javax.ws.rs.client.Client;
 
 @AutoService(Instrumenter.class)
 public final class JaxRsClientInstrumentation extends Instrumenter.Default {
@@ -25,7 +27,7 @@ public final class JaxRsClientInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return extendsClass(named("javax.ws.rs.client.ClientBuilder"));
+    return extendsClassNamed("javax.ws.rs.client.ClientBuilder");
   }
 
   @Override
@@ -44,7 +46,7 @@ public final class JaxRsClientInstrumentation extends Instrumenter.Default {
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        named("build").and(returns(hasInterface(named("javax.ws.rs.client.Client")))),
+        named("build").and(returns(hasInterfaceNamed("javax.ws.rs.client.Client"))),
         JaxRsClientInstrumentation.class.getName() + "$ClientBuilderAdvice");
   }
 

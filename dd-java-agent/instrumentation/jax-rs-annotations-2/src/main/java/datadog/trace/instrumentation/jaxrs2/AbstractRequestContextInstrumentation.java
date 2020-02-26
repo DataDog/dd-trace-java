@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.jaxrs2;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -14,12 +14,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.lang.reflect.Method;
-import java.util.Map;
-import javax.ws.rs.container.ContainerRequestContext;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.lang.reflect.Method;
+import java.util.Map;
+import javax.ws.rs.container.ContainerRequestContext;
 
 public abstract class AbstractRequestContextInstrumentation extends Instrumenter.Default {
   public AbstractRequestContextInstrumentation() {
@@ -28,7 +29,7 @@ public abstract class AbstractRequestContextInstrumentation extends Instrumenter
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return implementsInterface(named("javax.ws.rs.container.ContainerRequestContext"));
+    return hasInterfaceNamed("javax.ws.rs.container.ContainerRequestContext");
   }
 
   @Override

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.hibernate.core.v3_3;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static datadog.trace.instrumentation.hibernate.HibernateDecorator.DECORATOR;
 import static datadog.trace.instrumentation.hibernate.SessionMethodUtils.SCOPE_ONLY_METHODS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -11,15 +10,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -30,6 +27,10 @@ import org.hibernate.Query;
 import org.hibernate.Session;
 import org.hibernate.StatelessSession;
 import org.hibernate.Transaction;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public class SessionInstrumentation extends AbstractHibernateInstrumentation {
@@ -47,8 +48,7 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return implementsInterface(
-        named("org.hibernate.Session").or(named("org.hibernate.StatelessSession")));
+    return hasInterfaceNamed("org.hibernate.Session").or(named("org.hibernate.StatelessSession"));
   }
 
   @Override
@@ -96,11 +96,11 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
         SessionInstrumentation.class.getName() + "$GetTransactionAdvice");
 
     transformers.put(
-        isMethod().and(returns(hasInterface(named("org.hibernate.Query")))),
+        isMethod().and(returns(hasInterfaceNamed("org.hibernate.Query"))),
         SessionInstrumentation.class.getName() + "$GetQueryAdvice");
 
     transformers.put(
-        isMethod().and(returns(hasInterface(named("org.hibernate.Criteria")))),
+        isMethod().and(returns(hasInterfaceNamed("org.hibernate.Criteria"))),
         SessionInstrumentation.class.getName() + "$GetCriteriaAdvice");
 
     return transformers;

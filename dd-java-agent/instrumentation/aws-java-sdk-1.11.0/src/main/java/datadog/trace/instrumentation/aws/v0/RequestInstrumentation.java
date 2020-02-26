@@ -1,22 +1,24 @@
 package datadog.trace.instrumentation.aws.v0;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClassNamed;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.amazonaws.AmazonWebServiceRequest;
 import com.google.auto.service.AutoService;
+
+import com.amazonaws.AmazonWebServiceRequest;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import java.util.HashMap;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public final class RequestInstrumentation extends Instrumenter.Default {
@@ -28,7 +30,7 @@ public final class RequestInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return nameStartsWith("com.amazonaws.")
-        .and(extendsClass(named("com.amazonaws.AmazonWebServiceRequest")));
+        .and(extendsClassNamed("com.amazonaws.AmazonWebServiceRequest"));
   }
 
   @Override

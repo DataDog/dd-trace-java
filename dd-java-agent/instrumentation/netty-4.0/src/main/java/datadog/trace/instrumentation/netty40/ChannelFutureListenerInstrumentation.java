@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.netty40;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static java.util.Collections.singletonMap;
@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -16,11 +17,12 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator;
 import io.netty.channel.ChannelFuture;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public class ChannelFutureListenerInstrumentation extends Instrumenter.Default {
@@ -33,7 +35,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return implementsInterface(named("io.netty.channel.ChannelFutureListener"));
+    return hasInterfaceNamed("io.netty.channel.ChannelFutureListener");
   }
 
   @Override

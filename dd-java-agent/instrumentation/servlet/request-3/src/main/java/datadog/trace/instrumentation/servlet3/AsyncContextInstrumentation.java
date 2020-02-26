@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.agent.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.servlet3.HttpServletRequestInjectAdapter.SETTER;
 import static java.util.Collections.singletonMap;
@@ -10,17 +10,19 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.Map;
-import javax.servlet.AsyncContext;
-import javax.servlet.ServletRequest;
-import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.util.Map;
+import javax.servlet.AsyncContext;
+import javax.servlet.ServletRequest;
+import javax.servlet.http.HttpServletRequest;
 
 @AutoService(Instrumenter.class)
 public final class AsyncContextInstrumentation extends Instrumenter.Default {
@@ -36,7 +38,7 @@ public final class AsyncContextInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return implementsInterface(named("javax.servlet.AsyncContext"));
+    return hasInterfaceNamed("javax.servlet.AsyncContext");
   }
 
   @Override

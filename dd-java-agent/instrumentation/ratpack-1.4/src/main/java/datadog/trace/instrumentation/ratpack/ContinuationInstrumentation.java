@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.ratpack;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
@@ -8,14 +8,16 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import ratpack.func.Block;
 import ratpack.path.PathBinding;
+
+import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public final class ContinuationInstrumentation extends Instrumenter.Default {
@@ -27,7 +29,7 @@ public final class ContinuationInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return nameStartsWith("ratpack.exec.")
-        .<TypeDescription>and(implementsInterface(named("ratpack.exec.internal.Continuation")));
+        .<TypeDescription>and(hasInterfaceNamed("ratpack.exec.internal.Continuation"));
   }
 
   @Override

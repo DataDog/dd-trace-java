@@ -1,15 +1,22 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import lombok.extern.slf4j.Slf4j;
+import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -17,11 +24,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.Future;
-import lombok.extern.slf4j.Slf4j;
-import net.bytebuddy.asm.Advice;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
 
 @Slf4j
 @AutoService(Instrumenter.class)
@@ -77,17 +79,20 @@ public final class FutureInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     final ElementMatcher.Junction<TypeDescription> hasFutureInterfaceMatcher =
-        implementsInterface(named(Future.class.getName()));
+        hasInterfaceNamed(Future.class.getName());
     return new ElementMatcher.Junction.AbstractBase<TypeDescription>() {
-      @Override
-      public boolean matches(final TypeDescription target) {
-        final boolean whitelisted = WHITELISTED_FUTURES.contains(target.getName());
-        if (!whitelisted && log.isDebugEnabled() && hasFutureInterfaceMatcher.matches(target)) {
-          log.debug("Skipping future instrumentation for {}", target.getName());
-        }
-        return whitelisted;
-      }
-    }.and(hasFutureInterfaceMatcher); // Apply expensive matcher last.
+              @Override
+              public boolean matches(final TypeDescription target) {
+                final boolean whitelisted = WHITELISTED_FUTURES.contains(target.getName());
+                if (!whitelisted
+                    && log.isDebugEnabled()
+                    && hasFutureInterfaceMatcher.matches(target)) {
+                  log.debug("Skipping future instrumentation for {}", target.getName());
+                }
+                return whitelisted;
+              }
+
+      }.and(hasFutureInterfaceMatcher); // Apply expensive matcher last.
   }
 
   @Override

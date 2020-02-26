@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.servlet.dispatcher;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterfaceNamed;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -8,14 +8,16 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import java.util.Map;
-import javax.servlet.RequestDispatcher;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+
+import java.util.Map;
+import javax.servlet.RequestDispatcher;
 
 @AutoService(Instrumenter.class)
 public final class ServletContextInstrumentation extends Instrumenter.Default {
@@ -25,7 +27,7 @@ public final class ServletContextInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return implementsInterface(named("javax.servlet.ServletContext"));
+    return hasInterfaceNamed("javax.servlet.ServletContext");
   }
 
   @Override
