@@ -1,8 +1,11 @@
 package datadog.trace.agent.tooling;
 
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy;
+import datadog.trace.agent.tooling.bytebuddy.DDDescriptionStrategy;
 import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
+import datadog.trace.agent.tooling.bytebuddy.caching.WeakRefClassLoaderCache;
 import datadog.trace.bootstrap.WeakMap;
+import net.bytebuddy.agent.builder.AgentBuilder;
 
 /**
  * This class contains class references for objects shared by the agent installer as well as muzzle
@@ -16,15 +19,19 @@ public class AgentTooling {
     registerWeakMapProvider();
   }
 
+  private static final WeakRefClassLoaderCache LOADER_REF_CACHE = new WeakRefClassLoaderCache();
+  private static final DDDescriptionStrategy DESCRIPTION_STRATEGY =
+      new DDDescriptionStrategy(LOADER_REF_CACHE);
+  private static final DDCachingPoolStrategy POOL_STRATEGY =
+      new DDCachingPoolStrategy(LOADER_REF_CACHE);
   private static final DDLocationStrategy LOCATION_STRATEGY = new DDLocationStrategy();
-  private static final DDCachingPoolStrategy POOL_STRATEGY = new DDCachingPoolStrategy();
-
-  public static DDLocationStrategy locationStrategy() {
-    return LOCATION_STRATEGY;
-  }
 
   public static DDCachingPoolStrategy poolStrategy() {
     return POOL_STRATEGY;
+  }
+
+  public static DDLocationStrategy locationStrategy() {
+    return LOCATION_STRATEGY;
   }
 
   private static void registerWeakMapProvider() {
@@ -33,5 +40,9 @@ public class AgentTooling {
       //    WeakMap.Provider.registerIfAbsent(new WeakMapSuppliers.WeakConcurrent.Inline());
       //    WeakMap.Provider.registerIfAbsent(new WeakMapSuppliers.Guava());
     }
+  }
+
+  public static AgentBuilder.DescriptionStrategy descriptionStrategy() {
+    return DESCRIPTION_STRATEGY;
   }
 }

@@ -95,8 +95,8 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
    *
    * <p>This method exists to allow getting interfaces even if the lookup on one fails.
    */
-  private List<TypeDefinition> safeGetInterfaces(final TypeDefinition typeDefinition) {
-    final List<TypeDefinition> interfaceTypes = new ArrayList<>();
+  static List<TypeDescription.Generic> safeGetInterfaces(final TypeDefinition typeDefinition) {
+    final List<TypeDescription.Generic> interfaceTypes = new ArrayList<>();
     try {
       final Iterator<TypeDescription.Generic> interfaceIter =
           typeDefinition.getInterfaces().iterator();

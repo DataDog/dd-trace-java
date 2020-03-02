@@ -4,6 +4,7 @@ import static net.bytebuddy.agent.builder.AgentBuilder.PoolStrategy;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import datadog.trace.agent.tooling.bytebuddy.caching.WeakRefClassLoaderCache;
 import java.lang.ref.WeakReference;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.annotation.AnnotationList;
@@ -43,26 +44,11 @@ public class DDCachingPoolStrategy implements PoolStrategy {
   // others to avoid creation of synthetic accessors
 
   static final int CONCURRENCY_LEVEL = 8;
-  static final int LOADER_CAPACITY = 64;
   static final int TYPE_CAPACITY = 64;
 
   static final int BOOTSTRAP_HASH = 7236344; // Just a random number
 
-  /**
-   * Cache of recent ClassLoader WeakReferences; used to...
-   *
-   * <ul>
-   *   <li>Reduced number of WeakReferences created
-   *   <li>Allow for quick fast path equivalence check of composite keys
-   * </ul>
-   */
-  final Cache<ClassLoader, WeakReference<ClassLoader>> loaderRefCache =
-      CacheBuilder.newBuilder()
-          .weakKeys()
-          .concurrencyLevel(CONCURRENCY_LEVEL)
-          .initialCapacity(LOADER_CAPACITY / 2)
-          .maximumSize(LOADER_CAPACITY)
-          .build();
+  private final WeakRefClassLoaderCache loaderRefCache;
 
   /**
    * Single shared Type.Resolution cache -- uses a composite key -- conceptually of loader & name
@@ -79,22 +65,18 @@ public class DDCachingPoolStrategy implements PoolStrategy {
   final SharedResolutionCacheAdapter bootstrapCacheProvider =
       new SharedResolutionCacheAdapter(BOOTSTRAP_HASH, null, sharedResolutionCache);
 
+  public DDCachingPoolStrategy(final WeakRefClassLoaderCache loaderRefCache) {
+    this.loaderRefCache = loaderRefCache;
+  }
+
   @Override
   public final TypePool typePool(
       final ClassFileLocator classFileLocator, final ClassLoader classLoader) {
     if (classLoader == null) {
       return createCachingTypePool(bootstrapCacheProvider, classFileLocator);
     }
-
-    WeakReference<ClassLoader> loaderRef = loaderRefCache.getIfPresent(classLoader);
-
-    if (loaderRef == null) {
-      loaderRef = new WeakReference<>(classLoader);
-      loaderRefCache.put(classLoader, loaderRef);
-    }
-
-    final int loaderHash = classLoader.hashCode();
-    return createCachingTypePool(loaderHash, loaderRef, classFileLocator);
+    return createCachingTypePool(
+        classLoader.hashCode(), loaderRefCache.get(classLoader), classFileLocator);
   }
 
   private TypePool.CacheProvider createCacheProvider(
@@ -131,7 +113,8 @@ public class DDCachingPoolStrategy implements PoolStrategy {
    *
    * <p>The loaderHash exists to avoid calling get & strengthening the Reference.
    */
-  static final class TypeCacheKey {
+  // TODO: move to datadog.trace.agent.tooling.bytebuddy.caching
+  public static final class TypeCacheKey {
     private final int loaderHash;
     private final WeakReference<ClassLoader> loaderRef;
     private final String className;
@@ -194,6 +177,20 @@ public class DDCachingPoolStrategy implements PoolStrategy {
         return (thisLoader == thatLoader);
       } else {
         return false;
+      }
+    }
+
+    public static final class Partial {
+      private final int loaderHash;
+      private final WeakReference<ClassLoader> loaderRef;
+
+      public Partial(final int loaderHash, final WeakReference<ClassLoader> loaderRef) {
+        this.loaderHash = loaderHash;
+        this.loaderRef = loaderRef;
+      }
+
+      public TypeCacheKey getKey(final String className) {
+        return new TypeCacheKey(loaderHash, loaderRef, className);
       }
     }
   }

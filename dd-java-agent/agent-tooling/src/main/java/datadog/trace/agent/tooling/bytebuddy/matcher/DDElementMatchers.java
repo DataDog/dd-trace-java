@@ -23,21 +23,21 @@ public class DDElementMatchers {
   public static <T extends TypeDescription> ElementMatcher.Junction<T> implementsInterface(
       final ElementMatcher<? super TypeDescription> matcher) {
     return not(isInterface())
-        .and(new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), true));
+        .and(
+            new CachingHasSuperTypeMatcher<>(new SafeErasureMatcher<>(isInterface().and(matcher))));
   }
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> hasInterface(
       final ElementMatcher<? super TypeDescription> matcher) {
-    return new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), true);
+    return new CachingHasSuperTypeMatcher<>(new SafeErasureMatcher<>(isInterface().and(matcher)));
   }
 
   public static <T extends TypeDescription> ElementMatcher.Junction<T> safeHasSuperType(
       final ElementMatcher<? super TypeDescription> matcher) {
     return not(isInterface())
-        .and(new SafeHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher), false));
+        .and(new CachingHasSuperTypeMatcher<>(new SafeErasureMatcher<>(matcher)));
   }
 
-  // TODO: add javadoc
   public static <T extends MethodDescription> ElementMatcher.Junction<T> hasSuperMethod(
       final ElementMatcher<? super MethodDescription> matcher) {
     return new HasSuperMethodMatcher<>(matcher);
