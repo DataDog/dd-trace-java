@@ -29,6 +29,8 @@ public class ThreadContextInstrumentation extends Instrumenter.Default {
     return Config.get().isLogsInjectionEnabled();
   }
 
+  // We instrument single class in the whole library, the rest is ignored by
+  // AdditionalLibraryIgnoresMatcher
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return named("org.apache.logging.log4j.ThreadContext");
