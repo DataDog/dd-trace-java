@@ -127,6 +127,12 @@ public class Config {
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
   public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
+  public static final String PROFILING_EXCEPTION_SAMPLER_INTERVAL =
+      "profiling.exception-sampler.interval";
+  public static final String PROFILING_EXCEPTION_SAMPLER_MAX_SAMPLES =
+      "profiling.exception-sampler.max-samples";
+  public static final String PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW =
+      "profiling.exception-sampler.time-window.sec";
 
   public static final String RUNTIME_ID_TAG = "runtime-id";
   public static final String SERVICE_TAG = "service";
@@ -181,6 +187,9 @@ public class Config {
   public static final int DEFAULT_PROFILING_UPLOAD_TIMEOUT = 30; // seconds
   public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
   public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
+  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_INTERVAL = 10;
+  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_MAX_SAMPLES = 1000;
+  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW = 120;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
@@ -282,6 +291,9 @@ public class Config {
   @Getter private final int profilingProxyPort;
   @Getter private final String profilingProxyUsername;
   @Getter private final String profilingProxyPassword;
+  @Getter private final int profilingExceptionSamplerInterval;
+  @Getter private final int profilingExceptionSamplerMaxSamples;
+  @Getter private final int profilingExceptionSamplerTimeWindow;
 
   // Values from an optionally provided properties file
   private static Properties propertiesFromConfigFile;
@@ -471,6 +483,18 @@ public class Config {
     profilingProxyUsername = getSettingFromEnvironment(PROFILING_PROXY_USERNAME, null);
     profilingProxyPassword = getSettingFromEnvironment(PROFILING_PROXY_PASSWORD, null);
 
+    profilingExceptionSamplerInterval =
+        getIntegerSettingFromEnvironment(
+            PROFILING_EXCEPTION_SAMPLER_INTERVAL, DEFAULT_PROFILING_EXCEPTION_SAMPLER_INTERVAL);
+    profilingExceptionSamplerMaxSamples =
+        getIntegerSettingFromEnvironment(
+            PROFILING_EXCEPTION_SAMPLER_MAX_SAMPLES,
+            DEFAULT_PROFILING_EXCEPTION_SAMPLER_MAX_SAMPLES);
+    profilingExceptionSamplerTimeWindow =
+        getIntegerSettingFromEnvironment(
+            PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW,
+            DEFAULT_PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW);
+
     log.debug("New instance: {}", this);
   }
 
@@ -634,6 +658,22 @@ public class Config {
         properties.getProperty(PROFILING_PROXY_USERNAME, parent.profilingProxyUsername);
     profilingProxyPassword =
         properties.getProperty(PROFILING_PROXY_PASSWORD, parent.profilingProxyPassword);
+
+    profilingExceptionSamplerInterval =
+        getPropertyIntegerValue(
+            properties,
+            PROFILING_EXCEPTION_SAMPLER_INTERVAL,
+            DEFAULT_PROFILING_EXCEPTION_SAMPLER_INTERVAL);
+    profilingExceptionSamplerMaxSamples =
+        getPropertyIntegerValue(
+            properties,
+            PROFILING_EXCEPTION_SAMPLER_MAX_SAMPLES,
+            DEFAULT_PROFILING_EXCEPTION_SAMPLER_MAX_SAMPLES);
+    profilingExceptionSamplerTimeWindow =
+        getPropertyIntegerValue(
+            properties,
+            PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW,
+            DEFAULT_PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW);
 
     log.debug("New instance: {}", this);
   }
