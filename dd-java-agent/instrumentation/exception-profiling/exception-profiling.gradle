@@ -1,0 +1,53 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_11
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+apply plugin: "idea"
+
+dependencies {
+  compile project(':dd-java-agent:agent-tooling')
+  testCompile project(':dd-java-agent:agent-jfr-bootstrap')
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_7
+targetCompatibility = JavaVersion.VERSION_1_7
+
+compileMain_java11Java {
+  doFirst {
+    // Disable '-processing' because some annotations are not claimed.
+    // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
+    // Disable '-path' because we do not have some of the paths seem to be missing.
+    options.compilerArgs.addAll(['-source', '11', '-target','11','-Xlint:all,-processing,-options,-path'])
+    options.fork = true
+    options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+  }
+}
+
+compileTestJava {
+  doFirst {
+    // Disable '-processing' because some annotations are not claimed.
+    // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
+    // Disable '-path' because we do not have some of the paths seem to be missing.
+    options.compilerArgs.addAll(['-source', '7', '-target','7','-Xlint:all,-processing,-options,-path'])
+    options.fork = true
+    options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+  }
+}
+
+compileTestGroovy {
+  doFirst {
+    // Disable '-processing' because some annotations are not claimed.
+    // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
+    // Disable '-path' because we do not have some of the paths seem to be missing.
+    options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
+    options.fork = true
+    options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+  }
+}
+
+idea {
+  module {
+    jdkName = '11'
+  }
+}

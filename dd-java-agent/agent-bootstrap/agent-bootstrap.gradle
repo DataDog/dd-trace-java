@@ -11,6 +11,7 @@ minimumInstructionCoverage = 0.0
 
 dependencies {
   compile project(':dd-trace-api')
+  compile project(':dd-java-agent:agent-jfr-bootstrap')
   compile deps.opentracing
   compile deps.slf4j
   compile group: 'org.slf4j', name: 'slf4j-simple', version: versions.slf4j
