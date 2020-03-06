@@ -54,10 +54,6 @@ public final class AdaptiveIntervalSampler {
     // all changes done by other threads before writing to 'counterTop' will be visible after this
     // line
     if (currentCnt % counterTop == 0L) {
-      if (log.isDebugEnabled()) {
-        log.debug("Sampler hit [id: {}, interval: {}]", id, interval);
-      }
-
       long ts1 = System.nanoTime();
       // all changes done by other threads before writing to 'ts' will be visible after this line
       long tDiff = ts1 - ts;

@@ -18,6 +18,7 @@ package com.datadog.profiling.controller.openjdk;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionHistogram;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
@@ -54,6 +55,7 @@ public final class OpenJdkController implements Controller {
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
+    ExceptionHistogram.init();
   }
 
   @Override

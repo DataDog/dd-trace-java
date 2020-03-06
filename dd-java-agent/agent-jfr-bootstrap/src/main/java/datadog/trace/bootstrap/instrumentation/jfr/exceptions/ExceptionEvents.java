@@ -9,11 +9,11 @@ import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
 
 /**
- * JVM-wide singleton exception event sampler. Uses {@linkplain Config} class to configure a
+ * JVM-wide singleton exception event processor. Uses {@linkplain Config} class to configure a
  * {@linkplain AdaptiveIntervalSampler} instance using either system properties, environment or
  * properties override.
  */
-public final class ExceptionEventSampler {
+public final class ExceptionEvents {
   private static final int TIME_WINDOW_SECS;
   private static final int MAX_WINDOW_SAMPLES;
 
@@ -43,9 +43,14 @@ public final class ExceptionEventSampler {
     FlightRecorder.addListener(listener);
   }
 
-  public static ExceptionSampleEvent sample(Exception e) {
-    if (EXCEPTION_SAMPLE_EVENT_TYPE.isEnabled() && SAMPLER.sample()) {
-      return new ExceptionSampleEvent(e);
+  public static ExceptionSampleEvent process(Exception e) {
+    boolean firstHit = ExceptionHistogram.record(e);
+    if (EXCEPTION_SAMPLE_EVENT_TYPE.isEnabled()) {
+      // need a non-short-circuiting OR such that 'SAMPLER.sample()' is called regardless of value
+      // of 'firstHit'
+      if (firstHit | SAMPLER.sample()) {
+        return new ExceptionSampleEvent(e);
+      }
     }
     return null;
   }
