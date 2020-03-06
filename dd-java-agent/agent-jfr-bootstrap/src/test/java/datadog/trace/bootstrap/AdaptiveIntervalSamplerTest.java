@@ -9,10 +9,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-class AdaptiveIntervalSamplerTest {
+public class AdaptiveIntervalSamplerTest {
   @ParameterizedTest
   @MethodSource("samplerParams")
-  void sampleConcurrent(int threadCnt, int minInterval, long timeWindowMs, long maxSamples)
+  public void sampleConcurrent(int threadCnt, int minInterval, long timeWindowMs, long maxSamples)
       throws Exception {
     AdaptiveIntervalSampler instance =
         new AdaptiveIntervalSampler("test", minInterval, timeWindowMs, maxSamples);

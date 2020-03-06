@@ -32,9 +32,4 @@ public class ExceptionInstrumentation extends Instrumenter.Default {
     return Collections.singletonMap(
         isConstructor(), "datadog.exceptions.instrumentation.ExceptionAdvice");
   }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {"datadog.exceptions.jfr.ExceptionEventSamplerBridge"};
-  }
 }

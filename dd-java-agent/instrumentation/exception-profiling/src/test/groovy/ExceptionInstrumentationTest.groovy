@@ -1,6 +1,6 @@
 
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionEventSampler
+import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionEvents
 import spock.lang.Requires
 
 @Requires({ jvm.java11Compatible })
@@ -21,12 +21,11 @@ class ExceptionInstrumentationTest extends AgentTestRunner {
       }
 
       def events = JfrHelper.stopRecording(rec)
-      def projectedEventsSize = events.size() * (ExceptionEventSampler.timeWindowMs / (delay * exceptionCount))
-      def scaled = (exceptionCount / (double)events.size()) / ExceptionEventSampler.interval
+      def projectedEventsSize = events.size() * (ExceptionEvents.timeWindowMs / (delay * exceptionCount))
+      def scaled = (exceptionCount / (double)events.size()) / ExceptionEvents.interval
     then:
       scaled >= 1
-      projectedEventsSize <= ExceptionEventSampler.maxWindowSamples * 2
+      projectedEventsSize <= ExceptionEvents.maxWindowSamples * 2
       events.every {!it.getString("type").isEmpty()}
-      events.every { it.getString("message") != null}
   }
 }
