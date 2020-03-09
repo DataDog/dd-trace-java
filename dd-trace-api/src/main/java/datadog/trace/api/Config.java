@@ -136,6 +136,7 @@ public class Config {
       "profiling.exception-sampler.max-samples";
   public static final String PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW =
       "profiling.exception-sampler.time-window.sec";
+  public static final String PROFILING_EXCEPTION_HISTO_MAX = "profiling.exception-hist.max";
 
   public static final String RUNTIME_ID_TAG = "runtime-id";
   public static final String SERVICE_TAG = "service";
@@ -195,6 +196,7 @@ public class Config {
   public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_INTERVAL = 10;
   public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_MAX_SAMPLES = 1000;
   public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW = 120;
+  public static final int DEFAULT_PROFILING_EXCEPTION_HISTO_MAX = 50;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
@@ -300,6 +302,7 @@ public class Config {
   @Getter private final int profilingExceptionSamplerInterval;
   @Getter private final int profilingExceptionSamplerMaxSamples;
   @Getter private final int profilingExceptionSamplerTimeWindow;
+  @Getter private final int profilingExceptionHistoMax;
 
   // Values from an optionally provided properties file
   private static Properties propertiesFromConfigFile;
@@ -507,6 +510,9 @@ public class Config {
         getIntegerSettingFromEnvironment(
             PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW,
             DEFAULT_PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW);
+    profilingExceptionHistoMax =
+        getIntegerSettingFromEnvironment(
+            PROFILING_EXCEPTION_HISTO_MAX, DEFAULT_PROFILING_EXCEPTION_HISTO_MAX);
 
     log.debug("New instance: {}", this);
   }
@@ -696,6 +702,9 @@ public class Config {
             properties,
             PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW,
             DEFAULT_PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW);
+    profilingExceptionHistoMax =
+        getPropertyIntegerValue(
+            properties, PROFILING_EXCEPTION_HISTO_MAX, DEFAULT_PROFILING_EXCEPTION_HISTO_MAX);
 
     log.debug("New instance: {}", this);
   }

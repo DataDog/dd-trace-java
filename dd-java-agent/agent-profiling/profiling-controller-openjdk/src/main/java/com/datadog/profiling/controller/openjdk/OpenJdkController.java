@@ -18,7 +18,7 @@ package com.datadog.profiling.controller.openjdk;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionHistogram;
+import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionProfiling;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
@@ -49,13 +49,18 @@ public final class OpenJdkController implements Controller {
     Class.forName("jdk.jfr.Recording");
     Class.forName("jdk.jfr.FlightRecorder");
 
+    /*
+     * Initialize the exception profiling. Must be done as soon as possible - definitely before starting
+     * the recording.
+     */
+    ExceptionProfiling.init(config);
+
     try {
       recordingSettings =
           JfpUtils.readNamedJfpResource(JFP, config.getProfilingTemplateOverrideFile());
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
-    ExceptionHistogram.init();
   }
 
   @Override

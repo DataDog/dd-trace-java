@@ -44,6 +44,18 @@ public class Agent {
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
   private static ClassLoader PROFILING_CLASSLOADER = null;
 
+  private static volatile boolean profilingStarted = false;
+
+  /**
+   * A flag-check method indicating whether (JFR-based) profiling has already been set up. This
+   * check must be in a bootstrap class so the injected code can invoke it.
+   *
+   * @return {@literal true} if the profiling has been set up and is running
+   */
+  public static boolean isProfilingStarted() {
+    return profilingStarted;
+  }
+
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createParentClassloader(bootstrapURL);
 
@@ -293,8 +305,18 @@ public class Agent {
       Thread.currentThread().setContextClassLoader(PROFILING_CLASSLOADER);
       final Class<?> profilingAgentClass =
           PROFILING_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
-      final Method profilingInstallerMethod = profilingAgentClass.getMethod("run", Boolean.TYPE);
-      profilingInstallerMethod.invoke(null, isStartingFirst);
+      final Method profilingInstallerMethod =
+          profilingAgentClass.getMethod("run", Boolean.TYPE, Runnable.class);
+      profilingInstallerMethod.invoke(
+          null,
+          isStartingFirst,
+          new Runnable() {
+            @Override
+            public void run() {
+              log.info("Marking Profiling: started");
+              profilingStarted = true;
+            }
+          });
     } catch (final ClassFormatError e) {
       /*
       Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
