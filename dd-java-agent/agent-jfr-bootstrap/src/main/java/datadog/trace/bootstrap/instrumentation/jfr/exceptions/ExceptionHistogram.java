@@ -1,47 +1,63 @@
 package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
 
+import datadog.trace.api.Config;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Stream;
 import jdk.jfr.EventType;
 import jdk.jfr.FlightRecorder;
 
 public class ExceptionHistogram {
-  private static final Map<String, LongAdder> HISTO_MAP = new ConcurrentHashMap<>();
-
-  private static volatile EventType EXCEPTION_COUNT_EVENT_TYPE = null;
+  private final Map<String, LongAdder> histoMap = new ConcurrentHashMap<>();
+  private final EventType exceptionCountEventType;
+  private final int maxTopItems;
+  private final boolean forceEnabled;
 
   @FunctionalInterface
-  private interface HistoProcessor {
-    void process(String key, long value);
+  interface ValueVisitor {
+    void visit(String key, long value);
   }
 
-  public static void init() {
-    EXCEPTION_COUNT_EVENT_TYPE = EventType.getEventType(ExceptionCountEvent.class);
-    FlightRecorder.addPeriodicEvent(
-        ExceptionCountEvent.class,
-        () -> {
-          if (EXCEPTION_COUNT_EVENT_TYPE != null && EXCEPTION_COUNT_EVENT_TYPE.isEnabled()) {
-            dump(
-                (k, v) -> {
-                  ExceptionCountEvent event = new ExceptionCountEvent(k, v);
-                  if (event.shouldCommit()) {
-                    event.commit();
-                  }
-                },
-                false);
-          }
-        });
+  ExceptionHistogram(Config config) {
+    this(config.getProfilingExceptionHistoMax(), false);
   }
 
-  public static boolean record(Exception exception) {
+  ExceptionHistogram(int maxTopItems, boolean forceEnabled) {
+    this.maxTopItems = maxTopItems;
+    this.exceptionCountEventType = EventType.getEventType(ExceptionCountEvent.class);
+    this.forceEnabled = forceEnabled;
+
+    FlightRecorder.addPeriodicEvent(ExceptionCountEvent.class, this::emit);
+  }
+
+  private void emit() {
+    if (forceEnabled || exceptionCountEventType.isEnabled()) {
+      processAndReset(this::newExceptionCountEvent);
+    }
+  }
+
+  private void newExceptionCountEvent(String type, long count) {
+    ExceptionCountEvent event = new ExceptionCountEvent(type, count);
+    if (event.shouldCommit()) {
+      event.commit();
+    }
+  }
+
+  public boolean record(Exception exception) {
+    if (exception == null) {
+      return false;
+    }
     return record(exception.getClass().getCanonicalName());
   }
 
-  public static boolean record(String typeName) {
-    if (EXCEPTION_COUNT_EVENT_TYPE != null && EXCEPTION_COUNT_EVENT_TYPE.isEnabled()) {
+  boolean record(String typeName) {
+    if (typeName == null) {
+      return false;
+    }
+    if (forceEnabled || exceptionCountEventType.isEnabled()) {
       final boolean[] firstHit = new boolean[] {false};
-      HISTO_MAP
+      histoMap
           .computeIfAbsent(
               typeName,
               k -> {
@@ -58,14 +74,18 @@ public class ExceptionHistogram {
     return false;
   }
 
-  public static void dump(HistoProcessor processor, boolean reset) {
-    HISTO_MAP
-        .entrySet()
-        .stream()
-        .map(e -> entry(e.getKey(), reset ? e.getValue().sumThenReset() : e.getValue().sum()))
-        .sorted((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()))
-        .limit(50)
-        .forEach(e -> processor.process(e.getKey(), e.getValue()));
+  void processAndReset(ValueVisitor processor) {
+    Stream<Map.Entry<String, Long>> items =
+        histoMap
+            .entrySet()
+            .stream()
+            .map(e -> entry(e.getKey(), e.getValue().sumThenReset()))
+            .filter(e -> e.getValue() != 0)
+            .sorted((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()));
+    if (maxTopItems > 0) {
+      items = items.limit(maxTopItems);
+    }
+    items.forEach(e -> processor.visit(e.getKey(), e.getValue()));
   }
 
   private static <K, V> Map.Entry<K, V> entry(K key, V value) {
