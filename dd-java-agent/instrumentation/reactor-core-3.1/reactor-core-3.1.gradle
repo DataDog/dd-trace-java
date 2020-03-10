@@ -39,6 +39,7 @@ dependencies {
   lettuceTestCompile project(':dd-java-agent:instrumentation:lettuce-5')
   lettuceTestCompile group: 'io.lettuce', name: 'lettuce-core', version: '5.+'
   lettuceTestCompile group: 'io.micrometer', name: 'micrometer-core', version: '1.+'
+  lettuceTestCompile group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
 }
 
 test.finalizedBy lettuceTest
