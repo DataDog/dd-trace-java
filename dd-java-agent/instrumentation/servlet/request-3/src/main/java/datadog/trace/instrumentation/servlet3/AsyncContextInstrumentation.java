@@ -1,15 +1,14 @@
 package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.agent.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
-import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.servlet3.HttpServletRequestInjectAdapter.SETTER;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.isInterface;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -32,13 +31,19 @@ public final class AsyncContextInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".HttpServletRequestInjectAdapter"};
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed("javax.servlet.AsyncContext");
   }
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return not(isInterface()).and(safeHasSuperType(named("javax.servlet.AsyncContext")));
+    return implementsInterface(named("javax.servlet.AsyncContext"));
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".HttpServletRequestInjectAdapter"};
   }
 
   @Override

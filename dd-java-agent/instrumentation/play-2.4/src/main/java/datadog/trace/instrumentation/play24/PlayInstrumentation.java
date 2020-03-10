@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.play24;
 
-import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -21,8 +22,14 @@ public final class PlayInstrumentation extends Instrumenter.Default {
   }
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed("play.api.mvc.Action");
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return safeHasSuperType(named("play.api.mvc.Action"));
+    return implementsInterface(named("play.api.mvc.Action"));
   }
 
   @Override

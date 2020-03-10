@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.apachehttpasyncclient;
 
-import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -39,8 +40,14 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
   }
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed("org.apache.http.nio.client.HttpAsyncClient");
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return safeHasSuperType(named("org.apache.http.nio.client.HttpAsyncClient"));
+    return implementsInterface(named("org.apache.http.nio.client.HttpAsyncClient"));
   }
 
   @Override

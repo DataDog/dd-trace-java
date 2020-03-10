@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
-import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
-import static net.bytebuddy.matcher.ElementMatchers.isInterface;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -22,10 +22,15 @@ import net.bytebuddy.matcher.ElementMatcher;
 public final class HandlerAdapterInstrumentation extends AbstractWebfluxInstrumentation {
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed("org.springframework.web.reactive.HandlerAdapter");
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return not(isInterface())
-        .and(not(isAbstract()))
-        .and(safeHasSuperType(named("org.springframework.web.reactive.HandlerAdapter")));
+    return not(isAbstract())
+        .and(implementsInterface(named("org.springframework.web.reactive.HandlerAdapter")));
   }
 
   @Override

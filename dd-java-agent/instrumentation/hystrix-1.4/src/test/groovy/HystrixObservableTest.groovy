@@ -16,7 +16,7 @@ import static com.netflix.hystrix.HystrixCommandGroupKey.Factory.asKey
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 @Retry
-@Timeout(5)
+@Timeout(10)
 class HystrixObservableTest extends AgentTestRunner {
   static {
     // Disable so failure testing below doesn't inadvertently change the behavior.
@@ -58,7 +58,7 @@ class HystrixObservableTest extends AgentTestRunner {
     }
 
     expect:
-    TRANSFORMED_CLASSES.contains("HystrixObservableTest\$1")
+    TRANSFORMED_CLASSES_NAMES.contains("HystrixObservableTest\$1")
     result == "Hello!"
 
     assertTraces(1) {
@@ -168,7 +168,7 @@ class HystrixObservableTest extends AgentTestRunner {
     }
 
     expect:
-    TRANSFORMED_CLASSES.contains("HystrixObservableTest\$2")
+    TRANSFORMED_CLASSES_NAMES.contains("HystrixObservableTest\$2")
     result == "Fallback!"
 
     assertTraces(1) {
@@ -286,7 +286,7 @@ class HystrixObservableTest extends AgentTestRunner {
     }
 
     then:
-    TRANSFORMED_CLASSES.contains("HystrixObservableTest\$3")
+    TRANSFORMED_CLASSES_NAMES.contains("HystrixObservableTest\$3")
     def err = thrown HystrixRuntimeException
     err.cause instanceof IllegalArgumentException
 

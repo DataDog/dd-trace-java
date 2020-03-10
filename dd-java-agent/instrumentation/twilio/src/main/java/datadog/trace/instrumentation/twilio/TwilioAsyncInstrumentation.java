@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.twilio;
 
-import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.DECORATE;
@@ -34,10 +35,16 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Default {
     super("twilio-sdk");
   }
 
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed("com.twilio.Twilio");
+  }
+
   /** Match any child class of the base Twilio service classes. */
   @Override
   public ElementMatcher<? super net.bytebuddy.description.type.TypeDescription> typeMatcher() {
-    return safeHasSuperType(
+    return extendsClass(
         named("com.twilio.base.Creator")
             .or(named("com.twilio.base.Deleter"))
             .or(named("com.twilio.base.Fetcher"))

@@ -580,6 +580,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
     private boolean errorFlag;
     private String spanType;
     private boolean ignoreScope = false;
+    private LogHandler logHandler = new DefaultLogHandler();
 
     public DDSpanBuilder(final String operationName, final ScopeManager scopeManager) {
       this.operationName = operationName;
@@ -593,7 +594,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
     }
 
     private Span startSpan() {
-      return new DDSpan(timestampMicro, buildSpanContext());
+      return new DDSpan(timestampMicro, buildSpanContext(), logHandler);
     }
 
     @Override
@@ -670,6 +671,13 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
       return parent.baggageItems();
     }
 
+    public DDSpanBuilder withLogHandler(final LogHandler logHandler) {
+      if (logHandler != null) {
+        this.logHandler = logHandler;
+      }
+      return this;
+    }
+
     @Override
     public DDSpanBuilder asChildOf(final Span span) {
       return asChildOf(span == null ? null : span.context());
@@ -716,7 +724,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
       // case
       BigInteger value;
       do {
-        value = new BigInteger(63, ThreadLocalRandom.current());
+        value = new StringCachingBigInteger(63, ThreadLocalRandom.current());
       } while (value.signum() == 0);
 
       return value;
@@ -788,7 +796,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
 
         tags.putAll(localRootSpanTags);
 
-        parentTrace = new PendingTrace(DDTracer.this, traceId, serviceNameMappings);
+        parentTrace = new PendingTrace(DDTracer.this, traceId);
       }
 
       if (serviceName == null) {
@@ -813,7 +821,8 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
               spanType,
               tags,
               parentTrace,
-              DDTracer.this);
+              DDTracer.this,
+              serviceNameMappings);
 
       // Apply Decorators to handle any tags that may have been set via the builder.
       for (final Map.Entry<String, Object> tag : tags.entrySet()) {

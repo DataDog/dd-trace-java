@@ -2,13 +2,14 @@ package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.agent.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.servlet3.HttpServletRequestExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
+import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -29,11 +30,10 @@ public class Servlet3Advice {
       @Advice.Argument(0) final ServletRequest request,
       @Advice.Argument(1) final ServletResponse response) {
 
-    final boolean hasActiveTrace = activeSpan() != null;
     final boolean hasServletTrace = request.getAttribute(DD_SPAN_ATTRIBUTE) instanceof AgentSpan;
     final boolean invalidRequest = !(request instanceof HttpServletRequest);
-    if (invalidRequest || (hasActiveTrace && hasServletTrace)) {
-      // Tracing might already be applied by the FilterChain.  If so ignore this.
+    if (invalidRequest || hasServletTrace) {
+      // Tracing might already be applied by the FilterChain or a parent request (forward/include).
       return null;
     }
 
@@ -53,10 +53,15 @@ public class Servlet3Advice {
     DECORATE.onConnection(span, httpServletRequest);
     DECORATE.onRequest(span, httpServletRequest);
 
-    httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
-
     final AgentScope scope = activateSpan(span, false);
     scope.setAsyncPropagation(true);
+
+    httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
+    httpServletRequest.setAttribute(
+        CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
+    httpServletRequest.setAttribute(
+        CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());
+
     return scope;
   }
 

@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.jetty8;
 
-import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.isInterface;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -28,10 +28,15 @@ public final class JettyHandlerInstrumentation extends Instrumenter.Default {
   }
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed("org.eclipse.jetty.server.Handler");
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return not(isInterface())
-        .and(safeHasSuperType(named("org.eclipse.jetty.server.Handler")))
-        .and(not(named("org.eclipse.jetty.server.handler.HandlerWrapper")));
+    return not(named("org.eclipse.jetty.server.handler.HandlerWrapper"))
+        .and(implementsInterface(named("org.eclipse.jetty.server.Handler")));
   }
 
   @Override

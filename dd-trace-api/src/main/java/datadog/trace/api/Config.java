@@ -58,6 +58,8 @@ public class Config {
   public static final String TRACE_RESOLVER_ENABLED = "trace.resolver.enabled";
   public static final String SERVICE_MAPPING = "service.mapping";
 
+  public static final String TAGS = "tags";
+  @Deprecated // Use dd.tags instead
   public static final String GLOBAL_TAGS = "trace.global.tags";
   public static final String SPAN_TAGS = "trace.span.tags";
   public static final String JMX_TAGS = "trace.jmx.tags";
@@ -111,7 +113,11 @@ public class Config {
   public static final String PROFILING_API_KEY_OLD = "profiling.apikey";
   public static final String PROFILING_API_KEY_FILE_OLD = "profiling.apikey.file";
   public static final String PROFILING_TAGS = "profiling.tags";
-  public static final String PROFILING_STARTUP_DELAY = "profiling.start-delay";
+  public static final String PROFILING_START_DELAY = "profiling.start-delay";
+  // DANGEROUS! May lead on sigsegv on JVMs before 14
+  // Not intended for production use
+  public static final String PROFILING_START_FORCE_FIRST =
+      "profiling.experimental.start-force-first";
   public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
   public static final String PROFILING_TEMPLATE_OVERRIDE_FILE =
       "profiling.jfr-template-override-file";
@@ -168,8 +174,9 @@ public class Config {
 
   public static final boolean DEFAULT_PROFILING_ENABLED = false;
   public static final String DEFAULT_PROFILING_URL =
-      "https://beta-intake.profile.datadoghq.com/v1/input";
-  public static final int DEFAULT_PROFILING_STARTUP_DELAY = 10;
+      "https://intake.profile.datadoghq.com/v1/input";
+  public static final int DEFAULT_PROFILING_START_DELAY = 10;
+  public static final boolean DEFAULT_PROFILING_START_FORCE_FIRST = false;
   public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
   public static final int DEFAULT_PROFILING_UPLOAD_TIMEOUT = 30; // seconds
   public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
@@ -211,7 +218,8 @@ public class Config {
   @Getter private final boolean prioritySamplingEnabled;
   @Getter private final boolean traceResolverEnabled;
   @Getter private final Map<String, String> serviceMapping;
-  private final Map<String, String> globalTags;
+  private final Map<String, String> tags;
+  @Deprecated private final Map<String, String> globalTags;
   private final Map<String, String> spanTags;
   private final Map<String, String> jmxTags;
   @Getter private final List<String> excludedClasses;
@@ -264,7 +272,8 @@ public class Config {
   @Getter private final String profilingUrl;
   @Getter private final String profilingApiKey;
   private final Map<String, String> profilingTags;
-  @Getter private final int profilingStartupDelay;
+  @Getter private final int profilingStartDelay;
+  @Getter private final boolean profilingStartForceFirst;
   @Getter private final int profilingUploadPeriod;
   @Getter private final String profilingTemplateOverrideFile;
   @Getter private final int profilingUploadTimeout;
@@ -303,6 +312,7 @@ public class Config {
         getBooleanSettingFromEnvironment(TRACE_RESOLVER_ENABLED, DEFAULT_TRACE_RESOLVER_ENABLED);
     serviceMapping = getMapSettingFromEnvironment(SERVICE_MAPPING, null);
 
+    tags = getMapSettingFromEnvironment(TAGS, null);
     globalTags = getMapSettingFromEnvironment(GLOBAL_TAGS, null);
     spanTags = getMapSettingFromEnvironment(SPAN_TAGS, null);
     jmxTags = getMapSettingFromEnvironment(JMX_TAGS, null);
@@ -440,8 +450,11 @@ public class Config {
     profilingApiKey = tmpProfilingApiKey;
 
     profilingTags = getMapSettingFromEnvironment(PROFILING_TAGS, null);
-    profilingStartupDelay =
-        getIntegerSettingFromEnvironment(PROFILING_STARTUP_DELAY, DEFAULT_PROFILING_STARTUP_DELAY);
+    profilingStartDelay =
+        getIntegerSettingFromEnvironment(PROFILING_START_DELAY, DEFAULT_PROFILING_START_DELAY);
+    profilingStartForceFirst =
+        getBooleanSettingFromEnvironment(
+            PROFILING_START_FORCE_FIRST, DEFAULT_PROFILING_START_FORCE_FIRST);
     profilingUploadPeriod =
         getIntegerSettingFromEnvironment(PROFILING_UPLOAD_PERIOD, DEFAULT_PROFILING_UPLOAD_PERIOD);
     profilingTemplateOverrideFile =
@@ -485,6 +498,7 @@ public class Config {
         getPropertyBooleanValue(properties, TRACE_RESOLVER_ENABLED, parent.traceResolverEnabled);
     serviceMapping = getPropertyMapValue(properties, SERVICE_MAPPING, parent.serviceMapping);
 
+    tags = getPropertyMapValue(properties, TAGS, parent.tags);
     globalTags = getPropertyMapValue(properties, GLOBAL_TAGS, parent.globalTags);
     spanTags = getPropertyMapValue(properties, SPAN_TAGS, parent.spanTags);
     jmxTags = getPropertyMapValue(properties, JMX_TAGS, parent.jmxTags);
@@ -598,8 +612,11 @@ public class Config {
     profilingUrl = properties.getProperty(PROFILING_URL, parent.profilingUrl);
     profilingApiKey = properties.getProperty(PROFILING_API_KEY, parent.profilingApiKey);
     profilingTags = getPropertyMapValue(properties, PROFILING_TAGS, parent.profilingTags);
-    profilingStartupDelay =
-        getPropertyIntegerValue(properties, PROFILING_STARTUP_DELAY, parent.profilingStartupDelay);
+    profilingStartDelay =
+        getPropertyIntegerValue(properties, PROFILING_START_DELAY, parent.profilingStartDelay);
+    profilingStartForceFirst =
+        getPropertyBooleanValue(
+            properties, PROFILING_START_FORCE_FIRST, parent.profilingStartForceFirst);
     profilingUploadPeriod =
         getPropertyIntegerValue(properties, PROFILING_UPLOAD_PERIOD, parent.profilingUploadPeriod);
     profilingTemplateOverrideFile =
@@ -638,9 +655,9 @@ public class Config {
   }
 
   public Map<String, String> getMergedSpanTags() {
-    // DO not include runtimeId into span tags: we only want that added to the root span
-    final Map<String, String> result = newHashMap(globalTags.size() + spanTags.size());
-    result.putAll(globalTags);
+    // Do not include runtimeId into span tags: we only want that added to the root span
+    final Map<String, String> result = newHashMap(getGlobalTags().size() + spanTags.size());
+    result.putAll(getGlobalTags());
     result.putAll(spanTags);
     return Collections.unmodifiableMap(result);
   }
@@ -649,8 +666,8 @@ public class Config {
     final Map<String, String> runtimeTags = getRuntimeTags();
     final Map<String, String> result =
         newHashMap(
-            globalTags.size() + jmxTags.size() + runtimeTags.size() + 1 /* for serviceName */);
-    result.putAll(globalTags);
+            getGlobalTags().size() + jmxTags.size() + runtimeTags.size() + 1 /* for serviceName */);
+    result.putAll(getGlobalTags());
     result.putAll(jmxTags);
     result.putAll(runtimeTags);
     // service name set here instead of getRuntimeTags because apm already manages the service tag
@@ -665,12 +682,12 @@ public class Config {
     final String host = getHostName();
     final Map<String, String> result =
         newHashMap(
-            globalTags.size()
+            getGlobalTags().size()
                 + profilingTags.size()
                 + runtimeTags.size()
                 + 3 /* for serviceName and host and language */);
     result.put(HOST_TAG, host); // Host goes first to allow to override it
-    result.putAll(globalTags);
+    result.putAll(getGlobalTags());
     result.putAll(profilingTags);
     result.putAll(runtimeTags);
     // service name set here instead of getRuntimeTags because apm already manages the service tag
@@ -692,6 +709,14 @@ public class Config {
       }
     }
     return DEFAULT_ANALYTICS_SAMPLE_RATE;
+  }
+
+  /**
+   * Provide 'global' tags, i.e. tags set everywhere. We have to support old (dd.trace.global.tags)
+   * version of this setting if new (dd.tags) version has not been specified.
+   */
+  private Map<String, String> getGlobalTags() {
+    return tags.isEmpty() ? globalTags : tags;
   }
 
   /**
