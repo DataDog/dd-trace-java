@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
+package datadog.trace.bootstrap.jfr.instrumentation.exceptions;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;

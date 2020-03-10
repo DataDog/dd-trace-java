@@ -1,4 +1,4 @@
-import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionSampleEvent;
+import datadog.trace.bootstrap.jfr.instrumentation.exceptions.ExceptionSampleEvent;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

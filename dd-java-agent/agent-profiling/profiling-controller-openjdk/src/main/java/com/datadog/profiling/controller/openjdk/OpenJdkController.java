@@ -18,7 +18,7 @@ package com.datadog.profiling.controller.openjdk;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionProfiling;
+import datadog.trace.bootstrap.jfr.instrumentation.exceptions.ExceptionProfiling;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
