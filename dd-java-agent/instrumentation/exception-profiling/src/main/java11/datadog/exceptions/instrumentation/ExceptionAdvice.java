@@ -19,9 +19,9 @@ public class ExceptionAdvice {
        * JFR will assign the stacktrace depending on the place where the event is committed.
        * Therefore we need to commit the event here, right in the 'Exception' constructor
        */
-      ExceptionSampleEvent ese = ExceptionProfiling.getInstance().process(e);
-      if (ese != null && ese.shouldCommit()) {
-        ese.commit();
+      ExceptionSampleEvent event = ExceptionProfiling.getInstance().process(e);
+      if (event != null && event.shouldCommit()) {
+        event.commit();
       }
     }
   }
