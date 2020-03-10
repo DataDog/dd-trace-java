@@ -15,20 +15,18 @@ public class ExceptionSampleEvent extends Event {
   private String type;
 
   @Label("Exception message")
-  private volatile String message;
+  private final String message;
+
+  @Label("Exception stackdepth")
+  private final int stackDepth;
 
   public ExceptionSampleEvent(Exception e) {
     this.type = e.getClass().getName();
-    try {
-      this.message = e.getMessage();
-    } catch (Throwable ignored) {
-    }
+    this.message = e.getMessage();
+    this.stackDepth = e.getStackTrace().length;
   }
 
-  String getMessage() {
-    return message;
-  }
-
+  // used in tests only
   String getType() {
     return type;
   }

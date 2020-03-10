@@ -39,8 +39,8 @@ public class AdaptiveIntervalSamplerTest {
     for (int j = 0; j < threads.length; j++) {
       threads[j].join();
     }
-    System.err.println("=== " + allCnt.get());
-    Assertions.assertTrue(allCnt.get() <= maxSamples * 2);
+    long cnt = allCnt.get();
+    Assertions.assertTrue(cnt <= maxSamples * 2, "[" + threadCnt + "]: " + cnt + " <= " + (maxSamples * 2));
   }
 
   private static Stream<Arguments> samplerParams() {
@@ -57,17 +57,17 @@ public class AdaptiveIntervalSamplerTest {
         Arguments.of(2, 10, 100L, 2000L),
         Arguments.of(2, 100, 100L, 500L),
         Arguments.of(2, 100, 100L, 2000L),
-        Arguments.of(8, 1, 100L, 500L),
-        Arguments.of(8, 1, 100L, 2000L),
-        Arguments.of(8, 10, 100L, 500L),
-        Arguments.of(8, 10, 100L, 2000L),
-        Arguments.of(8, 100, 100L, 500L),
-        Arguments.of(8, 100, 100L, 2000L),
-        Arguments.of(64, 1, 100L, 500L),
-        Arguments.of(64, 1, 100L, 2000L),
-        Arguments.of(64, 10, 100L, 500L),
-        Arguments.of(64, 10, 100L, 2000L),
-        Arguments.of(64, 100, 100L, 500L),
-        Arguments.of(64, 100, 100L, 2000L));
+        Arguments.of(4, 1, 100L, 500L),
+        Arguments.of(4, 1, 100L, 2000L),
+        Arguments.of(4, 10, 100L, 500L),
+        Arguments.of(4, 10, 100L, 2000L),
+        Arguments.of(4, 100, 100L, 500L),
+        Arguments.of(4, 100, 100L, 2000L),
+        Arguments.of(16, 1, 100L, 500L),
+        Arguments.of(16, 1, 100L, 2000L),
+        Arguments.of(16, 10, 100L, 500L),
+        Arguments.of(16, 10, 100L, 2000L),
+        Arguments.of(16, 100, 100L, 500L),
+        Arguments.of(16, 100, 100L, 2000L));
   }
 }
