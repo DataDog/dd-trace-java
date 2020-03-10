@@ -40,7 +40,8 @@ public class AdaptiveIntervalSamplerTest {
       threads[j].join();
     }
     long cnt = allCnt.get();
-    Assertions.assertTrue(cnt <= maxSamples * 2, "[" + threadCnt + "]: " + cnt + " <= " + (maxSamples * 2));
+    Assertions.assertTrue(
+        cnt <= maxSamples * 2, "[" + threadCnt + "]: " + cnt + " <= " + (maxSamples * 2));
   }
 
   private static Stream<Arguments> samplerParams() {
