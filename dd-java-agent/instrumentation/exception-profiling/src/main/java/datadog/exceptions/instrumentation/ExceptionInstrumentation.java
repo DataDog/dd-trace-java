@@ -25,6 +25,26 @@ public class ExceptionInstrumentation extends Instrumenter.Default {
   }
 
   @Override
+  public String[] helperClassNames() {
+    /*
+     * Since the only instrumentation target is java.lang.Exception which is loaded by bootstrap classloader
+     * it is ok to use helper classes instead of hacking around a Java 8 specific bootstrap.
+     */
+    return new String[] {
+      "com.datadog.profiling.exceptions.AdaptiveIntervalSampler",
+      "com.datadog.profiling.exceptions.ExceptionCountEvent",
+      "com.datadog.profiling.exceptions.ExceptionHistogram",
+      "com.datadog.profiling.exceptions.ExceptionHistogram$1",
+      "com.datadog.profiling.exceptions.ExceptionHistogram$ValueVisitor",
+      "com.datadog.profiling.exceptions.ExceptionProfiling",
+      "com.datadog.profiling.exceptions.ExceptionProfiling$1",
+      "com.datadog.profiling.exceptions.ExceptionProfiling$Singleton",
+      "com.datadog.profiling.exceptions.ExceptionSampleEvent",
+      "com.datadog.profiling.exceptions.ExceptionSampler"
+    };
+  }
+
+  @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return ElementMatchers.is(Exception.class);
   }

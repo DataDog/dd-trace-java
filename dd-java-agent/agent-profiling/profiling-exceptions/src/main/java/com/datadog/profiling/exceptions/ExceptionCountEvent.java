@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.jfr.instrumentation.exceptions;
+package com.datadog.profiling.exceptions;
 
 import jdk.jfr.Category;
 import jdk.jfr.Description;

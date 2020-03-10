@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.jfr.instrumentation.exceptions;
+package com.datadog.profiling.exceptions;
 
 import datadog.trace.api.Config;
 import java.util.Map;
@@ -7,7 +7,9 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Stream;
 import jdk.jfr.EventType;
 import jdk.jfr.FlightRecorder;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ExceptionHistogram {
   private final Map<String, LongAdder> histoMap = new ConcurrentHashMap<>();
   private final EventType exceptionCountEventType;

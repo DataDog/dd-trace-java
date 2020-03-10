@@ -68,7 +68,6 @@ class ShadowPackageRenamingTest extends Specification {
     for (ClassPath.ClassInfo info : bootstrapClasspath.getAllClasses()) {
       bootstrapClasses.add(info.getName())
       // make sure all bootstrap classes can be loaded from system
-      println ">>> trying to load: ${info.getName()}"
       ClassLoader.getSystemClassLoader().loadClass(info.getName())
       boolean goodPrefix = false
       for (int i = 0; i < bootstrapPrefixes.length; ++i) {
