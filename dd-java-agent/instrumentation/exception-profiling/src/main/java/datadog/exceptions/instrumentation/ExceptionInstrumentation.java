@@ -14,6 +14,12 @@ import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 @Slf4j
+/**
+ * Provides instrumentation of {@linkplain Exception} constructor.
+ * <br>
+ * {@linkplain Exception}, as opposed to {@linkplain Throwable} was deliberately chosen such that we don't instrument
+ * {@linkplain Error} class/subclasses since they are tracked by a native JFR event already.
+ */
 public class ExceptionInstrumentation extends Instrumenter.Default {
   private final boolean hasJfr;
 
@@ -58,6 +64,7 @@ public class ExceptionInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     if (hasJfr) {
+      // match only java.lang.Exception since java.lang.Error is tracked by another JFR event
       return ElementMatchers.is(Exception.class);
     }
     return ElementMatchers.none();
