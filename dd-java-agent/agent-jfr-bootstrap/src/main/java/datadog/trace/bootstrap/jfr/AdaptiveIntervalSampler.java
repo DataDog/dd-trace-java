@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap;
+package datadog.trace.bootstrap.jfr;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;

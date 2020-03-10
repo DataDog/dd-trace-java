@@ -1,7 +1,7 @@
-package datadog.trace.bootstrap.instrumentation.jfr.exceptions;
+package datadog.trace.bootstrap.jfr.instrumentation.exceptions;
 
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.AdaptiveIntervalSampler;
+import datadog.trace.bootstrap.jfr.AdaptiveIntervalSampler;
 import jdk.jfr.EventType;
 
 final class ExceptionSampler {

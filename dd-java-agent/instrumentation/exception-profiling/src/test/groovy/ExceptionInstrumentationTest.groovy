@@ -1,7 +1,7 @@
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Config
-import datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionProfiling
+import datadog.trace.bootstrap.jfr.instrumentation.exceptions.ExceptionProfiling
 import spock.lang.Requires
 
 @Requires({ jvm.java11Compatible })
