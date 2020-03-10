@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.jfr;
+package com.datadog.profiling.exceptions;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;

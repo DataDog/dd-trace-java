@@ -1,7 +1,6 @@
-package datadog.trace.bootstrap.jfr.instrumentation.exceptions;
+package com.datadog.profiling.exceptions;
 
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.jfr.AdaptiveIntervalSampler;
 import jdk.jfr.FlightRecorder;
 import jdk.jfr.FlightRecorderListener;
 import jdk.jfr.Recording;

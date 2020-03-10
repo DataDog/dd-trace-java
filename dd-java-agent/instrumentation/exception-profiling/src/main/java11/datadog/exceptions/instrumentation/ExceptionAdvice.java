@@ -1,8 +1,8 @@
 package datadog.exceptions.instrumentation;
 
+import com.datadog.profiling.exceptions.ExceptionProfiling;
+import com.datadog.profiling.exceptions.ExceptionSampleEvent;
 import datadog.trace.bootstrap.Agent;
-import datadog.trace.bootstrap.jfr.instrumentation.exceptions.ExceptionProfiling;
-import datadog.trace.bootstrap.jfr.instrumentation.exceptions.ExceptionSampleEvent;
 import net.bytebuddy.asm.Advice;
 
 public class ExceptionAdvice {

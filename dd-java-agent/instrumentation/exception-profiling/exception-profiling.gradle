@@ -7,7 +7,8 @@ apply plugin: "idea"
 
 dependencies {
   compile project(':dd-java-agent:agent-tooling')
-  testCompile project(':dd-java-agent:agent-jfr-bootstrap')
+  compile project(':dd-java-agent:agent-profiling:profiling-exceptions')
+  main_java11Compile project(':dd-java-agent:agent-profiling:profiling-exceptions')
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_7

@@ -1,6 +1,5 @@
-package datadog.trace.bootstrap;
+package com.datadog.profiling.exceptions;
 
-import datadog.trace.bootstrap.jfr.AdaptiveIntervalSampler;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
