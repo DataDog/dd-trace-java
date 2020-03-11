@@ -7,8 +7,7 @@ import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
 
 /**
- * JVM-wide singleton exception event processor. Uses {@linkplain Config} class to configure a
- * {@linkplain AdaptiveIntervalSampler} instance using either system properties, environment or
+ * JVM-wide singleton exception profiling service. Uses {@linkplain Config} class to configure itself using either system properties, environment or
  * properties override.
  */
 public final class ExceptionProfiling {
@@ -24,7 +23,7 @@ public final class ExceptionProfiling {
    *
    * @param config the system configuration
    */
-  public static void init(Config config) {
+  public static void init(final Config config) {
     ExceptionProfiling.config = config;
   }
 
@@ -34,7 +33,7 @@ public final class ExceptionProfiling {
    *
    * @return the shared instance
    * @throws NullPointerException if {@linkplain ExceptionProfiling#init(Config)} has not been
-   *     called yet
+   *                              called yet
    */
   public static ExceptionProfiling getInstance() {
     assert config != null;
@@ -48,32 +47,32 @@ public final class ExceptionProfiling {
     this(new ExceptionSampler(config), new ExceptionHistogram(config));
   }
 
-  ExceptionProfiling(ExceptionSampler sampler, ExceptionHistogram histogram) {
+  ExceptionProfiling(final ExceptionSampler sampler, final ExceptionHistogram histogram) {
     this.sampler = sampler;
     this.histogram = histogram;
 
     FlightRecorder.addListener(
-        new FlightRecorderListener() {
-          @Override
-          public void recordingStateChanged(Recording recording) {
-            if (recording.getState() == RecordingState.STOPPED) {
-              sampler.reset();
-            }
+      new FlightRecorderListener() {
+        @Override
+        public void recordingStateChanged(final Recording recording) {
+          if (recording.getState() == RecordingState.STOPPED) {
+            sampler.reset();
           }
-        });
+        }
+      });
   }
 
-  public ExceptionSampleEvent process(Exception e) {
+  public ExceptionSampleEvent process(final Exception e) {
     // always record the exception in histogram
-    boolean firstHit = histogram.record(e);
+    final boolean firstHit = histogram.record(e);
 
-    /*
-     * If the histogram hasn't contained that particular exception type up till now then 'firstHit' == true
-     * and the sample event should be emitted regardless of the sampling result.
-     */
     if (sampler.isEnabled()) {
-      // need a non-short-circuiting OR such that 'sampler.sample()' is called regardless of value
-      // of 'firstHit'
+      /*
+       * If the histogram hasn't contained that particular exception type up till now then 'firstHit' == true
+       * and the sample event should be emitted regardless of the sampling result.
+       * We need a non-short-circuiting OR such that 'sampler.sample()' is called regardless of value
+       * of 'firstHit'.
+       */
       if (firstHit | sampler.sample()) {
         return new ExceptionSampleEvent(e);
       }
