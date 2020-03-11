@@ -10,12 +10,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 
-// disabled unless a system property is specified due to being timing sensitive and unstable in CI
-//@EnabledIfSystemProperty(named = "enable.timeSensitive", matches = "true")
 public class AdaptiveIntervalSamplerTest {
   @ParameterizedTest
   @MethodSource("samplerParams")
-  public void sampleConcurrent(final int threadCnt, final int minInterval, final long timeWindowMs, final long maxSamples)
+  public void sampleConcurrent(
+    final int threadCnt, final int minInterval, final long timeWindowMs, final long maxSamples)
     throws Exception {
     final AdaptiveIntervalSampler instance =
       new AdaptiveIntervalSampler("test", minInterval, timeWindowMs, maxSamples);
@@ -44,7 +43,8 @@ public class AdaptiveIntervalSamplerTest {
     }
     final long cnt = allCnt.get();
     final long diff = cnt - maxSamples;
-    System.out.println("threads: " + threadCnt + ", max samples: " + maxSamples + ", samples: " + cnt);
+    System.out.println(
+      "threads: " + threadCnt + ", max samples: " + maxSamples + ", samples: " + cnt);
     // diff not larger than 10%
     Assertions.assertTrue(
       diff <= maxSamples * 0.1, "[" + threadCnt + "]: " + cnt + " <= " + maxSamples);
