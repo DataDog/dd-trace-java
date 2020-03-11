@@ -7,8 +7,8 @@ import jdk.jfr.Recording;
 import jdk.jfr.RecordingState;
 
 /**
- * JVM-wide singleton exception profiling service. Uses {@linkplain Config} class to configure itself using either system properties, environment or
- * properties override.
+ * JVM-wide singleton exception profiling service. Uses {@linkplain Config} class to configure
+ * itself using either system properties, environment or properties override.
  */
 public final class ExceptionProfiling {
   private static volatile Config config = null;
@@ -33,7 +33,7 @@ public final class ExceptionProfiling {
    *
    * @return the shared instance
    * @throws NullPointerException if {@linkplain ExceptionProfiling#init(Config)} has not been
-   *                              called yet
+   *     called yet
    */
   public static ExceptionProfiling getInstance() {
     assert config != null;
@@ -52,14 +52,14 @@ public final class ExceptionProfiling {
     this.histogram = histogram;
 
     FlightRecorder.addListener(
-      new FlightRecorderListener() {
-        @Override
-        public void recordingStateChanged(final Recording recording) {
-          if (recording.getState() == RecordingState.STOPPED) {
-            sampler.reset();
+        new FlightRecorderListener() {
+          @Override
+          public void recordingStateChanged(final Recording recording) {
+            if (recording.getState() == RecordingState.STOPPED) {
+              sampler.reset();
+            }
           }
-        }
-      });
+        });
   }
 
   public ExceptionSampleEvent process(final Exception e) {

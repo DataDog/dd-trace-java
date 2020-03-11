@@ -1,10 +1,9 @@
 package com.datadog.profiling.exceptions;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public final class AdaptiveIntervalSampler {
@@ -21,12 +20,17 @@ public final class AdaptiveIntervalSampler {
   private long sampleCounter = 0L;
   private final int dummyMultiplier = 1;
 
-  public AdaptiveIntervalSampler(final String id, final int minInterval, final long timeWindowMs, final long maxSamples) {
+  public AdaptiveIntervalSampler(
+      final String id, final int minInterval, final long timeWindowMs, final long maxSamples) {
     this(id, minInterval, 50, timeWindowMs, maxSamples);
   }
 
   public AdaptiveIntervalSampler(
-    final String id, final int minInterval, final int stdDevPercent, final long timeWindowMs, final long maxSamples) {
+      final String id,
+      final int minInterval,
+      final int stdDevPercent,
+      final long timeWindowMs,
+      final long maxSamples) {
     this.id = id;
     this.minInterval = minInterval;
     stdDev = Math.max(Math.min(stdDevPercent, 100), 1) / 100d;
@@ -42,7 +46,7 @@ public final class AdaptiveIntervalSampler {
 
   private long expectedHits(final long interval) {
     return Math.max(
-      Math.round(ThreadLocalRandom.current().nextGaussian() * interval * stdDev) + interval, 1);
+        Math.round(ThreadLocalRandom.current().nextGaussian() * interval * stdDev) + interval, 1);
   }
 
   public void reset() {
@@ -74,10 +78,10 @@ public final class AdaptiveIntervalSampler {
       final long newInterval = Math.max(Math.round(interval * intervalScale), minInterval);
       // calculate interval diff in a way it does not swing wildly
       final long intervalDiff =
-        newInterval == interval
-          ? 0
-          : Math.round(
-          Math.log(Math.abs(newInterval - interval)) * (newInterval < interval ? -1 : 1));
+          newInterval == interval
+              ? 0
+              : Math.round(
+                  Math.log(Math.abs(newInterval - interval)) * (newInterval < interval ? -1 : 1));
       interval = interval + intervalDiff;
       // write to counterTop makes all previous changes to shared data visible after counterTop is
       // read by other threads
@@ -85,7 +89,8 @@ public final class AdaptiveIntervalSampler {
       counter.addAndGet(counterTop);
       sampleCounter++;
       ts = ts1;
-      // write to 'counterTop' makes all previous changes to shared data visible after ts is read by other
+      // write to 'counterTop' makes all previous changes to shared data visible after ts is read by
+      // other
       // threads
       counterTop = currentTop;
 
