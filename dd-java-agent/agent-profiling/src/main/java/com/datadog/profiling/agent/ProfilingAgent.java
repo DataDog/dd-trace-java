@@ -21,7 +21,7 @@ public class ProfilingAgent {
    * Main entry point into profiling Note: this must be reentrant because we may want to start
    * profiling before any other tool, and then attempt to start it again at normal time
    */
-  public static synchronized void run(final boolean isStartingFirst, final Runnable onStart)
+  public static synchronized void run(final boolean isStartingFirst)
       throws IllegalArgumentException {
     if (PROFILER == null) {
       final Config config = Config.get();
@@ -60,9 +60,6 @@ public class ProfilingAgent {
                 uploadPeriod,
                 config.isProfilingStartForceFirst());
         PROFILER.start();
-        if (onStart != null) {
-          onStart.run();
-        }
         log.info("Profiling has started!");
 
         try {
