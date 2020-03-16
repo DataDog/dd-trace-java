@@ -26,7 +26,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 // Work around for: address already in use
-@Retry
+@Retry(count = 5, delay = 100)
 class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
 
   @Override

@@ -1,4 +1,3 @@
-import com.anotherchrisberry.spock.extensions.retry.RetryOnFailure
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
@@ -18,9 +17,10 @@ import org.elasticsearch.node.InternalSettingsPreparer
 import org.elasticsearch.node.Node
 import org.elasticsearch.plugins.Plugin
 import org.elasticsearch.transport.Netty4Plugin
+import spock.lang.Retry
 import spock.lang.Shared
 
-@RetryOnFailure(times = 3, delaySeconds = 1)
+@Retry(count = 3, delay = 1000)
 class Elasticsearch6RestClientTest extends AgentTestRunner {
   @Shared
   int httpPort
@@ -125,6 +125,7 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
     }
 
     @Override
-    protected void registerDerivedNodeNameWithLogger(String nodeName) {}
+    protected void registerDerivedNodeNameWithLogger(String nodeName) {
+    }
   }
 }

@@ -26,7 +26,8 @@ import static datadog.trace.common.writer.DDAgentWriter.DISRUPTOR_BUFFER_SIZE
 import static datadog.trace.core.SpanFactory.newSpanOf
 import static datadog.trace.core.serialization.MsgpackFormatWriter.MSGPACK_WRITER
 
-@Timeout(20)
+@Retry
+@Timeout(10)
 class DDAgentWriterTest extends DDSpecification {
 
   def phaser = new Phaser()
@@ -401,7 +402,7 @@ class DDAgentWriterTest extends DDSpecification {
     1 * monitor.onShutdown(writer, true)
   }
 
-  @Retry(delay = 10)
+  @Retry(delay = 500)
   // if execution is too slow, the http client timeout may trigger.
   def "slow response test"() {
     def numWritten = 0
@@ -419,9 +420,6 @@ class DDAgentWriterTest extends DDSpecification {
     def agent = httpServer {
       handlers {
         put("v0.4/traces") {
-          // DDApi sniffs for end point existence, so respond quickly the first time
-          // then slowly thereafter
-
           responseSemaphore.acquire()
           try {
             response.status(200).send()
