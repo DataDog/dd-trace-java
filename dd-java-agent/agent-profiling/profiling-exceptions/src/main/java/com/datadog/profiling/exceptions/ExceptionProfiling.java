@@ -1,10 +1,6 @@
 package com.datadog.profiling.exceptions;
 
 import datadog.trace.api.Config;
-import jdk.jfr.FlightRecorder;
-import jdk.jfr.FlightRecorderListener;
-import jdk.jfr.Recording;
-import jdk.jfr.RecordingState;
 
 /**
  * JVM-wide singleton exception profiling service. Uses {@linkplain Config} class to configure
@@ -50,16 +46,6 @@ public final class ExceptionProfiling {
   ExceptionProfiling(final ExceptionSampler sampler, final ExceptionHistogram histogram) {
     this.sampler = sampler;
     this.histogram = histogram;
-
-    FlightRecorder.addListener(
-        new FlightRecorderListener() {
-          @Override
-          public void recordingStateChanged(final Recording recording) {
-            if (recording.getState() == RecordingState.STOPPED) {
-              sampler.reset();
-            }
-          }
-        });
   }
 
   public ExceptionSampleEvent process(final Exception e) {
