@@ -6,12 +6,29 @@ import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.netty41.client.HttpClientTracingHandler;
 import datadog.trace.instrumentation.netty41.server.HttpServerTracingHandler;
 import io.netty.util.AttributeKey;
+import java.util.Iterator;
+import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class AttributeKeys {
+  private static WeakMap<ClassLoader, ConcurrentMap<String, AttributeKey<?>>> newWeakMap() {
+    final Iterator<WeakMap.Implementation> providers =
+        ServiceLoader.load(WeakMap.Implementation.class, null).iterator();
+    if (providers.hasNext()) {
+      final WeakMap.Implementation provider = providers.next();
+      if (providers.hasNext()) {
+        throw new IllegalStateException(
+            "Only one implementation of WeakCache.Provider suppose to be in classpath");
+      }
+      return provider.get();
+    }
+    throw new IllegalStateException("Can't load implementation of WeakCache.Provider");
+  }
+
   private static final WeakMap<ClassLoader, ConcurrentMap<String, AttributeKey<?>>> map =
-      WeakMap.Implementation.DEFAULT.get();
+      newWeakMap();
+
   private static final WeakMap.ValueSupplier<ClassLoader, ConcurrentMap<String, AttributeKey<?>>>
       mapSupplier =
           new WeakMap.ValueSupplier<ClassLoader, ConcurrentMap<String, AttributeKey<?>>>() {

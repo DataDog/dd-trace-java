@@ -1,10 +1,16 @@
 package datadog.trace.agent.tooling;
 
 import com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap;
+import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.MapMaker;
+import datadog.common.exec.CommonTaskExecutor;
 import datadog.trace.bootstrap.WeakMap;
+import java.lang.ref.WeakReference;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 
 class WeakMapSuppliers {
   // Comparison with using WeakConcurrentMap vs Guava's implementation:
@@ -28,10 +34,15 @@ class WeakMapSuppliers {
    * single thread to clean void weak references out for all instances. Cleaning is done every
    * second.
    */
-  static class WeakConcurrent implements WeakMap.Implementation {
+  @AutoService(WeakMap.Implementation.class)
+  public static class WeakConcurrent implements WeakMap.Implementation {
 
     @VisibleForTesting static final long CLEAN_FREQUENCY_SECONDS = 1;
     private final Cleaner cleaner;
+
+    public WeakConcurrent() {
+      this.cleaner = new Cleaner();
+    }
 
     WeakConcurrent(final Cleaner cleaner) {
       this.cleaner = cleaner;
@@ -123,6 +134,56 @@ class WeakMapSuppliers {
     public <K, V> WeakMap<K, V> get(final int concurrencyLevel) {
       return new WeakMap.MapAdapter<>(
           new MapMaker().concurrencyLevel(concurrencyLevel).weakKeys().<K, V>makeMap());
+    }
+  }
+
+  @Slf4j
+  static class Cleaner {
+    <T> void scheduleCleaning(
+        final T target, final Adapter<T> adapter, final long frequency, final TimeUnit unit) {
+      final CleanupRunnable<T> command = new CleanupRunnable<>(target, adapter);
+      if (CommonTaskExecutor.INSTANCE.isShutdown()) {
+        log.warn(
+            "Cleaning scheduled but task scheduler is shutdown. Target won't be cleaned {}",
+            target);
+      } else {
+        try {
+          // Schedule job and save future to allow job to be canceled if target is GC'd.
+          command.setFuture(
+              CommonTaskExecutor.INSTANCE.scheduleAtFixedRate(command, frequency, frequency, unit));
+        } catch (final RejectedExecutionException e) {
+          log.warn("Cleaning task rejected. Target won't be cleaned {}", target);
+        }
+      }
+    }
+
+    public interface Adapter<T> {
+      void clean(T target);
+    }
+
+    private static class CleanupRunnable<T> implements Runnable {
+      private final WeakReference<T> target;
+      private final Adapter<T> adapter;
+      private volatile ScheduledFuture<?> future = null;
+
+      private CleanupRunnable(final T target, final Adapter<T> adapter) {
+        this.target = new WeakReference<>(target);
+        this.adapter = adapter;
+      }
+
+      @Override
+      public void run() {
+        final T t = target.get();
+        if (t != null) {
+          adapter.clean(t);
+        } else if (future != null) {
+          future.cancel(false);
+        }
+      }
+
+      public void setFuture(final ScheduledFuture<?> future) {
+        this.future = future;
+      }
     }
   }
 }

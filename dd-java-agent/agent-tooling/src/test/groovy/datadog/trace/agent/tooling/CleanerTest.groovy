@@ -16,13 +16,13 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS
 class CleanerTest extends DDSpecification {
 
   @Subject
-  def cleaner = new Cleaner()
+  def cleaner = new WeakMapSuppliers.Cleaner()
 
   def "test scheduling"() {
     setup:
     def latch = new CountDownLatch(2)
     def target = new Object()
-    def action = new Cleaner.Adapter<Object>() {
+    def action = new WeakMapSuppliers.Cleaner.Adapter<Object>() {
       @Override
       void clean(Object t) {
         latch.countDown()
@@ -43,7 +43,7 @@ class CleanerTest extends DDSpecification {
     setup:
     def callCount = new AtomicInteger()
     def target = new WeakReference(new Object())
-    def action = new Cleaner.Adapter<Object>() {
+    def action = new WeakMapSuppliers.Cleaner.Adapter<Object>() {
       @Override
       void clean(Object t) {
         callCount.incrementAndGet()
@@ -67,7 +67,7 @@ class CleanerTest extends DDSpecification {
   def "test null target"() {
     setup:
     def callCount = new AtomicInteger()
-    def action = new Cleaner.Adapter<Object>() {
+    def action = new WeakMapSuppliers.Cleaner.Adapter<Object>() {
       @Override
       void clean(Object t) {
         callCount.incrementAndGet()
