@@ -1,38 +1,28 @@
 package com.datadog.profiling.exceptions;
 
 import datadog.trace.api.Config;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * JVM-wide singleton exception profiling service. Uses {@linkplain Config} class to configure
  * itself using either system properties, environment or properties override.
  */
 public final class ExceptionProfiling {
-  private static volatile Config config = null;
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProfiling.class);
+
+  private static final Config config = Config.get();
 
   private static final class Singleton {
     static final ExceptionProfiling INSTANCE = new ExceptionProfiling();
   }
 
   /**
-   * Initialization routine. !!! MUST BE CALLED BEFORE {@linkplain ExceptionProfiling#getInstance()}
-   * - otherwise that call will crash
-   *
-   * @param config the system configuration
-   */
-  public static void init(final Config config) {
-    ExceptionProfiling.config = config;
-  }
-
-  /**
-   * Get a pre-configured shared instance. !!! BEFORE FIRST CALL OF THIS METHOD {@linkplain
-   * ExceptionProfiling#init(Config)} MUST HAVE BEEN INVOKED
+   * Get a pre-configured shared instance.
    *
    * @return the shared instance
-   * @throws NullPointerException if {@linkplain ExceptionProfiling#init(Config)} has not been
-   *     called yet
    */
   public static ExceptionProfiling getInstance() {
-    assert config != null;
     return ExceptionProfiling.Singleton.INSTANCE;
   }
 
