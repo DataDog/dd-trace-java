@@ -127,9 +127,9 @@ public class Config {
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
   public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
-  public static final String PROFILING_EXCEPTION_SAMPLER_INTERVAL =
+  public static final String PROFILING_EXCEPTION_SAMPLER_WINDOW =
       "profiling.exception-sampler.interval";
-  public static final String PROFILING_EXCEPTION_SAMPLER_MAX_SAMPLES =
+  public static final String PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES =
       "profiling.exception-sampler.max-samples";
   public static final String PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW =
       "profiling.exception-sampler.time-window.sec";
@@ -188,8 +188,8 @@ public class Config {
   public static final int DEFAULT_PROFILING_UPLOAD_TIMEOUT = 30; // seconds
   public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
   public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
-  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_INTERVAL = 10;
-  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_MAX_SAMPLES = 1000;
+  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW = 10;
+  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES = 1000;
   public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW = 120;
   public static final int DEFAULT_PROFILING_EXCEPTION_HISTO_MAX = 50;
 
@@ -293,9 +293,8 @@ public class Config {
   @Getter private final int profilingProxyPort;
   @Getter private final String profilingProxyUsername;
   @Getter private final String profilingProxyPassword;
-  @Getter private final int profilingExceptionSamplerInterval;
-  @Getter private final int profilingExceptionSamplerMaxSamples;
-  @Getter private final int profilingExceptionSamplerTimeWindow;
+  @Getter private final int profilingExceptionSamplerSlidingWindow;
+  @Getter private final int profilingExceptionSamplerSlidingWindowSamples;
   @Getter private final int profilingExceptionHistoMax;
 
   // Values from an optionally provided properties file
@@ -486,17 +485,13 @@ public class Config {
     profilingProxyUsername = getSettingFromEnvironment(PROFILING_PROXY_USERNAME, null);
     profilingProxyPassword = getSettingFromEnvironment(PROFILING_PROXY_PASSWORD, null);
 
-    profilingExceptionSamplerInterval =
+    profilingExceptionSamplerSlidingWindow =
         getIntegerSettingFromEnvironment(
-            PROFILING_EXCEPTION_SAMPLER_INTERVAL, DEFAULT_PROFILING_EXCEPTION_SAMPLER_INTERVAL);
-    profilingExceptionSamplerMaxSamples =
+            PROFILING_EXCEPTION_SAMPLER_WINDOW, DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW);
+    profilingExceptionSamplerSlidingWindowSamples =
         getIntegerSettingFromEnvironment(
-            PROFILING_EXCEPTION_SAMPLER_MAX_SAMPLES,
-            DEFAULT_PROFILING_EXCEPTION_SAMPLER_MAX_SAMPLES);
-    profilingExceptionSamplerTimeWindow =
-        getIntegerSettingFromEnvironment(
-            PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW,
-            DEFAULT_PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW);
+            PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES,
+            DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES);
     profilingExceptionHistoMax =
         getIntegerSettingFromEnvironment(
             PROFILING_EXCEPTION_HISTO_MAX, DEFAULT_PROFILING_EXCEPTION_HISTO_MAX);
@@ -665,21 +660,16 @@ public class Config {
     profilingProxyPassword =
         properties.getProperty(PROFILING_PROXY_PASSWORD, parent.profilingProxyPassword);
 
-    profilingExceptionSamplerInterval =
+    profilingExceptionSamplerSlidingWindow =
         getPropertyIntegerValue(
             properties,
-            PROFILING_EXCEPTION_SAMPLER_INTERVAL,
-            DEFAULT_PROFILING_EXCEPTION_SAMPLER_INTERVAL);
-    profilingExceptionSamplerMaxSamples =
+            PROFILING_EXCEPTION_SAMPLER_WINDOW,
+            DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW);
+    profilingExceptionSamplerSlidingWindowSamples =
         getPropertyIntegerValue(
             properties,
-            PROFILING_EXCEPTION_SAMPLER_MAX_SAMPLES,
-            DEFAULT_PROFILING_EXCEPTION_SAMPLER_MAX_SAMPLES);
-    profilingExceptionSamplerTimeWindow =
-        getPropertyIntegerValue(
-            properties,
-            PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW,
-            DEFAULT_PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW);
+            PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES,
+            DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES);
     profilingExceptionHistoMax =
         getPropertyIntegerValue(
             properties, PROFILING_EXCEPTION_HISTO_MAX, DEFAULT_PROFILING_EXCEPTION_HISTO_MAX);
@@ -789,11 +779,11 @@ public class Config {
   }
 
   /**
-   * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isIntegrationEnabled(SortedSet, boolean)}.
    * @param integrationNames
    * @param defaultEnabled
    * @return
+   * @deprecated This method should only be used internally. Use the instance getter instead {@link
+   *     #isIntegrationEnabled(SortedSet, boolean)}.
    */
   public static boolean integrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -823,11 +813,11 @@ public class Config {
   }
 
   /**
-   * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isJmxFetchIntegrationEnabled(SortedSet, boolean)}.
    * @param integrationNames
    * @param defaultEnabled
    * @return
+   * @deprecated This method should only be used internally. Use the instance getter instead {@link
+   *     #isJmxFetchIntegrationEnabled(SortedSet, boolean)}.
    */
   public static boolean jmxFetchIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -852,11 +842,11 @@ public class Config {
   }
 
   /**
-   * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    * @param integrationNames
    * @param defaultEnabled
    * @return
+   * @deprecated This method should only be used internally. Use the instance getter instead {@link
+   *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    */
   public static boolean traceAnalyticsIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
