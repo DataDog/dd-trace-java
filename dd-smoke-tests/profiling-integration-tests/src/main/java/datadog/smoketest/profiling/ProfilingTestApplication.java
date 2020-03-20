@@ -24,5 +24,9 @@ public class ProfilingTestApplication {
   private static void tracedMethod() throws InterruptedException {
     System.out.println("Tracing");
     Thread.sleep(100);
+    try {
+      throw new IllegalStateException("test");
+    } catch (final IllegalStateException ignored) {
+    }
   }
 }

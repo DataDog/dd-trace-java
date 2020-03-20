@@ -131,11 +131,9 @@ public class Config {
   public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
   public static final String PROFILING_EXCEPTION_SAMPLER_WINDOW =
-      "profiling.exception-sampler.interval";
+      "profiling.exception-sampler.window";
   public static final String PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES =
-      "profiling.exception-sampler.max-samples";
-  public static final String PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW =
-      "profiling.exception-sampler.time-window.sec";
+      "profiling.exception-sampler.window-samples";
   public static final String PROFILING_EXCEPTION_HISTO_MAX = "profiling.exception-hist.max";
 
   public static final String RUNTIME_ID_TAG = "runtime-id";

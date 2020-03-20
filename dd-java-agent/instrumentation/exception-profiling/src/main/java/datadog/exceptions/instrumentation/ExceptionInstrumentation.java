@@ -33,7 +33,7 @@ public class ExceptionInstrumentation extends Instrumenter.Default {
        */
       Class.forName("jdk.jfr.Event");
       jfr = true;
-    } catch (ClassNotFoundException ignored) {
+    } catch (final ClassNotFoundException ignored) {
     }
     hasJfr = jfr;
   }
@@ -51,7 +51,7 @@ public class ExceptionInstrumentation extends Instrumenter.Default {
      */
     return hasJfr
         ? new String[] {
-          "com.datadog.profiling.exceptions.AdaptiveIntervalSampler",
+          "com.datadog.profiling.exceptions.StreamingSampler",
           "com.datadog.profiling.exceptions.ExceptionCountEvent",
           "com.datadog.profiling.exceptions.ExceptionHistogram",
           "com.datadog.profiling.exceptions.ExceptionHistogram$1",

@@ -99,8 +99,10 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
 
     IItemCollection events = JfrLoaderToolkit.loadEvents(new LZ4FrameInputStream(new ByteArrayInputStream(secondRequestParameters.get("chunk-data").get(0))))
     IItemCollection scopeEvents = events.apply(ItemFilters.type("datadog.Scope"))
+    IItemCollection exceptionSampleEvents = events.apply(ItemFilters.type("datadog.ExceptionSample"))
 
     scopeEvents.size() > 0
+    exceptionSampleEvents.size() > 0
   }
 
 }

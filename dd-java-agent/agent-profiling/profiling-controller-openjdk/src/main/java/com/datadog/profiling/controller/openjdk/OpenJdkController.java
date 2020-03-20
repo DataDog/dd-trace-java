@@ -17,12 +17,12 @@ package com.datadog.profiling.controller.openjdk;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
-import com.datadog.profiling.exceptions.ExceptionProfiling;
 import datadog.trace.api.Config;
+import jdk.jfr.Recording;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
-import jdk.jfr.Recording;
 
 /**
  * This is the implementation of the controller for OpenJDK. It should work for JDK 11+ today, and
@@ -43,21 +43,16 @@ public final class OpenJdkController implements Controller {
    * <p>This has to be public because it is created via reflection
    */
   public OpenJdkController(final Config config)
-      throws ConfigurationException, ClassNotFoundException {
+    throws ConfigurationException, ClassNotFoundException {
+    System.err.println("===> OpenJDKController start");
     // Make sure we can load JFR classes before declaring that we have successfully created
     // factory and can use it.
     Class.forName("jdk.jfr.Recording");
     Class.forName("jdk.jfr.FlightRecorder");
 
-    /*
-     * Initialize the exception profiling. Must be done as soon as possible - definitely before starting
-     * the recording.
-     */
-    ExceptionProfiling.init(config);
-
     try {
       recordingSettings =
-          JfpUtils.readNamedJfpResource(JFP, config.getProfilingTemplateOverrideFile());
+        JfpUtils.readNamedJfpResource(JFP, config.getProfilingTemplateOverrideFile());
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
