@@ -1,1 +1,3 @@
-print('test')
+import os
+
+print(os.listdir('.'))
