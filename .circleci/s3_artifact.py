@@ -1,3 +1,3 @@
 import os
 
-print(os.listdir('./workspace'))
+print(os.listdir('./workspace/build/libs'))
