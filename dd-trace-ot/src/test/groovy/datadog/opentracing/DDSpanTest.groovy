@@ -172,6 +172,7 @@ class DDSpanTest extends DDSpecification {
 
   def "stacktrace captured when duration exceeds average + configured threshold"() {
     setup:
+    System.setProperty("dd.trace.span.duration-above-average.stacktrace.millis","1000")
     // Get the part of the stack before this test is called.
     def acceptRemaining = false
     def originalStack = Thread.currentThread().stackTrace
@@ -190,6 +191,9 @@ class DDSpanTest extends DDSpecification {
     expect:
     !stack.isEmpty()
     actual.endsWith(stack)
+                       
+    cleanup:
+    System.clearProperty("dd.trace.span.duration-above-average.stacktrace.millis")
   }
 
   def "priority sampling metric set only on root span"() {
