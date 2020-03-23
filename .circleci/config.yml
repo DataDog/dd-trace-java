@@ -249,12 +249,15 @@ jobs:
 
   copy_s3:
     docker:
-      - image: circleci/ruby:2.4.1
+      - image: circleci/python:3.6.4
     steps:
       - checkout
       - attach_workspace:
           at: .
-      - run: python .circleci/s3_artifact.py
+      - run:
+          command: |
+            sudo pip install boto3
+            python .circleci/s3_artifact.py
 
 workflows:
   version: 2
