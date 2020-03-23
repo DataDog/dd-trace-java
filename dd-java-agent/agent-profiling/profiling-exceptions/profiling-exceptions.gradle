@@ -16,9 +16,12 @@ dependencies {
   compile project(':dd-trace-api')
 
   testCompile deps.junit5
+  testCompile deps.guava
   testCompile group: 'org.mockito', name: 'mockito-core', version: '3.1.0'
   testCompile group: 'org.mockito', name: 'mockito-junit-jupiter', version: '3.1.0'
   testCompile group: 'org.hamcrest', name: 'hamcrest', version: '2.1'
+
+  testCompile deps.jmc
 }
 
 /*
