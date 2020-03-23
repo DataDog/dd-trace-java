@@ -254,7 +254,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: .
-      - run: python ./s3_artifact.py
+      - run: python .circleci/s3_artifact.py
 
 workflows:
   version: 2
