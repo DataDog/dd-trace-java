@@ -3,7 +3,7 @@ package com.datadog.profiling.exceptions;
 import datadog.trace.api.Config;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import jdk.jfr.EventType;
 import jdk.jfr.FlightRecorder;
@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ExceptionHistogram {
-  private final Map<String, LongAdder> histoMap = new ConcurrentHashMap<>();
+  private final Map<String, AtomicLong> histoMap = new ConcurrentHashMap<>();
   private final EventType exceptionCountEventType;
   private final int maxTopItems;
   private final boolean forceEnabled;
@@ -21,13 +21,13 @@ public class ExceptionHistogram {
     void visit(String key, long value);
   }
 
-  ExceptionHistogram(Config config) {
+  ExceptionHistogram(final Config config) {
     this(config.getProfilingExceptionHistoMax(), false);
   }
 
-  ExceptionHistogram(int maxTopItems, boolean forceEnabled) {
+  ExceptionHistogram(final int maxTopItems, final boolean forceEnabled) {
     this.maxTopItems = maxTopItems;
-    this.exceptionCountEventType = EventType.getEventType(ExceptionCountEvent.class);
+    exceptionCountEventType = EventType.getEventType(ExceptionCountEvent.class);
     this.forceEnabled = forceEnabled;
 
     FlightRecorder.addPeriodicEvent(ExceptionCountEvent.class, this::emit);
@@ -39,21 +39,21 @@ public class ExceptionHistogram {
     }
   }
 
-  private void newExceptionCountEvent(String type, long count) {
-    ExceptionCountEvent event = new ExceptionCountEvent(type, count);
+  private void newExceptionCountEvent(final String type, final long count) {
+    final ExceptionCountEvent event = new ExceptionCountEvent(type, count);
     if (event.shouldCommit()) {
       event.commit();
     }
   }
 
-  public boolean record(Exception exception) {
+  public boolean record(final Exception exception) {
     if (exception == null) {
       return false;
     }
     return record(exception.getClass().getCanonicalName());
   }
 
-  boolean record(String typeName) {
+  boolean record(final String typeName) {
     if (typeName == null) {
       return false;
     }
@@ -64,33 +64,34 @@ public class ExceptionHistogram {
               typeName,
               k -> {
                 try {
-                  return new LongAdder();
+                  return new AtomicLong();
                 } finally {
                   firstHit[0] = true;
                 }
               })
-          .increment();
+          .incrementAndGet();
 
       return firstHit[0];
     }
     return false;
   }
 
-  void processAndReset(ValueVisitor processor) {
+  void processAndReset(final ValueVisitor processor) {
     Stream<Map.Entry<String, Long>> items =
         histoMap
             .entrySet()
             .stream()
-            .map(e -> entry(e.getKey(), e.getValue().sumThenReset()))
+            .map(e -> entry(e.getKey(), e.getValue().getAndSet(0L)))
             .filter(e -> e.getValue() != 0)
             .sorted((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()));
+    histoMap.entrySet().removeIf(e -> e.getValue().get() == 0L);
     if (maxTopItems > 0) {
       items = items.limit(maxTopItems);
     }
     items.forEach(e -> processor.visit(e.getKey(), e.getValue()));
   }
 
-  private static <K, V> Map.Entry<K, V> entry(K key, V value) {
+  private static <K, V> Map.Entry<K, V> entry(final K key, final V value) {
     return new Map.Entry<K, V>() {
       @Override
       public K getKey() {
@@ -103,7 +104,7 @@ public class ExceptionHistogram {
       }
 
       @Override
-      public V setValue(V v) {
+      public V setValue(final V v) {
         return value;
       }
     };
