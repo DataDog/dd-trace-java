@@ -1,5 +1,10 @@
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_11
+  // Zulu has backported profiling support
+  forceJdk = ['ZULU8']
+  // By default tests with be compiled for `minJavaVersionForTests` version,
+  // but in this case we would like to avoid this since we would like to run with ZULU8
+  skipSettingTestJavaVersion = true
 }
 
 apply from: "${rootDir}/gradle/java.gradle"
@@ -14,23 +19,14 @@ dependencies {
 sourceCompatibility = JavaVersion.VERSION_1_7
 targetCompatibility = JavaVersion.VERSION_1_7
 
+// Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
 compileMain_java11Java {
   doFirst {
     // Disable '-processing' because some annotations are not claimed.
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.
-    options.compilerArgs.addAll(['-source', '11', '-target','11','-Xlint:all,-processing,-options,-path'])
-    options.fork = true
-    options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
-  }
-}
-
-compileTestJava {
-  doFirst {
-    // Disable '-processing' because some annotations are not claimed.
-    // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
-    // Disable '-path' because we do not have some of the paths seem to be missing.
-    options.compilerArgs.addAll(['-source', '7', '-target','7','-Xlint:all,-processing,-options,-path'])
+    // Compile to 8 compatible byte code
+    options.compilerArgs.addAll(['-source', '8', '-target', '8', '-Xlint:all,-processing,-options,-path'])
     options.fork = true
     options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
   }
@@ -41,7 +37,7 @@ compileTestGroovy {
     // Disable '-processing' because some annotations are not claimed.
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.
-    options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'])
+    options.compilerArgs.addAll(['-Xlint:all,-processing,-path'])
     options.fork = true
     options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
   }
