@@ -165,7 +165,7 @@ public class Config {
   private static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
   private static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   private static final int DEFAULT_SPAN_DURATION_ABOVE_AVERAGE_STACKTRACE_MILLIS =
-      (int) TimeUnit.SECONDS.toMillis(1);
+      (int) TimeUnit.SECONDS.toMillis(0);
   private static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
   private static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
   private static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
