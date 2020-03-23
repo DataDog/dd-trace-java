@@ -339,8 +339,8 @@ workflows:
             tags:
               only: /.*/
       - copy_s3:
-          - requires:
-              - build
+          requires:
+            - build
 
       - check:
           requires:
