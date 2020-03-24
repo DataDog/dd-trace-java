@@ -120,7 +120,7 @@ public class ExceptionHistogramTest {
 
     snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
     final IItemCollection secondRecording =
-        getEvents(snapshot, firstRecordingNow.plusMillis(1), Instant.MAX);
+        getEvents(snapshot, firstRecordingNow.plusMillis(1000), Instant.MAX);
 
     assertEquals(MAX_ITEMS, secondRecording.getAggregate(Aggregators.count()).longValue());
     assertEquals(
@@ -206,7 +206,7 @@ public class ExceptionHistogramTest {
 
     snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
     final IItemCollection secondRecording =
-        getEvents(snapshot, firstRecordingNow.plusMillis(1), Instant.MAX);
+        getEvents(snapshot, firstRecordingNow.plusMillis(1000), Instant.MAX);
 
     assertEquals(MAX_ITEMS + 1, secondRecording.getAggregate(Aggregators.count()).longValue());
     assertEquals(
