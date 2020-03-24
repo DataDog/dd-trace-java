@@ -3,6 +3,7 @@ package com.datadog.profiling.exceptions;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 import datadog.trace.api.Config;
 import java.io.IOException;
@@ -33,7 +34,7 @@ public class ExceptionHistogramTest {
       Attribute.attr("count", "count", "Exception count", UnitLookup.NUMBER);
 
   private static final Comparator<Exception> EXCEPTION_COMPARATOR =
-      new Comparator<>() {
+      new Comparator<Exception>() {
         @Override
         public int compare(final Exception e1, final Exception e2) {
           return e1.getClass().getCanonicalName().compareTo(e2.getClass().getCanonicalName());
@@ -78,7 +79,7 @@ public class ExceptionHistogramTest {
   public void testExceptionsRecorded()
       throws IOException, CouldNotLoadRecordingException, InterruptedException {
     writeExceptions(
-        Map.of(
+        ImmutableMap.of(
             new NullPointerException(),
             8,
             new IllegalArgumentException(),
@@ -86,7 +87,7 @@ public class ExceptionHistogramTest {
             new RuntimeException(),
             1));
 
-    final var firstRecordingNow = Instant.now();
+    final Instant firstRecordingNow = Instant.now();
     snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
     final IItemCollection firstRecording = getEvents(snapshot, Instant.MIN, firstRecordingNow);
 
@@ -109,7 +110,7 @@ public class ExceptionHistogramTest {
     Thread.sleep(1000);
 
     writeExceptions(
-        Map.of(
+        ImmutableMap.of(
             new RuntimeException(),
             8,
             new NullPointerException(),
@@ -150,7 +151,7 @@ public class ExceptionHistogramTest {
     // Exceptions are written in alphabetical order
     writeExceptions(
         ImmutableSortedMap.copyOf(
-            Map.of(
+            ImmutableMap.of(
                 new Exception(),
                 5,
                 new IllegalArgumentException(),
@@ -161,7 +162,7 @@ public class ExceptionHistogramTest {
                 11),
             EXCEPTION_COMPARATOR));
 
-    final var firstRecordingNow = Instant.now();
+    final Instant firstRecordingNow = Instant.now();
     snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
     final IItemCollection firstRecording = getEvents(snapshot, Instant.MIN, firstRecordingNow);
 
@@ -192,7 +193,7 @@ public class ExceptionHistogramTest {
     // Exceptions are written in 'code' order
     writeExceptions(
         ImmutableSortedMap.copyOf(
-            Map.of(
+            ImmutableMap.of(
                 new IllegalArgumentException(),
                 5,
                 new NegativeArraySizeException(),
@@ -232,8 +233,8 @@ public class ExceptionHistogramTest {
   @Test
   public void testDisabled() throws IOException, CouldNotLoadRecordingException {
     recording.disable("datadog.ExceptionCount");
-    final var exceptions =
-        Map.of(
+    final Map<Exception, Integer> exceptions =
+        ImmutableMap.of(
             new NullPointerException(),
             8,
             new IllegalArgumentException(),
@@ -241,8 +242,8 @@ public class ExceptionHistogramTest {
             new RuntimeException(),
             1);
 
-    for (final var entry : exceptions.entrySet()) {
-      for (var i = 0; i < entry.getValue(); i++) {
+    for (final Map.Entry<Exception, Integer> entry : exceptions.entrySet()) {
+      for (int i = 0; i < entry.getValue(); i++) {
         assertFalse(instance.record(entry.getKey()));
       }
     }
@@ -266,8 +267,8 @@ public class ExceptionHistogramTest {
     // Just check that writing null doesn't break anything
     instance.record(null);
 
-    for (final var entry : exceptions.entrySet()) {
-      for (var i = 0; i < entry.getValue(); i++) {
+    for (final Map.Entry<Exception, Integer> entry : exceptions.entrySet()) {
+      for (int i = 0; i < entry.getValue(); i++) {
         instance.record(entry.getKey());
       }
     }
