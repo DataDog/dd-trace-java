@@ -2,7 +2,7 @@ package datadog.opentracing.resolver;
 
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
-import datadog.opentracing.DDTracer;
+import datadog.trace.core.DDTracer;
 import datadog.trace.api.Config;
 import io.opentracing.Tracer;
 import io.opentracing.contrib.tracerresolver.TracerResolver;

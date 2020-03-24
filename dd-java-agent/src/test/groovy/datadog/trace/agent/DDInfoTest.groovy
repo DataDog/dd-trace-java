@@ -1,6 +1,6 @@
 package datadog.trace.agent
 
-import datadog.opentracing.DDTraceOTInfo
+import datadog.trace.core.DDTraceOTInfo
 import datadog.trace.api.DDTraceApiInfo
 import spock.lang.Specification
 

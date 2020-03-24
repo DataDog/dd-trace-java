@@ -39,6 +39,8 @@ ext.generalShadowJarConfig = {
   if (!project.hasProperty("disableShadowRelocate") || !disableShadowRelocate) {
     // shadow OT impl to prevent casts to implementation
     relocate 'datadog.trace.common', 'datadog.trace.agent.common'
+
+    // FIXME figure out the best way to keep doing this
     relocate 'datadog.opentracing', 'datadog.trace.agent.ot'
   }
 }
@@ -97,6 +99,7 @@ dependencies {
   testCompile project(':dd-java-agent:agent-bootstrap')
   testCompile project(':dd-trace-api')
   testCompile project(':dd-trace-ot')
+  testCompile project(':dd-trace-core')
   testCompile project(':utils:test-utils')
 
   testCompile deps.opentracingMock

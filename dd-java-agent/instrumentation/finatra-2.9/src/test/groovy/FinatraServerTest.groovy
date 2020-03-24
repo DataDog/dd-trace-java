@@ -2,7 +2,7 @@ import com.twitter.finatra.http.HttpServer
 import com.twitter.util.Await
 import com.twitter.util.Closable
 import com.twitter.util.Duration
-import datadog.opentracing.DDSpan
+import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes

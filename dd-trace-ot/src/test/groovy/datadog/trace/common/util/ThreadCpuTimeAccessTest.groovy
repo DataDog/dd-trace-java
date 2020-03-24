@@ -2,6 +2,7 @@ package datadog.trace.common.util
 
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Config
+import datadog.trace.core.util.ThreadCpuTimeAccess
 import datadog.trace.util.test.DDSpecification
 
 class ThreadCpuTimeAccessTest extends DDSpecification {

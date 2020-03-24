@@ -1,7 +1,7 @@
-import datadog.opentracing.scopemanager.ContinuableScope
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.scopemanager.ContinuableScope
 import example.GreeterGrpc
 import example.Helloworld
 import io.grpc.BindableService
