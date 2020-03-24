@@ -8,6 +8,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.GenericRunnable;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -36,15 +38,6 @@ public class ThreadPoolExecutorInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      ThreadPoolExecutorInstrumentation.class.getPackage().getName()
-          + ".ExecutorInstrumentationUtils",
-      ThreadPoolExecutorInstrumentation.class.getName() + "$GenericRunnable",
-    };
-  }
-
-  @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
         isConstructor()
@@ -59,7 +52,7 @@ public class ThreadPoolExecutorInstrumentation extends Instrumenter.Default {
         @Advice.This final ThreadPoolExecutor executor,
         @Advice.Argument(4) final BlockingQueue<Runnable> queue) {
 
-      if (queue.size() == 0) {
+      if (queue.isEmpty()) {
         try {
           queue.offer(new GenericRunnable());
           queue.clear(); // Remove the Runnable we just added.
@@ -73,11 +66,5 @@ public class ThreadPoolExecutorInstrumentation extends Instrumenter.Default {
         }
       }
     }
-  }
-
-  public static class GenericRunnable implements Runnable {
-
-    @Override
-    public void run() {}
   }
 }

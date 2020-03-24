@@ -1,11 +1,10 @@
 package datadog.trace.instrumentation.servlet3;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasNoResources;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -24,7 +23,7 @@ public final class Servlet3Instrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return not(classLoaderHasNoResources("javax/servlet/http/HttpServlet.class"));
+    return hasClassesNamed("javax.servlet.http.HttpServlet");
   }
 
   @Override
@@ -36,9 +35,6 @@ public final class Servlet3Instrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.agent.decorator.BaseDecorator",
-      "datadog.trace.agent.decorator.ServerDecorator",
-      "datadog.trace.agent.decorator.HttpServerDecorator",
       packageName + ".Servlet3Decorator",
       packageName + ".HttpServletRequestExtractAdapter",
       packageName + ".TagSettingAsyncListener"

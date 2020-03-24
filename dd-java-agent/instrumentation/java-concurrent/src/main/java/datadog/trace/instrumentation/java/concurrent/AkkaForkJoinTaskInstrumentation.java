@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.java.concurrent;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
@@ -13,6 +14,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Collections;
@@ -42,15 +44,14 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default 
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return extendsClass(named(TASK_CLASS_NAME));
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed(TASK_CLASS_NAME);
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      AdviceUtils.class.getName(),
-    };
+  public ElementMatcher<TypeDescription> typeMatcher() {
+    return extendsClass(named(TASK_CLASS_NAME));
   }
 
   @Override

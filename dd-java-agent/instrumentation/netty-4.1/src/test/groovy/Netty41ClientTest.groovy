@@ -15,6 +15,7 @@ import org.asynchttpclient.AsyncCompletionHandler
 import org.asynchttpclient.AsyncHttpClient
 import org.asynchttpclient.DefaultAsyncHttpClientConfig
 import org.asynchttpclient.Response
+import spock.lang.Retry
 import spock.lang.Shared
 
 import java.util.concurrent.ExecutionException
@@ -25,7 +26,8 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static org.asynchttpclient.Dsl.asyncHttpClient
 
-class Netty41ClientTest extends HttpClientTest<NettyHttpClientDecorator> {
+@Retry
+class Netty41ClientTest extends HttpClientTest {
 
   @Shared
   def clientConfig = DefaultAsyncHttpClientConfig.Builder.newInstance().setRequestTimeout(TimeUnit.SECONDS.toMillis(10).toInteger())
@@ -49,8 +51,8 @@ class Netty41ClientTest extends HttpClientTest<NettyHttpClientDecorator> {
   }
 
   @Override
-  NettyHttpClientDecorator decorator() {
-    return NettyHttpClientDecorator.DECORATE
+  String component() {
+    return NettyHttpClientDecorator.DECORATE.component()
   }
 
   @Override

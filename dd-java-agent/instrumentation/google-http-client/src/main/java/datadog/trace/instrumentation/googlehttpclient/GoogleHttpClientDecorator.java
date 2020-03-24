@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.googlehttpclient;
 
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
-import datadog.trace.agent.decorator.HttpClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -21,16 +21,6 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
     final String url = httpRequest.getUrl().build();
     final String fixedUrl = url.replaceAll("%20", "+");
     return new URI(fixedUrl);
-  }
-
-  @Override
-  protected String hostname(final HttpRequest httpRequest) {
-    return httpRequest.getUrl().getHost();
-  }
-
-  @Override
-  protected Integer port(final HttpRequest httpRequest) {
-    return httpRequest.getUrl().getPort();
   }
 
   @Override

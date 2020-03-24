@@ -1,10 +1,9 @@
 package datadog.trace.instrumentation.play24;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasNoResources;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -25,7 +24,7 @@ public final class PlayInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return not(classLoaderHasNoResources("play/api/mvc/Action.class"));
+    return hasClassesNamed("play.api.mvc.Action");
   }
 
   @Override
@@ -36,9 +35,6 @@ public final class PlayInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.agent.decorator.BaseDecorator",
-      "datadog.trace.agent.decorator.ServerDecorator",
-      "datadog.trace.agent.decorator.HttpServerDecorator",
       packageName + ".PlayHttpServerDecorator",
       packageName + ".RequestCompleteCallback",
       packageName + ".PlayHeaders",

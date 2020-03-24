@@ -35,9 +35,6 @@ public class CouchbaseBucketInstrumentation extends Instrumenter.Default {
   public String[] helperClassNames() {
     return new String[] {
       "rx.DDTracingUtil",
-      "datadog.trace.agent.decorator.BaseDecorator",
-      "datadog.trace.agent.decorator.ClientDecorator",
-      "datadog.trace.agent.decorator.DatabaseClientDecorator",
       "datadog.trace.instrumentation.rxjava.SpanFinishingSubscription",
       "datadog.trace.instrumentation.rxjava.TracedSubscriber",
       "datadog.trace.instrumentation.rxjava.TracedOnSubscribe",
@@ -60,7 +57,7 @@ public class CouchbaseBucketInstrumentation extends Instrumenter.Default {
       return CallDepthThreadLocalMap.incrementCallDepth(CouchbaseCluster.class);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void subscribeResult(
         @Advice.Enter final int callDepth,
         @Advice.Origin final Method method,

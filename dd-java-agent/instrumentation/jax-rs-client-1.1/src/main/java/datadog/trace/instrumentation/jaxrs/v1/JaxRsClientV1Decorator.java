@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.jaxrs.v1;
 
 import com.sun.jersey.api.client.ClientRequest;
 import com.sun.jersey.api.client.ClientResponse;
-import datadog.trace.agent.decorator.HttpClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 
 public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, ClientResponse> {
@@ -29,17 +29,7 @@ public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, C
   }
 
   @Override
-  protected String hostname(final ClientRequest httpRequest) {
-    return httpRequest.getURI().getHost();
-  }
-
-  @Override
-  protected Integer port(final ClientRequest httpRequest) {
-    return httpRequest.getURI().getPort();
-  }
-
-  @Override
-  protected Integer status(ClientResponse clientResponse) {
+  protected Integer status(final ClientResponse clientResponse) {
     return clientResponse.getStatus();
   }
 }

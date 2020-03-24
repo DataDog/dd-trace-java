@@ -50,13 +50,8 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.agent.decorator.BaseDecorator",
-      "datadog.trace.agent.decorator.ClientDecorator",
-      "datadog.trace.agent.decorator.HttpClientDecorator",
       packageName + ".GoogleHttpClientDecorator",
       packageName + ".RequestState",
-      getClass().getName() + "$GoogleHttpClientAdvice",
-      getClass().getName() + "$GoogleHttpClientAsyncAdvice",
       packageName + ".HeadersInjectAdapter"
     };
   }

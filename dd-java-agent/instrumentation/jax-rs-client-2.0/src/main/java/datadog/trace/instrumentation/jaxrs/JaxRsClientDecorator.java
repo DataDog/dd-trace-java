@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.jaxrs;
 
-import datadog.trace.agent.decorator.HttpClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import javax.ws.rs.client.ClientRequestContext;
 import javax.ws.rs.client.ClientResponseContext;
@@ -27,16 +27,6 @@ public class JaxRsClientDecorator
   @Override
   protected URI url(final ClientRequestContext httpRequest) {
     return httpRequest.getUri();
-  }
-
-  @Override
-  protected String hostname(final ClientRequestContext httpRequest) {
-    return httpRequest.getUri().getHost();
-  }
-
-  @Override
-  protected Integer port(final ClientRequestContext httpRequest) {
-    return httpRequest.getUri().getPort();
   }
 
   @Override

@@ -1,11 +1,10 @@
 package datadog.trace.instrumentation.hibernate.core.v4_3;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasNoResources;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
@@ -44,10 +43,6 @@ public class SessionInstrumentation extends Instrumenter.Default {
     return new String[] {
       "datadog.trace.instrumentation.hibernate.SessionMethodUtils",
       "datadog.trace.instrumentation.hibernate.SessionState",
-      "datadog.trace.agent.decorator.BaseDecorator",
-      "datadog.trace.agent.decorator.ClientDecorator",
-      "datadog.trace.agent.decorator.DatabaseClientDecorator",
-      "datadog.trace.agent.decorator.OrmClientDecorator",
       "datadog.trace.instrumentation.hibernate.HibernateDecorator",
     };
   }
@@ -55,7 +50,7 @@ public class SessionInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return not(classLoaderHasNoResources("org/hibernate/Session.class"));
+    return hasClassesNamed("org.hibernate.Session");
   }
 
   @Override

@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.jetty8;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.classLoaderHasNoResources;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -30,7 +30,7 @@ public final class JettyHandlerInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return not(classLoaderHasNoResources("org/eclipse/jetty/server/Handler.class"));
+    return hasClassesNamed("org.eclipse.jetty.server.Handler");
   }
 
   @Override
@@ -42,9 +42,6 @@ public final class JettyHandlerInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.agent.decorator.BaseDecorator",
-      "datadog.trace.agent.decorator.ServerDecorator",
-      "datadog.trace.agent.decorator.HttpServerDecorator",
       packageName + ".JettyDecorator",
       packageName + ".HttpServletRequestExtractAdapter",
       packageName + ".TagSettingAsyncListener"
