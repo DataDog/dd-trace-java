@@ -39,11 +39,6 @@ public class ExceptionInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return true;
-  }
-
-  @Override
   public String[] helperClassNames() {
     /*
      * Since the only instrumentation target is java.lang.Exception which is loaded by bootstrap classloader
