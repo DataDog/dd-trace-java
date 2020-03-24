@@ -55,7 +55,6 @@ public class ExceptionInstrumentation extends Instrumenter.Default {
           "com.datadog.profiling.exceptions.ExceptionCountEvent",
           "com.datadog.profiling.exceptions.ExceptionHistogram",
           "com.datadog.profiling.exceptions.ExceptionHistogram$1",
-          "com.datadog.profiling.exceptions.ExceptionHistogram$ValueVisitor",
           "com.datadog.profiling.exceptions.ExceptionProfiling",
           "com.datadog.profiling.exceptions.ExceptionProfiling$1",
           "com.datadog.profiling.exceptions.ExceptionProfiling$Singleton",
