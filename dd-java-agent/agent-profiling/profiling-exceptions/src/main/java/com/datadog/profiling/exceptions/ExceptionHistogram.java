@@ -11,6 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ExceptionHistogram {
+
+  static final String CLIPPED_ENTRY_TYPE_NAME = "TOO-MANY-EXCEPTIONS";
+
   private final Map<String, AtomicLong> histogram = new ConcurrentHashMap<>();
   private final int maxTopItems;
   private final int maxSize;
@@ -36,30 +39,31 @@ public class ExceptionHistogram {
     return record(exception.getClass().getCanonicalName());
   }
 
-  private boolean record(final String typeName) {
-    if (exceptionCountEventType.isEnabled()) {
-      if (histogram.size() >= maxSize && !histogram.containsKey(typeName)) {
-        log.debug("Histogram is too big, skipping adding new entry: {}", typeName);
-        return false;
-      }
-
-      final boolean[] firstHit = new boolean[] {false};
-      histogram
-          .computeIfAbsent(
-              typeName,
-              k -> {
-                try {
-                  return new AtomicLong();
-                } finally {
-                  firstHit[0] = true;
-                }
-              })
-          .incrementAndGet();
-
-      // FIXME: this 'first hit' logic is confusing and untested
-      return firstHit[0];
+  private boolean record(String typeName) {
+    if (!exceptionCountEventType.isEnabled()) {
+      return false;
     }
-    return false;
+    if (!histogram.containsKey(typeName) && histogram.size() >= maxSize) {
+      log.debug("Histogram is too big, skipping adding new entry: {}", typeName);
+      // Overwrite type name to limit total number of entries in the histogram
+      typeName = CLIPPED_ENTRY_TYPE_NAME;
+    }
+
+    final boolean[] firstHit = new boolean[] {false};
+    histogram
+        .computeIfAbsent(
+            typeName,
+            k -> {
+              try {
+                return new AtomicLong();
+              } finally {
+                firstHit[0] = true;
+              }
+            })
+        .incrementAndGet();
+
+    // FIXME: this 'first hit' logic is confusing and untested
+    return firstHit[0];
   }
 
   private void emit() {
@@ -68,7 +72,9 @@ public class ExceptionHistogram {
     }
 
     Stream<Map.Entry<String, Long>> items =
-        histogram.entrySet().stream()
+        histogram
+            .entrySet()
+            .stream()
             .map(e -> entry(e.getKey(), e.getValue().getAndSet(0L)))
             .filter(e -> e.getValue() != 0)
             .sorted((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()));

@@ -155,15 +155,17 @@ public class ExceptionHistogramTest {
                 5,
                 new IllegalArgumentException(),
                 8,
+                new NegativeArraySizeException(),
+                10,
                 new NullPointerException(),
-                10),
+                11),
             EXCEPTION_COMPARATOR));
 
     final var firstRecordingNow = Instant.now();
     snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
     final IItemCollection firstRecording = getEvents(snapshot, Instant.MIN, firstRecordingNow);
 
-    assertEquals(MAX_ITEMS, firstRecording.getAggregate(Aggregators.count()).longValue());
+    assertEquals(MAX_ITEMS + 1, firstRecording.getAggregate(Aggregators.count()).longValue());
     assertEquals(
         5,
         firstRecording
@@ -174,6 +176,12 @@ public class ExceptionHistogramTest {
         8,
         firstRecording
             .apply(ItemFilters.equals(TYPE, IllegalArgumentException.class.getCanonicalName()))
+            .getAggregate(Aggregators.sum(COUNT))
+            .longValue());
+    assertEquals(
+        21,
+        firstRecording
+            .apply(ItemFilters.equals(TYPE, ExceptionHistogram.CLIPPED_ENTRY_TYPE_NAME))
             .getAggregate(Aggregators.sum(COUNT))
             .longValue());
     snapshot.close();
@@ -187,17 +195,19 @@ public class ExceptionHistogramTest {
             Map.of(
                 new IllegalArgumentException(),
                 5,
-                new NullPointerException(),
+                new NegativeArraySizeException(),
                 8,
+                new NullPointerException(),
+                10,
                 new RuntimeException(),
-                10),
+                11),
             EXCEPTION_COMPARATOR));
 
     snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
     final IItemCollection secondRecording =
         getEvents(snapshot, firstRecordingNow.plusMillis(1), Instant.MAX);
 
-    assertEquals(MAX_ITEMS, secondRecording.getAggregate(Aggregators.count()).longValue());
+    assertEquals(MAX_ITEMS + 1, secondRecording.getAggregate(Aggregators.count()).longValue());
     assertEquals(
         5,
         secondRecording
@@ -207,7 +217,13 @@ public class ExceptionHistogramTest {
     assertEquals(
         8,
         secondRecording
-            .apply(ItemFilters.equals(TYPE, NullPointerException.class.getCanonicalName()))
+            .apply(ItemFilters.equals(TYPE, NegativeArraySizeException.class.getCanonicalName()))
+            .getAggregate(Aggregators.sum(COUNT))
+            .longValue());
+    assertEquals(
+        21,
+        firstRecording
+            .apply(ItemFilters.equals(TYPE, ExceptionHistogram.CLIPPED_ENTRY_TYPE_NAME))
             .getAggregate(Aggregators.sum(COUNT))
             .longValue());
     snapshot.close();
