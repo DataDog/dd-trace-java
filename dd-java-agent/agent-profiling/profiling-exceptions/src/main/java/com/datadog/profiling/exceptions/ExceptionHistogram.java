@@ -25,7 +25,7 @@ public class ExceptionHistogram {
     FlightRecorder.addPeriodicEvent(ExceptionCountEvent.class, eventHook);
   }
 
-  public void deregister() {
+  void deregister() {
     FlightRecorder.removePeriodicEvent(eventHook);
   }
 
@@ -72,9 +72,7 @@ public class ExceptionHistogram {
     }
 
     Stream<Map.Entry<String, Long>> items =
-        histogram
-            .entrySet()
-            .stream()
+        histogram.entrySet().stream()
             .map(e -> entry(e.getKey(), e.getValue().getAndSet(0L)))
             .filter(e -> e.getValue() != 0)
             .sorted((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()));
