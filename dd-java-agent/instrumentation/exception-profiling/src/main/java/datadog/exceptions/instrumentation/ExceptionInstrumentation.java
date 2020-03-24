@@ -13,7 +13,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-@Slf4j
 /**
  * Provides instrumentation of {@linkplain Exception} constructor. <br>
  * {@linkplain Exception}, as opposed to {@linkplain Throwable} was deliberately chosen such that we
@@ -51,8 +50,6 @@ public class ExceptionInstrumentation extends Instrumenter.Default {
           "com.datadog.profiling.exceptions.ExceptionHistogram",
           "com.datadog.profiling.exceptions.ExceptionHistogram$1",
           "com.datadog.profiling.exceptions.ExceptionProfiling",
-          "com.datadog.profiling.exceptions.ExceptionProfiling$1",
-          "com.datadog.profiling.exceptions.ExceptionProfiling$Singleton",
           "com.datadog.profiling.exceptions.ExceptionSampleEvent",
           "com.datadog.profiling.exceptions.ExceptionSampler"
         }

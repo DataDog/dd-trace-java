@@ -1,21 +1,15 @@
 package com.datadog.profiling.exceptions;
 
 import datadog.trace.api.Config;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * JVM-wide singleton exception profiling service. Uses {@linkplain Config} class to configure
  * itself using either system properties, environment or properties override.
  */
 public final class ExceptionProfiling {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProfiling.class);
-
   private static final Config config = Config.get();
 
-  private static final class Singleton {
-    static final ExceptionProfiling INSTANCE = new ExceptionProfiling();
-  }
+  private static final ExceptionProfiling INSTANCE = new ExceptionProfiling();
 
   /**
    * Get a pre-configured shared instance.
@@ -23,7 +17,7 @@ public final class ExceptionProfiling {
    * @return the shared instance
    */
   public static ExceptionProfiling getInstance() {
-    return ExceptionProfiling.Singleton.INSTANCE;
+    return ExceptionProfiling.INSTANCE;
   }
 
   private final ExceptionHistogram histogram;
