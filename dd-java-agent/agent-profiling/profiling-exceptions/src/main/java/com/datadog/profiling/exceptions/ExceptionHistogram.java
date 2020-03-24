@@ -39,11 +39,7 @@ public class ExceptionHistogram {
   private boolean record(final String typeName) {
     if (exceptionCountEventType.isEnabled()) {
       if (histogram.size() >= maxSize && !histogram.containsKey(typeName)) {
-        log.debug(
-            "Histogram is too big ({}), skipping adding new entry: {}: {}",
-            histogram.size(),
-            typeName,
-            histogram);
+        log.debug("Histogram is too big, skipping adding new entry: {}", typeName);
         return false;
       }
 
