@@ -315,13 +315,7 @@ public class DDSpanContext implements io.opentracing.SpanContext {
 
   public void setMetric(final String key, final Number value) {
     if (metrics.get() == null) {
-      metrics.compareAndSet(
-          null,
-          new ConcurrentHashMap<String, Number>() {
-            {
-              put(DD_MEASURED, DD_MEASURED_DEFAULT);
-            }
-          });
+      metrics.compareAndSet(null, new ConcurrentHashMap<>(DEFAULT_METRICS));
     }
     if (value instanceof Float) {
       metrics.get().put(key, value.doubleValue());
