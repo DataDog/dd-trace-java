@@ -34,6 +34,10 @@ public final class OpenTracing32 implements TracerAPI {
 
   private final OT32Span NOOP_SPAN = new OT32Span("", NoopSpan.INSTANCE);
 
+  private Tracer.SpanBuilder buildSpan(final String spanName) {
+    return tracer.buildSpan(spanName);
+  }
+
   @Override
   public AgentSpan startSpan(final String spanName) {
     return new OT32Span(spanName);
@@ -104,24 +108,21 @@ public final class OpenTracing32 implements TracerAPI {
     private volatile String spanName;
 
     private OT32Span(final String spanName) {
-      this(spanName, tracer.buildSpan(spanName).start());
+      this(spanName, buildSpan(spanName).start());
     }
 
     private OT32Span(final String spanName, final long startTimeMicros) {
-      this(spanName, tracer.buildSpan(spanName).withStartTimestamp(startTimeMicros).start());
+      this(spanName, buildSpan(spanName).withStartTimestamp(startTimeMicros).start());
     }
 
     private OT32Span(final String spanName, final OT32Context parent) {
-      this(
-          spanName,
-          tracer.buildSpan(spanName).ignoreActiveSpan().asChildOf(parent.context).start());
+      this(spanName, buildSpan(spanName).ignoreActiveSpan().asChildOf(parent.context).start());
     }
 
     private OT32Span(final String spanName, final Context parent, final long startTimeMicros) {
       this(
           spanName,
-          tracer
-              .buildSpan(spanName)
+          buildSpan(spanName)
               .ignoreActiveSpan()
               .asChildOf(((OT32Context) parent).context)
               .withStartTimestamp(startTimeMicros)
