@@ -4,9 +4,7 @@ import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.DDTracer;
 import datadog.trace.core.StringCachingBigInteger;
 import datadog.trace.api.Config;
-import io.opentracing.SpanContext;
-import io.opentracing.propagation.TextMapExtract;
-import io.opentracing.propagation.TextMapInject;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.URLDecoder;
@@ -19,13 +17,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class HttpCodec {
   public interface Injector {
-
-    void inject(final DDSpanContext context, final TextMapInject carrier);
+    <C> void inject(
+        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter);
   }
 
   public interface Extractor {
-
-    SpanContext extract(final TextMapExtract carrier);
+    <C> TagContext extract(final C carrier, final AgentPropagation.Getter<C> getter);
   }
 
   public static Injector createInjector(final Config config) {
@@ -78,9 +75,10 @@ public class HttpCodec {
     }
 
     @Override
-    public void inject(final DDSpanContext context, final TextMapInject carrier) {
+    public <C> void inject(
+        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       for (final Injector injector : injectors) {
-        injector.inject(context, carrier);
+        injector.inject(context, carrier, setter);
       }
     }
   }
@@ -94,12 +92,12 @@ public class HttpCodec {
     }
 
     @Override
-    public SpanContext extract(final TextMapExtract carrier) {
-      SpanContext context = null;
+    public <C> TagContext extract(final C carrier, final AgentPropagation.Getter<C> setter) {
+      TagContext context = null;
       for (final Extractor extractor : extractors) {
-        context = extractor.extract(carrier);
+        context = extractor.extract(carrier, setter);
         // Use incomplete TagContext only as last resort
-        if (context != null && (context instanceof ExtractedContext)) {
+        if (context instanceof ExtractedContext) {
           return context;
         }
       }
@@ -148,5 +146,14 @@ public class HttpCodec {
       log.info("Failed to decode value - {}", value);
     }
     return decoded;
+  }
+
+  static String firstHeaderValue(final String value) {
+    if (value == null || value.isEmpty()) {
+      return value;
+    }
+
+    // in case of multiple values in the header, need to parse
+    return value.split(",")[0].trim();
   }
 }

@@ -1,12 +1,11 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.api.sampling.PrioritySampling;
-import io.opentracing.SpanContext;
-import io.opentracing.propagation.TextMapExtract;
-import io.opentracing.propagation.TextMapInject;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.math.BigInteger;
 import java.util.Collections;
 import java.util.HashMap;
@@ -30,19 +29,21 @@ class DatadogHttpCodec {
   public static class Injector implements HttpCodec.Injector {
 
     @Override
-    public void inject(final DDSpanContext context, final TextMapInject carrier) {
-      carrier.put(TRACE_ID_KEY, context.getTraceId().toString());
-      carrier.put(SPAN_ID_KEY, context.getSpanId().toString());
+    public <C> void inject(
+        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+
+      setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString());
+      setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toString());
       if (context.lockSamplingPriority()) {
-        carrier.put(SAMPLING_PRIORITY_KEY, String.valueOf(context.getSamplingPriority()));
+        setter.set(carrier, SAMPLING_PRIORITY_KEY, String.valueOf(context.getSamplingPriority()));
       }
       final String origin = context.getOrigin();
       if (origin != null) {
-        carrier.put(ORIGIN_KEY, origin);
+        setter.set(carrier, ORIGIN_KEY, origin);
       }
 
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
-        carrier.put(OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
+        setter.set(carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
       }
       log.debug("{} - Datadog parent context injected", context.getTraceId());
     }
@@ -59,7 +60,7 @@ class DatadogHttpCodec {
     }
 
     @Override
-    public SpanContext extract(final TextMapExtract carrier) {
+    public <C> TagContext extract(final C carrier, final AgentPropagation.Getter<C> getter) {
       try {
         Map<String, String> baggage = Collections.emptyMap();
         Map<String, String> tags = Collections.emptyMap();
@@ -68,9 +69,9 @@ class DatadogHttpCodec {
         int samplingPriority = PrioritySampling.UNSET;
         String origin = null;
 
-        for (final Map.Entry<String, String> entry : carrier) {
-          final String key = entry.getKey().toLowerCase();
-          final String value = entry.getValue();
+        for (final String uncasedKey : getter.keys(carrier)) {
+          final String key = uncasedKey.toLowerCase();
+          final String value = firstHeaderValue(getter.get(carrier, uncasedKey));
 
           if (value == null) {
             continue;

@@ -1,12 +1,11 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.api.sampling.PrioritySampling;
-import io.opentracing.SpanContext;
-import io.opentracing.propagation.TextMapExtract;
-import io.opentracing.propagation.TextMapInject;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.math.BigInteger;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,14 +36,17 @@ class B3HttpCodec {
   public static class Injector implements HttpCodec.Injector {
 
     @Override
-    public void inject(final DDSpanContext context, final TextMapInject carrier) {
+    public <C> void inject(
+        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       try {
-        carrier.put(TRACE_ID_KEY, context.getTraceId().toString(HEX_RADIX).toLowerCase());
-        carrier.put(SPAN_ID_KEY, context.getSpanId().toString(HEX_RADIX).toLowerCase());
+        setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString(HEX_RADIX).toLowerCase());
+        setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toString(HEX_RADIX).toLowerCase());
 
         if (context.lockSamplingPriority()) {
-          carrier.put(
-              SAMPLING_PRIORITY_KEY, convertSamplingPriority(context.getSamplingPriority()));
+          setter.set(
+              carrier,
+              SAMPLING_PRIORITY_KEY,
+              convertSamplingPriority(context.getSamplingPriority()));
         }
         log.debug("{} - B3 parent context injected", context.getTraceId());
       } catch (final NumberFormatException e) {
@@ -70,16 +72,16 @@ class B3HttpCodec {
     }
 
     @Override
-    public SpanContext extract(final TextMapExtract carrier) {
+    public <C> TagContext extract(final C carrier, final AgentPropagation.Getter<C> getter) {
       try {
         Map<String, String> tags = Collections.emptyMap();
         BigInteger traceId = BigInteger.ZERO;
         BigInteger spanId = BigInteger.ZERO;
         int samplingPriority = PrioritySampling.UNSET;
 
-        for (final Map.Entry<String, String> entry : carrier) {
-          final String key = entry.getKey().toLowerCase();
-          final String value = entry.getValue();
+        for (final String uncasedKey : getter.keys(carrier)) {
+          final String key = uncasedKey.toLowerCase();
+          final String value = firstHeaderValue(getter.get(carrier, uncasedKey));
 
           if (value == null) {
             continue;

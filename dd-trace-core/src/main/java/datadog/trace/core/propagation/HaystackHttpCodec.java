@@ -1,12 +1,11 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.api.sampling.PrioritySampling;
-import io.opentracing.SpanContext;
-import io.opentracing.propagation.TextMapExtract;
-import io.opentracing.propagation.TextMapInject;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.math.BigInteger;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,13 +32,14 @@ public class HaystackHttpCodec {
   public static class Injector implements HttpCodec.Injector {
 
     @Override
-    public void inject(final DDSpanContext context, final TextMapInject carrier) {
-      carrier.put(TRACE_ID_KEY, context.getTraceId().toString());
-      carrier.put(SPAN_ID_KEY, context.getSpanId().toString());
-      carrier.put(PARENT_ID_KEY, context.getParentId().toString());
+    public <C> void inject(
+        final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
+      setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString());
+      setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toString());
+      setter.set(carrier, PARENT_ID_KEY, context.getParentId().toString());
 
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
-        carrier.put(OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
+        setter.set(carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
       }
       log.debug("{} - Haystack parent context injected", context.getTraceId());
     }
@@ -57,7 +57,7 @@ public class HaystackHttpCodec {
     }
 
     @Override
-    public SpanContext extract(final TextMapExtract carrier) {
+    public <C> TagContext extract(final C carrier, final AgentPropagation.Getter<C> getter) {
       try {
         Map<String, String> baggage = Collections.emptyMap();
         Map<String, String> tags = Collections.emptyMap();
@@ -66,9 +66,9 @@ public class HaystackHttpCodec {
         final int samplingPriority = PrioritySampling.SAMPLER_KEEP;
         final String origin = null; // Always null
 
-        for (final Map.Entry<String, String> entry : carrier) {
-          final String key = entry.getKey().toLowerCase();
-          final String value = entry.getValue();
+        for (final String uncasedKey : getter.keys(carrier)) {
+          final String key = uncasedKey.toLowerCase();
+          final String value = firstHeaderValue(getter.get(carrier, uncasedKey));
 
           if (value == null) {
             continue;

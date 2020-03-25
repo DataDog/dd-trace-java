@@ -24,9 +24,6 @@ import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
-import io.opentracing.propagation.Format;
-import io.opentracing.propagation.TextMapExtract;
-import io.opentracing.propagation.TextMapInject;
 import io.opentracing.tag.Tag;
 import java.io.Closeable;
 import java.lang.ref.WeakReference;
@@ -47,12 +44,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.Builder;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 /** DDTracer makes it easy to send traces and span to DD using the OpenTracing API. */
 @Slf4j
-public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace.api.Tracer {
+public class DDTracer
+    implements Closeable, datadog.trace.api.Tracer, AgentTracer.TracerAPI, AgentPropagation {
   // UINT64 max value
   public static final BigInteger TRACE_ID_MAX =
       BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
@@ -416,27 +413,18 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
   }
 
   @Override
-  public <T> void inject(final SpanContext spanContext, final Format<T> format, final T carrier) {
-    if (carrier instanceof TextMapInject) {
-      final DDSpanContext ddSpanContext = (DDSpanContext) spanContext;
+  public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {
+    final DDSpanContext ddSpanContext = (DDSpanContext) span.context();
 
-      final DDSpan rootSpan = ddSpanContext.getTrace().getRootSpan();
-      setSamplingPriorityIfNecessary(rootSpan);
+    final DDSpan rootSpan = ddSpanContext.getTrace().getRootSpan();
+    setSamplingPriorityIfNecessary(rootSpan);
 
-      injector.inject(ddSpanContext, (TextMapInject) carrier);
-    } else {
-      log.debug("Unsupported format for propagation - {}", format.getClass().getName());
-    }
+    injector.inject(ddSpanContext, carrier, setter);
   }
 
   @Override
-  public <T> SpanContext extract(final Format<T> format, final T carrier) {
-    if (carrier instanceof TextMapExtract) {
-      return extractor.extract((TextMapExtract) carrier);
-    } else {
-      log.debug("Unsupported format for propagation - {}", format.getClass().getName());
-      return null;
-    }
+  public <C> AgentSpan.Context extract(final C carrier, final Getter<C> getter) {
+    return extractor.extract(carrier, getter);
   }
 
   /**

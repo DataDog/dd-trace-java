@@ -1,6 +1,6 @@
 package datadog.trace.core.propagation;
 
-import io.opentracing.SpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;
 import java.util.Map;
 
@@ -8,7 +8,7 @@ import java.util.Map;
  * When calling extract, we allow for grabbing other configured headers as tags. Those tags are
  * returned here even if the rest of the request would have returned null.
  */
-public class TagContext implements SpanContext {
+public class TagContext implements AgentSpan.Context {
   private final String origin;
   private final Map<String, String> tags;
 
@@ -23,16 +23,6 @@ public class TagContext implements SpanContext {
 
   public Map<String, String> getTags() {
     return tags;
-  }
-
-  @Override
-  public String toTraceId() {
-    return "";
-  }
-
-  @Override
-  public String toSpanId() {
-    return "";
   }
 
   @Override
