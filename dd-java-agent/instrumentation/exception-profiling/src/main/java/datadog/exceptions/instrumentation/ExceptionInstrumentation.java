@@ -23,17 +23,13 @@ public class ExceptionInstrumentation extends Instrumenter.Default {
 
   public ExceptionInstrumentation() {
     super("exceptions");
-    boolean jfr = false;
-    try {
-      /* Check only for the open-sources JFR implementation.
-       * If it is ever needed to support also the closed sourced JDK 8 version the check should be
-       * enhanced
-       */
-      Class.forName("jdk.jfr.Event");
-      jfr = true;
-    } catch (final ClassNotFoundException ignored) {
-    }
-    hasJfr = jfr;
+    /* Check only for the open-sources JFR implementation.
+     * If it is ever needed to support also the closed sourced JDK 8 version the check should be
+     * enhanced.
+     * Need this custom check because ClassLoaderMatcher.hasClassesNamed() does not support bootstrap class loader yet.
+     */
+
+    hasJfr = ClassLoader.getSystemClassLoader().getResource("jdk/jfr/Event.class") != null;
   }
 
   @Override
