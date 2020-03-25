@@ -39,10 +39,6 @@ class StreamingSamplerTest {
               1); // at least 1ns progress
       return ts.getAndAdd(Math.round(diff));
     }
-
-    public long getCurrent() {
-      return ts.get();
-    }
   }
 
   @ParameterizedTest(name = "{index}")
@@ -60,7 +56,7 @@ class StreamingSamplerTest {
     final TimestampProvider tsProvider =
         new TimestampProvider(windowDuration, totalWindows, hits, clockStdDev);
     final StreamingSampler instance =
-        new StreamingSampler(windowDuration, TimeUnit.SECONDS, samplesPerWindow, tsProvider) {
+        new StreamingSampler(windowDuration, TimeUnit.SECONDS, samplesPerWindow, 10, tsProvider) {
           @Override
           protected void onWindowRoll(final SamplerState state) {
             windowCounter.incrementAndGet();
@@ -109,7 +105,7 @@ class StreamingSamplerTest {
     for (int threadCnt = 1; threadCnt < 64; threadCnt *= 2) {
       for (int windows = 1; windows <= 16; windows *= 2) {
         for (int samples = 5; samples <= 40; samples *= 2) {
-          args.add(Arguments.of(threadCnt, 10, samples, windows, 511, 0.001d));
+          args.add(Arguments.of(threadCnt, 10, samples * 10, windows, 511, 0.001d));
           args.add(Arguments.of(threadCnt, 10, samples, windows, 511, 0.5d));
           args.add(Arguments.of(threadCnt, 10, samples, windows, 511, 1d));
         }

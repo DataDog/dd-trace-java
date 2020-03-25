@@ -11,12 +11,12 @@ import java.util.function.Supplier;
  * A streaming (non-remembering) sampler.
  *
  * <p>The sampler attempts to generate at most N samples per fixed time window in randomized
- * fashion. It is also using constant updates of the estimated event set per window such that
- * it can vary the expected sampling interval (how many events are between two samples in average)
- * to cover the events within one window by approximately the number of requested samples per window.
- * Due to all the numbers being just estimates the actual number of samples may vary slightly (the tests show
- * the variability being around 20%) and it must be understood that the expected number of samples per window
- * is not a hard/precise limit.
+ * fashion. It is also using constant updates of the estimated event set per window such that it can
+ * vary the expected sampling interval (how many events are between two samples in average) to cover
+ * the events within one window by approximately the number of requested samples per window. Due to
+ * all the numbers being just estimates the actual number of samples may vary slightly (the tests
+ * show the variability being around 20%) and it must be understood that the expected number of
+ * samples per window is not a hard/precise limit.
  */
 public class StreamingSampler {
   /**
@@ -39,15 +39,15 @@ public class StreamingSampler {
     private final Supplier<Long> tsProvider;
 
     private SamplerState(
-      final long events,
-      final double threshold,
-      final long samples,
-      final long samplesPerWindow,
-      final long windowDurationNs,
-      final long windowStartTs,
-      final boolean sampled,
-      final boolean expired,
-      final Supplier<Long> tsProvider) {
+        final long events,
+        final double threshold,
+        final long samples,
+        final long samplesPerWindow,
+        final long windowDurationNs,
+        final long windowStartTs,
+        final boolean sampled,
+        final boolean expired,
+        final Supplier<Long> tsProvider) {
       eventCounter = new AtomicLong(events);
       this.threshold = threshold;
       this.samples = samples;
@@ -62,22 +62,22 @@ public class StreamingSampler {
     }
 
     SamplerState(
-      final long events,
-      final long interval,
-      final long samples,
-      final long samplesPerWindow,
-      final long windowDurationNs,
-      final Supplier<Long> tsProvider) {
+        final long events,
+        final long interval,
+        final long samples,
+        final long samplesPerWindow,
+        final long windowDurationNs,
+        final Supplier<Long> tsProvider) {
       this(
-        events,
-        interval,
-        samples,
-        samplesPerWindow,
-        windowDurationNs,
-        tsProvider.get(),
-        false,
-        false,
-        tsProvider);
+          events,
+          computeThreshold(samplesPerWindow, samples, interval),
+          samples,
+          samplesPerWindow,
+          windowDurationNs,
+          tsProvider.get(),
+          false,
+          false,
+          tsProvider);
     }
 
     SamplerState trySample() {
@@ -98,18 +98,18 @@ public class StreamingSampler {
          * in one sampling window.
          */
         final long interval =
-          Math.max(Math.round(estimatedSetSize / (samplesPerWindow - samples + 1)), 1);
+            Math.max(Math.round(estimatedSetSize / (samplesPerWindow - samples + 1)), 1);
         // generate a new derived immutable state
         return new SamplerState(
-          isExpired ? 0 : tested,
-          computeThreshold(samplesPerWindow, samples, interval),
-          isExpired ? 0 : samples + 1,
-          samplesPerWindow,
-          windowDurationNs,
-          isExpired ? ts : windowStartTs,
-          isSampled,
-          isExpired,
-          tsProvider);
+            isExpired ? 0 : tested,
+            computeThreshold(samplesPerWindow, samples, interval),
+            isExpired ? 0 : samples + 1,
+            samplesPerWindow,
+            windowDurationNs,
+            isExpired ? ts : windowStartTs,
+            isSampled,
+            isExpired,
+            tsProvider);
       }
       return this;
     }
@@ -119,7 +119,7 @@ public class StreamingSampler {
      * After this method is invoked all subsequent invocations will return {@literal false}
      *
      * @return {@literal true} only if this is the first invocation and the state was created for a
-     * sampling test
+     *     sampling test
      */
     boolean sampled() {
       return sampledFlag.getAndSet(false);
@@ -130,7 +130,7 @@ public class StreamingSampler {
      * After this method is invoked all subsequent invocations will return {@literal false}
      *
      * @return {@literal true} only if this is the first invocation and the state was created for a
-     * window roll
+     *     window roll
      */
     boolean expired() {
       return expiredFlag.getAndSet(false);
@@ -142,7 +142,7 @@ public class StreamingSampler {
      * sample or not.
      */
     private static double computeThreshold(
-      final long samplesPerWindow, final long samples, final long interval) {
+        final long samplesPerWindow, final long samples, final long interval) {
       /*
        * The probability 'p' is calculated as the ratio between the outstanding samples per current window and the total
        * expected sample per window.
@@ -160,23 +160,23 @@ public class StreamingSampler {
     @Override
     public String toString() {
       return "SamplerState{"
-        + "eventCount="
-        + eventCounter.get()
-        + ", samples="
-        + samples
-        + ", threshold="
-        + threshold
-        + ", windowStartTs="
-        + windowStartTs
-        + ", windowEndTs="
-        + windowEndTs
-        + ", windowDurationNs="
-        + windowDurationNs
-        + ", samplesPerWindow="
-        + samplesPerWindow
-        + ", sampledFlag="
-        + sampledFlag
-        + '}';
+          + "eventCount="
+          + eventCounter.get()
+          + ", samples="
+          + samples
+          + ", threshold="
+          + threshold
+          + ", windowStartTs="
+          + windowStartTs
+          + ", windowEndTs="
+          + windowEndTs
+          + ", windowDurationNs="
+          + windowDurationNs
+          + ", samplesPerWindow="
+          + samplesPerWindow
+          + ", sampledFlag="
+          + sampledFlag
+          + '}';
     }
   }
 
@@ -186,29 +186,37 @@ public class StreamingSampler {
    * Create a new sampler instance
    *
    * @param samplingWindowDuration the sampling window duration
-   * @param slidingWindowUnit      the time unit for the sampling window duration
-   * @param maxSamplesInWindow     the maximum number of samples in the sampling window
+   * @param slidingWindowUnit the time unit for the sampling window duration
+   * @param maxSamplesInWindow the maximum number of samples in the sampling window
+   * @param initialInterval the initial sampling interval (number of events between two samples)
    */
   public StreamingSampler(
-    final long samplingWindowDuration,
-    final TimeUnit slidingWindowUnit,
-    final int maxSamplesInWindow) {
-    this(samplingWindowDuration, slidingWindowUnit, maxSamplesInWindow, System::nanoTime);
+      final long samplingWindowDuration,
+      final TimeUnit slidingWindowUnit,
+      final int maxSamplesInWindow,
+      final int initialInterval) {
+    this(
+        samplingWindowDuration,
+        slidingWindowUnit,
+        maxSamplesInWindow,
+        initialInterval,
+        System::nanoTime);
   }
 
   StreamingSampler(
-    final long windowDurationNs,
-    final TimeUnit windowDurationUnit,
-    final int samplesPerWindow,
-    final Supplier<Long> tsProvider) {
+      final long windowDurationNs,
+      final TimeUnit windowDurationUnit,
+      final int samplesPerWindow,
+      final int initialInterval,
+      final Supplier<Long> tsProvider) {
     stateRef.set(
-      new SamplerState(
-        0,
-        10,
-        0L,
-        samplesPerWindow,
-        TimeUnit.NANOSECONDS.convert(windowDurationNs, windowDurationUnit),
-        tsProvider));
+        new SamplerState(
+            0,
+            initialInterval,
+            0L,
+            samplesPerWindow,
+            TimeUnit.NANOSECONDS.convert(windowDurationNs, windowDurationUnit),
+            tsProvider));
   }
 
   /**
@@ -238,14 +246,12 @@ public class StreamingSampler {
    *
    * @param state the sampler state after taking this sample
    */
-  protected void onSample(final SamplerState state) {
-  }
+  protected void onSample(final SamplerState state) {}
 
   /**
    * A custom callback to observe rolling of the sampling window. Mostly for debugging purposes.
    *
    * @param state the sampler state after rolling the window
    */
-  protected void onWindowRoll(final SamplerState state) {
-  }
+  protected void onWindowRoll(final SamplerState state) {}
 }

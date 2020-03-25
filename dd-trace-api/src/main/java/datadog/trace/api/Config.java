@@ -131,6 +131,8 @@ public class Config {
       "profiling.exception-sampler.window";
   public static final String PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES =
       "profiling.exception-sampler.window-samples";
+  public static final String PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL =
+      "profiling.exception-sampler.initial-interval";
   public static final String PROFILING_EXCEPTION_HISTO_MAX = "profiling.exception-hist.max";
 
   public static final String RUNTIME_ID_TAG = "runtime-id";
@@ -187,8 +189,8 @@ public class Config {
   public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
   public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
   public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW = 10;
-  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES = 1000;
-  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_TIME_WINDOW = 120;
+  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES = 10;
+  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL = 10;
   public static final int DEFAULT_PROFILING_EXCEPTION_HISTO_MAX = 50;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
@@ -293,6 +295,7 @@ public class Config {
   @Getter private final String profilingProxyPassword;
   @Getter private final int profilingExceptionSamplerSlidingWindow;
   @Getter private final int profilingExceptionSamplerSlidingWindowSamples;
+  @Getter private final int profilingExceptionSamplerInitialInterval;
   @Getter private final int profilingExceptionHistoMax;
 
   // Values from an optionally provided properties file
@@ -490,6 +493,10 @@ public class Config {
         getIntegerSettingFromEnvironment(
             PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES,
             DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES);
+    profilingExceptionSamplerInitialInterval =
+        getIntegerSettingFromEnvironment(
+            PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL,
+            DEFAULT_PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL);
     profilingExceptionHistoMax =
         getIntegerSettingFromEnvironment(
             PROFILING_EXCEPTION_HISTO_MAX, DEFAULT_PROFILING_EXCEPTION_HISTO_MAX);
@@ -668,6 +675,11 @@ public class Config {
             properties,
             PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES,
             DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES);
+    profilingExceptionSamplerInitialInterval =
+        getPropertyIntegerValue(
+            properties,
+            PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL,
+            DEFAULT_PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL);
     profilingExceptionHistoMax =
         getPropertyIntegerValue(
             properties, PROFILING_EXCEPTION_HISTO_MAX, DEFAULT_PROFILING_EXCEPTION_HISTO_MAX);
