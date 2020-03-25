@@ -12,7 +12,10 @@ apply plugin: "idea"
 
 dependencies {
   compile project(':dd-java-agent:agent-tooling')
+
+  // We need this dependency so helper injection works
   compile project(':dd-java-agent:agent-profiling:profiling-exceptions')
+
   main_java11Compile project(':dd-java-agent:agent-profiling:profiling-exceptions')
 }
 

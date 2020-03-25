@@ -128,12 +128,15 @@ public class Config {
   public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
   public static final String PROFILING_EXCEPTION_SAMPLER_WINDOW =
-      "profiling.exception-sampler.window";
+      "profiling.exception.sampler.window";
   public static final String PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES =
-      "profiling.exception-sampler.window-samples";
+      "profiling.exception.sampler.window-samples";
   public static final String PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL =
-      "profiling.exception-sampler.initial-interval";
-  public static final String PROFILING_EXCEPTION_HISTO_MAX = "profiling.exception-hist.max";
+      "profiling.exception.sampler.initial-interval";
+  public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
+      "profiling.exception.histogram.top-items";
+  public static final String PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE =
+      "profiling.exception.histogram.max-collection-size";
 
   public static final String RUNTIME_ID_TAG = "runtime-id";
   public static final String SERVICE_TAG = "service";
@@ -189,9 +192,10 @@ public class Config {
   public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
   public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
   public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW = 10;
-  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES = 10;
+  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES = 1000;
   public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL = 10;
-  public static final int DEFAULT_PROFILING_EXCEPTION_HISTO_MAX = 50;
+  public static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS = 50;
+  public static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE = 10000;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
@@ -296,7 +300,8 @@ public class Config {
   @Getter private final int profilingExceptionSamplerSlidingWindow;
   @Getter private final int profilingExceptionSamplerSlidingWindowSamples;
   @Getter private final int profilingExceptionSamplerInitialInterval;
-  @Getter private final int profilingExceptionHistoMax;
+  @Getter private final int profilingExceptionHistogramTopItems;
+  @Getter private final int profilingExceptionHistogramMaxCollectionSize;
 
   // Values from an optionally provided properties file
   private static Properties propertiesFromConfigFile;
@@ -497,9 +502,14 @@ public class Config {
         getIntegerSettingFromEnvironment(
             PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL,
             DEFAULT_PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL);
-    profilingExceptionHistoMax =
+    profilingExceptionHistogramTopItems =
         getIntegerSettingFromEnvironment(
-            PROFILING_EXCEPTION_HISTO_MAX, DEFAULT_PROFILING_EXCEPTION_HISTO_MAX);
+            PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
+            DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS);
+    profilingExceptionHistogramMaxCollectionSize =
+        getIntegerSettingFromEnvironment(
+            PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
+            DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE);
 
     log.debug("New instance: {}", this);
   }
@@ -669,20 +679,27 @@ public class Config {
         getPropertyIntegerValue(
             properties,
             PROFILING_EXCEPTION_SAMPLER_WINDOW,
-            DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW);
+            parent.profilingExceptionSamplerSlidingWindow);
     profilingExceptionSamplerSlidingWindowSamples =
         getPropertyIntegerValue(
             properties,
             PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES,
-            DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES);
+            parent.profilingExceptionSamplerSlidingWindowSamples);
     profilingExceptionSamplerInitialInterval =
         getPropertyIntegerValue(
             properties,
             PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL,
-            DEFAULT_PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL);
-    profilingExceptionHistoMax =
+            parent.profilingExceptionSamplerInitialInterval);
+    profilingExceptionHistogramTopItems =
         getPropertyIntegerValue(
-            properties, PROFILING_EXCEPTION_HISTO_MAX, DEFAULT_PROFILING_EXCEPTION_HISTO_MAX);
+            properties,
+            PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
+            parent.profilingExceptionHistogramTopItems);
+    profilingExceptionHistogramMaxCollectionSize =
+        getPropertyIntegerValue(
+            properties,
+            PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
+            parent.profilingExceptionHistogramMaxCollectionSize);
 
     log.debug("New instance: {}", this);
   }

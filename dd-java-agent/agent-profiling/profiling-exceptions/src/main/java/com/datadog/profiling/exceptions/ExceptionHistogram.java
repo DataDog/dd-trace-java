@@ -11,39 +11,25 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ExceptionHistogram {
-  private final Map<String, AtomicLong> histoMap = new ConcurrentHashMap<>();
-  private final EventType exceptionCountEventType;
-  private final int maxTopItems;
-  private final boolean forceEnabled;
 
-  @FunctionalInterface
-  interface ValueVisitor {
-    void visit(String key, long value);
-  }
+  static final String CLIPPED_ENTRY_TYPE_NAME = "TOO-MANY-EXCEPTIONS";
+
+  private final Map<String, AtomicLong> histogram = new ConcurrentHashMap<>();
+  private final int maxTopItems;
+  private final int maxSize;
+  private final EventType exceptionCountEventType;
+  private final Runnable eventHook;
 
   ExceptionHistogram(final Config config) {
-    this(config.getProfilingExceptionHistoMax(), false);
-  }
-
-  ExceptionHistogram(final int maxTopItems, final boolean forceEnabled) {
-    this.maxTopItems = maxTopItems;
+    maxTopItems = config.getProfilingExceptionHistogramTopItems();
+    maxSize = config.getProfilingExceptionHistogramMaxCollectionSize();
     exceptionCountEventType = EventType.getEventType(ExceptionCountEvent.class);
-    this.forceEnabled = forceEnabled;
-
-    FlightRecorder.addPeriodicEvent(ExceptionCountEvent.class, this::emit);
+    eventHook = this::emit;
+    FlightRecorder.addPeriodicEvent(ExceptionCountEvent.class, eventHook);
   }
 
-  private void emit() {
-    if (forceEnabled || exceptionCountEventType.isEnabled()) {
-      processAndReset(this::newExceptionCountEvent);
-    }
-  }
-
-  private void newExceptionCountEvent(final String type, final long count) {
-    final ExceptionCountEvent event = new ExceptionCountEvent(type, count);
-    if (event.shouldCommit()) {
-      event.commit();
-    }
+  void deregister() {
+    FlightRecorder.removePeriodicEvent(eventHook);
   }
 
   public boolean record(final Exception exception) {
@@ -53,42 +39,62 @@ public class ExceptionHistogram {
     return record(exception.getClass().getCanonicalName());
   }
 
-  boolean record(final String typeName) {
-    if (typeName == null) {
+  private boolean record(String typeName) {
+    if (!exceptionCountEventType.isEnabled()) {
       return false;
     }
-    if (forceEnabled || exceptionCountEventType.isEnabled()) {
-      final boolean[] firstHit = new boolean[] {false};
-      histoMap
-          .computeIfAbsent(
-              typeName,
-              k -> {
-                try {
-                  return new AtomicLong();
-                } finally {
-                  firstHit[0] = true;
-                }
-              })
-          .incrementAndGet();
-
-      return firstHit[0];
+    if (!histogram.containsKey(typeName) && histogram.size() >= maxSize) {
+      log.debug("Histogram is too big, skipping adding new entry: {}", typeName);
+      // Overwrite type name to limit total number of entries in the histogram
+      typeName = CLIPPED_ENTRY_TYPE_NAME;
     }
-    return false;
+
+    final boolean[] firstHit = new boolean[] {false};
+    histogram
+        .computeIfAbsent(
+            typeName,
+            k -> {
+              try {
+                return new AtomicLong();
+              } finally {
+                firstHit[0] = true;
+              }
+            })
+        .incrementAndGet();
+
+    // FIXME: this 'first hit' logic is confusing and untested
+    return firstHit[0];
   }
 
-  void processAndReset(final ValueVisitor processor) {
+  private void emit() {
+    if (!exceptionCountEventType.isEnabled()) {
+      return;
+    }
+
     Stream<Map.Entry<String, Long>> items =
-        histoMap
+        histogram
             .entrySet()
             .stream()
             .map(e -> entry(e.getKey(), e.getValue().getAndSet(0L)))
             .filter(e -> e.getValue() != 0)
             .sorted((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()));
-    histoMap.entrySet().removeIf(e -> e.getValue().get() == 0L);
+
     if (maxTopItems > 0) {
       items = items.limit(maxTopItems);
     }
-    items.forEach(e -> processor.visit(e.getKey(), e.getValue()));
+
+    items.forEach(e -> createAndCommitEvent(e.getKey(), e.getValue()));
+
+    // Stream is 'materialized' by `forEach` call above so we have to do clean up after that
+    // Otherwise we would keep entries for one extra iteration
+    histogram.entrySet().removeIf(e -> e.getValue().get() == 0L);
+  }
+
+  private void createAndCommitEvent(final String type, final long count) {
+    final ExceptionCountEvent event = new ExceptionCountEvent(type, count);
+    if (event.shouldCommit()) {
+      event.commit();
+    }
   }
 
   private static <K, V> Map.Entry<K, V> entry(final K key, final V value) {

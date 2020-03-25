@@ -6,14 +6,12 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Collections;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-@Slf4j
 /**
  * Provides instrumentation of {@linkplain Exception} constructor. <br>
  * {@linkplain Exception}, as opposed to {@linkplain Throwable} was deliberately chosen such that we
@@ -39,11 +37,6 @@ public class ExceptionInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  protected boolean defaultEnabled() {
-    return true;
-  }
-
-  @Override
   public String[] helperClassNames() {
     /*
      * Since the only instrumentation target is java.lang.Exception which is loaded by bootstrap classloader
@@ -52,13 +45,11 @@ public class ExceptionInstrumentation extends Instrumenter.Default {
     return hasJfr
         ? new String[] {
           "com.datadog.profiling.exceptions.StreamingSampler",
+          "com.datadog.profiling.exceptions.StreamingSampler$SamplerState",
           "com.datadog.profiling.exceptions.ExceptionCountEvent",
           "com.datadog.profiling.exceptions.ExceptionHistogram",
           "com.datadog.profiling.exceptions.ExceptionHistogram$1",
-          "com.datadog.profiling.exceptions.ExceptionHistogram$ValueVisitor",
           "com.datadog.profiling.exceptions.ExceptionProfiling",
-          "com.datadog.profiling.exceptions.ExceptionProfiling$1",
-          "com.datadog.profiling.exceptions.ExceptionProfiling$Singleton",
           "com.datadog.profiling.exceptions.ExceptionSampleEvent",
           "com.datadog.profiling.exceptions.ExceptionSampler"
         }
