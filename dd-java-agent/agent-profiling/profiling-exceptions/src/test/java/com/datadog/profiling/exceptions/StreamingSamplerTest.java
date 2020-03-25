@@ -5,11 +5,10 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -17,7 +16,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 class StreamingSamplerTest {
   private static final class TimestampProvider implements Supplier<Long> {
     private final Random rnd = new Random();
-    private long ts = 0;
+    private final AtomicLong ts = new AtomicLong(0L);
     private final int step;
     private final double stdDev;
 
@@ -34,19 +33,16 @@ class StreamingSamplerTest {
 
     @Override
     public Long get() {
-      ts += (step + ((rnd.nextGaussian() * step) * stdDev)) * 1_000_000L;
-      return ts;
+      final double diff =
+          Math.max(
+              (step + ((rnd.nextGaussian() * step) * stdDev)) * 1_000_000L,
+              1); // at least 1ns progress
+      return ts.getAndAdd(Math.round(diff));
     }
-  }
 
-  @BeforeAll
-  public static void setup() throws InterruptedException {
-    Thread.sleep(30000);
-  }
-
-  @AfterAll
-  public static void shutdown() throws InterruptedException {
-    Thread.sleep(120000);
+    public long getCurrent() {
+      return ts.get();
+    }
   }
 
   @ParameterizedTest(name = "{index}")
@@ -60,19 +56,13 @@ class StreamingSamplerTest {
       final double clockStdDev)
       throws Exception {
 
-    final ThreadLocal<TimestampProvider> tsProviderRef =
-        ThreadLocal.withInitial(
-            () -> new TimestampProvider(windowDuration, totalWindows, hits, clockStdDev));
     final AtomicInteger windowCounter = new AtomicInteger(1); // implicitly 1 window
+    final TimestampProvider tsProvider =
+        new TimestampProvider(windowDuration, totalWindows, hits, clockStdDev);
     final StreamingSampler instance =
-        new StreamingSampler(
-            windowDuration, TimeUnit.SECONDS, samplesPerWindow, () -> tsProviderRef.get().get()) {
+        new StreamingSampler(windowDuration, TimeUnit.SECONDS, samplesPerWindow, tsProvider) {
           @Override
-          protected void onWindowEnd(
-              final long origThreshold,
-              final long newThreshold,
-              final long origLambda,
-              final long newLambda) {
+          protected void onWindowRoll(final SamplerState state) {
             windowCounter.incrementAndGet();
           }
         };
@@ -80,7 +70,14 @@ class StreamingSamplerTest {
     final AtomicInteger allCnt = new AtomicInteger(0);
     final Thread[] threads = new Thread[threadCnt];
     System.out.println(
-        "==> windows: " + totalWindows + ", threads: " + threadCnt + ", clockDev: " + clockStdDev);
+        "==> windows: "
+            + totalWindows
+            + ", threads: "
+            + threadCnt
+            + ", clockDev: "
+            + clockStdDev
+            + ", samplesPerWindow: "
+            + samplesPerWindow);
     for (int j = 0; j < threads.length; j++) {
       threads[j] =
           new Thread(
@@ -91,7 +88,6 @@ class StreamingSamplerTest {
                     cnt += 1;
                   }
                 }
-
                 allCnt.addAndGet(cnt);
               });
       threads[j].start();
@@ -100,21 +96,23 @@ class StreamingSamplerTest {
       thread.join();
     }
     final double perWindow = (allCnt.get() / (double) windowCounter.get());
-    System.out.println("===> " + allCnt.get() + ", " + perWindow);
+    System.out.println("===> " + allCnt.get() + ", " + perWindow + ", " + windowCounter.get());
     System.out.println();
     final double dev = perWindow - samplesPerWindow;
     Assertions.assertTrue(
-        dev <= 0.2 * samplesPerWindow,
+        dev <= 0.2d * samplesPerWindow,
         allCnt.get() + " <= (" + samplesPerWindow + " * " + totalWindows + ") [" + threadCnt + ']');
   }
 
   private static Stream<Arguments> samplerParams() {
     final List<Arguments> args = new ArrayList<>();
-    for (int threadCnt = 1; threadCnt < 128; threadCnt *= 2) {
-      for (int windows = 1; windows < 20; windows += 2) {
-        args.add(Arguments.of(threadCnt, 10, 5, windows, 511, 0.001d));
-        args.add(Arguments.of(threadCnt, 10, 5, windows, 511, 0.5d));
-        args.add(Arguments.of(threadCnt, 10, 5, windows, 511, 1d));
+    for (int threadCnt = 1; threadCnt < 64; threadCnt *= 2) {
+      for (int windows = 1; windows <= 16; windows *= 2) {
+        for (int samples = 5; samples <= 40; samples *= 2) {
+          args.add(Arguments.of(threadCnt, 10, samples, windows, 511, 0.001d));
+          args.add(Arguments.of(threadCnt, 10, samples, windows, 511, 0.5d));
+          args.add(Arguments.of(threadCnt, 10, samples, windows, 511, 1d));
+        }
       }
     }
     return args.stream();
