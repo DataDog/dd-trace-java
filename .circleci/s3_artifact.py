@@ -11,7 +11,7 @@ for path, subdirs, files in os.walk('./workspace/dd-java-agent/build/libs'):
         # Write the artifact to S3
         transfer.upload_file(os.path.join(path, name), 'datadog-reliability-env', f'java/{name}')
         # write additional information used by the build
-        fp = tempfile.NamedTemporaryFile()
+        fp = tempfile.NamedTemporaryFile(mode='w')
         for line in [os.getenv('CIRCLE_BRANCH'), os.getenv('CIRCLE_SHA1'), name, os.getenv('CIRCLE_USERNAME')]:
           fp.write(line)
         fp.close()
