@@ -1,13 +1,14 @@
 package com.datadog.profiling.exceptions;
 
 import datadog.trace.api.Config;
+import jdk.jfr.EventType;
+import jdk.jfr.FlightRecorder;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
-import jdk.jfr.EventType;
-import jdk.jfr.FlightRecorder;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ExceptionHistogram {
@@ -49,18 +50,18 @@ public class ExceptionHistogram {
       typeName = CLIPPED_ENTRY_TYPE_NAME;
     }
 
-    final boolean[] firstHit = new boolean[] {false};
+    final boolean[] firstHit = new boolean[]{false};
     histogram
-        .computeIfAbsent(
-            typeName,
-            k -> {
-              try {
-                return new AtomicLong();
-              } finally {
-                firstHit[0] = true;
-              }
-            })
-        .incrementAndGet();
+      .computeIfAbsent(
+        typeName,
+        k -> {
+          try {
+            return new AtomicLong();
+          } finally {
+            firstHit[0] = true;
+          }
+        })
+      .incrementAndGet();
 
     // FIXME: this 'first hit' logic is confusing and untested
     return firstHit[0];
@@ -72,12 +73,12 @@ public class ExceptionHistogram {
     }
 
     Stream<Map.Entry<String, Long>> items =
-        histogram
-            .entrySet()
-            .stream()
-            .map(e -> entry(e.getKey(), e.getValue().getAndSet(0L)))
-            .filter(e -> e.getValue() != 0)
-            .sorted((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()));
+      histogram
+        .entrySet()
+        .stream()
+        .map(e -> entry(e.getKey(), e.getValue().getAndSet(0L)))
+        .filter(e -> e.getValue() != 0)
+        .sorted((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()));
 
     if (maxTopItems > 0) {
       items = items.limit(maxTopItems);

@@ -1,6 +1,5 @@
 package com.datadog.profiling.exceptions;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.google.common.collect.ImmutableMap;
