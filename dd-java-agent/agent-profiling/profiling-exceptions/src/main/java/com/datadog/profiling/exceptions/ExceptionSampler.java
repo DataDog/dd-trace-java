@@ -12,12 +12,17 @@ final class ExceptionSampler {
     this(
         config.getProfilingExceptionSamplerSlidingWindow(),
         TimeUnit.SECONDS,
-        config.getProfilingExceptionSamplerSlidingWindowSamples());
+        config.getProfilingExceptionSamplerSlidingWindowSamples(),
+        config.getProfilingExceptionSamplerInitialInterval());
   }
 
   ExceptionSampler(
-      final long windowDuration, final TimeUnit windowDurationUnit, final int samplesPerWindow) {
-    sampler = new StreamingSampler(windowDuration, windowDurationUnit, samplesPerWindow);
+      final long windowDuration,
+      final TimeUnit windowDurationUnit,
+      final int samplesPerWindow,
+      final int initialInterval) {
+    sampler =
+        new StreamingSampler(windowDuration, windowDurationUnit, samplesPerWindow, initialInterval);
     exceptionSampleType = EventType.getEventType(ExceptionSampleEvent.class);
   }
 
