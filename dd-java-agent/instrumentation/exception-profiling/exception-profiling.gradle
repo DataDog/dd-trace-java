@@ -13,10 +13,8 @@ apply plugin: "idea"
 dependencies {
   compile project(':dd-java-agent:agent-tooling')
 
-  // We need this dependency so helper injection works
-//  compile project(':dd-java-agent:agent-profiling:profiling-exceptions')
-
-//  main_java11Compile project(':dd-java-agent:agent-profiling:profiling-exceptions')
+  testCompile deps.junit5
+  testCompile deps.jmc
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_7
@@ -35,12 +33,12 @@ compileMain_java11Java {
   }
 }
 
-compileTestGroovy {
+compileTestJava {
   doFirst {
     // Disable '-processing' because some annotations are not claimed.
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.
-    options.compilerArgs.addAll(['-Xlint:all,-processing,-path'])
+    options.compilerArgs.addAll(['-source', '8', '-target', '8', '-Xlint:all,-processing,-options,-path'])
     options.fork = true
     options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
   }
