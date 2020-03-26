@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.springsecurity;
 
-import datadog.trace.agent.decorator.BaseDecorator;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.Collection;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -14,7 +14,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.util.SimpleMethodInvocation;
 import org.springframework.security.web.FilterInvocation;
-import org.springframework.security.web.authentication.WebAuthenticationDetails;
 
 @Slf4j
 public class SpringSecurityDecorator extends BaseDecorator {
@@ -124,6 +123,5 @@ public class SpringSecurityDecorator extends BaseDecorator {
 
     boolean isAuthenticated = auth.isAuthenticated();
     span.setTag("authentication.is_authenticated", isAuthenticated);
-
   }
 }
