@@ -252,7 +252,7 @@ jobs:
   publish_tag:
     <<: *publish
 
-  copy_s3:
+  copy_artifact_s3:
     docker:
       - image: circleci/python:3.6.4
     steps:
@@ -352,7 +352,7 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - copy_s3:
+      - copy_artifact_s3:
           requires:
             - build
 
