@@ -23,7 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DDSpanContext implements io.opentracing.SpanContext {
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
-  public static final String SAMPLE_RATE_KEY = "_sample_rate";
   public static final String ORIGIN_KEY = "_dd.origin";
   public static final String DD_MEASURED = "_dd.measured";
   public static final Number DD_MEASURED_DEFAULT = 1;
