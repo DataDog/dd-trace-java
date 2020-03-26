@@ -9,7 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator
 import spock.lang.Shared
 
-abstract class AbstractGoogleHttpClientTest extends HttpClientTest<GoogleHttpClientDecorator> {
+abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
 
   @Shared
   def requestFactory = new NetHttpTransport().createRequestFactory()
@@ -23,6 +23,8 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest<GoogleHttpCli
     GenericUrl genericUrl = new GenericUrl(uri)
 
     HttpRequest request = requestFactory.buildRequest(method, genericUrl, null)
+    request.connectTimeout = CONNECT_TIMEOUT_MS
+    request.readTimeout = READ_TIMEOUT_MS
     request.getHeaders().putAll(headers)
     request.setThrowExceptionOnExecuteError(throwExceptionOnError)
 
@@ -35,8 +37,8 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest<GoogleHttpCli
   abstract HttpResponse executeRequest(HttpRequest request)
 
   @Override
-  GoogleHttpClientDecorator decorator() {
-    return GoogleHttpClientDecorator.DECORATE
+  String component() {
+    return GoogleHttpClientDecorator.DECORATE.component()
   }
 
   @Override

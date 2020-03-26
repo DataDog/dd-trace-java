@@ -20,6 +20,7 @@ import io.opentracing.propagation.TextMapInject
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
+import spock.lang.Timeout
 
 import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.Config.HEADER_TAGS
@@ -31,6 +32,7 @@ import static datadog.trace.api.Config.SPAN_TAGS
 import static datadog.trace.api.Config.WRITER_TYPE
 import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_INJECT
 
+@Timeout(10)
 class DDTracerTest extends DDSpecification {
 
   @Rule
@@ -46,10 +48,6 @@ class DDTracerTest extends DDSpecification {
     tracer.serviceName == "unnamed-java-app"
     tracer.sampler instanceof RateByServiceSampler
     tracer.writer instanceof DDAgentWriter
-    ((DDAgentWriter) tracer.writer).api.tracesUrl.host() == "localhost"
-    ((DDAgentWriter) tracer.writer).api.tracesUrl.port() == 8126
-    ((DDAgentWriter) tracer.writer).api.tracesUrl.encodedPath() == "/v0.3/traces" ||
-      ((DDAgentWriter) tracer.writer).api.tracesUrl.encodedPath() == "/v0.4/traces"
     tracer.writer.monitor instanceof Monitor.Noop
 
     tracer.spanContextDecorators.size() == 15
@@ -117,9 +115,9 @@ class DDTracerTest extends DDSpecification {
     when:
     System.setProperty(PREFIX + key, value)
     def tracer = DDTracer.builder().config(new Config()).build()
-
     then:
     tracer.writer instanceof DDAgentWriter
+    ((DDAgentWriter) tracer.writer).api.sendTraces([])
     ((DDAgentWriter) tracer.writer).api.tracesUrl.host() == value
     ((DDAgentWriter) tracer.writer).api.tracesUrl.port() == 8126
 
@@ -135,6 +133,7 @@ class DDTracerTest extends DDSpecification {
 
     then:
     tracer.writer instanceof DDAgentWriter
+    ((DDAgentWriter) tracer.writer).api.sendTraces([])
     ((DDAgentWriter) tracer.writer).api.tracesUrl.host() == "localhost"
     ((DDAgentWriter) tracer.writer).api.tracesUrl.port() == Integer.valueOf(value)
 

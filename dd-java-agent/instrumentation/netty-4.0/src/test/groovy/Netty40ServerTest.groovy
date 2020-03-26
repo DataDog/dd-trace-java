@@ -32,7 +32,9 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1
 
-class Netty40ServerTest extends HttpServerTest<EventLoopGroup, NettyHttpServerDecorator> {
+class Netty40ServerTest extends HttpServerTest<EventLoopGroup> {
+
+  static final LoggingHandler LOGGING_HANDLER = new LoggingHandler(SERVER_LOGGER.name, LogLevel.DEBUG)
 
   @Override
   EventLoopGroup startServer(int port) {
@@ -40,10 +42,12 @@ class Netty40ServerTest extends HttpServerTest<EventLoopGroup, NettyHttpServerDe
 
     ServerBootstrap bootstrap = new ServerBootstrap()
       .group(eventLoopGroup)
-      .handler(new LoggingHandler(LogLevel.INFO))
+      .handler(LOGGING_HANDLER)
       .childHandler([
         initChannel: { ch ->
           ChannelPipeline pipeline = ch.pipeline()
+          pipeline.addFirst("logger", LOGGING_HANDLER)
+
           def handlers = [new HttpRequestDecoder(), new HttpResponseEncoder()]
           handlers.each { pipeline.addLast(it) }
           pipeline.addLast([
@@ -105,8 +109,8 @@ class Netty40ServerTest extends HttpServerTest<EventLoopGroup, NettyHttpServerDe
   }
 
   @Override
-  NettyHttpServerDecorator decorator() {
-    NettyHttpServerDecorator.DECORATE
+  String component() {
+    NettyHttpServerDecorator.DECORATE.component()
   }
 
   @Override

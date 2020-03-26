@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.springwebflux.client;
 
-import datadog.trace.agent.decorator.HttpClientDecorator;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.reactive.function.client.ClientRequest;
@@ -37,16 +37,6 @@ public class SpringWebfluxHttpClientDecorator
   @Override
   protected URI url(final ClientRequest httpRequest) {
     return httpRequest.url();
-  }
-
-  @Override
-  protected String hostname(final ClientRequest httpRequest) {
-    return httpRequest.url().getHost();
-  }
-
-  @Override
-  protected Integer port(final ClientRequest httpRequest) {
-    return httpRequest.url().getPort();
   }
 
   @Override

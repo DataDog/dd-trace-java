@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.hystrix;
 
-import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.instrumentation.hystrix.HystrixDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -28,8 +29,14 @@ public class HystrixInstrumentation extends Instrumenter.Default {
   }
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed("com.netflix.hystrix.HystrixCommand");
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return safeHasSuperType(
+    return extendsClass(
         named("com.netflix.hystrix.HystrixCommand")
             .or(named("com.netflix.hystrix.HystrixObservableCommand")));
   }
@@ -38,7 +45,6 @@ public class HystrixInstrumentation extends Instrumenter.Default {
   public String[] helperClassNames() {
     return new String[] {
       "rx.DDTracingUtil",
-      "datadog.trace.agent.decorator.BaseDecorator",
       "datadog.trace.instrumentation.rxjava.SpanFinishingSubscription",
       "datadog.trace.instrumentation.rxjava.TracedSubscriber",
       "datadog.trace.instrumentation.rxjava.TracedOnSubscribe",

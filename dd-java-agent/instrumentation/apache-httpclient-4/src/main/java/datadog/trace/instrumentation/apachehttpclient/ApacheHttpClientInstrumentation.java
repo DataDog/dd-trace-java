@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.apachehttpclient;
 
-import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient.HttpHeadersInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
-import static net.bytebuddy.matcher.ElementMatchers.isInterface;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -43,21 +43,24 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
   }
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed("org.apache.http.client.HttpClient");
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return not(isInterface()).and(safeHasSuperType(named("org.apache.http.client.HttpClient")));
+    return implementsInterface(named("org.apache.http.client.HttpClient"));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      getClass().getName() + "$HelperMethods",
-      packageName + ".HttpHeadersInjectAdapter",
-      getClass().getName() + "$WrappingStatusSettingResponseHandler",
-      "datadog.trace.agent.decorator.BaseDecorator",
-      "datadog.trace.agent.decorator.ClientDecorator",
-      "datadog.trace.agent.decorator.HttpClientDecorator",
       packageName + ".ApacheHttpClientDecorator",
+      packageName + ".HttpHeadersInjectAdapter",
       packageName + ".HostAndRequestAsHttpUriRequest",
+      getClass().getName() + "$HelperMethods",
+      getClass().getName() + "$WrappingStatusSettingResponseHandler",
     };
   }
 

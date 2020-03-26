@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.ratpack;
 
 import com.google.common.net.HostAndPort;
-import datadog.trace.agent.decorator.HttpServerDecorator;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.URI;
 import lombok.extern.slf4j.Slf4j;
 import ratpack.handling.Context;
@@ -46,11 +46,6 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
     final HttpUrlBuilder url =
         publicAddress.builder().path(request.getPath()).params(request.getQueryParams());
     return url.build();
-  }
-
-  @Override
-  protected String peerHostname(final Request request) {
-    return request.getRemoteAddress().getHostText();
   }
 
   @Override

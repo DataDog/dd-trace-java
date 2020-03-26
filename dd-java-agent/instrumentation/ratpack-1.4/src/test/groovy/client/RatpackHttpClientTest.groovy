@@ -7,20 +7,28 @@ import ratpack.http.client.HttpClient
 import ratpack.test.exec.ExecHarness
 import spock.lang.AutoCleanup
 import spock.lang.Shared
+import spock.lang.Timeout
 
-class RatpackHttpClientTest extends HttpClientTest<NettyHttpClientDecorator> {
+import java.time.Duration
+
+@Timeout(5)
+class RatpackHttpClientTest extends HttpClientTest {
 
   @AutoCleanup
   @Shared
   ExecHarness exec = ExecHarness.harness()
 
   @Shared
-  def client = HttpClient.of {}
+  def client = HttpClient.of {
+    it.readTimeout(Duration.ofSeconds(2))
+    // Connect timeout added in 1.5
+  }
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
     ExecResult<Integer> result = exec.yield {
       def resp = client.request(uri) { spec ->
+        spec.connectTimeout(Duration.ofSeconds(2))
         spec.method(method)
         spec.headers { headersSpec ->
           headers.entrySet().each {
@@ -37,8 +45,8 @@ class RatpackHttpClientTest extends HttpClientTest<NettyHttpClientDecorator> {
   }
 
   @Override
-  NettyHttpClientDecorator decorator() {
-    return NettyHttpClientDecorator.DECORATE
+  String component() {
+    return NettyHttpClientDecorator.DECORATE.component()
   }
 
   @Override
@@ -54,5 +62,10 @@ class RatpackHttpClientTest extends HttpClientTest<NettyHttpClientDecorator> {
   @Override
   boolean testConnectionFailure() {
     false
+  }
+
+  @Override
+  boolean testRemoteConnection() {
+    return false
   }
 }

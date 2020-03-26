@@ -1,12 +1,11 @@
 package datadog.trace.instrumentation.rmi.server;
 
-import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.rmi.ThreadLocalContext.THREAD_LOCAL_CONTEXT;
 import static datadog.trace.instrumentation.rmi.server.RmiServerDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.isInterface;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
@@ -34,16 +33,12 @@ public final class RmiServerInstrumentation extends Instrumenter.Default {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.agent.decorator.ServerDecorator",
-      "datadog.trace.agent.decorator.BaseDecorator",
-      packageName + ".RmiServerDecorator"
-    };
+    return new String[] {packageName + ".RmiServerDecorator"};
   }
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return not(isInterface()).and(safeHasSuperType(named("java.rmi.server.RemoteServer")));
+    return extendsClass(named("java.rmi.server.RemoteServer"));
   }
 
   @Override

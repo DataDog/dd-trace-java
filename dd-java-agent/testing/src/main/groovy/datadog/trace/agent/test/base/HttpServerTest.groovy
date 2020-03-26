@@ -1,7 +1,7 @@
 package datadog.trace.agent.test.base
 
+import ch.qos.logback.classic.Level
 import datadog.opentracing.DDSpan
-import datadog.trace.agent.decorator.HttpServerDecorator
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -16,6 +16,8 @@ import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import spock.lang.Shared
 import spock.lang.Unroll
 
@@ -36,7 +38,12 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static org.junit.Assume.assumeTrue
 
 @Unroll
-abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> extends AgentTestRunner {
+abstract class HttpServerTest<SERVER> extends AgentTestRunner {
+
+  public static final Logger SERVER_LOGGER = LoggerFactory.getLogger("http-server")
+  static {
+    ((ch.qos.logback.classic.Logger) SERVER_LOGGER).setLevel(Level.DEBUG)
+  }
 
   @Shared
   SERVER server
@@ -52,7 +59,7 @@ abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> ext
   }
 
   @Shared
-  DECORATOR serverDecorator = decorator()
+  String component = component()
 
   def setupSpec() {
     server = startServer(port)
@@ -73,7 +80,7 @@ abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> ext
 
   abstract void stopServer(SERVER server)
 
-  abstract DECORATOR decorator()
+  abstract String component()
 
   String expectedServiceName() {
     "unnamed-java-app"
@@ -524,9 +531,8 @@ abstract class HttpServerTest<SERVER, DECORATOR extends HttpServerDecorator> ext
         parent()
       }
       tags {
-        "$Tags.COMPONENT" serverDecorator.component()
+        "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOSTNAME" { it == "localhost" || it == "127.0.0.1" }
         "$Tags.PEER_PORT" Integer
         "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"

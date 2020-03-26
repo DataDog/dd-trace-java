@@ -5,13 +5,17 @@ import com.sun.jersey.api.client.filter.LoggingFilter
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator
 import spock.lang.Shared
+import spock.lang.Timeout
 
-class JaxRsClientV1Test extends HttpClientTest<JaxRsClientV1Decorator> {
+@Timeout(5)
+class JaxRsClientV1Test extends HttpClientTest {
 
   @Shared
   Client client = Client.create()
 
   def setupSpec() {
+    client.setConnectTimeout(CONNECT_TIMEOUT_MS)
+    client.setReadTimeout(READ_TIMEOUT_MS)
     // Add filters to ensure spans aren't duplicated.
     client.addFilter(new LoggingFilter())
     client.addFilter(new GZIPContentEncodingFilter())
@@ -29,8 +33,8 @@ class JaxRsClientV1Test extends HttpClientTest<JaxRsClientV1Decorator> {
   }
 
   @Override
-  JaxRsClientV1Decorator decorator() {
-    return JaxRsClientV1Decorator.DECORATE
+  String component() {
+    return JaxRsClientV1Decorator.DECORATE.component()
   }
 
   @Override

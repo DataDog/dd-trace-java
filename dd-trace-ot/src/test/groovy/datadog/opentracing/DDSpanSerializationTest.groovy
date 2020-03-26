@@ -20,6 +20,7 @@ class DDSpanSerializationTest extends DDSpecification {
     def jsonAdapter = new Moshi.Builder().build().adapter(Map)
 
     final Map<String, Number> metrics = ["_sampling_priority_v1": 1]
+    metrics.putAll(DDSpanContext.DEFAULT_METRICS)
     if (samplingPriority == PrioritySampling.UNSET) {  // RateByServiceSampler sets priority
       metrics.put("_dd.agent_psr", 1.0d)
     }
@@ -60,8 +61,9 @@ class DDSpanSerializationTest extends DDSpecification {
         false,
         spanType,
         ["k1": "v1"],
-        new PendingTrace(tracer, 1G, [:]),
-        tracer)
+        new PendingTrace(tracer, 1G),
+        tracer,
+        [:])
 
     DDSpan span = new DDSpan(100L, context)
 
@@ -95,8 +97,9 @@ class DDSpanSerializationTest extends DDSpecification {
       false,
       spanType,
       Collections.emptyMap(),
-      new PendingTrace(tracer, 1G, [:]),
-      tracer)
+      new PendingTrace(tracer, 1G),
+      tracer,
+      [:])
     def span = new DDSpan(0, context)
     def buffer = new ArrayBufferOutput()
     def packer = MessagePack.newDefaultPacker(buffer)

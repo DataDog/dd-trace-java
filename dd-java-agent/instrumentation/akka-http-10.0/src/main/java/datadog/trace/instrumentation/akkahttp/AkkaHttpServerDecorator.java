@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.akkahttp;
 
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
-import datadog.trace.agent.decorator.HttpServerDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -28,11 +28,6 @@ public class AkkaHttpServerDecorator
   @Override
   protected URI url(final HttpRequest httpRequest) throws URISyntaxException {
     return new URI(httpRequest.uri().toString());
-  }
-
-  @Override
-  protected String peerHostname(final HttpRequest httpRequest) {
-    return null;
   }
 
   @Override

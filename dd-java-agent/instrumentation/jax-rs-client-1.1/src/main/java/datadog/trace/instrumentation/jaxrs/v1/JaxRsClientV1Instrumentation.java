@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.jaxrs.v1;
 
-import static datadog.trace.agent.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
-import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jaxrs.v1.InjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator.DECORATE;
 import static java.util.Collections.singletonMap;
@@ -34,18 +36,20 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Default {
   }
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed("com.sun.jersey.api.client.ClientHandler");
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return safeHasSuperType(named("com.sun.jersey.api.client.ClientHandler"));
+    return implementsInterface(named("com.sun.jersey.api.client.ClientHandler"));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.agent.decorator.BaseDecorator",
-      "datadog.trace.agent.decorator.ClientDecorator",
-      "datadog.trace.agent.decorator.HttpClientDecorator",
-      packageName + ".JaxRsClientV1Decorator",
-      packageName + ".InjectAdapter",
+      packageName + ".JaxRsClientV1Decorator", packageName + ".InjectAdapter",
     };
   }
 
@@ -53,10 +57,8 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Default {
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
         named("handle")
-            .and(
-                takesArgument(
-                    0, safeHasSuperType(named("com.sun.jersey.api.client.ClientRequest"))))
-            .and(returns(safeHasSuperType(named("com.sun.jersey.api.client.ClientResponse")))),
+            .and(takesArgument(0, extendsClass(named("com.sun.jersey.api.client.ClientRequest"))))
+            .and(returns(extendsClass(named("com.sun.jersey.api.client.ClientResponse")))),
         JaxRsClientV1Instrumentation.class.getName() + "$HandleAdvice");
   }
 

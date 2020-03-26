@@ -4,12 +4,11 @@ import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
-import datadog.trace.agent.decorator.HttpClientDecorator;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -102,18 +101,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   }
 
   @Override
-  protected URI url(final Request request) throws URISyntaxException {
-    return new URI(request.getEndpoint().toString());
-  }
-
-  @Override
-  protected String hostname(final Request request) {
-    return null;
-  }
-
-  @Override
-  protected Integer port(final Request request) {
-    return null;
+  protected URI url(final Request request) {
+    return request.getEndpoint();
   }
 
   @Override

@@ -24,15 +24,14 @@ public class CassandraClientInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
+    // Note: Cassandra has a large driver and we instrument single class in it.
+    // The rest is ignored in AdditionalLibraryIgnoresMatcher
     return named("com.datastax.driver.core.Cluster$Manager");
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.agent.decorator.BaseDecorator",
-      "datadog.trace.agent.decorator.ClientDecorator",
-      "datadog.trace.agent.decorator.DatabaseClientDecorator",
       packageName + ".CassandraClientDecorator",
       packageName + ".TracingSession",
       packageName + ".TracingSession$1",
