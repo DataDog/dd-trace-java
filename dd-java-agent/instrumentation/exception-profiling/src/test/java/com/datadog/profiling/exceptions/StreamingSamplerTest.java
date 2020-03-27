@@ -17,26 +17,15 @@ class StreamingSamplerTest {
   private static final class TimestampProvider implements Supplier<Long> {
     private final Random rnd = new Random();
     private final AtomicLong ts = new AtomicLong(0L);
-    private final int step;
-    private final double stdDev;
+    private final long step;
 
-    TimestampProvider(
-        final int windowDuration, final int totalWindows, final int hits, final double stdDev) {
-      final long totalDuration =
-          TimeUnit.NANOSECONDS.convert(windowDuration, TimeUnit.SECONDS) * totalWindows;
-      step =
-          (int)
-              TimeUnit.MILLISECONDS.convert(
-                  Math.round(totalDuration / (double) hits), TimeUnit.NANOSECONDS);
-      this.stdDev = stdDev;
+    TimestampProvider(long totalDuration, long expectedEvents) {
+      step = Math.round(totalDuration / (double) expectedEvents);
     }
 
     @Override
     public Long get() {
-      final double diff =
-          Math.max(
-              (step + ((rnd.nextGaussian() * step) * stdDev)) * 1_000_000L,
-              1); // at least 1ns progress
+      double diff = Math.max(step + ((rnd.nextGaussian() * step) * 0.5d), 0);
       return ts.getAndAdd(Math.round(diff));
     }
   }
@@ -44,42 +33,47 @@ class StreamingSamplerTest {
   @ParameterizedTest(name = "{index}")
   @MethodSource("samplerParams")
   void sample(
-      final int threadCnt,
-      final int windowDuration,
-      final int samplesPerWindow,
-      final int totalWindows,
-      final int hits,
-      final double clockStdDev)
+      int threadCnt,
+      long windowDuration,
+      int samplesPerWindow,
+      long totalDuration,
+      long totalEvents)
       throws Exception {
 
-    final AtomicInteger windowCounter = new AtomicInteger(1); // implicitly 1 window
-    final TimestampProvider tsProvider =
-        new TimestampProvider(windowDuration, totalWindows, hits, clockStdDev);
+    TimestampProvider tsProvider =
+        new TimestampProvider(
+            TimeUnit.NANOSECONDS.convert(totalDuration, TimeUnit.MILLISECONDS), totalEvents);
     final StreamingSampler instance =
-        new StreamingSampler(windowDuration, TimeUnit.SECONDS, samplesPerWindow, 10, tsProvider) {
-          @Override
-          protected void onWindowRoll(final SamplerState state) {
-            windowCounter.incrementAndGet();
-          }
-        };
+        new StreamingSampler(
+            windowDuration, TimeUnit.MILLISECONDS, samplesPerWindow, 5, tsProvider);
 
     final AtomicInteger allCnt = new AtomicInteger(0);
-    final Thread[] threads = new Thread[threadCnt];
+    Thread[] threads = new Thread[threadCnt];
+
+    long expectedSamples = Math.round((totalDuration / (double) windowDuration) * samplesPerWindow);
+    final long eventsPerThread = totalEvents / threadCnt;
+    long startTs = tsProvider.get();
     System.out.println(
-        "==> windows: "
-            + totalWindows
-            + ", threads: "
+        "===> threads: "
             + threadCnt
-            + ", clockDev: "
-            + clockStdDev
-            + ", samplesPerWindow: "
-            + samplesPerWindow);
+            + ", events per thread: "
+            + eventsPerThread
+            + ", total events: "
+            + totalEvents
+            + ", total duration[ms]: "
+            + totalDuration
+            + ", window duration[ms]: "
+            + windowDuration
+            + ", samples per window: "
+            + samplesPerWindow
+            + ", expected samples: "
+            + expectedSamples);
     for (int j = 0; j < threads.length; j++) {
       threads[j] =
           new Thread(
               () -> {
                 int cnt = 0;
-                for (long i = 0; i < hits; i++) {
+                for (long i = 0; i <= eventsPerThread; i++) {
                   if (instance.sample()) {
                     cnt += 1;
                   }
@@ -88,29 +82,58 @@ class StreamingSamplerTest {
               });
       threads[j].start();
     }
-    for (final Thread thread : threads) {
+    for (Thread thread : threads) {
       thread.join();
     }
-    final double perWindow = (allCnt.get() / (double) windowCounter.get());
-    System.out.println("===> " + allCnt.get() + ", " + perWindow + ", " + windowCounter.get());
+    long allSamples = allCnt.get();
+    long realDuration =
+        TimeUnit.MILLISECONDS.convert(tsProvider.get() - startTs, TimeUnit.NANOSECONDS);
+
+    double allSamplesRate = allSamples / (double) realDuration;
+    double expectedSamplesRate = expectedSamples / (double) totalDuration;
+
+    double dev = allSamplesRate - expectedSamplesRate;
+    double ratio = Math.abs(dev / expectedSamplesRate);
+
+    System.out.println(
+        "===> sample rates: all = "
+            + allSamplesRate
+            + " ~ expected "
+            + expectedSamplesRate
+            + ", relative diff: "
+            + Math.round((ratio * 100))
+            + "%");
     System.out.println();
-    final double dev = perWindow - samplesPerWindow;
+    double errorMargin = 0.1d;
     Assertions.assertTrue(
-        dev <= 0.2d * samplesPerWindow,
-        allCnt.get() + " <= (" + samplesPerWindow + " * " + totalWindows + ") [" + threadCnt + ']');
+        ratio <= errorMargin,
+        allSamplesRate
+            + " is outside of its limits: <"
+            + expectedSamplesRate * (1 - errorMargin)
+            + ", "
+            + expectedSamplesRate * (1 + errorMargin)
+            + ">");
   }
 
   private static Stream<Arguments> samplerParams() {
-    final List<Arguments> args = new ArrayList<>();
-    for (int threadCnt = 1; threadCnt < 64; threadCnt *= 2) {
-      for (int windows = 1; windows <= 16; windows *= 2) {
-        for (int samples = 5; samples <= 40; samples *= 2) {
-          args.add(Arguments.of(threadCnt, 10, samples * 10, windows, 511, 0.001d));
-          args.add(Arguments.of(threadCnt, 10, samples, windows, 511, 0.5d));
-          args.add(Arguments.of(threadCnt, 10, samples, windows, 511, 1d));
+    if (false) {
+      return Stream.of(Arguments.of(1, 10, 5, 30, 511));
+    } else {
+      List<Arguments> args = new ArrayList<>();
+      for (int threadCnt = 1; threadCnt <= 64; threadCnt *= 4) {
+        for (int samples = 10; samples <= 40; samples *= 2) {
+          // simulate 10 seconds window for a recording lasting for 30 seconds and containing
+          // unsampled 25k exception events
+          args.add(Arguments.of(threadCnt, 10_000, samples, 30_000, 25_000));
+          // simulate 10 seconds window for a recording lasting for 120 seconds and containing
+          // unsampled 300k exception events
+          args.add(Arguments.of(threadCnt, 10_000, samples, 120_000, 300_000));
+          // simulate 10 seconds window for a recording lasting for 600 seconds and containing
+          // unsampled 1M exception events
+          args.add(Arguments.of(threadCnt, 10_000, samples, 600_000, 1_000_000));
         }
       }
+      return args.stream();
     }
-    return args.stream();
   }
 }

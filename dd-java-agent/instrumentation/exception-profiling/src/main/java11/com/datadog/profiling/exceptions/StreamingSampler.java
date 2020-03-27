@@ -2,9 +2,7 @@ package com.datadog.profiling.exceptions;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
@@ -15,208 +13,72 @@ import java.util.function.Supplier;
  * vary the expected sampling interval (how many events are between two samples in average) to cover
  * the events within one window by approximately the number of requested samples per window. Due to
  * all the numbers being just estimates the actual number of samples may vary slightly (the tests
- * show the variability being around 20%) and it must be understood that the expected number of
+ * show the variability being under 10%) and it must be understood that the expected number of
  * samples per window is not a hard/precise limit.
  */
-public class StreamingSampler {
-  /**
-   * Immutable sampler state wrapper. Provides methods to derive a new state on arriving sample or
-   * window roll.
+class StreamingSampler {
+  /*
+   * Exponential Moving Average (EMA) last element weight.
+   * Check out papers about using EMA for streaming data - eg.
+   * https://nestedsoftware.com/2018/04/04/exponential-moving-average-on-streaming-data-4hhl.24876.html
    */
-  static final class SamplerState {
-    private final AtomicLong eventCounter;
-    // was this state created for a sampling test?
-    private final AtomicBoolean sampledFlag;
-    // was this state create for a window roll?
-    private final AtomicBoolean expiredFlag;
-    final long samples;
-    final double threshold;
-    final long windowStartTs;
-    final long windowEndTs;
-    final long windowDurationNs;
-    final long samplesPerWindow;
+  private static final double EMA_ALPHA = 0.6d;
 
-    private final Supplier<Long> tsProvider;
+  private final Supplier<Long> tsProvider;
+  private final AtomicLong testCounter = new AtomicLong(0L);
+  private final long windowDurationNs;
+  private final int samplesPerWindow;
 
-    private SamplerState(
-        final long events,
-        final double threshold,
-        final long samples,
-        final long samplesPerWindow,
-        final long windowDurationNs,
-        final long windowStartTs,
-        final boolean sampled,
-        final boolean expired,
-        final Supplier<Long> tsProvider) {
-      eventCounter = new AtomicLong(events);
-      this.threshold = threshold;
-      this.samples = samples;
+  /*
+   * The following two fields are accessed from the synchronized block only so they don't need to be volatile.
+   */
+  private long thisWindowTs;
+  private double intervalEma;
 
-      this.windowDurationNs = windowDurationNs;
-      this.windowStartTs = windowStartTs;
-      windowEndTs = windowStartTs + windowDurationNs;
-      this.samplesPerWindow = samplesPerWindow;
-      this.tsProvider = tsProvider;
-      sampledFlag = new AtomicBoolean(sampled);
-      expiredFlag = new AtomicBoolean(expired);
-    }
-
-    SamplerState(
-        final long events,
-        final long interval,
-        final long samples,
-        final long samplesPerWindow,
-        final long windowDurationNs,
-        final Supplier<Long> tsProvider) {
-      this(
-          events,
-          computeThreshold(samplesPerWindow, samples, interval),
-          samples,
-          samplesPerWindow,
-          windowDurationNs,
-          tsProvider.get(),
-          false,
-          false,
-          tsProvider);
-    }
-
-    SamplerState trySample() {
-      final long tested = eventCounter.incrementAndGet();
-      // test a uniformly distributed random number against the current threshold
-      final boolean isSampled = ThreadLocalRandom.current().nextDouble() <= threshold;
-
-      final long ts = tsProvider.get();
-      // a state is expired if the current time stamp is beyond the expected window end time stamp
-      final boolean isExpired = ts > windowEndTs;
-      if (isSampled || isExpired) {
-        /*
-         * Get the estimated event set size per the sampling window given the up-to-now incoming rate and the window duration.
-         */
-        final double estimatedSetSize = ((double) tested / (ts - windowStartTs)) * windowDurationNs;
-        /*
-         * Derive the desired sampling interval as such the expected number of samples can cover the estimated size
-         * in one sampling window.
-         */
-        final long interval =
-            Math.max(Math.round(estimatedSetSize / (samplesPerWindow - samples + 1)), 1);
-        // generate a new derived immutable state
-        return new SamplerState(
-            isExpired ? 0 : tested,
-            computeThreshold(samplesPerWindow, samples, interval),
-            isExpired ? 0 : samples + 1,
-            samplesPerWindow,
-            windowDurationNs,
-            isExpired ? ts : windowStartTs,
-            isSampled,
-            isExpired,
-            tsProvider);
-      }
-      return this;
-    }
-
-    /**
-     * Checks whether the state was created for a sampling test.<br>
-     * After this method is invoked all subsequent invocations will return {@literal false}
-     *
-     * @return {@literal true} only if this is the first invocation and the state was created for a
-     *     sampling test
-     */
-    boolean sampled() {
-      return sampledFlag.getAndSet(false);
-    }
-
-    /**
-     * Checks whether the state was created for a window roll.<br>
-     * After this method is invoked all subsequent invocations will return {@literal false}
-     *
-     * @return {@literal true} only if this is the first invocation and the state was created for a
-     *     window roll
-     */
-    boolean expired() {
-      return expiredFlag.getAndSet(false);
-    }
-
-    /**
-     * Use geometric cumulative distribution function (CDF) to calculate the threshold against which
-     * to test a uniformly distributed random number to decide whether the current test should yield
-     * sample or not.
-     */
-    private static double computeThreshold(
-        final long samplesPerWindow, final long samples, final long interval) {
-      /*
-       * The probability 'p' is calculated as the ratio between the outstanding samples per current window and the total
-       * expected sample per window.
-       */
-      final long samplesDiff = samplesPerWindow - samples;
-      final double p = (double) samplesDiff / (samplesPerWindow + 1);
-
-      /*
-       * The CDF '1−(1−p)^x+1', where 'x' is the tested interval, will give the probability of a sample appearing in
-       * the next 'x' tests.
-       */
-      return 1 - Math.pow(1 - p, interval + 1);
-    }
-
-    @Override
-    public String toString() {
-      return "SamplerState{"
-          + "eventCount="
-          + eventCounter.get()
-          + ", samples="
-          + samples
-          + ", threshold="
-          + threshold
-          + ", windowStartTs="
-          + windowStartTs
-          + ", windowEndTs="
-          + windowEndTs
-          + ", windowDurationNs="
-          + windowDurationNs
-          + ", samplesPerWindow="
-          + samplesPerWindow
-          + ", sampledFlag="
-          + sampledFlag
-          + '}';
-    }
-  }
-
-  private final AtomicReference<SamplerState> stateRef = new AtomicReference<>();
+  /*
+   * And these two fields are accessed also outside of the synchronized block so they need to be volatile to ensure
+   * visibility.
+   */
+  private volatile long nextSample = -1L;
+  private volatile long nextWindowTs;
 
   /**
    * Create a new sampler instance
    *
-   * @param samplingWindowDuration the sampling window duration
-   * @param slidingWindowUnit the time unit for the sampling window duration
-   * @param maxSamplesInWindow the maximum number of samples in the sampling window
-   * @param initialInterval the initial sampling interval (number of events between two samples)
+   * @param windowDuration     the sampling window duration
+   * @param windowDurationUnit the time unit for the sampling window duration
+   * @param samplesPerWindow   the maximum number of samples in the sampling window
+   * @param initialInterval    the initial sampling interval (number of events between two samples)
+   * @param tsProvider         timestamp provider
    */
-  public StreamingSampler(
-      final long samplingWindowDuration,
-      final TimeUnit slidingWindowUnit,
-      final int maxSamplesInWindow,
-      final int initialInterval) {
-    this(
-        samplingWindowDuration,
-        slidingWindowUnit,
-        maxSamplesInWindow,
-        initialInterval,
-        System::nanoTime);
+  StreamingSampler(
+    long windowDuration,
+    TimeUnit windowDurationUnit,
+    int samplesPerWindow,
+    int initialInterval,
+    Supplier<Long> tsProvider) {
+    this.tsProvider = tsProvider;
+    nextSample = getNextSample(initialInterval);
+    windowDurationNs = TimeUnit.NANOSECONDS.convert(windowDuration, windowDurationUnit);
+    thisWindowTs = tsProvider.get();
+    nextWindowTs = thisWindowTs + windowDurationNs;
+    this.samplesPerWindow = samplesPerWindow;
+    this.intervalEma = initialInterval;
   }
 
-  StreamingSampler(
-      final long windowDurationNs,
-      final TimeUnit windowDurationUnit,
-      final int samplesPerWindow,
-      final int initialInterval,
-      final Supplier<Long> tsProvider) {
-    stateRef.set(
-        new SamplerState(
-            0,
-            initialInterval,
-            0L,
-            samplesPerWindow,
-            TimeUnit.NANOSECONDS.convert(windowDurationNs, windowDurationUnit),
-            tsProvider));
+  /**
+   * Create a new sampler instance
+   *
+   * @param windowDuration     the sampling window duration
+   * @param windowDurationUnit the time unit for the sampling window duration
+   * @param samplesPerWindow   the maximum number of samples in the sampling window
+   * @param initialInterval    the initial sampling interval (number of events between two samples)
+   */
+  StreamingSampler(long windowDuration,
+                   TimeUnit windowDurationUnit,
+                   int samplesPerWindow,
+                   int initialInterval) {
+    this(windowDuration, windowDurationUnit, samplesPerWindow, initialInterval, System::nanoTime);
   }
 
   /**
@@ -224,34 +86,74 @@ public class StreamingSampler {
    *
    * @return {@literal true} if the event should be sampled
    */
-  public boolean sample() {
-    // atomically test and update the state
-    final SamplerState sampledState = stateRef.updateAndGet(SamplerState::trySample);
+  boolean sample() {
+    long ts = tsProvider.get();
+    // check whether the current window is expired
+    boolean isExpired = ts >= nextWindowTs;
 
-    // do not invoke the callback from the concurrent update part to minimize collision probability
-    if (sampledState != null) {
-      if (sampledState.expired()) {
-        onWindowRoll(sampledState);
-      }
-      if (sampledState.sampled()) {
-        onSample(sampledState);
-        return true;
+    long test = testCounter.incrementAndGet();
+    // check for the sampling interval to have elapsed
+    boolean isSampled = test >= nextSample;
+    if (isSampled || isExpired) {
+      /*
+       * Going to modify the shared state here.
+       * Need a fully synchronized block - relaxed locking via try-lock leads to severe undersampling in
+       * multi-threaded scenario.
+       * This block is hit only on sample or when the window has expired. That means that it should be infrequent
+       * enough to make the contention very improbable.
+       */
+      synchronized (this) {
+        /*
+         * Need to retest the expiration and sampling since they may have been changed by other threads
+         * since the previous check.
+         */
+        ts = tsProvider.get();
+        test = testCounter.get();
+
+        isSampled = test >= nextSample;
+        isExpired = ts >= nextWindowTs;
+        if (!isSampled && !isExpired) {
+          return false;
+        }
+
+        /*
+         * Get the estimated event set size per the sampling window given the up-to-now incoming rate and the window duration.
+         */
+        double estimatedSetSize = ((double) test / (ts - thisWindowTs)) * windowDurationNs;
+
+        /*
+         * Derive the desired sampling interval as such the expected number of samples can cover the estimated size
+         * in one sampling window.
+         */
+        double interval = estimatedSetSize / samplesPerWindow;
+        if (!Double.isNaN(intervalEma)) {
+          // calculate the approximation of exponential moving average (EMA) of the sampling interval
+          interval = intervalEma + (EMA_ALPHA * (interval - intervalEma));
+        }
+        intervalEma = interval;
+
+        if (isExpired) {
+          // when a window is expired we need to update the new window timestamps and reset the test counter
+          nextWindowTs = ts + windowDurationNs;
+          thisWindowTs = ts;
+          /*
+           * Be nice in a multithreaded env and do not unconditionally set to 0. This means that if other threads
+           * managed to increment this counter while this one was executing this synchronized block we want to
+           * subtract the last known value of that counter obtained *after* entering the synchronized block.
+           */
+          test = testCounter.addAndGet(-test);
+        }
+        // calculate the index of the next expected sample based on the interval EMA and some random jitter
+        nextSample = test + getNextSample(intervalEma);
+
+        return isSampled;
       }
     }
     return false;
   }
 
-  /**
-   * A custom callback to observe sample event. Mostly for debugging purposes.
-   *
-   * @param state the sampler state after taking this sample
-   */
-  protected void onSample(final SamplerState state) {}
-
-  /**
-   * A custom callback to observe rolling of the sampling window. Mostly for debugging purposes.
-   *
-   * @param state the sampler state after rolling the window
-   */
-  protected void onWindowRoll(final SamplerState state) {}
+  private static long getNextSample(double interval) {
+    // jitter the sampling interval to increase sample randomness
+    return Math.max(Math.round(interval + ThreadLocalRandom.current().nextGaussian() * interval * 0.1), 1);
+  }
 }
