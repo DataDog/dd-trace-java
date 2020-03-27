@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.decorators.AbstractDecorator;
 import java.math.BigInteger;
 import java.util.Collections;
@@ -21,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
  * the associated Span instance
  */
 @Slf4j
-public class DDSpanContext implements io.opentracing.SpanContext {
+public class DDSpanContext implements AgentSpan.Context {
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
   public static final String SAMPLE_RATE_KEY = "_sample_rate";
   public static final String ORIGIN_KEY = "_dd.origin";
@@ -136,22 +137,12 @@ public class DDSpanContext implements io.opentracing.SpanContext {
     return traceId;
   }
 
-  @Override
-  public String toTraceId() {
-    return traceId.toString();
-  }
-
   public BigInteger getParentId() {
     return parentId;
   }
 
   public BigInteger getSpanId() {
     return spanId;
-  }
-
-  @Override
-  public String toSpanId() {
-    return spanId.toString();
   }
 
   public String getServiceName() {
@@ -266,7 +257,7 @@ public class DDSpanContext implements io.opentracing.SpanContext {
     synchronized (this) {
       if (getMetrics().get(PRIORITY_SAMPLING_KEY) == null) {
         log.debug("{} : refusing to lock unset samplingPriority", this);
-      } else if (samplingPriorityLocked == false) {
+      } else if (!samplingPriorityLocked) {
         samplingPriorityLocked = true;
         log.debug(
             "{} : locked samplingPriority to {}", this, getMetrics().get(PRIORITY_SAMPLING_KEY));
@@ -296,10 +287,6 @@ public class DDSpanContext implements io.opentracing.SpanContext {
     return baggageItems;
   }
 
-  /* (non-Javadoc)
-   * @see io.opentracing.SpanContext#baggageItems()
-   */
-  @Override
   public Iterable<Map.Entry<String, String>> baggageItems() {
     return baggageItems.entrySet();
   }

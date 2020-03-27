@@ -138,8 +138,8 @@ public class AgentTracer {
     }
   }
 
-  static class NoopAgentSpan implements AgentSpan {
-    static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
+  public static class NoopAgentSpan implements AgentSpan {
+    public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
 
     @Override
     public AgentSpan setTag(final String key, final boolean value) {
@@ -214,8 +214,8 @@ public class AgentTracer {
     }
   }
 
-  static class NoopAgentScope implements AgentScope {
-    static final NoopAgentScope INSTANCE = new NoopAgentScope();
+  public static class NoopAgentScope implements AgentScope {
+    public static final NoopAgentScope INSTANCE = new NoopAgentScope();
 
     @Override
     public AgentSpan span() {
@@ -223,9 +223,7 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentScope setAsyncPropagation(final boolean value) {
-      return this;
-    }
+    public void setAsyncPropagation(final boolean value) {}
 
     @Override
     public void close() {}

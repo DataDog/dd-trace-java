@@ -86,7 +86,9 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
       // In case we lose context, inject trace into to the request.
       propagate().inject(span, req, SETTER);
 
-      return activateSpan(span, true).setAsyncPropagation(true);
+      final AgentScope scope = activateSpan(span, true);
+      scope.setAsyncPropagation(true);
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

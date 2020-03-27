@@ -178,7 +178,7 @@ class DDSpanBuilderTest extends DDSpecification {
   def "should link to parent span implicitly"() {
     setup:
     final Scope parent = noopParent ?
-      tracer.scopeManager().activate(NoopSpan.INSTANCE, false) :
+      tracer.activateSpan(NoopSpan.INSTANCE, false) :
       tracer.buildSpan("parent")
         .startActive(false)
 

@@ -25,7 +25,6 @@ public class TagContext implements AgentSpan.Context {
     return tags;
   }
 
-  @Override
   public Iterable<Map.Entry<String, String>> baggageItems() {
     return Collections.emptyList();
   }

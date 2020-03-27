@@ -1,13 +1,13 @@
 package datadog.trace.core.scopemanager;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.ScopeListener;
-import io.opentracing.Span;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Simple scope implementation which does not propagate across threads. */
 public class SimpleScope implements DDScope {
   private final ContextualScopeManager scopeManager;
-  private final Span spanUnderScope;
+  private final AgentSpan spanUnderScope;
   private final boolean finishOnClose;
   private final DDScope toRestore;
   private final int depth;
@@ -15,14 +15,14 @@ public class SimpleScope implements DDScope {
 
   public SimpleScope(
       final ContextualScopeManager scopeManager,
-      final Span spanUnderScope,
+      final AgentSpan spanUnderScope,
       final boolean finishOnClose) {
     assert spanUnderScope != null : "span must not be null";
     this.scopeManager = scopeManager;
     this.spanUnderScope = spanUnderScope;
     this.finishOnClose = finishOnClose;
-    toRestore = scopeManager.tlsScope.get();
-    scopeManager.tlsScope.set(this);
+    toRestore = ContextualScopeManager.tlsScope.get();
+    ContextualScopeManager.tlsScope.set(this);
     depth = toRestore == null ? 0 : toRestore.depth() + 1;
     for (final ScopeListener listener : scopeManager.scopeListeners) {
       listener.afterScopeActivated();
@@ -41,8 +41,8 @@ public class SimpleScope implements DDScope {
       listener.afterScopeClosed();
     }
 
-    if (scopeManager.tlsScope.get() == this) {
-      scopeManager.tlsScope.set(toRestore);
+    if (ContextualScopeManager.tlsScope.get() == this) {
+      ContextualScopeManager.tlsScope.set(toRestore);
       if (toRestore != null) {
         for (final ScopeListener listener : scopeManager.scopeListeners) {
           listener.afterScopeActivated();
@@ -52,8 +52,13 @@ public class SimpleScope implements DDScope {
   }
 
   @Override
-  public Span span() {
+  public AgentSpan span() {
     return spanUnderScope;
+  }
+
+  @Override
+  public void setAsyncPropagation(final boolean value) {
+    // do nothing
   }
 
   @Override

@@ -1,30 +1,29 @@
 package datadog.trace.core;
 
-import datadog.trace.core.jfr.DDNoopScopeEventFactory;
-import datadog.trace.core.jfr.DDScopeEventFactory;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.context.ScopeListener;
+import datadog.trace.context.TraceScope;
 import datadog.trace.core.decorators.AbstractDecorator;
 import datadog.trace.core.decorators.DDDecoratorsFactory;
+import datadog.trace.core.jfr.DDNoopScopeEventFactory;
+import datadog.trace.core.jfr.DDScopeEventFactory;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
 import datadog.trace.core.scopemanager.ContextualScopeManager;
-import datadog.trace.core.scopemanager.ScopeContext;
-import io.opentracing.References;
-import io.opentracing.Scope;
-import io.opentracing.ScopeManager;
-import io.opentracing.Span;
-import io.opentracing.SpanContext;
-import io.opentracing.tag.Tag;
+import datadog.trace.core.scopemanager.DDScopeManager;
 import java.io.Closeable;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
@@ -62,7 +61,7 @@ public class DDTracer
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
   final Sampler sampler;
   /** Scope manager is in charge of managing the scopes from which spans are created */
-  final ScopeManager scopeManager;
+  final DDScopeManager scopeManager;
 
   /** A set of tags that are added only to the application's root span */
   private final Map<String, String> localRootSpanTags;
@@ -72,7 +71,7 @@ public class DDTracer
   private final Map<String, String> serviceNameMappings;
 
   /** number of spans in a pending trace before they get flushed */
-  @Getter private final int partialFlushMinSpans;
+  @lombok.Getter private final int partialFlushMinSpans;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -95,6 +94,13 @@ public class DDTracer
 
   private final HttpCodec.Injector injector;
   private final HttpCodec.Extractor extractor;
+
+  @Override
+  public TraceScope.Continuation capture() {
+    final TraceScope activeScope = activeScope();
+
+    return activeScope == null ? null : activeScope.capture();
+  }
 
   public static class DDTracerBuilder {
 
@@ -277,7 +283,7 @@ public class DDTracer
       final Sampler sampler,
       final HttpCodec.Injector injector,
       final HttpCodec.Extractor extractor,
-      final ScopeManager scopeManager,
+      final DDScopeManager scopeManager,
       final Map<String, String> localRootSpanTags,
       final Map<String, String> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
@@ -368,13 +374,6 @@ public class DDTracer
         "Decorator added: '{}' -> {}", decorator.getMatchingTag(), decorator.getClass().getName());
   }
 
-  @Deprecated
-  public void addScopeContext(final ScopeContext context) {
-    if (scopeManager instanceof ContextualScopeManager) {
-      ((ContextualScopeManager) scopeManager).addScopeContext(context);
-    }
-  }
-
   /**
    * If an application is using a non-system classloader, that classloader should be registered
    * here. Due to the way Spring Boot structures its' executable jar, this might log some warnings.
@@ -392,24 +391,63 @@ public class DDTracer
     }
   }
 
-  @Override
-  public ScopeManager scopeManager() {
-    return scopeManager;
+  public DDSpanBuilder buildSpan(final String operationName) {
+    return new DDSpanBuilder(operationName);
   }
 
   @Override
-  public Span activeSpan() {
+  public AgentSpan startSpan(final String spanName) {
+    return buildSpan(spanName).start();
+  }
+
+  @Override
+  public AgentSpan startSpan(final String spanName, final long startTimeMicros) {
+    return buildSpan(spanName).withStartTimestamp(startTimeMicros).start();
+  }
+
+  @Override
+  public AgentSpan startSpan(final String spanName, final AgentSpan.Context parent) {
+    return buildSpan(spanName).ignoreActiveSpan().asChildOf(parent).start();
+  }
+
+  @Override
+  public AgentSpan startSpan(
+      final String spanName, final AgentSpan.Context parent, final long startTimeMicros) {
+    return buildSpan(spanName)
+        .ignoreActiveSpan()
+        .asChildOf(parent)
+        .withStartTimestamp(startTimeMicros)
+        .start();
+  }
+
+  @Override
+  public AgentScope activateSpan(final AgentSpan span, final boolean finishSpanOnClose) {
+    return scopeManager.activate(span, finishSpanOnClose);
+  }
+
+  @Override
+  public AgentSpan activeSpan() {
     return scopeManager.activeSpan();
   }
 
   @Override
-  public Scope activateSpan(final Span span) {
-    return scopeManager.activate(span);
+  public TraceScope activeScope() {
+    final AgentScope scope = scopeManager.active();
+    if (scope instanceof TraceScope) {
+      return (TraceScope) scope;
+    }
+
+    return null;
   }
 
   @Override
-  public SpanBuilder buildSpan(final String operationName) {
-    return new DDSpanBuilder(operationName, scopeManager);
+  public AgentPropagation propagate() {
+    return this;
+  }
+
+  @Override
+  public AgentSpan noopSpan() {
+    return AgentTracer.NoopAgentSpan.INSTANCE;
   }
 
   @Override
@@ -455,7 +493,7 @@ public class DDTracer
     incrementTraceCount();
 
     if (!writtenTrace.isEmpty()) {
-      final DDSpan rootSpan = (DDSpan) writtenTrace.get(0).getLocalRootSpan();
+      final DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
       setSamplingPriorityIfNecessary(rootSpan);
 
       final DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
@@ -485,7 +523,7 @@ public class DDTracer
 
   @Override
   public String getTraceId() {
-    final Span activeSpan = activeSpan();
+    final AgentSpan activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
       return ((DDSpan) activeSpan).getTraceId().toString();
     }
@@ -494,7 +532,7 @@ public class DDTracer
 
   @Override
   public String getSpanId() {
-    final Span activeSpan = activeSpan();
+    final AgentSpan activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
       return ((DDSpan) activeSpan).getSpanId().toString();
     }
@@ -553,80 +591,58 @@ public class DDTracer
   }
 
   /** Spans are built using this builder */
-  public class DDSpanBuilder implements SpanBuilder {
-    private final ScopeManager scopeManager;
-
+  public class DDSpanBuilder {
     /** Each span must have an operationName according to the opentracing specification */
     private final String operationName;
 
     // Builder attributes
     private final Map<String, Object> tags = new LinkedHashMap<String, Object>(defaultSpanTags);
     private long timestampMicro;
-    private SpanContext parent;
+    private Object parent;
     private String serviceName;
     private String resourceName;
     private boolean errorFlag;
     private String spanType;
     private boolean ignoreScope = false;
-    private LogHandler logHandler = new DefaultLogHandler();
 
-    public DDSpanBuilder(final String operationName, final ScopeManager scopeManager) {
+    public DDSpanBuilder(final String operationName) {
       this.operationName = operationName;
-      this.scopeManager = scopeManager;
     }
 
-    @Override
-    public SpanBuilder ignoreActiveSpan() {
+    public DDSpanBuilder ignoreActiveSpan() {
       ignoreScope = true;
       return this;
     }
 
-    private Span startSpan() {
-      return new DDSpan(timestampMicro, buildSpanContext(), logHandler);
+    private DDSpan buildSpan() {
+      return new DDSpan(timestampMicro, buildSpanContext());
     }
 
-    @Override
-    public Scope startActive(final boolean finishSpanOnClose) {
-      final Span span = startSpan();
-      final Scope scope = scopeManager.activate(span, finishSpanOnClose);
+    public AgentScope startActive(final boolean finishSpanOnClose) {
+      final AgentSpan span = buildSpan();
+      final AgentScope scope = scopeManager.activate(span, finishSpanOnClose);
       log.debug("Starting a new active span: {}", span);
       return scope;
     }
 
-    @Override
-    @Deprecated
-    public Span startManual() {
-      return start();
-    }
-
-    @Override
-    public Span start() {
-      final Span span = startSpan();
+    public AgentSpan start() {
+      final AgentSpan span = buildSpan();
       log.debug("Starting a new span: {}", span);
       return span;
     }
 
-    @Override
     public DDSpanBuilder withTag(final String tag, final Number number) {
       return withTag(tag, (Object) number);
     }
 
-    @Override
     public DDSpanBuilder withTag(final String tag, final String string) {
       return withTag(tag, (Object) string);
     }
 
-    @Override
     public DDSpanBuilder withTag(final String tag, final boolean bool) {
       return withTag(tag, (Object) bool);
     }
 
-    @Override
-    public <T> SpanBuilder withTag(final Tag<T> tag, final T value) {
-      return withTag(tag.getKey(), value);
-    }
-
-    @Override
     public DDSpanBuilder withStartTimestamp(final long timestampMicroseconds) {
       timestampMicro = timestampMicroseconds;
       return this;
@@ -652,48 +668,8 @@ public class DDTracer
       return this;
     }
 
-    public Iterable<Map.Entry<String, String>> baggageItems() {
-      if (parent == null) {
-        return Collections.emptyList();
-      }
-      return parent.baggageItems();
-    }
-
-    public DDSpanBuilder withLogHandler(final LogHandler logHandler) {
-      if (logHandler != null) {
-        this.logHandler = logHandler;
-      }
-      return this;
-    }
-
-    @Override
-    public DDSpanBuilder asChildOf(final Span span) {
-      return asChildOf(span == null ? null : span.context());
-    }
-
-    @Override
-    public DDSpanBuilder asChildOf(final SpanContext spanContext) {
+    public DDSpanBuilder asChildOf(final AgentSpan.Context spanContext) {
       parent = spanContext;
-      return this;
-    }
-
-    @Override
-    public DDSpanBuilder addReference(final String referenceType, final SpanContext spanContext) {
-      if (spanContext == null) {
-        return this;
-      }
-      if (!(spanContext instanceof ExtractedContext) && !(spanContext instanceof DDSpanContext)) {
-        log.debug(
-            "Expected to have a DDSpanContext or ExtractedContext but got "
-                + spanContext.getClass().getName());
-        return this;
-      }
-      if (References.CHILD_OF.equals(referenceType)
-          || References.FOLLOWS_FROM.equals(referenceType)) {
-        return asChildOf(spanContext);
-      } else {
-        log.debug("Only support reference type of CHILD_OF and FOLLOWS_FROM");
-      }
       return this;
     }
 
@@ -734,10 +710,13 @@ public class DDTracer
       final String origin;
 
       final DDSpanContext context;
-      SpanContext parentContext = parent;
+
+      // FIXME parentContext should be an interface implemented by ExtractedContext, TagContext,
+      // DDSpanContext, AgentSpan.Context
+      Object parentContext = parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
-        final Span activeSpan = scopeManager.activeSpan();
+        final AgentSpan activeSpan = scopeManager.activeSpan();
         if (activeSpan != null) {
           parentContext = activeSpan.context();
         }

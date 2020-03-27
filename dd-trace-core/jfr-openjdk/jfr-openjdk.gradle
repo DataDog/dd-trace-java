@@ -9,6 +9,7 @@ apply plugin: 'idea'
 dependencies {
   compile deps.slf4j
   compile project(':dd-trace-core')
+  compileOnly project(':dd-java-agent:agent-bootstrap')
   testCompile project(':dd-java-agent:testing')
 }
 

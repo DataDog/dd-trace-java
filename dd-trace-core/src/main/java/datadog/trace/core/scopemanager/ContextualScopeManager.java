@@ -1,22 +1,19 @@
 package datadog.trace.core.scopemanager;
 
+
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.context.ScopeListener;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.jfr.DDScopeEventFactory;
-import datadog.trace.context.ScopeListener;
-import io.opentracing.Scope;
-import io.opentracing.ScopeManager;
-import io.opentracing.Span;
-import io.opentracing.noop.NoopScopeManager;
-import java.util.Deque;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ContextualScopeManager implements ScopeManager {
+public class ContextualScopeManager implements DDScopeManager {
   static final ThreadLocal<DDScope> tlsScope = new ThreadLocal<>();
-  final Deque<ScopeContext> scopeContexts = new ConcurrentLinkedDeque<>();
   final List<ScopeListener> scopeListeners = new CopyOnWriteArrayList<>();
 
   private final int depthLimit;
@@ -28,59 +25,34 @@ public class ContextualScopeManager implements ScopeManager {
   }
 
   @Override
-  public Scope activate(final Span span, final boolean finishOnClose) {
-    final Scope active = active();
-    if (active instanceof DDScope) {
-      if (((DDScope) active).span() == span) {
-        return ((DDScope) active).incrementReferences();
-      }
-      final int currentDepth = ((DDScope) active).depth();
-      if (depthLimit <= currentDepth) {
-        log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-        return NoopScopeManager.NoopScope.INSTANCE;
-      }
+  public AgentScope activate(final AgentSpan span, final boolean finishOnClose) {
+    final DDScope active = tlsScope.get();
+    if (active.span().equals(span)) {
+      return active.incrementReferences();
     }
-    for (final ScopeContext context : scopeContexts) {
-      if (context.inContext()) {
-        return context.activate(span, finishOnClose);
-      }
+    final int currentDepth = active == null ? 0 : active.depth();
+    if (depthLimit <= currentDepth) {
+      log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
+      return AgentTracer.NoopAgentScope.INSTANCE;
     }
+
     if (span instanceof DDSpan) {
       return new ContinuableScope(this, (DDSpan) span, finishOnClose, scopeEventFactory);
     } else {
+      // Noop Span
       return new SimpleScope(this, span, finishOnClose);
     }
   }
 
   @Override
-  public Scope activate(final Span span) {
-    return activate(span, false);
-  }
-
-  @Override
-  public Scope active() {
-    for (final ScopeContext csm : scopeContexts) {
-      if (csm.inContext()) {
-        return csm.active();
-      }
-    }
+  public AgentScope active() {
     return tlsScope.get();
   }
 
   @Override
-  public Span activeSpan() {
-    for (final ScopeContext csm : scopeContexts) {
-      if (csm.inContext()) {
-        return csm.activeSpan();
-      }
-    }
+  public AgentSpan activeSpan() {
     final DDScope active = tlsScope.get();
     return active == null ? null : active.span();
-  }
-
-  @Deprecated
-  public void addScopeContext(final ScopeContext context) {
-    scopeContexts.addFirst(context);
   }
 
   /** Attach a listener to scope activation events */

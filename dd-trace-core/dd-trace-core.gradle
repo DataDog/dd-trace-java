@@ -35,9 +35,6 @@ dependencies {
   compile project(':utils:thread-utils')
   compileOnly project(':dd-java-agent:agent-bootstrap')
 
-  compile deps.opentracing
-  compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
-
   compile group: 'com.datadoghq', name: 'java-dogstatsd-client', version: "${versions.dogstatsd}"
 
   compile deps.slf4j

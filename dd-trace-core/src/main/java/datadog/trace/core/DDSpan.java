@@ -3,9 +3,8 @@ package datadog.trace.core;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.util.Clock;
-import io.opentracing.Span;
-import io.opentracing.tag.Tag;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.ref.WeakReference;
@@ -23,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
  * according to the DD agent.
  */
 @Slf4j
-public class DDSpan implements Span, MutableSpan {
+public class DDSpan implements MutableSpan, AgentSpan {
 
   /** The context attached to the span */
   private final DDSpanContext context;
@@ -47,9 +46,6 @@ public class DDSpan implements Span, MutableSpan {
    */
   private final AtomicLong durationNano = new AtomicLong();
 
-  /** Delegates to for handling the logs if present. */
-  private final LogHandler logHandler;
-
   /** Implementation detail. Stores the weak reference to this span. Used by TraceCollection. */
   volatile WeakReference<DDSpan> ref;
 
@@ -60,19 +56,7 @@ public class DDSpan implements Span, MutableSpan {
    * @param context the context used for the span
    */
   DDSpan(final long timestampMicro, final DDSpanContext context) {
-    this(timestampMicro, context, new DefaultLogHandler());
-  }
-
-  /**
-   * Spans should be constructed using the builder, not by calling the constructor directly.
-   *
-   * @param timestampMicro if greater than zero, use this time instead of the current time
-   * @param context the context used for the span
-   * @param logHandler as the handler where to delegate the log actions
-   */
-  DDSpan(final long timestampMicro, final DDSpanContext context, final LogHandler logHandler) {
     this.context = context;
-    this.logHandler = logHandler;
 
     if (timestampMicro <= 0L) {
       // record the start time
@@ -111,7 +95,6 @@ public class DDSpan implements Span, MutableSpan {
     }
   }
 
-  @Override
   public final void finish(final long stoptimeMicros) {
     finishAndAddToTrace(TimeUnit.MICROSECONDS.toNanos(stoptimeMicros - startTimeMicro));
   }
@@ -140,11 +123,17 @@ public class DDSpan implements Span, MutableSpan {
   }
 
   @Override
-  public MutableSpan getLocalRootSpan() {
-    return context().getTrace().getRootSpan();
+  public DDSpan getLocalRootSpan() {
+    return context.getTrace().getRootSpan();
   }
 
-  public void setErrorMeta(final Throwable error) {
+  @Override
+  public AgentSpan setErrorMessage(final String errorMessage) {
+    return setTag(DDTags.ERROR_MSG, errorMessage);
+  }
+
+  @Override
+  public AgentSpan addThrowable(final Throwable error) {
     setError(true);
 
     setTag(DDTags.ERROR_MSG, error.getMessage());
@@ -153,120 +142,75 @@ public class DDSpan implements Span, MutableSpan {
     final StringWriter errorString = new StringWriter();
     error.printStackTrace(new PrintWriter(errorString));
     setTag(DDTags.ERROR_STACK, errorString.toString());
+
+    return this;
   }
 
-  /* (non-Javadoc)
-   * @see io.opentracing.BaseSpan#setTag(java.lang.String, java.lang.String)
-   */
   @Override
   public final DDSpan setTag(final String tag, final String value) {
-    context().setTag(tag, (Object) value);
+    context.setTag(tag, value);
     return this;
   }
 
-  /* (non-Javadoc)
-   * @see io.opentracing.BaseSpan#setTag(java.lang.String, boolean)
-   */
   @Override
   public final DDSpan setTag(final String tag, final boolean value) {
-    context().setTag(tag, (Object) value);
+    context.setTag(tag, value);
     return this;
   }
 
-  /* (non-Javadoc)
-   * @see io.opentracing.BaseSpan#setTag(java.lang.String, java.lang.Number)
-   */
+  @Override
+  public AgentSpan setTag(final String tag, final int value) {
+    context.setTag(tag, value);
+    return this;
+  }
+
+  @Override
+  public AgentSpan setTag(final String tag, final long value) {
+    context.setTag(tag, value);
+    return this;
+  }
+
+  @Override
+  public AgentSpan setTag(final String tag, final double value) {
+    context.setTag(tag, value);
+    return this;
+  }
+
   @Override
   public final DDSpan setTag(final String tag, final Number value) {
-    context().setTag(tag, (Object) value);
+    context.setTag(tag, value);
     return this;
   }
 
-  @Override
-  public <T> Span setTag(final Tag<T> tag, final T value) {
-    context().setTag(tag.getKey(), value);
-    return this;
-  }
-
-  /* (non-Javadoc)
-   * @see io.opentracing.BaseSpan#context()
-   */
   @Override
   public final DDSpanContext context() {
     return context;
   }
 
-  /* (non-Javadoc)
-   * @see io.opentracing.BaseSpan#getBaggageItem(java.lang.String)
-   */
-  @Override
   public final String getBaggageItem(final String key) {
     return context.getBaggageItem(key);
   }
 
-  /* (non-Javadoc)
-   * @see io.opentracing.BaseSpan#setBaggageItem(java.lang.String, java.lang.String)
-   */
-  @Override
   public final DDSpan setBaggageItem(final String key, final String value) {
     context.setBaggageItem(key, value);
     return this;
   }
 
-  /* (non-Javadoc)
-   * @see io.opentracing.BaseSpan#setOperationName(java.lang.String)
-   */
   @Override
   public final DDSpan setOperationName(final String operationName) {
-    context().setOperationName(operationName);
-    return this;
-  }
-
-  /* (non-Javadoc)
-   * @see io.opentracing.BaseSpan#log(java.util.Map)
-   */
-  @Override
-  public final DDSpan log(final Map<String, ?> map) {
-    logHandler.log(map, this);
-    return this;
-  }
-
-  /* (non-Javadoc)
-   * @see io.opentracing.BaseSpan#log(long, java.util.Map)
-   */
-  @Override
-  public final DDSpan log(final long l, final Map<String, ?> map) {
-    logHandler.log(l, map, this);
-    return this;
-  }
-
-  /* (non-Javadoc)
-   * @see io.opentracing.BaseSpan#log(java.lang.String)
-   */
-  @Override
-  public final DDSpan log(final String s) {
-    logHandler.log(s, this);
-    return this;
-  }
-
-  /* (non-Javadoc)
-   * @see io.opentracing.BaseSpan#log(long, java.lang.String)
-   */
-  @Override
-  public final DDSpan log(final long l, final String s) {
-    logHandler.log(l, s, this);
+    context.setOperationName(operationName);
     return this;
   }
 
   @Override
   public final DDSpan setServiceName(final String serviceName) {
-    context().setServiceName(serviceName);
+    context.setServiceName(serviceName);
     return this;
   }
 
   @Override
   public final DDSpan setResourceName(final String resourceName) {
-    context().setResourceName(resourceName);
+    context.setResourceName(resourceName);
     return this;
   }
 
@@ -277,13 +221,13 @@ public class DDSpan implements Span, MutableSpan {
    */
   @Override
   public final DDSpan setSamplingPriority(final int newPriority) {
-    context().setSamplingPriority(newPriority);
+    context.setSamplingPriority(newPriority);
     return this;
   }
 
   @Override
   public final DDSpan setSpanType(final String type) {
-    context().setSpanType(type);
+    context.setSpanType(type);
     return this;
   }
 
@@ -296,7 +240,7 @@ public class DDSpan implements Span, MutableSpan {
    */
   public Map<String, String> getMeta() {
     final Map<String, String> meta = new HashMap<>();
-    for (final Map.Entry<String, String> entry : context().getBaggageItems().entrySet()) {
+    for (final Map.Entry<String, String> entry : context.getBaggageItems().entrySet()) {
       meta.put(entry.getKey(), entry.getValue());
     }
     for (final Map.Entry<String, Object> entry : getTags().entrySet()) {
@@ -352,6 +296,16 @@ public class DDSpan implements Span, MutableSpan {
   }
 
   @Override
+  public String getSpanName() {
+    return context.getOperationName();
+  }
+
+  @Override
+  public void setSpanName(final String spanName) {
+    context.setOperationName(spanName);
+  }
+
+  @Override
   public Integer getSamplingPriority() {
     final int samplingPriority = context.getSamplingPriority();
     if (samplingPriority == PrioritySampling.UNSET) {
@@ -368,7 +322,7 @@ public class DDSpan implements Span, MutableSpan {
 
   @Override
   public Map<String, Object> getTags() {
-    return context().getTags();
+    return context.getTags();
   }
 
   public String getType() {
