@@ -1,5 +1,6 @@
 package com.datadog.profiling.exceptions;
 
+import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -46,20 +47,18 @@ class StreamingSampler {
    * Create a new sampler instance
    *
    * @param windowDuration     the sampling window duration
-   * @param windowDurationUnit the time unit for the sampling window duration
    * @param samplesPerWindow   the maximum number of samples in the sampling window
    * @param initialInterval    the initial sampling interval (number of events between two samples)
    * @param tsProvider         timestamp provider
    */
   StreamingSampler(
-    long windowDuration,
-    TimeUnit windowDurationUnit,
+    Duration windowDuration,
     int samplesPerWindow,
     int initialInterval,
     Supplier<Long> tsProvider) {
     this.tsProvider = tsProvider;
     nextSample = getNextSample(initialInterval);
-    windowDurationNs = TimeUnit.NANOSECONDS.convert(windowDuration, windowDurationUnit);
+    windowDurationNs = windowDuration.toNanos();
     thisWindowTs = tsProvider.get();
     nextWindowTs = thisWindowTs + windowDurationNs;
     this.samplesPerWindow = samplesPerWindow;
@@ -69,16 +68,14 @@ class StreamingSampler {
   /**
    * Create a new sampler instance
    *
-   * @param windowDuration     the sampling window duration
-   * @param windowDurationUnit the time unit for the sampling window duration
-   * @param samplesPerWindow   the maximum number of samples in the sampling window
-   * @param initialInterval    the initial sampling interval (number of events between two samples)
+   * @param windowDuration   the sampling window duration
+   * @param samplesPerWindow the maximum number of samples in the sampling window
+   * @param initialInterval  the initial sampling interval (number of events between two samples)
    */
-  StreamingSampler(long windowDuration,
-                   TimeUnit windowDurationUnit,
+  StreamingSampler(Duration windowDuration,
                    int samplesPerWindow,
                    int initialInterval) {
-    this(windowDuration, windowDurationUnit, samplesPerWindow, initialInterval, System::nanoTime);
+    this(windowDuration, samplesPerWindow, initialInterval, System::nanoTime);
   }
 
   /**

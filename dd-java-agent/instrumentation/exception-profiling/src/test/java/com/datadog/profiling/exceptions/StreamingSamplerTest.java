@@ -1,5 +1,7 @@
 package com.datadog.profiling.exceptions;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -34,23 +36,24 @@ class StreamingSamplerTest {
   @MethodSource("samplerParams")
   void sample(
       int threadCnt,
-      long windowDuration,
+      long windowDurationMs,
       int samplesPerWindow,
-      long totalDuration,
+      long totalDurationMs,
       long totalEvents)
       throws Exception {
 
     TimestampProvider tsProvider =
         new TimestampProvider(
-            TimeUnit.NANOSECONDS.convert(totalDuration, TimeUnit.MILLISECONDS), totalEvents);
+            TimeUnit.NANOSECONDS.convert(totalDurationMs, TimeUnit.MILLISECONDS), totalEvents);
     final StreamingSampler instance =
         new StreamingSampler(
-            windowDuration, TimeUnit.MILLISECONDS, samplesPerWindow, 5, tsProvider);
+            Duration.of(windowDurationMs, ChronoUnit.MILLIS), samplesPerWindow, 5, tsProvider);
 
     final AtomicInteger allCnt = new AtomicInteger(0);
     Thread[] threads = new Thread[threadCnt];
 
-    long expectedSamples = Math.round((totalDuration / (double) windowDuration) * samplesPerWindow);
+    long expectedSamples =
+        Math.round((totalDurationMs / (double) windowDurationMs) * samplesPerWindow);
     final long eventsPerThread = totalEvents / threadCnt;
     long startTs = tsProvider.get();
     System.out.println(
@@ -61,9 +64,9 @@ class StreamingSamplerTest {
             + ", total events: "
             + totalEvents
             + ", total duration[ms]: "
-            + totalDuration
+            + totalDurationMs
             + ", window duration[ms]: "
-            + windowDuration
+            + windowDurationMs
             + ", samples per window: "
             + samplesPerWindow
             + ", expected samples: "
@@ -90,7 +93,7 @@ class StreamingSamplerTest {
         TimeUnit.MILLISECONDS.convert(tsProvider.get() - startTs, TimeUnit.NANOSECONDS);
 
     double allSamplesRate = allSamples / (double) realDuration;
-    double expectedSamplesRate = expectedSamples / (double) totalDuration;
+    double expectedSamplesRate = expectedSamples / (double) totalDurationMs;
 
     double dev = allSamplesRate - expectedSamplesRate;
     double ratio = Math.abs(dev / expectedSamplesRate);
