@@ -27,7 +27,7 @@ class StreamingSamplerTest {
 
     @Override
     public Long get() {
-      double diff = Math.max(step + ((rnd.nextGaussian() * step) * 0.5d), 0);
+      double diff = Math.max(step + ((rnd.nextGaussian() * step) * 1.0d), 0);
       return ts.getAndAdd(Math.round(diff));
     }
   }
@@ -107,7 +107,7 @@ class StreamingSamplerTest {
             + Math.round((ratio * 100))
             + "%");
     System.out.println();
-    double errorMargin = 0.1d;
+    double errorMargin = 0.15d;
     Assertions.assertTrue(
         ratio <= errorMargin,
         allSamplesRate
