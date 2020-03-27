@@ -108,10 +108,6 @@ public abstract class AgentTestRunner extends DDSpecification {
     GlobalTracer.registerIfAbsent((datadog.trace.api.Tracer) TEST_TRACER);
   }
 
-  protected static Instrumentation getInstrumentation() {
-    return INSTRUMENTATION;
-  }
-
   protected static Tracer getTestTracer() {
     return (Tracer) TEST_TRACER;
   }
