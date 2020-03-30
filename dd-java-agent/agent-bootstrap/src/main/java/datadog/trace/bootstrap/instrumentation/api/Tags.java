@@ -24,4 +24,5 @@ public class Tags {
   public static final String DB_INSTANCE = "db.instance";
   public static final String DB_USER = "db.user";
   public static final String DB_STATEMENT = "db.statement";
+  public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
 }

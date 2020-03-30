@@ -1,9 +1,9 @@
 package datadog.trace.core.processor.rule;
 
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.processor.TraceProcessor;
-import io.opentracing.tag.Tags;
 import java.util.Collection;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -23,14 +23,14 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
   public void processSpan(
       final DDSpan span, final Map<String, Object> tags, final Collection<DDSpan> trace) {
     final DDSpanContext context = span.context();
-    final Object httpStatus = tags.get(Tags.HTTP_STATUS.getKey());
+    final Object httpStatus = tags.get(Tags.HTTP_STATUS);
     if (context.isResourceNameSet()
-        || tags.get(Tags.HTTP_URL.getKey()) == null
+        || tags.get(Tags.HTTP_URL) == null
         || (httpStatus != null && (httpStatus.equals(404) || httpStatus.equals("404")))) {
       return;
     }
 
-    final String rawPath = rawPathFromUrlString(tags.get(Tags.HTTP_URL.getKey()).toString().trim());
+    final String rawPath = rawPathFromUrlString(tags.get(Tags.HTTP_URL).toString().trim());
     final String normalizedPath = normalizePath(rawPath);
     final String resourceName = addMethodIfAvailable(tags, normalizedPath);
 
@@ -90,7 +90,7 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
 
   private String addMethodIfAvailable(final Map<String, Object> meta, String path) {
     // if the method (GET, POST ...) is present, add it
-    final Object method = meta.get(Tags.HTTP_METHOD.getKey());
+    final Object method = meta.get(Tags.HTTP_METHOD);
     if (method != null) {
       final String verb = method.toString().toUpperCase().trim();
       if (!verb.isEmpty()) {

@@ -12,7 +12,6 @@ minimumInstructionCoverage = 0.0
 dependencies {
   compile project(':dd-trace-api')
   compile project(':utils:thread-utils')
-  compile deps.opentracing
   compile deps.slf4j
   compile group: 'org.slf4j', name: 'slf4j-simple', version: versions.slf4j
   // ^ Generally a bad idea for libraries, but we're shadowing.

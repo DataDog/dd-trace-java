@@ -1,8 +1,8 @@
 package datadog.trace.core.processor.rule;
 
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
-import io.opentracing.tag.Tags;
 import java.util.Collection;
 import java.util.Map;
 
@@ -19,13 +19,12 @@ public class DBStatementRule implements TraceProcessor.Rule {
   @Override
   public void processSpan(
       final DDSpan span, final Map<String, Object> tags, final Collection<DDSpan> trace) {
-    final Object dbStatementValue = tags.get(Tags.DB_STATEMENT.getKey());
+    final Object dbStatementValue = tags.get(Tags.DB_STATEMENT);
 
     if (dbStatementValue instanceof String) {
       // Special case: Mongo
       // Skip the decorators
-      if (tags.containsKey(Tags.COMPONENT.getKey())
-          && "java-mongo".equals(tags.get(Tags.COMPONENT.getKey()))) {
+      if (tags.containsKey(Tags.COMPONENT) && "java-mongo".equals(tags.get(Tags.COMPONENT))) {
         return;
       }
       final String statement = (String) dbStatementValue;
@@ -34,8 +33,8 @@ public class DBStatementRule implements TraceProcessor.Rule {
       }
     }
 
-    if (tags.containsKey(Tags.DB_STATEMENT.getKey())) {
-      span.setTag(Tags.DB_STATEMENT.getKey(), (String) null); // Remove the tag
+    if (tags.containsKey(Tags.DB_STATEMENT)) {
+      span.setTag(Tags.DB_STATEMENT, (String) null); // Remove the tag
     }
   }
 }

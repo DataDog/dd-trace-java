@@ -1,12 +1,12 @@
 package datadog.trace.core.decorators;
 
 import datadog.trace.core.DDSpanContext;
-import io.opentracing.tag.Tags;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 public class PeerServiceDecorator extends AbstractDecorator {
   public PeerServiceDecorator() {
     super();
-    this.setMatchingTag(Tags.PEER_SERVICE.getKey());
+    this.setMatchingTag(Tags.PEER_SERVICE);
   }
 
   @Override

@@ -1,12 +1,11 @@
 package datadog.trace.core.processor
 
-
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDTracer
 import datadog.trace.core.SpanFactory
 import datadog.trace.core.processor.rule.URLAsResourceNameRule
 import datadog.trace.util.test.DDSpecification
-import io.opentracing.tag.Tags
 import spock.lang.Subject
 
 class URLAsResourceNameRuleTest extends DDSpecification {
@@ -124,8 +123,8 @@ class URLAsResourceNameRuleTest extends DDSpecification {
     "\t"                        | "/"                 | [:]
     "/path"                     | "/path"             | [:]
     "/ABC/a-1/b_2/c.3/d4d/5f/6" | "/ABC/?/?/?/?/?/?"  | [:]
-    "/not-found"                | "fakeOperation"     | [(Tags.HTTP_STATUS.key): "404"]
-    "/with-method"              | "POST /with-method" | [(Tags.HTTP_METHOD.key): "Post"]
+    "/not-found"                | "fakeOperation"     | [(Tags.HTTP_STATUS): "404"]
+    "/with-method"              | "POST /with-method" | [(Tags.HTTP_METHOD): "Post"]
 
     ignore = meta.put(Tags.HTTP_URL.key, value)
   }

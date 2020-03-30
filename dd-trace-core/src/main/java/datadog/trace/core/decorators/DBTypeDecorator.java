@@ -3,7 +3,7 @@ package datadog.trace.core.decorators;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
-import io.opentracing.tag.Tags;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 /**
  * This span decorator leverages DB tags. It allows the dev to define a custom service name and
@@ -14,7 +14,7 @@ public class DBTypeDecorator extends AbstractDecorator {
 
   public DBTypeDecorator() {
     super();
-    setMatchingTag(Tags.DB_TYPE.getKey());
+    setMatchingTag(Tags.DB_TYPE);
     setReplacementTag(DDTags.SERVICE_NAME);
   }
 

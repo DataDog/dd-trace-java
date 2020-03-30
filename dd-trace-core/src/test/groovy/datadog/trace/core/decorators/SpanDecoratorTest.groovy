@@ -8,11 +8,10 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.util.test.DDSpecification
-import io.opentracing.tag.StringTag
-import io.opentracing.tag.Tags
 
 import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
@@ -45,7 +44,7 @@ class SpanDecoratorTest extends DDSpecification {
     decorator.setReplacementValue("newBar")
     tracer.addDecorator(decorator)
 
-    new StringTag("foo").set(span, "bar")
+    span.setTag("foo", "bar")
 
     expect:
     span.getTags().containsKey("newFoo")
@@ -171,8 +170,8 @@ class SpanDecoratorTest extends DDSpecification {
 
     when:
     def span = tracer.buildSpan("some span")
-      .withTag(Tags.PEER_SERVICE.key, "peer-service")
-      .withTag(Tags.MESSAGE_BUS_DESTINATION.key, "some-queue")
+      .withTag(Tags.PEER_SERVICE, "peer-service")
+      .withTag(Tags.MESSAGE_BUS_DESTINATION, "some-queue")
       .start()
     span.finish()
 
@@ -182,12 +181,12 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "peer.service then split-by-tags via setTag"() {
     setup:
-    tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION.key)
+    tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION)
 
     when:
     def span = tracer.buildSpan("some span").start()
-    span.setTag(Tags.PEER_SERVICE.key, "peer-service")
-    span.setTag(Tags.MESSAGE_BUS_DESTINATION.key, "some-queue")
+    span.setTag(Tags.PEER_SERVICE, "peer-service")
+    span.setTag(Tags.MESSAGE_BUS_DESTINATION, "some-queue")
     span.finish()
 
     then:
@@ -200,8 +199,8 @@ class SpanDecoratorTest extends DDSpecification {
 
     when:
     def span = tracer.buildSpan("some span")
-      .withTag(Tags.MESSAGE_BUS_DESTINATION.key, "some-queue")
-      .withTag(Tags.PEER_SERVICE.key, "peer-service")
+      .withTag(Tags.MESSAGE_BUS_DESTINATION, "some-queue")
+      .withTag(Tags.PEER_SERVICE, "peer-service")
       .start()
     span.finish()
 
@@ -211,12 +210,12 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "split-by-tags then peer-service via setTag"() {
     setup:
-    tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION.key)
+    tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION)
 
     when:
     def span = tracer.buildSpan("some span").start()
-    span.setTag(Tags.MESSAGE_BUS_DESTINATION.key, "some-queue")
-    span.setTag(Tags.PEER_SERVICE.key, "peer-service")
+    span.setTag(Tags.MESSAGE_BUS_DESTINATION, "some-queue")
+    span.setTag(Tags.PEER_SERVICE, "peer-service")
     span.finish()
 
     then:
@@ -387,7 +386,7 @@ class SpanDecoratorTest extends DDSpecification {
     span.error
 
     when:
-    span = tracer.buildSpan("decorator.test").withTag(Tags.DB_STATEMENT.key, "some-statement").start()
+    span = tracer.buildSpan("decorator.test").withTag(Tags.DB_STATEMENT, "some-statement").start()
     span.finish()
 
     then:
