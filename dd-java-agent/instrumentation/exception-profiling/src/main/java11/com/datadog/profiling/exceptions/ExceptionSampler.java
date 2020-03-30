@@ -1,10 +1,9 @@
 package com.datadog.profiling.exceptions;
 
 import datadog.trace.api.Config;
-import jdk.jfr.EventType;
-
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import jdk.jfr.EventType;
 
 final class ExceptionSampler {
   private final StreamingSampler sampler;
@@ -12,17 +11,12 @@ final class ExceptionSampler {
 
   ExceptionSampler(final Config config) {
     this(
-      Duration.of(config.getProfilingExceptionSamplerSlidingWindow(), ChronoUnit.SECONDS),
-      config.getProfilingExceptionSamplerSlidingWindowSamples(),
-      config.getProfilingExceptionSamplerInitialInterval());
+        Duration.of(config.getProfilingExceptionSamplerSlidingWindow(), ChronoUnit.SECONDS),
+        config.getProfilingExceptionSamplerSlidingWindowSamples());
   }
 
-  ExceptionSampler(
-    final Duration windowDuration,
-    final int samplesPerWindow,
-    final int initialInterval) {
-    sampler =
-      new StreamingSampler(windowDuration, samplesPerWindow, initialInterval);
+  ExceptionSampler(final Duration windowDuration, final int samplesPerWindow) {
+    sampler = new StreamingSampler(windowDuration, samplesPerWindow);
     exceptionSampleType = EventType.getEventType(ExceptionSampleEvent.class);
   }
 

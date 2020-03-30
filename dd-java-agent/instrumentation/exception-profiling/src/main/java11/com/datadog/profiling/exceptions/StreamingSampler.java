@@ -3,7 +3,6 @@ package com.datadog.profiling.exceptions;
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
@@ -24,60 +23,54 @@ class StreamingSampler {
    * Check out papers about using EMA for streaming data - eg.
    * https://nestedsoftware.com/2018/04/04/exponential-moving-average-on-streaming-data-4hhl.24876.html
    */
-  private static final double EMA_ALPHA = 0.6d;
+  private static final double EMA_ALPHA = 0.01d;
 
-  private final Lock lock = new ReentrantLock();
+  /*
+   * We keep a 'budget' by counting number of unused samples form last 10 windows
+   * Exact value here should be on order of (but probably less than) size of the JFR chunk duration.
+   */
+  private static final int CARRIED_OVER_ARRAY_SIZE = 10;
+
   private final Supplier<Long> tsProvider;
-  private final AtomicLong testCounter = new AtomicLong(0L);
   private final long windowDurationNs;
   private final int samplesPerWindow;
 
-  /*
-   * The following two fields are accessed from the locked section only so they don't need to be volatile.
-   */
-  private long thisWindowTs;
-  private double intervalEma;
-
-  /*
-   * And these two fields are accessed also outside of the locked section so they need to be volatile to ensure
-   * visibility.
-   */
-  private volatile long nextSample = -1L;
-  private volatile long nextWindowTs;
+  private final AtomicLong testCounter = new AtomicLong(0L);
+  private final AtomicLong sampledCounter = new AtomicLong(0L);
+  private final AtomicLong overshootCounter = new AtomicLong(0L);
+  private final ReentrantLock endOfWindowLock = new ReentrantLock();
+  private volatile double probability = 1d;
+  private final AtomicLong nextWindowTs = new AtomicLong(0);
+  private volatile double totalCountRunningAverage = 0;
+  private final long[] carriedOverSamples;
+  private int carriedOverSampleIndex = 0;
+  private final AtomicLong extraBudget = new AtomicLong(0);
 
   /**
    * Create a new sampler instance
    *
-   * @param windowDuration     the sampling window duration
-   * @param samplesPerWindow   the maximum number of samples in the sampling window
-   * @param initialInterval    the initial sampling interval (number of events between two samples)
-   * @param tsProvider         timestamp provider
+   * @param windowDuration the sampling window duration
+   * @param samplesPerWindow the maximum number of samples in the sampling window
+   * @param tsProvider timestamp provider
    */
   StreamingSampler(
-    Duration windowDuration,
-    int samplesPerWindow,
-    int initialInterval,
-    Supplier<Long> tsProvider) {
+      final Duration windowDuration, final int samplesPerWindow, final Supplier<Long> tsProvider) {
     this.tsProvider = tsProvider;
-    nextSample = getNextSample(initialInterval);
     windowDurationNs = windowDuration.toNanos();
-    thisWindowTs = tsProvider.get();
-    nextWindowTs = thisWindowTs + windowDurationNs;
+    nextWindowTs.set(tsProvider.get() + windowDurationNs);
     this.samplesPerWindow = samplesPerWindow;
-    this.intervalEma = initialInterval;
+
+    carriedOverSamples = new long[CARRIED_OVER_ARRAY_SIZE];
   }
 
   /**
    * Create a new sampler instance
    *
-   * @param windowDuration   the sampling window duration
+   * @param windowDuration the sampling window duration
    * @param samplesPerWindow the maximum number of samples in the sampling window
-   * @param initialInterval  the initial sampling interval (number of events between two samples)
    */
-  StreamingSampler(Duration windowDuration,
-                   int samplesPerWindow,
-                   int initialInterval) {
-    this(windowDuration, samplesPerWindow, initialInterval, System::nanoTime);
+  StreamingSampler(final Duration windowDuration, final int samplesPerWindow) {
+    this(windowDuration, samplesPerWindow, System::nanoTime);
   }
 
   /**
@@ -86,75 +79,78 @@ class StreamingSampler {
    * @return {@literal true} if the event should be sampled
    */
   boolean sample() {
-    long ts = tsProvider.get();
-    // check whether the current window is expired
-    boolean isExpired = ts >= nextWindowTs;
+    boolean sampled = false;
+    testCounter.incrementAndGet();
+    if (sampledCounter.get() <= samplesPerWindow + extraBudget.get()) {
+      if (ThreadLocalRandom.current().nextDouble() < probability) {
+        sampledCounter.incrementAndGet();
+        sampled = true;
+      }
+    } else {
+      overshootCounter.incrementAndGet();
+    }
 
-    long test = testCounter.incrementAndGet();
-    // check for the sampling interval to have elapsed
-    boolean isSampled = test >= nextSample;
-    if (isSampled || isExpired) {
-      /*
-       * Going to modify the shared state here.
-       * Make sure only one (maintainer) thread is fiddling around with the shared state.
-       * All the other threads will keep on using the previous sampling interval until it is updated by the maintainer.
-       */
-      if (lock.tryLock()) {
+    final long ts = tsProvider.get();
+    final long extraDuration = ts - nextWindowTs.get();
+    final boolean isExpired = extraDuration >= 0;
+
+    if (isExpired) {
+      if (endOfWindowLock.tryLock()) {
         try {
-          /*
-           * Need to retest the expiration and sampling since they may have been changed by other threads
-           * since the previous check.
-           */
-          ts = tsProvider.get();
-          test = testCounter.get();
+          final long totalCount = testCounter.getAndSet(0);
+          final long sampledCount = sampledCounter.getAndSet(0);
 
-          isSampled = test >= nextSample;
-          isExpired = ts >= nextWindowTs;
-          if (!isSampled && !isExpired) {
-            return false;
+          /*System.out.println(
+          "!!!Ending window: got: "
+              + sampledCount
+              + " expected: "
+              + samplesPerWindow
+              + " + "
+              + extraBudget
+              + " extra duration: "
+              + extraDuration
+              + " probability: "
+              + probability
+              + " total count: "
+              + totalCount
+              + " overshoot count: "
+              + overshootCounter.getAndSet(0));*/
+
+          final long unused = samplesPerWindow - sampledCount;
+          carriedOverSampleIndex = (carriedOverSampleIndex + 1) % carriedOverSamples.length;
+          carriedOverSamples[carriedOverSampleIndex] = unused;
+          long newExtraBudget = 0;
+          for (int i = 0; i < carriedOverSamples.length; i++) {
+            newExtraBudget += carriedOverSamples[i];
+          }
+          newExtraBudget = Math.max(newExtraBudget, 0);
+          extraBudget.set(newExtraBudget);
+
+          if (totalCountRunningAverage == 0) {
+            totalCountRunningAverage = totalCount;
+          } else {
+            totalCountRunningAverage =
+                (1 - EMA_ALPHA) * totalCountRunningAverage + EMA_ALPHA * totalCount;
           }
 
-          /*
-           * Get the estimated event set size per the sampling window given the up-to-now incoming rate and the window duration.
-           */
-          double estimatedSetSize = ((double) test / (ts - thisWindowTs)) * windowDurationNs;
-
-          /*
-           * Derive the desired sampling interval as such the expected number of samples can cover the estimated size
-           * in one sampling window.
-           */
-          double interval = estimatedSetSize / samplesPerWindow;
-          if (!Double.isNaN(intervalEma)) {
-            // calculate the approximation of exponential moving average (EMA) of the sampling interval
-            interval = intervalEma + (EMA_ALPHA * (interval - intervalEma));
+          if (totalCountRunningAverage <= 0) {
+            probability = 1;
+          } else {
+            probability =
+                Math.min(
+                    ((double) samplesPerWindow
+                            + (double) newExtraBudget / carriedOverSamples.length)
+                        / totalCountRunningAverage,
+                    1d);
           }
-          intervalEma = interval;
 
-          if (isExpired) {
-            // when a window is expired we need to update the new window timestamps and reset the test counter
-            nextWindowTs = ts + windowDurationNs;
-            thisWindowTs = ts;
-            /*
-             * Be nice in a multithreaded env and do not unconditionally set to 0. This means that if other threads
-             * managed to increment this counter while this one was executing this synchronized block we want to
-             * subtract the last known value of that counter obtained *after* entering the synchronized block.
-             */
-            test = testCounter.addAndGet(-test);
-          }
-          // calculate the index of the next expected sample based on the interval EMA and some random jitter
-          nextSample = test + getNextSample(intervalEma);
-
-          return isSampled;
+          nextWindowTs.addAndGet(windowDurationNs);
         } finally {
-          lock.unlock();
+          endOfWindowLock.unlock();
         }
       }
     }
-    return false;
-  }
 
-  private static long getNextSample(double interval) {
-    // jitter the sampling interval to increase sample randomness
-    return Math.max(Math.round(interval + ThreadLocalRandom.current().nextGaussian() * interval * 0.1), 1);
+    return sampled;
   }
 }

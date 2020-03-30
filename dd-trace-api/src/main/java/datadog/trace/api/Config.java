@@ -131,8 +131,6 @@ public class Config {
       "profiling.exception.sampler.window";
   public static final String PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES =
       "profiling.exception.sampler.window-samples";
-  public static final String PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL =
-      "profiling.exception.sampler.initial-interval";
   public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
       "profiling.exception.histogram.top-items";
   public static final String PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE =
@@ -193,7 +191,6 @@ public class Config {
   public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
   public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW = 10;
   public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES = 1000;
-  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL = 10;
   public static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS = 50;
   public static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE = 10000;
 
@@ -299,7 +296,6 @@ public class Config {
   @Getter private final String profilingProxyPassword;
   @Getter private final int profilingExceptionSamplerSlidingWindow;
   @Getter private final int profilingExceptionSamplerSlidingWindowSamples;
-  @Getter private final int profilingExceptionSamplerInitialInterval;
   @Getter private final int profilingExceptionHistogramTopItems;
   @Getter private final int profilingExceptionHistogramMaxCollectionSize;
 
@@ -498,10 +494,6 @@ public class Config {
         getIntegerSettingFromEnvironment(
             PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES,
             DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES);
-    profilingExceptionSamplerInitialInterval =
-        getIntegerSettingFromEnvironment(
-            PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL,
-            DEFAULT_PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL);
     profilingExceptionHistogramTopItems =
         getIntegerSettingFromEnvironment(
             PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
@@ -685,11 +677,6 @@ public class Config {
             properties,
             PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES,
             parent.profilingExceptionSamplerSlidingWindowSamples);
-    profilingExceptionSamplerInitialInterval =
-        getPropertyIntegerValue(
-            properties,
-            PROFILING_EXCEPTION_SAMPLER_INITIAL_INTERVAL,
-            parent.profilingExceptionSamplerInitialInterval);
     profilingExceptionHistogramTopItems =
         getPropertyIntegerValue(
             properties,
