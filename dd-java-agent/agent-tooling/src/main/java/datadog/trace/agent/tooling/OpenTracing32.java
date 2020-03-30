@@ -56,7 +56,10 @@ public final class OpenTracing32 implements TracerAPI {
   }
 
   @Override
-  public AgentScope activateSpan(final AgentSpan span, final boolean finishSpanOnClose) {
+  public AgentScope activateSpan(AgentSpan span, final boolean finishSpanOnClose) {
+    if (span == null) {
+      span = NOOP_SPAN;
+    }
     // when span is noopSpan(), the scope returned is not a TracerScope
     final Scope scope = tracer.scopeManager().activate(((OT32Span) span).span, finishSpanOnClose);
     return new OT32Scope(span, scope);
