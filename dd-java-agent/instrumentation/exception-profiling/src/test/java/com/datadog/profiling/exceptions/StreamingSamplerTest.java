@@ -19,16 +19,18 @@ import org.slf4j.LoggerFactory;
 
 class StreamingSamplerTest {
 
-  Logger log = LoggerFactory.getLogger(StreamingSamplerTest.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(StreamingSamplerTest.class);
 
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
   private static final double DURATION_ERROR_MARGIN = 20;
   private static final double SAMPLES_ERROR_MARGIN = 15;
 
   private interface TimestampProvider extends Supplier<Long> {
-    void prepare();
+    default void prepare() {}
 
-    Long getLast();
+    default void cleanup() {}
+
+    long getLast();
   }
 
   private static final class GaussianTimestampProvider implements TimestampProvider {
@@ -47,12 +49,7 @@ class StreamingSamplerTest {
     }
 
     @Override
-    public void prepare() {
-      // nothing to do
-    }
-
-    @Override
-    public Long getLast() {
+    public long getLast() {
       return timestamp.get();
     }
 
@@ -90,7 +87,12 @@ class StreamingSamplerTest {
     }
 
     @Override
-    public Long getLast() {
+    public void cleanup() {
+      events = null;
+    }
+
+    @Override
+    public long getLast() {
       return events[counter.get()];
     }
 
@@ -112,53 +114,53 @@ class StreamingSamplerTest {
       final Duration windowDuration,
       final int samplesPerWindow)
       throws Exception {
-    timestampProvider.prepare();
-    final StreamingSampler sampler =
-        new StreamingSampler(windowDuration, samplesPerWindow, timestampProvider);
+    try {
+      timestampProvider.prepare();
+      final StreamingSampler sampler =
+          new StreamingSampler(windowDuration, samplesPerWindow, timestampProvider);
 
-    final long actualSamples =
-        runThreadsAndCountSamples(sampler, timestampProvider, threadCount, requestedEvents);
+      final long actualSamples = runThreadsAndCountSamples(sampler, threadCount, requestedEvents);
 
-    // We assume that our fake timestamp providers start at zero
-    final Duration actualDuration = Duration.ofNanos(timestampProvider.getLast());
+      // We assume that our fake timestamp providers start at zero
+      final Duration actualDuration = Duration.ofNanos(timestampProvider.getLast());
 
-    final double durationDiscrepancy =
-        (double) Math.abs(requestedDuration.toMillis() - actualDuration.toMillis())
-            / requestedDuration.toMillis()
-            * 100;
+      final double durationDiscrepancy =
+          (double) Math.abs(requestedDuration.toMillis() - actualDuration.toMillis())
+              / requestedDuration.toMillis()
+              * 100;
 
-    final double expectedSamples =
-        ((double) actualDuration.toNanos() / windowDuration.toNanos() * samplesPerWindow);
-    final double samplesDiscrepancy =
-        Math.abs(expectedSamples - actualSamples) / expectedSamples * 100;
+      final double expectedSamples =
+          ((double) actualDuration.toNanos() / windowDuration.toNanos() * samplesPerWindow);
+      final double samplesDiscrepancy =
+          Math.abs(expectedSamples - actualSamples) / expectedSamples * 100;
 
-    final String message =
-        String.format(
-            "Expected to get within %.1f%% of requested samples: abs(%.1f - %d) / %.1f = %.1f%%",
-            SAMPLES_ERROR_MARGIN,
-            expectedSamples,
-            actualSamples,
-            expectedSamples,
-            samplesDiscrepancy);
-    log.debug(message);
-    assertTrue(samplesDiscrepancy <= SAMPLES_ERROR_MARGIN, message);
+      final String message =
+          String.format(
+              "Expected to get within %.1f%% of requested samples: abs(%.1f - %d) / %.1f = %.1f%%",
+              SAMPLES_ERROR_MARGIN,
+              expectedSamples,
+              actualSamples,
+              expectedSamples,
+              samplesDiscrepancy);
+      LOGGER.debug(message);
+      assertTrue(samplesDiscrepancy <= SAMPLES_ERROR_MARGIN, message);
 
-    assertTrue(
-        durationDiscrepancy <= DURATION_ERROR_MARGIN,
-        String.format(
-            "Expected to run within %.1f%% of requested duration: abs(%d - %d) / %d = %.1f%%",
-            DURATION_ERROR_MARGIN,
-            requestedDuration.toMillis(),
-            actualDuration.toMillis(),
-            requestedDuration.toMillis(),
-            durationDiscrepancy));
+      assertTrue(
+          durationDiscrepancy <= DURATION_ERROR_MARGIN,
+          String.format(
+              "Expected to run within %.1f%% of requested duration: abs(%d - %d) / %d = %.1f%%",
+              DURATION_ERROR_MARGIN,
+              requestedDuration.toMillis(),
+              actualDuration.toMillis(),
+              requestedDuration.toMillis(),
+              durationDiscrepancy));
+    } finally {
+      timestampProvider.cleanup();
+    }
   }
 
   private int runThreadsAndCountSamples(
-      final StreamingSampler sampler,
-      final TimestampProvider timestampProvider,
-      final int threadCount,
-      final int totalEvents)
+      final StreamingSampler sampler, final int threadCount, final int totalEvents)
       throws InterruptedException {
     final long eventsPerThread = totalEvents / threadCount;
 
@@ -196,7 +198,7 @@ class StreamingSamplerTest {
 
           final List<TimestampProvider> timestampProviders =
               ImmutableList.of(
-                  // new GaussianTimestampProvider(duration, totalEvents.get(i)),
+                  new GaussianTimestampProvider(duration, totalEvents.get(i)),
                   new UniformTimestampProvider(duration, totalEvents.get(i)));
 
           for (final TimestampProvider timestampProvider : timestampProviders) {

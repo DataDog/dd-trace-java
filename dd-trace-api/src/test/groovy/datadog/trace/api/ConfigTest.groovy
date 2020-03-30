@@ -40,6 +40,7 @@ import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_OLD
 import static datadog.trace.api.Config.PROFILING_ENABLED
 import static datadog.trace.api.Config.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
 import static datadog.trace.api.Config.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
+import static datadog.trace.api.Config.PROFILING_EXCEPTION_SAMPLER_LIMIT
 import static datadog.trace.api.Config.PROFILING_EXCEPTION_SAMPLER_WINDOW
 import static datadog.trace.api.Config.PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES
 import static datadog.trace.api.Config.PROFILING_PROXY_HOST
@@ -151,8 +152,7 @@ class ConfigTest extends DDSpecification {
     config.profilingProxyPort == Config.DEFAULT_PROFILING_PROXY_PORT
     config.profilingProxyUsername == null
     config.profilingProxyPassword == null
-    config.profilingExceptionSamplerSlidingWindow == Config.DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW
-    config.profilingExceptionSamplerSlidingWindowSamples == Config.DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES
+    config.profilingExceptionSamplerLimit == Config.DEFAULT_PROFILING_EXCEPTION_SAMPLER_LIMIT
     config.profilingExceptionHistogramTopItems == DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
     config.profilingExceptionHistogramMaxCollectionSize == DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
 
@@ -221,8 +221,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROFILING_PROXY_PORT, "1118")
     prop.setProperty(PROFILING_PROXY_USERNAME, "proxy-username")
     prop.setProperty(PROFILING_PROXY_PASSWORD, "proxy-password")
-    prop.setProperty(PROFILING_EXCEPTION_SAMPLER_WINDOW, "1119")
-    prop.setProperty(PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES, "1120")
+    prop.setProperty(PROFILING_EXCEPTION_SAMPLER_LIMIT, "811")
     prop.setProperty(PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS, "1121")
     prop.setProperty(PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
 
@@ -281,8 +280,7 @@ class ConfigTest extends DDSpecification {
     config.profilingProxyPort == 1118
     config.profilingProxyUsername == "proxy-username"
     config.profilingProxyPassword == "proxy-password"
-    config.profilingExceptionSamplerSlidingWindow == 1119
-    config.profilingExceptionSamplerSlidingWindowSamples == 1120
+    config.profilingExceptionSamplerLimit == 811
     config.profilingExceptionHistogramTopItems == 1121
     config.profilingExceptionHistogramMaxCollectionSize == 1122
   }
@@ -341,8 +339,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROFILING_PROXY_PORT, "1118")
     System.setProperty(PREFIX + PROFILING_PROXY_USERNAME, "proxy-username")
     System.setProperty(PREFIX + PROFILING_PROXY_PASSWORD, "proxy-password")
-    System.setProperty(PREFIX + PROFILING_EXCEPTION_SAMPLER_WINDOW, "1119")
-    System.setProperty(PREFIX + PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES, "1120")
+    System.setProperty(PREFIX + PROFILING_EXCEPTION_SAMPLER_LIMIT, "811")
     System.setProperty(PREFIX + PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS, "1121")
     System.setProperty(PREFIX + PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
 
@@ -401,8 +398,7 @@ class ConfigTest extends DDSpecification {
     config.profilingProxyPort == 1118
     config.profilingProxyUsername == "proxy-username"
     config.profilingProxyPassword == "proxy-password"
-    config.profilingExceptionSamplerSlidingWindow == 1119
-    config.profilingExceptionSamplerSlidingWindowSamples == 1120
+    config.profilingExceptionSamplerLimit == 811
     config.profilingExceptionHistogramTopItems == 1121
     config.profilingExceptionHistogramMaxCollectionSize == 1122
   }

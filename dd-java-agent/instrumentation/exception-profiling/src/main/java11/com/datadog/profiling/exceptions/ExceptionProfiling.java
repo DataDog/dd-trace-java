@@ -37,14 +37,9 @@ public final class ExceptionProfiling {
     final boolean firstHit = histogram.record(e);
 
     if (sampler.isEnabled()) {
-      /*
-       * If the histogram hasn't contained that particular exception type up till now then 'firstHit' == true
-       * and the sample event should be emitted regardless of the sampling result.
-       * We need a non-short-circuiting OR such that 'sampler.sample()' is called regardless of value
-       * of 'firstHit'.
-       */
-      if (firstHit | sampler.sample()) {
-        return new ExceptionSampleEvent(e);
+      boolean sampled = sampler.sample();
+      if (firstHit || sampled) {
+        return new ExceptionSampleEvent(e, sampled, firstHit);
       }
     }
     return null;

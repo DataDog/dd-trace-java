@@ -20,10 +20,18 @@ public class ExceptionSampleEvent extends Event {
   @Label("Exception stackdepth")
   private final int stackDepth;
 
-  public ExceptionSampleEvent(Exception e) {
+  @Label("Sampled")
+  private final boolean sampled;
+
+  @Label("First occurrence")
+  private final boolean firstOccurrence;
+
+  public ExceptionSampleEvent(Exception e, boolean sampled, boolean firstOccurrence) {
     this.type = e.getClass().getName();
     this.message = e.getMessage();
     this.stackDepth = e.getStackTrace().length;
+    this.sampled = sampled;
+    this.firstOccurrence = firstOccurrence;
   }
 
   // used in tests only
