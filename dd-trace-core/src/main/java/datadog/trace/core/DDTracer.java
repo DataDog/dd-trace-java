@@ -29,9 +29,7 @@ import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -129,149 +127,6 @@ public class DDTracer
       partialFlushMinSpans(config.getPartialFlushMinSpans());
       return this;
     }
-  }
-
-  /** By default, report to local agent and collect all traces. */
-  @Deprecated
-  public DDTracer() {
-    this(Config.get());
-  }
-
-  @Deprecated
-  public DDTracer(final String serviceName) {
-    this(serviceName, Config.get());
-  }
-
-  @Deprecated
-  public DDTracer(final Properties config) {
-    this(Config.get(config));
-  }
-
-  @Deprecated
-  public DDTracer(final Config config) {
-    this(config.getServiceName(), config);
-  }
-
-  // This constructor is already used in the wild, so we have to keep it inside this API for now.
-  @Deprecated
-  public DDTracer(final String serviceName, final Writer writer, final Sampler sampler) {
-    this(serviceName, writer, sampler, Config.get().getLocalRootSpanTags());
-  }
-
-  @Deprecated
-  private DDTracer(final String serviceName, final Config config) {
-    this(
-        serviceName,
-        Writer.Builder.forConfig(config),
-        Sampler.Builder.forConfig(config),
-        config.getLocalRootSpanTags(),
-        config.getMergedSpanTags(),
-        config.getServiceMapping(),
-        config.getHeaderTags(),
-        config.getPartialFlushMinSpans());
-    log.debug("Using config: {}", config);
-  }
-
-  /** Visible for testing */
-  @Deprecated
-  DDTracer(
-      final String serviceName,
-      final Writer writer,
-      final Sampler sampler,
-      final Map<String, String> runtimeTags) {
-    this(
-        serviceName,
-        writer,
-        sampler,
-        runtimeTags,
-        Collections.<String, String>emptyMap(),
-        Collections.<String, String>emptyMap(),
-        Collections.<String, String>emptyMap(),
-        0);
-  }
-
-  @Deprecated
-  public DDTracer(final Writer writer) {
-    this(Config.get(), writer);
-  }
-
-  @Deprecated
-  public DDTracer(final Config config, final Writer writer) {
-    this(
-        config.getServiceName(),
-        writer,
-        Sampler.Builder.forConfig(config),
-        config.getLocalRootSpanTags(),
-        config.getMergedSpanTags(),
-        config.getServiceMapping(),
-        config.getHeaderTags(),
-        config.getPartialFlushMinSpans());
-  }
-
-  @Deprecated
-  public DDTracer(
-      final String serviceName,
-      final Writer writer,
-      final Sampler sampler,
-      final String runtimeId,
-      final Map<String, String> localRootSpanTags,
-      final Map<String, String> defaultSpanTags,
-      final Map<String, String> serviceNameMappings,
-      final Map<String, String> taggedHeaders) {
-    this(
-        serviceName,
-        writer,
-        sampler,
-        customRuntimeTags(runtimeId, localRootSpanTags),
-        defaultSpanTags,
-        serviceNameMappings,
-        taggedHeaders,
-        Config.get().getPartialFlushMinSpans());
-  }
-
-  @Deprecated
-  public DDTracer(
-      final String serviceName,
-      final Writer writer,
-      final Sampler sampler,
-      final Map<String, String> localRootSpanTags,
-      final Map<String, String> defaultSpanTags,
-      final Map<String, String> serviceNameMappings,
-      final Map<String, String> taggedHeaders) {
-    this(
-        serviceName,
-        writer,
-        sampler,
-        localRootSpanTags,
-        defaultSpanTags,
-        serviceNameMappings,
-        taggedHeaders,
-        Config.get().getPartialFlushMinSpans());
-  }
-
-  @Deprecated
-  public DDTracer(
-      final String serviceName,
-      final Writer writer,
-      final Sampler sampler,
-      final Map<String, String> localRootSpanTags,
-      final Map<String, String> defaultSpanTags,
-      final Map<String, String> serviceNameMappings,
-      final Map<String, String> taggedHeaders,
-      final int partialFlushMinSpans) {
-    this(
-        Config.get(),
-        serviceName,
-        writer,
-        sampler,
-        HttpCodec.createInjector(Config.get()),
-        HttpCodec.createExtractor(Config.get(), taggedHeaders),
-        new ContextualScopeManager(Config.get().getScopeDepthLimit(), createScopeEventFactory()),
-        localRootSpanTags,
-        defaultSpanTags,
-        serviceNameMappings,
-        taggedHeaders,
-        partialFlushMinSpans);
   }
 
   @Builder
@@ -570,14 +425,6 @@ public class DDTracer
         + ", defaultSpanTags="
         + defaultSpanTags
         + '}';
-  }
-
-  @Deprecated
-  private static Map<String, String> customRuntimeTags(
-      final String runtimeId, final Map<String, String> applicationRootSpanTags) {
-    final Map<String, String> runtimeTags = new HashMap<>(applicationRootSpanTags);
-    runtimeTags.put(Config.RUNTIME_ID_TAG, runtimeId);
-    return Collections.unmodifiableMap(runtimeTags);
   }
 
   private static DDScopeEventFactory createScopeEventFactory() {
