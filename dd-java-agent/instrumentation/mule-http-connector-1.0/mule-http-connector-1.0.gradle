@@ -1,0 +1,16 @@
+muzzle {
+  pass {
+  }
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+
+dependencies {
+
+}
+
+
+
