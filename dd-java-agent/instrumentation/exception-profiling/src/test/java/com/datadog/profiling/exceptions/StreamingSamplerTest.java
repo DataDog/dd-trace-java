@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
@@ -33,19 +34,17 @@ class StreamingSamplerTest {
     long getLast();
   }
 
-  private static final class GaussianTimestampProvider implements TimestampProvider {
-    private final Random random = new Random();
+  private abstract static class MonotonicTimestampProvider implements TimestampProvider {
     private final AtomicLong timestamp = new AtomicLong(0L);
-    private final long step;
+    protected final long interval;
 
-    GaussianTimestampProvider(final Duration totalDuration, final int numberOfEvents) {
-      step = Math.round(totalDuration.toNanos() / (double) numberOfEvents);
+    protected MonotonicTimestampProvider(final Duration totalDuration, final int numberOfEvents) {
+      interval = Math.round(totalDuration.toNanos() / (double) numberOfEvents);
     }
 
     @Override
     public Long get() {
-      final double diff = Math.max(step + ((random.nextGaussian() * step) * 1.0d), 0);
-      return timestamp.getAndAdd(Math.round(diff));
+      return timestamp.getAndAdd(computeRandomStep(interval));
     }
 
     @Override
@@ -53,9 +52,39 @@ class StreamingSamplerTest {
       return timestamp.get();
     }
 
+    protected abstract long computeRandomStep(long step);
+  }
+
+  private static final class ExponentialTimestampProvider extends MonotonicTimestampProvider {
+    public ExponentialTimestampProvider(Duration totalDuration, int numberOfEvents) {
+      super(totalDuration, numberOfEvents);
+    }
+
+    @Override
+    protected long computeRandomStep(long step) {
+      return Math.round(-step * Math.log(1 - ThreadLocalRandom.current().nextDouble()));
+    }
+
     @Override
     public String toString() {
-      return String.format("Gaussian: %d", step);
+      return String.format("Exponential: %d", interval);
+    }
+  }
+
+  private static final class GaussianTimestampProvider extends MonotonicTimestampProvider {
+    GaussianTimestampProvider(final Duration totalDuration, final int numberOfEvents) {
+      super(totalDuration, numberOfEvents);
+    }
+
+    @Override
+    protected long computeRandomStep(long step) {
+      return Math.round(
+          Math.max(step + ((ThreadLocalRandom.current().nextGaussian() * step) * 1.0d), 0));
+    }
+
+    @Override
+    public String toString() {
+      return String.format("Gaussian: %d", interval);
     }
   }
 
@@ -198,6 +227,7 @@ class StreamingSamplerTest {
 
           final List<TimestampProvider> timestampProviders =
               ImmutableList.of(
+                  new ExponentialTimestampProvider(duration, totalEvents.get(i)),
                   new GaussianTimestampProvider(duration, totalEvents.get(i)),
                   new UniformTimestampProvider(duration, totalEvents.get(i)));
 
