@@ -558,7 +558,7 @@ public class DDTracer implements io.opentracing.Tracer, Closeable, datadog.trace
     try {
       return (DDScopeEventFactory)
           Class.forName("datadog.opentracing.jfr.openjdk.ScopeEventFactory").newInstance();
-    } catch (final ClassFormatError | ReflectiveOperationException | NoClassDefFoundError e) {
+    } catch (final ClassFormatError | ReflectiveOperationException | NoClassDefFoundError | ClassNotFoundException e) {
       log.debug("Cannot create Openjdk JFR scope event factory", e);
     }
     return new DDNoopScopeEventFactory();
