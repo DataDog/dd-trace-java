@@ -87,7 +87,7 @@ public final class OpenTracing32 implements TracerAPI {
     final Scope scope = tracer.scopeManager().active();
     if (scope instanceof TraceScope) {
       return (TraceScope) scope;
-    } else if (scope.span() == NoopSpan.INSTANCE) {
+    } else if (scope != null && scope.span() == NoopSpan.INSTANCE) {
       return AgentTracer.NoopTraceScope.INSTANCE;
     } else {
       return null;
