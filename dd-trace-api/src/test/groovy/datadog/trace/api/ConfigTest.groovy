@@ -41,8 +41,6 @@ import static datadog.trace.api.Config.PROFILING_ENABLED
 import static datadog.trace.api.Config.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
 import static datadog.trace.api.Config.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
 import static datadog.trace.api.Config.PROFILING_EXCEPTION_SAMPLER_LIMIT
-import static datadog.trace.api.Config.PROFILING_EXCEPTION_SAMPLER_WINDOW
-import static datadog.trace.api.Config.PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES
 import static datadog.trace.api.Config.PROFILING_PROXY_HOST
 import static datadog.trace.api.Config.PROFILING_PROXY_PASSWORD
 import static datadog.trace.api.Config.PROFILING_PROXY_PORT
