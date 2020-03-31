@@ -57,7 +57,8 @@ class StreamingSampler {
   // these attributes need to be volatile since they are accessed outside of the 'endOfWindowLock' guarded block
   private volatile double probability = 1d;
   private volatile long nextWindowTs = 0L;
-  private double totalCountRunningAverage = 0;
+
+  private double totalCountRunningAverage = 0d;
 
   private int carriedOverSampleIndex = 0;
 
@@ -120,8 +121,7 @@ class StreamingSampler {
           if (totalCountRunningAverage == 0) {
             totalCountRunningAverage = totalCount;
           } else {
-            totalCountRunningAverage =
-              (1 - EMA_ALPHA) * totalCountRunningAverage + EMA_ALPHA * totalCount;
+            totalCountRunningAverage = totalCountRunningAverage + EMA_ALPHA * (totalCount - totalCountRunningAverage);
           }
 
           if (totalCountRunningAverage <= 0) {
