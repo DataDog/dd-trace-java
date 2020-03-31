@@ -57,6 +57,7 @@ class OpenTracing32Test extends DDSpecification {
 
     then:
     ((OpenTracing32.OT32Span) tracer.activeSpan()).span == NoopSpan.INSTANCE
+    tracer.activeScope() != null
 
     when:
     noopScope.close()
