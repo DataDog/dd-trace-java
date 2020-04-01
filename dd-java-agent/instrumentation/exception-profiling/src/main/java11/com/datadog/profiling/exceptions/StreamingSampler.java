@@ -1,8 +1,12 @@
 package com.datadog.profiling.exceptions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
@@ -30,37 +34,41 @@ import java.util.function.Supplier;
  * </p>
  */
 class StreamingSampler {
+  private static final Logger LOGGER = LoggerFactory.getLogger(StreamingSampler.class);
   /*
    * Exponential Moving Average (EMA) last element weight.
    * Check out papers about using EMA for streaming data - eg.
    * https://nestedsoftware.com/2018/04/04/exponential-moving-average-on-streaming-data-4hhl.24876.html
    */
-  private static final double EMA_ALPHA = 0.01d;
+  private static final double EMA_ALPHA = 0.2d;
 
   /*
-   * We keep a 'budget' by counting number of unused samples from the last 10 windows
-   * Exact value here should be on order of (but probably less than) size of the JFR chunk duration.
+   * We keep a 'budget' by counting number of unused samples from all the past windows (kind of)
+   * The trick applied here is to keep a an exponential moving average with very long tail (at least BUDGET_WINDOW
+   * significant windows) and then use that average to estimate the accumulated budget over those significant windows.
+   * The idea is to 'smooth out' the overall average so we can 'oversample' windows with spikes with confidence
+   * of not breaking the total sample limit.
    */
-  private static final int CARRIED_OVER_ARRAY_SIZE = 10;
+  private static final long BUDGET_WINDOWS = 10000;
+  private static final double BUDGET_ALPHA = 1d / (BUDGET_WINDOWS * 0.9);
 
   private final Supplier<Long> tsProvider;
   private final long windowDurationNs;
   private final int samplesPerWindow;
 
-  private final AtomicLong testCounter = new AtomicLong(0L);
+  private final LongAdder testCounter = new LongAdder();
   private final AtomicLong sampledCounter = new AtomicLong(0L);
-  private final AtomicLong overshootCounter = new AtomicLong(0L);
   private final ReentrantLock endOfWindowLock = new ReentrantLock();
   private final AtomicLong extraBudget = new AtomicLong(0);
-  private final long[] carriedOverSamples = new long[CARRIED_OVER_ARRAY_SIZE];
+  private final LongAdder cutOffCounter = new LongAdder();
 
   // these attributes need to be volatile since they are accessed outside of the 'endOfWindowLock' guarded block
   private volatile double probability = 1d;
   private volatile long nextWindowTs = 0L;
 
+  // these attributes are accessed solely under `endOfWindowLock`
   private double totalCountRunningAverage = 0d;
-
-  private int carriedOverSampleIndex = 0;
+  private double avgBudget = Double.NaN;
 
   /**
    * Create a new sampler instance
@@ -92,16 +100,16 @@ class StreamingSampler {
    *
    * @return {@literal true} if the event should be sampled
    */
-  boolean sample() {
+  final boolean sample() {
     boolean sampled = false;
-    testCounter.incrementAndGet();
+    testCounter.increment();
     if (sampledCounter.get() <= samplesPerWindow + extraBudget.get()) {
       if (ThreadLocalRandom.current().nextDouble() < probability) {
         sampledCounter.incrementAndGet();
         sampled = true;
       }
     } else {
-      overshootCounter.incrementAndGet();
+      cutOffCounter.increment();
     }
 
     final long ts = tsProvider.get();
@@ -111,12 +119,18 @@ class StreamingSampler {
     if (isExpired) {
       if (endOfWindowLock.tryLock()) {
         try {
-          final long totalCount = testCounter.getAndSet(0);
+          final long totalCount = testCounter.sumThenReset();
           final long sampledCount = sampledCounter.getAndSet(0);
 
-          long newExtraBudget = recalculateBudget(samplesPerWindow - sampledCount);
+          long cutOffCount = cutOffCounter.sumThenReset();
 
-          extraBudget.set(newExtraBudget);
+          double previousBudget = avgBudget;
+          long sampleBudget = samplesPerWindow - sampledCount;
+          if (sampleBudget > 0) {
+            // keep moving average over last ~BUDGET_WINDOWS and calculate the available budget as avg * BUDGET_WINDOWS
+            avgBudget = Double.isNaN(avgBudget) ? sampleBudget * BUDGET_ALPHA : avgBudget + BUDGET_ALPHA * (sampleBudget - avgBudget);
+            extraBudget.set(Math.round(Math.max(avgBudget, 0) * BUDGET_WINDOWS));
+          }
 
           if (totalCountRunningAverage == 0) {
             totalCountRunningAverage = totalCount;
@@ -124,18 +138,19 @@ class StreamingSampler {
             totalCountRunningAverage = totalCountRunningAverage + EMA_ALPHA * (totalCount - totalCountRunningAverage);
           }
 
+          double previousProbability = probability;
           if (totalCountRunningAverage <= 0) {
             probability = 1;
           } else {
             probability =
               Math.min(
-                ((double) samplesPerWindow
-                  + (double) newExtraBudget / carriedOverSamples.length)
+                (samplesPerWindow + avgBudget)
                   / totalCountRunningAverage,
                 1d);
           }
 
           nextWindowTs += windowDurationNs;
+          onWindow(totalCount, sampledCount, cutOffCount, previousBudget, previousProbability, nextWindowTs);
         } finally {
           endOfWindowLock.unlock();
         }
@@ -145,21 +160,8 @@ class StreamingSampler {
     return sampled;
   }
 
-  /**
-   * Recalculates the time budget with the latest 'unusedSamples' value.
-   * <b>Must be called under 'endOfWindowLock' lock to ensure proper concurrency handling</b>
-   *
-   * @param unusedSamples the number of currently unused samples
-   * @return new value of sampling budget based on the values captured in last CARRIED_OVER_ARRAY_SIZE windows
+  /*
+   * Give the test access to window roll information
    */
-  private long recalculateBudget(long unusedSamples) {
-    carriedOverSampleIndex = (carriedOverSampleIndex + 1) % carriedOverSamples.length;
-    carriedOverSamples[carriedOverSampleIndex] = unusedSamples;
-    long newExtraBudget = 0;
-    for (long carriedOverSample : carriedOverSamples) {
-      newExtraBudget += carriedOverSample;
-    }
-    newExtraBudget = Math.max(newExtraBudget, 0);
-    return newExtraBudget;
-  }
+  void onWindow(long eventCount, long sampledCount, long cutOffCount, double avgBudget, double probability, long nextWindowTs) {}
 }

@@ -8,13 +8,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.opentest4j.AssertionFailedError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +27,8 @@ class StreamingSamplerTest {
 
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
   private static final double DURATION_ERROR_MARGIN = 20;
-  private static final double SAMPLES_ERROR_MARGIN = 15;
+  private static final double SAMPLES_ERROR_MARGIN = 10;
+  private static final double CUTOFF_ERROR_MARGIN = 5;
 
   private interface TimestampProvider extends Supplier<Long> {
     default void prepare() {}
@@ -50,6 +54,11 @@ class StreamingSamplerTest {
     @Override
     public long getLast() {
       return timestamp.get();
+    }
+
+    @Override
+    public void prepare() {
+      timestamp.set(0L);
     }
 
     protected abstract long computeRandomStep(long step);
@@ -113,6 +122,7 @@ class StreamingSamplerTest {
               .longs(totalEvents * MARGIN, 0, totalDuration.toNanos() * MARGIN)
               .sorted()
               .toArray();
+      counter.set(0);
     }
 
     @Override
@@ -143,10 +153,68 @@ class StreamingSamplerTest {
       final Duration windowDuration,
       final int samplesPerWindow)
       throws Exception {
+    /*
+     * This test is probabilistic and an unlucky series of random events can break the error margins.
+     * Retry a failed test several times to identify systemic failures.
+     */
+    long retries = 1;
+    while (true) {
+      try {
+        runSampleTest(
+            threadCount,
+            timestampProvider,
+            requestedEvents,
+            requestedDuration,
+            windowDuration,
+            samplesPerWindow);
+        break;
+      } catch (AssertionFailedError failed) {
+        LOGGER.warn("{}. attempt failed ({}). Retrying.", retries, failed.getLocalizedMessage());
+        if (++retries == 4) {
+          throw failed;
+        }
+      }
+    }
+  }
+
+  private void runSampleTest(
+      int threadCount,
+      TimestampProvider timestampProvider,
+      int requestedEvents,
+      Duration requestedDuration,
+      Duration windowDuration,
+      int samplesPerWindow)
+      throws InterruptedException {
     try {
+      LongAdder allCutOff = new LongAdder();
+      LongAdder allCount = new LongAdder();
+      LongAdder allSamples = new LongAdder();
       timestampProvider.prepare();
       final StreamingSampler sampler =
-          new StreamingSampler(windowDuration, samplesPerWindow, timestampProvider);
+          new StreamingSampler(windowDuration, samplesPerWindow, timestampProvider) {
+            private final AtomicBoolean firstWindow = new AtomicBoolean(true);
+
+            @Override
+            void onWindow(
+                long eventCount,
+                long sampledCount,
+                long cutOffCount,
+                double avgBudget,
+                double probability,
+                long nextWindowTs) {
+              // discard the first window since the cutoff is extremely high due to no history
+              if (!firstWindow.getAndSet(false)) {
+                if (cutOffCount > 0) {
+                  LOGGER.debug(
+                      "{} ({}%) events were cut-off from sampling in window while yielding {} samples",
+                      cutOffCount, ((double) cutOffCount / eventCount) * 100, sampledCount);
+                }
+                allCount.add(eventCount);
+                allCutOff.add(cutOffCount);
+                allSamples.add(sampledCount);
+              }
+            }
+          };
 
       final long actualSamples = runThreadsAndCountSamples(sampler, threadCount, requestedEvents);
 
@@ -160,12 +228,12 @@ class StreamingSamplerTest {
 
       final double expectedSamples =
           ((double) actualDuration.toNanos() / windowDuration.toNanos() * samplesPerWindow);
-      final double samplesDiscrepancy =
-          Math.abs(expectedSamples - actualSamples) / expectedSamples * 100;
+      final long samplesDiscrepancy =
+          Math.round(Math.abs(expectedSamples - actualSamples) / expectedSamples * 100);
 
       final String message =
           String.format(
-              "Expected to get within %.1f%% of requested samples: abs(%.1f - %d) / %.1f = %.1f%%",
+              "Expected to get within %.1f%% of requested samples: abs(%.1f - %d) / %.1f = %d%%",
               SAMPLES_ERROR_MARGIN,
               expectedSamples,
               actualSamples,
@@ -183,6 +251,15 @@ class StreamingSamplerTest {
               actualDuration.toMillis(),
               requestedDuration.toMillis(),
               durationDiscrepancy));
+
+      double samplingRate = allCount.doubleValue() / allSamples.longValue();
+      long missedSamples = Math.round(allCutOff.longValue() / samplingRate);
+      final double cutOffError = (missedSamples / allSamples.doubleValue()) * 100;
+      assertTrue(
+          cutOffError <= CUTOFF_ERROR_MARGIN,
+          String.format(
+              "Expected to cut off not more than %.1f%% of total events: (%d / %d) * 100 = %.2f%%",
+              CUTOFF_ERROR_MARGIN, missedSamples, allSamples.longValue(), cutOffError));
     } finally {
       timestampProvider.cleanup();
     }
@@ -212,6 +289,7 @@ class StreamingSamplerTest {
     for (final Thread thread : threads) {
       thread.join();
     }
+    //    LOGGER.debug("Overshoot ratio: {}", sampler.overshootRatio());
 
     return totalSamplesCounter.get();
   }
