@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
@@ -28,7 +27,6 @@ class StreamingSamplerTest {
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
   private static final double DURATION_ERROR_MARGIN = 20;
   private static final double SAMPLES_ERROR_MARGIN = 10;
-  private static final double CUTOFF_ERROR_MARGIN = 5;
 
   private interface TimestampProvider extends Supplier<Long> {
     default void prepare() {}
@@ -191,30 +189,7 @@ class StreamingSamplerTest {
       LongAdder allSamples = new LongAdder();
       timestampProvider.prepare();
       final StreamingSampler sampler =
-          new StreamingSampler(windowDuration, samplesPerWindow, timestampProvider) {
-            private final AtomicBoolean firstWindow = new AtomicBoolean(true);
-
-            @Override
-            void onWindow(
-                long eventCount,
-                long sampledCount,
-                long cutOffCount,
-                double avgBudget,
-                double probability,
-                long nextWindowTs) {
-              // discard the first window since the cutoff is extremely high due to no history
-              if (!firstWindow.getAndSet(false)) {
-                if (cutOffCount > 0) {
-                  LOGGER.debug(
-                      "{} ({}%) events were cut-off from sampling in window while yielding {} samples",
-                      cutOffCount, ((double) cutOffCount / eventCount) * 100, sampledCount);
-                }
-                allCount.add(eventCount);
-                allCutOff.add(cutOffCount);
-                allSamples.add(sampledCount);
-              }
-            }
-          };
+          new StreamingSampler(windowDuration, samplesPerWindow, timestampProvider);
 
       final long actualSamples = runThreadsAndCountSamples(sampler, threadCount, requestedEvents);
 
@@ -252,14 +227,7 @@ class StreamingSamplerTest {
               requestedDuration.toMillis(),
               durationDiscrepancy));
 
-      double samplingRate = allCount.doubleValue() / allSamples.longValue();
-      long missedSamples = Math.round(allCutOff.longValue() / samplingRate);
-      final double cutOffError = (missedSamples / allSamples.doubleValue()) * 100;
-      assertTrue(
-          cutOffError <= CUTOFF_ERROR_MARGIN,
-          String.format(
-              "Expected to cut off not more than %.1f%% of total events: (%d / %d) * 100 = %.2f%%",
-              CUTOFF_ERROR_MARGIN, missedSamples, allSamples.longValue(), cutOffError));
+      // TODO: Add edge case tests with hand crafted data (PROF-1289)
     } finally {
       timestampProvider.cleanup();
     }

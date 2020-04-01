@@ -39,18 +39,24 @@ class StreamingSampler {
    * Exponential Moving Average (EMA) last element weight.
    * Check out papers about using EMA for streaming data - eg.
    * https://nestedsoftware.com/2018/04/04/exponential-moving-average-on-streaming-data-4hhl.24876.html
+   *
+   * Alpha of 0.15 corresponds to the last ~20 significant values (the weight of the value is >= than the weight
+   * if computed via arithmetic average).
+   * Relative weight of a (N-k)-th element vs. the most recent one (N-0)-th element can be computed as (1 - alpha)^k.
+   * In this case (1 - 0.15)^20 ~= 0.04 which is less than 1/20 which would be assigned by arithmetic average.
    */
-  private static final double EMA_ALPHA = 0.2d;
+  private static final double EMA_ALPHA = 0.15d;
 
   /*
-   * We keep a 'budget' by counting number of unused samples from all the past windows (kind of)
-   * The trick applied here is to keep a an exponential moving average with very long tail (at least BUDGET_WINDOW
-   * significant windows) and then use that average to estimate the accumulated budget over those significant windows.
-   * The idea is to 'smooth out' the overall average so we can 'oversample' windows with spikes with confidence
-   * of not breaking the total sample limit.
+   * We keep a 'budget' by counting number of unused samples from all the past windows (kind of) - using exponential
+   * moving average to re-assign value weights to provide good average estimation.
+   *
+   * Alpha of 0.15 corresponds to the last ~20 significant values (the weight of the value is >= than the weight
+   * if computed via arithmetic average).
+   * Relative weight of a (N-k)-th element vs. the most recent one (N-0)-th element can be computed as (1 - alpha)^k.
+   * In this case (1 - 0.15)^20 ~= 0.04 which is less than 1/20 which would be assigned by arithmetic average.
    */
-  private static final long BUDGET_WINDOWS = 10000;
-  private static final double BUDGET_ALPHA = 1d / (BUDGET_WINDOWS * 0.9);
+  private static final double BUDGET_ALPHA = 0.15d;
 
   private final Supplier<Long> tsProvider;
   private final long windowDurationNs;
@@ -60,7 +66,6 @@ class StreamingSampler {
   private final AtomicLong sampledCounter = new AtomicLong(0L);
   private final ReentrantLock endOfWindowLock = new ReentrantLock();
   private final AtomicLong extraBudget = new AtomicLong(0);
-  private final LongAdder cutOffCounter = new LongAdder();
 
   // these attributes need to be volatile since they are accessed outside of the 'endOfWindowLock' guarded block
   private volatile double probability = 1d;
@@ -108,8 +113,6 @@ class StreamingSampler {
         sampledCounter.incrementAndGet();
         sampled = true;
       }
-    } else {
-      cutOffCounter.increment();
     }
 
     final long ts = tsProvider.get();
@@ -122,15 +125,9 @@ class StreamingSampler {
           final long totalCount = testCounter.sumThenReset();
           final long sampledCount = sampledCounter.getAndSet(0);
 
-          long cutOffCount = cutOffCounter.sumThenReset();
-
-          double previousBudget = avgBudget;
           long sampleBudget = samplesPerWindow - sampledCount;
-          if (sampleBudget > 0) {
-            // keep moving average over last ~BUDGET_WINDOWS and calculate the available budget as avg * BUDGET_WINDOWS
-            avgBudget = Double.isNaN(avgBudget) ? sampleBudget * BUDGET_ALPHA : avgBudget + BUDGET_ALPHA * (sampleBudget - avgBudget);
-            extraBudget.set(Math.round(Math.max(avgBudget, 0) * BUDGET_WINDOWS));
-          }
+          avgBudget = Double.isNaN(avgBudget) ? sampleBudget : avgBudget + BUDGET_ALPHA * (sampleBudget - avgBudget);
+          extraBudget.set(Math.round(Math.max(avgBudget, 0) * 1));
 
           if (totalCountRunningAverage == 0) {
             totalCountRunningAverage = totalCount;
@@ -138,7 +135,6 @@ class StreamingSampler {
             totalCountRunningAverage = totalCountRunningAverage + EMA_ALPHA * (totalCount - totalCountRunningAverage);
           }
 
-          double previousProbability = probability;
           if (totalCountRunningAverage <= 0) {
             probability = 1;
           } else {
@@ -150,7 +146,6 @@ class StreamingSampler {
           }
 
           nextWindowTs += windowDurationNs;
-          onWindow(totalCount, sampledCount, cutOffCount, previousBudget, previousProbability, nextWindowTs);
         } finally {
           endOfWindowLock.unlock();
         }
@@ -159,9 +154,4 @@ class StreamingSampler {
 
     return sampled;
   }
-
-  /*
-   * Give the test access to window roll information
-   */
-  void onWindow(long eventCount, long sampledCount, long cutOffCount, double avgBudget, double probability, long nextWindowTs) {}
 }
