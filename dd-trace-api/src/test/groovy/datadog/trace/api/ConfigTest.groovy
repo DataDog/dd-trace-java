@@ -1280,10 +1280,6 @@ class ConfigTest extends DDSpecification {
 
     where:
     value      | tClass  | defaultValue | expected
-    null       | null    | null         | null
-    ""         | null    | null         | null
-    "      "   | null    | null         | null
-    "1"        | null    | null         | null
     "42.42"    | Boolean | true         | false
     "42.42"    | Boolean | null         | false
     "true"     | Boolean | null         | true
@@ -1303,6 +1299,22 @@ class ConfigTest extends DDSpecification {
     "44"       | Integer | 21           | 44
     "45"       | Long    | 21           | 45
     "46"       | Short   | 21           | 46
+  }
+
+  def "valueOf negative test when tClass is null"() {
+    when:
+    Config.valueOf(value, tClass, defaultValue)
+
+    then:
+    def exception = thrown(NullPointerException)
+    exception.message == "tClass is marked non-null but is null"
+
+    where:
+    value      | tClass  | defaultValue
+    null       | null    | "42"
+    ""         | null    | "43"
+    "      "   | null    | "44"
+    "1"        | null    | "45"
   }
 
   def "valueOf negative test"() {

@@ -416,10 +416,10 @@ public class Config {
             RUNTIME_CONTEXT_FIELD_INJECTION, DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
 
     propagationStylesToExtract =
-        getEnumSetSettingFromEnvironmentOrDefault(
+        getPropagationStyleSetSettingFromEnvironmentOrDefault(
             PROPAGATION_STYLE_EXTRACT, DEFAULT_PROPAGATION_STYLE_EXTRACT);
     propagationStylesToInject =
-        getEnumSetSettingFromEnvironmentOrDefault(
+        getPropagationStyleSetSettingFromEnvironmentOrDefault(
             PROPAGATION_STYLE_INJECT, DEFAULT_PROPAGATION_STYLE_INJECT);
 
     jmxFetchEnabled =
@@ -603,13 +603,13 @@ public class Config {
             properties, RUNTIME_CONTEXT_FIELD_INJECTION, parent.runtimeContextFieldInjection);
 
     final Set<PropagationStyle> parsedPropagationStylesToExtract =
-        getPropertySetValue(properties, PROPAGATION_STYLE_EXTRACT);
+        getPropagationStyleSetFromPropertyValue(properties, PROPAGATION_STYLE_EXTRACT);
     propagationStylesToExtract =
         parsedPropagationStylesToExtract == null
             ? parent.propagationStylesToExtract
             : parsedPropagationStylesToExtract;
     final Set<PropagationStyle> parsedPropagationStylesToInject =
-        getPropertySetValue(properties, PROPAGATION_STYLE_INJECT);
+        getPropagationStyleSetFromPropertyValue(properties, PROPAGATION_STYLE_INJECT);
     propagationStylesToInject =
         parsedPropagationStylesToInject == null
             ? parent.propagationStylesToInject
@@ -1004,15 +1004,16 @@ public class Config {
    * Calls {@link #getSettingFromEnvironment(String, String)} and converts the result to a set of
    * strings splitting by space or comma.
    */
-  private static Set<PropagationStyle> getEnumSetSettingFromEnvironmentOrDefault(
+  private static Set<PropagationStyle> getPropagationStyleSetSettingFromEnvironmentOrDefault(
       final String name, final String defaultValue) {
     final String value = getSettingFromEnvironment(name, defaultValue);
     Set<PropagationStyle> result =
-        convertStringSetToEnumSet(parseStringIntoSetOfNonEmptyStrings(value));
+        convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(value));
 
     if (result.isEmpty()) {
       // Treat empty parsing result as no value and use default instead
-      result = convertStringSetToEnumSet(parseStringIntoSetOfNonEmptyStrings(defaultValue));
+      result =
+          convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(defaultValue));
     }
 
     return result;
@@ -1063,8 +1064,9 @@ public class Config {
    * @return value == null || value.trim().isEmpty() ? defaultValue : tClass.valueOf(value)
    * @throws NumberFormatException
    */
-  private static <T> T valueOf(final String value, final Class<T> tClass, final T defaultValue) {
-    if (tClass == null || value == null || value.trim().isEmpty()) {
+  private static <T> T valueOf(
+      final String value, @NonNull final Class<T> tClass, final T defaultValue) {
+    if (value == null || value.trim().isEmpty()) {
       log.debug("valueOf: using defaultValue '{}' for '{}' of '{}' ", defaultValue, value, tClass);
       return defaultValue;
     }
@@ -1075,11 +1077,8 @@ public class Config {
               .invoke(value);
     } catch (NumberFormatException e) {
       throw e;
-    } catch (NoSuchMethodException e) {
-      log.debug("Can't invoke 'valueOf': ", e);
-      throw new NumberFormatException(e.toString());
-    } catch (IllegalAccessException e) {
-      log.debug("Can't access 'valueOf': ", e);
+    } catch (NoSuchMethodException | IllegalAccessException e) {
+      log.debug("Can't invoke or access 'valueOf': ", e);
       throw new NumberFormatException(e.toString());
     } catch (Throwable e) {
       log.debug("Can't parse: ", e);
@@ -1114,12 +1113,12 @@ public class Config {
     return valueOf(properties.getProperty(name), Double.class, defaultValue);
   }
 
-  private static Set<PropagationStyle> getPropertySetValue(
+  private static Set<PropagationStyle> getPropagationStyleSetFromPropertyValue(
       final Properties properties, final String name) {
     final String value = properties.getProperty(name);
     if (value != null) {
       final Set<PropagationStyle> result =
-          convertStringSetToEnumSet(parseStringIntoSetOfNonEmptyStrings(value));
+          convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(value));
       if (!result.isEmpty()) {
         return result;
       }
@@ -1249,7 +1248,8 @@ public class Config {
   }
 
   @NonNull
-  private static Set<PropagationStyle> convertStringSetToEnumSet(final Set<String> input) {
+  private static Set<PropagationStyle> convertStringSetToPropagationStyleSet(
+      final Set<String> input) {
     // Using LinkedHashSet to preserve original string order
     final Set<PropagationStyle> result = new LinkedHashSet<>();
     for (final String value : input) {
