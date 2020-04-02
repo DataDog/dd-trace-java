@@ -17,7 +17,7 @@ final class ExceptionSampler {
   }
 
   ExceptionSampler(final Duration windowDuration, final int samplesPerWindow) {
-    sampler = new StreamingSampler(windowDuration, samplesPerWindow);
+    sampler = new StreamingSampler(windowDuration, samplesPerWindow, 60);
     exceptionSampleType = EventType.getEventType(ExceptionSampleEvent.class);
   }
 

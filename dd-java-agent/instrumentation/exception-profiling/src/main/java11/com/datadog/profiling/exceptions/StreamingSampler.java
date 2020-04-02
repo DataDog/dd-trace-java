@@ -35,29 +35,18 @@ import java.util.function.Supplier;
  */
 class StreamingSampler {
   private static final Logger LOGGER = LoggerFactory.getLogger(StreamingSampler.class);
+
   /*
    * Exponential Moving Average (EMA) last element weight.
    * Check out papers about using EMA for streaming data - eg.
    * https://nestedsoftware.com/2018/04/04/exponential-moving-average-on-streaming-data-4hhl.24876.html
    *
-   * Alpha of 0.15 corresponds to the last ~20 significant values (the weight of the value is >= than the weight
-   * if computed via arithmetic average).
-   * Relative weight of a (N-k)-th element vs. the most recent one (N-0)-th element can be computed as (1 - alpha)^k.
-   * In this case (1 - 0.15)^20 ~= 0.04 which is less than 1/20 which would be assigned by arithmetic average.
+   * Corresponds to 'lookback' of N values:
+   * With T being the index of the most recent value the lookback of N values means that for all values with index
+   * T-K, where K > N, the relative weight of that value computed as (1 - alpha)^K is less or equal than the
+   * weight assigned by a plain arithmetic average (= 1/N).
    */
-  private static final double EMA_ALPHA = 0.15d;
-
-  /*
-   * We keep a 'budget' by counting number of unused samples from all the past windows (kind of) - using exponential
-   * moving average to re-assign value weights to provide good average estimation.
-   *
-   * Alpha of 0.15 corresponds to the last ~20 significant values (the weight of the value is >= than the weight
-   * if computed via arithmetic average).
-   * Relative weight of a (N-k)-th element vs. the most recent one (N-0)-th element can be computed as (1 - alpha)^k.
-   * In this case (1 - 0.15)^20 ~= 0.04 which is less than 1/20 which would be assigned by arithmetic average.
-   */
-  private static final double BUDGET_ALPHA = 0.15d;
-
+  private final double emaAlpha;
   private final Supplier<Long> tsProvider;
   private final long windowDurationNs;
   private final int samplesPerWindow;
@@ -80,24 +69,27 @@ class StreamingSampler {
    *
    * @param windowDuration   the sampling window duration
    * @param samplesPerWindow the maximum number of samples in the sampling window
+   * @param lookback         the number of windows to consider in averaging the sampling rate
    * @param tsProvider       timestamp provider
    */
   StreamingSampler(
-    final Duration windowDuration, final int samplesPerWindow, final Supplier<Long> tsProvider) {
+    final Duration windowDuration, final int samplesPerWindow, final int lookback, final Supplier<Long> tsProvider) {
     this.tsProvider = tsProvider;
     windowDurationNs = windowDuration.toNanos();
-    nextWindowTs = tsProvider.get() + windowDurationNs;
+    nextWindowTs = getNextWindowTs(tsProvider.get());
     this.samplesPerWindow = samplesPerWindow;
+    this.emaAlpha = computeLookbackAlpha(lookback);
   }
 
   /**
    * Create a new sampler instance
    *
-   * @param windowDuration the sampling window duration
+   * @param windowDuration   the sampling window duration
    * @param samplesPerWindow the maximum number of samples in the sampling window
+   * @param lookback         the number of windows to consider in averaging the sampling rate
    */
-  StreamingSampler(final Duration windowDuration, final int samplesPerWindow) {
-    this(windowDuration, samplesPerWindow, System::nanoTime);
+  StreamingSampler(final Duration windowDuration, final int samplesPerWindow, final int lookback) {
+    this(windowDuration, samplesPerWindow, lookback, System::nanoTime);
   }
 
   /**
@@ -126,13 +118,13 @@ class StreamingSampler {
           final long sampledCount = sampledCounter.getAndSet(0);
 
           long sampleBudget = samplesPerWindow - sampledCount;
-          avgBudget = Double.isNaN(avgBudget) ? sampleBudget : avgBudget + BUDGET_ALPHA * (sampleBudget - avgBudget);
+          avgBudget = Double.isNaN(avgBudget) ? sampleBudget : avgBudget + emaAlpha * (sampleBudget - avgBudget);
           extraBudget.set(Math.round(Math.max(avgBudget, 0) * 1));
 
           if (totalCountRunningAverage == 0) {
             totalCountRunningAverage = totalCount;
           } else {
-            totalCountRunningAverage = totalCountRunningAverage + EMA_ALPHA * (totalCount - totalCountRunningAverage);
+            totalCountRunningAverage = totalCountRunningAverage + emaAlpha * (totalCount - totalCountRunningAverage);
           }
 
           if (totalCountRunningAverage <= 0) {
@@ -144,8 +136,7 @@ class StreamingSampler {
                   / totalCountRunningAverage,
                 1d);
           }
-
-          nextWindowTs += windowDurationNs;
+          nextWindowTs = getNextWindowTs(nextWindowTs);
         } finally {
           endOfWindowLock.unlock();
         }
@@ -153,5 +144,13 @@ class StreamingSampler {
     }
 
     return sampled;
+  }
+
+  private long getNextWindowTs(long currentWindowTs) {
+    return currentWindowTs + windowDurationNs;
+  }
+
+  private static double computeLookbackAlpha(int lookback) {
+    return 1 - Math.pow(lookback, -1d / lookback);
   }
 }

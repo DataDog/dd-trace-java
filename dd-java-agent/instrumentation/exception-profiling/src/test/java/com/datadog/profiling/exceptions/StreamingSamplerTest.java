@@ -10,7 +10,6 @@ import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -184,12 +183,9 @@ class StreamingSamplerTest {
       int samplesPerWindow)
       throws InterruptedException {
     try {
-      LongAdder allCutOff = new LongAdder();
-      LongAdder allCount = new LongAdder();
-      LongAdder allSamples = new LongAdder();
       timestampProvider.prepare();
       final StreamingSampler sampler =
-          new StreamingSampler(windowDuration, samplesPerWindow, timestampProvider);
+          new StreamingSampler(windowDuration, samplesPerWindow, 60, timestampProvider);
 
       final long actualSamples = runThreadsAndCountSamples(sampler, threadCount, requestedEvents);
 
