@@ -287,12 +287,18 @@ public class DDTracer
 
   @Override
   public TraceScope activeScope() {
+    // FIXME: [API] the fact that this returns null for SimpleScope is problematic
     final AgentScope scope = scopeManager.active();
     if (scope instanceof TraceScope) {
       return (TraceScope) scope;
     }
 
     return null;
+  }
+
+  public AgentScope activeAgentScope() {
+    // FIXME: [API] See activeScope() above
+    return scopeManager.active();
   }
 
   @Override
@@ -307,7 +313,16 @@ public class DDTracer
 
   @Override
   public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {
-    final DDSpanContext ddSpanContext = (DDSpanContext) span.context();
+
+    inject(span.context(), carrier, setter);
+  }
+
+  public <C> void inject(final AgentSpan.Context context, final C carrier, final Setter<C> setter) {
+    if (!(context instanceof DDSpanContext)) {
+      return;
+    }
+
+    final DDSpanContext ddSpanContext = (DDSpanContext) context;
 
     final DDSpan rootSpan = ddSpanContext.getTrace().getRootSpan();
     setSamplingPriorityIfNecessary(rootSpan);
@@ -315,8 +330,9 @@ public class DDTracer
     injector.inject(ddSpanContext, carrier, setter);
   }
 
+  // FIXME: [API] the interface has this return a AgentSpan.Context
   @Override
-  public <C> AgentSpan.Context extract(final C carrier, final Getter<C> getter) {
+  public <C> TagContext extract(final C carrier, final Getter<C> getter) {
     return extractor.extract(carrier, getter);
   }
 
@@ -520,8 +536,7 @@ public class DDTracer
       return this;
     }
 
-    // Private methods
-    private DDSpanBuilder withTag(final String tag, final Object value) {
+    public DDSpanBuilder withTag(final String tag, final Object value) {
       if (value == null || (value instanceof String && ((String) value).isEmpty())) {
         tags.remove(tag);
       } else {
@@ -530,6 +545,7 @@ public class DDTracer
       return this;
     }
 
+    // Private methods
     private BigInteger generateNewId() {
       // It is **extremely** unlikely to generate the value "0" but we still need to handle that
       // case
@@ -558,8 +574,8 @@ public class DDTracer
 
       final DDSpanContext context;
 
-      // FIXME parentContext should be an interface implemented by ExtractedContext, TagContext,
-      // DDSpanContext, AgentSpan.Context
+      // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
+      // TagContext, DDSpanContext, AgentSpan.Context
       Object parentContext = parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.

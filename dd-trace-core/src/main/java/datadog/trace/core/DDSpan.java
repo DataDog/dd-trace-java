@@ -177,11 +177,18 @@ public class DDSpan implements MutableSpan, AgentSpan {
   }
 
   @Override
-  public final DDSpan setTag(final String tag, final Number value) {
+  public DDSpan setTag(final String tag, final Number value) {
     context.setTag(tag, value);
     return this;
   }
 
+  // FIXME [API] this is not on AgentSpan or MutableSpan
+  public DDSpan setTag(final String tag, final Object value) {
+    context.setTag(tag, value);
+    return this;
+  }
+
+  // FIXME [API] this is not on AgentSpan or MutableSpan
   public AgentSpan removeTag(final String tag) {
     context.setTag(tag, null);
     return this;

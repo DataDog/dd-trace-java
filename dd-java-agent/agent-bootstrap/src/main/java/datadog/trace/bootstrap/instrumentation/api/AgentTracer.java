@@ -214,7 +214,7 @@ public class AgentTracer {
     }
   }
 
-  public static class NoopAgentScope implements AgentScope {
+  public static class NoopAgentScope implements AgentScope, TraceScope {
     public static final NoopAgentScope INSTANCE = new NoopAgentScope();
 
     @Override
@@ -226,7 +226,17 @@ public class AgentTracer {
     public void setAsyncPropagation(final boolean value) {}
 
     @Override
+    public Continuation capture() {
+      return NoopContinuation.INSTANCE;
+    }
+
+    @Override
     public void close() {}
+
+    @Override
+    public boolean isAsyncPropagating() {
+      return false;
+    }
   }
 
   static class NoopAgentPropagation implements AgentPropagation {
@@ -251,7 +261,7 @@ public class AgentTracer {
 
     @Override
     public TraceScope activate() {
-      return NoopTraceScope.INSTANCE;
+      return NoopAgentScope.INSTANCE;
     }
 
     @Override
@@ -261,27 +271,7 @@ public class AgentTracer {
     public void close(final boolean closeContinuationScope) {}
   }
 
-  static class NoopTraceScope implements TraceScope {
-    static final NoopTraceScope INSTANCE = new NoopTraceScope();
-
-    @Override
-    public Continuation capture() {
-      return NoopContinuation.INSTANCE;
-    }
-
-    @Override
-    public void close() {}
-
-    @Override
-    public boolean isAsyncPropagating() {
-      return false;
-    }
-
-    @Override
-    public void setAsyncPropagation(final boolean value) {}
-  }
-
-  static class NoopContext implements Context {
-    static final NoopContext INSTANCE = new NoopContext();
+  public static class NoopContext implements Context {
+    public static final NoopContext INSTANCE = new NoopContext();
   }
 }
