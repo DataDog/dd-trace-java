@@ -1,6 +1,7 @@
-package datadog.trace.core
+package datadog.opentracing
 
-
+import datadog.trace.core.DDSpan
+import datadog.trace.core.DDTracer
 import datadog.trace.api.DDTags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.util.test.DDSpecification
