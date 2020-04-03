@@ -6,31 +6,40 @@ import java.time.temporal.ChronoUnit;
 import jdk.jfr.EventType;
 
 final class ExceptionSampler {
-  private static final int SAMPLING_WINDOW_DURATION_SEC = 1;
+
+  /*
+   * Fixed 1 second sampling window.
+   * Logic in StreamingSampler relies on sampling window being small compared to (in our case) recording duration:
+   * sampler may overshoot on one given window but should average to samplesPerWindow in the long run.
+   */
+  private static final Duration SAMPLING_WINDOW = Duration.of(1, ChronoUnit.SECONDS);
+
   private final StreamingSampler sampler;
   private final EventType exceptionSampleType;
 
   ExceptionSampler(final Config config) {
     this(
-        getSamplingWindowDuration(), // fixed 1sec sampling window
-        getSamplesPerWindow(config));
+      SAMPLING_WINDOW,
+      getSamplesPerWindow(config),
+      samplingWindowsPerRecording(config));
   }
 
-  ExceptionSampler(final Duration windowDuration, final int samplesPerWindow) {
-    sampler = new StreamingSampler(windowDuration, samplesPerWindow, 60);
+  ExceptionSampler(final Duration windowDuration, final int samplesPerWindow, final int lookback) {
+    sampler = new StreamingSampler(windowDuration, samplesPerWindow, lookback);
     exceptionSampleType = EventType.getEventType(ExceptionSampleEvent.class);
   }
 
-  private static Duration getSamplingWindowDuration() {
-    return Duration.of(SAMPLING_WINDOW_DURATION_SEC, ChronoUnit.SECONDS);
+  private static int samplingWindowsPerRecording(final Config config) {
+    return (int) Math.min(Duration.of(config.getProfilingUploadPeriod(), ChronoUnit.SECONDS)
+      .dividedBy(SAMPLING_WINDOW), Integer.MAX_VALUE);
   }
 
-  private static int getSamplesPerWindow(Config config) {
-    return (int)Math.min(config.getProfilingExceptionSamplerLimit() / Duration.of(config.getProfilingUploadPeriod(), ChronoUnit.SECONDS).dividedBy(getSamplingWindowDuration()), Integer.MAX_VALUE);
+  private static int getSamplesPerWindow(final Config config) {
+    return config.getProfilingExceptionSampleLimit() / samplingWindowsPerRecording(config);
   }
 
   boolean sample() {
-    return sampler.sample();
+    return exceptionSampleType.isEnabled() ? sampler.sample() : false;
   }
 
   boolean isEnabled() {
