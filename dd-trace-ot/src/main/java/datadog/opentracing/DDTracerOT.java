@@ -209,33 +209,66 @@ public class DDTracerOT implements Tracer {
       final int partialFlushMinSpans,
       final LogHandler logHandler) {
 
-    DDScopeManager ddScopeManager = null;
-    if (scopeManager != null) {
-      this.scopeManager = scopeManager;
-      ddScopeManager = new CustomScopeManager(scopeManager);
-    } else {
-      this.scopeManager = new OTScopeManager();
-    }
-
     if (logHandler != null) {
       this.logHandler = logHandler;
     }
 
-    coreTracer =
-        DDTracer.builder()
-            .config(config)
-            .serviceName(serviceName)
-            .writer(writer)
-            .sampler(sampler)
-            .injector(injector)
-            .extractor(extractor)
-            .scopeManager(ddScopeManager)
-            .localRootSpanTags(localRootSpanTags)
-            .defaultSpanTags(defaultSpanTags)
-            .serviceNameMappings(serviceNameMappings)
-            .taggedHeaders(taggedHeaders)
-            .partialFlushMinSpans(partialFlushMinSpans)
-            .build();
+    // Each of these are only overriden if set
+    // Otherwise, the values retrieved from config will be overriden with null
+    DDTracer.DDTracerBuilder builder = DDTracer.builder();
+
+    if (config != null) {
+      builder = builder.config(config);
+    }
+
+    if (serviceName != null) {
+      builder = builder.serviceName(serviceName);
+    }
+
+    if (writer != null) {
+      builder = builder.writer(writer);
+    }
+
+    if (sampler != null) {
+      builder = builder.sampler(sampler);
+    }
+
+    if (injector != null) {
+      builder = builder.injector(injector);
+    }
+
+    if (extractor != null) {
+      builder = builder.extractor(extractor);
+    }
+
+    if (scopeManager != null) {
+      this.scopeManager = scopeManager;
+      builder = builder.scopeManager(new CustomScopeManager(scopeManager));
+    } else {
+      this.scopeManager = new OTScopeManager();
+    }
+
+    if (localRootSpanTags != null) {
+      builder = builder.localRootSpanTags(localRootSpanTags);
+    }
+
+    if (defaultSpanTags != null) {
+      builder = builder.defaultSpanTags(defaultSpanTags);
+    }
+
+    if (serviceNameMappings != null) {
+      builder = builder.serviceNameMappings(serviceNameMappings);
+    }
+
+    if (taggedHeaders != null) {
+      builder = builder.taggedHeaders(taggedHeaders);
+    }
+
+    if (partialFlushMinSpans != 0) {
+      builder = builder.partialFlushMinSpans(partialFlushMinSpans);
+    }
+
+    coreTracer = builder.build();
   }
 
   private static Map<String, String> customRuntimeTags(
@@ -261,7 +294,7 @@ public class DDTracerOT implements Tracer {
   }
 
   @Override
-  public SpanBuilder buildSpan(final String operationName) {
+  public OTSpanBuilder buildSpan(final String operationName) {
     return new OTSpanBuilder(operationName);
   }
 
@@ -393,13 +426,13 @@ public class DDTracerOT implements Tracer {
     }
 
     @Override
-    public SpanBuilder asChildOf(final SpanContext parent) {
+    public OTSpanBuilder asChildOf(final SpanContext parent) {
       delegate.asChildOf(converter.toContext(parent));
       return this;
     }
 
     @Override
-    public SpanBuilder asChildOf(final Span parent) {
+    public OTSpanBuilder asChildOf(final Span parent) {
       if (parent != null) {
         delegate.asChildOf(converter.toAgentSpan(parent).context());
       }
@@ -407,7 +440,7 @@ public class DDTracerOT implements Tracer {
     }
 
     @Override
-    public SpanBuilder addReference(
+    public OTSpanBuilder addReference(
         final String referenceType, final SpanContext referencedContext) {
       if (referencedContext == null) {
         return this;
@@ -432,37 +465,37 @@ public class DDTracerOT implements Tracer {
     }
 
     @Override
-    public SpanBuilder ignoreActiveSpan() {
+    public OTSpanBuilder ignoreActiveSpan() {
       delegate.ignoreActiveSpan();
       return this;
     }
 
     @Override
-    public SpanBuilder withTag(final String key, final String value) {
+    public OTSpanBuilder withTag(final String key, final String value) {
       delegate.withTag(key, value);
       return this;
     }
 
     @Override
-    public SpanBuilder withTag(final String key, final boolean value) {
+    public OTSpanBuilder withTag(final String key, final boolean value) {
       delegate.withTag(key, value);
       return this;
     }
 
     @Override
-    public SpanBuilder withTag(final String key, final Number value) {
+    public OTSpanBuilder withTag(final String key, final Number value) {
       delegate.withTag(key, value);
       return this;
     }
 
     @Override
-    public <T> SpanBuilder withTag(final Tag<T> tag, final T value) {
+    public <T> OTSpanBuilder withTag(final Tag<T> tag, final T value) {
       delegate.withTag(tag.getKey(), value);
       return this;
     }
 
     @Override
-    public SpanBuilder withStartTimestamp(final long microseconds) {
+    public OTSpanBuilder withStartTimestamp(final long microseconds) {
       delegate.withStartTimestamp(microseconds);
       return this;
     }
@@ -482,6 +515,33 @@ public class DDTracerOT implements Tracer {
     public Scope startActive(final boolean finishSpanOnClose) {
       final AgentScope agentScope = delegate.startActive(finishSpanOnClose);
       return converter.toScope(agentScope);
+    }
+
+    public <T> OTSpanBuilder withServiceName(final String serviceName) {
+      delegate.withServiceName(serviceName);
+      return this;
+    }
+
+    public OTSpanBuilder withResourceName(final String resourceName) {
+      delegate.withResourceName(resourceName);
+      return this;
+    }
+
+    public OTSpanBuilder withErrorFlag() {
+      delegate.withErrorFlag();
+      return this;
+    }
+
+    public OTSpanBuilder withSpanType(final String spanType) {
+      delegate.withSpanType(spanType);
+      return this;
+    }
+
+    public OTSpanBuilder withLogHandler(final LogHandler logHandler) {
+      if (logHandler != null) {
+        DDTracerOT.this.logHandler = logHandler;
+      }
+      return this;
     }
   }
 

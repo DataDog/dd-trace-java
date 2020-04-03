@@ -536,6 +536,11 @@ public class DDTracer
       return this;
     }
 
+    public DDSpanBuilder asChildOf(final AgentSpan agentSpan) {
+      parent = agentSpan.context();
+      return this;
+    }
+
     public DDSpanBuilder withTag(final String tag, final Object value) {
       if (value == null || (value instanceof String && ((String) value).isEmpty())) {
         tags.remove(tag);
