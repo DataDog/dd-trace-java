@@ -23,6 +23,8 @@ class StreamingSamplerTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(StreamingSamplerTest.class);
 
+  private static final int MAX_RETRY_COUNT = 10;
+
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
   private static final double DURATION_ERROR_MARGIN = 20;
   private static final double SAMPLES_ERROR_MARGIN = 10;
@@ -167,7 +169,7 @@ class StreamingSamplerTest {
         break;
       } catch (AssertionFailedError failed) {
         LOGGER.warn("{}. attempt failed ({}). Retrying.", retries, failed.getLocalizedMessage());
-        if (++retries == 4) {
+        if (++retries > MAX_RETRY_COUNT) {
           throw failed;
         }
       }
