@@ -51,72 +51,99 @@ public class Config {
 
   private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
 
-  public static final String CONFIGURATION_FILE = "trace.config";
+  @Deprecated public static final String CONFIGURATION_FILE = "trace.config";
   public static final String API_KEY = "api-key";
   public static final String API_KEY_FILE = "api-key-file";
   public static final String SITE = "site";
-  public static final String SERVICE_NAME = "service.name";
-  public static final String TRACE_ENABLED = "trace.enabled";
-  public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
-  public static final String WRITER_TYPE = "writer.type";
-  public static final String AGENT_HOST = "agent.host";
-  public static final String TRACE_AGENT_PORT = "trace.agent.port";
-  public static final String AGENT_PORT_LEGACY = "agent.port";
+  @Deprecated public static final String SERVICE_NAME = "service.name";
+  @Deprecated public static final String TRACE_ENABLED = "trace.enabled";
+  @Deprecated public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
+  @Deprecated public static final String WRITER_TYPE = "writer.type";
+  @Deprecated public static final String AGENT_HOST = "agent.host";
+  @Deprecated public static final String TRACE_AGENT_PORT = "trace.agent.port";
+  @Deprecated public static final String AGENT_PORT_LEGACY = "agent.port";
+
+  @Deprecated
   public static final String AGENT_UNIX_DOMAIN_SOCKET = "trace.agent.unix.domain.socket";
-  public static final String PRIORITY_SAMPLING = "priority.sampling";
-  public static final String TRACE_RESOLVER_ENABLED = "trace.resolver.enabled";
-  public static final String SERVICE_MAPPING = "service.mapping";
+
+  @Deprecated public static final String PRIORITY_SAMPLING = "priority.sampling";
+  @Deprecated public static final String TRACE_RESOLVER_ENABLED = "trace.resolver.enabled";
+  @Deprecated public static final String SERVICE_MAPPING = "service.mapping";
 
   private static final String ENV = "env";
   private static final String VERSION = "version";
   public static final String TAGS = "tags";
   @Deprecated // Use dd.tags instead
   public static final String GLOBAL_TAGS = "trace.global.tags";
-  public static final String SPAN_TAGS = "trace.span.tags";
-  public static final String JMX_TAGS = "trace.jmx.tags";
+  @Deprecated public static final String SPAN_TAGS = "trace.span.tags";
+  @Deprecated public static final String JMX_TAGS = "trace.jmx.tags";
 
-  public static final String TRACE_ANALYTICS_ENABLED = "trace.analytics.enabled";
-  public static final String TRACE_ANNOTATIONS = "trace.annotations";
-  public static final String TRACE_EXECUTORS_ALL = "trace.executors.all";
-  public static final String TRACE_EXECUTORS = "trace.executors";
-  public static final String TRACE_METHODS = "trace.methods";
-  public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
+  @Deprecated public static final String TRACE_ANALYTICS_ENABLED = "trace.analytics.enabled";
+  @Deprecated public static final String TRACE_ANNOTATIONS = "trace.annotations";
+  @Deprecated public static final String TRACE_EXECUTORS_ALL = "trace.executors.all";
+  @Deprecated public static final String TRACE_EXECUTORS = "trace.executors";
+  @Deprecated public static final String TRACE_METHODS = "trace.methods";
+  @Deprecated public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
+
+  @Deprecated
   public static final String TRACE_SAMPLING_SERVICE_RULES = "trace.sampling.service.rules";
+
+  @Deprecated
   public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
-  public static final String TRACE_SAMPLE_RATE = "trace.sample.rate";
-  public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
-  public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
-  public static final String HEADER_TAGS = "trace.header.tags";
-  public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
-  public static final String HTTP_CLIENT_ERROR_STATUSES = "http.client.error.statuses";
+
+  @Deprecated public static final String TRACE_SAMPLE_RATE = "trace.sample.rate";
+  @Deprecated public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
+  @Deprecated public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
+  @Deprecated public static final String HEADER_TAGS = "trace.header.tags";
+  @Deprecated public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
+  @Deprecated public static final String HTTP_CLIENT_ERROR_STATUSES = "http.client.error.statuses";
+
+  @Deprecated
   public static final String HTTP_SERVER_TAG_QUERY_STRING = "http.server.tag.query-string";
+
+  @Deprecated
   public static final String HTTP_CLIENT_TAG_QUERY_STRING = "http.client.tag.query-string";
+
+  @Deprecated
   public static final String HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN = "trace.http.client.split-by-domain";
+
+  @Deprecated
   public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE = "trace.db.client.split-by-instance";
-  public static final String SPLIT_BY_TAGS = "trace.split-by-tags";
-  public static final String SCOPE_DEPTH_LIMIT = "trace.scope.depth.limit";
-  public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
+
+  @Deprecated public static final String SPLIT_BY_TAGS = "trace.split-by-tags";
+  @Deprecated public static final String SCOPE_DEPTH_LIMIT = "trace.scope.depth.limit";
+  @Deprecated public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
+
+  @Deprecated
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       "trace.runtime.context.field.injection";
-  public static final String PROPAGATION_STYLE_EXTRACT = "propagation.style.extract";
-  public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
 
-  public static final String JMX_FETCH_ENABLED = "jmxfetch.enabled";
-  public static final String JMX_FETCH_CONFIG_DIR = "jmxfetch.config.dir";
-  public static final String JMX_FETCH_CONFIG = "jmxfetch.config";
+  @Deprecated public static final String PROPAGATION_STYLE_EXTRACT = "propagation.style.extract";
+  @Deprecated public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
+
+  @Deprecated public static final String JMX_FETCH_ENABLED = "jmxfetch.enabled";
+  @Deprecated public static final String JMX_FETCH_CONFIG_DIR = "jmxfetch.config.dir";
+  @Deprecated public static final String JMX_FETCH_CONFIG = "jmxfetch.config";
   @Deprecated public static final String JMX_FETCH_METRICS_CONFIGS = "jmxfetch.metrics-configs";
-  public static final String JMX_FETCH_CHECK_PERIOD = "jmxfetch.check-period";
-  public static final String JMX_FETCH_REFRESH_BEANS_PERIOD = "jmxfetch.refresh-beans-period";
-  public static final String JMX_FETCH_STATSD_HOST = "jmxfetch.statsd.host";
-  public static final String JMX_FETCH_STATSD_PORT = "jmxfetch.statsd.port";
+  @Deprecated public static final String JMX_FETCH_CHECK_PERIOD = "jmxfetch.check-period";
 
-  public static final String HEALTH_METRICS_ENABLED = "trace.health.metrics.enabled";
+  @Deprecated
+  public static final String JMX_FETCH_REFRESH_BEANS_PERIOD = "jmxfetch.refresh-beans-period";
+
+  @Deprecated public static final String JMX_FETCH_STATSD_HOST = "jmxfetch.statsd.host";
+  @Deprecated public static final String JMX_FETCH_STATSD_PORT = "jmxfetch.statsd.port";
+
+  @Deprecated public static final String HEALTH_METRICS_ENABLED = "trace.health.metrics.enabled";
+
+  @Deprecated
   public static final String HEALTH_METRICS_STATSD_HOST = "trace.health.metrics.statsd.host";
+
+  @Deprecated
   public static final String HEALTH_METRICS_STATSD_PORT = "trace.health.metrics.statsd.port";
 
-  public static final String LOGS_INJECTION_ENABLED = "logs.injection";
+  @Deprecated public static final String LOGS_INJECTION_ENABLED = "logs.injection";
 
-  public static final String PROFILING_ENABLED = "profiling.enabled";
+  @Deprecated public static final String PROFILING_ENABLED = "profiling.enabled";
   @Deprecated // Use dd.site instead
   public static final String PROFILING_URL = "profiling.url";
   @Deprecated // Use dd.api-key instead
@@ -127,26 +154,34 @@ public class Config {
   public static final String PROFILING_API_KEY_VERY_OLD = "profiling.apikey";
   @Deprecated // Use dd.api-key-file instead
   public static final String PROFILING_API_KEY_FILE_VERY_OLD = "profiling.apikey.file";
-  public static final String PROFILING_TAGS = "profiling.tags";
-  public static final String PROFILING_START_DELAY = "profiling.start-delay";
+  @Deprecated public static final String PROFILING_TAGS = "profiling.tags";
+  @Deprecated public static final String PROFILING_START_DELAY = "profiling.start-delay";
   // DANGEROUS! May lead on sigsegv on JVMs before 14
   // Not intended for production use
+  @Deprecated
   public static final String PROFILING_START_FORCE_FIRST =
       "profiling.experimental.start-force-first";
-  public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
+
+  @Deprecated public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
+
+  @Deprecated
   public static final String PROFILING_TEMPLATE_OVERRIDE_FILE =
       "profiling.jfr-template-override-file";
-  public static final String PROFILING_UPLOAD_TIMEOUT = "profiling.upload.timeout";
+
+  @Deprecated public static final String PROFILING_UPLOAD_TIMEOUT = "profiling.upload.timeout";
+
+  @Deprecated
   public static final String PROFILING_UPLOAD_COMPRESSION = "profiling.upload.compression";
-  public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
-  public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
-  public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
-  public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
+
+  @Deprecated public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
+  @Deprecated public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
+  @Deprecated public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
+  @Deprecated public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
 
   public static final String RUNTIME_ID_TAG = "runtime-id";
   private static final String SERVICE = "service";
-  public static final String SERVICE_TAG = SERVICE;
-  public static final String HOST_TAG = "host";
+  @Deprecated public static final String SERVICE_TAG = SERVICE;
+  @Deprecated public static final String HOST_TAG = "host";
   public static final String LANGUAGE_TAG_KEY = "language";
   public static final String LANGUAGE_TAG_VALUE = "jvm";
 
@@ -154,7 +189,7 @@ public class Config {
   public static final String DEFAULT_SERVICE_NAME = "unnamed-java-app";
 
   private static final boolean DEFAULT_TRACE_ENABLED = true;
-  public static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
+  @Deprecated public static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
   public static final String DD_AGENT_WRITER_TYPE = "DDAgentWriter";
   public static final String LOGGING_WRITER_TYPE = "LoggingWriter";
   private static final String DEFAULT_AGENT_WRITER_TYPE = DD_AGENT_WRITER_TYPE;
@@ -182,20 +217,20 @@ public class Config {
   private static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
   private static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
 
-  public static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;
+  @Deprecated public static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;
 
-  public static final boolean DEFAULT_METRICS_ENABLED = false;
+  @Deprecated public static final boolean DEFAULT_METRICS_ENABLED = false;
   // No default constants for metrics statsd support -- falls back to jmxfetch values
 
-  public static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
+  @Deprecated public static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
 
-  public static final boolean DEFAULT_PROFILING_ENABLED = false;
-  public static final int DEFAULT_PROFILING_START_DELAY = 10;
-  public static final boolean DEFAULT_PROFILING_START_FORCE_FIRST = false;
-  public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
-  public static final int DEFAULT_PROFILING_UPLOAD_TIMEOUT = 30; // seconds
-  public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
-  public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
+  @Deprecated public static final boolean DEFAULT_PROFILING_ENABLED = false;
+  @Deprecated public static final int DEFAULT_PROFILING_START_DELAY = 10;
+  @Deprecated public static final boolean DEFAULT_PROFILING_START_FORCE_FIRST = false;
+  @Deprecated public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
+  @Deprecated public static final int DEFAULT_PROFILING_UPLOAD_TIMEOUT = 30; // seconds
+  @Deprecated public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
+  @Deprecated public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
@@ -204,9 +239,9 @@ public class Config {
   private static final boolean DEFAULT_TRACE_EXECUTORS_ALL = false;
   private static final String DEFAULT_TRACE_EXECUTORS = "";
   private static final String DEFAULT_TRACE_METHODS = null;
-  public static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
-  public static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
-  public static final double DEFAULT_TRACE_RATE_LIMIT = 100;
+  @Deprecated public static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
+  @Deprecated public static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
+  @Deprecated public static final double DEFAULT_TRACE_RATE_LIMIT = 100;
 
   public enum PropagationStyle {
     DATADOG,
@@ -803,8 +838,6 @@ public class Config {
   }
 
   /**
-   * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isIntegrationEnabled(SortedSet, boolean)}.
    * @param integrationNames
    * @param defaultEnabled
    * @return
@@ -840,8 +873,6 @@ public class Config {
   }
 
   /**
-   * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isJmxFetchIntegrationEnabled(SortedSet, boolean)}.
    * @param integrationNames
    * @param defaultEnabled
    * @return
@@ -871,8 +902,6 @@ public class Config {
   }
 
   /**
-   * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    * @param integrationNames
    * @param defaultEnabled
    * @return
