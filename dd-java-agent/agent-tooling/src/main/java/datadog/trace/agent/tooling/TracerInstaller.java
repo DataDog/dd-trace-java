@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling;
 
+import datadog.opentracing.DDTracerOT;
 import datadog.trace.core.DDTracer;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -12,12 +13,13 @@ public class TracerInstaller {
     if (Config.get().isTraceEnabled()) {
       if (!io.opentracing.util.GlobalTracer.isRegistered()) {
         final DDTracer tracer = DDTracer.builder().build();
+        final DDTracerOT tracerOT = new DDTracerOT(tracer);
         try {
-          io.opentracing.util.GlobalTracer.register(tracer);
+          io.opentracing.util.GlobalTracer.register(tracerOT);
           datadog.trace.api.GlobalTracer.registerIfAbsent(tracer);
-          AgentTracer.registerIfAbsent(new OpenTracing32());
+          AgentTracer.registerIfAbsent(tracer);
         } catch (final RuntimeException re) {
-          log.warn("Failed to register tracer '" + tracer + "'", re);
+          log.warn("Failed to register tracer: {}", tracerOT, re);
         }
       } else {
         log.debug("GlobalTracer already registered.");

@@ -11,7 +11,8 @@ import datadog.trace.agent.test.utils.GlobalTracerUtils;
 import datadog.trace.agent.tooling.AgentInstaller;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.bytebuddy.matcher.AdditionalLibraryIgnoresMatcher;
-import datadog.trace.api.GlobalTracer;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.util.test.DDSpecification;
@@ -19,8 +20,6 @@ import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import groovy.transform.stc.ClosureParams;
 import groovy.transform.stc.SimpleType;
-import io.opentracing.Span;
-import io.opentracing.Tracer;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -104,12 +103,11 @@ public abstract class AgentTestRunner extends DDSpecification {
           }
         };
     TEST_TRACER = DDTracer.builder().writer(TEST_WRITER).build();
-    GlobalTracerUtils.registerOrReplaceGlobalTracer((Tracer) TEST_TRACER);
-    GlobalTracer.registerIfAbsent((datadog.trace.api.Tracer) TEST_TRACER);
+    GlobalTracerUtils.registerOrReplaceGlobalTracer((DDTracer) TEST_TRACER);
   }
 
-  protected static Tracer getTestTracer() {
-    return (Tracer) TEST_TRACER;
+  protected static TracerAPI getTestTracer() {
+    return (TracerAPI) TEST_TRACER;
   }
 
   protected static Writer getTestWriter() {
@@ -214,7 +212,7 @@ public abstract class AgentTestRunner extends DDSpecification {
 
   @SneakyThrows
   public static void blockUntilChildSpansFinished(final int numberOfSpans) {
-    final Span span = io.opentracing.util.GlobalTracer.get().activeSpan();
+    final AgentSpan span = getTestTracer().activeSpan();
     final long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
     if (span instanceof DDSpan) {
       final PendingTrace pendingTrace = ((DDSpan) span).context().getTrace();

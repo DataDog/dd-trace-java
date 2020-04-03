@@ -185,6 +185,13 @@ public class DDTracerOT implements Tracer {
     scopeManager = new OTScopeManager();
   }
 
+  // Should only be used internally by TracerInstaller
+  @Deprecated
+  public DDTracerOT(final DDTracer coreTracer) {
+    this.coreTracer = coreTracer;
+    this.scopeManager = new OTScopeManager();
+  }
+
   @Builder
   // These field names must be stable to ensure the builder api is stable.
   private DDTracerOT(
