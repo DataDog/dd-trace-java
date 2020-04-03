@@ -19,6 +19,7 @@ import net.bytebuddy.matcher.ElementMatchers;
  * already.
  */
 public class ExceptionInstrumentation extends Instrumenter.Default {
+
   private final boolean hasJfr;
 
   public ExceptionInstrumentation() {
@@ -43,7 +44,7 @@ public class ExceptionInstrumentation extends Instrumenter.Default {
           "com.datadog.profiling.exceptions.StreamingSampler",
           "com.datadog.profiling.exceptions.ExceptionCountEvent",
           "com.datadog.profiling.exceptions.ExceptionHistogram",
-          "com.datadog.profiling.exceptions.ExceptionHistogram$1",
+          "com.datadog.profiling.exceptions.ExceptionHistogram$Pair",
           "com.datadog.profiling.exceptions.ExceptionProfiling",
           "com.datadog.profiling.exceptions.ExceptionSampleEvent",
           "com.datadog.profiling.exceptions.ExceptionSampler"
