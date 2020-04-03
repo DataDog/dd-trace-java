@@ -11,12 +11,16 @@ import jdk.jfr.Name;
 @Description("Datadog exception sample event.")
 @Category("Datadog")
 public class ExceptionSampleEvent extends Event {
+
   @Label("Exception Type")
-  private String type;
+  private final String type;
 
   @Label("Exception message")
   private final String message;
 
+  /**
+   * JFR may truncate the stack trace - so store original length as well.
+   */
   @Label("Exception stackdepth")
   private final int stackDepth;
 
@@ -26,10 +30,10 @@ public class ExceptionSampleEvent extends Event {
   @Label("First occurrence")
   private final boolean firstOccurrence;
 
-  public ExceptionSampleEvent(Exception e, boolean sampled, boolean firstOccurrence) {
-    this.type = e.getClass().getName();
-    this.message = e.getMessage();
-    this.stackDepth = e.getStackTrace().length;
+  public ExceptionSampleEvent(final Exception e, final boolean sampled, final boolean firstOccurrence) {
+    type = e.getClass().getName();
+    message = e.getMessage();
+    stackDepth = e.getStackTrace().length;
     this.sampled = sampled;
     this.firstOccurrence = firstOccurrence;
   }
