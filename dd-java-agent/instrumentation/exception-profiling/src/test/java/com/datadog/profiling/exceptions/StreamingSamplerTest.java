@@ -30,14 +30,18 @@ class StreamingSamplerTest {
   private static final double SAMPLES_ERROR_MARGIN = 10;
 
   private interface TimestampProvider extends Supplier<Long> {
+
     default void prepare() {}
 
     default void cleanup() {}
+
+    long getFirst();
 
     long getLast();
   }
 
   private abstract static class MonotonicTimestampProvider implements TimestampProvider {
+
     private final AtomicLong timestamp = new AtomicLong(0L);
     protected final long interval;
 
@@ -48,6 +52,11 @@ class StreamingSamplerTest {
     @Override
     public Long get() {
       return timestamp.getAndAdd(computeRandomStep(interval));
+    }
+
+    @Override
+    public long getFirst() {
+      return 0;
     }
 
     @Override
@@ -64,12 +73,13 @@ class StreamingSamplerTest {
   }
 
   private static final class ExponentialTimestampProvider extends MonotonicTimestampProvider {
-    public ExponentialTimestampProvider(Duration totalDuration, int numberOfEvents) {
+
+    public ExponentialTimestampProvider(final Duration totalDuration, final int numberOfEvents) {
       super(totalDuration, numberOfEvents);
     }
 
     @Override
-    protected long computeRandomStep(long step) {
+    protected long computeRandomStep(final long step) {
       return Math.round(-step * Math.log(1 - ThreadLocalRandom.current().nextDouble()));
     }
 
@@ -80,12 +90,13 @@ class StreamingSamplerTest {
   }
 
   private static final class GaussianTimestampProvider extends MonotonicTimestampProvider {
+
     GaussianTimestampProvider(final Duration totalDuration, final int numberOfEvents) {
       super(totalDuration, numberOfEvents);
     }
 
     @Override
-    protected long computeRandomStep(long step) {
+    protected long computeRandomStep(final long step) {
       return Math.round(
           Math.max(step + ((ThreadLocalRandom.current().nextGaussian() * step) * 1.0d), 0));
     }
@@ -97,6 +108,7 @@ class StreamingSamplerTest {
   }
 
   private static final class UniformTimestampProvider implements TimestampProvider {
+
     private static final int MARGIN = 2; // generate some extra events;
     private final AtomicInteger counter = new AtomicInteger(0);
     private final Duration totalDuration;
@@ -127,6 +139,11 @@ class StreamingSamplerTest {
     @Override
     public void cleanup() {
       events = null;
+    }
+
+    @Override
+    public long getFirst() {
+      return events[0];
     }
 
     @Override
@@ -167,7 +184,7 @@ class StreamingSamplerTest {
             windowDuration,
             samplesPerWindow);
         break;
-      } catch (AssertionFailedError failed) {
+      } catch (final AssertionFailedError failed) {
         LOGGER.warn("{}. attempt failed ({}). Retrying.", retries, failed.getLocalizedMessage());
         if (++retries > MAX_RETRY_COUNT) {
           throw failed;
@@ -177,12 +194,12 @@ class StreamingSamplerTest {
   }
 
   private void runSampleTest(
-      int threadCount,
-      TimestampProvider timestampProvider,
-      int requestedEvents,
-      Duration requestedDuration,
-      Duration windowDuration,
-      int samplesPerWindow)
+      final int threadCount,
+      final TimestampProvider timestampProvider,
+      final int requestedEvents,
+      final Duration requestedDuration,
+      final Duration windowDuration,
+      final int samplesPerWindow)
       throws InterruptedException {
     try {
       timestampProvider.prepare();
@@ -191,8 +208,8 @@ class StreamingSamplerTest {
 
       final long actualSamples = runThreadsAndCountSamples(sampler, threadCount, requestedEvents);
 
-      // We assume that our fake timestamp providers start at zero
-      final Duration actualDuration = Duration.ofNanos(timestampProvider.getLast());
+      final Duration actualDuration =
+          Duration.ofNanos(timestampProvider.getLast() - timestampProvider.getFirst());
 
       final double durationDiscrepancy =
           (double) Math.abs(requestedDuration.toMillis() - actualDuration.toMillis())
