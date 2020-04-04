@@ -109,7 +109,7 @@ class StreamingSamplerTest {
 
   private static final class UniformTimestampProvider implements TimestampProvider {
 
-    private static final int MARGIN = 2; // generate some extra events;
+    private static final int MARGIN = 100; // generate some extra events;
     private final AtomicInteger counter = new AtomicInteger(0);
     private final Duration totalDuration;
     private final int totalEvents;
@@ -130,7 +130,7 @@ class StreamingSamplerTest {
       final Random random = new Random();
       events =
           random
-              .longs(totalEvents * MARGIN, 0, totalDuration.toNanos() * MARGIN)
+              .longs(totalEvents + MARGIN, 0, totalDuration.toNanos() + MARGIN)
               .sorted()
               .toArray();
       counter.set(0);
