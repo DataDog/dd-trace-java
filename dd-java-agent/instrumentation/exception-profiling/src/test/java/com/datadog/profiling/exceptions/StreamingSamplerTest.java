@@ -15,7 +15,6 @@ import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.opentest4j.AssertionFailedError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,10 +22,9 @@ class StreamingSamplerTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(StreamingSamplerTest.class);
 
-  private static final int MAX_RETRY_COUNT = 10;
-
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
-  private static final double DURATION_ERROR_MARGIN = 20;
+  private static final double DURATION_ERROR_MARGIN = 10;
+  // 10% here is very generous, this test passes with 1.g
   private static final double SAMPLES_ERROR_MARGIN = 10;
 
   private interface TimestampProvider extends Supplier<Long> {
@@ -103,7 +101,7 @@ class StreamingSamplerTest {
     @Override
     protected long computeRandomStep(final long step) {
       return Math.round(
-          Math.max(step + ((ThreadLocalRandom.current().nextGaussian() * step) * 1.0d), 0));
+        Math.max(step + ((ThreadLocalRandom.current().nextGaussian() * step) * 1.0d), 0));
     }
 
     @Override
@@ -134,10 +132,10 @@ class StreamingSamplerTest {
     public void prepare() {
       final Random random = new Random();
       events =
-          random
-              .longs(totalEvents + MARGIN, 0, totalDuration.toNanos() + MARGIN)
-              .sorted()
-              .toArray();
+        random
+          .longs(totalEvents + MARGIN, 0, totalDuration.toNanos() + MARGIN)
+          .sorted()
+          .toArray();
       counter.set(0);
     }
 
@@ -163,89 +161,56 @@ class StreamingSamplerTest {
   }
 
   @ParameterizedTest(
-      name =
-          "{index} threadCount={0} timestamp={1} requestedEvents={2} requestedDuration={3} windowDuration={4} samplesPerWindow={5}")
+    name =
+      "{index} threadCount={0} timestamp={1} requestedEvents={2} requestedDuration={3} windowDuration={4} samplesPerWindow={5}")
   @MethodSource("samplerParams")
-  void sample(
-      final int threadCount,
-      final TimestampProvider timestampProvider,
-      final int requestedEvents,
-      final Duration requestedDuration,
-      final Duration windowDuration,
-      final int samplesPerWindow)
-      throws Exception {
-    /*
-     * This test is probabilistic and an unlucky series of random events can break the error margins.
-     * Retry a failed test several times to identify systemic failures.
-     */
-    long retries = 1;
-    while (true) {
-      try {
-        runSampleTest(
-            threadCount,
-            timestampProvider,
-            requestedEvents,
-            requestedDuration,
-            windowDuration,
-            samplesPerWindow);
-        break;
-      } catch (final AssertionFailedError failed) {
-        LOGGER.warn("{}. attempt failed ({}). Retrying.", retries, failed.getLocalizedMessage());
-        if (++retries > MAX_RETRY_COUNT) {
-          throw failed;
-        }
-      }
-    }
-  }
-
-  private void runSampleTest(
-      final int threadCount,
-      final TimestampProvider timestampProvider,
-      final int requestedEvents,
-      final Duration requestedDuration,
-      final Duration windowDuration,
-      final int samplesPerWindow)
-      throws InterruptedException {
+  public void testSampling(
+    final int threadCount,
+    final TimestampProvider timestampProvider,
+    final int requestedEvents,
+    final Duration requestedDuration,
+    final Duration windowDuration,
+    final int samplesPerWindow)
+    throws InterruptedException {
     try {
       timestampProvider.prepare();
       final StreamingSampler sampler =
-          new StreamingSampler(windowDuration, samplesPerWindow, 60, timestampProvider);
+        new StreamingSampler(windowDuration, samplesPerWindow, 60, timestampProvider);
 
       final long actualSamples = runThreadsAndCountSamples(sampler, threadCount, requestedEvents);
 
       final Duration actualDuration =
-          Duration.ofNanos(timestampProvider.getLast() - timestampProvider.getFirst());
+        Duration.ofNanos(timestampProvider.getLast() - timestampProvider.getFirst());
 
       final double durationDiscrepancy =
-          (double) Math.abs(requestedDuration.toMillis() - actualDuration.toMillis())
-              / requestedDuration.toMillis()
-              * 100;
+        (double) Math.abs(requestedDuration.toMillis() - actualDuration.toMillis())
+          / requestedDuration.toMillis()
+          * 100;
 
       final double expectedSamples =
-          ((double) actualDuration.toNanos() / windowDuration.toNanos() * samplesPerWindow);
+        ((double) actualDuration.toNanos() / windowDuration.toNanos() * samplesPerWindow);
       final long samplesDiscrepancy =
-          Math.round(Math.abs(expectedSamples - actualSamples) / expectedSamples * 100);
+        Math.round(Math.abs(expectedSamples - actualSamples) / expectedSamples * 100);
 
       final String message =
-          String.format(
-              "Expected to get within %.1f%% of requested samples: abs(%.1f - %d) / %.1f = %d%%",
-              SAMPLES_ERROR_MARGIN,
-              expectedSamples,
-              actualSamples,
-              expectedSamples,
-              samplesDiscrepancy);
-      LOGGER.debug(message);
+        String.format(
+          "Expected to get within %.1f%% of requested samples: abs(%.1f - %d) / %.1f = %d%%",
+          SAMPLES_ERROR_MARGIN,
+          expectedSamples,
+          actualSamples,
+          expectedSamples,
+          samplesDiscrepancy);
       assertTrue(samplesDiscrepancy <= SAMPLES_ERROR_MARGIN, message);
 
       assertTrue(
-          durationDiscrepancy <= DURATION_ERROR_MARGIN,
-          String.format(
-              "Expected to run within %.1f%% of requested duration: abs(%d - %d) / %d = %.1f%%",
-              DURATION_ERROR_MARGIN,
-              requestedDuration.toMillis(),
-              actualDuration.toMillis(),
-              requestedDuration.toMillis(),
-              durationDiscrepancy));
+        durationDiscrepancy <= DURATION_ERROR_MARGIN,
+        String.format(
+          "Expected to run within %.1f%% of requested duration: abs(%d - %d) / %d = %.1f%%",
+          DURATION_ERROR_MARGIN,
+          requestedDuration.toMillis(),
+          actualDuration.toMillis(),
+          requestedDuration.toMillis(),
+          durationDiscrepancy));
 
       // TODO: Add edge case tests with hand crafted data (PROF-1289)
     } finally {
@@ -254,24 +219,24 @@ class StreamingSamplerTest {
   }
 
   private int runThreadsAndCountSamples(
-      final StreamingSampler sampler, final int threadCount, final int totalEvents)
-      throws InterruptedException {
+    final StreamingSampler sampler, final int threadCount, final int totalEvents)
+    throws InterruptedException {
     final long eventsPerThread = totalEvents / threadCount;
 
     final AtomicInteger totalSamplesCounter = new AtomicInteger(0);
     final Thread[] threads = new Thread[threadCount];
     for (int j = 0; j < threads.length; j++) {
       threads[j] =
-          new Thread(
-              () -> {
-                int samplesCount = 0;
-                for (long i = 0; i <= eventsPerThread; i++) {
-                  if (sampler.sample()) {
-                    samplesCount += 1;
-                  }
-                }
-                totalSamplesCounter.addAndGet(samplesCount);
-              });
+        new Thread(
+          () -> {
+            int samplesCount = 0;
+            for (long i = 0; i <= eventsPerThread; i++) {
+              if (sampler.sample()) {
+                samplesCount += 1;
+              }
+            }
+            totalSamplesCounter.addAndGet(samplesCount);
+          });
       threads[j].start();
     }
     for (final Thread thread : threads) {
@@ -292,20 +257,20 @@ class StreamingSamplerTest {
           final Duration duration = Duration.ofSeconds(runDurations.get(i));
 
           final List<TimestampProvider> timestampProviders =
-              ImmutableList.of(
-                  new ExponentialTimestampProvider(duration, totalEvents.get(i)),
-                  new GaussianTimestampProvider(duration, totalEvents.get(i)),
-                  new UniformTimestampProvider(duration, totalEvents.get(i)));
+            ImmutableList.of(
+              new ExponentialTimestampProvider(duration, totalEvents.get(i)),
+              new GaussianTimestampProvider(duration, totalEvents.get(i)),
+              new UniformTimestampProvider(duration, totalEvents.get(i)));
 
           for (final TimestampProvider timestampProvider : timestampProviders) {
             args.add(
-                Arguments.of(
-                    threadCount,
-                    timestampProvider,
-                    totalEvents.get(i),
-                    duration,
-                    WINDOW_DURATION,
-                    samples));
+              Arguments.of(
+                threadCount,
+                timestampProvider,
+                totalEvents.get(i),
+                duration,
+                WINDOW_DURATION,
+                samples));
           }
         }
       }
