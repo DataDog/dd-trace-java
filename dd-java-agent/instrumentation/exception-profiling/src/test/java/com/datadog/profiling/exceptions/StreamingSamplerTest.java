@@ -31,9 +31,9 @@ class StreamingSamplerTest {
 
   private interface TimestampProvider extends Supplier<Long> {
 
-    default void prepare() {}
+    void prepare();
 
-    default void cleanup() {}
+    void cleanup();
 
     long getFirst();
 
@@ -50,6 +50,16 @@ class StreamingSamplerTest {
     }
 
     @Override
+    public void prepare() {
+      timestamp.set(0L);
+    }
+
+    @Override
+    public void cleanup() {
+      // Nothing to do
+    }
+
+    @Override
     public Long get() {
       return timestamp.getAndAdd(computeRandomStep(interval));
     }
@@ -62,11 +72,6 @@ class StreamingSamplerTest {
     @Override
     public long getLast() {
       return timestamp.get();
-    }
-
-    @Override
-    public void prepare() {
-      timestamp.set(0L);
     }
 
     protected abstract long computeRandomStep(long step);
