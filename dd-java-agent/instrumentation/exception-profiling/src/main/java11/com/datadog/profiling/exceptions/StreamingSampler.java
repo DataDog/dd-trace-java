@@ -1,10 +1,11 @@
 package com.datadog.profiling.exceptions;
 
 import static java.lang.Double.isNaN;
-import static java.lang.Integer.max;
+import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
@@ -30,7 +31,7 @@ import java.util.function.Supplier;
  * and the sampler will not be able to generate the target number of samples.
  * </p>
  * <p>
- * To smooth out these hicups the sampler maintains an under/over-sampling budget which can be used for compensate
+ * To smooth out these hicups the sampler maintains an over-sampling budget which can be used for compensate
  * for too rapid changes in the incoming events rate and maintain the target average number of samples per window.
  * </p>
  */
@@ -45,7 +46,13 @@ class StreamingSampler {
    * Note: we want sum of unused samples in previous windows - this is why we are using array for this and not EMA.
    * With EMA we would need to come up with some multiplier for and average and it's unclear how to do that.
    */
-  private static final int CARRIED_OVER_ARRAY_SIZE = 16;
+  static final int CARRIED_OVER_ARRAY_SIZE = 16;
+
+  /*
+   * If we have not seen exceptions more than this number of windows we just zero out average number of events.
+   * This value should not be too big since calculating EMA is linear.
+   */
+  static final int MAX_NUMBER_OF_SKIPPED_WINDOWS_TO_CALCULATE_EMA = 10;
 
   /*
    * Exponential Moving Average (EMA) last element weight.
@@ -62,7 +69,7 @@ class StreamingSampler {
   private final long windowDuration;
   private final int samplesPerWindow;
 
-  private final LongAdder testCounter = new LongAdder();
+  private final LongAdder eventCounter = new LongAdder();
   private final AtomicLong sampledCounter = new AtomicLong(0L);
   private final ReentrantLock endOfWindowLock = new ReentrantLock();
 
@@ -101,10 +108,13 @@ class StreamingSampler {
     this.windowDuration = windowDuration.toNanos();
     nextWindowTimestamp = getNextWindowTimestamp(timestampProvider.get());
     this.samplesPerWindow = samplesPerWindow;
-    samplesBudget = samplesPerWindow;
     eventsPerWindowEmaAlpha = computeLookbackAlpha(lookback);
 
-    carriedOverSamples = new long[max(min(CARRIED_OVER_ARRAY_SIZE, lookback), 1)];
+    carriedOverSamples = new long[Integer.max(min(CARRIED_OVER_ARRAY_SIZE, lookback), 1)];
+
+    // Assume 'before' there were no event so we have 'full' budget.
+    Arrays.fill(carriedOverSamples, samplesPerWindow);
+    samplesBudget = samplesPerWindow + carriedOverSamples.length * samplesPerWindow;
   }
 
   /**
@@ -118,31 +128,45 @@ class StreamingSampler {
       if (endOfWindowLock.tryLock()) {
         try {
           if (now >= nextWindowTimestamp) {
-            final long totalCount = testCounter.sumThenReset();
-            final long sampledCount = sampledCounter.getAndSet(0);
+            // Calculation below will take time, but it is possible that we got here having large budget and many parallel threads
+            // throwing exceptions. So first step here is limit number of exceptions that we may collect until calculations are complete.
+            samplesBudget = samplesPerWindow;
 
+            long eventCount = eventCounter.sumThenReset();
+            long sampledCount = sampledCounter.getAndSet(0);
+
+            // FIXME: doing whole window closing inline results in more complex code and poor performance under test conditions
+            // We probably should switch to separate thread.
+            
             // Integer division rounds down, so this is number of windows that have passed
             final long passedWindows = (now - nextWindowTimestamp) / windowDuration;
 
-            final long unusedSamplesCount = samplesPerWindow - sampledCount;
-            carriedOverSampleIndex = (carriedOverSampleIndex + 1) % carriedOverSamples.length;
-            carriedOverSamples[carriedOverSampleIndex] = unusedSamplesCount;
+            if (passedWindows > 0) {
+              // We have missed windows - this means that only current event should be included
+              eventCount = 1;
+              sampledCount = 1;
+            }
 
-            // Budget includes events in next window
+            // Budget includes events in next window.
             // FIXME: Adding extra samples budget to calculate probability is questionable because
             // we essentially make probability swing widely instead of being a stable value based upon long running average.
             // But empirically this seems to produce better results.
-            long newSamplesBudget = samplesPerWindow;
-            for (int i = 0; i < carriedOverSamples.length; i++) {
-              newSamplesBudget += carriedOverSamples[i];
+            final long newSamplesBudget = calculateNewSamplesBudget(sampledCount, passedWindows) + samplesPerWindow;
+
+            if (passedWindows < MAX_NUMBER_OF_SKIPPED_WINDOWS_TO_CALCULATE_EMA) {
+              // FIXME: is there an analytical formula for this?
+              for (int i = 0; i < passedWindows; i++) {
+                totalCountRunningAverage += eventsPerWindowEmaAlpha * (0 - totalCountRunningAverage);
+              }
+            } else {
+              // Too many passed windows: forget everything!
+              totalCountRunningAverage = 0;
             }
-            newSamplesBudget = Math.max(newSamplesBudget, 0);
-            samplesBudget = newSamplesBudget;
 
             if (isNaN(totalCountRunningAverage)) {
-              totalCountRunningAverage = totalCount;
+              totalCountRunningAverage = eventCount;
             } else {
-              totalCountRunningAverage += eventsPerWindowEmaAlpha * (totalCount - totalCountRunningAverage);
+              totalCountRunningAverage += eventsPerWindowEmaAlpha * (eventCount - totalCountRunningAverage);
             }
 
             if (totalCountRunningAverage <= 0) {
@@ -151,8 +175,8 @@ class StreamingSampler {
               probability = min(newSamplesBudget / totalCountRunningAverage, 1d);
             }
 
-            // FIXME: handle skipped windows
-            nextWindowTimestamp = getNextWindowTimestamp(nextWindowTimestamp);
+            samplesBudget = newSamplesBudget;
+            nextWindowTimestamp = getNextWindowTimestamp(nextWindowTimestamp + passedWindows * windowDuration);
           }
         } finally {
           endOfWindowLock.unlock();
@@ -162,8 +186,8 @@ class StreamingSampler {
 
     // Sample after window has been updated: this makes us relatively sure that window is not over yet
     boolean sampled = false;
-    testCounter.increment();
-    if (sampledCounter.get() <= samplesBudget) {
+    eventCounter.increment();
+    if (sampledCounter.get() < samplesBudget) {
       if (ThreadLocalRandom.current().nextDouble() < probability) {
         sampledCounter.incrementAndGet();
         sampled = true;
@@ -171,6 +195,52 @@ class StreamingSampler {
     }
 
     return sampled;
+  }
+
+  /**
+   * Calculate new samples budget based on carried over samples.
+   *
+   * <p>Note: this is expected to run under lock and is somewhat on critical path so we should make this as efficient as possible</p>
+   */
+  private long calculateNewSamplesBudget(final long sampledCount, final long passedWindows) {
+    if (passedWindows > 0) {
+      // Add unused samples from unseen windows
+      final long passedWindowsForCarriedOverSamples = min(passedWindows, carriedOverSamples.length);
+      for (int i = 0; i < passedWindowsForCarriedOverSamples; i++) {
+        carriedOverSampleIndex = (carriedOverSampleIndex + 1) % carriedOverSamples.length;
+        carriedOverSamples[carriedOverSampleIndex] = samplesPerWindow;
+      }
+    }
+
+    // Add unused samples to budget and move budget index
+    final long unusedSamplesCount = max(samplesPerWindow - sampledCount, 0);
+    carriedOverSampleIndex = (carriedOverSampleIndex + 1) % carriedOverSamples.length;
+    carriedOverSamples[carriedOverSampleIndex] = unusedSamplesCount;
+
+    // Deduct 'overused' samples from the budget
+    if (sampledCount > samplesPerWindow) {
+      long overBudget = sampledCount - samplesPerWindow;
+      // We have ring buffer, so 'next index' is actually last one
+      int lastWindow = (carriedOverSampleIndex + 1) % carriedOverSamples.length;
+      for (int i = 0; i < carriedOverSamples.length; i++) {
+        if (overBudget > carriedOverSamples[lastWindow]) {
+          overBudget -= carriedOverSamples[lastWindow];
+          carriedOverSamples[lastWindow] = 0;
+        } else {
+          // This also handles the case when carriedOverSamples[lastWindow] == overBudget
+          // - i.e. we no longer have overBudget and can exit
+          carriedOverSamples[lastWindow] -= overBudget;
+          break;
+        }
+        lastWindow = (lastWindow + 1) % carriedOverSamples.length;
+      }
+    }
+
+    long newSamplesBudget = 0;
+    for (final long s : carriedOverSamples) {
+      newSamplesBudget += s;
+    }
+    return newSamplesBudget;
   }
 
   private long getNextWindowTimestamp(final long currentWindowTimestamp) {

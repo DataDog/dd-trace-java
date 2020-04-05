@@ -23,8 +23,8 @@ class StreamingSamplerTest {
   private static final Logger LOGGER = LoggerFactory.getLogger(StreamingSamplerTest.class);
 
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
+  private static final int SAMPLER_LOOKBACK = 60;
   private static final double DURATION_ERROR_MARGIN = 10;
-  // 10% here is very generous, this test passes with 1.g
   private static final double SAMPLES_ERROR_MARGIN = 10;
 
   private interface TimestampProvider extends Supplier<Long> {
@@ -101,7 +101,7 @@ class StreamingSamplerTest {
     @Override
     protected long computeRandomStep(final long step) {
       return Math.round(
-        Math.max(step + ((ThreadLocalRandom.current().nextGaussian() * step) * 1.0d), 0));
+          Math.max(step + ((ThreadLocalRandom.current().nextGaussian() * step) * 1.0d), 0));
     }
 
     @Override
@@ -110,32 +110,22 @@ class StreamingSamplerTest {
     }
   }
 
-  private static final class UniformTimestampProvider implements TimestampProvider {
+  private abstract static class PregeneratedTimestampProvider implements TimestampProvider {
 
-    private static final int MARGIN = 100; // generate some extra events;
+    protected static final int MARGIN = 100; // generate some extra events;
     private final AtomicInteger counter = new AtomicInteger(0);
-    private final Duration totalDuration;
-    private final int totalEvents;
     private long[] events;
-
-    UniformTimestampProvider(final Duration totalDuration, final int totalEvents) {
-      this.totalDuration = totalDuration;
-      this.totalEvents = totalEvents;
-    }
 
     @Override
     public Long get() {
       return events[counter.getAndIncrement()];
     }
 
+    protected abstract long[] generateEvents();
+
     @Override
     public void prepare() {
-      final Random random = new Random();
-      events =
-        random
-          .longs(totalEvents + MARGIN, 0, totalDuration.toNanos() + MARGIN)
-          .sorted()
-          .toArray();
+      events = generateEvents();
       counter.set(0);
     }
 
@@ -153,6 +143,26 @@ class StreamingSamplerTest {
     public long getLast() {
       return events[counter.get()];
     }
+  }
+
+  private static final class UniformTimestampProvider extends PregeneratedTimestampProvider {
+
+    private final Duration totalDuration;
+    private final int totalEvents;
+
+    UniformTimestampProvider(final Duration totalDuration, final int totalEvents) {
+      this.totalDuration = totalDuration;
+      this.totalEvents = totalEvents;
+    }
+
+    @Override
+    public long[] generateEvents() {
+      final Random random = new Random();
+      return random
+          .longs(totalEvents + MARGIN, 0, totalDuration.toNanos() + MARGIN)
+          .sorted()
+          .toArray();
+    }
 
     @Override
     public String toString() {
@@ -160,57 +170,109 @@ class StreamingSamplerTest {
     }
   }
 
+  private static final class ShortBurstsTimestampProvider extends PregeneratedTimestampProvider {
+
+    private final int totalEvents;
+    int eventsPerWindow;
+    private final int burstPeriodWindows;
+    private long[] events;
+
+    ShortBurstsTimestampProvider(
+        final int totalEvents, final int eventsPerWindow, final int burstPeriodWindows) {
+      this.totalEvents = totalEvents;
+      this.eventsPerWindow = eventsPerWindow;
+      this.burstPeriodWindows = burstPeriodWindows;
+    }
+
+    @Override
+    public long[] generateEvents() {
+      final long burstSize = eventsPerWindow * burstPeriodWindows;
+
+      events = new long[totalEvents + MARGIN];
+      long timestamp = 0;
+      int position = 0;
+      while (position < events.length) {
+        if (position % burstSize == 0) {
+          timestamp += burstPeriodWindows * WINDOW_DURATION.toNanos();
+        }
+        events[position] = timestamp;
+        timestamp++;
+        position++;
+      }
+      return events;
+    }
+
+    @Override
+    public String toString() {
+      return "Short bursts";
+    }
+  }
+
   @ParameterizedTest(
-    name =
-      "{index} threadCount={0} timestamp={1} requestedEvents={2} requestedDuration={3} windowDuration={4} samplesPerWindow={5}")
+      name =
+          "{index} threadCount={0} timestamp={1} requestedEvents={2} requestedDuration={3} windowDuration={4} samplesPerWindow={5}")
   @MethodSource("samplerParams")
   public void testSampling(
-    final int threadCount,
-    final TimestampProvider timestampProvider,
-    final int requestedEvents,
-    final Duration requestedDuration,
-    final Duration windowDuration,
-    final int samplesPerWindow)
-    throws InterruptedException {
+      final int threadCount,
+      final TimestampProvider timestampProvider,
+      final int requestedEvents,
+      final Duration requestedDuration,
+      final Duration windowDuration,
+      final int samplesPerWindow)
+      throws InterruptedException {
+
+    // Unfortunately @ParameterizedTest doesn't work in gradle
+    LOGGER.info(
+        "threadCount={} timestamp={} requestedEvents={} requestedDuration={} windowDuration={} samplesPerWindow={}",
+        threadCount,
+        timestampProvider,
+        requestedEvents,
+        requestedDuration,
+        windowDuration,
+        samplesPerWindow);
+
     try {
       timestampProvider.prepare();
       final StreamingSampler sampler =
-        new StreamingSampler(windowDuration, samplesPerWindow, 60, timestampProvider);
+          new StreamingSampler(
+              windowDuration, samplesPerWindow, SAMPLER_LOOKBACK, timestampProvider);
 
       final long actualSamples = runThreadsAndCountSamples(sampler, threadCount, requestedEvents);
 
       final Duration actualDuration =
-        Duration.ofNanos(timestampProvider.getLast() - timestampProvider.getFirst());
+          Duration.ofNanos(timestampProvider.getLast() - timestampProvider.getFirst());
 
       final double durationDiscrepancy =
-        (double) Math.abs(requestedDuration.toMillis() - actualDuration.toMillis())
-          / requestedDuration.toMillis()
-          * 100;
+          (double) Math.abs(requestedDuration.toMillis() - actualDuration.toMillis())
+              / requestedDuration.toMillis()
+              * 100;
 
+      final int startupBurstSize = StreamingSampler.CARRIED_OVER_ARRAY_SIZE * samplesPerWindow;
       final double expectedSamples =
-        ((double) actualDuration.toNanos() / windowDuration.toNanos() * samplesPerWindow);
+          ((double) actualDuration.toNanos() / windowDuration.toNanos() * samplesPerWindow)
+              + startupBurstSize;
       final long samplesDiscrepancy =
-        Math.round(Math.abs(expectedSamples - actualSamples) / expectedSamples * 100);
+          Math.round(Math.abs(expectedSamples - actualSamples) / expectedSamples * 100);
 
       final String message =
-        String.format(
-          "Expected to get within %.1f%% of requested samples: abs(%.1f - %d) / %.1f = %d%%",
-          SAMPLES_ERROR_MARGIN,
-          expectedSamples,
-          actualSamples,
-          expectedSamples,
-          samplesDiscrepancy);
+          String.format(
+              "Expected to get within %.1f%% of requested samples: abs(%.1f - %d) / %.1f = %d%%",
+              SAMPLES_ERROR_MARGIN,
+              expectedSamples,
+              actualSamples,
+              expectedSamples,
+              samplesDiscrepancy);
       assertTrue(samplesDiscrepancy <= SAMPLES_ERROR_MARGIN, message);
 
       assertTrue(
-        durationDiscrepancy <= DURATION_ERROR_MARGIN,
-        String.format(
-          "Expected to run within %.1f%% of requested duration: abs(%d - %d) / %d = %.1f%%",
-          DURATION_ERROR_MARGIN,
-          requestedDuration.toMillis(),
-          actualDuration.toMillis(),
-          requestedDuration.toMillis(),
-          durationDiscrepancy));
+          durationDiscrepancy <= DURATION_ERROR_MARGIN,
+          String.format(
+              "Expected to run within %.1f%% of requested duration: abs(%d - %d) / %d = %.1f%%",
+              DURATION_ERROR_MARGIN,
+              requestedDuration.toMillis(),
+              actualDuration.toMillis(),
+              requestedDuration.toMillis(),
+              durationDiscrepancy));
 
       // TODO: Add edge case tests with hand crafted data (PROF-1289)
     } finally {
@@ -219,61 +281,100 @@ class StreamingSamplerTest {
   }
 
   private int runThreadsAndCountSamples(
-    final StreamingSampler sampler, final int threadCount, final int totalEvents)
-    throws InterruptedException {
+      final StreamingSampler sampler, final int threadCount, final int totalEvents)
+      throws InterruptedException {
     final long eventsPerThread = totalEvents / threadCount;
 
     final AtomicInteger totalSamplesCounter = new AtomicInteger(0);
     final Thread[] threads = new Thread[threadCount];
     for (int j = 0; j < threads.length; j++) {
       threads[j] =
-        new Thread(
-          () -> {
-            int samplesCount = 0;
-            for (long i = 0; i <= eventsPerThread; i++) {
-              if (sampler.sample()) {
-                samplesCount += 1;
-              }
-            }
-            totalSamplesCounter.addAndGet(samplesCount);
-          });
+          new Thread(
+              () -> {
+                int samplesCount = 0;
+                for (long i = 0; i <= eventsPerThread; i++) {
+                  if (sampler.sample()) {
+                    samplesCount += 1;
+                  }
+                }
+                totalSamplesCounter.addAndGet(samplesCount);
+              });
       threads[j].start();
     }
     for (final Thread thread : threads) {
       thread.join();
     }
-    //    LOGGER.debug("Overshoot ratio: {}", sampler.overshootRatio());
 
     return totalSamplesCounter.get();
   }
 
   private static Stream<Arguments> samplerParams() {
-    final List<Integer> totalEvents = ImmutableList.of(25_000, 25_000, 300_000, 1_000_000);
-    final List<Integer> runDurations = ImmutableList.of(30, 60, 120, 600);
+    // The way these tests are setup requires initial burst to be completely full filled in order
+    // for tests to pass
+    // This prevents us from running tests on very small total events - tests fail for undersampling
+    // even though code works correctly
+    // Test just doesn't take into account that we do 'feed' sampler enough data.
+    final List<Integer> totalEvents = ImmutableList.of(50_000, 300_000, 1_000_000);
+    final List<Integer> runDurations = ImmutableList.of(60, 120, 600);
     final List<Arguments> args = new ArrayList<>();
     for (int threadCount = 1; threadCount <= 64; threadCount *= 2) {
-      for (int samples = 16; samples <= 256; samples *= 2) {
+      for (int samplesPerWindow = 16; samplesPerWindow <= 256; samplesPerWindow *= 2) {
         for (int i = 0; i < totalEvents.size(); i++) {
           final Duration duration = Duration.ofSeconds(runDurations.get(i));
 
           final List<TimestampProvider> timestampProviders =
-            ImmutableList.of(
-              new ExponentialTimestampProvider(duration, totalEvents.get(i)),
-              new GaussianTimestampProvider(duration, totalEvents.get(i)),
-              new UniformTimestampProvider(duration, totalEvents.get(i)));
+              ImmutableList.of(
+                  new ExponentialTimestampProvider(duration, totalEvents.get(i)),
+                  new GaussianTimestampProvider(duration, totalEvents.get(i)),
+                  new UniformTimestampProvider(duration, totalEvents.get(i)));
 
           for (final TimestampProvider timestampProvider : timestampProviders) {
             args.add(
-              Arguments.of(
-                threadCount,
-                timestampProvider,
-                totalEvents.get(i),
-                duration,
-                WINDOW_DURATION,
-                samples));
+                Arguments.of(
+                    threadCount,
+                    timestampProvider,
+                    totalEvents.get(i),
+                    duration,
+                    WINDOW_DURATION,
+                    samplesPerWindow));
           }
         }
       }
+    }
+
+    /*
+     * Tests with event bursts.
+     * This test is special: running it wth many threads is impossible due to many threads capturing in parallel
+     * events that otherwise would have belonged to bursts spread in time quite widely. This leads to concurrency issues
+     * that are unrealistic in real life - mainly because different threads see vastly different time stamp in approximately same
+     * physical time.
+     * In fast this is a problem even with tests above - it just doesn't affect them often enough to cause failure.
+     *
+     * This is somewhat convoluted, but essentially `StreamingSampler.CARRIED_OVER_ARRAY_SIZE / N + 1` means that we skip
+     * StreamingSampler.CARRIED_OVER_ARRAY_SIZE / N windows and make a burst on next one.
+     * Skipping StreamingSampler.CARRIED_OVER_ARRAY_SIZE / N allows us to collect enough budget to capture all expected events.
+     * FIXME: make this simpler
+     */
+    final int totalEventsForBursts = 1_000_000;
+    for (int samples = 16; samples <= 256; samples *= 2) {
+      args.add(
+          Arguments.of(
+              1,
+              new ShortBurstsTimestampProvider(
+                  totalEventsForBursts, samples, StreamingSampler.CARRIED_OVER_ARRAY_SIZE + 1),
+              totalEventsForBursts,
+              WINDOW_DURATION.multipliedBy(totalEventsForBursts / samples),
+              WINDOW_DURATION,
+              samples));
+      args.add(
+          Arguments.of(
+              1,
+              new ShortBurstsTimestampProvider(
+                  totalEventsForBursts, samples, StreamingSampler.CARRIED_OVER_ARRAY_SIZE / 2 + 1),
+              totalEventsForBursts,
+              WINDOW_DURATION.multipliedBy(totalEventsForBursts / samples),
+              WINDOW_DURATION,
+              samples));
     }
     return args.stream();
   }
