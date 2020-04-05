@@ -296,6 +296,10 @@ class StreamingSamplerTest {
                   if (sampler.sample()) {
                     samplesCount += 1;
                   }
+                  double tmp = ThreadLocalRandom.current().nextDouble();
+                  for (long k = 0; k <= 10; k++) {
+                    tmp = Math.cos(tmp);
+                  }
                 }
                 totalSamplesCounter.addAndGet(samplesCount);
               });
