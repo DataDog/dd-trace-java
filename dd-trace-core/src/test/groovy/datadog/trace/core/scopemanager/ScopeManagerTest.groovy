@@ -1,5 +1,10 @@
 package datadog.trace.core.scopemanager
 
+
+import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.DDTracer
@@ -7,20 +12,13 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.ScopeListener
 import datadog.trace.util.gc.GCUtils
 import datadog.trace.util.test.DDSpecification
-import io.opentracing.Scope
-import io.opentracing.ScopeManager
-import io.opentracing.Span
-import io.opentracing.noop.NoopScopeManager
-import io.opentracing.noop.NoopSpan
 import spock.lang.Shared
 import spock.lang.Subject
 import spock.lang.Timeout
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicReference
 
 import static java.util.concurrent.TimeUnit.SECONDS
 
@@ -35,7 +33,7 @@ class ScopeManagerTest extends DDSpecification {
 
   @Shared
   @Subject
-  ScopeManager scopeManager
+  ContextualScopeManager scopeManager
 
   def setupSpec() {
     latch = new CountDownLatch(1)
@@ -46,19 +44,18 @@ class ScopeManagerTest extends DDSpecification {
       }
     }
     tracer = DDTracer.builder().writer(writer).build()
-    scopeManager = tracer.scopeManager()
+    scopeManager = tracer.scopeManager
   }
 
   def cleanup() {
     scopeManager.tlsScope.remove()
-    scopeManager.scopeContexts.clear()
     scopeManager.scopeListeners.clear()
     writer.clear()
   }
 
   def "non-ddspan activation results in a simple scope"() {
     when:
-    def scope = scopeManager.activate(NoopSpan.INSTANCE, true)
+    def scope = scopeManager.activate(NoopAgentSpan.INSTANCE, true)
 
     then:
     scopeManager.active() == scope
@@ -107,7 +104,7 @@ class ScopeManagerTest extends DDSpecification {
   def "sets parent as current upon close"() {
     setup:
     def parentScope = tracer.buildSpan("parent").startActive(finishSpan)
-    def childScope = noopChild ? tracer.scopeManager().activate(NoopSpan.INSTANCE, finishSpan) : tracer.buildSpan("parent").startActive(finishSpan)
+    def childScope = noopChild ? scopeManager.activate(NoopAgentSpan.INSTANCE, finishSpan) : tracer.buildSpan("parent").startActive(finishSpan)
 
     expect:
     scopeManager.active() == childScope
@@ -142,7 +139,7 @@ class ScopeManagerTest extends DDSpecification {
 
   def "scopemanager returns noop scope if depth exceeded"() {
     when: "fill up the scope stack"
-    Scope scope = null
+    AgentScope scope = null
     for (int i = 0; i <= depth; i++) {
       scope = tracer.buildSpan("test").startActive(true)
       assert scope instanceof ContinuableScope
@@ -152,16 +149,16 @@ class ScopeManagerTest extends DDSpecification {
     (scope as ContinuableScope).depth() == depth
 
     when: "activate a scope over the limit"
-    scope = scopeManager.activate(NoopSpan.INSTANCE, false)
+    scope = scopeManager.activate(NoopAgentSpan.INSTANCE, false)
 
     then: "a noop instance is returned"
-    scope instanceof NoopScopeManager.NoopScope
+    scope instanceof NoopAgentScope
 
     when: "try again for good measure"
-    scope = scopeManager.activate(NoopSpan.INSTANCE, false)
+    scope = scopeManager.activate(NoopAgentSpan.INSTANCE, false)
 
     then: "still have a noop instance"
-    scope instanceof NoopScopeManager.NoopScope
+    scope instanceof NoopAgentScope
 
     and: "scope stack not effected."
     (scopeManager.active() as ContinuableScope).depth() == depth
@@ -438,51 +435,6 @@ class ScopeManagerTest extends DDSpecification {
     writer == [[childSpan, span]]
   }
 
-  def "context takes control (#active)"() {
-    setup:
-    contexts.each {
-      scopeManager.addScopeContext(it)
-    }
-    def builder = tracer.buildSpan("test")
-    def scope = (AtomicReferenceScope) builder.startActive(true)
-
-    expect:
-    scopeManager.tlsScope.get() == null
-    scopeManager.active() == scope
-    contexts[active].get() == scope.get()
-    writer.empty
-
-    where:
-    active | contexts
-    0      | [new AtomicReferenceScope(true)]
-    1      | [new AtomicReferenceScope(true), new AtomicReferenceScope(true)]
-    3      | [new AtomicReferenceScope(false), new AtomicReferenceScope(true), new AtomicReferenceScope(false), new AtomicReferenceScope(true)]
-  }
-
-  def "disabled context is ignored (#contexts.size)"() {
-    setup:
-    contexts.each {
-      scopeManager.addScopeContext(it)
-    }
-    def builder = tracer.buildSpan("test")
-    def scope = builder.startActive(true)
-
-    expect:
-    contexts.findAll {
-      it.get() != null
-    } == []
-
-    scopeManager.tlsScope.get() == scope
-    scopeManager.active() == scope
-    writer.empty
-
-    where:
-    contexts                                                                                            | _
-    []                                                                                                  | _
-    [new AtomicReferenceScope(false)]                                                                   | _
-    [new AtomicReferenceScope(false), new AtomicReferenceScope(false)]                                  | _
-    [new AtomicReferenceScope(false), new AtomicReferenceScope(false), new AtomicReferenceScope(false)] | _
-  }
 
   def "ContinuableScope put in threadLocal after continuation activation"() {
     setup:
@@ -500,41 +452,11 @@ class ScopeManagerTest extends DDSpecification {
     scopeManager.tlsScope.get() == null
 
     when:
-    scopeManager.addScopeContext(new AtomicReferenceScope(true))
     def newScope = cont.activate()
 
     then:
     newScope != scope
     scopeManager.tlsScope.get() == newScope
-  }
-
-  def "context to threadlocal (#contexts.size)"() {
-    setup:
-    contexts.each {
-      scopeManager.addScopeContext(it)
-    }
-    def scope = tracer.buildSpan("parent").startActive(false)
-    def span = scope.span()
-
-    expect:
-    scope instanceof AtomicReferenceScope
-    scopeManager.tlsScope.get() == null
-
-    when:
-    scope.close()
-    contexts.each {
-      ((AtomicBoolean) it.enabled).set(false)
-    }
-    scope = scopeManager.activate(span, true)
-
-    then:
-    scope instanceof ContinuableScope
-    scopeManager.tlsScope.get() == scope
-
-    where:
-    contexts                                                         | _
-    [new AtomicReferenceScope(true)]                                 | _
-    [new AtomicReferenceScope(true), new AtomicReferenceScope(true)] | _
   }
 
   def "add scope listener"() {
@@ -555,14 +477,14 @@ class ScopeManagerTest extends DDSpecification {
     })
 
     when:
-    Scope scope1 = scopeManager.activate(NoopSpan.INSTANCE, true)
+    AgentScope scope1 = scopeManager.activate(NoopAgentSpan.INSTANCE, true)
 
     then:
     activatedCount.get() == 1
     closedCount.get() == 0
 
     when:
-    Scope scope2 = scopeManager.activate(NoopSpan.INSTANCE, true)
+    AgentScope scope2 = scopeManager.activate(NoopAgentSpan.INSTANCE, true)
 
     then: 'Activating the same span multiple times does not create a new scope'
     activatedCount.get() == 1
@@ -583,14 +505,14 @@ class ScopeManagerTest extends DDSpecification {
     closedCount.get() == 1
 
     when:
-    Scope continuableScope = tracer.buildSpan("foo").startActive(true)
+    AgentScope continuableScope = tracer.buildSpan("foo").startActive(true)
 
     then:
     continuableScope instanceof ContinuableScope
     activatedCount.get() == 2
 
     when:
-    Scope childContinuableScope = tracer.buildSpan("child").startActive(true)
+    AgentScope childContinuableScope = tracer.buildSpan("child").startActive(true)
 
     then:
     childContinuableScope instanceof ContinuableScope
@@ -612,56 +534,7 @@ class ScopeManagerTest extends DDSpecification {
     closedCount.get() == 3
   }
 
-  boolean spanFinished(Span span) {
+  boolean spanFinished(AgentSpan span) {
     return ((DDSpan) span)?.isFinished()
-  }
-
-  class AtomicReferenceScope extends AtomicReference<Span> implements ScopeContext, Scope {
-    final AtomicBoolean enabled
-
-    AtomicReferenceScope(boolean enabled) {
-      this.enabled = new AtomicBoolean(enabled)
-    }
-
-    @Override
-    boolean inContext() {
-      return enabled.get()
-    }
-
-    @Override
-    void close() {
-      getAndSet(null).finish()
-    }
-
-    @Override
-    Span span() {
-      return get()
-    }
-
-    @Override
-    Scope activate(Span span, boolean finishSpanOnClose) {
-      set(span)
-      return this
-    }
-
-    @Override
-    Scope activate(Span span) {
-      set(span)
-      return this
-    }
-
-    @Override
-    Scope active() {
-      return get() == null ? null : this
-    }
-
-    @Override
-    Span activeSpan() {
-      return active()?.span()
-    }
-
-    String toString() {
-      return "Ref: " + super.toString()
-    }
   }
 }

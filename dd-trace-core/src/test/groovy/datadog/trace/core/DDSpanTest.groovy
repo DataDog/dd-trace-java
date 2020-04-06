@@ -2,12 +2,12 @@ package datadog.trace.core
 
 
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.propagation.TagContext
 import datadog.trace.util.test.DDSpecification
-import io.opentracing.SpanContext
 import org.spockframework.util.ReflectionUtil
 import spock.lang.Ignore
 
@@ -235,7 +235,7 @@ class DDSpanTest extends DDSpecification {
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
     setup:
-    def root = tracer.buildSpan("root").asChildOf((SpanContext) extractedContext).start()
+    def root = tracer.buildSpan("root").asChildOf((AgentSpan.Context) extractedContext).start()
     def child = tracer.buildSpan("child").asChildOf(root).start()
 
     expect:
@@ -254,7 +254,7 @@ class DDSpanTest extends DDSpecification {
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
     setup:
-    def root = tracer.buildSpan("root").asChildOf((SpanContext) extractedContext).start()
+    def root = tracer.buildSpan("root").asChildOf((AgentSpan.Context) extractedContext).start()
     def child = tracer.buildSpan("child").asChildOf(root).start()
 
     expect:

@@ -24,7 +24,7 @@ class ScopeEventTest extends DDSpecification {
   private static final Duration SLEEP_DURATION = Duration.ofSeconds(1)
 
   def writer = new ListWriter()
-  def tracer = new DDTracer(DEFAULT_SERVICE_NAME, writer, new RateByServiceSampler(), [:])
+  def tracer = DDTracer.builder().serviceName(DEFAULT_SERVICE_NAME).writer(writer).build()
 
   def parentContext =
     new DDSpanContext(
@@ -90,8 +90,8 @@ class ScopeEventTest extends DDSpecification {
     def recording = JfrHelper.startRecording()
 
     when:
-    Scope scope = builder.startActive(false)
-    Span span = scope.span()
+    AgentScope scope = builder.startActive(false)
+    AgentSpan span = scope.span()
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
     def events = JfrHelper.stopRecording(recording)
@@ -149,10 +149,10 @@ class ScopeEventTest extends DDSpecification {
 
   def "Scope event is written after continuation activation"() {
     setup:
-    TraceScope parentScope = builder.startActive(false)
+    AgentScope parentScope = builder.startActive(false)
     parentScope.setAsyncPropagation(true)
-    Span span = parentScope.span()
-    TraceScope.Continuation continuation = parentScope.capture()
+    AgentSpan span = parentScope.span()
+    TraceScope.Continuation continuation = ((TraceScope) parentScope).capture()
     def recording = JfrHelper.startRecording()
 
     when:
