@@ -296,6 +296,12 @@ class StreamingSamplerTest {
                   if (sampler.sample()) {
                     samplesCount += 1;
                   }
+                  /*
+                   * Busy wait.
+                   * When we run many tests in parallel it turns out that on some occasions one thread may be doing calculations to
+                   * finalize window while other threads jump a few windows ahead - something that should not happen in real life
+                   * with windows on an order of second.
+                   */
                   double tmp = ThreadLocalRandom.current().nextDouble();
                   for (long k = 0; k <= 10; k++) {
                     tmp = Math.cos(tmp);
@@ -313,11 +319,11 @@ class StreamingSamplerTest {
   }
 
   private static Stream<Arguments> samplerParams() {
-    // The way these tests are setup requires initial burst to be completely full filled in order
-    // for tests to pass
-    // This prevents us from running tests on very small total events - tests fail for undersampling
-    // even though code works correctly
-    // Test just doesn't take into account that we do 'feed' sampler enough data.
+    /*
+     * The way these tests are setup requires initial burst to be completely full filled in order for tests to pass.
+     * This prevents us from running tests on very small total events - tests fail for undersampling even though code works correctly.
+     * Test just doesn't take into account that we do 'feed' sampler enough data.
+     */
     final List<Integer> totalEvents = ImmutableList.of(50_000, 300_000, 1_000_000);
     final List<Integer> runDurations = ImmutableList.of(60, 120, 600);
     final List<Arguments> args = new ArrayList<>();

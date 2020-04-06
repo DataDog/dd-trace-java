@@ -128,8 +128,11 @@ class StreamingSampler {
       if (endOfWindowLock.tryLock()) {
         try {
           if (now >= nextWindowTimestamp) {
-            // Calculation below will take time, but it is possible that we got here having large budget and many parallel threads
-            // throwing exceptions. So first step here is limit number of exceptions that we may collect until calculations are complete.
+            /*
+             * Calculation below will take time, but it is possible that we got here having large budget and many parallel
+             * threads throwing exceptions. So first step here is limit number of exceptions that we may collect until
+             * calculations are complete.
+             */
             samplesBudget = samplesPerWindow;
 
             long eventCount = eventCounter.sumThenReset();
@@ -137,7 +140,7 @@ class StreamingSampler {
 
             // FIXME: doing whole window closing inline results in more complex code and poor performance under test conditions
             // We probably should switch to separate thread.
-            
+
             // Integer division rounds down, so this is number of windows that have passed
             final long passedWindows = (now - nextWindowTimestamp) / windowDuration;
 
@@ -147,10 +150,12 @@ class StreamingSampler {
               sampledCount = 1;
             }
 
-            // Budget includes events in next window.
-            // FIXME: Adding extra samples budget to calculate probability is questionable because
-            // we essentially make probability swing widely instead of being a stable value based upon long running average.
-            // But empirically this seems to produce better results.
+            /*
+             * Budget includes events in next window.
+             * FIXME: Adding extra samples budget to calculate probability is questionable because
+             * we essentially make probability swing widely instead of being a stable value based upon long running average.
+             * But empirically this seems to produce better results.
+             */
             final long newSamplesBudget = calculateNewSamplesBudget(sampledCount, passedWindows) + samplesPerWindow;
 
             if (isNaN(totalCountRunningAverage)) {
@@ -165,7 +170,7 @@ class StreamingSampler {
                 // Too many passed windows: forget everything!
                 totalCountRunningAverage = 0;
               }
-              
+
               totalCountRunningAverage += eventsPerWindowEmaAlpha * (eventCount - totalCountRunningAverage);
             }
 
@@ -227,8 +232,7 @@ class StreamingSampler {
           overBudget -= carriedOverSamples[lastWindow];
           carriedOverSamples[lastWindow] = 0;
         } else {
-          // This also handles the case when carriedOverSamples[lastWindow] == overBudget
-          // - i.e. we no longer have overBudget and can exit
+          // This also handles the case when carriedOverSamples[lastWindow] == overBudget - i.e. we no longer have overBudget and can exit
           carriedOverSamples[lastWindow] -= overBudget;
           break;
         }
