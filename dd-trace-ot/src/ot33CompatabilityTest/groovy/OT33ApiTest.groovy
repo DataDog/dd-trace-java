@@ -1,5 +1,5 @@
+import datadog.opentracing.DDTracerOT
 import datadog.trace.core.DDSpan
-import datadog.trace.core.DDTracer
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.util.test.DDSpecification
 import io.opentracing.Tracer
@@ -13,7 +13,7 @@ class OT33ApiTest extends DDSpecification {
   static final WRITER = new ListWriter()
 
   @Subject
-  Tracer tracer = DDTracer.builder().writer(WRITER).build()
+  Tracer tracer = DDTracerOT.builder().writer(WRITER).build()
 
   def "test start"() {
     when:
@@ -22,7 +22,7 @@ class OT33ApiTest extends DDSpecification {
     scope.close()
 
     then:
-    (scope.span() as DDSpan).isFinished() == false
+    (scope.span().delegate as DDSpan).isFinished() == false
     assertTraces(WRITER, 0) {}
 
     when:
@@ -44,6 +44,6 @@ class OT33ApiTest extends DDSpecification {
     tracer.scopeManager().activate(span) != null
 
     then:
-    tracer.activeSpan() == span
+    tracer.activeSpan().delegate == span.delegate
   }
 }
