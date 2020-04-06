@@ -8,7 +8,7 @@ import com.squareup.moshi.Types;
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.trace.core.ContainerInfo;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDTraceOTInfo;
+import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory;
 import java.io.File;
 import java.io.IOException;
@@ -275,10 +275,10 @@ public class DDAgentApi {
         new Request.Builder()
             .url(url)
             .addHeader(DATADOG_META_LANG, "java")
-            .addHeader(DATADOG_META_LANG_VERSION, DDTraceOTInfo.JAVA_VERSION)
-            .addHeader(DATADOG_META_LANG_INTERPRETER, DDTraceOTInfo.JAVA_VM_NAME)
-            .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, DDTraceOTInfo.JAVA_VM_VENDOR)
-            .addHeader(DATADOG_META_TRACER_VERSION, DDTraceOTInfo.VERSION);
+            .addHeader(DATADOG_META_LANG_VERSION, DDTraceCoreInfo.JAVA_VERSION)
+            .addHeader(DATADOG_META_LANG_INTERPRETER, DDTraceCoreInfo.JAVA_VM_NAME)
+            .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, DDTraceCoreInfo.JAVA_VM_VENDOR)
+            .addHeader(DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
 
     final String containerId = ContainerInfo.get().getContainerId();
     if (containerId == null) {

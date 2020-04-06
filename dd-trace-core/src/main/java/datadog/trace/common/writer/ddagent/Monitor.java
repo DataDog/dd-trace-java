@@ -3,7 +3,7 @@ package datadog.trace.common.writer.ddagent;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDTraceOTInfo;
+import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.common.writer.DDAgentWriter;
 import java.util.List;
 
@@ -79,10 +79,10 @@ public interface Monitor {
     protected static final String[] getDefaultTags() {
       return new String[] {
         tag(LANG_TAG, "java"),
-        tag(LANG_VERSION_TAG, DDTraceOTInfo.JAVA_VERSION),
-        tag(LANG_INTERPRETER_TAG, DDTraceOTInfo.JAVA_VM_NAME),
-        tag(LANG_INTERPRETER_VENDOR_TAG, DDTraceOTInfo.JAVA_VM_VENDOR),
-        tag(TRACER_VERSION_TAG, DDTraceOTInfo.VERSION)
+        tag(LANG_VERSION_TAG, DDTraceCoreInfo.JAVA_VERSION),
+        tag(LANG_INTERPRETER_TAG, DDTraceCoreInfo.JAVA_VM_NAME),
+        tag(LANG_INTERPRETER_VENDOR_TAG, DDTraceCoreInfo.JAVA_VM_VENDOR),
+        tag(TRACER_VERSION_TAG, DDTraceCoreInfo.VERSION)
       };
     }
 

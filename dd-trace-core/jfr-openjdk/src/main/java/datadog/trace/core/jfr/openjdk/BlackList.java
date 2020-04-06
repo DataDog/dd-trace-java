@@ -1,13 +1,13 @@
 package datadog.trace.core.jfr.openjdk;
 
-import datadog.trace.core.DDTraceOTInfo;
+import datadog.trace.core.DDTraceCoreInfo;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
 public class BlackList {
 
-  private static final String VERSION = DDTraceOTInfo.JAVA_VERSION.split("\\.")[0];
+  private static final String VERSION = DDTraceCoreInfo.JAVA_VERSION.split("\\.")[0];
   private static final Set<String> VERSION_BLACK_LIST;
 
   static {
@@ -21,7 +21,7 @@ public class BlackList {
 
   public static void checkBlackList() throws ClassNotFoundException {
     if (VERSION_BLACK_LIST.contains(VERSION)) {
-      throw new ClassNotFoundException("Blacklisted java version: " + DDTraceOTInfo.JAVA_VERSION);
+      throw new ClassNotFoundException("Blacklisted java version: " + DDTraceCoreInfo.JAVA_VERSION);
     }
   }
 }
