@@ -153,19 +153,19 @@ class StreamingSampler {
             // But empirically this seems to produce better results.
             final long newSamplesBudget = calculateNewSamplesBudget(sampledCount, passedWindows) + samplesPerWindow;
 
-            if (passedWindows < MAX_NUMBER_OF_SKIPPED_WINDOWS_TO_CALCULATE_EMA) {
-              // FIXME: is there an analytical formula for this?
-              for (int i = 0; i < passedWindows; i++) {
-                totalCountRunningAverage += eventsPerWindowEmaAlpha * (0 - totalCountRunningAverage);
-              }
-            } else {
-              // Too many passed windows: forget everything!
-              totalCountRunningAverage = 0;
-            }
-
             if (isNaN(totalCountRunningAverage)) {
               totalCountRunningAverage = eventCount;
             } else {
+              if (passedWindows < MAX_NUMBER_OF_SKIPPED_WINDOWS_TO_CALCULATE_EMA) {
+                // FIXME: is there an analytical formula for this?
+                for (int i = 0; i < passedWindows; i++) {
+                  totalCountRunningAverage += eventsPerWindowEmaAlpha * (0 - totalCountRunningAverage);
+                }
+              } else {
+                // Too many passed windows: forget everything!
+                totalCountRunningAverage = 0;
+              }
+              
               totalCountRunningAverage += eventsPerWindowEmaAlpha * (eventCount - totalCountRunningAverage);
             }
 
