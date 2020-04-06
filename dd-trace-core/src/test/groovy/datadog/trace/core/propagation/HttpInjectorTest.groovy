@@ -7,7 +7,6 @@ import datadog.trace.api.Config
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.util.test.DDSpecification
-import io.opentracing.propagation.TextMapInjectAdapter
 
 import static datadog.trace.api.Config.PropagationStyle.B3
 import static datadog.trace.api.Config.PropagationStyle.DATADOG
@@ -52,7 +51,7 @@ class HttpInjectorTest extends DDSpecification {
     final Map<String, String> carrier = Mock()
 
     when:
-    injector.inject(mockedContext, new TextMapInjectAdapter(carrier))
+    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
 
     then:
     if (styles.contains(DATADOG)) {

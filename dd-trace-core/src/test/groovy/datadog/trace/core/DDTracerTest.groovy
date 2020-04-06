@@ -2,24 +2,22 @@ package datadog.trace.core
 
 import datadog.trace.api.Config
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.DDAgentWriter
-import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.common.writer.ddagent.Monitor
 import datadog.trace.core.propagation.DatadogHttpCodec
 import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.util.test.DDSpecification
-import io.opentracing.propagation.TextMapInject
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Timeout
 
-import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.Config.HEADER_TAGS
 import static datadog.trace.api.Config.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.Config.PREFIX
@@ -27,7 +25,6 @@ import static datadog.trace.api.Config.PRIORITY_SAMPLING
 import static datadog.trace.api.Config.SERVICE_MAPPING
 import static datadog.trace.api.Config.SPAN_TAGS
 import static datadog.trace.api.Config.WRITER_TYPE
-import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_INJECT
 
 @Timeout(10)
 class DDTracerTest extends DDSpecification {
@@ -149,22 +146,6 @@ class DDTracerTest extends DDSpecification {
     tracer.writer instanceof LoggingWriter
   }
 
-  def "verify sampler/writer constructor"() {
-    setup:
-    def writer = new ListWriter()
-    def sampler = new RateByServiceSampler()
-
-    when:
-    def tracer = new DDTracer(DEFAULT_SERVICE_NAME, writer, sampler)
-
-    then:
-    tracer.serviceName == DEFAULT_SERVICE_NAME
-    tracer.sampler == sampler
-    tracer.writer == writer
-    tracer.localRootSpanTags[Config.RUNTIME_ID_TAG].size() > 0 // not null or empty
-    tracer.localRootSpanTags[Config.LANGUAGE_TAG_KEY] == Config.LANGUAGE_TAG_VALUE
-  }
-
   def "Shares TraceCount with DDApi with #key = #value"() {
     setup:
     System.setProperty(PREFIX + key, value)
@@ -236,17 +217,18 @@ class DDTracerTest extends DDSpecification {
     Properties properties = new Properties()
     properties.setProperty("writer.type", "LoggingWriter")
     def tracer = DDTracer.builder().withProperties(properties).build()
-    def injector = Mock(TextMapInject)
+    def setter = Mock(AgentPropagation.Setter)
+    def carrier = new Object()
 
     when:
     def root = tracer.buildSpan("operation").start()
     def child = tracer.buildSpan('my_child').asChildOf(root).start()
-    tracer.inject(child.context(), TEXT_MAP_INJECT, injector)
+    tracer.inject(child.context(), carrier, setter)
 
     then:
     root.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
     child.getSamplingPriority() == root.getSamplingPriority()
-    1 * injector.put(DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(PrioritySampling.SAMPLER_KEEP))
+    1 * setter.set(carrier, DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(PrioritySampling.SAMPLER_KEEP))
 
     cleanup:
     child.finish()
@@ -257,28 +239,29 @@ class DDTracerTest extends DDSpecification {
     given:
     def sampler = new ControllableSampler()
     def tracer = DDTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
-    def injector = Mock(TextMapInject)
+    def setter = Mock(AgentPropagation.Setter)
+    def carrier = new Object()
 
     when:
     def root = tracer.buildSpan("operation").start()
     def child = tracer.buildSpan('my_child').asChildOf(root).start()
-    tracer.inject(child.context(), TEXT_MAP_INJECT, injector)
+    tracer.inject(child.context(), carrier, setter)
 
     then:
     root.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
     child.getSamplingPriority() == root.getSamplingPriority()
-    1 * injector.put(DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(PrioritySampling.SAMPLER_KEEP))
+    1 * setter.set(carrier, DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(PrioritySampling.SAMPLER_KEEP))
 
     when:
     sampler.nextSamplingPriority = PrioritySampling.SAMPLER_DROP
     def child2 = tracer.buildSpan('my_child2').asChildOf(root).start()
-    tracer.inject(child2.context(), TEXT_MAP_INJECT, injector)
+    tracer.inject(child2.context(), carrier, setter)
 
     then:
     root.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
     child.getSamplingPriority() == root.getSamplingPriority()
     child2.getSamplingPriority() == root.getSamplingPriority()
-    1 * injector.put(DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(PrioritySampling.SAMPLER_KEEP))
+    1 * setter.set(carrier, DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(PrioritySampling.SAMPLER_KEEP))
 
     cleanup:
     child.finish()
@@ -290,18 +273,19 @@ class DDTracerTest extends DDSpecification {
     given:
     def sampler = new ControllableSampler()
     def tracer = DDTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
-    def injector = Mock(TextMapInject)
+    def setter = Mock(AgentPropagation.Setter)
+    def carrier = new Object()
 
     when:
     def root = tracer.buildSpan("operation").start()
     def child = tracer.buildSpan('my_child').asChildOf(root).start()
     child.setSamplingPriority(PrioritySampling.USER_DROP)
-    tracer.inject(child.context(), TEXT_MAP_INJECT, injector)
+    tracer.inject(child.context(), carrier, setter)
 
     then:
     root.getSamplingPriority() == PrioritySampling.USER_DROP
     child.getSamplingPriority() == root.getSamplingPriority()
-    1 * injector.put(DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(PrioritySampling.USER_DROP))
+    1 * setter.set(carrier, DatadogHttpCodec.SAMPLING_PRIORITY_KEY, String.valueOf(PrioritySampling.USER_DROP))
 
     cleanup:
     child.finish()

@@ -2,8 +2,6 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.util.test.DDSpecification
-import io.opentracing.SpanContext
-import io.opentracing.propagation.TextMapExtractAdapter
 
 import static datadog.trace.core.DDTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY
@@ -27,7 +25,7 @@ class B3HttpExtractorTest extends DDSpecification {
     }
 
     when:
-    final ExtractedContext context = extractor.extract(new TextMapExtractAdapter(headers))
+    final ExtractedContext context = extractor.extract(headers, MapGetter.INSTANCE)
 
     then:
     context.traceId == traceId
@@ -54,7 +52,7 @@ class B3HttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final ExtractedContext context = extractor.extract(new TextMapExtractAdapter(headers))
+    final ExtractedContext context = extractor.extract(headers, MapGetter.INSTANCE)
 
     then:
     if (expectedTraceId) {
@@ -83,7 +81,7 @@ class B3HttpExtractorTest extends DDSpecification {
 
   def "extract header tags with no propagation"() {
     when:
-    TagContext context = extractor.extract(new TextMapExtractAdapter(headers))
+    TagContext context = extractor.extract(headers, MapGetter.INSTANCE)
 
     then:
     !(context instanceof ExtractedContext)
@@ -96,7 +94,7 @@ class B3HttpExtractorTest extends DDSpecification {
 
   def "extract empty headers returns null"() {
     expect:
-    extractor.extract(new TextMapExtractAdapter(["ignored-header": "ignored-value"])) == null
+    extractor.extract(["ignored-header": "ignored-value"], MapGetter.INSTANCE) == null
   }
 
   def "extract http headers with invalid non-numeric ID"() {
@@ -108,7 +106,7 @@ class B3HttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    SpanContext context = extractor.extract(new TextMapExtractAdapter(headers))
+    TagContext context = extractor.extract(headers, MapGetter.INSTANCE)
 
     then:
     context == null
@@ -124,7 +122,7 @@ class B3HttpExtractorTest extends DDSpecification {
 
 
     when:
-    SpanContext context = extractor.extract(new TextMapExtractAdapter(headers))
+    TagContext context = extractor.extract(headers, MapGetter.INSTANCE)
 
     then:
     context == null

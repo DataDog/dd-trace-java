@@ -83,7 +83,7 @@ class DDSpanTest extends DDSpecification {
   def "resource name equals operation name if null"() {
     setup:
     final String opName = "operationName"
-    DDSpan span
+    def span
 
     when:
     span = tracer.buildSpan(opName).start()

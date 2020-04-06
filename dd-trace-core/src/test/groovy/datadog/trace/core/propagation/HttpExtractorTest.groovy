@@ -2,8 +2,6 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.Config
 import datadog.trace.util.test.DDSpecification
-import io.opentracing.SpanContext
-import io.opentracing.propagation.TextMapExtractAdapter
 import spock.lang.Shared
 
 import static datadog.trace.core.DDTracer.TRACE_ID_MAX
@@ -41,7 +39,7 @@ class HttpExtractorTest extends DDSpecification {
     }
 
     when:
-    final SpanContext context = extractor.extract(new TextMapExtractAdapter(actual))
+    final TagContext context = extractor.extract(actual, MapGetter.INSTANCE)
 
     then:
     if (tagContext) {

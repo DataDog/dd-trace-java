@@ -126,6 +126,6 @@ class URLAsResourceNameRuleTest extends DDSpecification {
     "/not-found"                | "fakeOperation"     | [(Tags.HTTP_STATUS): "404"]
     "/with-method"              | "POST /with-method" | [(Tags.HTTP_METHOD): "Post"]
 
-    ignore = meta.put(Tags.HTTP_URL.key, value)
+    ignore = meta.put(Tags.HTTP_URL, value)
   }
 }

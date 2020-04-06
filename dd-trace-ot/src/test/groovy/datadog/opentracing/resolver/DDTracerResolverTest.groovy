@@ -1,7 +1,6 @@
 package datadog.opentracing.resolver
 
-
-import datadog.trace.core.DDTracer
+import datadog.opentracing.DDTracerOT
 import datadog.trace.api.Config
 import datadog.trace.util.test.DDSpecification
 import io.opentracing.contrib.tracerresolver.TracerResolver
@@ -15,7 +14,7 @@ class DDTracerResolverTest extends DDSpecification {
     def tracer = TracerResolver.resolveTracer()
 
     then:
-    tracer instanceof DDTracer
+    tracer instanceof DDTracerOT
   }
 
   def "test disable DDTracerResolver"() {

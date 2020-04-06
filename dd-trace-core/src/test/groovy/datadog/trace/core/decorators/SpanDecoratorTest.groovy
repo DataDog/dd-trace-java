@@ -68,17 +68,17 @@ class SpanDecoratorTest extends DDSpecification {
     span.getServiceName() == expected
 
     where:
-    tag                   | name            | expected
-    DDTags.SERVICE_NAME   | "some-service"  | "new-service"
-    DDTags.SERVICE_NAME   | "other-service" | "other-service"
-    "service"             | "some-service"  | "new-service"
-    "service"             | "other-service" | "other-service"
-    Tags.PEER_SERVICE.key | "some-service"  | "new-service"
-    Tags.PEER_SERVICE.key | "other-service" | "other-service"
-    "sn.tag1"             | "some-service"  | "new-service"
-    "sn.tag1"             | "other-service" | "other-service"
-    "sn.tag2"             | "some-service"  | "new-service"
-    "sn.tag2"             | "other-service" | "other-service"
+    tag                 | name            | expected
+    DDTags.SERVICE_NAME | "some-service"  | "new-service"
+    DDTags.SERVICE_NAME | "other-service" | "other-service"
+    "service"           | "some-service"  | "new-service"
+    "service"           | "other-service" | "other-service"
+    Tags.PEER_SERVICE   | "some-service"  | "new-service"
+    Tags.PEER_SERVICE   | "other-service" | "other-service"
+    "sn.tag1"           | "some-service"  | "new-service"
+    "sn.tag1"           | "other-service" | "other-service"
+    "sn.tag2"           | "some-service"  | "new-service"
+    "sn.tag2"           | "other-service" | "other-service"
 
     mapping = ["some-service": "new-service"]
   }
@@ -166,7 +166,7 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "peer.service then split-by-tags via builder"() {
     setup:
-    tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION.key)
+    tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION)
 
     when:
     def span = tracer.buildSpan("some span")
@@ -195,7 +195,7 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "split-by-tags then peer-service via builder"() {
     setup:
-    tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION.key)
+    tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION)
 
     when:
     def span = tracer.buildSpan("some span")
@@ -248,7 +248,7 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "override operation with DBTypeDecorator"() {
     when:
-    Tags.DB_TYPE.set(span, type)
+    span.setTag(Tags.DB_TYPE, type)
 
     then:
     span.getOperationName() == type + ".query"
@@ -256,7 +256,7 @@ class SpanDecoratorTest extends DDSpecification {
 
 
     when:
-    Tags.DB_TYPE.set(span, "mongo")
+    span.setTag(Tags.DB_TYPE, "mongo")
 
     then:
     span.getOperationName() == "mongo.query"
@@ -322,8 +322,8 @@ class SpanDecoratorTest extends DDSpecification {
   def "DBStatementAsResource should not interact on Mongo queries"() {
     when:
     span.setResourceName("existing")
-    Tags.COMPONENT.set(span, component)
-    Tags.DB_STATEMENT.set(span, statement)
+    span.setTag(Tags.COMPONENT, component)
+    span.setTag(Tags.DB_STATEMENT, statement)
     span.finish()
 
     then:
@@ -337,7 +337,7 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "set error flag when error tag reported"() {
     when:
-    Tags.ERROR.set(span, error)
+    span.setTag(Tags.ERROR, error)
     span.finish()
 
     then:
