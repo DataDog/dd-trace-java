@@ -25,9 +25,6 @@ dependencies {
   compile project(':dd-trace-api')
   compile project(':dd-trace-core')
 
-  // FIXME is this right?
-  compileOnly project(':dd-java-agent:agent-bootstrap')
-
   compile deps.opentracing
   compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
@@ -73,10 +70,6 @@ jar {
 
 shadowJar {
   archiveClassifier = ''
-
-  dependencies {
-    include(project(':utils:thread-utils'))
-  }
 }
 
 jmh {

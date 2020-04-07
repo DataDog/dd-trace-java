@@ -23,6 +23,7 @@ include ':dd-trace-api'
 include ':dd-trace-ot'
 
 // agent projects
+include ':internal-api'
 include ':dd-trace-core'
 include ':dd-trace-core:jfr-openjdk'
 include ':dd-java-agent'

@@ -32,8 +32,8 @@ dependencies {
   implementation deps.autoservice
 
   compile project(':dd-trace-api')
+  compile project(':internal-api')
   compile project(':utils:thread-utils')
-  compileOnly project(':dd-java-agent:agent-bootstrap')
 
   compile group: 'com.datadoghq', name: 'java-dogstatsd-client', version: "${versions.dogstatsd}"
 
@@ -64,10 +64,11 @@ shadowJar {
 
   dependencies {
     include(project(':utils:thread-utils'))
+    include(project(':internal-api'))
   }
 }
 
 // We don't want bundled dependencies to show up in the pom.
 modifyPom {
-  dependencies.removeAll { it.artifactId == "thread-utils" }
+  dependencies.removeAll { it.artifactId == "thread-utils" || it.artifactId == "internal-api" }
 }
