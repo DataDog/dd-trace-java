@@ -12,6 +12,9 @@ import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY
+import static datadog.trace.core.propagation.HaystackHttpCodec.DD_TRACE_ID_BAGGAGE_KEY
+import static datadog.trace.core.propagation.HaystackHttpCodec.DD_SPAN_ID_BAGGAGE_KEY
+import static datadog.trace.core.propagation.HaystackHttpCodec.DD_PARENT_ID_BAGGAGE_KEY
 
 class HaystackHttpInjectorTest extends DDSpecification {
 
@@ -23,9 +26,9 @@ class HaystackHttpInjectorTest extends DDSpecification {
     def tracer = CoreTracer.builder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
-        DDId.from(traceId),
-        DDId.from(spanId),
-        DDId.ZERO,
+        traceId,
+        spanId,
+        0G,
         "fakeService",
         "fakeOperation",
         "fakeResource",
@@ -50,17 +53,18 @@ class HaystackHttpInjectorTest extends DDSpecification {
     injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
 
     then:
-    1 * carrier.put(TRACE_ID_KEY, traceId.toString())
-    1 * carrier.put(SPAN_ID_KEY, spanId.toString())
+    1 * carrier.put(TRACE_ID_KEY, traceUuid)
+    1 * carrier.put(DD_TRACE_ID_BAGGAGE_KEY, traceId.toString())
+    1 * carrier.put(SPAN_ID_KEY, spanUuid)
+    1 * carrier.put(DD_SPAN_ID_BAGGAGE_KEY, spanId.toString())
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
 
-
     where:
-    traceId               | spanId                | samplingPriority              | origin
-    "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null
-    "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null
-    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | PrioritySampling.SAMPLER_KEEP | null
-    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | PrioritySampling.SAMPLER_KEEP | null
+    traceId          | spanId           | samplingPriority              | origin | traceUuid                              | spanUuid
+    1G               | 2G               | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"
+    1G               | 2G               | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"
+    TRACE_ID_MAX     | TRACE_ID_MAX - 1 | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-ffff-ffffffffffff" | "44617461-646f-6721-ffff-fffffffffffe"
+    TRACE_ID_MAX - 1 | TRACE_ID_MAX     | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-ffff-fffffffffffe" | "44617461-646f-6721-ffff-ffffffffffff"
   }
 }

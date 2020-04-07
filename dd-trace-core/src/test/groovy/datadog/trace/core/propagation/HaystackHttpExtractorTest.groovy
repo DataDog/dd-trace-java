@@ -16,8 +16,8 @@ class HaystackHttpExtractorTest extends DDSpecification {
   def "extract http headers"() {
     setup:
     def headers = [
-      (TRACE_ID_KEY.toUpperCase())            : traceId,
-      (SPAN_ID_KEY.toUpperCase())             : spanId,
+      (TRACE_ID_KEY.toUpperCase())            : traceUuid,
+      (SPAN_ID_KEY.toUpperCase())             : spanUuid,
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k1"): "v1",
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
       SOME_HEADER                             : "my-interesting-info",
@@ -27,19 +27,19 @@ class HaystackHttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, MapGetter.INSTANCE)
 
     then:
-    context.traceId == DDId.from(traceId)
-    context.spanId == DDId.from(spanId)
-    context.baggage == ["k1": "v1", "k2": "v2"]
+    context.traceId == new BigInteger(traceId)
+    context.spanId == new BigInteger(spanId)
+    context.baggage == ["k1": "v1", "k2": "v2", "Haystack-Trace-ID": traceUuid, "Haystack-Span-ID": spanUuid]
     context.tags == ["some-tag": "my-interesting-info"]
     context.samplingPriority == samplingPriority
     context.origin == origin
 
     where:
-    traceId               | spanId                | samplingPriority              | origin
-    "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null
-    "2"                   | "3"                   | PrioritySampling.SAMPLER_KEEP | null
-    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | PrioritySampling.SAMPLER_KEEP | null
-    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | PrioritySampling.SAMPLER_KEEP | null
+    traceId               | spanId                | samplingPriority              | origin | traceUuid                              | spanUuid
+    "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"
+    "2"                   | "3"                   | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-0000-000000000002" | "44617461-646f-6721-0000-000000000003"
+    "${TRACE_ID_MAX}"     | "${TRACE_ID_MAX - 6}" | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-ffff-ffffffffffff" | "44617461-646f-6721-ffff-fffffffffff9"
+    "${TRACE_ID_MAX - 1}" | "${TRACE_ID_MAX - 7}" | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-ffff-fffffffffffe" | "44617461-646f-6721-ffff-fffffffffff8"
   }
 
   def "extract header tags with no propagation"() {
@@ -113,7 +113,7 @@ class HaystackHttpExtractorTest extends DDSpecification {
     context == null
   }
 
-  def "more ID range validation"() {
+  def "extract 128 bit id truncates id to 64 bit"() {
     setup:
     def headers = [
       (TRACE_ID_KEY.toUpperCase()): traceId,
@@ -132,14 +132,20 @@ class HaystackHttpExtractorTest extends DDSpecification {
     }
 
     where:
-    traceId               | spanId                | expectedTraceId             | expectedSpanId
-    "-1"                  | "1"                   | null                        | null
-    "1"                   | "-1"                  | null                        | null
-    "0"                   | "1"                   | null                        | null
-    "1"                   | "0"                   | DDId.ONE                    | DDId.ZERO
-    "$TRACE_ID_MAX"       | "1"                   | DDId.from("$TRACE_ID_MAX")  | DDId.ONE
-    "${TRACE_ID_MAX + 1}" | "1"                   | null                        | null
-    "1"                   | "$TRACE_ID_MAX"       | DDId.ONE                    | DDId.from("$TRACE_ID_MAX")
-    "1"                   | "${TRACE_ID_MAX + 1}" | null                        | null
+    traceId                                | spanId                                | expectedTraceId      | expectedSpanId
+    "-1"                                   | "1"                                   | null                 | 0G
+    "1"                                    | "-1"                                  | null                 | 0G
+    "0"                                    | "1"                                   | null                 | 0G
+    "00001"                                | "00001"                               | 1G                   | 1G
+    "463ac35c9f6413ad"                     | "463ac35c9f6413ad"                    | 5060571933882717101G | 5060571933882717101G
+    "463ac35c9f6413ad48485a3953bb6124"     | "1"                                   | 5208512171318403364G | 1G
+    "44617461-646f-6721-463a-c35c9f6413ad" |"44617461-646f-6721-463a-c35c9f6413ad" | 5060571933882717101G | 5060571933882717101G
+    "f" * 16                               | "1"                                   | TRACE_ID_MAX         | 1G
+    "a" * 16 + "f" * 16                    | "1"                                   | TRACE_ID_MAX         | 1G
+    "1" + "f" * 32                         | "1"                                   | null                 | 1G
+    "0" + "f" * 32                         | "1"                                   | null                 | 1G
+    "1"                                    | "f" * 16                              | 1G                   | TRACE_ID_MAX
+    "1"                                    | "1" + "f" * 16                        | null                 | 0G
+    "1"                                    | "000" + "f" * 16                      | 1G                   | TRACE_ID_MAX
   }
 }
