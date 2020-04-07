@@ -1,14 +1,15 @@
 package com.datadog.profiling.exceptions;
 
+import datadog.common.exec.CommonTaskExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Supplier;
 
 /**
  * A streaming (non-remembering) sampler.
@@ -36,6 +37,19 @@ import java.util.function.Supplier;
 class StreamingSampler {
   private static final Logger LOGGER = LoggerFactory.getLogger(StreamingSampler.class);
 
+  private static final class Counts {
+    private final LongAdder testCounter = new LongAdder();
+    private final AtomicLong sampleCounter = new AtomicLong(0L);
+
+    void addTest() {
+      testCounter.increment();
+    }
+
+    long addSample(long limit) {
+      return sampleCounter.getAndUpdate(s -> s + (s < limit ? 1 : 0));
+    }
+  }
+
   /*
    * Exponential Moving Average (EMA) last element weight.
    * Check out papers about using EMA for streaming data - eg.
@@ -47,49 +61,50 @@ class StreamingSampler {
    * weight assigned by a plain arithmetic average (= 1/N).
    */
   private final double emaAlpha;
-  private final Supplier<Long> tsProvider;
-  private final long windowDurationNs;
   private final int samplesPerWindow;
 
-  private final LongAdder testCounter = new LongAdder();
-  private final AtomicLong sampledCounter = new AtomicLong(0L);
-  private final ReentrantLock endOfWindowLock = new ReentrantLock();
-  private final AtomicLong extraBudget = new AtomicLong(0);
+  private final AtomicReference<Counts> countsRef;
+  private final int lookback;
 
   // these attributes need to be volatile since they are accessed outside of the 'endOfWindowLock' guarded block
   private volatile double probability = 1d;
-  private volatile long nextWindowTs = 0L;
+  private volatile long targetSamples = 0L;
 
-  // these attributes are accessed solely under `endOfWindowLock`
+  // these attributes are accessed solely from the window maintenance thread
   private double totalCountRunningAverage = 0d;
   private double avgBudget = Double.NaN;
+  private long windowCount = 0L;
 
   /**
    * Create a new sampler instance
    *
-   * @param windowDuration   the sampling window duration
-   * @param samplesPerWindow the maximum number of samples in the sampling window
-   * @param lookback         the number of windows to consider in averaging the sampling rate
-   * @param tsProvider       timestamp provider
+   * @param windowDuration      the sampling window duration
+   * @param samplesPerWindow    the maximum number of samples in the sampling window
+   * @param lookback            the number of windows to consider in averaging the sampling rate
+   * @param startWindowRolling  should the scheduled window roll to be started; useful for testing with manual rolls
    */
   StreamingSampler(
-    final Duration windowDuration, final int samplesPerWindow, final int lookback, final Supplier<Long> tsProvider) {
-    this.tsProvider = tsProvider;
-    windowDurationNs = windowDuration.toNanos();
-    nextWindowTs = getNextWindowTs(tsProvider.get());
+    final Duration windowDuration, final int samplesPerWindow, final int lookback, boolean startWindowRolling) {
     this.samplesPerWindow = samplesPerWindow;
+    this.targetSamples = Math.round(samplesPerWindow * 0.92d);
+    this.lookback = lookback;
     this.emaAlpha = computeLookbackAlpha(lookback);
+    this.countsRef = new AtomicReference<>(new Counts());
+
+    if (startWindowRolling) {
+      CommonTaskExecutor.INSTANCE.scheduleAtFixedRate(this::rollWindow, windowDuration.getNano(), windowDuration.getNano(), TimeUnit.NANOSECONDS);
+    }
   }
 
   /**
-   * Create a new sampler instance
+   * Create a new sampler instance with automatic window roll.
    *
    * @param windowDuration   the sampling window duration
    * @param samplesPerWindow the maximum number of samples in the sampling window
    * @param lookback         the number of windows to consider in averaging the sampling rate
    */
   StreamingSampler(final Duration windowDuration, final int samplesPerWindow, final int lookback) {
-    this(windowDuration, samplesPerWindow, lookback, System::nanoTime);
+    this(windowDuration, samplesPerWindow, lookback, false);
   }
 
   /**
@@ -98,56 +113,47 @@ class StreamingSampler {
    * @return {@literal true} if the event should be sampled
    */
   final boolean sample() {
-    boolean sampled = false;
-    testCounter.increment();
-    if (sampledCounter.get() <= samplesPerWindow + extraBudget.get()) {
-      if (ThreadLocalRandom.current().nextDouble() < probability) {
-        sampledCounter.incrementAndGet();
-        sampled = true;
-      }
+    Counts counts = countsRef.get();
+    counts.addTest();
+    if (ThreadLocalRandom.current().nextDouble() < probability) {
+      return counts.addSample(targetSamples) < targetSamples;
     }
 
-    final long ts = tsProvider.get();
-    final long extraDuration = ts - nextWindowTs;
-    final boolean isExpired = extraDuration >= 0;
-
-    if (isExpired) {
-      if (endOfWindowLock.tryLock()) {
-        try {
-          final long totalCount = testCounter.sumThenReset();
-          final long sampledCount = sampledCounter.getAndSet(0);
-
-          long sampleBudget = samplesPerWindow - sampledCount;
-          avgBudget = Double.isNaN(avgBudget) ? sampleBudget : avgBudget + emaAlpha * (sampleBudget - avgBudget);
-          extraBudget.set(Math.round(Math.max(avgBudget, 0) * 1));
-
-          if (totalCountRunningAverage == 0) {
-            totalCountRunningAverage = totalCount;
-          } else {
-            totalCountRunningAverage = totalCountRunningAverage + emaAlpha * (totalCount - totalCountRunningAverage);
-          }
-
-          if (totalCountRunningAverage <= 0) {
-            probability = 1;
-          } else {
-            probability =
-              Math.min(
-                (samplesPerWindow + avgBudget)
-                  / totalCountRunningAverage,
-                1d);
-          }
-          nextWindowTs = getNextWindowTs(nextWindowTs);
-        } finally {
-          endOfWindowLock.unlock();
-        }
-      }
-    }
-
-    return sampled;
+    return false;
   }
 
-  private long getNextWindowTs(long currentWindowTs) {
-    return currentWindowTs + windowDurationNs;
+  // package private access for the tests
+  final void rollWindow() {
+    windowCount = Math.min(windowCount + 1, lookback);
+
+    /*
+     * Atomically replace the Counts instance such that sample requests during window maintenance will be
+     * using the newly created counts instead of the ones currently processed by the maintenance routine.
+     */
+
+    Counts counts = countsRef.getAndSet(new Counts());
+    final long totalCount = counts.testCounter.sum();
+    final long sampledCount = counts.sampleCounter.get();
+
+    long sampleBudget = samplesPerWindow - sampledCount;
+    avgBudget = Double.isNaN(avgBudget) ? sampleBudget : avgBudget + emaAlpha * (sampleBudget - avgBudget);
+    targetSamples = samplesPerWindow + Math.round(Math.max(avgBudget, 0) * windowCount);
+
+    if (totalCountRunningAverage == 0) {
+      totalCountRunningAverage = totalCount;
+    } else {
+      totalCountRunningAverage = totalCountRunningAverage + emaAlpha * (totalCount - totalCountRunningAverage);
+    }
+
+    if (totalCountRunningAverage <= 0) {
+      probability = 1;
+    } else {
+      probability =
+        Math.min(
+          (samplesPerWindow + avgBudget)
+            / totalCountRunningAverage,
+          1d);
+    }
   }
 
   private static double computeLookbackAlpha(int lookback) {

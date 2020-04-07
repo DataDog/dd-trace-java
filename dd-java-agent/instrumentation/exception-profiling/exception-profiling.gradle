@@ -16,6 +16,7 @@ dependencies {
 
   testCompile deps.junit5
   testCompile deps.jmc
+  testCompile deps.commonsMath
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_7
