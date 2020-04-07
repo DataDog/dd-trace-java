@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Properties;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
@@ -591,6 +592,23 @@ public class DDTracerOT implements Tracer {
     public void close() {
       delegate.close();
     }
+
+    @Override
+    public boolean equals(final Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final CustomScopeManagerScope that = (CustomScopeManagerScope) o;
+      return delegate.equals(that.delegate);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(delegate);
+    }
   }
 
   private class OTScopeManager implements ScopeManager {
@@ -639,6 +657,23 @@ public class DDTracerOT implements Tracer {
     public Iterable<Entry<String, String>> baggageItems() {
       return delegate.baggageItems();
     }
+
+    @Override
+    public boolean equals(final Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final OTGenericContext that = (OTGenericContext) o;
+      return delegate.equals(that.delegate);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(delegate);
+    }
   }
 
   private class OTTagContext implements SpanContext {
@@ -662,6 +697,23 @@ public class DDTracerOT implements Tracer {
     public Iterable<Entry<String, String>> baggageItems() {
       return delegate.baggageItems();
     }
+
+    @Override
+    public boolean equals(final Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final OTTagContext that = (OTTagContext) o;
+      return delegate.equals(that.delegate);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(delegate);
+    }
   }
 
   private class OTExtractedContext extends OTTagContext {
@@ -681,6 +733,23 @@ public class DDTracerOT implements Tracer {
     public String toSpanId() {
       return extractedContext.getSpanId().toString();
     }
+
+    @Override
+    public boolean equals(final Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final OTExtractedContext that = (OTExtractedContext) o;
+      return extractedContext.equals(that.extractedContext);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(extractedContext);
+    }
   }
 
   private class OTScope implements Scope {
@@ -698,6 +767,23 @@ public class DDTracerOT implements Tracer {
     @Override
     public Span span() {
       return converter.toSpan(delegate.span());
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final OTScope otScope = (OTScope) o;
+      return delegate.equals(otScope.delegate);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(delegate);
     }
   }
 
@@ -724,6 +810,23 @@ public class DDTracerOT implements Tracer {
     @Override
     public void setAsyncPropagation(final boolean value) {
       delegate.setAsyncPropagation(value);
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final OTTraceScope that = (OTTraceScope) o;
+      return delegate.equals(that.delegate);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(delegate);
     }
   }
 
@@ -812,6 +915,23 @@ public class DDTracerOT implements Tracer {
     @Override
     public void finish(final long finishMicros) {
       delegate.finish(finishMicros);
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final OTSpan otSpan = (OTSpan) o;
+      return delegate.equals(otSpan.delegate);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(delegate);
     }
   }
 }
