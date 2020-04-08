@@ -340,7 +340,7 @@ class StreamingSamplerTest {
             lookback,
             15),
         Arguments.of(new PoissonWindowEventsSupplier(150), windows, samplesPerWindow, lookback, 0),
-        Arguments.of(new PoissonWindowEventsSupplier(253), windows, samplesPerWindow, lookback, 2),
+        Arguments.of(new PoissonWindowEventsSupplier(253), windows, samplesPerWindow, lookback, 5),
         Arguments.of(new PoissonWindowEventsSupplier(1507), windows, samplesPerWindow, lookback, 8),
         Arguments.of(new ConstantWindowsEventsSupplier(5), windows, samplesPerWindow, lookback, 0),
         Arguments.of(
