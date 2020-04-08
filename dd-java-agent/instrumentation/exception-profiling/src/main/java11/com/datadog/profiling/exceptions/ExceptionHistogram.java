@@ -72,11 +72,11 @@ public class ExceptionHistogram {
       return;
     }
 
-    Stream<Map.Entry<String, Long>> items =
+    Stream<Pair<String, Long>> items =
       histogram
         .entrySet()
         .stream()
-        .map(e -> entry(e.getKey(), e.getValue().getAndSet(0L)))
+        .map(e -> Pair.of(e.getKey(), e.getValue().getAndSet(0L)))
         .filter(e -> e.getValue() != 0)
         .sorted((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()));
 
@@ -98,22 +98,26 @@ public class ExceptionHistogram {
     }
   }
 
-  private static <K, V> Map.Entry<K, V> entry(final K key, final V value) {
-    return new Map.Entry<K, V>() {
-      @Override
-      public K getKey() {
-        return key;
-      }
+  private static class Pair<K, V> {
 
-      @Override
-      public V getValue() {
-        return value;
-      }
+    final K key;
+    final V value;
 
-      @Override
-      public V setValue(final V v) {
-        return value;
-      }
-    };
+    public static <K, V> Pair<K, V> of(final K key, final V value) {
+      return new Pair<>(key, value);
+    }
+
+    public Pair(final K key, final V value) {
+      this.key = key;
+      this.value = value;
+    }
+
+    public K getKey() {
+      return key;
+    }
+
+    public V getValue() {
+      return value;
+    }
   }
 }

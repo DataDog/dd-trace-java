@@ -12,11 +12,14 @@ import jdk.jfr.Name;
 @Category("Datadog")
 public class ExceptionSampleEvent extends Event {
   @Label("Exception Type")
-  private String type;
+  private final String type;
 
   @Label("Exception message")
   private final String message;
 
+  /**
+   * JFR may truncate the stack trace - so store original length as well.
+   */
   @Label("Exception stackdepth")
   private final int stackDepth;
 
