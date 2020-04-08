@@ -13,6 +13,7 @@ import static datadog.trace.api.Config.API_KEY_FILE
 import static datadog.trace.api.Config.CONFIGURATION_FILE
 import static datadog.trace.api.Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.Config.DEFAULT_JMX_FETCH_STATSD_PORT
+import static datadog.trace.api.Config.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT
 import static datadog.trace.api.Config.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
 import static datadog.trace.api.Config.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
 import static datadog.trace.api.Config.GLOBAL_TAGS
@@ -155,7 +156,7 @@ class ConfigTest extends DDSpecification {
     config.profilingProxyPort == Config.DEFAULT_PROFILING_PROXY_PORT
     config.profilingProxyUsername == null
     config.profilingProxyPassword == null
-    config.profilingExceptionSampleLimit == Config.DEFAULT_PROFILING_EXCEPTION_SAMPLER_LIMIT
+    config.profilingExceptionSampleLimit == DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT
     config.profilingExceptionHistogramTopItems == DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
     config.profilingExceptionHistogramMaxCollectionSize == DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
 

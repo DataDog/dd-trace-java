@@ -195,9 +195,7 @@ public class Config {
   public static final int DEFAULT_PROFILING_UPLOAD_TIMEOUT = 30; // seconds
   public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
   public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
-  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_LIMIT = 10_000;
-  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW = 1;
-  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES = 100;
+  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT = 10_000;
   public static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS = 50;
   public static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE = 10000;
 
@@ -531,7 +529,7 @@ public class Config {
 
     profilingExceptionSampleLimit =
         getIntegerSettingFromEnvironment(
-            PROFILING_EXCEPTION_SAMPLE_LIMIT, DEFAULT_PROFILING_EXCEPTION_SAMPLER_LIMIT);
+            PROFILING_EXCEPTION_SAMPLE_LIMIT, DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT);
     profilingExceptionHistogramTopItems =
         getIntegerSettingFromEnvironment(
             PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
