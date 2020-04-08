@@ -1,5 +1,7 @@
 package datadog.trace.core.scopemanager;
 
+import datadog.trace.context.ScopeListener;
+import datadog.trace.context.TraceScope;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.PendingTrace;

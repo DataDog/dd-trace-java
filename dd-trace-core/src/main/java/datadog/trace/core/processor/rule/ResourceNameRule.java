@@ -1,7 +1,7 @@
 package datadog.trace.core.processor.rule;
 
-import datadog.trace.core.DDSpan;
 import datadog.trace.api.DDTags;
+import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
 import java.util.Collection;
 import java.util.Map;

@@ -2,8 +2,8 @@ package datadog.trace.core;
 
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.common.exec.CommonTaskExecutor.Task;
-import datadog.trace.core.util.Clock;
 import datadog.trace.core.scopemanager.ContinuableScope;
+import datadog.trace.core.util.Clock;
 import java.io.Closeable;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;

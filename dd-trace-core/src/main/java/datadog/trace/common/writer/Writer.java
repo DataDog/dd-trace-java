@@ -1,9 +1,9 @@
 package datadog.trace.common.writer;
 
-import datadog.trace.core.DDSpan;
 import datadog.trace.api.Config;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.Monitor;
+import datadog.trace.core.DDSpan;
 import java.io.Closeable;
 import java.util.List;
 import java.util.Properties;

@@ -2,9 +2,9 @@ package datadog.trace.common.writer.ddagent;
 
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
+import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
-import datadog.trace.common.writer.DDAgentWriter;
 import java.util.List;
 
 /**

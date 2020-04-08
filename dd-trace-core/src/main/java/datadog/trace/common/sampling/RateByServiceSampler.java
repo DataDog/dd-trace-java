@@ -3,9 +3,9 @@ package datadog.trace.common.sampling;
 import static java.util.Collections.singletonMap;
 import static java.util.Collections.unmodifiableMap;
 
-import datadog.trace.core.DDSpan;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
+import datadog.trace.core.DDSpan;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;

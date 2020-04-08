@@ -2,9 +2,9 @@ package datadog.trace.common.writer.ddagent;
 
 import com.lmax.disruptor.EventHandler;
 import datadog.common.exec.DaemonThreadFactory;
+import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
-import datadog.trace.common.writer.DDAgentWriter;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 

@@ -1,9 +1,5 @@
 package datadog.opentracing;
 
-import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.DDTracer;
-import datadog.trace.core.DDTracer.DDSpanBuilder;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -13,6 +9,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.context.TraceScope;
+import datadog.trace.core.DDSpan;
+import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.DDTracer;
+import datadog.trace.core.DDTracer.DDSpanBuilder;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;

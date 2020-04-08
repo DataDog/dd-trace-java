@@ -3,9 +3,9 @@ package datadog.trace.core.propagation;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 
-import datadog.trace.core.DDSpanContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.core.DDSpanContext;
 import java.math.BigInteger;
 import java.util.Collections;
 import java.util.HashMap;

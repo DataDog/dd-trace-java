@@ -1,9 +1,9 @@
 package datadog.trace.core.decorators;
 
-import datadog.trace.core.DDSpanContext;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.core.DDSpanContext;
 
 /**
  * This span decorator leverages DB tags. It allows the dev to define a custom service name and

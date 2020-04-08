@@ -3,8 +3,8 @@ package datadog.opentracing;
 import static io.opentracing.log.Fields.ERROR_OBJECT;
 import static io.opentracing.log.Fields.MESSAGE;
 
-import datadog.trace.core.DDSpan;
 import datadog.trace.api.DDTags;
+import datadog.trace.core.DDSpan;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 

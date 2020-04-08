@@ -4,12 +4,12 @@ import static datadog.trace.api.Config.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.Config.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.Config.DEFAULT_TRACE_AGENT_PORT;
 
-import datadog.trace.core.DDSpan;
 import datadog.trace.common.writer.ddagent.BatchWritingDisruptor;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.Monitor;
 import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor;
+import datadog.trace.core.DDSpan;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;

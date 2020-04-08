@@ -1,7 +1,7 @@
 package datadog.trace.core.processor;
 
-import datadog.trace.core.DDSpan;
 import datadog.trace.api.Config;
+import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.rule.AnalyticsSampleRateRule;
 import datadog.trace.core.processor.rule.DBStatementRule;
 import datadog.trace.core.processor.rule.ErrorRule;

@@ -1,10 +1,10 @@
 package datadog.trace.core.propagation;
 
+import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.DDTracer;
 import datadog.trace.core.StringCachingBigInteger;
-import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.URLDecoder;

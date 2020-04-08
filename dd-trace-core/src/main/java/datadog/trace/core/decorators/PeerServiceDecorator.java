@@ -1,7 +1,7 @@
 package datadog.trace.core.decorators;
 
-import datadog.trace.core.DDSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.core.DDSpanContext;
 
 public class PeerServiceDecorator extends AbstractDecorator {
   public PeerServiceDecorator() {

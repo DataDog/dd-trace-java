@@ -1,8 +1,8 @@
 package datadog.trace.core.decorators;
 
-import datadog.trace.core.DDSpanContext;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.core.DDSpanContext;
 
 /**
  * Tag decorator to replace tag 'manual.drop: true' with the appropriate priority sampling value.

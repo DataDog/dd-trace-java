@@ -1,6 +1,5 @@
 package datadog.trace.core.processor.rule;
 
-
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;

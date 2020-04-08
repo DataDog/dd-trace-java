@@ -1,11 +1,11 @@
 package datadog.trace.common.sampling;
 
 import com.google.common.util.concurrent.RateLimiter;
-import datadog.trace.core.DDSpan;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.sampling.SamplingRule.AlwaysMatchesSamplingRule;
 import datadog.trace.common.sampling.SamplingRule.OperationSamplingRule;
 import datadog.trace.common.sampling.SamplingRule.ServiceSamplingRule;
+import datadog.trace.core.DDSpan;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

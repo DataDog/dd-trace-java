@@ -1,7 +1,7 @@
 package datadog.trace.common.sampling;
 
-import datadog.trace.core.DDSpan;
 import datadog.trace.api.Config;
+import datadog.trace.core.DDSpan;
 import java.util.Map;
 import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;

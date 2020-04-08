@@ -1,7 +1,7 @@
 package datadog.trace.core.decorators;
 
-import datadog.trace.core.DDSpanContext;
 import datadog.trace.api.DDTags;
+import datadog.trace.core.DDSpanContext;
 
 public class ServiceNameDecorator extends AbstractDecorator {
 
