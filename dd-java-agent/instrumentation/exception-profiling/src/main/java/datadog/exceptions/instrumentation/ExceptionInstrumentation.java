@@ -11,13 +11,13 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
-@AutoService(Instrumenter.class)
 /**
  * Provides instrumentation of {@linkplain Exception} constructor. <br>
  * {@linkplain Exception}, as opposed to {@linkplain Throwable} was deliberately chosen such that we
  * don't instrument {@linkplain Error} class/subclasses since they are tracked by a native JFR event
  * already.
  */
+@AutoService(Instrumenter.class)
 public final class ExceptionInstrumentation extends Instrumenter.Default {
   private final boolean hasJfr;
 
