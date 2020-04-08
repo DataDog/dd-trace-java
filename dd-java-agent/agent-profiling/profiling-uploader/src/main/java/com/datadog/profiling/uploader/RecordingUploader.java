@@ -53,6 +53,7 @@ import okhttp3.Response;
 /** The class for uploading recordings to the backend. */
 @Slf4j
 public final class RecordingUploader {
+
   private static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
   static final String RECORDING_NAME_PARAM = "recording-name";
@@ -120,8 +121,8 @@ public final class RecordingUploader {
   private final Deque<Integer> requestSizeHistory;
 
   public RecordingUploader(final Config config) {
-    url = config.getProfilingUrl();
-    apiKey = config.getProfilingApiKey();
+    url = config.getFinalProfilingUrl();
+    apiKey = config.getApiKey();
 
     /*
     FIXME: currently `Config` class cannot get access to some pieces of information we need here:
@@ -233,6 +234,7 @@ public final class RecordingUploader {
 
   @FunctionalInterface
   private interface Compression {
+
     RequestBody compress(InputStream is, int expectedSize) throws IOException;
   }
 

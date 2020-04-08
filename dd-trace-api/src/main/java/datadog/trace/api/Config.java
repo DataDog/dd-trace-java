@@ -40,12 +40,18 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @ToString(includeFieldNames = true)
 public class Config {
+
   /** Config keys below */
   private static final String PREFIX = "dd.";
+
+  public static final String PROFILING_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
 
   private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
 
   public static final String CONFIGURATION_FILE = "trace.config";
+  public static final String API_KEY = "api-key";
+  public static final String API_KEY_FILE = "api-key-file";
+  public static final String SITE = "site";
   public static final String SERVICE_NAME = "service.name";
   public static final String TRACE_ENABLED = "trace.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
@@ -93,7 +99,7 @@ public class Config {
   public static final String JMX_FETCH_ENABLED = "jmxfetch.enabled";
   public static final String JMX_FETCH_CONFIG_DIR = "jmxfetch.config.dir";
   public static final String JMX_FETCH_CONFIG = "jmxfetch.config";
-  public static final String JMX_FETCH_METRICS_CONFIGS = "jmxfetch.metrics-configs";
+  @Deprecated public static final String JMX_FETCH_METRICS_CONFIGS = "jmxfetch.metrics-configs";
   public static final String JMX_FETCH_CHECK_PERIOD = "jmxfetch.check-period";
   public static final String JMX_FETCH_REFRESH_BEANS_PERIOD = "jmxfetch.refresh-beans-period";
   public static final String JMX_FETCH_STATSD_HOST = "jmxfetch.statsd.host";
@@ -106,12 +112,16 @@ public class Config {
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
 
   public static final String PROFILING_ENABLED = "profiling.enabled";
+  @Deprecated // Use dd.site instead
   public static final String PROFILING_URL = "profiling.url";
-
-  public static final String PROFILING_API_KEY = "profiling.api-key";
-  public static final String PROFILING_API_KEY_FILE = "profiling.api-key-file";
-  public static final String PROFILING_API_KEY_OLD = "profiling.apikey";
-  public static final String PROFILING_API_KEY_FILE_OLD = "profiling.apikey.file";
+  @Deprecated // Use dd.api-key instead
+  public static final String PROFILING_API_KEY_OLD = "profiling.api-key";
+  @Deprecated // Use dd.api-key-file instead
+  public static final String PROFILING_API_KEY_FILE_OLD = "profiling.api-key-file";
+  @Deprecated // Use dd.api-key instead
+  public static final String PROFILING_API_KEY_VERY_OLD = "profiling.apikey";
+  @Deprecated // Use dd.api-key-file instead
+  public static final String PROFILING_API_KEY_FILE_VERY_OLD = "profiling.apikey.file";
   public static final String PROFILING_TAGS = "profiling.tags";
   public static final String PROFILING_START_DELAY = "profiling.start-delay";
   // DANGEROUS! May lead on sigsegv on JVMs before 14
@@ -144,6 +154,7 @@ public class Config {
   public static final String LANGUAGE_TAG_KEY = "language";
   public static final String LANGUAGE_TAG_VALUE = "jvm";
 
+  public static final String DEFAULT_SITE = "datadoghq.com";
   public static final String DEFAULT_SERVICE_NAME = "unnamed-java-app";
 
   private static final boolean DEFAULT_TRACE_ENABLED = true;
@@ -183,8 +194,6 @@ public class Config {
   public static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
 
   public static final boolean DEFAULT_PROFILING_ENABLED = false;
-  public static final String DEFAULT_PROFILING_URL =
-      "https://intake.profile.datadoghq.com/v1/input";
   public static final int DEFAULT_PROFILING_START_DELAY = 10;
   public static final boolean DEFAULT_PROFILING_START_FORCE_FIRST = false;
   public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
@@ -217,11 +226,34 @@ public class Config {
   /** A tag intended for internal use only, hence not added to the public api DDTags class. */
   private static final String INTERNAL_HOST_NAME = "_dd.hostname";
 
+  /** Used for masking sensitive information when doing toString */
+  @ToString.Include(name = "apiKey")
+  private String profilingApiKeyMasker() {
+    return apiKey != null ? "****" : null;
+  }
+
+  /** Used for masking sensitive information when doing toString */
+  @ToString.Include(name = "profilingProxyPassword")
+  private String profilingProxyPasswordMasker() {
+    return profilingProxyPassword != null ? "****" : null;
+  }
+
   /**
    * this is a random UUID that gets generated on JVM start up and is attached to every root span
    * and every JMX metric that is sent out.
    */
   @Getter private final String runtimeId;
+
+  /**
+   * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
+   * affected by this setting.
+   */
+  @Getter private final String apiKey;
+  /**
+   * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
+   * affected by this setting.
+   */
+  @Getter private final String site;
 
   @Getter private final String serviceName;
   @Getter private final boolean traceEnabled;
@@ -284,8 +316,7 @@ public class Config {
   @Getter private final Double traceRateLimit;
 
   @Getter private final boolean profilingEnabled;
-  @Getter private final String profilingUrl;
-  @Getter private final String profilingApiKey;
+  @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   @Getter private final int profilingStartDelay;
   @Getter private final boolean profilingStartForceFirst;
@@ -311,6 +342,20 @@ public class Config {
 
     runtimeId = UUID.randomUUID().toString();
 
+    // Note: We do not want APiKey to be loaded from property for security reasons
+    // Note: we do not use defined default here
+    // FIXME: We should use better authentication mechanism
+    final String apiKeyFile = getSettingFromEnvironment(API_KEY_FILE, null);
+    String tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(API_KEY));
+    if (apiKeyFile != null) {
+      try {
+        tmpApiKey =
+            new String(Files.readAllBytes(Paths.get(apiKeyFile)), StandardCharsets.UTF_8).trim();
+      } catch (final IOException e) {
+        log.error("Cannot read API key from file {}, skipping", apiKeyFile, e);
+      }
+    }
+    site = getSettingFromEnvironment(SITE, DEFAULT_SITE);
     serviceName = getSettingFromEnvironment(SERVICE_NAME, DEFAULT_SERVICE_NAME);
 
     traceEnabled = getBooleanSettingFromEnvironment(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
@@ -433,39 +478,39 @@ public class Config {
 
     profilingEnabled =
         getBooleanSettingFromEnvironment(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
-    profilingUrl = getSettingFromEnvironment(PROFILING_URL, DEFAULT_PROFILING_URL);
-    // Note: We do not want APiKey to be loaded from property for security reasons
-    // Note: we do not use defined default here
-    // FIXME: We should use better authentication mechanism
-    final String profilingApiKeyFile = getSettingFromEnvironment(PROFILING_API_KEY_FILE, null);
-    String tmpProfilingApiKey =
-        System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY));
-    if (profilingApiKeyFile != null) {
-      try {
-        tmpProfilingApiKey =
-            new String(Files.readAllBytes(Paths.get(profilingApiKeyFile)), StandardCharsets.UTF_8)
-                .trim();
-      } catch (final IOException e) {
-        log.error("Cannot read API key from file {}, skipping", profilingApiKeyFile, e);
-      }
-    }
-    if (tmpProfilingApiKey == null) {
+    profilingUrl = getSettingFromEnvironment(PROFILING_URL, null);
+
+    if (tmpApiKey == null) {
       final String oldProfilingApiKeyFile =
           getSettingFromEnvironment(PROFILING_API_KEY_FILE_OLD, null);
-      tmpProfilingApiKey =
-          System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
+      tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
       if (oldProfilingApiKeyFile != null) {
         try {
-          tmpProfilingApiKey =
+          tmpApiKey =
               new String(
                       Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
                   .trim();
         } catch (final IOException e) {
-          log.error("Cannot read API key from file {}, skipping", profilingApiKeyFile, e);
+          log.error("Cannot read API key from file {}, skipping", oldProfilingApiKeyFile, e);
         }
       }
     }
-    profilingApiKey = tmpProfilingApiKey;
+    if (tmpApiKey == null) {
+      final String veryOldProfilingApiKeyFile =
+          getSettingFromEnvironment(PROFILING_API_KEY_FILE_VERY_OLD, null);
+      tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_VERY_OLD));
+      if (veryOldProfilingApiKeyFile != null) {
+        try {
+          tmpApiKey =
+              new String(
+                      Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)),
+                      StandardCharsets.UTF_8)
+                  .trim();
+        } catch (final IOException e) {
+          log.error("Cannot read API key from file {}, skipping", veryOldProfilingApiKeyFile, e);
+        }
+      }
+    }
 
     profilingTags = getMapSettingFromEnvironment(PROFILING_TAGS, null);
     profilingStartDelay =
@@ -501,6 +546,9 @@ public class Config {
             PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
             DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE);
 
+    // Setting this last because we have a few places where this can come from
+    apiKey = tmpApiKey;
+
     log.debug("New instance: {}", this);
   }
 
@@ -508,6 +556,8 @@ public class Config {
   private Config(final Properties properties, final Config parent) {
     runtimeId = parent.runtimeId;
 
+    apiKey = properties.getProperty(API_KEY, parent.apiKey);
+    site = properties.getProperty(SITE, parent.site);
     serviceName = properties.getProperty(SERVICE_NAME, parent.serviceName);
 
     traceEnabled = getPropertyBooleanValue(properties, TRACE_ENABLED, parent.traceEnabled);
@@ -640,7 +690,6 @@ public class Config {
     profilingEnabled =
         getPropertyBooleanValue(properties, PROFILING_ENABLED, parent.profilingEnabled);
     profilingUrl = properties.getProperty(PROFILING_URL, parent.profilingUrl);
-    profilingApiKey = properties.getProperty(PROFILING_API_KEY, parent.profilingApiKey);
     profilingTags = getPropertyMapValue(properties, PROFILING_TAGS, parent.profilingTags);
     profilingStartDelay =
         getPropertyIntegerValue(properties, PROFILING_START_DELAY, parent.profilingStartDelay);
@@ -779,6 +828,14 @@ public class Config {
     return Collections.unmodifiableMap(result);
   }
 
+  public String getFinalProfilingUrl() {
+    if (profilingUrl == null) {
+      return String.format(PROFILING_URL_TEMPLATE, site);
+    } else {
+      return profilingUrl;
+    }
+  }
+
   public boolean isIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
     return integrationEnabled(integrationNames, defaultEnabled);
@@ -882,7 +939,7 @@ public class Config {
    * @return
    * @deprecated This method should only be used internally. Use the explicit getter instead.
    */
-  public static String getSettingFromEnvironment(final String name, final String defaultValue) {
+  private static String getSettingFromEnvironment(final String name, final String defaultValue) {
     String value;
 
     // System properties and properties provided from command line have the highest precedence

@@ -68,7 +68,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class RecordingUploaderTest {
 
-  private static final String APIKEY_VALUE = "testkey";
+  private static final String API_KEY_VALUE = "testkey";
   private static final String URL_PATH = "/lalala";
   private static final String RECORDING_RESOURCE = "test-recording.jfr";
   private static final String RECODING_NAME_PREFIX = "test-recording-";
@@ -120,8 +120,8 @@ public class RecordingUploaderTest {
     server.start();
     url = server.url(URL_PATH);
 
-    when(config.getProfilingUrl()).thenReturn(server.url(URL_PATH).toString());
-    when(config.getProfilingApiKey()).thenReturn(APIKEY_VALUE);
+    when(config.getFinalProfilingUrl()).thenReturn(server.url(URL_PATH).toString());
+    when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
 
@@ -152,7 +152,7 @@ public class RecordingUploaderTest {
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(url, recordedRequest.getRequestUrl());
 
-    assertEquals(APIKEY_VALUE, recordedRequest.getHeader("DD-API-KEY"));
+    assertEquals(API_KEY_VALUE, recordedRequest.getHeader("DD-API-KEY"));
 
     final Multimap<String, Object> parameters =
         ProfilingTestUtils.parseProfilingRequestParameters(recordedRequest);
@@ -199,7 +199,7 @@ public class RecordingUploaderTest {
   public void testRequestWithProxy() throws IOException, InterruptedException {
     final String backendHost = "intake.profiling.datadoghq.com:1234";
     final String backendUrl = "http://intake.profiling.datadoghq.com:1234" + URL_PATH;
-    when(config.getProfilingUrl())
+    when(config.getFinalProfilingUrl())
         .thenReturn("http://intake.profiling.datadoghq.com:1234" + URL_PATH);
     when(config.getProfilingProxyHost()).thenReturn(server.url("").host());
     when(config.getProfilingProxyPort()).thenReturn(server.url("").port());
@@ -215,7 +215,7 @@ public class RecordingUploaderTest {
 
     final RecordedRequest recordedFirstRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(server.url(""), recordedFirstRequest.getRequestUrl());
-    assertEquals(APIKEY_VALUE, recordedFirstRequest.getHeader("DD-API-KEY"));
+    assertEquals(API_KEY_VALUE, recordedFirstRequest.getHeader("DD-API-KEY"));
     assertNull(recordedFirstRequest.getHeader("Proxy-Authorization"));
     assertEquals(backendHost, recordedFirstRequest.getHeader("Host"));
     assertEquals(
@@ -223,7 +223,7 @@ public class RecordingUploaderTest {
 
     final RecordedRequest recordedSecondRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(server.url(""), recordedSecondRequest.getRequestUrl());
-    assertEquals(APIKEY_VALUE, recordedSecondRequest.getHeader("DD-API-KEY"));
+    assertEquals(API_KEY_VALUE, recordedSecondRequest.getHeader("DD-API-KEY"));
     assertEquals(
         Credentials.basic("username", "password"),
         recordedSecondRequest.getHeader("Proxy-Authorization"));
@@ -235,7 +235,7 @@ public class RecordingUploaderTest {
   @Test
   public void testRequestWithProxyDefaultPassword() throws IOException, InterruptedException {
     final String backendUrl = "http://intake.profiling.datadoghq.com:1234" + URL_PATH;
-    when(config.getProfilingUrl())
+    when(config.getFinalProfilingUrl())
         .thenReturn("http://intake.profiling.datadoghq.com:1234" + URL_PATH);
     when(config.getProfilingProxyHost()).thenReturn(server.url("").host());
     when(config.getProfilingProxyPort()).thenReturn(server.url("").port());
