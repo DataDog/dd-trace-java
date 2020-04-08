@@ -18,7 +18,7 @@ import net.bytebuddy.matcher.ElementMatchers;
  * don't instrument {@linkplain Error} class/subclasses since they are tracked by a native JFR event
  * already.
  */
-public class ExceptionInstrumentation extends Instrumenter.Default {
+public final class ExceptionInstrumentation extends Instrumenter.Default {
   private final boolean hasJfr;
 
   public ExceptionInstrumentation() {
