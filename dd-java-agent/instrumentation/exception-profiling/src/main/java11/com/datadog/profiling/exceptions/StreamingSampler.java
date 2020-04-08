@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -37,6 +38,19 @@ import java.util.concurrent.atomic.LongAdder;
 class StreamingSampler {
   private static final Logger LOGGER = LoggerFactory.getLogger(StreamingSampler.class);
 
+  /*
+   * We keep a 'budget' by counting number of unused samples form few last windows.
+   * Exact value here should be on order of (but probably less than) size of the JFR chunk duration.
+   * Another consideration to choosing this value is that we have to do linear number of operations
+   * on resulting array every window so this value should not be too large.
+   *
+   * Note: we want sum of unused samples in previous windows - this is why we are using array for this and not EMA.
+   * With EMA we would need to come up with some multiplier for and average and it's unclear how to do that.
+   */
+  private static final int CARRIED_OVER_ARRAY_SIZE = 16;
+
+  static boolean USE_EMA_BUDGET = true;
+
   private static final class Counts {
     private final LongAdder testCounter = new LongAdder();
     private final AtomicLong sampleCounter = new AtomicLong(0L);
@@ -45,8 +59,8 @@ class StreamingSampler {
       testCounter.increment();
     }
 
-    long addSample(long limit) {
-      return sampleCounter.getAndUpdate(s -> s + (s < limit ? 1 : 0));
+    boolean addSample(long limit) {
+      return sampleCounter.getAndUpdate(s -> s + (s < limit ? 1 : 0)) < limit;
     }
   }
 
@@ -66,14 +80,18 @@ class StreamingSampler {
   private final AtomicReference<Counts> countsRef;
   private final int lookback;
 
-  // these attributes need to be volatile since they are accessed outside of the 'endOfWindowLock' guarded block
+  // these attributes need to be volatile since they are accessed from user threds as well as the maintenance one
   private volatile double probability = 1d;
-  private volatile long targetSamples = 0L;
+  private volatile long samplesBudget = 0L;
 
   // these attributes are accessed solely from the window maintenance thread
   private double totalCountRunningAverage = 0d;
-  private double avgBudget = Double.NaN;
+  private double avgSamples;
   private long windowCount = 0L;
+
+  private final long[] carriedOverSamples;
+  private int carriedOverSampleIndex = 0;
+  private final double budgetAlpha;
 
   /**
    * Create a new sampler instance
@@ -85,11 +103,15 @@ class StreamingSampler {
    */
   StreamingSampler(
     final Duration windowDuration, final int samplesPerWindow, final int lookback, boolean startWindowRolling) {
+
     this.samplesPerWindow = samplesPerWindow;
-    this.targetSamples = Math.round(samplesPerWindow * 0.92d);
+    this.samplesBudget = samplesPerWindow + CARRIED_OVER_ARRAY_SIZE * samplesPerWindow;
     this.lookback = lookback;
-    this.emaAlpha = computeLookbackAlpha(lookback);
+    this.emaAlpha = computeIntervalAlpha(lookback);
+    this.budgetAlpha = computeIntervalAlpha(CARRIED_OVER_ARRAY_SIZE);
     this.countsRef = new AtomicReference<>(new Counts());
+    this.carriedOverSamples = new long[CARRIED_OVER_ARRAY_SIZE];
+    Arrays.fill(carriedOverSamples, samplesPerWindow);
 
     if (startWindowRolling) {
       CommonTaskExecutor.INSTANCE.scheduleAtFixedRate(this::rollWindow, windowDuration.getNano(), windowDuration.getNano(), TimeUnit.NANOSECONDS);
@@ -116,7 +138,7 @@ class StreamingSampler {
     Counts counts = countsRef.get();
     counts.addTest();
     if (ThreadLocalRandom.current().nextDouble() < probability) {
-      return counts.addSample(targetSamples) < targetSamples;
+      return counts.addSample(samplesBudget);
     }
 
     return false;
@@ -135,9 +157,7 @@ class StreamingSampler {
     final long totalCount = counts.testCounter.sum();
     final long sampledCount = counts.sampleCounter.get();
 
-    long sampleBudget = samplesPerWindow - sampledCount;
-    avgBudget = Double.isNaN(avgBudget) ? sampleBudget : avgBudget + emaAlpha * (sampleBudget - avgBudget);
-    targetSamples = samplesPerWindow + Math.round(Math.max(avgBudget, 0) * windowCount);
+    samplesBudget = USE_EMA_BUDGET ? calculateBudgetEma(sampledCount) : calculateBudget(sampledCount);
 
     if (totalCountRunningAverage == 0) {
       totalCountRunningAverage = totalCount;
@@ -150,13 +170,47 @@ class StreamingSampler {
     } else {
       probability =
         Math.min(
-          (samplesPerWindow + avgBudget)
+          samplesBudget
             / totalCountRunningAverage,
           1d);
     }
   }
 
-  private static double computeLookbackAlpha(int lookback) {
+  private long calculateBudgetEma(long sampledCount) {
+    avgSamples = Double.isNaN(avgSamples) ? sampledCount : avgSamples + budgetAlpha * (sampledCount - avgSamples);
+    return Math.round(Math.max(samplesPerWindow - avgSamples, 0) * CARRIED_OVER_ARRAY_SIZE);
+  }
+
+  private long calculateBudget(long sampledCount) {
+    long unusedSamplesCount = Math.max(samplesPerWindow - sampledCount, 0);
+    carriedOverSampleIndex = (carriedOverSampleIndex + 1) % carriedOverSamples.length;
+    carriedOverSamples[carriedOverSampleIndex] = unusedSamplesCount;
+    // Deduct 'overused' samples from the budget
+    if (sampledCount > samplesPerWindow) {
+      long overBudget = sampledCount - samplesPerWindow;
+      // We have ring buffer, so 'next index' is actually last one
+      int lastWindow = (carriedOverSampleIndex + 1) % carriedOverSamples.length;
+      for (int i = 0; i < carriedOverSamples.length; i++) {
+        if (overBudget > carriedOverSamples[lastWindow]) {
+          overBudget -= carriedOverSamples[lastWindow];
+          carriedOverSamples[lastWindow] = 0;
+        } else {
+          // This also handles the case when carriedOverSamples[lastWindow] == overBudget - i.e. we no longer have overBudget and can exit
+          carriedOverSamples[lastWindow] -= overBudget;
+          break;
+        }
+        lastWindow = (lastWindow + 1) % carriedOverSamples.length;
+      }
+    }
+
+    long availableBudgetRing = 0L;
+    for (long budget : carriedOverSamples) {
+      availableBudgetRing += budget;
+    }
+    return availableBudgetRing;
+  }
+
+  private static double computeIntervalAlpha(int lookback) {
     return 1 - Math.pow(lookback, -1d / lookback);
   }
 }

@@ -63,7 +63,11 @@ class StreamingSamplerTest {
 
     @Override
     public Integer get() {
-      return rnd.nextDouble() <= burstProbability ? maxEvents : minEvents;
+      if (rnd.nextDouble() <= burstProbability) {
+        return maxEvents;
+      } else {
+        return minEvents;
+      }
     }
 
     @Override
@@ -203,7 +207,8 @@ class StreamingSamplerTest {
     LOGGER.info(
         "\t avg window skew interval = <-{}%, {}%>",
         Math.round(skewNegativeAvg * 100), Math.round(skewPositiveAvg * 100));
-    LOGGER.info("\t percentual error = {}%", percentualError);
+    LOGGER.info(
+        "\t percentual error = {}%", Math.signum(samples - targetSamples) * percentualError);
 
     assertTrue(
         percentualError <= maxErrorPercent,
@@ -320,37 +325,43 @@ class StreamingSamplerTest {
   private static Stream<Arguments> samplerParams() {
     int windows = 60;
     int samplesPerWindow = 200;
-    int lookback = 60;
+    int lookback = 10;
     return Stream.of(
         Arguments.of(
             new BurstingWindowsEventsSupplier(0.1d, 10, 5000),
             windows,
             samplesPerWindow,
             lookback,
-            10),
+            30),
         Arguments.of(
             new BurstingWindowsEventsSupplier(0.8d, 10, 5000),
             windows,
             samplesPerWindow,
             lookback,
-            5),
+            15),
         Arguments.of(new PoissonWindowEventsSupplier(150), windows, samplesPerWindow, lookback, 0),
-        Arguments.of(new PoissonWindowEventsSupplier(250), windows, samplesPerWindow, lookback, 2),
-        Arguments.of(new PoissonWindowEventsSupplier(1500), windows, samplesPerWindow, lookback, 2),
+        Arguments.of(new PoissonWindowEventsSupplier(253), windows, samplesPerWindow, lookback, 2),
+        Arguments.of(new PoissonWindowEventsSupplier(1507), windows, samplesPerWindow, lookback, 8),
         Arguments.of(new ConstantWindowsEventsSupplier(5), windows, samplesPerWindow, lookback, 0),
         Arguments.of(
             new ConstantWindowsEventsSupplier(120), windows, samplesPerWindow, lookback, 2),
         Arguments.of(
-            new ConstantWindowsEventsSupplier(250), windows, samplesPerWindow, lookback, 2),
+            new ConstantWindowsEventsSupplier(253), windows, samplesPerWindow, lookback, 2),
         Arguments.of(
-            new ConstantWindowsEventsSupplier(3000), windows, samplesPerWindow, lookback, 2),
+            new ConstantWindowsEventsSupplier(3001), windows, samplesPerWindow, lookback, 15),
         Arguments.of(
             new RepeatingWindowsEventsSupplier(
                 180, 200, 0, 0, 0, 1500, 1000, 430, 200, 115, 115, 900),
             windows,
             samplesPerWindow,
             lookback,
-            2));
+            2),
+        Arguments.of(
+            new RepeatingWindowsEventsSupplier(1000, 0, 1000, 0, 1000, 0),
+            windows,
+            samplesPerWindow,
+            lookback,
+            10));
   }
 
   private static Stream<Arguments> samplerParamsConcurrency() {
@@ -364,7 +375,7 @@ class StreamingSamplerTest {
             windows,
             samplesPerWindow,
             lookback,
-            5),
+            30),
         Arguments.of(
             16,
             new BurstingWindowsEventsSupplier(0.1d, 1, 500),
@@ -377,7 +388,7 @@ class StreamingSamplerTest {
         Arguments.of(
             16, new PoissonWindowEventsSupplier(150), windows, samplesPerWindow, lookback, 5),
         Arguments.of(
-            1, new ConstantWindowsEventsSupplier(25), windows, samplesPerWindow, lookback, 5),
+            1, new ConstantWindowsEventsSupplier(25), windows, samplesPerWindow, lookback, 10),
         Arguments.of(
             16, new ConstantWindowsEventsSupplier(25), windows, samplesPerWindow, lookback, 5),
         Arguments.of(
@@ -390,6 +401,20 @@ class StreamingSamplerTest {
         Arguments.of(
             16,
             new RepeatingWindowsEventsSupplier(18, 20, 0, 0, 0, 150, 100, 43, 20, 11, 12, 90),
+            windows,
+            samplesPerWindow,
+            lookback,
+            5),
+        Arguments.of(
+            1,
+            new RepeatingWindowsEventsSupplier(1000, 0, 1000, 0, 1000, 0),
+            windows,
+            samplesPerWindow,
+            lookback,
+            5),
+        Arguments.of(
+            16,
+            new RepeatingWindowsEventsSupplier(1000, 0, 1000, 0, 1000, 0),
             windows,
             samplesPerWindow,
             lookback,
