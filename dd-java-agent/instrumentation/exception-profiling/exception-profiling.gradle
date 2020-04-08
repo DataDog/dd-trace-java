@@ -24,8 +24,6 @@ targetCompatibility = JavaVersion.VERSION_1_7
 
 // Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
 [compileMain_java11Java, compileTestJava].each {
-  sourceCompatibility = JavaVersion.VERSION_1_8
-  targetCompatibility = JavaVersion.VERSION_1_8
   it.doFirst {
     // Disable '-processing' because some annotations are not claimed.
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
