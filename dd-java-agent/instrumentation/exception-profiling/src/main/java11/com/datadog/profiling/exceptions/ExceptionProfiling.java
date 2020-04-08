@@ -36,11 +36,9 @@ public final class ExceptionProfiling {
     // always record the exception in histogram
     final boolean firstHit = histogram.record(e);
 
-    if (sampler.isEnabled()) {
-      boolean sampled = sampler.sample();
-      if (firstHit || sampled) {
-        return new ExceptionSampleEvent(e, sampled, firstHit);
-      }
+    boolean sampled = sampler.sample();
+    if (firstHit || sampled) {
+      return new ExceptionSampleEvent(e, sampled, firstHit);
     }
     return null;
   }
