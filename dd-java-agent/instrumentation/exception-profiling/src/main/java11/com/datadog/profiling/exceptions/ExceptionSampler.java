@@ -26,7 +26,7 @@ final class ExceptionSampler {
   }
 
   private static int getSamplesPerWindow(Config config) {
-    return (int)Math.min(config.getProfilingExceptionSamplerLimit() / Duration.of(config.getProfilingUploadPeriod(), ChronoUnit.SECONDS).dividedBy(getSamplingWindowDuration()), Integer.MAX_VALUE);
+    return (int)Math.min(config.getProfilingExceptionSampleLimit() / Duration.of(config.getProfilingUploadPeriod(), ChronoUnit.SECONDS).dividedBy(getSamplingWindowDuration()), Integer.MAX_VALUE);
   }
 
   boolean sample() {

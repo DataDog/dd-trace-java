@@ -137,12 +137,8 @@ public class Config {
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
   public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
-  public static final String PROFILING_EXCEPTION_SAMPLER_LIMIT =
-      "profiling.exception.sampler.limit";
-  public static final String PROFILING_EXCEPTION_SAMPLER_WINDOW =
-      "profiling.exception.sampler.window";
-  public static final String PROFILING_EXCEPTION_SAMPLER_WINDOW_SAMPLES =
-      "profiling.exception.sampler.window-samples";
+  public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT =
+      "profiling.exception.sample.limit";
   public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
       "profiling.exception.histogram.top-items";
   public static final String PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE =
@@ -328,7 +324,7 @@ public class Config {
   @Getter private final int profilingProxyPort;
   @Getter private final String profilingProxyUsername;
   @Getter private final String profilingProxyPassword;
-  @Getter private final int profilingExceptionSamplerLimit;
+  @Getter private final int profilingExceptionSampleLimit;
   @Getter private final int profilingExceptionHistogramTopItems;
   @Getter private final int profilingExceptionHistogramMaxCollectionSize;
 
@@ -534,9 +530,9 @@ public class Config {
     profilingProxyUsername = getSettingFromEnvironment(PROFILING_PROXY_USERNAME, null);
     profilingProxyPassword = getSettingFromEnvironment(PROFILING_PROXY_PASSWORD, null);
 
-    profilingExceptionSamplerLimit =
+    profilingExceptionSampleLimit =
         getIntegerSettingFromEnvironment(
-            PROFILING_EXCEPTION_SAMPLER_LIMIT, DEFAULT_PROFILING_EXCEPTION_SAMPLER_LIMIT);
+          PROFILING_EXCEPTION_SAMPLE_LIMIT, DEFAULT_PROFILING_EXCEPTION_SAMPLER_LIMIT);
     profilingExceptionHistogramTopItems =
         getIntegerSettingFromEnvironment(
             PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
@@ -714,9 +710,9 @@ public class Config {
     profilingProxyPassword =
         properties.getProperty(PROFILING_PROXY_PASSWORD, parent.profilingProxyPassword);
 
-    profilingExceptionSamplerLimit =
+    profilingExceptionSampleLimit =
         getPropertyIntegerValue(
-            properties, PROFILING_EXCEPTION_SAMPLER_LIMIT, parent.profilingExceptionSamplerLimit);
+            properties, PROFILING_EXCEPTION_SAMPLE_LIMIT, parent.profilingExceptionSampleLimit);
 
     profilingExceptionHistogramTopItems =
         getPropertyIntegerValue(
