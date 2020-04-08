@@ -1,15 +1,29 @@
 muzzle {
   pass {
+//    group = 'org.mule.connectors'
+//    module = 'mule-http-connector'
+//    versions = "[1.5.14-mule-plugin,)"
   }
 }
+
 
 apply from: "${rootDir}/gradle/java.gradle"
 
 apply plugin: 'org.unbroken-dome.test-sets'
 
+repositories {
+  jcenter()
+  maven {
+    url "https://repository.mulesoft.org/releases/"
+  }
+}
 
 dependencies {
 
+  compileOnly group: 'org.mule.connectors', name: 'mule-http-connector', version: '1.5.14', classifier: 'mule-plugin'
+  compileOnly group: 'org.mule.runtime', name: 'mule-service-http-api', version: '4.1.1'
+  compileOnly group: 'org.mule.services', name: 'mule-service-http', version: '1.1.1'
+  compileOnly group: 'org.glassfish.grizzly', name: 'grizzly-http-client', version: '1.14'
 }
 
 
