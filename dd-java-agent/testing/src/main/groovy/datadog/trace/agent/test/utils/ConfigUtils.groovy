@@ -19,15 +19,15 @@ class ConfigUtils {
     assert Modifier.isVolatile(CONFIG_INSTANCE_FIELD.getModifiers())
     assert !Modifier.isFinal(CONFIG_INSTANCE_FIELD.getModifiers())
 
-    def configInstanceFieldValueFromClinit = Config.get()
+    def existingConfig = Config.get()
     Properties properties = new Properties()
     properties.put(name, value)
     CONFIG_INSTANCE_FIELD.set(null, new Config(properties))
-    assert Config.get() != configInstanceFieldValueFromClinit
+    assert Config.get() != existingConfig
     try {
       return r.call()
     } finally {
-      CONFIG_INSTANCE_FIELD.set(null, configInstanceFieldValueFromClinit)
+      CONFIG_INSTANCE_FIELD.set(null, existingConfig)
     }
   }
 
