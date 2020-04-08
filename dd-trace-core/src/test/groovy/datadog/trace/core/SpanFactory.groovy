@@ -8,7 +8,7 @@ class SpanFactory {
 
   static DDSpan newSpanOf(long timestampMicro, String threadName = Thread.currentThread().name) {
     def writer = new ListWriter()
-    def tracer = DDTracer.builder().writer(writer).build()
+    def tracer = CoreTracer.builder().writer(writer).build()
     def currentThreadName = Thread.currentThread().getName()
     Thread.currentThread().setName(threadName)
     def context = new DDSpanContext(
@@ -30,7 +30,7 @@ class SpanFactory {
     return new DDSpan(timestampMicro, context)
   }
 
-  static DDSpan newSpanOf(DDTracer tracer) {
+  static DDSpan newSpanOf(CoreTracer tracer) {
     def context = new DDSpanContext(
       1G,
       1G,
@@ -70,7 +70,7 @@ class SpanFactory {
 
   static DDSpan newSpanOf(String serviceName, String envName) {
     def writer = new ListWriter()
-    def tracer = DDTracer.builder().writer(writer).build()
+    def tracer = CoreTracer.builder().writer(writer).build()
     def context = new DDSpanContext(
       1G,
       1G,

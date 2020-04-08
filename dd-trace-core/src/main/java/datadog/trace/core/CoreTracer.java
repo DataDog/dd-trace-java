@@ -45,7 +45,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /** DDTracer makes it easy to send traces and span to DD using the OpenTracing API. */
 @Slf4j
-public class DDTracer
+public class CoreTracer
     implements Closeable, datadog.trace.api.Tracer, AgentTracer.TracerAPI, AgentPropagation {
   // UINT64 max value
   public static final BigInteger TRACE_ID_MAX =
@@ -100,18 +100,18 @@ public class DDTracer
     return activeScope == null ? null : activeScope.capture();
   }
 
-  public static class DDTracerBuilder {
+  public static class CoreTracerBuilder {
 
-    public DDTracerBuilder() {
+    public CoreTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
     }
 
-    public DDTracerBuilder withProperties(final Properties properties) {
+    public CoreTracerBuilder withProperties(final Properties properties) {
       return config(Config.get(properties));
     }
 
-    public DDTracerBuilder config(final Config config) {
+    public CoreTracerBuilder config(final Config config) {
       this.config = config;
       serviceName(config.getServiceName());
       // Explicitly skip setting writer to avoid allocating resources prematurely.
@@ -131,7 +131,7 @@ public class DDTracer
 
   @Builder
   // These field names must be stable to ensure the builder api is stable.
-  private DDTracer(
+  private CoreTracer(
       final Config config,
       final String serviceName,
       final Writer writer,
@@ -246,8 +246,8 @@ public class DDTracer
     }
   }
 
-  public DDSpanBuilder buildSpan(final String operationName) {
-    return new DDSpanBuilder(operationName);
+  public CoreSpanBuilder buildSpan(final String operationName) {
+    return new CoreSpanBuilder(operationName);
   }
 
   @Override
@@ -454,7 +454,7 @@ public class DDTracer
   }
 
   /** Spans are built using this builder */
-  public class DDSpanBuilder {
+  public class CoreSpanBuilder {
     /** Each span must have an operationName according to the opentracing specification */
     private final String operationName;
 
@@ -468,11 +468,11 @@ public class DDTracer
     private String spanType;
     private boolean ignoreScope = false;
 
-    public DDSpanBuilder(final String operationName) {
+    public CoreSpanBuilder(final String operationName) {
       this.operationName = operationName;
     }
 
-    public DDSpanBuilder ignoreActiveSpan() {
+    public CoreSpanBuilder ignoreActiveSpan() {
       ignoreScope = true;
       return this;
     }
@@ -494,54 +494,54 @@ public class DDTracer
       return span;
     }
 
-    public DDSpanBuilder withTag(final String tag, final Number number) {
+    public CoreSpanBuilder withTag(final String tag, final Number number) {
       return withTag(tag, (Object) number);
     }
 
-    public DDSpanBuilder withTag(final String tag, final String string) {
+    public CoreSpanBuilder withTag(final String tag, final String string) {
       return withTag(tag, (Object) string);
     }
 
-    public DDSpanBuilder withTag(final String tag, final boolean bool) {
+    public CoreSpanBuilder withTag(final String tag, final boolean bool) {
       return withTag(tag, (Object) bool);
     }
 
-    public DDSpanBuilder withStartTimestamp(final long timestampMicroseconds) {
+    public CoreSpanBuilder withStartTimestamp(final long timestampMicroseconds) {
       timestampMicro = timestampMicroseconds;
       return this;
     }
 
-    public DDSpanBuilder withServiceName(final String serviceName) {
+    public CoreSpanBuilder withServiceName(final String serviceName) {
       this.serviceName = serviceName;
       return this;
     }
 
-    public DDSpanBuilder withResourceName(final String resourceName) {
+    public CoreSpanBuilder withResourceName(final String resourceName) {
       this.resourceName = resourceName;
       return this;
     }
 
-    public DDSpanBuilder withErrorFlag() {
+    public CoreSpanBuilder withErrorFlag() {
       errorFlag = true;
       return this;
     }
 
-    public DDSpanBuilder withSpanType(final String spanType) {
+    public CoreSpanBuilder withSpanType(final String spanType) {
       this.spanType = spanType;
       return this;
     }
 
-    public DDSpanBuilder asChildOf(final AgentSpan.Context spanContext) {
+    public CoreSpanBuilder asChildOf(final AgentSpan.Context spanContext) {
       parent = spanContext;
       return this;
     }
 
-    public DDSpanBuilder asChildOf(final AgentSpan agentSpan) {
+    public CoreSpanBuilder asChildOf(final AgentSpan agentSpan) {
       parent = agentSpan.context();
       return this;
     }
 
-    public DDSpanBuilder withTag(final String tag, final Object value) {
+    public CoreSpanBuilder withTag(final String tag, final Object value) {
       if (value == null || (value instanceof String && ((String) value).isEmpty())) {
         tags.remove(tag);
       } else {
@@ -631,11 +631,11 @@ public class DDTracer
 
         tags.putAll(localRootSpanTags);
 
-        parentTrace = new PendingTrace(DDTracer.this, traceId);
+        parentTrace = new PendingTrace(CoreTracer.this, traceId);
       }
 
       if (serviceName == null) {
-        serviceName = DDTracer.this.serviceName;
+        serviceName = CoreTracer.this.serviceName;
       }
 
       final String operationName = this.operationName != null ? this.operationName : resourceName;
@@ -656,7 +656,7 @@ public class DDTracer
               spanType,
               tags,
               parentTrace,
-              DDTracer.this,
+              CoreTracer.this,
               serviceNameMappings);
 
       // Apply Decorators to handle any tags that may have been set via the builder.
@@ -693,16 +693,16 @@ public class DDTracer
   }
 
   private static class ShutdownHook extends Thread {
-    private final WeakReference<DDTracer> reference;
+    private final WeakReference<CoreTracer> reference;
 
-    private ShutdownHook(final DDTracer tracer) {
+    private ShutdownHook(final CoreTracer tracer) {
       super("dd-tracer-shutdown-hook");
       reference = new WeakReference<>(tracer);
     }
 
     @Override
     public void run() {
-      final DDTracer tracer = reference.get();
+      final CoreTracer tracer = reference.get();
       if (tracer != null) {
         tracer.close();
       }

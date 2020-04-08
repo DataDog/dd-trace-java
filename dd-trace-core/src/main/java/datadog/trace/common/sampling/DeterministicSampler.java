@@ -1,7 +1,7 @@
 package datadog.trace.common.sampling;
 
+import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDTracer;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 public class DeterministicSampler implements RateSampler {
   private static final BigInteger KNUTH_FACTOR = new BigInteger("1111111111111111111");
   private static final BigDecimal TRACE_ID_MAX_AS_BIG_DECIMAL =
-      new BigDecimal(DDTracer.TRACE_ID_MAX);
+      new BigDecimal(CoreTracer.TRACE_ID_MAX);
   private static final BigInteger MODULUS = new BigInteger("2").pow(64);
 
   private final BigInteger cutoff;

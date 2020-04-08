@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Represents a period of time. Associated information is stored in the SpanContext.
  *
- * <p>Spans are created by the {@link DDTracer#buildSpan}. This implementation adds some features
+ * <p>Spans are created by the {@link CoreTracer#buildSpan}. This implementation adds some features
  * according to the DD agent.
  */
 @Slf4j

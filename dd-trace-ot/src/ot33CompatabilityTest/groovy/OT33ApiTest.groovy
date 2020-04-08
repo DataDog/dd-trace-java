@@ -1,4 +1,4 @@
-import datadog.opentracing.DDTracerOT
+import datadog.opentracing.DDTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.util.test.DDSpecification
@@ -13,7 +13,7 @@ class OT33ApiTest extends DDSpecification {
   static final WRITER = new ListWriter()
 
   @Subject
-  Tracer tracer = DDTracerOT.builder().writer(WRITER).build()
+  Tracer tracer = DDTracer.builder().writer(WRITER).build()
 
   def "test start"() {
     when:

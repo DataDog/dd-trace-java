@@ -1,15 +1,15 @@
 package datadog.opentracing
 
-import datadog.trace.core.DDSpan
-import datadog.trace.core.DDTracer
 import datadog.trace.api.DDTags
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.CoreTracer
+import datadog.trace.core.DDSpan
 import datadog.trace.util.test.DDSpecification
 import io.opentracing.log.Fields
 
 class DefaultLogHandlerTest extends DDSpecification {
   def writer = new ListWriter()
-  def tracer = DDTracer.builder().writer(writer).build()
+  def tracer = CoreTracer.builder().writer(writer).build()
 
   def "handles correctly the error passed in the fields"() {
     setup:

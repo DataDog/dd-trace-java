@@ -24,7 +24,7 @@ class ScopeEventTest extends DDSpecification {
   private static final Duration SLEEP_DURATION = Duration.ofSeconds(1)
 
   def writer = new ListWriter()
-  def tracer = DDTracer.builder().serviceName(DEFAULT_SERVICE_NAME).writer(writer).build()
+  def tracer = CoreTracer.builder().serviceName(DEFAULT_SERVICE_NAME).writer(writer).build()
 
   def parentContext =
     new DDSpanContext(

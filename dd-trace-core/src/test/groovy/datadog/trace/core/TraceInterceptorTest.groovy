@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class TraceInterceptorTest extends DDSpecification {
 
   def writer = new ListWriter()
-  def tracer = DDTracer.builder().writer(writer).build()
+  def tracer = CoreTracer.builder().writer(writer).build()
 
   def "interceptor is registered as a service"() {
     expect:

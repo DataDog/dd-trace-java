@@ -45,7 +45,7 @@ class DDSpanSerializationTest extends DDSpecification {
     ]
 
     def writer = new ListWriter()
-    def tracer = DDTracer.builder().writer(writer).build()
+    def tracer = CoreTracer.builder().writer(writer).build()
     final DDSpanContext context =
       new DDSpanContext(
         1G,
@@ -82,7 +82,7 @@ class DDSpanSerializationTest extends DDSpecification {
   def "serialize trace/span with id #value as int"() {
     setup:
     def writer = new ListWriter()
-    def tracer = DDTracer.builder().writer(writer).build()
+    def tracer = CoreTracer.builder().writer(writer).build()
     def context = new DDSpanContext(
       value,
       value,

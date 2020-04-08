@@ -1,13 +1,13 @@
 package datadog.trace.agent.test.utils
 
-import datadog.opentracing.DDTracerOT
+import datadog.opentracing.DDTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.core.DDTracer
+import datadog.trace.core.CoreTracer
 
 class GlobalTracerUtils {
   // FIXME [OT Split] this shares a lot of logic with TracerInstaller.  Look into combining
-  static void registerOrReplaceGlobalTracer(final DDTracer tracer) {
-    final DDTracerOT tracerOT = new DDTracerOT(tracer)
+  static void registerOrReplaceGlobalTracer(final CoreTracer tracer) {
+    final DDTracer tracerOT = new DDTracer(tracer)
     try {
       datadog.trace.api.GlobalTracer.registerIfAbsent(tracer)
       AgentTracer.registerIfAbsent(tracer)
@@ -23,6 +23,6 @@ class GlobalTracerUtils {
 
   /** Get the tracer implementation out of the GlobalTracer */
   static AgentTracer.TracerAPI getUnderlyingGlobalTracer() {
-    return ((DDTracerOT) io.opentracing.util.GlobalTracer.tracer).coreTracer
+    return ((DDTracer) io.opentracing.util.GlobalTracer.tracer).coreTracer
   }
 }

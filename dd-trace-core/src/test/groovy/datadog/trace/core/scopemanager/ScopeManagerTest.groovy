@@ -1,15 +1,14 @@
 package datadog.trace.core.scopemanager
 
-
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
-import datadog.trace.core.DDSpan
-import datadog.trace.core.DDSpanContext
-import datadog.trace.core.DDTracer
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.ScopeListener
+import datadog.trace.core.CoreTracer
+import datadog.trace.core.DDSpan
+import datadog.trace.core.DDSpanContext
 import datadog.trace.util.gc.GCUtils
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Shared
@@ -29,7 +28,7 @@ class ScopeManagerTest extends DDSpecification {
   @Shared
   ListWriter writer
   @Shared
-  DDTracer tracer
+  CoreTracer tracer
 
   @Shared
   @Subject
@@ -43,7 +42,7 @@ class ScopeManagerTest extends DDSpecification {
         currentLatch.countDown()
       }
     }
-    tracer = DDTracer.builder().writer(writer).build()
+    tracer = CoreTracer.builder().writer(writer).build()
     scopeManager = tracer.scopeManager
   }
 

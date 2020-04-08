@@ -2,7 +2,7 @@ package datadog.opentracing.resolver;
 
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
-import datadog.opentracing.DDTracerOT;
+import datadog.opentracing.DDTracer;
 import datadog.trace.api.Config;
 import io.opentracing.Tracer;
 import io.opentracing.contrib.tracerresolver.TracerResolver;
@@ -16,7 +16,7 @@ public class DDTracerResolver extends TracerResolver {
   Tracer resolve(final Config config) {
     if (config.isTraceResolverEnabled()) {
       log.info("Creating DDTracer with DDTracerResolver");
-      return DDTracerOT.builder().config(config).build();
+      return DDTracer.builder().config(config).build();
     } else {
       log.info("DDTracerResolver disabled");
       return null;

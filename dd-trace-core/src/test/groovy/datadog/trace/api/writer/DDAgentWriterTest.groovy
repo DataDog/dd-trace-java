@@ -1,15 +1,15 @@
 package datadog.trace.api.writer
 
 import com.timgroup.statsd.StatsDClient
-import datadog.trace.core.DDSpan
-import datadog.trace.core.DDSpanContext
-import datadog.trace.core.DDTracer
-import datadog.trace.core.PendingTrace
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ddagent.BatchWritingDisruptor
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.Monitor
+import datadog.trace.core.CoreTracer
+import datadog.trace.core.DDSpan
+import datadog.trace.core.DDSpanContext
+import datadog.trace.core.PendingTrace
 import datadog.trace.util.test.DDSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferOutput
@@ -21,10 +21,10 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-import static datadog.trace.core.SpanFactory.newSpanOf
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.core.serialization.MsgpackFormatWriter.MSGPACK_WRITER
 import static datadog.trace.common.writer.DDAgentWriter.DISRUPTOR_BUFFER_SIZE
+import static datadog.trace.core.SpanFactory.newSpanOf
+import static datadog.trace.core.serialization.MsgpackFormatWriter.MSGPACK_WRITER
 
 @Timeout(20)
 class DDAgentWriterTest extends DDSpecification {
@@ -206,7 +206,7 @@ class DDAgentWriterTest extends DDSpecification {
       "",
       [:],
       Mock(PendingTrace),
-      Mock(DDTracer),
+      Mock(CoreTracer),
       [:])
     minimalSpan = new DDSpan(0, minimalContext)
     minimalTrace = [minimalSpan]
@@ -268,7 +268,7 @@ class DDAgentWriterTest extends DDSpecification {
       "",
       [:],
       Mock(PendingTrace),
-      Mock(DDTracer),
+      Mock(CoreTracer),
       [:])
     def minimalSpan = new DDSpan(0, minimalContext)
     def minimalTrace = [minimalSpan]

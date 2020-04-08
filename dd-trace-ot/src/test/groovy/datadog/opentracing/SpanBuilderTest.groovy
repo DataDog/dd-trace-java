@@ -1,7 +1,7 @@
 package datadog.opentracing
 
-import datadog.trace.core.DDSpan
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.DDSpan
 import datadog.trace.util.test.DDSpecification
 import io.opentracing.Span
 
@@ -9,7 +9,7 @@ class SpanBuilderTest extends DDSpecification {
   // TODO more io.opentracing.SpanBuilder specific tests
 
   def writer = new ListWriter()
-  def tracer = DDTracerOT.builder().writer(writer).build()
+  def tracer = DDTracer.builder().writer(writer).build()
 
   def "should inherit the DD parent attributes addReference CHILD_OF"() {
     setup:

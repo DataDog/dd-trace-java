@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
   private static final AtomicReference<SpanCleaner> SPAN_CLEANER = new AtomicReference<>();
 
-  private final DDTracer tracer;
+  private final CoreTracer tracer;
   private final BigInteger traceId;
 
   // TODO: consider moving these time fields into DDTracer to ensure that traces have precise
@@ -67,7 +67,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
   /** Ensure a trace is never written multiple times */
   private final AtomicBoolean isWritten = new AtomicBoolean(false);
 
-  PendingTrace(final DDTracer tracer, final BigInteger traceId) {
+  PendingTrace(final CoreTracer tracer, final BigInteger traceId) {
     this.tracer = tracer;
     this.traceId = traceId;
 

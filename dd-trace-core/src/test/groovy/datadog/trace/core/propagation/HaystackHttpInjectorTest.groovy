@@ -1,13 +1,13 @@
 package datadog.trace.core.propagation
 
-import datadog.trace.core.DDSpanContext
-import datadog.trace.core.DDTracer
-import datadog.trace.core.PendingTrace
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.CoreTracer
+import datadog.trace.core.DDSpanContext
+import datadog.trace.core.PendingTrace
 import datadog.trace.util.test.DDSpecification
 
-import static datadog.trace.core.DDTracer.TRACE_ID_MAX
+import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY
@@ -19,7 +19,7 @@ class HaystackHttpInjectorTest extends DDSpecification {
   def "inject http headers"() {
     setup:
     def writer = new ListWriter()
-    def tracer = DDTracer.builder().writer(writer).build()
+    def tracer = CoreTracer.builder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
         traceId,

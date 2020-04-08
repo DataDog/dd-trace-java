@@ -27,7 +27,7 @@ import static datadog.trace.api.Config.SPAN_TAGS
 import static datadog.trace.api.Config.WRITER_TYPE
 
 @Timeout(10)
-class DDTracerTest extends DDSpecification {
+class CoreTracerTest extends DDSpecification {
 
   @Rule
   public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
@@ -36,7 +36,7 @@ class DDTracerTest extends DDSpecification {
 
   def "verify defaults on tracer"() {
     when:
-    def tracer = DDTracer.builder().build()
+    def tracer = CoreTracer.builder().build()
 
     then:
     tracer.serviceName == "unnamed-java-app"
@@ -55,7 +55,7 @@ class DDTracerTest extends DDSpecification {
     System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, "true")
 
     when:
-    def tracer = DDTracer.builder().config(new Config()).build()
+    def tracer = CoreTracer.builder().config(new Config()).build()
 
     then:
     tracer.writer.monitor instanceof Monitor.StatsD
@@ -67,7 +67,7 @@ class DDTracerTest extends DDSpecification {
     setup:
     System.setProperty(PREFIX + PRIORITY_SAMPLING, "false")
     when:
-    def tracer = DDTracer.builder().config(new Config()).build()
+    def tracer = CoreTracer.builder().config(new Config()).build()
     then:
     tracer.sampler instanceof AllSampler
   }
@@ -77,7 +77,7 @@ class DDTracerTest extends DDSpecification {
     System.setProperty(PREFIX + WRITER_TYPE, "LoggingWriter")
 
     when:
-    def tracer = DDTracer.builder().config(new Config()).build()
+    def tracer = CoreTracer.builder().config(new Config()).build()
 
     then:
     tracer.writer instanceof LoggingWriter
@@ -90,7 +90,7 @@ class DDTracerTest extends DDSpecification {
     System.setProperty(PREFIX + HEADER_TAGS, mapString)
 
     when:
-    def tracer = DDTracer.builder().config(new Config()).build()
+    def tracer = CoreTracer.builder().config(new Config()).build()
     // Datadog extractor gets placed first
     def taggedHeaders = tracer.extractor.extractors[0].taggedHeaders
 
@@ -108,7 +108,7 @@ class DDTracerTest extends DDSpecification {
   def "verify overriding host"() {
     when:
     System.setProperty(PREFIX + key, value)
-    def tracer = DDTracer.builder().config(new Config()).build()
+    def tracer = CoreTracer.builder().config(new Config()).build()
     then:
     tracer.writer instanceof DDAgentWriter
     ((DDAgentWriter) tracer.writer).api.sendTraces([])
@@ -123,7 +123,7 @@ class DDTracerTest extends DDSpecification {
   def "verify overriding port"() {
     when:
     System.setProperty(PREFIX + key, value)
-    def tracer = DDTracer.builder().config(new Config()).build()
+    def tracer = CoreTracer.builder().config(new Config()).build()
 
     then:
     tracer.writer instanceof DDAgentWriter
@@ -140,7 +140,7 @@ class DDTracerTest extends DDSpecification {
   def "Writer is instance of LoggingWriter when property set"() {
     when:
     System.setProperty(PREFIX + "writer.type", "LoggingWriter")
-    def tracer = DDTracer.builder().config(new Config()).build()
+    def tracer = CoreTracer.builder().config(new Config()).build()
 
     then:
     tracer.writer instanceof LoggingWriter
@@ -149,7 +149,7 @@ class DDTracerTest extends DDSpecification {
   def "Shares TraceCount with DDApi with #key = #value"() {
     setup:
     System.setProperty(PREFIX + key, value)
-    final DDTracer tracer = DDTracer.builder().build()
+    final CoreTracer tracer = CoreTracer.builder().build()
 
     expect:
     tracer.writer instanceof DDAgentWriter
@@ -163,7 +163,7 @@ class DDTracerTest extends DDSpecification {
 
   def "root tags are applied only to root spans"() {
     setup:
-    def tracer = DDTracer.builder().localRootSpanTags(['only_root': 'value']).build()
+    def tracer = CoreTracer.builder().localRootSpanTags(['only_root': 'value']).build()
     def root = tracer.buildSpan('my_root').start()
     def child = tracer.buildSpan('my_child').asChildOf(root).start()
 
@@ -180,7 +180,7 @@ class DDTracerTest extends DDSpecification {
     given:
     Properties properties = new Properties()
     properties.setProperty("writer.type", "LoggingWriter")
-    def tracer = DDTracer.builder().withProperties(properties).build()
+    def tracer = CoreTracer.builder().withProperties(properties).build()
 
     when:
     def span = tracer.buildSpan("operation").start()
@@ -194,7 +194,7 @@ class DDTracerTest extends DDSpecification {
     given:
     Properties properties = new Properties()
     properties.setProperty("writer.type", "LoggingWriter")
-    def tracer = DDTracer.builder().withProperties(properties).build()
+    def tracer = CoreTracer.builder().withProperties(properties).build()
 
     when:
     def root = tracer.buildSpan("operation").start()
@@ -216,7 +216,7 @@ class DDTracerTest extends DDSpecification {
     given:
     Properties properties = new Properties()
     properties.setProperty("writer.type", "LoggingWriter")
-    def tracer = DDTracer.builder().withProperties(properties).build()
+    def tracer = CoreTracer.builder().withProperties(properties).build()
     def setter = Mock(AgentPropagation.Setter)
     def carrier = new Object()
 
@@ -238,7 +238,7 @@ class DDTracerTest extends DDSpecification {
   def "span priority only set after first injection"() {
     given:
     def sampler = new ControllableSampler()
-    def tracer = DDTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
     def setter = Mock(AgentPropagation.Setter)
     def carrier = new Object()
 
@@ -272,7 +272,7 @@ class DDTracerTest extends DDSpecification {
   def "injection doesn't override set priority"() {
     given:
     def sampler = new ControllableSampler()
-    def tracer = DDTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
     def setter = Mock(AgentPropagation.Setter)
     def carrier = new Object()
 

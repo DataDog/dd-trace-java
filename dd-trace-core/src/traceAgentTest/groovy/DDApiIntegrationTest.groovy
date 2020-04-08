@@ -1,11 +1,11 @@
-import datadog.trace.core.DDSpan
-import datadog.trace.core.DDSpanContext
-import datadog.trace.core.DDTracer
-import datadog.trace.core.PendingTrace
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
+import datadog.trace.core.CoreTracer
+import datadog.trace.core.DDSpan
+import datadog.trace.core.DDSpanContext
+import datadog.trace.core.PendingTrace
 import datadog.trace.util.test.DDSpecification
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.startupcheck.MinimumDurationRunningStartupCheckStrategy
@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicReference
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
 class DDApiIntegrationTest extends DDSpecification {
   static final WRITER = new ListWriter()
-  static final TRACER = DDTracer.builder().writer(WRITER).build()
+  static final TRACER = CoreTracer.builder().writer(WRITER).build()
   static final CONTEXT = new DDSpanContext(
     1G,
     1G,

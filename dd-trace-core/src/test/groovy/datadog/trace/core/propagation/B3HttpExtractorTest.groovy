@@ -3,7 +3,7 @@ package datadog.trace.core.propagation
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.util.test.DDSpecification
 
-import static datadog.trace.core.DDTracer.TRACE_ID_MAX
+import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY
 import static datadog.trace.core.propagation.B3HttpCodec.SPAN_ID_KEY
 import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY

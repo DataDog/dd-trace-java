@@ -1,11 +1,11 @@
 package datadog.trace.core.propagation
 
-import datadog.trace.core.DDSpanContext
-import datadog.trace.core.DDTracer
-import datadog.trace.core.PendingTrace
 import datadog.trace.api.Config
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.CoreTracer
+import datadog.trace.core.DDSpanContext
+import datadog.trace.core.PendingTrace
 import datadog.trace.util.test.DDSpecification
 
 import static datadog.trace.api.Config.PropagationStyle.B3
@@ -24,7 +24,7 @@ class HttpInjectorTest extends DDSpecification {
     def spanId = 2G
 
     def writer = new ListWriter()
-    def tracer = DDTracer.builder().writer(writer).build()
+    def tracer = CoreTracer.builder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
         traceId,

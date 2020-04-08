@@ -12,8 +12,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.common.writer.Writer;
+import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDTracer;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.util.test.DDSpecification;
 import groovy.lang.Closure;
@@ -102,8 +102,8 @@ public abstract class AgentTestRunner extends DDSpecification {
             return result;
           }
         };
-    TEST_TRACER = DDTracer.builder().writer(TEST_WRITER).build();
-    GlobalTracerUtils.registerOrReplaceGlobalTracer((DDTracer) TEST_TRACER);
+    TEST_TRACER = CoreTracer.builder().writer(TEST_WRITER).build();
+    GlobalTracerUtils.registerOrReplaceGlobalTracer((CoreTracer) TEST_TRACER);
   }
 
   protected static TracerAPI getTestTracer() {
@@ -306,7 +306,7 @@ public abstract class AgentTestRunner extends DDSpecification {
     }
   }
 
-  protected static String getClassName(Class clazz) {
+  protected static String getClassName(final Class clazz) {
     String className = clazz.getSimpleName();
     if (className.isEmpty()) {
       className = clazz.getName();

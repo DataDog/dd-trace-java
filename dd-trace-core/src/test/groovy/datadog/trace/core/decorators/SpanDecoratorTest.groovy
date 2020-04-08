@@ -1,8 +1,5 @@
 package datadog.trace.core.decorators
 
-import datadog.trace.core.DDSpanContext
-import datadog.trace.core.DDTracer
-import datadog.trace.core.SpanFactory
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
@@ -11,6 +8,9 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.writer.LoggingWriter
+import datadog.trace.core.CoreTracer
+import datadog.trace.core.DDSpanContext
+import datadog.trace.core.SpanFactory
 import datadog.trace.util.test.DDSpecification
 
 import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
@@ -28,7 +28,7 @@ class SpanDecoratorTest extends DDSpecification {
       System.clearProperty("dd.$Config.SPLIT_BY_TAGS")
     }
   }
-  def tracer = DDTracer.builder().writer(new LoggingWriter()).build()
+  def tracer = CoreTracer.builder().writer(new LoggingWriter()).build()
   def span = SpanFactory.newSpanOf(tracer)
 
   def "adding span personalisation using Decorators"() {
@@ -53,7 +53,7 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "set service name"() {
     setup:
-    tracer = DDTracer.builder()
+    tracer = CoreTracer.builder()
       .serviceName("wrong-service")
       .writer(new LoggingWriter())
       .sampler(new AllSampler())
@@ -85,7 +85,7 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "default or configured service name can be remapped without setting tag"() {
     setup:
-    tracer = DDTracer.builder()
+    tracer = CoreTracer.builder()
       .serviceName(serviceName)
       .writer(new LoggingWriter())
       .sampler(new AllSampler())
@@ -128,7 +128,7 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "mapping causes servlet.context to not change service name"() {
     setup:
-    tracer = DDTracer.builder()
+    tracer = CoreTracer.builder()
       .serviceName(serviceName)
       .writer(new LoggingWriter())
       .sampler(new AllSampler())
@@ -152,7 +152,7 @@ class SpanDecoratorTest extends DDSpecification {
   }
 
   static createSplittingTracer(tag) {
-    def tracer = DDTracer.builder()
+    def tracer = CoreTracer.builder()
       .serviceName("my-service")
       .writer(new LoggingWriter())
       .sampler(new AllSampler())
@@ -399,7 +399,7 @@ class SpanDecoratorTest extends DDSpecification {
       System.setProperty("dd.trace.${decorator}.enabled", "$enabled")
     }
 
-    tracer = DDTracer.builder()
+    tracer = CoreTracer.builder()
       .serviceName("some-service")
       .writer(new LoggingWriter())
       .sampler(new AllSampler())
@@ -431,7 +431,7 @@ class SpanDecoratorTest extends DDSpecification {
       System.setProperty("dd.trace." + ServiceNameDecorator.getSimpleName().toLowerCase() + ".enabled", "false")
     }
 
-    tracer = DDTracer.builder()
+    tracer = CoreTracer.builder()
       .serviceName("some-service")
       .writer(new LoggingWriter())
       .sampler(new AllSampler())

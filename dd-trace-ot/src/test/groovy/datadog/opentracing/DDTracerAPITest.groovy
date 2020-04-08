@@ -15,7 +15,7 @@ class DDTracerAPITest extends DDSpecification {
     def sampler = new RateByServiceSampler()
 
     when:
-    def tracerOT = new DDTracerOT(DEFAULT_SERVICE_NAME, writer, sampler)
+    def tracerOT = new DDTracer(DEFAULT_SERVICE_NAME, writer, sampler)
     def tracer = tracerOT.coreTracer
 
     then:

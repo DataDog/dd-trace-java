@@ -23,14 +23,14 @@ class PendingTraceTest extends DDSpecification {
       PendingTraceTest.this.traceCount.incrementAndGet()
     }
   }
-  def tracer = DDTracer.builder().writer(writer).build()
+  def tracer = CoreTracer.builder().writer(writer).build()
 
   BigInteger traceId = BigInteger.valueOf(System.identityHashCode(this))
 
   @Subject
   PendingTrace trace = new PendingTrace(tracer, traceId)
 
-    DDSpan rootSpan = SpanFactory.newSpanOf(trace)
+  DDSpan rootSpan = SpanFactory.newSpanOf(trace)
 
   def setup() {
     assert trace.size() == 0
@@ -195,7 +195,7 @@ class PendingTraceTest extends DDSpecification {
     def properties = new Properties()
     properties.setProperty(PARTIAL_FLUSH_MIN_SPANS, "1")
     def config = Config.get(properties)
-    def tracer = DDTracer.builder().config(config).writer(writer).build()
+    def tracer = CoreTracer.builder().config(config).writer(writer).build()
     def trace = new PendingTrace(tracer, traceId)
     def rootSpan = SpanFactory.newSpanOf(trace)
     def child1 = tracer.buildSpan("child1").asChildOf(rootSpan).start()
@@ -241,7 +241,7 @@ class PendingTraceTest extends DDSpecification {
     def properties = new Properties()
     properties.setProperty(PARTIAL_FLUSH_MIN_SPANS, "1")
     def config = Config.get(properties)
-    def tracer = DDTracer.builder().config(config).writer(writer).build()
+    def tracer = CoreTracer.builder().config(config).writer(writer).build()
     def trace = new PendingTrace(tracer, traceId)
     def rootSpan = SpanFactory.newSpanOf(trace)
     def child1 = tracer.buildSpan("child1").asChildOf(rootSpan).start()

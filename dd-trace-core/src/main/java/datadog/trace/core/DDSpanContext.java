@@ -31,7 +31,7 @@ public class DDSpanContext implements AgentSpan.Context {
 
   // Shared with other span contexts
   /** For technical reasons, the ref to the original tracer */
-  private final DDTracer tracer;
+  private final CoreTracer tracer;
 
   /** The collection of all span related to this one */
   private final PendingTrace trace;
@@ -89,7 +89,7 @@ public class DDSpanContext implements AgentSpan.Context {
       final String spanType,
       final Map<String, Object> tags,
       final PendingTrace trace,
-      final DDTracer tracer,
+      final CoreTracer tracer,
       final Map<String, String> serviceNameMappings) {
 
     assert tracer != null;
@@ -296,7 +296,7 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   @Deprecated
-  public DDTracer getTracer() {
+  public CoreTracer getTracer() {
     return tracer;
   }
 

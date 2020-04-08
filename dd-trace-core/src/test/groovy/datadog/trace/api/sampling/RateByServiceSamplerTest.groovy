@@ -1,15 +1,12 @@
 package datadog.trace.api.sampling
 
-
-import datadog.trace.core.DDSpan
-import datadog.trace.core.DDSpanContext
-import datadog.trace.core.DDTracer
-import datadog.trace.core.SpanFactory
-
 import datadog.trace.api.DDTags
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.core.CoreTracer
+import datadog.trace.core.DDSpan
+import datadog.trace.core.SpanFactory
 import datadog.trace.util.test.DDSpecification
 
 import static datadog.trace.common.sampling.RateByServiceSampler.DEFAULT_KEY
@@ -75,7 +72,7 @@ class RateByServiceSamplerTest extends DDSpecification {
 
   def "sampling priority set when service later"() {
     def sampler = new RateByServiceSampler()
-    def tracer = DDTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
 
     sampler.onResponse("test", serializer
       .fromJson('{"rate_by_service":{"service:,env:":1.0,"service:spock,env:":0.0}}'))
@@ -104,7 +101,7 @@ class RateByServiceSamplerTest extends DDSpecification {
   def "setting forced tracing via tag"() {
     when:
     def sampler = new RateByServiceSampler()
-    def tracer = DDTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
     def span = tracer.buildSpan("root").start()
     if (tagName) {
       span.setTag(tagName, tagValue)
@@ -123,7 +120,7 @@ class RateByServiceSamplerTest extends DDSpecification {
   def "not setting forced tracing via tag or setting it wrong value not causing exception"() {
     setup:
     def sampler = new RateByServiceSampler()
-    def tracer = DDTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
     def span = tracer.buildSpan("root").start()
     if (tagName) {
       span.setTag(tagName, tagValue)

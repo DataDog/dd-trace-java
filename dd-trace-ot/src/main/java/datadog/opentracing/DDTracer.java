@@ -9,10 +9,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.context.TraceScope;
+import datadog.trace.core.CoreTracer;
+import datadog.trace.core.CoreTracer.CoreSpanBuilder;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.DDTracer;
-import datadog.trace.core.DDTracer.DDSpanBuilder;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
@@ -38,63 +38,63 @@ import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class DDTracerOT implements Tracer {
+public class DDTracer implements Tracer {
   private final Converter converter = new Converter();
-  private final DDTracer coreTracer;
+  private final CoreTracer coreTracer;
   private final ScopeManager scopeManager;
   private LogHandler logHandler = new DefaultLogHandler();
 
-  public static class DDTracerOTBuilder {
-    public DDTracerOTBuilder() {
+  public static class DDTracerBuilder {
+    public DDTracerBuilder() {
       // Apply the default values from config.
       config(Config.get());
     }
 
-    public DDTracerOTBuilder withProperties(final Properties properties) {
+    public DDTracerBuilder withProperties(final Properties properties) {
       return config(Config.get(properties));
     }
   }
 
   @Deprecated
-  public DDTracerOT() {
-    coreTracer = DDTracer.builder().build();
+  public DDTracer() {
+    coreTracer = CoreTracer.builder().build();
     scopeManager = new OTScopeManager();
   }
 
   @Deprecated
-  public DDTracerOT(final String serviceName) {
-    coreTracer = DDTracer.builder().serviceName(serviceName).build();
+  public DDTracer(final String serviceName) {
+    coreTracer = CoreTracer.builder().serviceName(serviceName).build();
     scopeManager = new OTScopeManager();
   }
 
   @Deprecated
-  public DDTracerOT(final Properties properties) {
-    coreTracer = DDTracer.builder().withProperties(properties).build();
+  public DDTracer(final Properties properties) {
+    coreTracer = CoreTracer.builder().withProperties(properties).build();
     scopeManager = new OTScopeManager();
   }
 
   @Deprecated
-  public DDTracerOT(final Config config) {
-    coreTracer = DDTracer.builder().config(config).build();
+  public DDTracer(final Config config) {
+    coreTracer = CoreTracer.builder().config(config).build();
     scopeManager = new OTScopeManager();
   }
 
   // This constructor is already used in the wild, so we have to keep it inside this API for now.
   @Deprecated
-  public DDTracerOT(final String serviceName, final Writer writer, final Sampler sampler) {
+  public DDTracer(final String serviceName, final Writer writer, final Sampler sampler) {
     coreTracer =
-        DDTracer.builder().serviceName(serviceName).writer(writer).sampler(sampler).build();
+        CoreTracer.builder().serviceName(serviceName).writer(writer).sampler(sampler).build();
     scopeManager = new OTScopeManager();
   }
 
   @Deprecated
-  DDTracerOT(
+  DDTracer(
       final String serviceName,
       final Writer writer,
       final Sampler sampler,
       final Map<String, String> runtimeTags) {
     coreTracer =
-        DDTracer.builder()
+        CoreTracer.builder()
             .serviceName(serviceName)
             .writer(writer)
             .sampler(sampler)
@@ -104,19 +104,19 @@ public class DDTracerOT implements Tracer {
   }
 
   @Deprecated
-  public DDTracerOT(final Writer writer) {
-    coreTracer = DDTracer.builder().writer(writer).build();
+  public DDTracer(final Writer writer) {
+    coreTracer = CoreTracer.builder().writer(writer).build();
     scopeManager = new OTScopeManager();
   }
 
   @Deprecated
-  public DDTracerOT(final Config config, final Writer writer) {
-    coreTracer = DDTracer.builder().config(config).writer(writer).build();
+  public DDTracer(final Config config, final Writer writer) {
+    coreTracer = CoreTracer.builder().config(config).writer(writer).build();
     scopeManager = new OTScopeManager();
   }
 
   @Deprecated
-  public DDTracerOT(
+  public DDTracer(
       final String serviceName,
       final Writer writer,
       final Sampler sampler,
@@ -126,7 +126,7 @@ public class DDTracerOT implements Tracer {
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders) {
     coreTracer =
-        DDTracer.builder()
+        CoreTracer.builder()
             .serviceName(serviceName)
             .writer(writer)
             .sampler(sampler)
@@ -139,7 +139,7 @@ public class DDTracerOT implements Tracer {
   }
 
   @Deprecated
-  public DDTracerOT(
+  public DDTracer(
       final String serviceName,
       final Writer writer,
       final Sampler sampler,
@@ -149,7 +149,7 @@ public class DDTracerOT implements Tracer {
       final Map<String, String> taggedHeaders) {
 
     coreTracer =
-        DDTracer.builder()
+        CoreTracer.builder()
             .serviceName(serviceName)
             .writer(writer)
             .sampler(sampler)
@@ -162,7 +162,7 @@ public class DDTracerOT implements Tracer {
   }
 
   @Deprecated
-  public DDTracerOT(
+  public DDTracer(
       final String serviceName,
       final Writer writer,
       final Sampler sampler,
@@ -173,7 +173,7 @@ public class DDTracerOT implements Tracer {
       final int partialFlushMinSpans) {
 
     coreTracer =
-        DDTracer.builder()
+        CoreTracer.builder()
             .serviceName(serviceName)
             .writer(writer)
             .sampler(sampler)
@@ -188,14 +188,14 @@ public class DDTracerOT implements Tracer {
 
   // Should only be used internally by TracerInstaller
   @Deprecated
-  public DDTracerOT(final DDTracer coreTracer) {
+  public DDTracer(final CoreTracer coreTracer) {
     this.coreTracer = coreTracer;
     this.scopeManager = new OTScopeManager();
   }
 
   @Builder
   // These field names must be stable to ensure the builder api is stable.
-  private DDTracerOT(
+  private DDTracer(
       final Config config,
       final String serviceName,
       final Writer writer,
@@ -216,7 +216,7 @@ public class DDTracerOT implements Tracer {
 
     // Each of these are only overriden if set
     // Otherwise, the values retrieved from config will be overriden with null
-    DDTracer.DDTracerBuilder builder = DDTracer.builder();
+    CoreTracer.CoreTracerBuilder builder = CoreTracer.builder();
 
     if (config != null) {
       builder = builder.config(config);
@@ -295,8 +295,8 @@ public class DDTracerOT implements Tracer {
   }
 
   @Override
-  public OTSpanBuilder buildSpan(final String operationName) {
-    return new OTSpanBuilder(operationName);
+  public DDSpanBuilder buildSpan(final String operationName) {
+    return new DDSpanBuilder(operationName);
   }
 
   @Override
@@ -419,21 +419,21 @@ public class DDTracerOT implements Tracer {
     }
   }
 
-  private class OTSpanBuilder implements SpanBuilder {
-    private final DDSpanBuilder delegate;
+  private class DDSpanBuilder implements SpanBuilder {
+    private final CoreSpanBuilder delegate;
 
-    public OTSpanBuilder(final String operationName) {
+    public DDSpanBuilder(final String operationName) {
       delegate = coreTracer.buildSpan(operationName);
     }
 
     @Override
-    public OTSpanBuilder asChildOf(final SpanContext parent) {
+    public DDSpanBuilder asChildOf(final SpanContext parent) {
       delegate.asChildOf(converter.toContext(parent));
       return this;
     }
 
     @Override
-    public OTSpanBuilder asChildOf(final Span parent) {
+    public DDSpanBuilder asChildOf(final Span parent) {
       if (parent != null) {
         delegate.asChildOf(converter.toAgentSpan(parent).context());
       }
@@ -441,7 +441,7 @@ public class DDTracerOT implements Tracer {
     }
 
     @Override
-    public OTSpanBuilder addReference(
+    public DDSpanBuilder addReference(
         final String referenceType, final SpanContext referencedContext) {
       if (referencedContext == null) {
         return this;
@@ -466,37 +466,37 @@ public class DDTracerOT implements Tracer {
     }
 
     @Override
-    public OTSpanBuilder ignoreActiveSpan() {
+    public DDSpanBuilder ignoreActiveSpan() {
       delegate.ignoreActiveSpan();
       return this;
     }
 
     @Override
-    public OTSpanBuilder withTag(final String key, final String value) {
+    public DDSpanBuilder withTag(final String key, final String value) {
       delegate.withTag(key, value);
       return this;
     }
 
     @Override
-    public OTSpanBuilder withTag(final String key, final boolean value) {
+    public DDSpanBuilder withTag(final String key, final boolean value) {
       delegate.withTag(key, value);
       return this;
     }
 
     @Override
-    public OTSpanBuilder withTag(final String key, final Number value) {
+    public DDSpanBuilder withTag(final String key, final Number value) {
       delegate.withTag(key, value);
       return this;
     }
 
     @Override
-    public <T> OTSpanBuilder withTag(final Tag<T> tag, final T value) {
+    public <T> DDSpanBuilder withTag(final Tag<T> tag, final T value) {
       delegate.withTag(tag.getKey(), value);
       return this;
     }
 
     @Override
-    public OTSpanBuilder withStartTimestamp(final long microseconds) {
+    public DDSpanBuilder withStartTimestamp(final long microseconds) {
       delegate.withStartTimestamp(microseconds);
       return this;
     }
@@ -518,29 +518,29 @@ public class DDTracerOT implements Tracer {
       return converter.toScope(agentScope);
     }
 
-    public <T> OTSpanBuilder withServiceName(final String serviceName) {
+    public <T> DDSpanBuilder withServiceName(final String serviceName) {
       delegate.withServiceName(serviceName);
       return this;
     }
 
-    public OTSpanBuilder withResourceName(final String resourceName) {
+    public DDSpanBuilder withResourceName(final String resourceName) {
       delegate.withResourceName(resourceName);
       return this;
     }
 
-    public OTSpanBuilder withErrorFlag() {
+    public DDSpanBuilder withErrorFlag() {
       delegate.withErrorFlag();
       return this;
     }
 
-    public OTSpanBuilder withSpanType(final String spanType) {
+    public DDSpanBuilder withSpanType(final String spanType) {
       delegate.withSpanType(spanType);
       return this;
     }
 
-    public OTSpanBuilder withLogHandler(final LogHandler logHandler) {
+    public DDSpanBuilder withLogHandler(final LogHandler logHandler) {
       if (logHandler != null) {
-        DDTracerOT.this.logHandler = logHandler;
+        DDTracer.this.logHandler = logHandler;
       }
       return this;
     }

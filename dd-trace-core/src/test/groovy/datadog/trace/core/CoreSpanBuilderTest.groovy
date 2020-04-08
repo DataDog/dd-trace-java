@@ -12,11 +12,11 @@ import datadog.trace.util.test.DDSpecification
 import static datadog.trace.core.DDSpanContext.ORIGIN_KEY
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
-class DDSpanBuilderTest extends DDSpecification {
+class CoreSpanBuilderTest extends DDSpecification {
 
   def writer = new ListWriter()
   def config = Config.get()
-  def tracer = DDTracer.builder().writer(writer).build()
+  def tracer = CoreTracer.builder().writer(writer).build()
 
   def "build simple span"() {
     setup:
@@ -35,7 +35,7 @@ class DDSpanBuilderTest extends DDSpecification {
       "3": 42.0,
     ]
 
-    DDTracer.DDSpanBuilder builder = tracer
+    CoreTracer.CoreSpanBuilder builder = tracer
       .buildSpan(expectedName)
       .withServiceName("foo")
     tags.each {
@@ -334,7 +334,7 @@ class DDSpanBuilderTest extends DDSpecification {
     setup:
     System.setProperty("dd.trace.span.tags", tagString)
     def config = new Config()
-    tracer = DDTracer.builder().config(config).writer(writer).build()
+    tracer = CoreTracer.builder().config(config).writer(writer).build()
     def span = tracer.buildSpan("op name").withServiceName("foo").start()
 
     expect:

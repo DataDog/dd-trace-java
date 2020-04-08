@@ -19,7 +19,7 @@ class DDSpanTest extends DDSpecification {
 
   def writer = new ListWriter()
   def sampler = new RateByServiceSampler()
-  def tracer = DDTracer.builder().writer(writer).sampler(sampler).build()
+  def tracer = CoreTracer.builder().writer(writer).sampler(sampler).build()
 
   def "getters and setters"() {
     setup:
@@ -94,7 +94,7 @@ class DDSpanTest extends DDSpecification {
     when:
     final String resourceName = "fake"
     final String serviceName = "myService"
-    span = DDTracer.builder().build()
+    span = CoreTracer.builder().build()
       .buildSpan(opName)
       .withResourceName(resourceName)
       .withServiceName(serviceName)
