@@ -137,8 +137,7 @@ public class Config {
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
   public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
-  public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT =
-      "profiling.exception.sample.limit";
+  public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT = "profiling.exception.sample.limit";
   public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
       "profiling.exception.histogram.top-items";
   public static final String PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE =
@@ -532,7 +531,7 @@ public class Config {
 
     profilingExceptionSampleLimit =
         getIntegerSettingFromEnvironment(
-          PROFILING_EXCEPTION_SAMPLE_LIMIT, DEFAULT_PROFILING_EXCEPTION_SAMPLER_LIMIT);
+            PROFILING_EXCEPTION_SAMPLE_LIMIT, DEFAULT_PROFILING_EXCEPTION_SAMPLER_LIMIT);
     profilingExceptionHistogramTopItems =
         getIntegerSettingFromEnvironment(
             PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
