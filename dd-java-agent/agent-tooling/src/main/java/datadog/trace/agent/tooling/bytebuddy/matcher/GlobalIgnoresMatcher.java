@@ -48,7 +48,9 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
   public boolean matches(final T target) {
     final String name = target.getActualName();
 
-    if (name.startsWith("datadog.slf4j.")
+    if (name.startsWith("datadog.opentracing.")
+        || name.startsWith("datadog.trace.core.")
+        || name.startsWith("datadog.slf4j.")
         || name.startsWith("net.bytebuddy.")
         || name.startsWith("jdk.")
         || name.startsWith("org.aspectj.")
