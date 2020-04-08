@@ -18,7 +18,7 @@ excludedClassesCoverage += [
   // This code is copied from okHttp samples and we have integration tests to verify that it works.
   'datadog.trace.common.writer.unixdomainsockets.TunnelingUnixSocket',
   'datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory',
-  'datadog.trace.StringCachingBigInteger'
+  'datadog.trace.core.StringCachingBigInteger'
 ]
 
 apply plugin: 'org.unbroken-dome.test-sets'
@@ -53,10 +53,6 @@ dependencies {
   testCompile group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
 
   traceAgentTestCompile deps.testcontainers
-}
-
-jar {
-  archiveClassifier = 'unbundled'
 }
 
 shadowJar {

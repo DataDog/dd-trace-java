@@ -101,12 +101,12 @@ dependencies {
   testCompile project(':dd-trace-core')
   testCompile project(':utils:test-utils')
 
-  testCompile deps.opentracingMock
   testCompile deps.testLogging
   testCompile deps.guava
 
   // Includes for the top level shadow jar
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
+  shadowInclude deps.opentracing
 
   // Includes for the shared internal shadow jar
   sharedShadowInclude deps.shared
