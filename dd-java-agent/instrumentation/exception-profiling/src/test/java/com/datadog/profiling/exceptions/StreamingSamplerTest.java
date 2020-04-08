@@ -12,6 +12,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.apache.commons.math3.distribution.PoissonDistribution;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -118,6 +120,9 @@ class StreamingSamplerTest {
     }
   }
 
+  private static final StandardDeviation STANDARD_DEVIATION = new StandardDeviation();
+  private static final Mean MEAN = new Mean();
+
   @ParameterizedTest
   @MethodSource("samplerParams")
   public void testSampler(
@@ -140,9 +145,9 @@ class StreamingSamplerTest {
 
     long samples = 0L;
 
-    int[] totalParts = new int[windows];
-    double[] sampledParts = new double[windows];
-    double[] sampleIndexSkew = new double[windows];
+    double[] totalEventsPerWindow = new double[windows];
+    double[] sampledEventsPerWindow = new double[windows];
+    double[] sampleIndexSkewPerWindow = new double[windows];
     for (int w = 0; w < windows; w++) {
       List<Integer> sampleIndices = new ArrayList<>();
       long samplesBase = samples;
@@ -153,19 +158,20 @@ class StreamingSamplerTest {
           samples++;
         }
       }
-      totalParts[w] = events;
-      sampledParts[w] =
+      totalEventsPerWindow[w] = events;
+      sampledEventsPerWindow[w] =
           (1 - Math.abs((samples - samplesBase - expectedSamples) / (double) expectedSamples));
 
-      double sampleIndexMean = calculateMean(sampleIndices);
-      sampleIndexSkew[w] = events != 0 ? sampleIndexMean / events : 0;
+      double sampleIndexMean = MEAN.evaluate(toDoubleArray(sampleIndices));
+      sampleIndexSkewPerWindow[w] = events != 0 ? sampleIndexMean / events : 0;
       instance.rollWindow();
     }
-    double sampledPartMean = calculateMean(sampledParts);
-    double sampledPartStdev = calculateStddev(sampledParts, sampledPartMean);
-    double totalPartMean = calculateMean(totalParts);
+    double sampledEventsPerWindowMean = MEAN.evaluate(sampledEventsPerWindow);
+    double sampledEventsPerWindowStdev =
+        STANDARD_DEVIATION.evaluate(sampledEventsPerWindow, sampledEventsPerWindowMean);
+    double totalEventsPerWindowMean = MEAN.evaluate(totalEventsPerWindow);
 
-    double correctionFactor = Math.min(((totalPartMean * windows) / expectedSamples), 1);
+    double correctionFactor = Math.min(((totalEventsPerWindowMean * windows) / expectedSamples), 1);
     double targetSamples = expectedSamples * correctionFactor;
     double percentualError =
         Math.round(Math.abs(((targetSamples - samples) / targetSamples)) * 100);
@@ -173,7 +179,7 @@ class StreamingSamplerTest {
     double skewPositiveAvg = 0d;
     double skewNegativeAvg = 0d;
     int negativeCount = 0;
-    for (double skew : sampleIndexSkew) {
+    for (double skew : sampleIndexSkewPerWindow) {
       if (skew >= 0.5d) {
         skewPositiveAvg += skew - 0.5d;
       } else {
@@ -181,9 +187,9 @@ class StreamingSamplerTest {
         skewNegativeAvg += 0.5d - skew;
       }
     }
-    int positiveCount = sampleIndexSkew.length - negativeCount;
+    int positiveCount = sampleIndexSkewPerWindow.length - negativeCount;
     if (positiveCount > 0) {
-      skewPositiveAvg /= sampleIndexSkew.length - negativeCount;
+      skewPositiveAvg /= sampleIndexSkewPerWindow.length - negativeCount;
     }
     if (negativeCount > 0) {
       skewNegativeAvg /= negativeCount;
@@ -191,9 +197,9 @@ class StreamingSamplerTest {
 
     LOGGER.info(
         "\t per window samples = (avg: {}, stdev: {}, estimated total: {}",
-        sampledPartMean * expectedSamples,
-        sampledPartStdev * expectedSamples,
-        (sampledPartMean * windows) / correctionFactor + ")");
+        sampledEventsPerWindowMean * expectedSamples,
+        sampledEventsPerWindowStdev * expectedSamples,
+        (sampledEventsPerWindowMean * windows) / correctionFactor + ")");
     LOGGER.info(
         "\t avg window skew interval = <-{}%, {}%>",
         Math.round(skewNegativeAvg * 100), Math.round(skewPositiveAvg * 100));
@@ -210,6 +216,15 @@ class StreamingSamplerTest {
             + ")% > "
             + maxErrorPercent
             + "%");
+  }
+
+  private static double[] toDoubleArray(List<? extends Number> data) {
+    double[] rslt = new double[data.size()];
+    int index = 0;
+    for (Number n : data) {
+      rslt[index++] = n.doubleValue();
+    }
+    return rslt;
   }
 
   @ParameterizedTest
@@ -300,57 +315,6 @@ class StreamingSamplerTest {
             + ")% > "
             + maxErrorPercent
             + "%");
-  }
-
-  private double calculateStddev(double[] data, double average) {
-    if (data.length == 0) {
-      return 0;
-    }
-    double stdev = 0d;
-    for (double item : data) {
-      stdev += Math.pow(item - average, 2);
-    }
-    stdev = Math.sqrt(stdev / data.length);
-    return stdev;
-  }
-
-  private double calculateMean(double[] data) {
-    if (data.length == 0) {
-      return 0;
-    }
-
-    double mean = 0d;
-    for (double item : data) {
-      mean += item;
-    }
-    mean /= data.length;
-    return mean;
-  }
-
-  private double calculateMean(int[] data) {
-    if (data.length == 0) {
-      return 0;
-    }
-
-    double mean = 0d;
-    for (double item : data) {
-      mean += item;
-    }
-    mean /= data.length;
-    return mean;
-  }
-
-  private double calculateMean(List<Integer> data) {
-    if (data.isEmpty()) {
-      return 0;
-    }
-
-    double mean = 0d;
-    for (double item : data) {
-      mean += item;
-    }
-    mean /= data.size();
-    return mean;
   }
 
   private static Stream<Arguments> samplerParams() {
