@@ -57,34 +57,28 @@ public class DDTracer implements Tracer {
 
   @Deprecated
   public DDTracer() {
-    coreTracer = CoreTracer.builder().build();
-    scopeManager = new OTScopeManager();
+    this(CoreTracer.builder().build());
   }
 
   @Deprecated
   public DDTracer(final String serviceName) {
-    coreTracer = CoreTracer.builder().serviceName(serviceName).build();
-    scopeManager = new OTScopeManager();
+    this(CoreTracer.builder().serviceName(serviceName).build());
   }
 
   @Deprecated
   public DDTracer(final Properties properties) {
-    coreTracer = CoreTracer.builder().withProperties(properties).build();
-    scopeManager = new OTScopeManager();
+    this(CoreTracer.builder().withProperties(properties).build());
   }
 
   @Deprecated
   public DDTracer(final Config config) {
-    coreTracer = CoreTracer.builder().config(config).build();
-    scopeManager = new OTScopeManager();
+    this(CoreTracer.builder().config(config).build());
   }
 
   // This constructor is already used in the wild, so we have to keep it inside this API for now.
   @Deprecated
   public DDTracer(final String serviceName, final Writer writer, final Sampler sampler) {
-    coreTracer =
-        CoreTracer.builder().serviceName(serviceName).writer(writer).sampler(sampler).build();
-    scopeManager = new OTScopeManager();
+    this(CoreTracer.builder().serviceName(serviceName).writer(writer).sampler(sampler).build());
   }
 
   @Deprecated
@@ -93,26 +87,23 @@ public class DDTracer implements Tracer {
       final Writer writer,
       final Sampler sampler,
       final Map<String, String> runtimeTags) {
-    coreTracer =
+    this(
         CoreTracer.builder()
             .serviceName(serviceName)
             .writer(writer)
             .sampler(sampler)
             .localRootSpanTags(runtimeTags)
-            .build();
-    scopeManager = new OTScopeManager();
+            .build());
   }
 
   @Deprecated
   public DDTracer(final Writer writer) {
-    coreTracer = CoreTracer.builder().writer(writer).build();
-    scopeManager = new OTScopeManager();
+    this(CoreTracer.builder().writer(writer).build());
   }
 
   @Deprecated
   public DDTracer(final Config config, final Writer writer) {
-    coreTracer = CoreTracer.builder().config(config).writer(writer).build();
-    scopeManager = new OTScopeManager();
+    this(CoreTracer.builder().config(config).writer(writer).build());
   }
 
   @Deprecated
@@ -125,7 +116,7 @@ public class DDTracer implements Tracer {
       final Map<String, String> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders) {
-    coreTracer =
+    this(
         CoreTracer.builder()
             .serviceName(serviceName)
             .writer(writer)
@@ -134,8 +125,7 @@ public class DDTracer implements Tracer {
             .defaultSpanTags(defaultSpanTags)
             .serviceNameMappings(serviceNameMappings)
             .taggedHeaders(taggedHeaders)
-            .build();
-    scopeManager = new OTScopeManager();
+            .build());
   }
 
   @Deprecated
@@ -148,7 +138,7 @@ public class DDTracer implements Tracer {
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders) {
 
-    coreTracer =
+    this(
         CoreTracer.builder()
             .serviceName(serviceName)
             .writer(writer)
@@ -157,8 +147,7 @@ public class DDTracer implements Tracer {
             .defaultSpanTags(defaultSpanTags)
             .serviceNameMappings(serviceNameMappings)
             .taggedHeaders(taggedHeaders)
-            .build();
-    scopeManager = new OTScopeManager();
+            .build());
   }
 
   @Deprecated
@@ -172,7 +161,7 @@ public class DDTracer implements Tracer {
       final Map<String, String> taggedHeaders,
       final int partialFlushMinSpans) {
 
-    coreTracer =
+    this(
         CoreTracer.builder()
             .serviceName(serviceName)
             .writer(writer)
@@ -182,8 +171,7 @@ public class DDTracer implements Tracer {
             .serviceNameMappings(serviceNameMappings)
             .taggedHeaders(taggedHeaders)
             .partialFlushMinSpans(partialFlushMinSpans)
-            .build();
-    scopeManager = new OTScopeManager();
+            .build());
   }
 
   // Should only be used internally by TracerInstaller
