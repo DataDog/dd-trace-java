@@ -153,7 +153,11 @@ public class HttpCodec {
       return value;
     }
 
-    // in case of multiple values in the header, need to parse
-    return value.split(",")[0].trim();
+    final String[] split = value.split(",");
+    if (split.length > 0) {
+      return split[0].trim();
+    } else {
+      return value;
+    }
   }
 }
