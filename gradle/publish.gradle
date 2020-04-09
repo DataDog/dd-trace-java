@@ -17,6 +17,7 @@
 // Source: https://github.com/ratpack/ratpack/blob/master/gradle/publish.gradle
 
 apply plugin: "maven"
+apply plugin: "maven-publish"
 apply plugin: "com.jfrog.artifactory"
 apply plugin: 'com.jfrog.bintray'
 
@@ -146,4 +147,13 @@ bintray {
 
 if (!isSnapshot && isCIandTagged) {
   artifactoryPublish.finalizedBy bintrayUpload
+}
+
+// It is useful to be able to run publishToMavenLocal and then import resulting snapshot from some other project
+publishing {
+  publications {
+    maven(MavenPublication) {
+      from components.java
+    }
+  }
 }
