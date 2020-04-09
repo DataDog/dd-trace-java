@@ -4,6 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.ScopeListener;
+import datadog.trace.context.TraceScope;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import java.util.List;
@@ -44,7 +45,7 @@ public class ContextualScopeManager implements DDScopeManager {
   }
 
   @Override
-  public AgentScope active() {
+  public TraceScope active() {
     return tlsScope.get();
   }
 

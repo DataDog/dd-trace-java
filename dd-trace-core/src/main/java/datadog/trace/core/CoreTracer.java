@@ -287,17 +287,6 @@ public class CoreTracer
 
   @Override
   public TraceScope activeScope() {
-    // FIXME: [API] the fact that this returns null for SimpleScope is problematic
-    final AgentScope scope = scopeManager.active();
-    if (scope instanceof TraceScope) {
-      return (TraceScope) scope;
-    }
-
-    return null;
-  }
-
-  public AgentScope activeAgentScope() {
-    // FIXME: [API] See activeScope() above
     return scopeManager.active();
   }
 

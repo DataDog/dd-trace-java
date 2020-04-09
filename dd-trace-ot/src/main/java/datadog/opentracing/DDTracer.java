@@ -382,13 +382,16 @@ public class DDTracer implements Tracer {
       }
     }
 
-    public Scope toScope(final AgentScope agentScope) {
-      if (agentScope instanceof CustomScopeManagerScope) {
-        return ((CustomScopeManagerScope) agentScope).delegate;
-      } else if (agentScope instanceof TraceScope) {
-        return new OTTraceScope((TraceScope) agentScope);
+    // FIXME [API] Need to use the runtime type not compile-time type so "Object" is used
+    // That fact that some methods return AgentScope and other TraceScope even though its the same
+    // underlying object needs to be cleaned up
+    public Scope toScope(final Object scope) {
+      if (scope instanceof CustomScopeManagerScope) {
+        return ((CustomScopeManagerScope) scope).delegate;
+      } else if (scope instanceof TraceScope) {
+        return new OTTraceScope((TraceScope) scope);
       } else {
-        return new OTScope(agentScope);
+        return new OTScope((AgentScope) scope);
       }
     }
 
@@ -563,7 +566,7 @@ public class DDTracer implements Tracer {
     }
 
     @Override
-    public AgentScope active() {
+    public TraceScope active() {
       return new CustomScopeManagerScope(delegate.active());
     }
 
@@ -573,11 +576,15 @@ public class DDTracer implements Tracer {
     }
   }
 
-  private class CustomScopeManagerScope implements AgentScope {
+  private class CustomScopeManagerScope implements AgentScope, TraceScope {
     private final Scope delegate;
+    private final boolean traceScope;
 
     private CustomScopeManagerScope(final Scope delegate) {
       this.delegate = delegate;
+
+      // Handle case where the custom scope manager returns TraceScopes
+      traceScope = delegate instanceof TraceScope;
     }
 
     @Override
@@ -586,7 +593,25 @@ public class DDTracer implements Tracer {
     }
 
     @Override
-    public void setAsyncPropagation(final boolean value) {}
+    public void setAsyncPropagation(final boolean value) {
+      if (traceScope) {
+        ((TraceScope) delegate).setAsyncPropagation(value);
+      }
+    }
+
+    @Override
+    public boolean isAsyncPropagating() {
+      return traceScope && ((TraceScope) delegate).isAsyncPropagating();
+    }
+
+    @Override
+    public Continuation capture() {
+      if (traceScope) {
+        return ((TraceScope) delegate).capture();
+      } else {
+        return null;
+      }
+    }
 
     @Override
     public void close() {
@@ -627,7 +652,7 @@ public class DDTracer implements Tracer {
 
     @Override
     public Scope active() {
-      return converter.toScope(coreTracer.activeAgentScope());
+      return converter.toScope(coreTracer.activeScope());
     }
 
     @Override

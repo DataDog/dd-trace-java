@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ContinuableScope implements DDScope, TraceScope {
+public class ContinuableScope implements DDScope {
   /** ScopeManager holding the thread-local to this scope. */
   private final ContextualScopeManager scopeManager;
   /**
