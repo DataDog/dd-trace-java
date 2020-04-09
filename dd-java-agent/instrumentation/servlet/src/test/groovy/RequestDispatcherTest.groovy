@@ -16,7 +16,7 @@ class RequestDispatcherTest extends AgentTestRunner {
 
   def request = Mock(HttpServletRequest)
   def response = Mock(HttpServletResponse)
-  def mockSpan = Mock(DDSpan)
+  def mockSpan = Stub(DDSpan)
   def dispatcher = new RequestDispatcherUtils(request, response)
 
   def "test dispatch no-parent"() {
