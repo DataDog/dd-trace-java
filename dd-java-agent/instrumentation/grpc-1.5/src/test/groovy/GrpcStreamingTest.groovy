@@ -1,7 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.scopemanager.ContinuableScope
 import example.GreeterGrpc
 import example.Helloworld
 import io.grpc.BindableService
@@ -34,7 +33,7 @@ class GrpcStreamingTest extends AgentTestRunner {
             serverReceived << value.message
 
             (1..msgCount).each {
-              if ((testTracer.scopeManager().active() as ContinuableScope).isAsyncPropagating()) {
+              if (testTracer.activeScope().isAsyncPropagating()) {
                 observer.onNext(value)
               } else {
                 observer.onError(new IllegalStateException("not async propagating!"))
@@ -44,7 +43,7 @@ class GrpcStreamingTest extends AgentTestRunner {
 
           @Override
           void onError(Throwable t) {
-            if ((testTracer.scopeManager().active() as ContinuableScope).isAsyncPropagating()) {
+            if (testTracer.activeScope().isAsyncPropagating()) {
               error.set(t)
               observer.onError(t)
             } else {
@@ -54,7 +53,7 @@ class GrpcStreamingTest extends AgentTestRunner {
 
           @Override
           void onCompleted() {
-            if ((testTracer.scopeManager().active() as ContinuableScope).isAsyncPropagating()) {
+            if (testTracer.activeScope().isAsyncPropagating()) {
               observer.onCompleted()
             } else {
               observer.onError(new IllegalStateException("not async propagating!"))
@@ -72,7 +71,7 @@ class GrpcStreamingTest extends AgentTestRunner {
     def observer = client.conversation(new StreamObserver<Helloworld.Response>() {
       @Override
       void onNext(Helloworld.Response value) {
-        if ((testTracer.scopeManager().active() as ContinuableScope).isAsyncPropagating()) {
+        if (testTracer.activeScope().isAsyncPropagating()) {
           clientReceived << value.message
         } else {
           error.set(new IllegalStateException("not async propagating!"))
@@ -81,7 +80,7 @@ class GrpcStreamingTest extends AgentTestRunner {
 
       @Override
       void onError(Throwable t) {
-        if ((testTracer.scopeManager().active() as ContinuableScope).isAsyncPropagating()) {
+        if (testTracer.activeScope().isAsyncPropagating()) {
           error.set(t)
         } else {
           error.set(new IllegalStateException("not async propagating!"))
@@ -90,7 +89,7 @@ class GrpcStreamingTest extends AgentTestRunner {
 
       @Override
       void onCompleted() {
-        if ((testTracer.scopeManager().active() as ContinuableScope).isAsyncPropagating()) {
+        if (testTracer.activeScope().isAsyncPropagating()) {
           TEST_WRITER.waitForTraces(1)
         } else {
           error.set(new IllegalStateException("not async propagating!"))
