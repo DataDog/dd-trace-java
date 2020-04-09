@@ -72,9 +72,9 @@ public class Agent {
      */
     if (appUsingCustomLogManager) {
       log.debug("Custom logger detected. Delaying JMXFetch initialization.");
-      registerLogManagerCallback(new StartJmxFetchCallback(bootstrapURL));
+      registerLogManagerCallback(new StartJmxCallback(bootstrapURL));
     } else {
-      startJmxFetch(bootstrapURL);
+      startJmx(bootstrapURL);
     }
 
     /*
@@ -151,8 +151,8 @@ public class Agent {
     public abstract void execute();
   }
 
-  protected static class StartJmxFetchCallback extends ClassLoadCallBack {
-    StartJmxFetchCallback(final URL bootstrapURL) {
+  protected static class StartJmxCallback extends ClassLoadCallBack {
+    StartJmxCallback(final URL bootstrapURL) {
       super(bootstrapURL);
     }
 
@@ -163,7 +163,7 @@ public class Agent {
 
     @Override
     public void execute() {
-      startJmxFetch(bootstrapURL);
+      startJmx(bootstrapURL);
     }
   }
 
@@ -260,6 +260,26 @@ public class Agent {
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
     }
+  }
+
+  private static synchronized void initializeScopeThreadCpuTime() {
+    if (AGENT_CLASSLOADER == null) {
+      throw new IllegalStateException("Datadog agent should have been started already");
+    }
+    try {
+      final Class<?> threadCpuTimeClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.agent.ot.jfr.openjdk.ThreadCpuTime");
+      final Method initializeMethod = threadCpuTimeClass.getDeclaredMethod("initialize");
+      initializeMethod.setAccessible(true);
+      initializeMethod.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while initializing the Scope thread cpu time access", ex);
+    }
+  }
+
+  private static void startJmx(final URL bootstrapURL) {
+    startJmxFetch(bootstrapURL);
+    initializeScopeThreadCpuTime();
   }
 
   private static synchronized void startJmxFetch(final URL bootstrapURL) {

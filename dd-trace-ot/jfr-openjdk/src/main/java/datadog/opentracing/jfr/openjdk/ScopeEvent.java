@@ -8,6 +8,7 @@ import jdk.jfr.Event;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.StackTrace;
+import jdk.jfr.Timespan;
 
 @Name("datadog.Scope")
 @Label("Scope")
@@ -38,6 +39,12 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
   @Label("Operation Name")
   private String operationName;
 
+  @Label("Thread CPU Time")
+  @Timespan
+  private long cpuTime = 0L;
+
+  private long startCpuTime;
+
   ScopeEvent(final DDSpanContext spanContext) {
     this.spanContext = spanContext;
   }
@@ -46,12 +53,16 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
   public void start() {
     if (isEnabled()) {
       begin();
+      startCpuTime = ThreadCpuTime.get();
     }
   }
 
   @Override
   public void finish() {
     end();
+    if (startCpuTime > 0) {
+      cpuTime = ThreadCpuTime.get() - startCpuTime;
+    }
     if (shouldCommit()) {
       traceId = spanContext.getTraceId().toString(IDS_RADIX);
       spanId = spanContext.getSpanId().toString(IDS_RADIX);
