@@ -24,6 +24,7 @@ dependencies {
   compileOnly group: 'org.mule.runtime', name: 'mule-service-http-api', version: '4.1.1'
   compileOnly group: 'org.mule.services', name: 'mule-service-http', version: '1.1.1'
   compileOnly group: 'org.glassfish.grizzly', name: 'grizzly-http-client', version: '1.14'
+  compileOnly group: 'org.glassfish.grizzly', name: 'grizzly-framework', version: '2.3.35'
 }
 
 

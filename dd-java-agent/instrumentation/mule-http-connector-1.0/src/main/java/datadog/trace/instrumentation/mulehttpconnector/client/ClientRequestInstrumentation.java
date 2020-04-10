@@ -35,7 +35,7 @@ public final class ClientRequestInstrumentation extends Instrumenter.Default {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".MuleHttpConnectorDecorator"
+    return new String[] {packageName + ".ClientDecorator"
       //      packageName + ".HttpRequesterResponseInjectAdapter"
     };
   }
@@ -48,6 +48,6 @@ public final class ClientRequestInstrumentation extends Instrumenter.Default {
             .and(takesArgument(0, named("com.ning.http.client.Request")))
             .and(takesArgument(1, named("com.ning.http.client.AsyncHandler")))
             .and(isPublic()),
-        packageName + ".client.ClientRequestAdvice");
+        packageName + ".ClientRequestAdvice");
   }
 }
