@@ -23,7 +23,9 @@ public final class HttpRequesterRequestInstrumentation extends Instrumenter.Defa
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("com.ning.http.client.AsyncHandler", AgentSpan.class.getName());
+    return singletonMap(
+        "org.mule.service.http.impl.service.client.async.ResponseAsyncHandler",
+        AgentSpan.class.getName());
   }
 
   @Override
@@ -33,7 +35,9 @@ public final class HttpRequesterRequestInstrumentation extends Instrumenter.Defa
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".MuleHttpConnectorDecorator"};
+    return new String[] {packageName + ".MuleHttpConnectorDecorator"
+      //      packageName + ".HttpRequesterResponseInjectAdapter"
+    };
   }
 
   // TO-DO: might need to specify that it is a nested method

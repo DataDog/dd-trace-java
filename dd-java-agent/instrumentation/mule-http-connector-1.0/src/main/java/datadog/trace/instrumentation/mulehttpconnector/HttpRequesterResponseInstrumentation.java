@@ -2,10 +2,12 @@ package datadog.trace.instrumentation.mulehttpconnector;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
+import java.util.Collections;
 import java.util.Map;
 
 import static java.util.Collections.singletonMap;
@@ -18,6 +20,13 @@ public final class HttpRequesterResponseInstrumentation extends Instrumenter.Def
 
   public HttpRequesterResponseInstrumentation() {
     super("mule-http-connector");
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap(
+        "org.mule.service.http.impl.service.client.async.ResponseAsyncHandler",
+        AgentSpan.class.getName());
   }
 
   @Override

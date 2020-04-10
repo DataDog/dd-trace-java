@@ -18,7 +18,7 @@ public class MuleHttpConnectorDecorator extends HttpClientDecorator<Request, Res
 
   @Override
   protected String component() {
-    return "http-listener";
+    return "http-requester";
   }
 
   @Override
