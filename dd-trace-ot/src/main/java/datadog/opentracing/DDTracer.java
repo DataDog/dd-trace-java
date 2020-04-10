@@ -1,6 +1,7 @@
 package datadog.opentracing;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -8,6 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
+import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.CoreTracer.CoreSpanBuilder;
@@ -38,7 +40,7 @@ import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class DDTracer implements Tracer {
+public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   private final Converter converter = new Converter();
   private final CoreTracer coreTracer;
   private final ScopeManager scopeManager;
@@ -265,6 +267,26 @@ public class DDTracer implements Tracer {
     final Map<String, String> runtimeTags = new HashMap<>(applicationRootSpanTags);
     runtimeTags.put(Config.RUNTIME_ID_TAG, runtimeId);
     return Collections.unmodifiableMap(runtimeTags);
+  }
+
+  @Override
+  public String getTraceId() {
+    return coreTracer.getTraceId();
+  }
+
+  @Override
+  public String getSpanId() {
+    return coreTracer.getSpanId();
+  }
+
+  @Override
+  public boolean addTraceInterceptor(final TraceInterceptor traceInterceptor) {
+    return coreTracer.addTraceInterceptor(traceInterceptor);
+  }
+
+  @Override
+  public void addScopeListener(final ScopeListener listener) {
+    coreTracer.addScopeListener(listener);
   }
 
   @Override
