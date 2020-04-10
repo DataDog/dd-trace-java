@@ -143,7 +143,7 @@ public class Config {
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
 
   public static final String RUNTIME_ID_TAG = "runtime-id";
-  private static final String SERVICE = "service";
+  public static final String SERVICE = "service";
   public static final String SERVICE_TAG = SERVICE;
   public static final String HOST_TAG = "host";
   public static final String LANGUAGE_TAG_KEY = "language";
@@ -323,8 +323,8 @@ public class Config {
   private static Properties propertiesFromConfigFile;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
-  // Visible for testing: groovy tests can access private ctor perfectly fine
-  private Config() {
+  // Visible for testing
+  Config() {
     propertiesFromConfigFile = loadConfigurationFile();
 
     runtimeId = UUID.randomUUID().toString();
@@ -526,9 +526,8 @@ public class Config {
     log.debug("New instance: {}", this);
   }
 
-  // Read order: Properties -> Default INSTANCE
-  private Config(final Properties properties) {
-    final Config parent = INSTANCE;
+  // Read order: Properties -> Parent
+  private Config(final Properties properties, final Config parent) {
     runtimeId = parent.runtimeId;
 
     apiKey = properties.getProperty(API_KEY, parent.apiKey);
@@ -1349,7 +1348,7 @@ public class Config {
     if (properties == null || properties.isEmpty()) {
       return INSTANCE;
     } else {
-      return new Config(properties);
+      return new Config(properties, INSTANCE);
     }
   }
 }
