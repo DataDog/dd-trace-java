@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.mulehttpconnector;
+package datadog.trace.instrumentation.mulehttpconnector.client;
 
 import com.ning.http.client.Request;
 import com.ning.http.client.Response;
@@ -7,9 +7,9 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-public class MuleHttpConnectorDecorator extends HttpClientDecorator<Request, Response> {
+public class ClientDecorator extends HttpClientDecorator<Request, Response> {
 
-  public static final MuleHttpConnectorDecorator DECORATE = new MuleHttpConnectorDecorator();
+  public static final ClientDecorator DECORATE = new ClientDecorator();
 
   @Override
   protected String[] instrumentationNames() {

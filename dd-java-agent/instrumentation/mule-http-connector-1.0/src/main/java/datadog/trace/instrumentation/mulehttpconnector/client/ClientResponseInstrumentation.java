@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.mulehttpconnector;
+package datadog.trace.instrumentation.mulehttpconnector.client;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -16,9 +16,9 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 @AutoService(Instrumenter.class)
-public final class HttpRequesterResponseInstrumentation extends Instrumenter.Default {
+public final class ClientResponseInstrumentation extends Instrumenter.Default {
 
-  public HttpRequesterResponseInstrumentation() {
+  public ClientResponseInstrumentation() {
     super("mule-http-connector");
   }
 
@@ -46,6 +46,6 @@ public final class HttpRequesterResponseInstrumentation extends Instrumenter.Def
         named("onCompleted")
             .and(takesArgument(0, named("com.ning.http.client.Response")))
             .and(isPublic()),
-        packageName + ".HttpRequesterResponseAdvice");
+        packageName + ".client.ClientResponseAdvice");
   }
 }

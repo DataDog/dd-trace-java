@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.mulehttpconnector;
+package datadog.trace.instrumentation.mulehttpconnector.client;
 
 import com.ning.http.client.AsyncHandler;
 import com.ning.http.client.Request;
@@ -9,12 +9,12 @@ import net.bytebuddy.asm.Advice;
 import org.mule.service.http.impl.service.client.async.ResponseAsyncHandler;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.mulehttpconnector.MuleHttpConnectorDecorator.DECORATE;
+import static datadog.trace.instrumentation.mulehttpconnector.client.ClientDecorator.DECORATE;
 
 // import static
 // datadog.trace.instrumentation.mulehttpconnector.HttpRequesterResponseInjectAdapter.SETTER;
 
-public class HttpRequesterRequestAdvice {
+public class ClientRequestAdvice {
 
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void onEnter(
