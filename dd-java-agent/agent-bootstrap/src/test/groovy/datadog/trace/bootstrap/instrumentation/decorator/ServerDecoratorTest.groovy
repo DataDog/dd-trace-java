@@ -22,6 +22,7 @@ class ServerDecoratorTest extends BaseDecoratorTest {
     if (decorator.traceAnalyticsEnabled) {
       1 * span.setTag(DDTags.ANALYTICS_SAMPLE_RATE, 1.0)
     }
+    1 * span.setTag("_dd.measured", "1")
     0 * _
   }
 

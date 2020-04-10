@@ -37,6 +37,7 @@ class TagsAssert {
     assertedTags.add("thread.id")
     assertedTags.add(Config.RUNTIME_ID_TAG)
     assertedTags.add(Config.LANGUAGE_TAG_KEY)
+    assertedTags.add("_dd.measured")
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null
