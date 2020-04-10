@@ -15,6 +15,7 @@ import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY
 import static datadog.trace.core.propagation.HaystackHttpCodec.DD_TRACE_ID_BAGGAGE_KEY
 import static datadog.trace.core.propagation.HaystackHttpCodec.DD_SPAN_ID_BAGGAGE_KEY
 import static datadog.trace.core.propagation.HaystackHttpCodec.DD_PARENT_ID_BAGGAGE_KEY
+import static datadog.trace.core.propagation.HaystackHttpCodec.HAYSTACK_TRACE_ID_BAGGAGE_KEY
 
 class HaystackHttpInjectorTest extends DDSpecification {
 
@@ -66,5 +67,55 @@ class HaystackHttpInjectorTest extends DDSpecification {
     1G               | 2G               | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"
     TRACE_ID_MAX     | TRACE_ID_MAX - 1 | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-ffff-ffffffffffff" | "44617461-646f-6721-ffff-fffffffffffe"
     TRACE_ID_MAX - 1 | TRACE_ID_MAX     | PrioritySampling.SAMPLER_KEEP | null   | "44617461-646f-6721-ffff-fffffffffffe" | "44617461-646f-6721-ffff-ffffffffffff"
+  }
+
+  def "inject http headers with haystack traceId in baggage"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = CoreTracer.builder().writer(writer).build()
+    def haystackUuid = traceUuid
+    final DDSpanContext mockedContext =
+      new DDSpanContext(
+        traceId,
+        spanId,
+        0G,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        samplingPriority,
+        origin,
+        new HashMap<String, String>() {
+          {
+            put("k1", "v1")
+            put("k2", "v2")
+            put(HAYSTACK_TRACE_ID_BAGGAGE_KEY, haystackUuid)
+          }
+        },
+        false,
+        "fakeType",
+        null,
+        new PendingTrace(tracer, 1G),
+        tracer,
+        [:])
+
+    final Map<String, String> carrier = Mock()
+
+    when:
+    injector.inject(mockedContext, carrier, MapSetter.INSTANCE)
+
+    then:
+    1 * carrier.put(TRACE_ID_KEY, traceUuid)
+    1 * carrier.put(DD_TRACE_ID_BAGGAGE_KEY, traceId.toString())
+    1 * carrier.put(SPAN_ID_KEY, spanUuid)
+    1 * carrier.put(DD_SPAN_ID_BAGGAGE_KEY, spanId.toString())
+    1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
+    1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
+
+    where:
+    traceId          | spanId           | samplingPriority              | origin | traceUuid                              | spanUuid
+    1G               | 2G               | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"
+    1G               | 2G               | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-0000-000000000001" | "44617461-646f-6721-0000-000000000002"
+    TRACE_ID_MAX     | TRACE_ID_MAX - 1 | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-ffff-ffffffffffff" | "44617461-646f-6721-ffff-fffffffffffe"
+    TRACE_ID_MAX - 1 | TRACE_ID_MAX     | PrioritySampling.SAMPLER_KEEP | null   | "54617461-646f-6721-ffff-fffffffffffe" | "44617461-646f-6721-ffff-ffffffffffff"
   }
 }

@@ -1,11 +1,13 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
+import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,14 +22,15 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class HaystackHttpCodec {
 
+  // https://github.com/ExpediaDotCom/haystack-client-java/blob/master/core/src/main/java/com/expedia/www/haystack/client/propagation/DefaultKeyConvention.java
   private static final String OT_BAGGAGE_PREFIX = "Baggage-";
   private static final String TRACE_ID_KEY = "Trace-ID";
   private static final String SPAN_ID_KEY = "Span-ID";
-  private static final String PARENT_ID_KEY = "Parent_ID";
+  private static final String PARENT_ID_KEY = "Parent-ID";
 
-  private static final String DD_TRACE_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "x-datadog-trace-id";
-  private static final String DD_SPAN_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "x-datadog-span-id";
-  private static final String DD_PARENT_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "x-datadog-parent-id";
+  private static final String DD_TRACE_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Trace-Id";
+  private static final String DD_SPAN_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Span-Id";
+  private static final String DD_PARENT_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Parent-Id";
 
   private static final String HAYSTACK_TRACE_ID_BAGGAGE_KEY = "Haystack-Trace-ID";
   private static final String HAYSTACK_SPAN_ID_BAGGAGE_KEY = "Haystack-Span-ID";
@@ -48,15 +51,24 @@ public class HaystackHttpCodec {
       try {
         // Given that Haystack uses a 128-bit UUID/GUID for all ID representations, need to convert from 64-bit BigInteger
         //  also record the original DataDog IDs into Baggage payload
-        setter.put(TRACE_ID_KEY, convertBigIntToUUID(context.getTraceId()));
-        setter.put(DD_TRACE_ID_BAGGAGE_KEY, HttpCodec.encode(context.getTraceId().toString()));
-        setter.put(SPAN_ID_KEY, convertBigIntToUUID(context.getSpanId()));
-        setter.put(DD_SPAN_ID_BAGGAGE_KEY, HttpCodec.encode(context.getSpanId().toString()));
-        setter.put(PARENT_ID_KEY, convertBigIntToUUID(context.getParentId()));
-        setter.put(DD_PARENT_ID_BAGGAGE_KEY, HttpCodec.encode(context.getParentId().toString()));
+        //
+        // If the original trace has originated within Haystack system and we have it saved in Baggage, and it is equal
+        //  to the converted value in BigInteger, use that instead.
+        //  this will preserve the complete UUID/GUID without losing the most significant bit part
+        String originalHaystackTraceId = getBaggageItemIgnoreCase(context.getBaggageItems(), HAYSTACK_TRACE_ID_BAGGAGE_KEY);
+        if (originalHaystackTraceId != null && convertUUIDToBigInt(originalHaystackTraceId).equals(context.getTraceId())) {
+          setter.set(carrier, TRACE_ID_KEY, originalHaystackTraceId);
+        } else {
+          setter.set(carrier, TRACE_ID_KEY, convertBigIntToUUID(context.getTraceId()));
+        }
+        setter.set(carrier, DD_TRACE_ID_BAGGAGE_KEY, HttpCodec.encode(context.getTraceId().toString()));
+        setter.set(carrier, SPAN_ID_KEY, convertBigIntToUUID(context.getSpanId()));
+        setter.set(carrier, DD_SPAN_ID_BAGGAGE_KEY, HttpCodec.encode(context.getSpanId().toString()));
+        setter.set(carrier, PARENT_ID_KEY, convertBigIntToUUID(context.getParentId()));
+        setter.set(carrier, DD_PARENT_ID_BAGGAGE_KEY, HttpCodec.encode(context.getParentId().toString()));
 
         for (final Map.Entry<String, String> entry : context.baggageItems()) {
-          setter.put(OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
+          setter.set(carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
         }
         log.debug("{} - Haystack parent context injected", context.getTraceId());
       } catch (final NumberFormatException e) {
@@ -65,15 +77,13 @@ public class HaystackHttpCodec {
       }
     }
 
-    private String convertBigIntToUUID(BigInteger id) {
-      // This is not a true/real UUID, as we don't care about the version and variant markers
-      //  the creation is just taking the least significant bits and doing static most significant ones.
-      //  this is done for the purpose of being able to maintain cardinality and idempotency of the conversion
-      String idHex = String.format("%016x", id);
-      return DATADOG + "-" + idHex.substring(0, 4) + "-" + idHex.substring(4);
-
-//      UUID uuid = new UUID(DATADOG, id.longValue());
-//      return uuid.toString();
+    private String getBaggageItemIgnoreCase(Map<String, String> baggage, String key) {
+      for (final Map.Entry<String, String> mapping : baggage.entrySet()) {
+        if (key.equalsIgnoreCase(mapping.getKey())) {
+          return mapping.getValue();
+        }
+      }
+      return null;
     }
   }
 
@@ -93,8 +103,8 @@ public class HaystackHttpCodec {
       try {
         Map<String, String> baggage = Collections.emptyMap();
         Map<String, String> tags = Collections.emptyMap();
-        DDId traceId = DDId.ZERO;
-        DDId spanId = DDId.ZERO;
+        BigInteger traceId = BigInteger.ZERO;
+        BigInteger spanId = BigInteger.ZERO;
         final int samplingPriority = PrioritySampling.SAMPLER_KEEP;
         final String origin = null; // Always null
 
@@ -107,6 +117,9 @@ public class HaystackHttpCodec {
           }
 
           // We are preserving the original UUID values as baggage to be able to loop them through the 2 systems
+          if (baggage.isEmpty()) {
+            baggage = new HashMap<>();
+          }
           if (TRACE_ID_KEY.equalsIgnoreCase(key)) {
             traceId = convertUUIDToBigInt(value);
             baggage.put(HAYSTACK_TRACE_ID_BAGGAGE_KEY, HttpCodec.decode(value));
@@ -116,9 +129,6 @@ public class HaystackHttpCodec {
           } else if (PARENT_ID_KEY.equalsIgnoreCase(key)) {
             baggage.put(HAYSTACK_PARENT_ID_BAGGAGE_KEY, HttpCodec.decode(value));
           } else if (key.startsWith(OT_BAGGAGE_PREFIX.toLowerCase())) {
-            if (baggage.isEmpty()) {
-              baggage = new HashMap<>();
-            }
             baggage.put(key.replace(OT_BAGGAGE_PREFIX.toLowerCase(), ""), HttpCodec.decode(value));
           }
 
@@ -147,30 +157,38 @@ public class HaystackHttpCodec {
 
       return null;
     }
+  }
 
-    private DDId convertUUIDToBigInt(String value) {
-      try {
-        if (value.contains("-")) {
-          String[] strings = value.split("-");
-          // We are only interested in the least significant bit component, dropping the most
-          // significant one.
-          if (strings.length == 5) {
-            String idHex = strings[3] + strings[4];
-            return DDId.from(idHex);
-          }
-          throw new NumberFormatException("Invalid UUID format: " + value);
-        } else {
-          // This could be a regular hex id without separators
-          int length = value.length();
-          if (length == 32) {
-            return DDId.from(value.substring(16));
-          } else {
-            return DDId.from(value);
-          }
+  private static String convertBigIntToUUID(BigInteger id) {
+    // This is not a true/real UUID, as we don't care about the version and variant markers
+    //  the creation is just taking the least significant bits and doing static most significant ones.
+    //  this is done for the purpose of being able to maintain cardinality and idempotency of the conversion
+    String idHex = String.format("%016x", id);
+    return DATADOG + "-" + idHex.substring(0, 4) + "-" + idHex.substring(4);
+  }
+
+  private static BigInteger convertUUIDToBigInt(String value) {
+    try {
+      if (value.contains("-")) {
+        String[] strings = value.split("-");
+        // We are only interested in the least significant bit component, dropping the most
+        // significant one.
+        if (strings.length == 5) {
+          String idHex = strings[3] + strings[4];
+          return validateUInt64BitsID(idHex, 16);
         }
-      } catch (final Exception e) {
-        throw new IllegalArgumentException("Exception when converting UUID to BigInteger: " + value, e);
+        throw new NumberFormatException("Invalid UUID format: " + value);
+      } else {
+        // This could be a regular hex id without separators
+        int length = value.length();
+        if (length == 32) {
+          return validateUInt64BitsID(value.substring(16), 16);
+        } else {
+          return validateUInt64BitsID(value, 16);
+        }
       }
+    } catch (final Exception e) {
+      throw new IllegalArgumentException("Exception when converting UUID to BigInteger: " + value, e);
     }
   }
 }
