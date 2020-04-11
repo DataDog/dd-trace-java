@@ -8,7 +8,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 import java.util.Map;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -22,7 +21,8 @@ public final class ServerInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return extendsClass(named("org.glassfish.grizzly.filterchain.BaseFilter"));
+    //    return hasSuperClass(named("org.glassfish.grizzly.filterchain.BaseFilter"));
+    return named("org.glassfish.grizzly.http.HttpServerFilter");
   }
 
   @Override

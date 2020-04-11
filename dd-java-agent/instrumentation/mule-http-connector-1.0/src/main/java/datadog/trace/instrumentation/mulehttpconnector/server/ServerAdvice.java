@@ -12,7 +12,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.mulehttpconnector.server.ServerDecorator.DECORATE;
 
 public class ServerAdvice {
-  @Advice.OnMethodEnter(suppress = Throwable.class)
+  //  @Advice.OnMethodEnter(suppress = Throwable.class)
+  @Advice.OnMethodExit(suppress = Throwable.class)
   public static void onEnter(
       @Advice.This final Object source, @Advice.Argument(0) final FilterChainContext ctx) {
     if (!(ctx.getMessage() instanceof HttpContent)) {
@@ -29,6 +30,8 @@ public class ServerAdvice {
       DECORATE.onConnection(span, httpRequest);
       DECORATE.onRequest(span, httpRequest);
       DECORATE.onResponse(span, httpResponse);
+      //      final String resourceName = source.getClass().getName();
+      //      span.setTag(DDTags.RESOURCE_NAME, resourceName);
       DECORATE.beforeFinish(span);
 
       span.finish();
