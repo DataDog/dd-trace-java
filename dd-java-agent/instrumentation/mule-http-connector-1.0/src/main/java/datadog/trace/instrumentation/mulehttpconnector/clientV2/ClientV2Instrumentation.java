@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.mulehttpconnector.server;
+package datadog.trace.instrumentation.mulehttpconnector.clientV2;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -14,19 +14,19 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 @AutoService(Instrumenter.class)
-public final class ServerInstrumentation extends Instrumenter.Default {
-  public ServerInstrumentation() {
+public final class ClientV2Instrumentation extends Instrumenter.Default {
+  public ClientV2Instrumentation() {
     super("mule-http-connector");
   }
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.glassfish.grizzly.http.HttpServerFilter");
+    return named("org.glassfish.grizzly.http.HttpClientFilter");
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".ServerDecorator"};
+    return new String[] {packageName + ".ClientV2Decorator"};
   }
 
   @Override
@@ -35,6 +35,6 @@ public final class ServerInstrumentation extends Instrumenter.Default {
         named("handleRead")
             .and(takesArgument(0, named("org.glassfish.grizzly.filterchain.FilterChainContext")))
             .and(isPublic()),
-        packageName + ".ServerAdvice");
+        packageName + ".ClientV2Advice");
   }
 }
