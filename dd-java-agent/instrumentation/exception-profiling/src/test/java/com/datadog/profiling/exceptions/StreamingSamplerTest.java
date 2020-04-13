@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.distribution.PoissonDistribution;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
@@ -31,13 +32,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @ExtendWith(MockitoExtension.class)
+@Slf4j
 class StreamingSamplerTest {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(StreamingSamplerTest.class);
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
 
   private static final class PoissonWindowEventsSupplier implements Supplier<Integer> {
@@ -166,7 +165,7 @@ class StreamingSamplerTest {
       final int samplesPerWindow,
       final int lookback,
       final int maxErrorPercent) {
-    LOGGER.info(
+    log.info(
         "> mode: {}, windows: {}, samplesPerWindow: {}, lookback: {}, max error: {}%",
         windowEventsSupplier, windows, samplesPerWindow, lookback, maxErrorPercent);
     final StreamingSampler instance =
@@ -226,15 +225,15 @@ class StreamingSamplerTest {
       skewNegativeAvg /= negativeCount;
     }
 
-    LOGGER.info(
+    log.info(
         "\t per window samples = (avg: {}, stdev: {}, estimated total: {}",
         sampledEventsPerWindowMean * expectedSamples,
         sampledEventsPerWindowStddev * expectedSamples,
         (sampledEventsPerWindowMean * windows) / correctionFactor + ")");
-    LOGGER.info(
+    log.info(
         "\t avg window skew interval = <-{}%, {}%>",
         round(skewNegativeAvg * 100), round(skewPositiveAvg * 100));
-    LOGGER.info("\t percentual error = {}%", percentualError);
+    log.info("\t percentual error = {}%", percentualError);
 
     assertTrue(
         abs(percentualError) <= maxErrorPercent,
@@ -263,7 +262,7 @@ class StreamingSamplerTest {
       final int lookback,
       final int maxErrorPercent)
       throws Exception {
-    LOGGER.info(
+    log.info(
         "> threads: {}, mode: {}, windows: {}, samplesPerWindow: {}, lookback: {}, max error: {}",
         threadCount,
         windowEventsSupplier,
@@ -310,7 +309,7 @@ class StreamingSamplerTest {
     final long samples = allSamples.get();
     final int percentualError =
         round(((expectedSamples - samples) / (float) expectedSamples) * 100);
-    LOGGER.info("\t percentual error = {}%", percentualError);
+    log.info("\t percentual error = {}%", percentualError);
 
     assertTrue(
         abs(percentualError) <= maxErrorPercent,
