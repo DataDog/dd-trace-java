@@ -43,6 +43,7 @@ public final class ExceptionInstrumentation extends Instrumenter.Default {
         ? new String[] {
           "com.datadog.profiling.exceptions.StreamingSampler",
           "com.datadog.profiling.exceptions.StreamingSampler$Counts",
+          "com.datadog.profiling.exceptions.StreamingSampler$RollWindowTask",
           "com.datadog.profiling.exceptions.ExceptionCountEvent",
           "com.datadog.profiling.exceptions.ExceptionHistogram",
           "com.datadog.profiling.exceptions.ExceptionHistogram$Pair",

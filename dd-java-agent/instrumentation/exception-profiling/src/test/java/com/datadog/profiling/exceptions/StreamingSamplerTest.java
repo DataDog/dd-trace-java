@@ -4,11 +4,13 @@ import static java.lang.Math.abs;
 import static java.lang.Math.min;
 import static java.lang.Math.round;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.when;
 
 import datadog.common.exec.CommonTaskExecutor;
+import datadog.common.exec.CommonTaskExecutor.Task;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -144,16 +146,19 @@ class StreamingSamplerTest {
   private static final Mean MEAN = new Mean();
 
   @Mock CommonTaskExecutor taskExecutor;
-  @Captor ArgumentCaptor<Runnable> rollWindowCaptor;
+  @Captor ArgumentCaptor<Task> rollWindowTaskCaptor;
+  @Captor ArgumentCaptor<StreamingSampler> rollWindowTargetCaptor;
   @Mock ScheduledFuture scheduledFuture;
 
   @BeforeEach
   public void setup() {
     when(taskExecutor.scheduleAtFixedRate(
-            rollWindowCaptor.capture(),
+            rollWindowTaskCaptor.capture(),
+            rollWindowTargetCaptor.capture(),
             eq(WINDOW_DURATION.toNanos()),
             eq(WINDOW_DURATION.toNanos()),
-            same(TimeUnit.NANOSECONDS)))
+            same(TimeUnit.NANOSECONDS),
+            any()))
         .thenReturn(scheduledFuture);
   }
 
@@ -194,7 +199,7 @@ class StreamingSamplerTest {
 
       final double sampleIndexMean = MEAN.evaluate(toDoubleArray(sampleIndices));
       sampleIndexSkewPerWindow[w] = events != 0 ? sampleIndexMean / events : 0;
-      rollWindowCaptor.getValue().run();
+      rollWindow();
     }
     final double sampledEventsPerWindowMean = MEAN.evaluate(sampledEventsPerWindow);
     final double sampledEventsPerWindowStddev =
@@ -303,7 +308,7 @@ class StreamingSamplerTest {
       for (final Thread t : threads) {
         t.join();
       }
-      rollWindowCaptor.getValue().run();
+      rollWindow();
     }
 
     final long samples = allSamples.get();
@@ -322,6 +327,10 @@ class StreamingSamplerTest {
             + ")% > "
             + maxErrorPercent
             + "%");
+  }
+
+  private void rollWindow() {
+    rollWindowTaskCaptor.getValue().run(rollWindowTargetCaptor.getValue());
   }
 
   private static Stream<Arguments> samplerParams() {

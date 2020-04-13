@@ -1,6 +1,7 @@
 package com.datadog.profiling.exceptions;
 
 import datadog.common.exec.CommonTaskExecutor;
+import datadog.common.exec.CommonTaskExecutor.Task;
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -98,7 +99,12 @@ class StreamingSampler {
     countsRef = new AtomicReference<>(new Counts());
 
     taskExecutor.scheduleAtFixedRate(
-        this::rollWindow, windowDuration.toNanos(), windowDuration.toNanos(), TimeUnit.NANOSECONDS);
+        RollWindowTask.INSTANCE,
+        this,
+        windowDuration.toNanos(),
+        windowDuration.toNanos(),
+        TimeUnit.NANOSECONDS,
+        "exception sampling window roll");
   }
 
   /**
@@ -163,5 +169,18 @@ class StreamingSampler {
 
   private static double computeIntervalAlpha(final int lookback) {
     return 1 - Math.pow(lookback, -1d / lookback);
+  }
+
+  /*
+   * Important to use explicit class to avoid implicit hard references to StreamingSampler from within scheduler
+   */
+  private static class RollWindowTask implements Task<StreamingSampler> {
+
+    static final RollWindowTask INSTANCE = new RollWindowTask();
+
+    @Override
+    public void run(final StreamingSampler target) {
+      target.rollWindow();
+    }
   }
 }
