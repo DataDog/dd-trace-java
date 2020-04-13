@@ -4,28 +4,42 @@ import static java.lang.Math.abs;
 import static java.lang.Math.min;
 import static java.lang.Math.round;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.when;
 
+import datadog.common.exec.CommonTaskExecutor;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Phaser;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.apache.commons.math3.distribution.PoissonDistribution;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@ExtendWith(MockitoExtension.class)
 class StreamingSamplerTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(StreamingSamplerTest.class);
+  private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
 
   private static final class PoissonWindowEventsSupplier implements Supplier<Integer> {
     private final PoissonDistribution distribution;
@@ -131,6 +145,20 @@ class StreamingSamplerTest {
   private static final StandardDeviation STANDARD_DEVIATION = new StandardDeviation();
   private static final Mean MEAN = new Mean();
 
+  @Mock CommonTaskExecutor taskExecutor;
+  @Captor ArgumentCaptor<Runnable> rollWindowCaptor;
+  @Mock ScheduledFuture scheduledFuture;
+
+  @BeforeEach
+  public void setup() {
+    when(taskExecutor.scheduleAtFixedRate(
+            rollWindowCaptor.capture(),
+            eq(WINDOW_DURATION.toNanos()),
+            eq(WINDOW_DURATION.toNanos()),
+            same(TimeUnit.NANOSECONDS)))
+        .thenReturn(scheduledFuture);
+  }
+
   @ParameterizedTest
   @MethodSource("samplerParams")
   public void testSampler(
@@ -138,13 +166,12 @@ class StreamingSamplerTest {
       final int windows,
       final int samplesPerWindow,
       final int lookback,
-      final int maxErrorPercent)
-      throws Exception {
+      final int maxErrorPercent) {
     LOGGER.info(
         "> mode: {}, windows: {}, samplesPerWindow: {}, lookback: {}, max error: {}%",
         windowEventsSupplier, windows, samplesPerWindow, lookback, maxErrorPercent);
     final StreamingSampler instance =
-        new StreamingSampler(Duration.ofSeconds(1), samplesPerWindow, lookback, false);
+        new StreamingSampler(WINDOW_DURATION, samplesPerWindow, lookback, taskExecutor);
 
     final long expectedSamples = windows * samplesPerWindow;
 
@@ -169,7 +196,7 @@ class StreamingSamplerTest {
 
       final double sampleIndexMean = MEAN.evaluate(toDoubleArray(sampleIndices));
       sampleIndexSkewPerWindow[w] = events != 0 ? sampleIndexMean / events : 0;
-      instance.rollWindow();
+      rollWindowCaptor.getValue().run();
     }
     final double sampledEventsPerWindowMean = MEAN.evaluate(sampledEventsPerWindow);
     final double sampledEventsPerWindowStddev =
@@ -258,7 +285,7 @@ class StreamingSamplerTest {
     final Phaser phaser = new Phaser(threadCount + 1);
 
     final StreamingSampler instance =
-        new StreamingSampler(Duration.ofSeconds(1), samplesPerWindow, lookback, false);
+        new StreamingSampler(WINDOW_DURATION, samplesPerWindow, lookback, taskExecutor);
 
     for (int i = 0; i < threadCount; i++) {
       threads[i] =
@@ -287,7 +314,7 @@ class StreamingSamplerTest {
                 // wait for the next window signalled from the data generating thread before
                 // starting to roll the window
                 phaser.arriveAndAwaitAdvance();
-                instance.rollWindow();
+                rollWindowCaptor.getValue().run();
               }
             });
     roller.start();

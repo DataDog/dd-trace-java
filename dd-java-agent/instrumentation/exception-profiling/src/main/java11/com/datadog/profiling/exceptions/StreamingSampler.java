@@ -83,14 +83,13 @@ class StreamingSampler {
    * @param windowDuration the sampling window duration
    * @param samplesPerWindow the maximum number of samples in the sampling window
    * @param lookback the number of windows to consider in averaging the sampling rate
-   * @param startWindowRolling should the scheduled window roll to be started; useful for testing
-   *     with manual rolls
+   * @param taskExecutor common task executor to use for periodic rolls
    */
   StreamingSampler(
       final Duration windowDuration,
       final int samplesPerWindow,
       final int lookback,
-      final boolean startWindowRolling) {
+      final CommonTaskExecutor taskExecutor) {
 
     this.samplesPerWindow = samplesPerWindow;
     samplesBudget = samplesPerWindow + CARRIED_OVER_BUDGET_LOOK_BACK * samplesPerWindow;
@@ -98,13 +97,8 @@ class StreamingSampler {
     budgetAlpha = computeIntervalAlpha(CARRIED_OVER_BUDGET_LOOK_BACK);
     countsRef = new AtomicReference<>(new Counts());
 
-    if (startWindowRolling) {
-      CommonTaskExecutor.INSTANCE.scheduleAtFixedRate(
-          this::rollWindow,
-          windowDuration.getNano(),
-          windowDuration.getNano(),
-          TimeUnit.NANOSECONDS);
-    }
+    taskExecutor.scheduleAtFixedRate(
+        this::rollWindow, windowDuration.toNanos(), windowDuration.toNanos(), TimeUnit.NANOSECONDS);
   }
 
   /**
@@ -115,7 +109,7 @@ class StreamingSampler {
    * @param lookback the number of windows to consider in averaging the sampling rate
    */
   StreamingSampler(final Duration windowDuration, final int samplesPerWindow, final int lookback) {
-    this(windowDuration, samplesPerWindow, lookback, false);
+    this(windowDuration, samplesPerWindow, lookback, CommonTaskExecutor.INSTANCE);
   }
 
   /**
@@ -133,8 +127,7 @@ class StreamingSampler {
     return false;
   }
 
-  // package private access for the tests
-  final void rollWindow() {
+  private void rollWindow() {
 
     /*
      * Atomically replace the Counts instance such that sample requests during window maintenance will be
