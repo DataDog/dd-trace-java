@@ -27,9 +27,12 @@ public final class ExceptionInstrumentation extends Instrumenter.Default {
      * If it is ever needed to support also the closed sourced JDK 8 version the check should be
      * enhanced.
      * Need this custom check because ClassLoaderMatcher.hasClassesNamed() does not support bootstrap class loader yet.
+     * Note: the downside of this is that we load some JFR classes at startup.
      */
-
-    hasJfr = ClassLoader.getSystemClassLoader().getResource("jdk/jfr/Event.class") != null;
+    hasJfr =
+        ClassLoader.getSystemClassLoader()
+                .getResource("com/datadog/profiling/exceptions/ExceptionSampleEvent.class")
+            != null;
   }
 
   @Override
