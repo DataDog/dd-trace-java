@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.Phaser;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -280,52 +279,33 @@ class StreamingSamplerTest {
 
     final long expectedSamples = samplesPerWindow * windows;
     final AtomicLong allSamples = new AtomicLong(0);
-    final Thread[] threads = new Thread[threadCount];
-
-    final Phaser phaser = new Phaser(threadCount + 1);
 
     final StreamingSampler instance =
         new StreamingSampler(WINDOW_DURATION, samplesPerWindow, lookback, taskExecutor);
 
-    for (int i = 0; i < threadCount; i++) {
-      threads[i] =
-          new Thread(
-              () -> {
-                for (int w = 0; w < windows; w++) {
+    for (int w = 0; w < windows; w++) {
+      final Thread[] threads = new Thread[threadCount];
+      for (int i = 0; i < threadCount; i++) {
+        threads[i] =
+            new Thread(
+                () -> {
                   final int events = windowEventsSupplier.get();
                   for (int e = 0; e < events; e++) {
                     if (instance.sample()) {
                       allSamples.incrementAndGet();
                     }
                   }
-                  /*
-                   * Block here until window roll is initiated from other thread.
-                   * After the roll has been started the next window data starts arriving in parallel.
-                   */
-                  phaser.arriveAndAwaitAdvance();
-                }
-              });
-    }
+                });
+      }
 
-    final Thread roller =
-        new Thread(
-            () -> {
-              while (!Thread.currentThread().isInterrupted()) {
-                // wait for the next window signalled from the data generating thread before
-                // starting to roll the window
-                phaser.arriveAndAwaitAdvance();
-                rollWindowCaptor.getValue().run();
-              }
-            });
-    roller.start();
-    for (final Thread t : threads) {
-      t.start();
+      for (final Thread t : threads) {
+        t.start();
+      }
+      for (final Thread t : threads) {
+        t.join();
+      }
+      rollWindowCaptor.getValue().run();
     }
-    for (final Thread t : threads) {
-      t.join();
-    }
-
-    roller.interrupt();
 
     final long samples = allSamples.get();
     final int percentualError =
