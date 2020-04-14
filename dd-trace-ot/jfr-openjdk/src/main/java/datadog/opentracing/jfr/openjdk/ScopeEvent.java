@@ -52,8 +52,8 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
   @Override
   public void start() {
     if (isEnabled()) {
-      begin();
       startCpuTime = ThreadCpuTime.get();
+      begin();
     }
   }
 
