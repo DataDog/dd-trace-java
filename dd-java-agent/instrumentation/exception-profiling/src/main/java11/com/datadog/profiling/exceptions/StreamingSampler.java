@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.LongAdder;
  * target number of samples.
  *
  * <p>To smooth out these hicups the sampler maintains an under-sampling budget which can be used
- * for compensate for too rapid changes in the incoming events rate and maintain the target average
+ * to compensate for too rapid changes in the incoming events rate and maintain the target average
  * number of samples per window.
  */
 class StreamingSampler {
