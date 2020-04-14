@@ -15,5 +15,10 @@ excludedClassesCoverage += [
 description = 'dd-trace-api'
 dependencies {
   compile deps.slf4j
+
+  // FIXME: this essentially makes thread-utils part of our 'public api'
+  // - we should move/rename things around to make this less prone to accidental public use since this is a utility class
+  compile project(':utils:thread-utils')
+
   testCompile project(':utils:test-utils')
 }
