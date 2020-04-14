@@ -17,10 +17,7 @@ final class ExceptionSampler {
   private final EventType exceptionSampleType;
 
   ExceptionSampler(final Config config) {
-    this(
-      SAMPLING_WINDOW,
-      getSamplesPerWindow(config),
-      samplingWindowsPerRecording(config));
+    this(SAMPLING_WINDOW, getSamplesPerWindow(config), samplingWindowsPerRecording(config));
   }
 
   ExceptionSampler(final Duration windowDuration, final int samplesPerWindow, final int lookback) {
@@ -29,8 +26,16 @@ final class ExceptionSampler {
   }
 
   private static int samplingWindowsPerRecording(final Config config) {
-    return (int) Math.min(Duration.of(config.getProfilingUploadPeriod(), ChronoUnit.SECONDS)
-      .dividedBy(SAMPLING_WINDOW), Integer.MAX_VALUE);
+    /*
+     * Java8 doesn't have dividedBy#Duration so we have to implement poor man's version.
+     * None of these durations should be big enough to warrant dealing with bigints.
+     * We also do not care about nanoseconds here.
+     */
+    return (int)
+        Math.min(
+            Duration.of(config.getProfilingUploadPeriod(), ChronoUnit.SECONDS).getSeconds()
+                / SAMPLING_WINDOW.getSeconds(),
+            Integer.MAX_VALUE);
   }
 
   private static int getSamplesPerWindow(final Config config) {
