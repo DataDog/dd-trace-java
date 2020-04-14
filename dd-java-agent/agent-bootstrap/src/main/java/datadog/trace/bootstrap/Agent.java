@@ -8,7 +8,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.concurrent.Callable;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -273,15 +272,19 @@ public class Agent {
     try {
       final Class<?> threadCpuTimeClass =
           AGENT_CLASSLOADER.loadClass("datadog.trace.agent.ot.jfr.openjdk.ThreadCpuTime");
-      final Method initializeMethod = threadCpuTimeClass.getDeclaredMethod("initialize", Callable.class);
+      final Method initializeMethod =
+          threadCpuTimeClass.getDeclaredMethod("initialize", Callable.class);
       final ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
       initializeMethod.setAccessible(true);
-      initializeMethod.invoke(null, new Callable<Long>() {
-        @Override
-        public Long call() throws Exception {
-          return mxBean.getCurrentThreadCpuTime();
-        }
-      });
+      initializeMethod.invoke(
+          null,
+          new Callable<Long>() {
+            @Override
+            public Long call() throws Exception {
+              return mxBean.getCurrentThreadCpuTime();
+            }
+          });
+      log.debug("Thread CPU time provider enabled");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while initializing the Scope thread cpu time access", ex);
     }
