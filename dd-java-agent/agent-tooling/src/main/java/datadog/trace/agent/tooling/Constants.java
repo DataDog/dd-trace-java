@@ -14,19 +14,18 @@ public final class Constants {
    * datadog.trace.agent.test.SpockRunner#BOOTSTRAP_PACKAGE_PREFIXES_COPY
    */
   public static final String[] BOOTSTRAP_PACKAGE_PREFIXES = {
+    "datadog.common.exec",
     "datadog.slf4j",
     "datadog.trace.api",
     "datadog.trace.bootstrap",
     "datadog.trace.context",
     "datadog.trace.instrumentation.api",
-    "io.opentracing",
-
-    // FIXME - hack!
-    "datadog.common.exec"
+    "io.opentracing"
   };
 
   // This is used in IntegrationTestUtils.java
   public static final String[] AGENT_PACKAGE_PREFIXES = {
+    "datadog.common.exec",
     "datadog.trace.common",
     "datadog.trace.agent",
     "datadog.trace.instrumentation",
