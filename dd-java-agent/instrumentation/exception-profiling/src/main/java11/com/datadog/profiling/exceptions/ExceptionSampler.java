@@ -33,8 +33,8 @@ final class ExceptionSampler {
      */
     return (int)
         Math.min(
-            Duration.of(config.getProfilingUploadPeriod(), ChronoUnit.SECONDS).getSeconds()
-                / SAMPLING_WINDOW.getSeconds(),
+            Duration.of(config.getProfilingUploadPeriod(), ChronoUnit.SECONDS).toMillis()
+                / SAMPLING_WINDOW.toMillis(),
             Integer.MAX_VALUE);
   }
 
