@@ -20,10 +20,7 @@ public final class Constants {
     "datadog.trace.bootstrap",
     "datadog.trace.context",
     "datadog.trace.instrumentation.api",
-    "io.opentracing",
-
-    // FIXME - hack!
-    "datadog.common.exec"
+    "io.opentracing"
   };
 
   // This is used in IntegrationTestUtils.java
