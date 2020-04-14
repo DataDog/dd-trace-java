@@ -7,9 +7,8 @@ import datadog.trace.api.Config;
  * itself using either system properties, environment or properties override.
  */
 public final class ExceptionProfiling {
-  private static final Config config = Config.get();
 
-  private static final ExceptionProfiling INSTANCE = new ExceptionProfiling();
+  private static final ExceptionProfiling INSTANCE = new ExceptionProfiling(Config.get());
 
   /**
    * Get a pre-configured shared instance.
@@ -23,7 +22,7 @@ public final class ExceptionProfiling {
   private final ExceptionHistogram histogram;
   private final ExceptionSampler sampler;
 
-  private ExceptionProfiling() {
+  private ExceptionProfiling(final Config config) {
     this(new ExceptionSampler(config), new ExceptionHistogram(config));
   }
 
@@ -36,7 +35,7 @@ public final class ExceptionProfiling {
     // always record the exception in histogram
     final boolean firstHit = histogram.record(e);
 
-    boolean sampled = sampler.sample();
+    final boolean sampled = sampler.sample();
     if (firstHit || sampled) {
       return new ExceptionSampleEvent(e, sampled, firstHit);
     }

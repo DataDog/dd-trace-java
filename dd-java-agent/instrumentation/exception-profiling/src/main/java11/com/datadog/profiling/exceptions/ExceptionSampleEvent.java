@@ -17,9 +17,7 @@ public class ExceptionSampleEvent extends Event {
   @Label("Exception message")
   private final String message;
 
-  /**
-   * JFR may truncate the stack trace - so store original length as well.
-   */
+  /** JFR may truncate the stack trace - so store original length as well. */
   @Label("Exception stackdepth")
   private final int stackDepth;
 
@@ -29,16 +27,18 @@ public class ExceptionSampleEvent extends Event {
   @Label("First occurrence")
   private final boolean firstOccurrence;
 
-  public ExceptionSampleEvent(Exception e, boolean sampled, boolean firstOccurrence) {
-    this.type = e.getClass().getName();
-    this.message = e.getMessage();
-    this.stackDepth = e.getStackTrace().length;
+  public ExceptionSampleEvent(
+      final Exception e, final boolean sampled, final boolean firstOccurrence) {
+    /*
+     * TODO: we should have some tests for this class.
+     * Unfortunately at the moment this is not easily possible because we cannot build tests with groovy that
+     * are compiled against java11 SDK - this seems to be gradle-groovy interaction limitation.
+     * Writing these tests in java seems like would introduce more noise.
+     */
+    type = e.getClass().getName();
+    message = e.getMessage();
+    stackDepth = e.getStackTrace().length;
     this.sampled = sampled;
     this.firstOccurrence = firstOccurrence;
-  }
-
-  // used in tests only
-  String getType() {
-    return type;
   }
 }

@@ -38,6 +38,9 @@ public class SpockRunner extends Sputnik {
     "datadog.trace.context",
     "datadog.trace.instrumentation.api",
     "io.opentracing",
+
+    // FIXME - hack!
+    "datadog.common.exec"
   };
 
   private static final String[] TEST_BOOTSTRAP_PREFIXES;
