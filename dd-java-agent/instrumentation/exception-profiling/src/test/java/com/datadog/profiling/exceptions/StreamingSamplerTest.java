@@ -46,9 +46,11 @@ class StreamingSamplerTest {
 
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
 
+  /** Generates windows with numbers of events according to Poisson distribution */
   private static final class PoissonWindowEventsSupplier implements Supplier<Integer> {
     private final PoissonDistribution distribution;
 
+    /** @param eventsPerWindowMean the average number of events per window */
     PoissonWindowEventsSupplier(final int eventsPerWindowMean) {
       distribution = new PoissonDistribution(eventsPerWindowMean);
       distribution.reseedRandomGenerator(12345671);
@@ -70,6 +72,10 @@ class StreamingSamplerTest {
     }
   }
 
+  /**
+   * Generates bursty windows - some of the windows have extremely low number of events while the
+   * others have very hight number of events.
+   */
   private static final class BurstingWindowsEventsSupplier implements Supplier<Integer> {
     private final Random rnd = new Random(176431);
 
@@ -77,11 +83,16 @@ class StreamingSamplerTest {
     private final int minEvents;
     private final int maxEvents;
 
+    /**
+     * @param burstProbability the probability of burst window happening
+     * @param nonBurstEvents number of events in non-burst window
+     * @param burstEvents number of events in burst window
+     */
     BurstingWindowsEventsSupplier(
-        final double burstProbability, final int minEvents, final int maxEvents) {
+        final double burstProbability, final int nonBurstEvents, final int burstEvents) {
       this.burstProbability = burstProbability;
-      this.minEvents = minEvents;
-      this.maxEvents = maxEvents;
+      this.minEvents = nonBurstEvents;
+      this.maxEvents = burstEvents;
     }
 
     @Override
@@ -106,9 +117,11 @@ class StreamingSamplerTest {
     }
   }
 
+  /** Generates windows with constant number of events. */
   private static final class ConstantWindowsEventsSupplier implements Supplier<Integer> {
     private final int events;
 
+    /** @param events number of events per window */
     ConstantWindowsEventsSupplier(final int events) {
       this.events = events;
     }
@@ -124,12 +137,14 @@ class StreamingSamplerTest {
     }
   }
 
+  /** Generates a pre-configured repeating sequence of window events */
   private static final class RepeatingWindowsEventsSupplier implements Supplier<Integer> {
     private final int[] eventsCounts;
     private int pointer = 0;
 
-    RepeatingWindowsEventsSupplier(final int... eventsCounts) {
-      this.eventsCounts = Arrays.copyOf(eventsCounts, eventsCounts.length);
+    /** @param windowEvents an array of number of events per each window in the sequence */
+    RepeatingWindowsEventsSupplier(final int... windowEvents) {
+      this.eventsCounts = Arrays.copyOf(windowEvents, windowEvents.length);
     }
 
     @Override
