@@ -23,9 +23,7 @@ public final class ClientRequestInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap(
-        "org.mule.service.http.impl.service.client.async.ResponseAsyncHandler",
-        AgentSpan.class.getName());
+    return singletonMap("com.ning.http.client.AsyncCompletionHandler", AgentSpan.class.getName());
   }
 
   @Override

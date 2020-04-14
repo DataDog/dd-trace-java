@@ -25,7 +25,7 @@ public class ServerAdvice {
       final HttpRequestPacket httpRequest = (HttpRequestPacket) httpHeader;
       final HttpResponsePacket httpResponse = httpRequest.getResponse();
 
-      final AgentSpan span = startSpan("mule.http.requester.server");
+      final AgentSpan span = startSpan("mule.http.server");
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, httpRequest);
       DECORATE.onRequest(span, httpRequest);

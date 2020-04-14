@@ -7,10 +7,10 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-import java.util.Collections;
 import java.util.Map;
 
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.hasSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -24,14 +24,12 @@ public final class ClientResponseInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.mule.service.http.impl.service.client.async.ResponseAsyncHandler",
-        AgentSpan.class.getName());
+    return singletonMap("com.ning.http.client.AsyncCompletionHandler", AgentSpan.class.getName());
   }
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.mule.service.http.impl.service.client.async.ResponseAsyncHandler");
+    return hasSuperClass(named("com.ning.http.client.AsyncCompletionHandler"));
   }
 
   @Override
