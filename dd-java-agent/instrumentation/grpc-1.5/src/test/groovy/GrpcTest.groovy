@@ -1,4 +1,4 @@
-import datadog.common.exec.CommonTaskExecutor
+import datadog.trace.internal.executor.CommonTaskExecutor
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags

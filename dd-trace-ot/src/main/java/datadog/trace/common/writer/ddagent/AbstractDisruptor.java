@@ -4,7 +4,7 @@ import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.SleepingWaitStrategy;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
-import datadog.common.exec.DaemonThreadFactory;
+import datadog.trace.internal.executor.DaemonThreadFactory;
 import java.io.Closeable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;

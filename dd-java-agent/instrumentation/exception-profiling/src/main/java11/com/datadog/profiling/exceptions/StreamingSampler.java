@@ -1,7 +1,7 @@
 package com.datadog.profiling.exceptions;
 
-import datadog.common.exec.CommonTaskExecutor;
-import datadog.common.exec.CommonTaskExecutor.Task;
+import datadog.trace.internal.executor.CommonTaskExecutor;
+import datadog.trace.internal.executor.CommonTaskExecutor.Task;
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;

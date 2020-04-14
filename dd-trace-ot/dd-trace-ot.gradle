@@ -35,9 +35,6 @@ dependencies {
 
   compile project(':dd-trace-api')
 
-  // FIXME: see comment in dd-trace-api.gradle
-  //compile project(':utils:thread-utils')
-
   compile deps.opentracing
   compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
@@ -93,15 +90,6 @@ jar {
 
 shadowJar {
   archiveClassifier = ''
-
-  dependencies {
-    include(project(':utils:thread-utils'))
-  }
-}
-
-// We don't want bundled dependencies to show up in the pom.
-modifyPom {
-  dependencies.removeAll { it.artifactId == "thread-utils" }
 }
 
 jmh {

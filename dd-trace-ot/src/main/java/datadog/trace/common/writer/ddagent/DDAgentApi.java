@@ -5,11 +5,11 @@ import static datadog.trace.common.serialization.MsgpackFormatWriter.MSGPACK_WRI
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.common.exec.CommonTaskExecutor;
 import datadog.opentracing.ContainerInfo;
 import datadog.opentracing.DDSpan;
 import datadog.opentracing.DDTraceOTInfo;
 import datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory;
+import datadog.trace.internal.executor.CommonTaskExecutor;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;

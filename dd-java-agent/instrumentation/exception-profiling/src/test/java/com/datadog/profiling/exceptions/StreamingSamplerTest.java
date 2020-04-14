@@ -9,8 +9,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.when;
 
-import datadog.common.exec.CommonTaskExecutor;
-import datadog.common.exec.CommonTaskExecutor.Task;
+import datadog.trace.internal.executor.CommonTaskExecutor;
+import datadog.trace.internal.executor.CommonTaskExecutor.Task;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
