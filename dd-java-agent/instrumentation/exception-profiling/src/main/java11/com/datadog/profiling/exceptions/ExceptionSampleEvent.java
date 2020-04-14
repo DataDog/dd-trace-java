@@ -21,12 +21,6 @@ public class ExceptionSampleEvent extends Event {
   @Label("Exception stackdepth")
   private final int stackDepth;
 
-  @Label("Cause type")
-  private final String causeType;
-
-  @Label("Cause message")
-  private final String causeMessage;
-
   @Label("Sampled")
   private final boolean sampled;
 
@@ -43,14 +37,6 @@ public class ExceptionSampleEvent extends Event {
      */
     type = e.getClass().getName();
     message = e.getMessage();
-    final Throwable cause = e.getCause();
-    if (cause == null) {
-      causeType = null;
-      causeMessage = null;
-    } else {
-      causeType = cause.getClass().getName();
-      causeMessage = cause.getMessage();
-    }
     stackDepth = e.getStackTrace().length;
     this.sampled = sampled;
     this.firstOccurrence = firstOccurrence;
