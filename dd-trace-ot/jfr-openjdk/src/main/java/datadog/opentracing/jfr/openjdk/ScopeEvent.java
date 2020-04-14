@@ -41,9 +41,7 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
 
   @Label("Thread CPU Time")
   @Timespan
-  private long cpuTime = 0L;
-
-  private long startCpuTime;
+  private volatile long cpuTime = 0L;
 
   ScopeEvent(final DDSpanContext spanContext) {
     this.spanContext = spanContext;
@@ -52,7 +50,7 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
   @Override
   public void start() {
     if (isEnabled()) {
-      startCpuTime = ThreadCpuTime.get();
+      cpuTime = ThreadCpuTime.get();
       begin();
     }
   }
@@ -60,8 +58,8 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
   @Override
   public void finish() {
     end();
-    if (startCpuTime > 0) {
-      cpuTime = ThreadCpuTime.get() - startCpuTime;
+    if (cpuTime > 0) {
+      cpuTime = ThreadCpuTime.get() - cpuTime;
     }
     if (shouldCommit()) {
       traceId = spanContext.getTraceId().toString(IDS_RADIX);
