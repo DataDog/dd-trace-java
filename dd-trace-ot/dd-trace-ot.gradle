@@ -34,9 +34,7 @@ dependencies {
   implementation deps.autoservice
 
   compile project(':dd-trace-api')
-
-  // FIXME: see comment in dd-trace-api.gradle
-  //compile project(':utils:thread-utils')
+  compile project(':utils:thread-utils')
 
   compile deps.opentracing
   compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'

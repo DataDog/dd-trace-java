@@ -32,15 +32,13 @@ public class SpockRunner extends Sputnik {
    * references bootstrap classes (e.g. DatadogClassLoader).
    */
   public static final String[] BOOTSTRAP_PACKAGE_PREFIXES_COPY = {
+    "datadog.common.exec",
     "datadog.slf4j",
     "datadog.trace.api",
     "datadog.trace.bootstrap",
     "datadog.trace.context",
     "datadog.trace.instrumentation.api",
-    "io.opentracing",
-
-    // FIXME - hack!
-    "datadog.common.exec"
+    "io.opentracing"
   };
 
   private static final String[] TEST_BOOTSTRAP_PREFIXES;
