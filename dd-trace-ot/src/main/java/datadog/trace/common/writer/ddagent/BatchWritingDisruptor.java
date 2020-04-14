@@ -1,10 +1,10 @@
 package datadog.trace.common.writer.ddagent;
 
 import com.lmax.disruptor.EventHandler;
-import datadog.common.exec.CommonTaskExecutor;
-import datadog.common.exec.CommonTaskExecutor.Task;
-import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.common.writer.DDAgentWriter;
+import datadog.trace.internal.executor.CommonTaskExecutor;
+import datadog.trace.internal.executor.CommonTaskExecutor.Task;
+import datadog.trace.internal.executor.DaemonThreadFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;

@@ -39,7 +39,6 @@ include ':dd-java-agent:agent-profiling:profiling-testing'
 // misc
 include ':dd-java-agent:testing'
 include ':utils:test-utils'
-include ':utils:thread-utils'
 
 // smoke tests
 include ':dd-smoke-tests:cli'

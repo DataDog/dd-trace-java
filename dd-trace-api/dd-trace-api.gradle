@@ -9,11 +9,14 @@ excludedClassesCoverage += [
   'datadog.trace.api.DDTraceApiInfo',
   'datadog.trace.api.GlobalTracer*',
   'datadog.trace.api.CorrelationIdentifier',
-  'datadog.trace.api.DDTags'
+  'datadog.trace.api.DDTags',
+  // TODO: add more tests for executor logic
+  'datadog.trace.internal.executor*'
 ]
 
 description = 'dd-trace-api'
 dependencies {
   compile deps.slf4j
+
   testCompile project(':utils:test-utils')
 }

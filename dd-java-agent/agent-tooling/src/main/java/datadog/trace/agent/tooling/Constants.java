@@ -19,6 +19,7 @@ public final class Constants {
     "datadog.trace.bootstrap",
     "datadog.trace.context",
     "datadog.trace.instrumentation.api",
+    "datadog.trace.internal",
     "io.opentracing",
   };
 
@@ -27,6 +28,7 @@ public final class Constants {
     "datadog.trace.common",
     "datadog.trace.agent",
     "datadog.trace.instrumentation",
+    "datadog.trace.internal",
     // guava
     "com.google.auto",
     "com.google.common",
