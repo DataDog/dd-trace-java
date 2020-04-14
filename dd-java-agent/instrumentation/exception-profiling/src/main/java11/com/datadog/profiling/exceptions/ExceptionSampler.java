@@ -7,11 +7,11 @@ import jdk.jfr.EventType;
 
 final class ExceptionSampler {
   /*
-   * Fixed 1 second sampling window.
+   * Fixed 0.5 second sampling window.
    * Logic in StreamingSampler relies on sampling window being small compared to (in our case) recording duration:
    * sampler may overshoot on one given window but should average to samplesPerWindow in the long run.
    */
-  private static final Duration SAMPLING_WINDOW = Duration.of(1, ChronoUnit.SECONDS);
+  private static final Duration SAMPLING_WINDOW = Duration.of(500, ChronoUnit.MILLIS);
 
   private final StreamingSampler sampler;
   private final EventType exceptionSampleType;
