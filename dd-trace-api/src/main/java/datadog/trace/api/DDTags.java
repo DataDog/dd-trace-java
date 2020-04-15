@@ -6,7 +6,10 @@ public class DDTags {
   public static final String RESOURCE_NAME = "resource.name";
   public static final String THREAD_NAME = "thread.name";
   public static final String THREAD_ID = "thread.id";
-  public static final String DB_STATEMENT = "sql.query";
+
+  public static final String DD_SERVICE = "dd.service";
+  public static final String DD_ENV = "dd.env";
+  public static final String DD_VERSION = "dd.version";
 
   public static final String HTTP_QUERY = "http.query.string";
   public static final String HTTP_FRAGMENT = "http.fragment.string";
