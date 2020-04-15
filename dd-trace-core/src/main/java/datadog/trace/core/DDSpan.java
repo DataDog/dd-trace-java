@@ -128,6 +128,17 @@ public class DDSpan implements MutableSpan, AgentSpan {
   }
 
   @Override
+  public boolean isSameTrace(final AgentSpan otherSpan) {
+    // FIXME [API] AgentSpan or AgentSpan.Context should have a "getTraceId()" type method
+    if (otherSpan instanceof DDSpan) {
+      // minor optimization to avoid BigInteger.toString()
+      return getTraceId().equals(((DDSpan) otherSpan).getTraceId());
+    }
+
+    return false;
+  }
+
+  @Override
   public AgentSpan setErrorMessage(final String errorMessage) {
     return setTag(DDTags.ERROR_MSG, errorMessage);
   }
