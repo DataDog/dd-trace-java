@@ -1,7 +1,6 @@
 package com.datadog.profiling.exceptions;
 
 import static java.lang.Math.abs;
-import static java.lang.Math.min;
 import static java.lang.Math.round;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -24,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.distribution.PoissonDistribution;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
+import org.apache.commons.math3.util.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -162,6 +162,18 @@ class StreamingSamplerTest {
     }
   }
 
+  private static class WindowSamplingResult {
+    final int events;
+    final int samples;
+    final double sampleIndexSkew;
+
+    WindowSamplingResult(int events, int samples, double sampleIndexSkew) {
+      this.events = events;
+      this.samples = samples;
+      this.sampleIndexSkew = sampleIndexSkew;
+    }
+  }
+
   private static final StandardDeviation STANDARD_DEVIATION = new StandardDeviation();
   private static final Mean MEAN = new Mean();
   private static final int WINDOWS = 120;
@@ -265,44 +277,117 @@ class StreamingSamplerTest {
     log.info(
         "> mode: {}, windows: {}, SAMPLES_PER_WINDOW: {}, LOOKBACK: {}, max error: {}%",
         windowEventsSupplier, WINDOWS, SAMPLES_PER_WINDOW, LOOKBACK, maxErrorPercent);
-    final StreamingSampler instance =
+    final StreamingSampler sampler =
         new StreamingSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskExecutor);
 
+    // simulate event generation and sampling for the given number of sampling windows
     final long expectedSamples = WINDOWS * SAMPLES_PER_WINDOW;
 
-    long samples = 0L;
+    long allSamples = 0L;
+    long allEvents = 0L;
 
-    final double[] totalEventsPerWindow = new double[WINDOWS];
-    final double[] sampledEventsPerWindow = new double[WINDOWS];
+    final double[] samplesPerWindow = new double[WINDOWS];
     final double[] sampleIndexSkewPerWindow = new double[WINDOWS];
     for (int w = 0; w < WINDOWS; w++) {
-      final List<Integer> sampleIndices = new ArrayList<>();
-      final long samplesBase = samples;
-      final int events = windowEventsSupplier.get();
-      for (int i = 0; i < events; i++) {
-        if (instance.sample()) {
-          sampleIndices.add(i);
-          samples++;
-        }
-      }
-      totalEventsPerWindow[w] = events;
-      sampledEventsPerWindow[w] =
-          (1 - abs((samples - samplesBase - expectedSamples) / (double) expectedSamples));
+      final long samplesBase = 0L;
+      WindowSamplingResult result = generateWindowEventsAndSample(windowEventsSupplier, sampler);
+      samplesPerWindow[w] =
+          (1 - abs((result.samples - samplesBase - expectedSamples) / (double) expectedSamples));
+      sampleIndexSkewPerWindow[w] = result.sampleIndexSkew;
+      allSamples += result.samples;
+      allEvents += result.events;
 
-      final double sampleIndexMean = MEAN.evaluate(toDoubleArray(sampleIndices));
-      sampleIndexSkewPerWindow[w] = events != 0 ? sampleIndexMean / events : 0;
       rollWindow();
     }
-    final double sampledEventsPerWindowMean = MEAN.evaluate(sampledEventsPerWindow);
-    final double sampledEventsPerWindowStddev =
-        STANDARD_DEVIATION.evaluate(sampledEventsPerWindow, sampledEventsPerWindowMean);
-    final double totalEventsPerWindowMean = MEAN.evaluate(totalEventsPerWindow);
 
-    final double correctionFactor =
-        min(((totalEventsPerWindowMean * WINDOWS) / expectedSamples), 1);
-    final double targetSamples = expectedSamples * correctionFactor;
-    final double percentualError = round(((targetSamples - samples) / targetSamples) * 100);
+    /*
+     * Turn all events into samples if their number is <= than the expected number of samples.
+     */
+    final double targetSamples = Math.min(allEvents, expectedSamples);
 
+    /*
+     * Calculate the percentual error based on the expected and the observed number of samples.
+     */
+    final double percentualError = round(((targetSamples - allSamples) / targetSamples) * 100);
+
+    reportSampleStatistics(samplesPerWindow, targetSamples, percentualError);
+    reportSampleIndexSkew(sampleIndexSkewPerWindow);
+
+    assertTrue(
+        abs(percentualError) <= maxErrorPercent,
+        "abs(("
+            + targetSamples
+            + " - "
+            + allSamples
+            + ") / "
+            + targetSamples
+            + ")% > "
+            + maxErrorPercent
+            + "%");
+  }
+
+  private void reportSampleStatistics(
+      double[] samplesPerWindow, double targetSamples, double percentualError) {
+    final double samplesPerWindowMean = MEAN.evaluate(samplesPerWindow);
+    final double samplesPerWindowStdev =
+        STANDARD_DEVIATION.evaluate(samplesPerWindow, samplesPerWindowMean);
+
+    log.info(
+        "\t per window samples = (avg: {}, stdev: {}, estimated total: {})",
+        samplesPerWindowMean,
+        samplesPerWindowStdev,
+        targetSamples);
+
+    log.info("\t percentual error = {}%", percentualError);
+  }
+
+  private void reportSampleIndexSkew(double[] sampleIndexSkewPerWindow) {
+    Pair<Double, Double> skewIndicators = calculateSkewIndicators(sampleIndexSkewPerWindow);
+    log.info(
+        "\t avg window skew interval = <-{}%, {}%>",
+        round(skewIndicators.getFirst() * 100), round(skewIndicators.getSecond() * 100));
+  }
+
+  /**
+   * Simulate the number of events per window. Perform sampling and capture the number of observed
+   * events and samples.
+   *
+   * @param windowEventsSupplier events generator implementation
+   * @param sampler sampler instance
+   * @return a {@linkplain WindowSamplingResult} instance capturing the number of observed events,
+   *     samples and the sample index skew
+   */
+  private WindowSamplingResult generateWindowEventsAndSample(
+      Supplier<Integer> windowEventsSupplier, StreamingSampler sampler) {
+    List<Integer> sampleIndices = new ArrayList<>();
+    int samples = 0;
+    int events = windowEventsSupplier.get();
+    for (int i = 0; i < events; i++) {
+      if (sampler.sample()) {
+        sampleIndices.add(i);
+        samples++;
+      }
+    }
+    double sampleIndexMean = MEAN.evaluate(toDoubleArray(sampleIndices));
+    double sampleIndexSkew = events != 0 ? sampleIndexMean / events : 0;
+    return new WindowSamplingResult(events, samples, sampleIndexSkew);
+  }
+
+  /**
+   * Calculate the sample index skew boundaries. A 'sample index skew' is defined as the distance of
+   * the average sample index in each window from the mean event index in the same window. Given the
+   * range of the event indices 1..N, the event index mean M calculated as (N - 1)/2 and the sample
+   * index mean S the skew K is calculated as 'K = M - S'. This gives the skew range of &lt;-0.5,
+   * 0.5&gt;.
+   *
+   * <p>If the samples are spread out completely regularly the skew would be 0. If the beginning of
+   * the window is favored the skew would be negative and if the tail of the window is favored the
+   * skew would be positive.
+   *
+   * @param sampleIndexSkewPerWindow the index skew per window
+   * @return a min-max boundaries for the sample index skew
+   */
+  private Pair<Double, Double> calculateSkewIndicators(double[] sampleIndexSkewPerWindow) {
     double skewPositiveAvg = 0d;
     double skewNegativeAvg = 0d;
     int negativeCount = 0;
@@ -321,28 +406,7 @@ class StreamingSamplerTest {
     if (negativeCount > 0) {
       skewNegativeAvg /= negativeCount;
     }
-
-    log.info(
-        "\t per window samples = (avg: {}, stdev: {}, estimated total: {}",
-        sampledEventsPerWindowMean * expectedSamples,
-        sampledEventsPerWindowStddev * expectedSamples,
-        (sampledEventsPerWindowMean * WINDOWS) / correctionFactor + ")");
-    log.info(
-        "\t avg window skew interval = <-{}%, {}%>",
-        round(skewNegativeAvg * 100), round(skewPositiveAvg * 100));
-    log.info("\t percentual error = {}%", percentualError);
-
-    assertTrue(
-        abs(percentualError) <= maxErrorPercent,
-        "abs(("
-            + targetSamples
-            + " - "
-            + samples
-            + ") / "
-            + targetSamples
-            + ")% > "
-            + maxErrorPercent
-            + "%");
+    return new Pair<>(skewNegativeAvg, skewPositiveAvg);
   }
 
   private static double[] toDoubleArray(final List<? extends Number> data) {
@@ -367,12 +431,11 @@ class StreamingSamplerTest {
      * This test attempts to simulate concurrent computations by making sure that sampling requests and the window maintenance routine are run in parallel.
      * It does not provide coverage of all possible execution sequences but should be good enough for getting the 'ballpark' numbers.
      */
-
     final long expectedSamples = SAMPLES_PER_WINDOW * WINDOWS;
     final AtomicLong allSamples = new AtomicLong(0);
     final AtomicLong receivedEvents = new AtomicLong(0);
 
-    final StreamingSampler instance =
+    final StreamingSampler sampler =
         new StreamingSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskExecutor);
 
     for (int w = 0; w < WINDOWS; w++) {
@@ -381,13 +444,10 @@ class StreamingSamplerTest {
         threads[i] =
             new Thread(
                 () -> {
-                  final int events = windowEventsSupplier.get();
-                  for (int e = 0; e < events; e++) {
-                    if (instance.sample()) {
-                      allSamples.incrementAndGet();
-                    }
-                  }
-                  receivedEvents.addAndGet(events);
+                  WindowSamplingResult samplingResult =
+                      generateWindowEventsAndSample(windowEventsSupplier, sampler);
+                  allSamples.addAndGet(samplingResult.samples);
+                  receivedEvents.addAndGet(samplingResult.events);
                 });
       }
 
@@ -401,7 +461,13 @@ class StreamingSamplerTest {
     }
 
     final long samples = allSamples.get();
+    /*
+     * Turn all events into samples if their number is <= than the expected number of samples.
+     */
     final long targetSamples = Math.min(expectedSamples, receivedEvents.get());
+    /*
+     * Calculate the percentual error based on the expected and the observed number of samples.
+     */
     final int percentualError = round(((targetSamples - samples) / (float) targetSamples) * 100);
     log.info("\t percentual error = {}%", percentualError);
 
