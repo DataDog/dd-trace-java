@@ -58,10 +58,10 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
   @Override
   public void finish() {
     end();
-    if (cpuTime > 0) {
-      cpuTime = ThreadCpuTime.get() - cpuTime;
-    }
     if (shouldCommit()) {
+      if (cpuTime > 0) {
+        cpuTime = ThreadCpuTime.get() - cpuTime;
+      }
       traceId = spanContext.getTraceId().toString(IDS_RADIX);
       spanId = spanContext.getSpanId().toString(IDS_RADIX);
       parentId = spanContext.getParentId().toString(IDS_RADIX);
