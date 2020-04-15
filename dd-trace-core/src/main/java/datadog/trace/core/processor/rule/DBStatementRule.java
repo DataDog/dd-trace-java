@@ -33,8 +33,6 @@ public class DBStatementRule implements TraceProcessor.Rule {
       }
     }
 
-    if (tags.containsKey(Tags.DB_STATEMENT)) {
-      span.setTag(Tags.DB_STATEMENT, (String) null); // Remove the tag
-    }
+    span.removeTag(Tags.DB_STATEMENT);
   }
 }

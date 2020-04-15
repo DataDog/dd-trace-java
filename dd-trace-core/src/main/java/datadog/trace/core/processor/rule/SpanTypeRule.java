@@ -21,8 +21,6 @@ public class SpanTypeRule implements TraceProcessor.Rule {
       span.setSpanType(type.toString());
     }
 
-    if (tags.containsKey(DDTags.SPAN_TYPE)) {
-      span.setTag(DDTags.SPAN_TYPE, (String) null); // Remove the tag
-    }
+    span.removeTag(DDTags.SPAN_TYPE);
   }
 }

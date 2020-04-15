@@ -28,8 +28,6 @@ public class AnalyticsSampleRateRule implements TraceProcessor.Rule {
       }
     }
 
-    if (tags.containsKey(DDTags.ANALYTICS_SAMPLE_RATE)) {
-      span.setTag(DDTags.ANALYTICS_SAMPLE_RATE, (String) null); // Remove the tag
-    }
+    span.removeTag(DDTags.ANALYTICS_SAMPLE_RATE);
   }
 }

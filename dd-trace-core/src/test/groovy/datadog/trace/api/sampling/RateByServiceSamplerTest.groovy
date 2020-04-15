@@ -6,6 +6,7 @@ import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
+import datadog.trace.core.DDSpanContext
 import datadog.trace.core.SpanFactory
 import datadog.trace.util.test.DDSpecification
 

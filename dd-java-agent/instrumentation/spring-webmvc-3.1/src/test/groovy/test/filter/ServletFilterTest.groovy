@@ -1,6 +1,5 @@
 package test.filter
 
-import datadog.opentracing.DDSpan
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.SpanAssert
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -8,6 +7,7 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import groovy.transform.stc.ClosureParams

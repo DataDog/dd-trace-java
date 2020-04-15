@@ -21,8 +21,6 @@ public class ResourceNameRule implements TraceProcessor.Rule {
       span.setResourceName(name.toString());
     }
 
-    if (tags.containsKey(DDTags.RESOURCE_NAME)) {
-      span.setTag(DDTags.RESOURCE_NAME, (String) null); // Remove the tag
-    }
+    span.removeTag(DDTags.RESOURCE_NAME);
   }
 }

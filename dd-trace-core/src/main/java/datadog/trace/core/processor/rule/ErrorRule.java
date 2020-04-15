@@ -23,8 +23,6 @@ public class ErrorRule implements TraceProcessor.Rule {
       span.setError(Boolean.parseBoolean(value.toString()));
     }
 
-    if (tags.containsKey(Tags.ERROR)) {
-      span.setTag(Tags.ERROR, null); // Remove the tag
-    }
+    span.removeTag(Tags.ERROR);
   }
 }
