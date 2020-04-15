@@ -235,7 +235,7 @@ public class CoreTracer
    *
    * @param classLoader to register.
    */
-  public void registerClassLoader(final ClassLoader classLoader) {
+  private void registerClassLoader(final ClassLoader classLoader) {
     try {
       for (final TraceInterceptor interceptor :
           ServiceLoader.load(TraceInterceptor.class, classLoader)) {

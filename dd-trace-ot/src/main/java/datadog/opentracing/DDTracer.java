@@ -432,7 +432,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     }
   }
 
-  private class DDSpanBuilder implements SpanBuilder {
+  public class DDSpanBuilder implements SpanBuilder {
     private final CoreSpanBuilder delegate;
 
     public DDSpanBuilder(final String operationName) {
@@ -531,7 +531,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
       return converter.toScope(agentScope);
     }
 
-    public <T> DDSpanBuilder withServiceName(final String serviceName) {
+    public DDSpanBuilder withServiceName(final String serviceName) {
       delegate.withServiceName(serviceName);
       return this;
     }
