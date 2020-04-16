@@ -41,7 +41,8 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
 
   @Label("Thread CPU Time")
   @Timespan
-  private volatile long cpuTime = 0L;
+  // does not need to be volatile since the event is created and committed from the same thread
+  private long cpuTime = 0L;
 
   ScopeEvent(final DDSpanContext spanContext) {
     this.spanContext = spanContext;
