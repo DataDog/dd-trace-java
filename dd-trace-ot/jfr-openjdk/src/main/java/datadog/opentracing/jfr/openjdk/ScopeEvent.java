@@ -2,7 +2,7 @@ package datadog.opentracing.jfr.openjdk;
 
 import datadog.opentracing.DDSpanContext;
 import datadog.opentracing.jfr.DDScopeEvent;
-import datadog.trace.common.util.ThreadCpuTime;
+import datadog.trace.common.util.ThreadCpuTimeAccess;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
 import jdk.jfr.Event;
@@ -52,7 +52,7 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
   @Override
   public void start() {
     if (isEnabled()) {
-      cpuTime = ThreadCpuTime.get();
+      cpuTime = ThreadCpuTimeAccess.getCurrentThreadCpuTime();
       begin();
     }
   }
@@ -62,7 +62,7 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
     end();
     if (shouldCommit()) {
       if (cpuTime > 0) {
-        cpuTime = ThreadCpuTime.get() - cpuTime;
+        cpuTime = ThreadCpuTimeAccess.getCurrentThreadCpuTime() - cpuTime;
       }
       traceId = spanContext.getTraceId().toString(IDS_RADIX);
       spanId = spanContext.getSpanId().toString(IDS_RADIX);

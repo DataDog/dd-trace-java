@@ -1,23 +1,20 @@
-package datadog.opentracing.util
+package datadog.trace.common.util
 
-import datadog.trace.common.util.ThreadCpuTime
 import spock.lang.Specification
 
-import java.lang.management.ManagementFactory
-
-class ThreadCpuTimeTest extends Specification {
+class ThreadCpuTimeAccessTest extends Specification {
   def "No thread CPU time provider"() {
     setup:
-    ThreadCpuTime.initialize(null)
+    ThreadCpuTimeAccess.disableJmx()
 
     when:
-    def threadCpuTime1 = ThreadCpuTime.get()
+    def threadCpuTime1 = ThreadCpuTimeAccess.getCurrentThreadCpuTime()
     // burn some cpu
     def sum = 0
     for (int i = 0; i < 10_000; i++) {
       sum += i
     }
-    def threadCpuTime2 = ThreadCpuTime.get()
+    def threadCpuTime2 = ThreadCpuTimeAccess.getCurrentThreadCpuTime()
 
     then:
     sum > 0
@@ -27,16 +24,16 @@ class ThreadCpuTimeTest extends Specification {
 
   def "JMX thread CPU time provider"() {
     setup:
-    ThreadCpuTime.initialize(ManagementFactory.getThreadMXBean().&getCurrentThreadCpuTime)
+    ThreadCpuTimeAccess.enableJmx()
 
     when:
-    def threadCpuTime1 = ThreadCpuTime.get()
+    def threadCpuTime1 = ThreadCpuTimeAccess.getCurrentThreadCpuTime()
     // burn some cpu
     def sum = 0
     for (int i = 0; i < 10_000; i++) {
       sum += i
     }
-    def threadCpuTime2 = ThreadCpuTime.get()
+    def threadCpuTime2 = ThreadCpuTimeAccess.getCurrentThreadCpuTime()
 
     then:
     sum > 0

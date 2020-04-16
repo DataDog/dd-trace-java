@@ -5,7 +5,7 @@ import datadog.opentracing.DDTracer
 import datadog.opentracing.PendingTrace
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.sampling.RateByServiceSampler
-import datadog.trace.common.util.ThreadCpuTime
+import datadog.trace.common.util.ThreadCpuTimeAccess
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.TraceScope
 import io.opentracing.Scope
@@ -13,7 +13,6 @@ import io.opentracing.Span
 import spock.lang.Requires
 import spock.lang.Specification
 
-import java.lang.management.ManagementFactory
 import java.time.Duration
 
 import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
@@ -51,7 +50,7 @@ class ScopeEventTest extends Specification {
 
   def "Scope event is written with thread CPU time"() {
     setup:
-    ThreadCpuTime.initialize(ManagementFactory.getThreadMXBean().&getCurrentThreadCpuTime)
+    ThreadCpuTimeAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
     when:
@@ -78,7 +77,7 @@ class ScopeEventTest extends Specification {
 
   def "Scope event is written without thread CPU time"() {
     setup:
-    ThreadCpuTime.initialize(null)
+    ThreadCpuTimeAccess.disableJmx()
     def recording = JfrHelper.startRecording()
 
     when:

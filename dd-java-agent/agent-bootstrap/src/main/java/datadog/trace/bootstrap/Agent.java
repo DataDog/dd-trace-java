@@ -1,13 +1,10 @@
 package datadog.trace.bootstrap;
 
 import java.lang.instrument.Instrumentation;
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
-import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -265,33 +262,24 @@ public class Agent {
     }
   }
 
-  private static synchronized void initializeScopeThreadCpuTime() {
+  private static synchronized void startJmx(final URL bootstrapURL) {
+    startJmxFetch(bootstrapURL);
+    initializeJmxThreadCpuTimeProvider();
+  }
+
+  /** Enable JMX based thread CPU time provider once it is safe to touch JMX */
+  private static synchronized void initializeJmxThreadCpuTimeProvider() {
     if (AGENT_CLASSLOADER == null) {
       throw new IllegalStateException("Datadog agent should have been started already");
     }
     try {
-      final Class<?> threadCpuTimeClass =
-          AGENT_CLASSLOADER.loadClass("datadog.trace.agent.ot.jfr.openjdk.ThreadCpuTime");
-      final Method initializeMethod =
-          threadCpuTimeClass.getMethod("initialize", Callable.class);
-      final ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
-      initializeMethod.invoke(
-          null,
-          new Callable<Long>() {
-            @Override
-            public Long call() throws Exception {
-              return mxBean.getCurrentThreadCpuTime();
-            }
-          });
-      log.debug("Thread CPU time provider enabled");
+      final Class<?> tracerInstallerClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.common.util.ThreadCpuTime");
+      final Method enableJmxMethod = tracerInstallerClass.getMethod("enableJmx");
+      enableJmxMethod.invoke(null);
     } catch (final Throwable ex) {
-      log.error("Throwable thrown while initializing the Scope thread cpu time access", ex);
+      log.error("Throwable thrown while initializing JMX thread CPU time provider", ex);
     }
-  }
-
-  private static void startJmx(final URL bootstrapURL) {
-    startJmxFetch(bootstrapURL);
-    initializeScopeThreadCpuTime();
   }
 
   private static synchronized void startJmxFetch(final URL bootstrapURL) {
