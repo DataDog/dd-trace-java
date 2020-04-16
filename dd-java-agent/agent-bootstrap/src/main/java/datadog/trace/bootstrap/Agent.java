@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import datadog.trace.api.Config;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -264,17 +265,24 @@ public class Agent {
 
   private static synchronized void startJmx(final URL bootstrapURL) {
     startJmxFetch(bootstrapURL);
-    initializeJmxThreadCpuTimeProvider();
+    /*
+     * Initialize the thread cpu time provider only if profiling is enabled.
+     * ATTENTION! If ever is the thread cpu time provider used outside of profiler this check should be revisited.
+     */
+    if (Config.get().isProfilingEnabled()) {
+      initializeJmxThreadCpuTimeProvider();
+    }
   }
 
   /** Enable JMX based thread CPU time provider once it is safe to touch JMX */
   private static synchronized void initializeJmxThreadCpuTimeProvider() {
+    log.info("Initializing JMX thread CPU time provider");
     if (AGENT_CLASSLOADER == null) {
       throw new IllegalStateException("Datadog agent should have been started already");
     }
     try {
       final Class<?> tracerInstallerClass =
-          AGENT_CLASSLOADER.loadClass("datadog.trace.common.util.ThreadCpuTime");
+          AGENT_CLASSLOADER.loadClass("datadog.trace.common.util.ThreadCpuTimeAccess");
       final Method enableJmxMethod = tracerInstallerClass.getMethod("enableJmx");
       enableJmxMethod.invoke(null);
     } catch (final Throwable ex) {
