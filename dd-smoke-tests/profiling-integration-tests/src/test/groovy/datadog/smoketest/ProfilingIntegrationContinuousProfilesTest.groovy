@@ -110,13 +110,12 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     attribute != null
 
     def accessor = scopeEventIterable.type.getAccessor(attribute)
-    def hasCpuTime = false
     scopeEventIterable.every {
       scopeEvent ->
-      hasCpuTime = hasCpuTime || accessor.getMember(scopeEvent).toLong()
+      def cpuTime = accessor.getMember(scopeEvent).toLong()
+      // cpu time is either not provided or must be >=100ms
+      cpuTime == Long.MIN_VALUE || cpuTime >= 100_000_000L
     }
-
-    hasCpuTime
   }
 
   private static Attribute<?> findCpuTimeAttribute(IType<IItem> type) {
