@@ -1,3 +1,5 @@
+package datadog.opentracing.jfr.openjdk
+
 import datadog.opentracing.DDSpanContext
 import datadog.opentracing.DDTracer
 import datadog.opentracing.PendingTrace
@@ -10,6 +12,7 @@ import io.opentracing.Span
 import spock.lang.Requires
 import spock.lang.Specification
 
+import java.lang.management.ManagementFactory
 import java.time.Duration
 
 import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
@@ -45,8 +48,9 @@ class ScopeEventTest extends Specification {
     .withServiceName("test service")
     .withResourceName("test resource")
 
-  def "Scope event is written"() {
+  def "Scope event is written with thread CPU time"() {
     setup:
+    ThreadCpuTime.initialize(ManagementFactory.getThreadMXBean().&getCurrentThreadCpuTime)
     def recording = JfrHelper.startRecording()
 
     when:
@@ -68,6 +72,34 @@ class ScopeEventTest extends Specification {
     event.getString("serviceName") == "test service"
     event.getString("resourceName") == "test resource"
     event.getString("operationName") == "test operation"
+    event.getLong("cpuTime") != Long.MIN_VALUE
+  }
+
+  def "Scope event is written without thread CPU time"() {
+    setup:
+    ThreadCpuTime.initialize(null)
+    def recording = JfrHelper.startRecording()
+
+    when:
+    Scope scope = builder.startActive(false)
+    Span span = scope.span()
+    sleep(SLEEP_DURATION.toMillis())
+    scope.close()
+    def events = JfrHelper.stopRecording(recording)
+    span.finish()
+
+    then:
+    events.size() == 1
+    def event = events[0]
+    event.eventType.name == "datadog.Scope"
+    event.duration >= SLEEP_DURATION
+    event.getString("traceId") == span.context().traceId.toString(IDS_RADIX)
+    event.getString("spanId") == span.context().spanId.toString(IDS_RADIX)
+    event.getString("parentId") == span.context().parentId.toString(IDS_RADIX)
+    event.getString("serviceName") == "test service"
+    event.getString("resourceName") == "test resource"
+    event.getString("operationName") == "test operation"
+    event.getLong("cpuTime") == Long.MIN_VALUE
   }
 
   def "Scope event is written after continuation activation"() {
