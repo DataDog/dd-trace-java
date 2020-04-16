@@ -1,5 +1,6 @@
-package datadog.opentracing.jfr.openjdk
+package datadog.opentracing.util
 
+import datadog.trace.common.util.ThreadCpuTime
 import spock.lang.Specification
 
 import java.lang.management.ManagementFactory

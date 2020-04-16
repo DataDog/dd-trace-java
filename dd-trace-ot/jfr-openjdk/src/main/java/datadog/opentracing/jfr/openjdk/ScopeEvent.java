@@ -2,6 +2,7 @@ package datadog.opentracing.jfr.openjdk;
 
 import datadog.opentracing.DDSpanContext;
 import datadog.opentracing.jfr.DDScopeEvent;
+import datadog.trace.common.util.ThreadCpuTime;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
 import jdk.jfr.Event;

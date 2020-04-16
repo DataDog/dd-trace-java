@@ -1,9 +1,9 @@
-package datadog.opentracing.jfr.openjdk;
+package datadog.trace.common.util;
 
 import java.util.concurrent.Callable;
 
 public class ThreadCpuTime {
-  private static volatile Callable<Long> CPU_TIME_PROVIDER =
+  private static volatile Callable<Long> cpuTimeProvider =
       new Callable<Long>() {
         @Override
         public Long call() throws Exception {
@@ -13,13 +13,13 @@ public class ThreadCpuTime {
 
   // must use Callable here since initialization is invoked from Agent which needs to be Java 7
   // compatible
-  static void initialize(Callable<Long> provider) {
-    CPU_TIME_PROVIDER = provider;
+  public static void initialize(Callable<Long> provider) {
+    cpuTimeProvider = provider;
   }
 
-  static long get() {
+  public static long get() {
     try {
-      return CPU_TIME_PROVIDER.call();
+      return cpuTimeProvider.call();
     } catch (Exception ignored) {
     }
     return Long.MIN_VALUE;

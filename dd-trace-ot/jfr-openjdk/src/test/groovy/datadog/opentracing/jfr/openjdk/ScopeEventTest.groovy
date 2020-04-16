@@ -5,6 +5,7 @@ import datadog.opentracing.DDTracer
 import datadog.opentracing.PendingTrace
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.common.util.ThreadCpuTime
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.TraceScope
 import io.opentracing.Scope

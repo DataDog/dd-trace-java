@@ -273,9 +273,8 @@ public class Agent {
       final Class<?> threadCpuTimeClass =
           AGENT_CLASSLOADER.loadClass("datadog.trace.agent.ot.jfr.openjdk.ThreadCpuTime");
       final Method initializeMethod =
-          threadCpuTimeClass.getDeclaredMethod("initialize", Callable.class);
+          threadCpuTimeClass.getMethod("initialize", Callable.class);
       final ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
-      initializeMethod.setAccessible(true);
       initializeMethod.invoke(
           null,
           new Callable<Long>() {
