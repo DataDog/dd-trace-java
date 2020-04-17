@@ -5,18 +5,12 @@ package datadog.trace.common.util;
  * ThreadCpuTimeAccess} may not use JMX classes (even via transitive dependencies) due to potential
  * race in j.u.l initialization. Therefore it uses an abstract {@linkplain ThreadCpuTimeProvider}
  * type to hold the actual implementation which may be switched between the {@linkplain
- * ThreadCpuTimeProvider#DEFAULT} and {@linkplain JmxThreadCpuTimeProvider} on-the-fly once JMX is
- * safe to use.
+ * ThreadCpuTimeProvider#NONE} and {@linkplain JmxThreadCpuTimeProvider} on-the-fly once JMX is safe
+ * to use.
  */
-abstract class ThreadCpuTimeProvider {
-  static final ThreadCpuTimeProvider DEFAULT = new ThreadCpuTimeProvider() {};
+interface ThreadCpuTimeProvider {
+  ThreadCpuTimeProvider NONE = new NoneThreadCpuTimeProvider();
 
-  /**
-   * Get the current thread CPU time
-   *
-   * @return {@linkplain Long#MIN_VALUE}
-   */
-  long getThreadCpuTime() {
-    return Long.MIN_VALUE;
-  }
+  /** Get the current thread CPU time */
+  long getThreadCpuTime();
 }

@@ -1,5 +1,6 @@
 package datadog.trace.common.util;
 
+import datadog.trace.api.Config;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -8,19 +9,23 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public final class ThreadCpuTimeAccess {
-  private static volatile ThreadCpuTimeProvider cpuTimeProvider = ThreadCpuTimeProvider.DEFAULT;
+  private static volatile ThreadCpuTimeProvider cpuTimeProvider = ThreadCpuTimeProvider.NONE;
 
   /**
    * Disable JMX based thread CPU time. Will flip back to the {@linkplain
-   * ThreadCpuTimeProvider#DEFAULT} implementation.
+   * ThreadCpuTimeProvider#NONE} implementation.
    */
   public static void disableJmx() {
     log.debug("Disabling JMX thread CPU time provider");
-    cpuTimeProvider = ThreadCpuTimeProvider.DEFAULT;
+    cpuTimeProvider = ThreadCpuTimeProvider.NONE;
   }
 
   /** Enable JMX based thread CPU time */
   public static void enableJmx() {
+    if (!Config.get().isProfilingEnabled()) {
+      log.info("Will not enable thread CPU time access. Profiling is disabled.");
+      return;
+    }
     try {
       log.debug("Enabling JMX thread CPU time provider");
       /*

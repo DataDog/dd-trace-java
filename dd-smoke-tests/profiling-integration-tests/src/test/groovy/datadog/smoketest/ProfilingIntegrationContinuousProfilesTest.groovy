@@ -7,10 +7,9 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
 import org.openjdk.jmc.common.item.Attribute
-import org.openjdk.jmc.common.item.IItem
 import org.openjdk.jmc.common.item.IItemCollection
-import org.openjdk.jmc.common.item.IType
 import org.openjdk.jmc.common.item.ItemFilters
+import org.openjdk.jmc.common.unit.UnitLookup
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit
 
 import java.time.Instant
@@ -106,10 +105,8 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     scopeEvents.size() > 0
     // only one event type in filtered collection - can just grab the first item from iterator
     def scopeEventIterable = scopeEvents.iterator().next()
-    def attribute = findCpuTimeAttribute(scopeEventIterable.type)
-    attribute != null
 
-    def accessor = scopeEventIterable.type.getAccessor(attribute)
+    def accessor = Attribute.attr("cpuTime", UnitLookup.NANOSECOND.getContentType()).getAccessor(scopeEventIterable.type)
     scopeEventIterable.every {
       scopeEvent ->
       def cpuTime = accessor.getMember(scopeEvent).toLong()
@@ -117,16 +114,4 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
       cpuTime == Long.MIN_VALUE || cpuTime >= 100_000_000L
     }
   }
-
-  private static Attribute<?> findCpuTimeAttribute(IType<IItem> type) {
-    def attribute = null
-    type.accessorKeys.forEach {
-      k, v ->
-        if (k.identifier == "cpuTime") {
-          attribute = k
-        }
-    }
-    return attribute
-  }
-
 }

@@ -4,7 +4,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 
 /** Thread CPU time provider based on {@linkplain ThreadMXBean#getCurrentThreadCpuTime()} */
-final class JmxThreadCpuTimeProvider extends ThreadCpuTimeProvider {
+final class JmxThreadCpuTimeProvider implements ThreadCpuTimeProvider {
   private final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
 
   public static final JmxThreadCpuTimeProvider INSTANCE = new JmxThreadCpuTimeProvider();
