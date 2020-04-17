@@ -6,6 +6,7 @@ import net.jpountz.lz4.LZ4FrameInputStream
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
+import org.openjdk.jmc.common.item.Aggregators
 import org.openjdk.jmc.common.item.Attribute
 import org.openjdk.jmc.common.item.IItemCollection
 import org.openjdk.jmc.common.item.ItemFilters
@@ -103,15 +104,14 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     IItemCollection scopeEvents = events.apply(ItemFilters.type("datadog.Scope"))
 
     scopeEvents.size() > 0
-    // only one event type in filtered collection - can just grab the first item from iterator
-    def scopeEventIterable = scopeEvents.iterator().next()
 
-    def accessor = Attribute.attr("cpuTime", UnitLookup.NANOSECOND.getContentType()).getAccessor(scopeEventIterable.type)
-    scopeEventIterable.every {
-      scopeEvent ->
-      def cpuTime = accessor.getMember(scopeEvent).toLong()
-      // cpu time is either not provided or must be >=100ms
-      cpuTime == Long.MIN_VALUE || cpuTime >= 100_000_000L
-    }
+    def cpuTimeAttr = Attribute.attr("cpuTime", "cpuTime", UnitLookup.TIMESPAN)
+
+    // filter out scope events without CPU time data
+    def filteredScopeEvents = scopeEvents.apply(ItemFilters.more(cpuTimeAttr, UnitLookup.NANOSECOND.quantity(Long.MIN_VALUE)))
+    // make sure there is at least one scope event with CPU time data
+    filteredScopeEvents.size() > 0
+
+    filteredScopeEvents.getAggregate(Aggregators.min("datadog.Scope", cpuTimeAttr)).longValue() >= 10_000L
   }
 }

@@ -28,6 +28,7 @@ public class ProfilingTestApplication {
   private static void tracedMethod() throws InterruptedException {
     System.out.println("Tracing");
     tracedBusyMethod();
+    Thread.sleep(50);
   }
 
   @Trace
@@ -37,8 +38,8 @@ public class ProfilingTestApplication {
     long accumulator = 0L;
     while (true) {
       accumulator += random.nextInt(113);
-      if (THREAD_MX_BEAN.getCurrentThreadCpuTime() - startTime > 100_000_000L) {
-        // looking for at least 100ms CPU time
+      if (THREAD_MX_BEAN.getCurrentThreadCpuTime() - startTime > 10_000_000L) {
+        // looking for at least 10ms CPU time
         break;
       }
     }
