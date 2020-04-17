@@ -329,6 +329,11 @@ public class DDSpan implements MutableSpan, AgentSpan {
   }
 
   @Override
+  public boolean hasResourceName() {
+    return context.hasResourceName();
+  }
+
+  @Override
   public Integer getSamplingPriority() {
     final int samplingPriority = context.getSamplingPriority();
     if (samplingPriority == PrioritySampling.UNSET) {
