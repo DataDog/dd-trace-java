@@ -33,9 +33,8 @@ public final class ClientRequestInstrumentation extends Instrumenter.Default {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".ClientDecorator"
-      //      packageName + ".HttpRequesterResponseInjectAdapter"
-    };
+    return new String[] {packageName + ".ClientDecorator"};
+    //      packageName + ".InjectAdapter"};
   }
 
   // TO-DO: might need to specify that it is a nested method
