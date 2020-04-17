@@ -23,7 +23,7 @@ public final class ThreadCpuTimeAccess {
   /** Enable JMX based thread CPU time */
   public static void enableJmx() {
     if (!Config.get().isProfilingEnabled()) {
-      log.info("Will not enable thread CPU time access. Profiling is disabled.");
+      log.debug("Will not enable thread CPU time access. Profiling is disabled.");
       return;
     }
     try {
