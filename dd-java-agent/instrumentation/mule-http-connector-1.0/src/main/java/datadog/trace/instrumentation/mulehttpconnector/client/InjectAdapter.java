@@ -1,15 +1,14 @@
 package datadog.trace.instrumentation.mulehttpconnector.client;
 
-import com.ning.http.client.FluentCaseInsensitiveStringsMap;
+import com.ning.http.client.Request;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 
-public class InjectAdapter implements AgentPropagation.Setter<FluentCaseInsensitiveStringsMap> {
+public class InjectAdapter implements AgentPropagation.Setter<Request> {
 
   public static final InjectAdapter SETTER = new InjectAdapter();
 
   @Override
-  public void set(
-      final FluentCaseInsensitiveStringsMap headers, final String key, final String value) {
-    headers.add(key, value);
+  public void set(final Request carrier, final String key, final String value) {
+    carrier.getHeaders().replaceWith(key, value);
   }
 }
