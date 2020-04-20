@@ -67,7 +67,7 @@ public final class ExceptionInstrumentation extends Instrumenter.Default {
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     if (hasJfr) {
       return Collections.singletonMap(
-          isConstructor(), "datadog.exceptions.instrumentation.ExceptionAdvice");
+          isConstructor(), packageName + ".ExceptionAdvice");
     }
     return Collections.emptyMap();
   }
