@@ -1,11 +1,15 @@
 package datadog.exceptions.instrumentation;
 
+import static net.bytebuddy.matcher.ElementMatchers.is;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import java.util.Collections;
 import java.util.Map;
+
+import datadog.trace.api.Config;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -58,9 +62,9 @@ public final class ExceptionInstrumentation extends Instrumenter.Default {
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     if (hasJfr) {
       // match only java.lang.Exception since java.lang.Error is tracked by another JFR event
-      return ElementMatchers.is(Exception.class);
+      return is(Exception.class);
     }
-    return ElementMatchers.none();
+    return none();
   }
 
   @Override
@@ -70,5 +74,10 @@ public final class ExceptionInstrumentation extends Instrumenter.Default {
           isConstructor(), "datadog.exceptions.instrumentation.ExceptionAdvice");
     }
     return Collections.emptyMap();
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return hasJfr && Config.get().isProfilingEnabled();
   }
 }
