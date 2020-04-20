@@ -75,6 +75,6 @@ public final class ExceptionInstrumentation extends Instrumenter.Default {
 
   @Override
   protected boolean defaultEnabled() {
-    return hasJfr && Config.get().isProfilingEnabled();
+    return Config.get().isProfilingEnabled();
   }
 }
