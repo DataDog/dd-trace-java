@@ -2,6 +2,7 @@ package com.datadog.profiling.exceptions;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
@@ -11,6 +12,8 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.Phaser;
+import java.util.stream.Stream;
 import jdk.jfr.FlightRecorder;
 import jdk.jfr.Recording;
 import org.junit.jupiter.api.AfterEach;
@@ -73,6 +76,42 @@ public class ExceptionHistogramTest {
     }
     recording.close();
     instance.deregister();
+  }
+
+  @Test
+  public void testFirstHitConcurrent() {
+    Phaser phaser = new Phaser(2);
+
+    ExceptionHistogram histogram =
+        new ExceptionHistogram(Config.get()) {
+          @Override
+          void emitEvents(Stream<ExceptionHistogram.Pair<String, Long>> items) {
+            super.emitEvents(items);
+            // #1 - histo sums are reset but 0 entries not removed yet
+            phaser.arriveAndAwaitAdvance();
+            // #2 - safe to leave the emit() method
+            phaser.arriveAndAwaitAdvance();
+          }
+        };
+    // don't want the JFR integration active here
+    histogram.deregister();
+    for (int i = 0; i < 5; i++) {
+      boolean firstHit = histogram.record(new NullPointerException());
+      assertEquals(i == 0, firstHit);
+    }
+
+    // start emitting in a separate thread
+    new Thread(histogram::doEmit).start();
+    // wait for #1 - this is the point where data race can happen if new exceptions are recording
+    // during 'emit()'
+    phaser.arriveAndAwaitAdvance();
+    // make sure that any exception recording during 'emit()' has a correct 'first hit' status
+    assertTrue(histogram.record(new NullPointerException()));
+    // unblock #2 such that 'emit()' may continue
+    phaser.arrive();
+
+    // the subsequent exception recording will not be a 'first hit'
+    assertFalse(histogram.record(new NullPointerException()));
   }
 
   @Test

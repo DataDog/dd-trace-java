@@ -8,8 +8,19 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Stream;
 
+/**
+ * A simple exception type histogram implementation.<br>
+ * It tracks a fixed number of exception types and for each of them it keeps the number of instances created since
+ * the last {@linkplain ExceptionHistogram#emit()} call (or creating a new {@linkplain ExceptionHistogram} instance
+ * if {@linkplain ExceptionHistogram#emit()} hasn't been called yet).<br>
+ *
+ * An {@linkplain ExceptionHistogram} instance is registered with JFR to call {@linkplain ExceptionHistogram#emit()}
+ * method at chunk end, as specified in {@linkplain ExceptionCountEvent} class. This callback will then emit a number
+ * of {@linkplain ExceptionCountEvent} events.
+ */
 @Slf4j
 public class ExceptionHistogram {
 
@@ -29,10 +40,18 @@ public class ExceptionHistogram {
     FlightRecorder.addPeriodicEvent(ExceptionCountEvent.class, eventHook);
   }
 
+  /**
+   * Remove this instance from JFR periodic events callbacks
+   */
   void deregister() {
     FlightRecorder.removePeriodicEvent(eventHook);
   }
 
+  /**
+   * Record a new exception instance
+   * @param exception instance
+   * @return {@literal true} if this is the first record of the given exception type; {@literal false} otherwise
+   */
   public boolean record(final Exception exception) {
     if (exception == null) {
       return false;
@@ -50,21 +69,19 @@ public class ExceptionHistogram {
       typeName = CLIPPED_ENTRY_TYPE_NAME;
     }
 
-    final boolean[] firstHit = new boolean[]{false};
-    histogram
+    long count = histogram
       .computeIfAbsent(
         typeName,
-        k -> {
-          try {
-            return new AtomicLong();
-          } finally {
-            firstHit[0] = true;
-          }
-        })
-      .incrementAndGet();
+        k -> new AtomicLong()
+      )
+      .getAndIncrement();
 
-    // FIXME: this 'first hit' logic is confusing and untested
-    return firstHit[0];
+    /*
+     * This is supposed to signal that a particular exception type was seen the first time in a particular time span.
+     * !ATTENTION! This will work on best-effort basis - namely all overflowing exception which are recorded
+     * as 'TOO-MANY-EXCEPTIONS' will receive only one common 'first hit'.
+     */
+    return count == 0;
   }
 
   private void emit() {
@@ -72,23 +89,32 @@ public class ExceptionHistogram {
       return;
     }
 
+    doEmit();
+  }
+
+  void doEmit() {
     Stream<Pair<String, Long>> items =
       histogram
         .entrySet()
         .stream()
-        .map(e -> Pair.of(e.getKey(), e.getValue().getAndSet(0L)))
-        .filter(e -> e.getValue() != 0)
-        .sorted((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()));
+        .map(e -> Pair.of(e.getKey(), e.getValue().getAndSet(0)))
+        .filter(p -> p.getValue() != 0)
+        .sorted((l1, l2) -> Long.compare(l2.getValue(), l1.getValue()));
 
     if (maxTopItems > 0) {
       items = items.limit(maxTopItems);
     }
 
-    items.forEach(e -> createAndCommitEvent(e.getKey(), e.getValue()));
+    emitEvents(items);
 
     // Stream is 'materialized' by `forEach` call above so we have to do clean up after that
     // Otherwise we would keep entries for one extra iteration
     histogram.entrySet().removeIf(e -> e.getValue().get() == 0L);
+  }
+
+  // important that this is non-final and package private; allows concurrency tests
+  void emitEvents(Stream<Pair<String, Long>> items) {
+    items.forEach(e -> createAndCommitEvent(e.getKey(), e.getValue()));
   }
 
   private void createAndCommitEvent(final String type, final long count) {
@@ -98,7 +124,7 @@ public class ExceptionHistogram {
     }
   }
 
-  private static class Pair<K, V> {
+  static class Pair<K, V> {
 
     final K key;
     final V value;
