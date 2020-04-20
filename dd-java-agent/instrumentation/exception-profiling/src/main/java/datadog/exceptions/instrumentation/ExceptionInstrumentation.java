@@ -6,14 +6,12 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import java.util.Collections;
 import java.util.Map;
-
-import datadog.trace.api.Config;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 /**
  * Provides instrumentation of {@linkplain Exception} constructor. <br>
@@ -70,8 +68,7 @@ public final class ExceptionInstrumentation extends Instrumenter.Default {
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     if (hasJfr) {
-      return Collections.singletonMap(
-          isConstructor(), packageName + ".ExceptionAdvice");
+      return Collections.singletonMap(isConstructor(), packageName + ".ExceptionAdvice");
     }
     return Collections.emptyMap();
   }
