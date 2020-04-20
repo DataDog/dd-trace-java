@@ -868,7 +868,7 @@ public class Config {
     return jmxFetchIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
-  public boolean isDecoratorEnabled(final String name) {
+  public boolean isRuleEnabled(final String name) {
     return getBooleanSettingFromEnvironment("trace." + name + ".enabled", true)
         && getBooleanSettingFromEnvironment("trace." + name.toLowerCase() + ".enabled", true);
   }
@@ -1243,7 +1243,7 @@ public class Config {
       final Map<String, String> map, final String propName) {
     final String val = getSettingFromEnvironment(propName, null);
     if (val != null) {
-      return !val.equals(map.put(propertyNameToSystemPropertyName(propName), val));
+      return !val.equals(map.put(propName, val));
     }
     return false;
   }

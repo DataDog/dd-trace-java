@@ -5,6 +5,7 @@ import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_EXTRACT;
 import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_INJECT;
 import static java.util.Collections.singletonMap;
 
+import datadog.opentracing.DDSpan;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.Getter;
@@ -165,7 +166,11 @@ public final class OpenTracing32 implements TracerAPI {
 
     @Override
     public AgentSpan setError(final boolean error) {
-      Tags.ERROR.set(span, error);
+      if (span instanceof DDSpan) {
+        ((DDSpan) span).setError(error);
+      } else {
+        Tags.ERROR.set(span, error);
+      }
       return this;
     }
 
@@ -194,6 +199,20 @@ public final class OpenTracing32 implements TracerAPI {
     }
 
     @Override
+    public boolean isSameTrace(final AgentSpan otherAgentSpan) {
+      if (otherAgentSpan instanceof OT32Span) {
+        final Span otherSpan = ((OT32Span) otherAgentSpan).span;
+        if (span instanceof DDSpan && otherSpan instanceof DDSpan) {
+          // minor optimization to avoid BigInteger.toString()
+          return ((DDSpan) span).getTraceId().equals(((DDSpan) otherSpan).getTraceId());
+        } else {
+          return span.context().toTraceId().equals(otherSpan.context().toTraceId());
+        }
+      }
+      return false;
+    }
+
+    @Override
     public OT32Context context() {
       final SpanContext context = span.context();
       return new OT32Context(context);
@@ -213,6 +232,14 @@ public final class OpenTracing32 implements TracerAPI {
     public void setSpanName(final String spanName) {
       this.spanName = spanName;
       span.setOperationName(spanName);
+    }
+
+    @Override
+    public boolean hasResourceName() {
+      if (span instanceof DDSpan) {
+        return ((DDSpan) span).context().hasResourceName();
+      }
+      return false;
     }
 
     private Span getSpan() {

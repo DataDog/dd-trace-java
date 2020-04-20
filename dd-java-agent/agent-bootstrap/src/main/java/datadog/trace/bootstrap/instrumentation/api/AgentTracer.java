@@ -183,6 +183,12 @@ public class AgentTracer {
     }
 
     @Override
+    public boolean isSameTrace(final AgentSpan otherSpan) {
+      // Not sure if this is the best idea...
+      return otherSpan instanceof NoopAgentSpan;
+    }
+
+    @Override
     public Context context() {
       return NoopContext.INSTANCE;
     }
@@ -197,6 +203,11 @@ public class AgentTracer {
 
     @Override
     public void setSpanName(final String spanName) {}
+
+    @Override
+    public boolean hasResourceName() {
+      return false;
+    }
   }
 
   static class NoopAgentScope implements AgentScope {

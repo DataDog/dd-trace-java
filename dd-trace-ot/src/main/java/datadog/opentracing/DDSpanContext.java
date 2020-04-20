@@ -167,7 +167,15 @@ public class DDSpanContext implements io.opentracing.SpanContext {
   }
 
   public String getResourceName() {
-    return resourceName == null || resourceName.isEmpty() ? operationName : resourceName;
+    return isResourceNameSet() ? resourceName : operationName;
+  }
+
+  public boolean isResourceNameSet() {
+    return !(resourceName == null || resourceName.isEmpty());
+  }
+
+  public boolean hasResourceName() {
+    return isResourceNameSet() || tags.containsKey(DDTags.RESOURCE_NAME);
   }
 
   public void setResourceName(final String resourceName) {
