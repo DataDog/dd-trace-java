@@ -28,7 +28,7 @@ public final class ServerInstrumentation extends Instrumenter.Default {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".ServerDecorator",
-      //      packageName + ".ExtractAdapter"
+      packageName + ".ExtractAdapter",
       packageName + ".TraceCompletionListener"
     };
   }

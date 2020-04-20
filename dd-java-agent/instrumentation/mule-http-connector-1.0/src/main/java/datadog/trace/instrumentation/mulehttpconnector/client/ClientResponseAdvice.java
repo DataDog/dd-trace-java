@@ -13,18 +13,24 @@ import static datadog.trace.instrumentation.mulehttpconnector.client.ClientDecor
 
 public class ClientResponseAdvice {
 
-  @Advice.OnMethodExit(suppress = Throwable.class)
-  public static void stopSpan(
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+  public static void onExit(
       @Advice.This final AsyncCompletionHandler handler,
-      @Advice.Argument(0) final Response response) {
+      @Advice.Argument(0) final Response response,
+      @Advice.Thrown final Throwable throwable) {
+
     final ContextStore<AsyncCompletionHandler, AgentSpan> contextStore =
         InstrumentationContext.get(AsyncCompletionHandler.class, AgentSpan.class);
     final AgentSpan span = contextStore.get(handler);
     final AgentScope scope = activateSpan(span, true);
+
     if (span != null) {
       contextStore.put(handler, null);
-      DECORATE.afterStart(span);
-      DECORATE.onResponse(span, response);
+      if (throwable == null) {
+        DECORATE.onResponse(span, response);
+      } else {
+        DECORATE.onError(span, throwable);
+      }
       DECORATE.beforeFinish(span);
       span.finish();
     }
