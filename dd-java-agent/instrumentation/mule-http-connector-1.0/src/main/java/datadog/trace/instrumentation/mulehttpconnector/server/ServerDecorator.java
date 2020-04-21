@@ -19,7 +19,13 @@ public class ServerDecorator
 
   @Override
   protected URI url(final HttpRequestPacket httpRequest) throws URISyntaxException {
-    return new URI(httpRequest.getRequestURI());
+    return new URI(
+        (httpRequest.isSecure() ? "https://" : "http://")
+            + httpRequest.getRemoteHost()
+            + ":"
+            + httpRequest.getLocalPort()
+            + httpRequest.getRequestURI()
+            + (httpRequest.getQueryString() != null ? "?" + httpRequest.getQueryString() : ""));
   }
 
   @Override
@@ -44,6 +50,6 @@ public class ServerDecorator
 
   @Override
   protected String component() {
-    return "http-requester-server";
+    return "grizzly-filterchain-server";
   }
 }

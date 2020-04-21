@@ -17,9 +17,11 @@ import static datadog.trace.instrumentation.mulehttpconnector.server.ServerDecor
 import static datadog.trace.instrumentation.mulehttpconnector.server.TraceCompletionListener.LISTENER;
 
 public class ServerAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void onExit(
-      @Advice.This final Object source, @Advice.Argument(0) final FilterChainContext ctx) {
+      @Advice.This final Object source,
+      @Advice.Argument(0) final FilterChainContext ctx,
+      @Advice.Thrown final Throwable throwable) {
 
     if (!(ctx.getMessage() instanceof HttpContent)) {
       return;
@@ -33,7 +35,7 @@ public class ServerAdvice {
       final HttpResponsePacket httpResponse = httpRequest.getResponse();
 
       final AgentSpan.Context parentContext = propagate().extract(httpRequest, GETTER);
-      final AgentSpan span = startSpan("mule.http.server", parentContext);
+      final AgentSpan span = startSpan("http.request", parentContext);
 
       final AgentScope scope = activateSpan(span, false);
       scope.setAsyncPropagation(true);
@@ -42,12 +44,16 @@ public class ServerAdvice {
 
       DECORATE.onConnection(span, httpRequest);
       DECORATE.onRequest(span, httpRequest);
-      DECORATE.onResponse(span, httpResponse);
+
+      if (throwable == null) {
+        DECORATE.onResponse(span, httpResponse);
+      } else {
+        DECORATE.onError(span, throwable);
+        scope.close();
+      }
 
       LISTENER.setSpan(span);
       ctx.addCompletionListener(LISTENER);
-
-      scope.close();
     }
   }
 }

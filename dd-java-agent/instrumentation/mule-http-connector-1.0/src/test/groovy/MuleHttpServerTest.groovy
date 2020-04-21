@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
@@ -33,13 +34,16 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static java.lang.Integer.max
 import static java.lang.Runtime.getRuntime
+import static java.lang.String.valueOf
+import static java.nio.charset.Charset.defaultCharset
 import static java.util.concurrent.TimeUnit.MILLISECONDS
+import static org.glassfish.grizzly.memory.Buffers.wrap
 
 class MuleHttpServerTest extends HttpServerTest<HttpServer> {
 
   private TCPNIOTransport transport;
   private TCPNIOServerConnection serverConnection;
-  private final int DEFAULT_SERVER_TIMEOUT_MILLIS = 60000
+  private final int DEFAULT_SERVER_TIMEOUT_MILLIS = 80000;
   private final int DEFAULT_CLIENT_TIMEOUT_MILLIS = 30000;
   private final int DEFAULT_MAX_HTTP_PACKET_HEADER_SIZE = 8192;
   private final int DEFAULT_CONNECTION_IDLE_TIMEOUT_MILLIS = 30000;
@@ -74,6 +78,11 @@ class MuleHttpServerTest extends HttpServerTest<HttpServer> {
   @Override
   String expectedOperationName() {
     return "mule.http.server"
+  }
+
+  @Override
+  boolean reorderControllerSpan() {
+    true
   }
 
   void setUpTransport(FilterChain filterChain) {
@@ -115,7 +124,6 @@ class MuleHttpServerTest extends HttpServerTest<HttpServer> {
     KeepAlive keepAlive = new KeepAlive();
     keepAlive.setMaxRequestsCount(MAX_KEEP_ALIVE_REQUESTS);
     keepAlive.setIdleTimeoutInSeconds(convertToSeconds(DEFAULT_CONNECTION_IDLE_TIMEOUT_MILLIS));
-
     return new HttpServerFilter();
   }
 
@@ -135,58 +143,94 @@ class MuleHttpServerTest extends HttpServerTest<HttpServer> {
         final HttpContent httpContent = ctx.getMessage();
         final HttpRequestPacket request = (HttpRequestPacket) httpContent.getHttpHeader();
 
-        final HttpResponsePacket response = buildResponse(request)
-        ctx.write(response);
+        final ResponseParameters responseParameters = buildResponse(request);
+        final HttpResponsePacket response = HttpResponsePacket.builder(request).status(responseParameters.getStatus()).build()
+
+        final String CONTENT_LENGTH = "Content-Length";
+
+        final HttpResponsePacket.Builder responsePacketBuilder = HttpResponsePacket.builder(request);
+        responsePacketBuilder.status(responseParameters.getStatus());
+
+        responsePacketBuilder.header(CONTENT_LENGTH, valueOf(responseParameters.getResponseBody().length));
+
+        controller(responseParameters.getEndpoint()) {
+          ctx.write(HttpContent.builder(responsePacketBuilder.build())
+            .content(wrap(ctx.getMemoryManager(), responseParameters.getResponseBody()))
+            .build());
+        }
       }
-      return ctx.getInvokeAction();
+      return ctx.getStopAction();
     }
 
-    public HttpResponsePacket buildResponse(HttpRequestPacket request) {
+    public ResponseParameters buildResponse(HttpRequestPacket request) {
       final String uri = request.getRequestURI()
-      println uri
+      final String requestParams = request.getQueryString();
+      final String fullPath = uri + (requestParams != null ? "?" + requestParams : "");
 
-      int status
-      String reasonPhrase
-      switch (uri) {
+      println requestParams
+      println uri
+      println fullPath
+
+      HttpServerTest.ServerEndpoint endpoint
+      switch (fullPath) {
         case "/success":
-          status = SUCCESS.status
-          reasonPhrase = SUCCESS.body
+          endpoint = SUCCESS
           break
         case "/redirect":
-          status = REDIRECT.status
-          reasonPhrase = REDIRECT.body
+          endpoint = REDIRECT
           break
         case "/error-status":
-          status = ERROR.status
-          reasonPhrase = ERROR.body
+          endpoint = ERROR
           break
         case "/exception":
-          status = EXCEPTION.status
-          reasonPhrase = EXCEPTION.body
+          endpoint = EXCEPTION
           break
         case "/notFound":
-          status = NOT_FOUND.status
-          reasonPhrase = NOT_FOUND.body
+          endpoint = NOT_FOUND
           break
         case "/query?some=query":
-          status = QUERY_PARAM.status
-          reasonPhrase = QUERY_PARAM.body
+          endpoint = QUERY_PARAM
           break
         case "/path/123/param":
-          status = PATH_PARAM.status
-          reasonPhrase = PATH_PARAM.body
+          endpoint = PATH_PARAM
           break
         case "/authRequired":
-          status = PATH_PARAM.status
-          reasonPhrase = PATH_PARAM.body
+          endpoint = AUTH_REQUIRED
           break
         default:
-          status = NOT_FOUND.status
-          reasonPhrase = NOT_FOUND.body
+          endpoint = NOT_FOUND
           break
       }
 
-      return HttpResponsePacket.builder(request).status(status).reasonPhrase(reasonPhrase).build();
+      int status = endpoint.status
+      String responseBody = endpoint.body
+
+      final byte[] responseBodyBytes = responseBody.getBytes(defaultCharset());
+      return new ResponseParameters(endpoint, status, responseBodyBytes);
+    }
+
+    class ResponseParameters {
+      HttpServerTest.ServerEndpoint endpoint
+      int status
+      byte[] responseBody
+
+      public ResponseParameters(HttpServerTest.ServerEndpoint endpoint, status, byte[] responseBody) {
+        this.endpoint = endpoint
+        this.status = status;
+        this.responseBody = responseBody;
+      }
+
+      int getStatus() {
+        return status;
+      }
+
+      byte[] getResponseBody() {
+        return responseBody;
+      }
+
+      HttpServerTest.ServerEndpoint getEndpoint() {
+        return endpoint;
+      }
     }
   }
 }

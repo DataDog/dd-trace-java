@@ -17,10 +17,10 @@ public class TraceCompletionListener implements FilterChainContext.CompletionLis
     if (span != null) {
       DECORATE.beforeFinish(span);
       span.finish();
-      final TraceScope scope = activeScope();
-      if (scope != null) {
-        scope.close();
-      }
+    }
+    final TraceScope scope = activeScope();
+    if (scope != null) {
+      scope.close();
     }
   }
 
