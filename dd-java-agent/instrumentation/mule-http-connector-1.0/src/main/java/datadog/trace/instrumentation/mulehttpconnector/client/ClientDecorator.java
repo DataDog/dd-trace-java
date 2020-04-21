@@ -18,7 +18,7 @@ public class ClientDecorator extends HttpClientDecorator<Request, Response> {
 
   @Override
   protected String component() {
-    return "http-requester-client";
+    return "grizzly-http-async-client";
   }
 
   @Override
