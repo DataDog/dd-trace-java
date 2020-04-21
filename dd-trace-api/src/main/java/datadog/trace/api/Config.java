@@ -43,6 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @ToString(includeFieldNames = true)
 public class Config {
+  private static final MethodHandles.Lookup PUBLIC_LOOKUP = MethodHandles.publicLookup();
 
   /** Config keys below */
   private static final String PREFIX = "dd.";
@@ -375,11 +376,20 @@ public class Config {
         getBooleanSettingFromEnvironment(TRACE_RESOLVER_ENABLED, DEFAULT_TRACE_RESOLVER_ENABLED);
     serviceMapping = getMapSettingFromEnvironment(SERVICE_MAPPING, null);
 
-    final Map<String, String> tagsPreMap = new HashMap<>(getMapSettingFromEnvironment(TAGS, null));
-    addPropToMapIfDefinedByEnvironment(tagsPreMap, ENV);
-    addPropToMapIfDefinedByEnvironment(tagsPreMap, VERSION);
-    tags = Collections.unmodifiableMap(tagsPreMap);
-    globalTags = getMapSettingFromEnvironment(GLOBAL_TAGS, null);
+    {
+      final Map<String, String> tagsPreMap = getMapSettingFromEnvironment(TAGS, null);
+      if (tagsPreMap != null && !tagsPreMap.isEmpty()) {
+        // we only populate this tags if we use 'dd.tags'. If we don't use it: we populate this tags
+        // to 'dd.trace.global.tags' and globalTags field
+        tags = getMapWithPropertiesDefinedByEnvironment(tagsPreMap, ENV, VERSION);
+      } else {
+        tags = Collections.emptyMap();
+      }
+    }
+    globalTags =
+        getMapWithPropertiesDefinedByEnvironment(
+            getMapSettingFromEnvironment(GLOBAL_TAGS, null), ENV, VERSION);
+
     spanTags = getMapSettingFromEnvironment(SPAN_TAGS, null);
     jmxTags = getMapSettingFromEnvironment(JMX_TAGS, null);
 
@@ -575,8 +585,20 @@ public class Config {
         getPropertyBooleanValue(properties, TRACE_RESOLVER_ENABLED, parent.traceResolverEnabled);
     serviceMapping = getPropertyMapValue(properties, SERVICE_MAPPING, parent.serviceMapping);
 
-    tags = getPropertyMapValue(properties, TAGS, parent.tags);
-    globalTags = getPropertyMapValue(properties, GLOBAL_TAGS, parent.globalTags);
+    {
+      final Map<String, String> preTags = getPropertyMapValue(properties, TAGS, parent.tags);
+      if (preTags != null && !preTags.isEmpty()) {
+        tags = overwriteKeysFromProperties(preTags, properties, ENV, VERSION);
+      } else {
+        tags = Collections.emptyMap();
+      }
+    }
+    globalTags =
+        overwriteKeysFromProperties(
+            getPropertyMapValue(properties, GLOBAL_TAGS, parent.globalTags),
+            properties,
+            ENV,
+            VERSION);
     spanTags = getPropertyMapValue(properties, SPAN_TAGS, parent.spanTags);
     jmxTags = getPropertyMapValue(properties, JMX_TAGS, parent.jmxTags);
     excludedClasses =
@@ -1101,7 +1123,7 @@ public class Config {
     }
     try {
       return (T)
-          MethodHandles.publicLookup()
+          PUBLIC_LOOKUP
               .findStatic(tClass, "valueOf", MethodType.methodType(tClass, String.class))
               .invoke(value);
     } catch (NumberFormatException e) {
@@ -1236,16 +1258,44 @@ public class Config {
 
   /**
    * @param map
-   * @param propName
-   * @return true if map was modified
+   * @param propNames
+   * @return new unmodifiable copy of {@param map} where properties are overwritten from environment
    */
-  private static boolean addPropToMapIfDefinedByEnvironment(
-      final Map<String, String> map, final String propName) {
-    final String val = getSettingFromEnvironment(propName, null);
-    if (val != null) {
-      return !val.equals(map.put(propName, val));
+  @NonNull
+  private static Map<String, String> getMapWithPropertiesDefinedByEnvironment(
+      @NonNull final Map<String, String> map, @NonNull final String... propNames) {
+    final Map<String, String> res = new HashMap<>(map);
+    for (final String propName : propNames) {
+      final String val = getSettingFromEnvironment(propName, null);
+      if (val != null) {
+        res.put(propName, val);
+      }
     }
-    return false;
+    return Collections.unmodifiableMap(res);
+  }
+
+  /**
+   * same as {@link Config#getMapWithPropertiesDefinedByEnvironment(Map, String...)} but using
+   * {@code properties} as source of values to overwrite inside map
+   *
+   * @param map
+   * @param properties
+   * @param keys
+   * @return
+   */
+  @NonNull
+  private static Map<String, String> overwriteKeysFromProperties(
+      @NonNull final Map<String, String> map,
+      @NonNull final Properties properties,
+      @NonNull final String... keys) {
+    final Map<String, String> res = new HashMap<>(map);
+    for (final String propName : keys) {
+      final String val = properties.getProperty(propName, null);
+      if (val != null) {
+        res.put(propName, val);
+      }
+    }
+    return Collections.unmodifiableMap(res);
   }
 
   @NonNull
