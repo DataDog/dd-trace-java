@@ -18,6 +18,7 @@ dependencies {
   testCompile deps.junit5
   testCompile deps.guava
   testCompile deps.mockito
+  testCompile deps.jmc
   testCompile group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
 }
 
