@@ -76,6 +76,7 @@ public class TracedDelegatingConsumer implements Consumer {
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);
 
       scope = activateSpan(span, true);
+      scope.setAsyncPropagation(true);
 
     } catch (final Exception e) {
       log.debug("Instrumentation error in tracing consumer", e);
