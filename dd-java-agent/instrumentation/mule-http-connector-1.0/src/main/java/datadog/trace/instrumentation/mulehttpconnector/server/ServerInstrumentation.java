@@ -21,7 +21,7 @@ public final class ServerInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.glassfish.grizzly.http.HttpServerFilter");
+    return named("org.glassfish.grizzly.http.HttpCodecFilter");
   }
 
   @Override
@@ -29,7 +29,8 @@ public final class ServerInstrumentation extends Instrumenter.Default {
     return new String[] {
       packageName + ".ServerDecorator",
       packageName + ".ExtractAdapter",
-      packageName + ".TraceCompletionListener"
+      packageName + ".TraceCompletionListener",
+      "datadog.trace.instrumentation.mulehttpconnector.ContextAttributes"
     };
   }
 
@@ -38,6 +39,7 @@ public final class ServerInstrumentation extends Instrumenter.Default {
     return singletonMap(
         named("handleRead")
             .and(takesArgument(0, named("org.glassfish.grizzly.filterchain.FilterChainContext")))
+            .and(takesArgument(1, named("org.glassfish.grizzly.http.HttpHeader")))
             .and(isPublic()),
         packageName + ".ServerAdvice");
   }

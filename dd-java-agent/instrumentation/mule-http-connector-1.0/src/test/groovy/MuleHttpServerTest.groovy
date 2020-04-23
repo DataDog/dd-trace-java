@@ -9,6 +9,7 @@ import org.glassfish.grizzly.filterchain.FilterChainContext
 import org.glassfish.grizzly.filterchain.NextAction
 import org.glassfish.grizzly.filterchain.TransportFilter
 import org.glassfish.grizzly.http.HttpContent
+import org.glassfish.grizzly.http.HttpHeader
 import org.glassfish.grizzly.http.HttpRequestPacket
 import org.glassfish.grizzly.http.HttpResponsePacket
 import org.glassfish.grizzly.http.HttpServerFilter
@@ -77,7 +78,7 @@ class MuleHttpServerTest extends HttpServerTest<HttpServer> {
 
   @Override
   String expectedOperationName() {
-    return "mule.http.server"
+    return "http.request"
   }
 
   @Override
@@ -141,22 +142,25 @@ class MuleHttpServerTest extends HttpServerTest<HttpServer> {
     public NextAction handleRead(final FilterChainContext ctx) throws IOException {
       if (ctx.getMessage() instanceof HttpContent) {
         final HttpContent httpContent = ctx.getMessage();
-        final HttpRequestPacket request = (HttpRequestPacket) httpContent.getHttpHeader();
+        final HttpHeader httpHeader = httpContent.getHttpHeader();
+        if (httpHeader instanceof HttpRequestPacket) {
+          final HttpRequestPacket request = (HttpRequestPacket) httpContent.getHttpHeader();
 
-        final ResponseParameters responseParameters = buildResponse(request);
-        final HttpResponsePacket response = HttpResponsePacket.builder(request).status(responseParameters.getStatus()).build()
+          final ResponseParameters responseParameters = buildResponse(request);
+          final HttpResponsePacket response = HttpResponsePacket.builder(request).status(responseParameters.getStatus()).build()
 
-        final String CONTENT_LENGTH = "Content-Length";
+          final String CONTENT_LENGTH = "Content-Length";
 
-        final HttpResponsePacket.Builder responsePacketBuilder = HttpResponsePacket.builder(request);
-        responsePacketBuilder.status(responseParameters.getStatus());
+          final HttpResponsePacket.Builder responsePacketBuilder = HttpResponsePacket.builder(request);
+          responsePacketBuilder.status(responseParameters.getStatus());
 
-        responsePacketBuilder.header(CONTENT_LENGTH, valueOf(responseParameters.getResponseBody().length));
+          responsePacketBuilder.header(CONTENT_LENGTH, valueOf(responseParameters.getResponseBody().length));
 
-        controller(responseParameters.getEndpoint()) {
-          ctx.write(HttpContent.builder(responsePacketBuilder.build())
-            .content(wrap(ctx.getMemoryManager(), responseParameters.getResponseBody()))
-            .build());
+          controller(responseParameters.getEndpoint()) {
+            ctx.write(HttpContent.builder(responsePacketBuilder.build())
+              .content(wrap(ctx.getMemoryManager(), responseParameters.getResponseBody()))
+              .build());
+          }
         }
       }
       return ctx.getStopAction();
