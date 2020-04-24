@@ -1,9 +1,4 @@
-plugins {
-  id "com.github.johnrengelman.shadow" version "5.2.0"
-  id "me.champeau.gradle.jmh" version "0.5.0"
-}
-
-description = 'dd-trace-ot'
+description = 'dd-trace-core'
 
 apply from: "${rootDir}/gradle/java.gradle"
 apply from: "${rootDir}/gradle/publish.gradle"
@@ -53,18 +48,4 @@ dependencies {
   testCompile group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
 
   traceAgentTestCompile deps.testcontainers
-}
-
-shadowJar {
-  archiveClassifier = ''
-
-  dependencies {
-    include(project(':utils:thread-utils'))
-    include(project(':internal-api'))
-  }
-}
-
-// We don't want bundled dependencies to show up in the pom.
-modifyPom {
-  dependencies.removeAll { it.artifactId == "thread-utils" || it.artifactId == "internal-api" }
 }
