@@ -6,10 +6,13 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
+import datadog.trace.instrumentation.reactor.core.TracingPublishers
 import datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator
+import datadog.trace.instrumentation.springwebflux.client.WebClientTracingFilter
 import org.springframework.http.HttpMethod
 import org.springframework.web.reactive.function.client.ClientResponse
 import org.springframework.web.reactive.function.client.WebClient
+import reactor.core.publisher.Hooks
 import spock.lang.Shared
 import spock.lang.Timeout
 
@@ -19,17 +22,22 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 class SpringWebfluxHttpClientTest extends HttpClientTest {
 
   @Shared
-  def client = WebClient.builder().build()
+  WebClient client = WebClient.builder().filter(new WebClientTracingFilter()).build()
+
+  @Override
+  void setupBeforeTests() {
+    super.setupBeforeTests()
+    Hooks.onEachOperator(TracingPublishers.getName(), { p -> TracingPublishers.wrap(p) })
+  }
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
     def hasParent = activeSpan() != null
     ClientResponse response = client.method(HttpMethod.resolve(method))
-      .headers { h -> headers.forEach({ key, value -> h.add(key, value) }) }
       .uri(uri)
+      .headers { h -> headers.forEach({ key, value -> h.add(key, value) }) }
       .exchange()
-      .doOnSuccessOrError { success, error ->
-        blockUntilChildSpansFinished(1)
+      .doAfterSuccessOrError { res, ex ->
         callback?.call()
       }
       .block()
@@ -95,8 +103,14 @@ class SpringWebfluxHttpClientTest extends HttpClientTest {
     false
   }
 
+
   boolean testRemoteConnection() {
     // FIXME: figure out how to configure timeouts.
+    false
+  }
+
+  @Override
+  boolean testCallbackWithoutParent() {
     false
   }
 }
