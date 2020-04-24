@@ -40,7 +40,7 @@ import static java.nio.charset.Charset.defaultCharset
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static org.glassfish.grizzly.memory.Buffers.wrap
 
-class MuleHttpServerTest extends HttpServerTest<HttpServer> {
+class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
 
   private TCPNIOTransport transport;
   private TCPNIOServerConnection serverConnection;

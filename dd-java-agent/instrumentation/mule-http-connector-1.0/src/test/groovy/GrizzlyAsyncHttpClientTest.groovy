@@ -11,7 +11,7 @@ import spock.lang.Shared
 
 import java.util.concurrent.CompletableFuture
 
-class MuleHttpClientTest extends HttpClientTest {
+class GrizzlyAsyncHttpClientTest extends HttpClientTest {
 
   @AutoCleanup
   @Shared

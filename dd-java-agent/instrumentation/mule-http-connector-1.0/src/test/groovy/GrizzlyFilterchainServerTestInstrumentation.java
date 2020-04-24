@@ -6,12 +6,12 @@ import net.bytebuddy.agent.builder.AgentBuilder;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 @AutoService(Instrumenter.class)
-public class MuleHttpServerTestInstrumentation implements Instrumenter {
+public class GrizzlyFilterchainServerTestInstrumentation implements Instrumenter {
 
   @Override
   public AgentBuilder instrument(final AgentBuilder agentBuilder) {
     return agentBuilder
-        .type(named("org.glassfish.grizzly.http.HttpServerFilter"))
+        .type(named("org.glassfish.grizzly.http.HttpCodecFilter"))
         .transform(
             new AgentBuilder.Transformer.ForAdvice()
                 .advice(
