@@ -1,6 +1,5 @@
 package datadog.trace.core
 
-
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.sampling.RateByServiceSampler
@@ -8,8 +7,6 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.propagation.TagContext
 import datadog.trace.util.test.DDSpecification
-import org.spockframework.util.ReflectionUtil
-import spock.lang.Ignore
 
 import java.util.concurrent.TimeUnit
 
@@ -169,29 +166,6 @@ class DDSpanTest extends DDSpecification {
 
     expect:
     span.durationNano == 1
-  }
-
-  @Ignore
-  def "stacktrace captured when duration exceeds average + configured threshold"() {
-    setup:
-    // Get the part of the stack before this test is called.
-    def acceptRemaining = false
-    def originalStack = Thread.currentThread().stackTrace
-    def stackTraceElements = originalStack.dropWhile {
-      if (it.className == ReflectionUtil.name) {
-        acceptRemaining = true
-      }
-      return !acceptRemaining
-    }
-    def stack = "\tat " + stackTraceElements.join("\n\tat ") + "\n"
-
-    def span = tracer.buildSpan("test").start()
-    span.finish(span.startTimeMicro + DDSpan.AVG_DURATION.get() + TimeUnit.NANOSECONDS.toMicros(Config.get().spanDurationAboveAverageStacktraceNanos) + 1)
-    def actual = span.tags["slow.stack"].toString()
-
-    expect:
-    !stack.isEmpty()
-    actual.endsWith(stack)
   }
 
   def "priority sampling metric set only on root span"() {
