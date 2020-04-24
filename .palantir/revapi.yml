@@ -253,4 +253,7 @@ acceptedBreaks:
       old: "method void datadog.opentracing.DDTracer.DDSpanBuilder::<init>(java.lang.String, io.opentracing.ScopeManager)"
       new: "method void datadog.opentracing.DDTracer.DDSpanBuilder::<init>(java.lang.String)"
       justification: "ScopeManager should always be the DDTracer's scopemanager"
+    - code: "java.method.removed"
+      old: "method datadog.opentracing.DDTracer.DDSpanBuilder datadog.opentracing.DDTracer.DDSpanBuilder::withLogHandler(datadog.opentracing.LogHandler)"
+      justification: "LogManager set once instead of per-span"
     # End: Breaking changes
