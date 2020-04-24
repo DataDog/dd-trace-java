@@ -9,4 +9,6 @@ interface DDScope extends Scope {
   Span span();
 
   int depth();
+
+  DDScope incrementReferences();
 }

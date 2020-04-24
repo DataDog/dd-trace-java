@@ -38,6 +38,8 @@ public class ContinuableScope implements DDScope, TraceScope {
   /** depth of scope on thread */
   private final int depth;
 
+  private final AtomicInteger referenceCount = new AtomicInteger(1);
+
   ContinuableScope(
       final ContextualScopeManager scopeManager,
       final DDSpan spanUnderScope,
@@ -72,6 +74,9 @@ public class ContinuableScope implements DDScope, TraceScope {
 
   @Override
   public void close() {
+    if (referenceCount.decrementAndGet() > 0) {
+      return;
+    }
     // We have to scope finish event before we finish then span (which finishes span event).
     // The reason is that we get span on construction and span event starts when span is created.
     // This means from JFR perspective scope is included into the span.
@@ -112,6 +117,12 @@ public class ContinuableScope implements DDScope, TraceScope {
   @Override
   public int depth() {
     return depth;
+  }
+
+  @Override
+  public DDScope incrementReferences() {
+    referenceCount.incrementAndGet();
+    return this;
   }
 
   @Override

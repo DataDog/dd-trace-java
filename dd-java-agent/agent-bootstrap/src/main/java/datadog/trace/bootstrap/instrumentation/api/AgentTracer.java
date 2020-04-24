@@ -48,6 +48,10 @@ public class AgentTracer {
     return get().noopSpan();
   }
 
+  public static TraceScope noopTraceScope() {
+    return NoopTraceScope.INSTANCE;
+  }
+
   private static final TracerAPI DEFAULT = new NoopTracerAPI();
 
   private static final AtomicReference<TracerAPI> provider = new AtomicReference<>(DEFAULT);

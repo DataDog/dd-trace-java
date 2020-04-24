@@ -144,12 +144,12 @@ class ScopeManagerTest extends DDSpecification {
     when: "fill up the scope stack"
     Scope scope = null
     for (int i = 0; i <= depth; i++) {
-      scope = scopeManager.activate(NoopSpan.INSTANCE, false)
-      assert scope instanceof SimpleScope
+      scope = tracer.buildSpan("test").startActive(true)
+      assert scope instanceof ContinuableScope
     }
 
     then: "last scope is still valid"
-    (scope as SimpleScope).depth() == depth
+    (scope as ContinuableScope).depth() == depth
 
     when: "activate a scope over the limit"
     scope = scopeManager.activate(NoopSpan.INSTANCE, false)
@@ -164,7 +164,7 @@ class ScopeManagerTest extends DDSpecification {
     scope instanceof NoopScopeManager.NoopScope
 
     and: "scope stack not effected."
-    (scopeManager.active() as SimpleScope).depth() == depth
+    (scopeManager.active() as ContinuableScope).depth() == depth
 
     where:
     depth = scopeManager.depthLimit
@@ -564,52 +564,52 @@ class ScopeManagerTest extends DDSpecification {
     when:
     Scope scope2 = scopeManager.activate(NoopSpan.INSTANCE, true)
 
-    then:
-    activatedCount.get() == 2
+    then: 'Activating the same span multiple times does not create a new scope'
+    activatedCount.get() == 1
     closedCount.get() == 0
 
     when:
     scope2.close()
 
-    then:
-    activatedCount.get() == 3
-    closedCount.get() == 1
+    then: 'Closing a scope once that has been activated multiple times does not close'
+    activatedCount.get() == 1
+    closedCount.get() == 0
 
     when:
     scope1.close()
 
     then:
-    activatedCount.get() == 3
-    closedCount.get() == 2
+    activatedCount.get() == 1
+    closedCount.get() == 1
 
     when:
     Scope continuableScope = tracer.buildSpan("foo").startActive(true)
 
     then:
     continuableScope instanceof ContinuableScope
-    activatedCount.get() == 4
+    activatedCount.get() == 2
 
     when:
     Scope childContinuableScope = tracer.buildSpan("child").startActive(true)
 
     then:
     childContinuableScope instanceof ContinuableScope
-    activatedCount.get() == 5
-    closedCount.get() == 2
+    activatedCount.get() == 3
+    closedCount.get() == 1
 
     when:
     childContinuableScope.close()
 
     then:
-    activatedCount.get() == 6
-    closedCount.get() == 3
+    activatedCount.get() == 4
+    closedCount.get() == 2
 
     when:
     continuableScope.close()
 
     then:
-    activatedCount.get() == 6
-    closedCount.get() == 4
+    activatedCount.get() == 4 // the last scope closed was the last one on the stack so nothing more got activated
+    closedCount.get() == 3
   }
 
   boolean spanFinished(Span span) {
