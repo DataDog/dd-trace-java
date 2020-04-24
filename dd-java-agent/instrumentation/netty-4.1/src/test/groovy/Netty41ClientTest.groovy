@@ -15,6 +15,7 @@ import org.asynchttpclient.AsyncCompletionHandler
 import org.asynchttpclient.AsyncHttpClient
 import org.asynchttpclient.DefaultAsyncHttpClientConfig
 import org.asynchttpclient.Response
+import spock.lang.Ignore
 import spock.lang.Retry
 import spock.lang.Shared
 import spock.lang.Timeout
@@ -77,6 +78,7 @@ class Netty41ClientTest extends HttpClientTest {
     return false
   }
 
+  @Ignore
   def "connection error (unopened port)"() {
     given:
     def uri = new URI("http://localhost:$UNUSABLE_PORT/")
