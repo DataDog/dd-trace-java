@@ -1,20 +1,21 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
-import static net.bytebuddy.matcher.ElementMatchers.any;
-import static net.bytebuddy.matcher.ElementMatchers.named;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
+import lombok.extern.slf4j.Slf4j;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Executor;
-import lombok.extern.slf4j.Slf4j;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
+
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static net.bytebuddy.matcher.ElementMatchers.any;
+import static net.bytebuddy.matcher.ElementMatchers.named;
 
 @Slf4j
 public abstract class AbstractExecutorInstrumentation extends Instrumenter.Default {
@@ -81,11 +82,7 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
         "kotlinx.coroutines.scheduling.CoroutineScheduler",
         "org.eclipse.jetty.util.thread.QueuedThreadPool",
         "org.eclipse.jetty.util.thread.ReservedThreadExecutor",
-        "org.glassfish.grizzly.threadpool.AbstractThreadPool",
-        "org.glassfish.grizzly.threadpool.FixedThreadPool",
         "org.glassfish.grizzly.threadpool.GrizzlyExecutorService",
-        "org.glassfish.grizzly.threadpool.QueueLimitedThreadPool",
-        "org.glassfish.grizzly.threadpool.SyncThreadPool",
         "play.api.libs.streams.Execution$trampoline$",
         "scala.concurrent.forkjoin.ForkJoinPool",
         "scala.concurrent.Future$InternalCallbackExecutor$",
