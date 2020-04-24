@@ -43,7 +43,11 @@ import java.util.concurrent.ThreadLocalRandom;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 
-/** DDTracer makes it easy to send traces and span to DD using the OpenTracing API. */
+/**
+ * Main entrypoint into the tracer implementation. In addition to implementing
+ * datadog.trace.api.Tracer and TracerAPI, it coordinates many functions necessary creating,
+ * reporting, and propagating traces
+ */
 @Slf4j
 public class CoreTracer
     implements Closeable, datadog.trace.api.Tracer, AgentTracer.TracerAPI, AgentPropagation {
@@ -444,7 +448,6 @@ public class CoreTracer
 
   /** Spans are built using this builder */
   public class CoreSpanBuilder {
-    /** Each span must have an operationName according to the opentracing specification */
     private final String operationName;
 
     // Builder attributes
@@ -539,7 +542,6 @@ public class CoreTracer
       return this;
     }
 
-    // Private methods
     private BigInteger generateNewId() {
       // It is **extremely** unlikely to generate the value "0" but we still need to handle that
       // case

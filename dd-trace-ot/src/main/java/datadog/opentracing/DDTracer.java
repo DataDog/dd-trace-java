@@ -39,6 +39,10 @@ import java.util.Properties;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * DDTracer implements the implements io.opentracing.Tracer API to make it easy to send traces and
+ * spans to Datadog using the OpenTracing API.
+ */
 @Slf4j
 public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   private final Converter converter = new Converter();
