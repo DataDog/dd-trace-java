@@ -11,10 +11,10 @@ import java.util.Objects;
 
 /** One of the two possible scope managers. See CustomScopeManager */
 class OTScopeManager implements ScopeManager {
-  private final Converter converter;
+  private final TypeConverter converter;
   private final CoreTracer coreTracer;
 
-  OTScopeManager(final CoreTracer coreTracer, final Converter converter) {
+  OTScopeManager(final CoreTracer coreTracer, final TypeConverter converter) {
     this.coreTracer = coreTracer;
     this.converter = converter;
   }
@@ -44,9 +44,9 @@ class OTScopeManager implements ScopeManager {
 
   static class OTScope implements Scope {
     private final AgentScope delegate;
-    private final Converter converter;
+    private final TypeConverter converter;
 
-    OTScope(final AgentScope delegate, final Converter converter) {
+    OTScope(final AgentScope delegate, final TypeConverter converter) {
       this.delegate = delegate;
       this.converter = converter;
     }
@@ -82,7 +82,7 @@ class OTScopeManager implements ScopeManager {
   static class OTTraceScope extends OTScope implements TraceScope {
     private final TraceScope delegate;
 
-    OTTraceScope(final TraceScope delegate, final Converter converter) {
+    OTTraceScope(final TraceScope delegate, final TypeConverter converter) {
       // All instances of TraceScope implement agent scope (but not vice versa)
       super((AgentScope) delegate, converter);
 

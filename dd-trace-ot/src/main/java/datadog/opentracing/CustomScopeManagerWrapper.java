@@ -10,7 +10,7 @@ import io.opentracing.Span;
 import java.util.Objects;
 
 /**
- * Allows custom OpenTracing scope managers used by CoreTracer
+ * Allows custom OpenTracing ScopeManagers used by CoreTracer
  *
  * <p>Normal case:
  *
@@ -20,15 +20,15 @@ import java.util.Objects;
  *
  * <p>Custom case:
  *
- * <p>CoreTracer.scopeManager = CustomScopeManager wrapping passed in scopemanager
+ * <p>CoreTracer.scopeManager = CustomScopeManagerWrapper wrapping passed in scopemanager
  *
  * <p>DDTracer.scopeManager = passed in scopemanager
  */
-class CustomScopeManager implements DDScopeManager {
+class CustomScopeManagerWrapper implements DDScopeManager {
   private final ScopeManager delegate;
-  private final Converter converter;
+  private final TypeConverter converter;
 
-  CustomScopeManager(final ScopeManager scopeManager, final Converter converter) {
+  CustomScopeManagerWrapper(final ScopeManager scopeManager, final TypeConverter converter) {
     this.delegate = scopeManager;
     this.converter = converter;
   }

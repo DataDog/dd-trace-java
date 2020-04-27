@@ -38,7 +38,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class DDTracer implements Tracer, datadog.trace.api.Tracer {
-  private final Converter converter;
+  private final TypeConverter converter;
   private final CoreTracer coreTracer;
 
   // FIXME [API] There's an unfortunate cycle between OTScopeManager and CoreTracer where they
@@ -180,7 +180,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   @Deprecated
   public DDTracer(final CoreTracer coreTracer) {
     this.coreTracer = coreTracer;
-    this.converter = new Converter(new DefaultLogHandler());
+    this.converter = new TypeConverter(new DefaultLogHandler());
     this.scopeManager = new OTScopeManager(coreTracer, converter);
   }
 
@@ -202,9 +202,9 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
       final LogHandler logHandler) {
 
     if (logHandler != null) {
-      this.converter = new Converter(logHandler);
+      this.converter = new TypeConverter(logHandler);
     } else {
-      this.converter = new Converter(new DefaultLogHandler());
+      this.converter = new TypeConverter(new DefaultLogHandler());
     }
 
     // Each of these are only overriden if set
@@ -237,7 +237,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
 
     if (scopeManager != null) {
       this.scopeManager = scopeManager;
-      builder = builder.scopeManager(new CustomScopeManager(scopeManager, converter));
+      builder = builder.scopeManager(new CustomScopeManagerWrapper(scopeManager, converter));
     }
 
     if (localRootSpanTags != null) {

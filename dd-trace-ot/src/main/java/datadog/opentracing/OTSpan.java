@@ -9,10 +9,10 @@ import java.util.Objects;
 
 class OTSpan implements Span {
   private final DDSpan delegate;
-  private final Converter converter;
+  private final TypeConverter converter;
   private final LogHandler logHandler;
 
-  OTSpan(final DDSpan delegate, final Converter converter, final LogHandler logHandler) {
+  OTSpan(final DDSpan delegate, final TypeConverter converter, final LogHandler logHandler) {
     this.delegate = delegate;
     this.converter = converter;
     this.logHandler = logHandler;

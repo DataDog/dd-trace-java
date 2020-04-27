@@ -14,12 +14,12 @@ import io.opentracing.SpanContext;
 import io.opentracing.noop.NoopSpan;
 
 // Centralized place to do conversions
-class Converter {
+class TypeConverter {
   // TODO maybe add caching to reduce new objects being created
 
   private final LogHandler logHandler;
 
-  public Converter(final LogHandler logHandler) {
+  public TypeConverter(final LogHandler logHandler) {
     this.logHandler = logHandler;
   }
 
@@ -45,8 +45,8 @@ class Converter {
   // That fact that some methods return AgentScope and other TraceScope even though its the same
   // underlying object needs to be cleaned up
   public Scope toScope(final Object scope) {
-    if (scope instanceof CustomScopeManager.CustomScopeManagerScope) {
-      return ((CustomScopeManager.CustomScopeManagerScope) scope).getDelegate();
+    if (scope instanceof CustomScopeManagerWrapper.CustomScopeManagerScope) {
+      return ((CustomScopeManagerWrapper.CustomScopeManagerScope) scope).getDelegate();
     } else if (scope instanceof TraceScope) {
       return new OTScopeManager.OTTraceScope((TraceScope) scope, this);
     } else {
