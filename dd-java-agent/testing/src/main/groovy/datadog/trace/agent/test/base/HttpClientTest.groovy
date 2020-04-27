@@ -196,9 +196,14 @@ abstract class HttpClientTest extends AgentTestRunner {
       runUnderTrace("callback") {}
     }
 
-    TEST_WRITER.sort({ t1, t2 ->
-      return t1[0].startTime <=> t2[0].startTime
+    // In java 7 we can't call sort directly on TEST_WRITER
+    List<List<DDSpan>> traces = TEST_WRITER.toList()
+    traces.sort({ t1, t2 ->
+      return t1[0].startTimeNano <=> t2[0].startTimeNano
     })
+    for (int i = 0; i < traces.size(); i++) {
+      TEST_WRITER.set(i, traces.get(i))
+    }
 
     then:
     status == 200
