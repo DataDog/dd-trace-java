@@ -264,8 +264,7 @@ public class Config {
   @Getter private final boolean prioritySamplingEnabled;
   @Getter private final boolean traceResolverEnabled;
   @Getter private final Map<String, String> serviceMapping;
-  private final Map<String, String> tags;
-  @Deprecated private final Map<String, String> globalTags;
+  @NonNull private final Map<String, String> tags;
   private final Map<String, String> spanTags;
   private final Map<String, String> jmxTags;
   @Getter private final List<String> excludedClasses;
@@ -357,7 +356,7 @@ public class Config {
     site = getSettingFromEnvironment(SITE, DEFAULT_SITE);
     serviceName =
         getSettingFromEnvironment(
-            SERVICE_NAME, getSettingFromEnvironment(SERVICE, DEFAULT_SERVICE_NAME));
+            SERVICE, getSettingFromEnvironment(SERVICE_NAME, DEFAULT_SERVICE_NAME));
 
     traceEnabled = getBooleanSettingFromEnvironment(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     integrationsEnabled =
@@ -377,18 +376,11 @@ public class Config {
     serviceMapping = getMapSettingFromEnvironment(SERVICE_MAPPING, null);
 
     {
-      final Map<String, String> tagsPreMap = getMapSettingFromEnvironment(TAGS, null);
-      if (tagsPreMap != null && !tagsPreMap.isEmpty()) {
-        // we only populate this tags if we use 'dd.tags'. If we don't use it: we populate this tags
-        // to 'dd.trace.global.tags' and globalTags field
-        tags = getMapWithPropertiesDefinedByEnvironment(tagsPreMap, ENV, VERSION);
-      } else {
-        tags = Collections.emptyMap();
-      }
+      final Map<String, String> tags =
+          new HashMap<>(getMapSettingFromEnvironment(GLOBAL_TAGS, null));
+      tags.putAll(getMapSettingFromEnvironment(TAGS, null));
+      this.tags = getMapWithPropertiesDefinedByEnvironment(tags, ENV, VERSION);
     }
-    globalTags =
-        getMapWithPropertiesDefinedByEnvironment(
-            getMapSettingFromEnvironment(GLOBAL_TAGS, null), ENV, VERSION);
 
     spanTags = getMapSettingFromEnvironment(SPAN_TAGS, null);
     jmxTags = getMapSettingFromEnvironment(JMX_TAGS, null);
@@ -565,7 +557,8 @@ public class Config {
 
     apiKey = properties.getProperty(API_KEY, parent.apiKey);
     site = properties.getProperty(SITE, parent.site);
-    serviceName = properties.getProperty(SERVICE_NAME, parent.serviceName);
+    serviceName =
+        properties.getProperty(SERVICE, properties.getProperty(SERVICE_NAME, parent.serviceName));
 
     traceEnabled = getPropertyBooleanValue(properties, TRACE_ENABLED, parent.traceEnabled);
     integrationsEnabled =
@@ -586,19 +579,12 @@ public class Config {
     serviceMapping = getPropertyMapValue(properties, SERVICE_MAPPING, parent.serviceMapping);
 
     {
-      final Map<String, String> preTags = getPropertyMapValue(properties, TAGS, parent.tags);
-      if (preTags != null && !preTags.isEmpty()) {
-        tags = overwriteKeysFromProperties(preTags, properties, ENV, VERSION);
-      } else {
-        tags = Collections.emptyMap();
-      }
+      final Map<String, String> preTags =
+          new HashMap<>(
+              getPropertyMapValue(properties, GLOBAL_TAGS, Collections.<String, String>emptyMap()));
+      preTags.putAll(getPropertyMapValue(properties, TAGS, parent.tags));
+      this.tags = overwriteKeysFromProperties(preTags, properties, ENV, VERSION);
     }
-    globalTags =
-        overwriteKeysFromProperties(
-            getPropertyMapValue(properties, GLOBAL_TAGS, parent.globalTags),
-            properties,
-            ENV,
-            VERSION);
     spanTags = getPropertyMapValue(properties, SPAN_TAGS, parent.spanTags);
     jmxTags = getPropertyMapValue(properties, JMX_TAGS, parent.jmxTags);
     excludedClasses =
@@ -829,7 +815,7 @@ public class Config {
    * version of this setting if new (dd.tags) version has not been specified.
    */
   private Map<String, String> getGlobalTags() {
-    return tags.isEmpty() ? globalTags : tags;
+    return tags;
   }
 
   /**

@@ -976,7 +976,6 @@ class ConfigTest extends DDSpecification {
     setup:
     System.setProperty(PREFIX + CONFIGURATION_FILE, "src/test/resources/dd-java-tracer.properties")
     environmentVariables.set("DD_SERVICE_NAME", "set-in-env")
-    environmentVariables.set("DD_SERVICE", "some-other-ignored-name")
 
     when:
     def config = new Config()
@@ -1157,12 +1156,12 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.mergedSpanTags == [a: "1", c: "3",  (Config.ENV) : "eu-east", (Config.VERSION) : "43"]
-    config.mergedJmxTags == [a: "1", d: "4",  (Config.ENV) : "eu-east", (Config.VERSION) : "43",
+    config.mergedSpanTags == [a: "1", b: "2", c: "3",  (Config.ENV) : "eu-east", (Config.VERSION) : "43"]
+    config.mergedJmxTags == [a: "1", b: "2", d: "4",  (Config.ENV) : "eu-east", (Config.VERSION) : "43",
                              (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
 
-    config.mergedProfilingTags == [a: "1", f: "6",  (Config.ENV) : "eu-east", (Config.VERSION) : "43",
+    config.mergedProfilingTags == [a: "1", b: "2", f: "6",  (Config.ENV) : "eu-east", (Config.VERSION) : "43",
                                    (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(),
                                    (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
@@ -1180,14 +1179,14 @@ class ConfigTest extends DDSpecification {
     Config config = new Config()
 
     then:
-    config.mergedSpanTags == [a: "1", c: "3"]
-    config.mergedJmxTags == [a: "1", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.mergedSpanTags == [a: "1", b: "2", c: "3"]
+    config.mergedJmxTags == [a: "1", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
 
-    config.mergedProfilingTags == [a: "1", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [a: "1", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
-  def "verify dd.tags overrides global tags in env variables"() {
+  def "verify dd.tags merges with global tags in env variables"() {
     setup:
     environmentVariables.set(DD_TAGS_ENV, "a:1")
     environmentVariables.set(DD_GLOBAL_TAGS_ENV, "b:2")
@@ -1200,11 +1199,11 @@ class ConfigTest extends DDSpecification {
     Config config = new Config()
 
     then:
-    config.mergedSpanTags == [a: "1", c: "3"]
-    config.mergedJmxTags == [a: "1", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.mergedSpanTags == [a: "1", b: "2", c: "3"]
+    config.mergedJmxTags == [a: "1", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
 
-    config.mergedProfilingTags == [a: "1", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [a: "1", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
   def "toString works when passwords are empty"() {
@@ -1400,7 +1399,7 @@ class ConfigTest extends DDSpecification {
                              'service.version' : 'my-svc-vers']
   }
 
-  def "DD_SERVICE ignored when 'dd.service.name' java property is set; 'dd.service.name' overwrites DD_SERVICE_NAME"() {
+  def "DD_SERVICE precedence over 'dd.service.name' java property is set; 'dd.service' overwrites DD_SERVICE"() {
     setup:
     environmentVariables.set(DD_SERVICE_NAME_ENV,"dd-service-name-env-var")
     System.setProperty(PREFIX + SERVICE_NAME, "dd-service-name-java-prop")
@@ -1412,24 +1411,23 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
-    config.serviceName == "dd-service-name-java-prop"
+    config.serviceName == "dd-service-java-prop"
     config.mergedSpanTags == [service:'service-tag-in-dd-trace-global-tags-java-property','service.version' : 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
                              'service.version' : 'my-svc-vers']
   }
 
-  def "DD_SERVICE ignored when 'DD_SERVICE_NAME' environment var is set"() {
+  def "DD_SERVICE precedence over 'DD_SERVICE_NAME' environment var is set"() {
     setup:
     environmentVariables.set(DD_SERVICE_NAME_ENV,"dd-service-name-env-var")
     environmentVariables.set("DD_SERVICE", "dd-service-env-var")
-    System.setProperty(PREFIX + SERVICE, "dd-service-java-prop")
     System.setProperty(PREFIX + GLOBAL_TAGS, "service:service-tag-in-dd-trace-global-tags-java-property,service.version:my-svc-vers")
 
     when:
     def config = new Config()
 
     then:
-    config.serviceName == "dd-service-name-env-var"
+    config.serviceName == "dd-service-env-var"
     config.mergedSpanTags == [service:'service-tag-in-dd-trace-global-tags-java-property','service.version' : 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
                              'service.version' : 'my-svc-vers']
