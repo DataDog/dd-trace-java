@@ -95,9 +95,4 @@ class SpringWebfluxHttpClientTest extends HttpClientTest {
     // FIXME: figure out how to configure timeouts.
     false
   }
-
-  @Override
-  boolean testCallbackWithoutParent() {
-    false
-  }
 }

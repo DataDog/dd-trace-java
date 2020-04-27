@@ -191,16 +191,14 @@ abstract class HttpClientTest extends AgentTestRunner {
   }
 
   def "trace request with callback and no parent"() {
-    given:
-    assumeTrue(testCallbackWithoutParent())
-
     when:
     def status = doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"]) {
-      runUnderTrace("callback") {
-        // Ensure consistent ordering of traces for assertion.
-        TEST_WRITER.waitForTraces(1)
-      }
+      runUnderTrace("callback") {}
     }
+
+    TEST_WRITER.sort({ t1, t2 ->
+      return t1[0].startTime <=> t2[0].startTime
+    })
 
     then:
     status == 200
@@ -452,11 +450,5 @@ abstract class HttpClientTest extends AgentTestRunner {
     // FIXME: this hack is here because callback with parent is broken in play-ws when the stream()
     // function is used.  There is no way to stop a test from a derived class hence the flag
     true
-  }
-
-  boolean testCallbackWithoutParent() {
-    // FIXME: This is a hack to allow disabling the callback without parent test in Spring Webflux
-    // The problem is that the traces get reported in an inconsistent order depending on the version of webflux in use
-    return true
   }
 }
