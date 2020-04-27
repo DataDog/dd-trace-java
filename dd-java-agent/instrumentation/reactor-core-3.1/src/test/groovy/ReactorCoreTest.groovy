@@ -16,6 +16,7 @@ import spock.lang.Shared
 
 import java.time.Duration
 
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
@@ -51,14 +52,9 @@ class ReactorCoreTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
-          resourceName "publisher-parent"
-          operationName "publisher-parent"
-          childOf(span(0))
-          tags {
-            defaultTags()
-          }
-        }
+
+        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
+
         for (int i = 0; i < workSpans; i++) {
           span(i + 2) {
             resourceName "addOne"
@@ -114,19 +110,12 @@ class ReactorCoreTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
-          resourceName "publisher-parent"
-          operationName "publisher-parent"
-          childOf(span(0))
-          // It's important that we don't attach errors at the Reactor level so that we don't
-          // impact the spans on reactor integrations such as netty and lettuce, as reactor is
-          // more of a context propagation mechanism than something we would be tracking for
-          // errors this is ok.
-          errored false
-          tags {
-            defaultTags()
-          }
-        }
+
+        // It's important that we don't attach errors at the Reactor level so that we don't
+        // impact the spans on reactor integrations such as netty and lettuce, as reactor is
+        // more of a context propagation mechanism than something we would be tracking for
+        // errors this is ok.
+        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
       }
     }
 
@@ -157,19 +146,13 @@ class ReactorCoreTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
-          resourceName "publisher-parent"
-          operationName "publisher-parent"
-          childOf(span(0))
-          // It's important that we don't attach errors at the Reactor level so that we don't
-          // impact the spans on reactor integrations such as netty and lettuce, as reactor is
-          // more of a context propagation mechanism than something we would be tracking for
-          // errors this is ok.
-          errored false
-          tags {
-            defaultTags()
-          }
-        }
+
+        // It's important that we don't attach errors at the Reactor level so that we don't
+        // impact the spans on reactor integrations such as netty and lettuce, as reactor is
+        // more of a context propagation mechanism than something we would be tracking for
+        // errors this is ok.
+        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
+
         for (int i = 0; i < workSpans; i++) {
           span(i + 2) {
             resourceName "addOne"
@@ -206,14 +189,8 @@ class ReactorCoreTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
-          resourceName "publisher-parent"
-          operationName "publisher-parent"
-          childOf(span(0))
-          tags {
-            defaultTags()
-          }
-        }
+
+        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
       }
     }
 
@@ -239,14 +216,9 @@ class ReactorCoreTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
-          resourceName "publisher-parent"
-          operationName "publisher-parent"
-          childOf(span(0))
-          tags {
-            defaultTags()
-          }
-        }
+        
+        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
+
         for (int i = 0; i < workSpans; i++) {
           span(i + 2) {
             resourceName "addOne"
@@ -300,22 +272,10 @@ class ReactorCoreTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
-          resourceName "publisher-parent"
-          operationName "publisher-parent"
-          childOf(span(0))
-          tags {
-            defaultTags()
-          }
-        }
-        span(2) {
-          resourceName "intermediate"
-          operationName "intermediate"
-          childOf(span(1))
-          tags {
-            defaultTags()
-          }
-        }
+
+        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
+        basicSpan(it, 2, "intermediate", "intermediate", span(1))
+
         for (int i = 0; i < workItems * 2; i++) {
           span(i + 3) {
             resourceName "addOne"
@@ -368,14 +328,9 @@ class ReactorCoreTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
-          resourceName "publisher-parent"
-          operationName "publisher-parent"
-          childOf(span(0))
-          tags {
-            defaultTags()
-          }
-        }
+
+        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
+
         for (int i = 0; i < workItems; i++) {
           span(2 + i) {
             resourceName "addOne"

@@ -39,7 +39,6 @@ public class TracingPublishers {
     if (span == null) {
       span = noopSpan();
     }
-    log.debug("Lifting {} - {}", delegate.getClass().getName(), delegate.toString());
 
     // based on Operators.LiftFunction.apply in reactor 3.3.4
     if (delegate instanceof Fuseable) {
@@ -73,8 +72,13 @@ public class TracingPublishers {
     }
   }
 
-  static <T> boolean shouldWrapSubscriber(final CoreSubscriber<? super T> actual) {
-    return !(actual instanceof TracingSubscriber);
+  static <T> CoreSubscriber<? super T> wrapSubscriber(
+      final AgentSpan span, final CoreSubscriber<? super T> actual) {
+    if (actual instanceof TracingSubscriber) {
+      return actual;
+    } else {
+      return new TracingSubscriber<>(span, actual);
+    }
   }
 
   public static class MonoTracingPublisher<T> extends Mono<T> {
@@ -87,13 +91,10 @@ public class TracingPublishers {
     }
 
     @Override
-    public void subscribe(CoreSubscriber<? super T> actual) {
+    public void subscribe(final CoreSubscriber<? super T> actual) {
       try (final AgentScope scope = activateSpan(span, false)) {
         scope.setAsyncPropagation(true);
-        if (shouldWrapSubscriber(actual)) {
-          actual = new TracingSubscriber<>(span, actual);
-        }
-        delegate.subscribe(actual);
+        delegate.subscribe(wrapSubscriber(span, actual));
       }
     }
   }
@@ -116,11 +117,8 @@ public class TracingPublishers {
     protected void subscribe(final CoreSubscriber<? super T>[] subscribers) {
       try (final AgentScope scope = activateSpan(span, false)) {
         scope.setAsyncPropagation(true);
-        for (CoreSubscriber<? super T> subscriber : subscribers) {
-          if (shouldWrapSubscriber(subscriber)) {
-            subscriber = new TracingSubscriber<>(span, subscriber);
-          }
-          delegate.subscribe(subscriber);
+        for (final CoreSubscriber<? super T> subscriber : subscribers) {
+          delegate.subscribe(wrapSubscriber(span, subscriber));
         }
       }
     }
@@ -144,13 +142,10 @@ public class TracingPublishers {
     }
 
     @Override
-    public void subscribe(CoreSubscriber<? super T> actual) {
+    public void subscribe(final CoreSubscriber<? super T> actual) {
       try (final AgentScope scope = activateSpan(span, false)) {
         scope.setAsyncPropagation(true);
-        if (shouldWrapSubscriber(actual)) {
-          actual = new TracingSubscriber<>(span, actual);
-        }
-        delegate.subscribe(actual);
+        delegate.subscribe(wrapSubscriber(span, actual));
       }
     }
   }
@@ -170,13 +165,10 @@ public class TracingPublishers {
     }
 
     @Override
-    public void subscribe(CoreSubscriber<? super T> actual) {
+    public void subscribe(final CoreSubscriber<? super T> actual) {
       try (final AgentScope scope = activateSpan(span, false)) {
         scope.setAsyncPropagation(true);
-        if (shouldWrapSubscriber(actual)) {
-          actual = new TracingSubscriber<>(span, actual);
-        }
-        delegate.subscribe(actual);
+        delegate.subscribe(wrapSubscriber(span, actual));
       }
     }
   }
@@ -191,13 +183,10 @@ public class TracingPublishers {
     }
 
     @Override
-    public void subscribe(CoreSubscriber<? super T> actual) {
+    public void subscribe(final CoreSubscriber<? super T> actual) {
       try (final AgentScope scope = activateSpan(span, false)) {
         scope.setAsyncPropagation(true);
-        if (shouldWrapSubscriber(actual)) {
-          actual = new TracingSubscriber<>(span, actual);
-        }
-        delegate.subscribe(actual);
+        delegate.subscribe(wrapSubscriber(span, actual));
       }
     }
   }

@@ -7,6 +7,6 @@ public class WebClientFilterAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void onBuild(@Advice.This final WebClient.Builder thiz) {
-    thiz.filters(filters -> filters.add(0, new WebClientTracingFilter()));
+    thiz.filters(WebClientTracingFilter::addFilter);
   }
 }

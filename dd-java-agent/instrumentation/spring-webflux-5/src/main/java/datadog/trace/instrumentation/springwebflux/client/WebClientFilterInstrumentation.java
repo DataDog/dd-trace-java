@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.springwebflux.client;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -38,7 +38,7 @@ public class WebClientFilterInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return extendsClass(
+    return implementsInterface(
         named("org.springframework.web.reactive.function.client.WebClient$Builder"));
   }
 

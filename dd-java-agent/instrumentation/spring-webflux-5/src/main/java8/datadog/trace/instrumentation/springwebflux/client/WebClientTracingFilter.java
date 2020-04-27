@@ -10,6 +10,7 @@ import static datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHt
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.util.List;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
@@ -17,6 +18,11 @@ import org.springframework.web.reactive.function.client.ExchangeFunction;
 import reactor.core.publisher.Mono;
 
 public class WebClientTracingFilter implements ExchangeFilterFunction {
+
+  public static void addFilter(final List<ExchangeFilterFunction> exchangeFilterFunctions) {
+    exchangeFilterFunctions.add(0, new WebClientTracingFilter());
+  }
+
   @Override
   public Mono<ClientResponse> filter(final ClientRequest request, final ExchangeFunction next) {
     final AgentSpan span;
