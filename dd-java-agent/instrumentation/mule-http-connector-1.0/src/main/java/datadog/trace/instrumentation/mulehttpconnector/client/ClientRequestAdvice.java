@@ -29,7 +29,7 @@ public class ClientRequestAdvice {
     propagate().inject(span, request, SETTER);
 
     InstrumentationContext.get(AsyncCompletionHandler.class, AgentSpan.class)
-        .put((AsyncCompletionHandler) handler, span);
+        .put((AsyncCompletionHandler<?>) handler, span);
     scope.close();
   }
 }

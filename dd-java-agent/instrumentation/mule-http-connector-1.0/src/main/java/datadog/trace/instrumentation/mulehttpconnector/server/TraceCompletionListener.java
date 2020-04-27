@@ -22,10 +22,6 @@ public class TraceCompletionListener implements FilterChainContext.CompletionLis
     }
   }
 
-  public AgentSpan getSpan() {
-    return span;
-  }
-
   public void setSpan(final AgentSpan span) {
     this.span = span;
   }
