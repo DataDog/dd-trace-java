@@ -1,11 +1,10 @@
 package datadog.trace.instrumentation.mulehttpconnector.server;
 
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
-import org.glassfish.grizzly.http.HttpRequestPacket;
-import org.glassfish.grizzly.http.HttpResponsePacket;
-
 import java.net.URI;
 import java.net.URISyntaxException;
+import org.glassfish.grizzly.http.HttpRequestPacket;
+import org.glassfish.grizzly.http.HttpResponsePacket;
 
 public class ServerDecorator
     extends HttpServerDecorator<HttpRequestPacket, HttpRequestPacket, HttpResponsePacket> {

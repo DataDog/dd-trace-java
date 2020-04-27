@@ -1,17 +1,16 @@
 package datadog.trace.instrumentation.mulehttpconnector.server;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
-
-import java.util.Map;
-
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import java.util.Map;
+import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public final class ServerInstrumentation extends Instrumenter.Default {

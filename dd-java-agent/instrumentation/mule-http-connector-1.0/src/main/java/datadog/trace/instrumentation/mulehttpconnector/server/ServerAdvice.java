@@ -1,13 +1,5 @@
 package datadog.trace.instrumentation.mulehttpconnector.server;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import net.bytebuddy.asm.Advice;
-import org.glassfish.grizzly.filterchain.FilterChainContext;
-import org.glassfish.grizzly.http.HttpHeader;
-import org.glassfish.grizzly.http.HttpRequestPacket;
-import org.glassfish.grizzly.http.HttpResponsePacket;
-
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -15,6 +7,14 @@ import static datadog.trace.instrumentation.mulehttpconnector.ContextAttributes.
 import static datadog.trace.instrumentation.mulehttpconnector.ContextAttributes.SPAN;
 import static datadog.trace.instrumentation.mulehttpconnector.server.ExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.mulehttpconnector.server.ServerDecorator.DECORATE;
+
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import net.bytebuddy.asm.Advice;
+import org.glassfish.grizzly.filterchain.FilterChainContext;
+import org.glassfish.grizzly.http.HttpHeader;
+import org.glassfish.grizzly.http.HttpRequestPacket;
+import org.glassfish.grizzly.http.HttpResponsePacket;
 
 public class ServerAdvice {
 

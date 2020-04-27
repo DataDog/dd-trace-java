@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.mulehttpconnector.filterchain;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.instrumentation.mulehttpconnector.ContextAttributes.SPAN;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static datadog.trace.instrumentation.mulehttpconnector.ContextAttributes.SPAN;
 
 public class FilterchainAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)

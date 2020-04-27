@@ -1,20 +1,19 @@
 package datadog.trace.instrumentation.mulehttpconnector.filterchain;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.Instrumenter;
-import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
-
-import java.util.Map;
-
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.hasSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.Instrumenter;
+import java.util.Map;
+import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public final class FilterchainInstrumentation extends Instrumenter.Default {
@@ -29,8 +28,8 @@ public final class FilterchainInstrumentation extends Instrumenter.Default {
             not(
                 ElementMatchers.<TypeDescription>named(
                     "org.glassfish.grizzly.http.HttpCodecFilter"))); // HttpCodecFilter is
-                                                                     // instrumented in the server
-                                                                     // instrumentation
+    // instrumented in the server
+    // instrumentation
   }
 
   @Override

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.mulehttpconnector.client;
 import com.ning.http.client.Request;
 import com.ning.http.client.Response;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
-
 import java.net.URI;
 import java.net.URISyntaxException;
 

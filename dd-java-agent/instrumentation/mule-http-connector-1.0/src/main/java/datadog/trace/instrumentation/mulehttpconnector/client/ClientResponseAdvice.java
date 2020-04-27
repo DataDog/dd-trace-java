@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.mulehttpconnector.client;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.instrumentation.mulehttpconnector.client.ClientDecorator.DECORATE;
+
 import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.Response;
 import datadog.trace.bootstrap.ContextStore;
@@ -7,9 +10,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
-
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.instrumentation.mulehttpconnector.client.ClientDecorator.DECORATE;
 
 public class ClientResponseAdvice {
 
