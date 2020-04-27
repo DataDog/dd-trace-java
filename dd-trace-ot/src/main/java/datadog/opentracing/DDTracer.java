@@ -33,8 +33,8 @@ import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * DDTracer implements the implements io.opentracing.Tracer API to make it easy to send traces and
- * spans to Datadog using the OpenTracing API.
+ * DDTracer implements the <code>io.opentracing.Tracer</code> interface to make it easy to send
+ * traces and spans to Datadog using the OpenTracing API.
  */
 @Slf4j
 public class DDTracer implements Tracer, datadog.trace.api.Tracer {
@@ -263,7 +263,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     coreTracer = builder.build();
 
     // FIXME [API] There's an unfortunate cycle between OTScopeManager and CoreTracer where they
-    // each depend on eachother so CoreTracer cant be a constructor parameter
+    // depend on each other so CoreTracer
     // Perhaps api can change so that CoreTracer doesn't need to implement scope methods directly
     if (scopeManager == null) {
       this.scopeManager = new OTScopeManager(coreTracer, converter);
