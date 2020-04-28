@@ -193,9 +193,7 @@ abstract class HttpClientTest extends AgentTestRunner {
   def "trace request with callback and no parent"() {
     when:
     def status = doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"]) {
-      runUnderTrace("callback") {
-        sleep(10)
-      }
+      runUnderTrace("callback") {}
     }
 
     TEST_WRITER.waitForTraces(2)

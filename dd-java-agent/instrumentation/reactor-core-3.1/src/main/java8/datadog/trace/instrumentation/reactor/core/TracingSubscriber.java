@@ -39,9 +39,13 @@ public class TracingSubscriber<T>
 
     try (final AgentScope scope = activateSpan(downstreamSpan, false)) {
       final TraceScope downstreamScope = activeScope();
-      downstreamScope.setAsyncPropagation(true);
-      // create a hard reference to the trace that we don't want reported until we are done
-      continuation.set(activeScope().capture());
+      if (downstreamScope != null) {
+        downstreamScope.setAsyncPropagation(true);
+        // create a hard reference to the trace that we don't want reported until we are done
+        continuation.set(activeScope().capture());
+      } else {
+        continuation.set(AgentTracer.noopTraceScope().capture());
+      }
     }
 
     // The context is exposed upstream so we put our upstream span here for use by the next

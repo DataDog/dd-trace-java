@@ -11,7 +11,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.Getter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
@@ -86,7 +85,7 @@ public final class OpenTracing32 implements TracerAPI {
     if (scope instanceof TraceScope) {
       return (TraceScope) scope;
     } else {
-      return AgentTracer.noopTraceScope();
+      return null;
     }
   }
 

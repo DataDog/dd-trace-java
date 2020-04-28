@@ -216,7 +216,7 @@ class ReactorCoreTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        
+
         basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
 
         for (int i = 0; i < workSpans; i++) {
@@ -425,14 +425,13 @@ class ReactorCoreTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(size)
 
     TEST_WRITER.each {
-      it.sort({
-        a, b ->
-          return a.startTime <=> b.startTime
+      it.sort({ a, b ->
+        return a.startTimeNano <=> b.startTimeNano
       })
     }
 
     TEST_WRITER.sort({ a, b ->
-      return a[0].startTime <=> b[0].startTime
+      return a[0].startTimeNano <=> b[0].startTimeNano
     })
 
     assertTraces(size, spec)
