@@ -1296,7 +1296,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == ["version": "1.2.3", "env": "production-us", "other_tag":"test"]
   }
 
-  def "merge env from dd.trace.global.tags and version from DD_VERSION"() {
+  def "merge env from dd.trace.global.tags and DD_VERSION"() {
     setup:
     environmentVariables.set(DD_VERSION_ENV, "1.2.3")
     System.setProperty(PREFIX + GLOBAL_TAGS, "env:us-barista-test,other_tag:test,version:3.2.1")
@@ -1308,7 +1308,7 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == ["version": "1.2.3", "env": "us-barista-test", "other_tag":"test"]
   }
 
-  def "merge version from dd.trace.global.tags and env from DD_VERSION"() {
+  def "merge version from dd.trace.global.tags and DD_ENV"() {
     setup:
     environmentVariables.set(DD_ENV_ENV, "us-barista-test")
     System.setProperty(PREFIX + GLOBAL_TAGS, "other_tag:test,version:3.2.1")
@@ -1320,11 +1320,27 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == ["version": "3.2.1", "env": "us-barista-test", "other_tag":"test"]
   }
 
-  def "merge version from dd.trace.global.tags DD_SERVICE and env from DD_VERSION"() {
+  def "merge version from dd.trace.global.tags and DD_SERVICE and DD_ENV"() {
     setup:
     environmentVariables.set("DD_SERVICE", "dd-service-env-var")
     environmentVariables.set(DD_ENV_ENV, "us-barista-test")
     System.setProperty(PREFIX + GLOBAL_TAGS, "other_tag:test,version:3.2.1,service.version:my-svc-vers")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.serviceName == "dd-service-env-var"
+    config.mergedSpanTags == [version: "3.2.1", "service.version" : "my-svc-vers", "env": "us-barista-test", other_tag:"test"]
+    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): 'dd-service-env-var',
+                             version: "3.2.1","service.version" : "my-svc-vers", "env": "us-barista-test", other_tag:"test"]
+  }
+
+  def "merge env from dd.trace.global.tags and DD_SERVICE and DD_VERSION"() {
+    setup:
+    environmentVariables.set("DD_SERVICE", "dd-service-env-var")
+    environmentVariables.set(DD_VERSION_ENV, "3.2.1")
+    System.setProperty(PREFIX + GLOBAL_TAGS, "other_tag:test,env:us-barista-test,service.version:my-svc-vers")
 
     when:
     Config config = new Config()
