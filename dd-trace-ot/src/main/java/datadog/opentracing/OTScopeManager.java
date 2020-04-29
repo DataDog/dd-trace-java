@@ -66,7 +66,7 @@ class OTScopeManager implements ScopeManager {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof OTScope)) {
         return false;
       }
       final OTScope otScope = (OTScope) o;
@@ -102,23 +102,6 @@ class OTScopeManager implements ScopeManager {
     @Override
     public void setAsyncPropagation(final boolean value) {
       delegate.setAsyncPropagation(value);
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      final OTTraceScope that = (OTTraceScope) o;
-      return delegate.equals(that.delegate);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(delegate);
     }
   }
 }

@@ -9,8 +9,18 @@ description = 'dd-trace-ot'
 apply from: "${rootDir}/gradle/java.gradle"
 apply from: "${rootDir}/gradle/publish.gradle"
 
+// TODO raise these when equals() and hashCode() are excluded
 minimumBranchCoverage = 0.5
-minimumInstructionCoverage = 0.6
+minimumInstructionCoverage = 0.5
+
+excludedClassesCoverage += [
+  // These are all equals() and hashCode()
+  "datadog.opentracing.OTTagContext",
+  "datadog.opentracing.OTExtractedContext",
+  "datadog.opentracing.OTGenericContext",
+  // The builder is generated
+  "datadog.opentracing.DDTracer.DDTracerBuilder"
+]
 
 apply plugin: 'org.unbroken-dome.test-sets'
 
