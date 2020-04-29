@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.reactor.core;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopTraceScope;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -77,9 +76,9 @@ public class TracingSubscriber<T>
   }
 
   private UnifiedScope finalScopeForDownstream() {
-    if (continuation.get() != noopTraceScope().capture()) {
+    if (continuation.get() != null) {
       // releases our reference to the trace
-      final TraceScope scope = continuation.getAndSet(noopTraceScope().capture()).activate();
+      final TraceScope scope = continuation.getAndSet(null).activate();
       scope.setAsyncPropagation(true);
       return new UnifiedScope(scope);
     } else {
@@ -119,7 +118,10 @@ public class TracingSubscriber<T>
   public void cancel() {
     try (final AgentScope scope = activateSpan(upstreamSpan, false)) {
       scope.setAsyncPropagation(true);
-      continuation.getAndSet(noopTraceScope().capture()).activate().close();
+      final TraceScope.Continuation current = continuation.getAndSet(null);
+      if (current != null) {
+        current.close();
+      }
       subscription.cancel();
     }
   }

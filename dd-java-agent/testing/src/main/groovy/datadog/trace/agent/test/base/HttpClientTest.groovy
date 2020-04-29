@@ -171,7 +171,9 @@ abstract class HttpClientTest extends AgentTestRunner {
     when:
     def status = runUnderTrace("parent") {
       doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"]) {
-        runUnderTrace("child") {}
+        runUnderTrace("child") {
+          blockUntilChildSpansFinished(1)
+        }
       }
     }
 
@@ -193,7 +195,13 @@ abstract class HttpClientTest extends AgentTestRunner {
   def "trace request with callback and no parent"() {
     when:
     def status = doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"]) {
-      runUnderTrace("callback") {}
+      runUnderTrace("callback") {
+        // FIXME: since in async we may not have the other trace report until the callback is done
+        //  we should add a test method to detect that the other trace is finished but waiting for
+        //  references to clear out in order to validate the behavior that the client spans are
+        //  finished regardless of the callback operation
+        // PendingTrace.pendingTraces(1) or TEST_WRITER.waitForPendingTraces(1)
+      }
     }
 
     TEST_WRITER.waitForTraces(2)
@@ -208,13 +216,6 @@ abstract class HttpClientTest extends AgentTestRunner {
     }
 
     then:
-    // FIXME some client tests don't pass with these assertions when they should
-//    TEST_WRITER.get(0).findAll { span ->
-//      def callbackSpan = TEST_WRITER.get(1)[0]
-//      // client span ending after callback
-//      span.startTimeNano + span.durationNano > callbackSpan.startTimeNano
-//    }.isEmpty()
-
     status == 200
     // only one trace (client).
     assertTraces(2) {
