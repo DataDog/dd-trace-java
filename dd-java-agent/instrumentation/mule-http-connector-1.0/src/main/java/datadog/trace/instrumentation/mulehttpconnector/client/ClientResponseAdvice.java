@@ -16,11 +16,11 @@ public class ClientResponseAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
-    @Advice.This final AsyncCompletionHandler handler,
-    @Advice.Argument(0) final Response response) {
+      @Advice.This final AsyncCompletionHandler handler,
+      @Advice.Argument(0) final Response response) {
     // TODO instrument AsyncCompletionHandler.onThrowable?
     ContextStore<AsyncCompletionHandler, ParentChildSpan> contextStore =
-      InstrumentationContext.get(AsyncCompletionHandler.class, ParentChildSpan.class);
+        InstrumentationContext.get(AsyncCompletionHandler.class, ParentChildSpan.class);
     ParentChildSpan spanWithParent = contextStore.get(handler);
     if (null != spanWithParent) {
       contextStore.put(handler, null);
@@ -30,9 +30,7 @@ public class ClientResponseAdvice {
       DECORATE.beforeFinish(spanWithParent.getChild());
       spanWithParent.getChild().finish();
     }
-    return spanWithParent.hasParent()
-      ? activateSpan(spanWithParent.getParent())
-      : null;
+    return spanWithParent.hasParent() ? activateSpan(spanWithParent.getParent()) : null;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

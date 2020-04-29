@@ -17,6 +17,7 @@ import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public final class FilterchainInstrumentation extends Instrumenter.Default {
+
   public FilterchainInstrumentation() {
     super("mule-http-connector");
   }
@@ -24,12 +25,11 @@ public final class FilterchainInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return hasSuperClass(named("org.glassfish.grizzly.filterchain.BaseFilter"))
+        // HttpCodecFilter is instrumented in the server instrumentation
         .and(
             not(
                 ElementMatchers.<TypeDescription>named(
-                    "org.glassfish.grizzly.http.HttpCodecFilter"))); // HttpCodecFilter is
-    // instrumented in the server
-    // instrumentation
+                    "org.glassfish.grizzly.http.HttpCodecFilter")));
   }
 
   @Override

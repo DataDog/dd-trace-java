@@ -10,26 +10,20 @@ import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
 
 public class FilterchainAdvice {
+
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(0) final FilterChainContext ctx) {
-
     if (ctx.getAttributes().getAttribute(SPAN) == null || activeScope() != null) {
       return null;
     }
-
     final AgentScope scope =
         activateSpan((AgentSpan) ctx.getAttributes().getAttribute(SPAN), false);
     scope.setAsyncPropagation(true);
-
     return scope;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void onExit(
-      @Advice.Enter final AgentScope scope,
-      @Advice.Argument(0) final FilterChainContext ctx,
-      @Advice.Thrown final Throwable throwable) {
-
+  public static void onExit(@Advice.Enter final AgentScope scope) {
     if (scope != null) {
       scope.setAsyncPropagation(false);
       scope.close();

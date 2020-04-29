@@ -8,11 +8,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.ParentChildSpan;
+import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-
-import java.util.Map;
 
 @AutoService(Instrumenter.class)
 public final class ClientRequestInstrumentation extends Instrumenter.Default {
@@ -23,7 +22,8 @@ public final class ClientRequestInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("com.ning.http.client.AsyncCompletionHandler", ParentChildSpan.class.getName());
+    return singletonMap(
+        "com.ning.http.client.AsyncCompletionHandler", ParentChildSpan.class.getName());
   }
 
   @Override
@@ -33,10 +33,7 @@ public final class ClientRequestInstrumentation extends Instrumenter.Default {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ClientDecorator",
-      packageName + ".InjectAdapter"
-    };
+    return new String[] {packageName + ".ClientDecorator", packageName + ".InjectAdapter"};
   }
 
   // TO-DO: might need to specify that it is a nested method
