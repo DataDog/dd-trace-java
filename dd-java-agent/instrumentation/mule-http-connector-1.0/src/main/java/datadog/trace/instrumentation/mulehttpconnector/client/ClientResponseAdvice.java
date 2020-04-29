@@ -8,33 +8,35 @@ import com.ning.http.client.Response;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ParentChildSpan;
 import net.bytebuddy.asm.Advice;
 
 @SuppressWarnings("rawtypes")
 public class ClientResponseAdvice {
 
-  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void onExit(
-      @Advice.This final AsyncCompletionHandler handler,
-      @Advice.Argument(0) final Response response,
-      @Advice.Thrown final Throwable throwable) {
-
-    final ContextStore<AsyncCompletionHandler, AgentSpan> contextStore =
-        InstrumentationContext.get(AsyncCompletionHandler.class, AgentSpan.class);
-    final AgentSpan span = contextStore.get(handler);
-    final AgentScope scope = activateSpan(span, true);
-
-    if (span != null) {
+  @Advice.OnMethodEnter(suppress = Throwable.class)
+  public static AgentScope onEnter(
+    @Advice.This final AsyncCompletionHandler handler,
+    @Advice.Argument(0) final Response response) {
+    // TODO instrument AsyncCompletionHandler.onThrowable?
+    ContextStore<AsyncCompletionHandler, ParentChildSpan> contextStore =
+      InstrumentationContext.get(AsyncCompletionHandler.class, ParentChildSpan.class);
+    ParentChildSpan spanWithParent = contextStore.get(handler);
+    if (spanWithParent.hasChild()) {
       contextStore.put(handler, null);
-      if (throwable == null) {
-        DECORATE.onResponse(span, response);
-      } else {
-        DECORATE.onError(span, throwable);
-      }
-      DECORATE.beforeFinish(span);
-      span.finish();
+      DECORATE.onResponse(spanWithParent.getChild(), response);
+      DECORATE.beforeFinish(spanWithParent.getChild());
+      spanWithParent.getChild().finish();
     }
-    scope.close();
+    return spanWithParent.hasParent()
+      ? activateSpan(spanWithParent.getParent(), false)
+      : null;
+  }
+
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+  public static void onExit(@Advice.Enter final AgentScope scope) {
+    if (null != scope) {
+      scope.close();
+    }
   }
 }

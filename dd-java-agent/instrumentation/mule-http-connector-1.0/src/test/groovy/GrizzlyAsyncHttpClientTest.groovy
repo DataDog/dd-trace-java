@@ -20,8 +20,6 @@ class GrizzlyAsyncHttpClientTest extends HttpClientTest {
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
 
-    CompletableFuture<Response> future = new CompletableFuture<>();
-
     RequestBuilder requestBuilder = new RequestBuilder(method)
       .setUri(Uri.create(uri.toString()))
     headers.entrySet().each {
@@ -55,6 +53,21 @@ class GrizzlyAsyncHttpClientTest extends HttpClientTest {
       }
       return response
     }
+  }
+
+  @Override
+  boolean testRedirects() {
+    false
+  }
+
+  @Override
+  boolean testConnectionFailure() {
+    false
+  }
+
+  @Override
+  boolean testRemoteConnection() {
+    return false
   }
 }
 
