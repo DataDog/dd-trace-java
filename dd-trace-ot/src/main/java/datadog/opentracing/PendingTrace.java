@@ -44,6 +44,14 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
 
   // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
   private final AtomicInteger completedSpanCount = new AtomicInteger(0);
+
+  // FIXME: In async frameworks we may have situations where traces do not report due to references
+  //  being held by async operators. In order to support testing in these cases we should have a way
+  //  to keep track of the fact that this trace is ready to report but is still pending. This would
+  //  likely require a change to the writer interface to allow signaling this intent. This could
+  //  also give us the benefit of being able to recover for reporting traces that get stuck due to
+  //  references being held for long periods of time.
+
   /**
    * During a trace there are cases where the root span must be accessed (e.g. priority sampling and
    * trace-search tags).

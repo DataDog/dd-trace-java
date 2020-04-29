@@ -171,7 +171,9 @@ abstract class HttpClientTest extends AgentTestRunner {
     when:
     def status = runUnderTrace("parent") {
       doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"]) {
-        runUnderTrace("child") {}
+        runUnderTrace("child") {
+          blockUntilChildSpansFinished(1)
+        }
       }
     }
 
@@ -194,9 +196,23 @@ abstract class HttpClientTest extends AgentTestRunner {
     when:
     def status = doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"]) {
       runUnderTrace("callback") {
-        // Ensure consistent ordering of traces for assertion.
-        TEST_WRITER.waitForTraces(1)
+        // FIXME: since in async we may not have the other trace report until the callback is done
+        //  we should add a test method to detect that the other trace is finished but waiting for
+        //  references to clear out in order to validate the behavior that the client spans are
+        //  finished regardless of the callback operation
+        // PendingTrace.pendingTraces(1) or TEST_WRITER.waitForPendingTraces(1)
       }
+    }
+
+    TEST_WRITER.waitForTraces(2)
+
+    // Java 7 CopyOnWrite lists cannot be sorted in place
+    List<List<DDSpan>> traces = TEST_WRITER.toList()
+    traces.sort({ t1, t2 ->
+      return t1[0].startTimeNano <=> t2[0].startTimeNano
+    })
+    for (int i = 0; i < traces.size(); i++) {
+      TEST_WRITER.set(i, traces.get(i))
     }
 
     then:

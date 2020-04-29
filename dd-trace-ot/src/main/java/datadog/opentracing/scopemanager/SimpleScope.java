@@ -2,6 +2,7 @@ package datadog.opentracing.scopemanager;
 
 import datadog.trace.context.ScopeListener;
 import io.opentracing.Span;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** Simple scope implementation which does not propagate across threads. */
 public class SimpleScope implements DDScope {
@@ -10,6 +11,7 @@ public class SimpleScope implements DDScope {
   private final boolean finishOnClose;
   private final DDScope toRestore;
   private final int depth;
+  private final AtomicInteger referenceCount = new AtomicInteger(1);
 
   public SimpleScope(
       final ContextualScopeManager scopeManager,
@@ -29,6 +31,9 @@ public class SimpleScope implements DDScope {
 
   @Override
   public void close() {
+    if (referenceCount.decrementAndGet() > 0) {
+      return;
+    }
     if (finishOnClose) {
       spanUnderScope.finish();
     }
@@ -54,5 +59,11 @@ public class SimpleScope implements DDScope {
   @Override
   public int depth() {
     return depth;
+  }
+
+  @Override
+  public DDScope incrementReferences() {
+    referenceCount.incrementAndGet();
+    return this;
   }
 }

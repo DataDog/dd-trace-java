@@ -31,6 +31,9 @@ public class ContextualScopeManager implements ScopeManager {
   public Scope activate(final Span span, final boolean finishOnClose) {
     final Scope active = active();
     if (active instanceof DDScope) {
+      if (((DDScope) active).span() == span) {
+        return ((DDScope) active).incrementReferences();
+      }
       final int currentDepth = ((DDScope) active).depth();
       if (depthLimit <= currentDepth) {
         log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
