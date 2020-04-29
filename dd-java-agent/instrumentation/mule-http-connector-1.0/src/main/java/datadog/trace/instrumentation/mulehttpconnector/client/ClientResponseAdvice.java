@@ -22,14 +22,16 @@ public class ClientResponseAdvice {
     ContextStore<AsyncCompletionHandler, ParentChildSpan> contextStore =
       InstrumentationContext.get(AsyncCompletionHandler.class, ParentChildSpan.class);
     ParentChildSpan spanWithParent = contextStore.get(handler);
-    if (spanWithParent.hasChild()) {
+    if (null != spanWithParent) {
       contextStore.put(handler, null);
+    }
+    if (spanWithParent.hasChild()) {
       DECORATE.onResponse(spanWithParent.getChild(), response);
       DECORATE.beforeFinish(spanWithParent.getChild());
       spanWithParent.getChild().finish();
     }
     return spanWithParent.hasParent()
-      ? activateSpan(spanWithParent.getParent(), false)
+      ? activateSpan(spanWithParent.getParent())
       : null;
   }
 

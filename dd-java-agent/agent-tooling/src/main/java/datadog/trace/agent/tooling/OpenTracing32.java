@@ -365,5 +365,12 @@ public final class OpenTracing32 implements TracerAPI {
     public Iterable<Entry<String, String>> baggageItems() {
       return context.baggageItems();
     }
+
+    @Override
+    public String toString() {
+      return "OT32Context{" +
+        "context=" + context +
+        '}';
+    }
   }
 }
