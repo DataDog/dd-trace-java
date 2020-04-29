@@ -8,29 +8,31 @@ import com.ning.http.client.Response;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.ParentChildSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Pair;
 import net.bytebuddy.asm.Advice;
 
 @SuppressWarnings("rawtypes")
 public class ClientResponseAdvice {
 
+  @SuppressWarnings("unchecked")
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
       @Advice.This final AsyncCompletionHandler handler,
       @Advice.Argument(0) final Response response) {
     // TODO instrument AsyncCompletionHandler.onThrowable?
-    ContextStore<AsyncCompletionHandler, ParentChildSpan> contextStore =
-        InstrumentationContext.get(AsyncCompletionHandler.class, ParentChildSpan.class);
-    ParentChildSpan spanWithParent = contextStore.get(handler);
+    ContextStore<AsyncCompletionHandler, Pair> contextStore =
+        InstrumentationContext.get(AsyncCompletionHandler.class, Pair.class);
+    Pair<AgentSpan, AgentSpan> spanWithParent = contextStore.get(handler);
     if (null != spanWithParent) {
       contextStore.put(handler, null);
     }
-    if (spanWithParent.hasChild()) {
-      DECORATE.onResponse(spanWithParent.getChild(), response);
-      DECORATE.beforeFinish(spanWithParent.getChild());
-      spanWithParent.getChild().finish();
+    if (spanWithParent.hasRight()) {
+      DECORATE.onResponse(spanWithParent.getRight(), response);
+      DECORATE.beforeFinish(spanWithParent.getRight());
+      spanWithParent.getRight().finish();
     }
-    return spanWithParent.hasParent() ? activateSpan(spanWithParent.getParent()) : null;
+    return spanWithParent.hasLeft() ? activateSpan(spanWithParent.getLeft()) : null;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

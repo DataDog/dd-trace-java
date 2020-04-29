@@ -11,7 +11,7 @@ import com.ning.http.client.AsyncHandler;
 import com.ning.http.client.Request;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.ParentChildSpan;
+import datadog.trace.bootstrap.instrumentation.api.Pair;
 import net.bytebuddy.asm.Advice;
 
 public class ClientRequestAdvice {
@@ -25,7 +25,7 @@ public class ClientRequestAdvice {
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
     propagate().inject(span, request, SETTER);
-    InstrumentationContext.get(AsyncCompletionHandler.class, ParentChildSpan.class)
-        .put((AsyncCompletionHandler<?>) handler, new ParentChildSpan(parentSpan, span));
+    InstrumentationContext.get(AsyncCompletionHandler.class, Pair.class)
+        .put((AsyncCompletionHandler<?>) handler, Pair.of(parentSpan, span));
   }
 }

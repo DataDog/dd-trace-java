@@ -56,6 +56,12 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
   private OkHttpClient client = OkHttpUtils.client()
 
   @Override
+  boolean testNotFound() {
+    // resource name is set by instrumentation, so not changed to 404
+    false
+  }
+
+  @Override
   HttpServer startServer(int port) {
     FilterChain filterChain = setUpFilterChain()
     setUpTransport(filterChain)

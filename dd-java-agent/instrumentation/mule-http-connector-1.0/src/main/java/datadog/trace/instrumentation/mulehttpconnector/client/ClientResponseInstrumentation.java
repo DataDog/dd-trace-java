@@ -8,7 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.api.ParentChildSpan;
+import datadog.trace.bootstrap.instrumentation.api.Pair;
 import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -23,8 +23,7 @@ public final class ClientResponseInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap(
-        "com.ning.http.client.AsyncCompletionHandler", ParentChildSpan.class.getName());
+    return singletonMap("com.ning.http.client.AsyncCompletionHandler", Pair.class.getName());
   }
 
   @Override
