@@ -45,15 +45,7 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
   private TCPNIOTransport transport;
   private TCPNIOServerConnection serverConnection;
   private final int DEFAULT_SERVER_TIMEOUT_MILLIS = 80000;
-  private final int DEFAULT_CLIENT_TIMEOUT_MILLIS = 30000;
-  private final int DEFAULT_MAX_HTTP_PACKET_HEADER_SIZE = 8192;
-  private final int DEFAULT_CONNECTION_IDLE_TIMEOUT_MILLIS = 30000;
-  private final int MAX_KEEP_ALIVE_REQUESTS = -1;
   private final int DEFAULT_SERVER_CONNECTION_BACKLOG = 50;
-  private final int DEFAULT_SELECTOR_THREAD_COUNT = max(getRuntime().availableProcessors(), 2);
-  private final int MIN_SELECTORS_FOR_DEDICATED_ACCEPTOR = 4;
-  private DelayedExecutor delayedExecutor
-  private OkHttpClient client = OkHttpUtils.client()
 
   @Override
   boolean testNotFound() {
@@ -107,12 +99,12 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
   }
 
   FilterChain setUpFilterChain() {
-    FilterChainBuilder serverFilterChainBuilder = FilterChainBuilder.stateless();
-    serverFilterChainBuilder.add(createTransportFilter());
-    serverFilterChainBuilder.add(createIdleTimeoutFilter());
-    serverFilterChainBuilder.add(createHttpServerFilter())
-    serverFilterChainBuilder.add(new LastFilter())
-    return serverFilterChainBuilder.build();
+    return FilterChainBuilder.stateless()
+              .add(createTransportFilter())
+              .add(createIdleTimeoutFilter())
+              .add(new HttpServerFilter())
+              .add(new LastFilter())
+              .build();
   }
 
   TransportFilter createTransportFilter() {
@@ -120,50 +112,25 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
   }
 
   IdleTimeoutFilter createIdleTimeoutFilter() {
-    ExecutorService executorService = Executors.newCachedThreadPool();
-    delayedExecutor = new DelayedExecutor(executorService);
-
-    IdleTimeoutFilter idleTimeoutFilter = new IdleTimeoutFilter(delayedExecutor, DEFAULT_SERVER_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
-    return idleTimeoutFilter;
-  }
-
-  HttpServerFilter createHttpServerFilter() {
-    KeepAlive keepAlive = new KeepAlive();
-    keepAlive.setMaxRequestsCount(MAX_KEEP_ALIVE_REQUESTS);
-    keepAlive.setIdleTimeoutInSeconds(convertToSeconds(DEFAULT_CONNECTION_IDLE_TIMEOUT_MILLIS));
-    return new HttpServerFilter();
-  }
-
-  private static int convertToSeconds(int connectionIdleTimeout) {
-    if (connectionIdleTimeout < 0) {
-      return -1;
-    } else {
-      return (int) MILLISECONDS.toSeconds(connectionIdleTimeout);
-    }
+    return new IdleTimeoutFilter(new DelayedExecutor(Executors.newCachedThreadPool()), DEFAULT_SERVER_TIMEOUT_MILLIS, MILLISECONDS);
   }
 
   class LastFilter extends BaseFilter {
 
     @Override
-    public NextAction handleRead(final FilterChainContext ctx) throws IOException {
+    NextAction handleRead(final FilterChainContext ctx) throws IOException {
       if (ctx.getMessage() instanceof HttpContent) {
         final HttpContent httpContent = ctx.getMessage();
         final HttpHeader httpHeader = httpContent.getHttpHeader();
         if (httpHeader instanceof HttpRequestPacket) {
-          final HttpRequestPacket request = (HttpRequestPacket) httpContent.getHttpHeader();
-
-          final ResponseParameters responseParameters = buildResponse(request);
-          final HttpResponsePacket response = HttpResponsePacket.builder(request).status(responseParameters.getStatus()).build()
-
-          final String CONTENT_LENGTH = "Content-Length";
-
-          final HttpResponsePacket.Builder responsePacketBuilder = HttpResponsePacket.builder(request);
-          responsePacketBuilder.status(responseParameters.getStatus());
-
-          responsePacketBuilder.header(CONTENT_LENGTH, valueOf(responseParameters.getResponseBody().length));
-
+          HttpRequestPacket request = (HttpRequestPacket) httpContent.getHttpHeader();
+          ResponseParameters responseParameters = buildResponse(request);
+          HttpResponsePacket responsePacket = HttpResponsePacket.builder(request)
+                            .status(responseParameters.getStatus())
+                            .header("Content-Length", valueOf(responseParameters.getResponseBody().length))
+                            .build();
           controller(responseParameters.getEndpoint()) {
-            ctx.write(HttpContent.builder(responsePacketBuilder.build())
+            ctx.write(HttpContent.builder(responsePacket)
               .content(wrap(ctx.getMemoryManager(), responseParameters.getResponseBody()))
               .build());
           }
@@ -172,7 +139,7 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
       return ctx.getStopAction();
     }
 
-    public ResponseParameters buildResponse(HttpRequestPacket request) {
+    ResponseParameters buildResponse(HttpRequestPacket request) {
       final String uri = request.getRequestURI()
       final String requestParams = request.getQueryString();
       final String fullPath = uri + (requestParams != null ? "?" + requestParams : "");
@@ -224,7 +191,7 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
       int status
       byte[] responseBody
 
-      public ResponseParameters(HttpServerTest.ServerEndpoint endpoint, status, byte[] responseBody) {
+      ResponseParameters(HttpServerTest.ServerEndpoint endpoint, status, byte[] responseBody) {
         this.endpoint = endpoint
         this.status = status;
         this.responseBody = responseBody;

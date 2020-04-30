@@ -16,17 +16,14 @@ public class FilterchainAdvice {
     if (ctx.getAttributes().getAttribute(SPAN) == null || activeScope() != null) {
       return null;
     }
-    final AgentScope scope =
-        activateSpan((AgentSpan) ctx.getAttributes().getAttribute(SPAN), false);
-    scope.setAsyncPropagation(true);
-    return scope;
+    return activateSpan((AgentSpan) ctx.getAttributes().getAttribute(SPAN))
+        .setAsyncPropagation(true);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void onExit(@Advice.Enter final AgentScope scope) {
     if (scope != null) {
-      scope.setAsyncPropagation(false);
-      scope.close();
+      scope.setAsyncPropagation(false).close();
     }
   }
 }

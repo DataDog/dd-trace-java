@@ -329,12 +329,12 @@ public final class OpenTracing32 implements TracerAPI {
         String value = getter.get(carrier, key);
         // in case of multiple values in the header, need to parse
         if (value != null) {
-          final String[] split = value.split(",");
-          if (split.length > 0) {
-            value = split[0].trim();
+          int firstComma = value.indexOf(',');
+          if (firstComma != -1) {
+            value = value.substring(0, firstComma).trim();
           }
+          extracted.put(key, value);
         }
-        extracted.put(key, value);
       }
     }
 
@@ -364,13 +364,6 @@ public final class OpenTracing32 implements TracerAPI {
     @Override
     public Iterable<Entry<String, String>> baggageItems() {
       return context.baggageItems();
-    }
-
-    @Override
-    public String toString() {
-      return "OT32Context{" +
-        "context=" + context +
-        '}';
     }
   }
 }

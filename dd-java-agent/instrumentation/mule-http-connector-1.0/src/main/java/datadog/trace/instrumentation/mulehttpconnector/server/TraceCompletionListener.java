@@ -9,20 +9,17 @@ import org.glassfish.grizzly.filterchain.FilterChainContext;
 
 public class TraceCompletionListener implements FilterChainContext.CompletionListener {
 
-  private AgentSpan span;
+  private final AgentSpan span;
+
+  public TraceCompletionListener(AgentSpan span) {
+    this.span = span;
+  }
 
   @Override
   public void onComplete(final FilterChainContext filterChainContext) {
-    if (span != null) {
-      DECORATE.beforeFinish(span);
-      span.finish();
-      filterChainContext.getAttributes().setAttribute(SPAN, null);
-      filterChainContext.getAttributes().setAttribute(RESPONSE, null);
-      setSpan(null);
-    }
-  }
-
-  public void setSpan(final AgentSpan span) {
-    this.span = span;
+    DECORATE.beforeFinish(span);
+    span.finish();
+    filterChainContext.getAttributes().removeAttribute(SPAN);
+    filterChainContext.getAttributes().removeAttribute(RESPONSE);
   }
 }

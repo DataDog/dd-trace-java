@@ -1,18 +1,18 @@
 package datadog.trace.instrumentation.mulehttpconnector.server;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import org.glassfish.grizzly.http.HttpRequestPacket;
+import org.glassfish.grizzly.http.HttpHeader;
 
-public class ExtractAdapter implements AgentPropagation.Getter<HttpRequestPacket> {
+public class ExtractAdapter implements AgentPropagation.Getter<HttpHeader> {
   public static final ExtractAdapter GETTER = new ExtractAdapter();
 
   @Override
-  public Iterable<String> keys(final HttpRequestPacket carrier) {
+  public Iterable<String> keys(final HttpHeader carrier) {
     return carrier.getHeaders().names();
   }
 
   @Override
-  public String get(final HttpRequestPacket carrier, final String key) {
+  public String get(final HttpHeader carrier, final String key) {
     return carrier.getHeader(key);
   }
 }
