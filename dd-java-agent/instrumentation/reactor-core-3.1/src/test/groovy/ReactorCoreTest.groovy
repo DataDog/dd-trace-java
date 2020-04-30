@@ -26,6 +26,13 @@ class ReactorCoreTest extends AgentTestRunner {
 
   @Shared
   def addOne = { i ->
+    // FIXME: Our clock implementation doesn't guarantee that start times are monotonic across
+    //  traces, we base span start times on a millisecond time from the start of the trace and
+    //  offset a number of nanos, this does not guarantee that the start times are monotonic. Thus
+    //  2 traces started during the same millisecond might have the span start times wrong relative
+    //  to each other. IE: TraceA and TraceB start at the same millisecond, SpanA1 starts, then
+    //  SpanB1 starts. SpanB1 can have an earlier startTimeNano than SpanA1
+    sleep(1)
     addOneFunc(i)
   }
 
