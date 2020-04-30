@@ -199,8 +199,10 @@ public class CoreTracer
   @Override
   public void finalize() {
     try {
-      Runtime.getRuntime().removeShutdownHook(shutdownCallback);
       shutdownCallback.run();
+      Runtime.getRuntime().removeShutdownHook(shutdownCallback);
+    } catch (final IllegalStateException e) {
+      // Do nothing.  Already shutting down
     } catch (final Exception e) {
       log.error("Error while finalizing DDTracer.", e);
     }
