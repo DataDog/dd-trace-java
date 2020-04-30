@@ -1,6 +1,6 @@
 package datadog.trace.agent.test.asserts
 
-import datadog.opentracing.DDSpan
+import datadog.trace.core.DDSpan
 import datadog.trace.common.writer.ListWriter
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType

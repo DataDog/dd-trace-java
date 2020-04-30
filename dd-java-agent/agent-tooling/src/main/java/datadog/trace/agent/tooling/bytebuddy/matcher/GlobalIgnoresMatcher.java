@@ -49,6 +49,7 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
     final String name = target.getActualName();
 
     if (name.startsWith("datadog.opentracing.")
+        || name.startsWith("datadog.trace.core.")
         || name.startsWith("datadog.slf4j.")
         || name.startsWith("net.bytebuddy.")
         || name.startsWith("jdk.")

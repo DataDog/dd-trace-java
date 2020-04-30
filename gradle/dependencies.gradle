@@ -14,7 +14,7 @@ ext {
     junit5        : "5.6.2",
     logback       : "1.2.3",
     lombok        : "1.18.10",
-    bytebuddy     : "1.10.6",
+    bytebuddy     : "1.10.10",
     scala         : "2.11.12",  // Last version to support Java 7 (2.12+ require Java 8+)
     kotlin        : "1.3.72",
     coroutines    : "1.3.0",
@@ -34,7 +34,6 @@ ext {
       dependencies.create(group: 'io.opentracing', name: 'opentracing-noop', version: versions.opentracing),
       dependencies.create(group: 'io.opentracing', name: 'opentracing-util', version: versions.opentracing),
     ],
-    opentracingMock: dependencies.create(group: 'io.opentracing', name: 'opentracing-mock', version: versions.opentracing),
 
     // General
     slf4j          : "org.slf4j:slf4j-api:${versions.slf4j}",

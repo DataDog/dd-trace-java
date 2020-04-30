@@ -1,4 +1,4 @@
-import datadog.opentracing.DDSpan
+import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags

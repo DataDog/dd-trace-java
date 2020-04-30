@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -6,6 +7,8 @@ import dd.trace.instrumentation.springwebflux.server.EchoHandlerFunction
 import dd.trace.instrumentation.springwebflux.server.FooModel
 import dd.trace.instrumentation.springwebflux.server.SpringWebFluxTestApplication
 import dd.trace.instrumentation.springwebflux.server.TestController
+import groovy.transform.stc.ClosureParams
+import groovy.transform.stc.SimpleType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -46,9 +49,25 @@ class SpringWebfluxTest extends AgentTestRunner {
     then:
     response.code == 200
     response.body().string() == expectedResponseBody
-    assertTraces(1) {
+    sortAndAssertTraces(1) {
       trace(0, 2) {
         span(0) {
+          resourceName "GET $urlPathWithVariables"
+          operationName "netty.request"
+          spanType DDSpanTypes.HTTP_SERVER
+          parent()
+          tags {
+            "$Tags.COMPONENT" "netty"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" Integer
+            "$Tags.HTTP_URL" url
+            "$Tags.HTTP_METHOD" "GET"
+            "$Tags.HTTP_STATUS" 200
+            defaultTags()
+          }
+        }
+        span(1) {
           if (annotatedMethod == null) {
             // Functional API
             resourceNameContains(SPRING_APP_CLASS_ANON_NESTED_CLASS_PREFIX, ".handle")
@@ -59,7 +78,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             operationName TestController.getSimpleName() + "." + annotatedMethod
           }
           spanType DDSpanTypes.HTTP_SERVER
-          childOf(span(1))
+          childOf(span(0))
           tags {
             "$Tags.COMPONENT" "spring-webflux-controller"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -73,22 +92,6 @@ class SpringWebfluxTest extends AgentTestRunner {
               // Annotation API
               "handler.type" TestController.getName()
             }
-            defaultTags()
-          }
-        }
-        span(1) {
-          resourceName "GET $urlPathWithVariables"
-          operationName "netty.request"
-          spanType DDSpanTypes.HTTP_SERVER
-          parent()
-          tags {
-            "$Tags.COMPONENT" "netty"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" url
-            "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
             defaultTags()
           }
         }
@@ -118,10 +121,26 @@ class SpringWebfluxTest extends AgentTestRunner {
     then:
     response.code == 200
     response.body().string() == expectedResponseBody
-    assertTraces(1) {
+    sortAndAssertTraces(1) {
       println TEST_WRITER
       trace(0, 3) {
         span(0) {
+          resourceName "GET $urlPathWithVariables"
+          operationName "netty.request"
+          spanType DDSpanTypes.HTTP_SERVER
+          parent()
+          tags {
+            "$Tags.COMPONENT" "netty"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+            "$Tags.PEER_PORT" Integer
+            "$Tags.HTTP_URL" url
+            "$Tags.HTTP_METHOD" "GET"
+            "$Tags.HTTP_STATUS" 200
+            defaultTags()
+          }
+        }
+        span(1) {
           if (annotatedMethod == null) {
             // Functional API
             resourceNameContains(SPRING_APP_CLASS_ANON_NESTED_CLASS_PREFIX, ".handle")
@@ -132,7 +151,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             operationName TestController.getSimpleName() + "." + annotatedMethod
           }
           spanType DDSpanTypes.HTTP_SERVER
-          childOf(span(1))
+          childOf(span(0))
           tags {
             "$Tags.COMPONENT" "spring-webflux-controller"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -149,22 +168,6 @@ class SpringWebfluxTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
-          resourceName "GET $urlPathWithVariables"
-          operationName "netty.request"
-          spanType DDSpanTypes.HTTP_SERVER
-          parent()
-          tags {
-            "$Tags.COMPONENT" "netty"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" url
-            "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" 200
-            defaultTags()
-          }
-        }
         span(2) {
           serviceName "unnamed-java-app"
           if (annotatedMethod == null) {
@@ -176,7 +179,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             resourceName "TestController.tracedMethod"
             operationName "trace.annotation"
           }
-          childOf(span(0))
+          childOf(span(1))
           errored false
           tags {
             "$Tags.COMPONENT" "trace"
@@ -207,7 +210,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
     then:
     response.code == 404
-    assertTraces(1) {
+    sortAndAssertTraces(1) {
       trace(0, 2) {
         span(0) {
           resourceName "GET /**"
@@ -256,24 +259,9 @@ class SpringWebfluxTest extends AgentTestRunner {
     then:
     response.code() == 202
     response.body().string() == echoString
-    assertTraces(1) {
+    sortAndAssertTraces(1) {
       trace(0, 3) {
         span(0) {
-          resourceName EchoHandlerFunction.getSimpleName() + ".handle"
-          operationName EchoHandlerFunction.getSimpleName() + ".handle"
-          spanType DDSpanTypes.HTTP_SERVER
-          childOf(span(1))
-          tags {
-            "$Tags.COMPONENT" "spring-webflux-controller"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "request.predicate" "(POST && /echo)"
-            "handler.type" { String tagVal ->
-              return tagVal.contains(EchoHandlerFunction.getName())
-            }
-            defaultTags()
-          }
-        }
-        span(1) {
           resourceName "POST /echo"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
@@ -289,10 +277,25 @@ class SpringWebfluxTest extends AgentTestRunner {
             defaultTags()
           }
         }
+        span(1) {
+          resourceName EchoHandlerFunction.getSimpleName() + ".handle"
+          operationName EchoHandlerFunction.getSimpleName() + ".handle"
+          spanType DDSpanTypes.HTTP_SERVER
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "spring-webflux-controller"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "request.predicate" "(POST && /echo)"
+            "handler.type" { String tagVal ->
+              return tagVal.contains(EchoHandlerFunction.getName())
+            }
+            defaultTags()
+          }
+        }
         span(2) {
           resourceName "echo"
           operationName "echo"
-          childOf(span(0))
+          childOf(span(1))
           tags {
             "$Tags.COMPONENT" "trace"
             defaultTags()
@@ -312,7 +315,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
     then:
     response.code() == 500
-    assertTraces(1) {
+    sortAndAssertTraces(1) {
       trace(0, 2) {
         span(0) {
           resourceName "GET $urlPathWithVariables"
@@ -384,7 +387,7 @@ class SpringWebfluxTest extends AgentTestRunner {
 
     then:
     response.code == 200
-    assertTraces(2) {
+    sortAndAssertTraces(2) {
       // TODO: why order of spans is different in these traces?
       trace(0, 2) {
         span(0) {
@@ -422,21 +425,6 @@ class SpringWebfluxTest extends AgentTestRunner {
       }
       trace(1, 2) {
         span(0) {
-          resourceNameContains(SpringWebFluxTestApplication.getSimpleName() + "\$", ".handle")
-          operationNameContains(SpringWebFluxTestApplication.getSimpleName() + "\$", ".handle")
-          spanType DDSpanTypes.HTTP_SERVER
-          childOf(span(1))
-          tags {
-            "$Tags.COMPONENT" "spring-webflux-controller"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "request.predicate" "(GET && /double-greet)"
-            "handler.type" { String tagVal ->
-              return tagVal.contains(INNER_HANDLER_FUNCTION_CLASS_TAG_PREFIX)
-            }
-            defaultTags()
-          }
-        }
-        span(1) {
           resourceName "GET /double-greet"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
@@ -449,6 +437,21 @@ class SpringWebfluxTest extends AgentTestRunner {
             "$Tags.HTTP_URL" finalUrl
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
+            defaultTags()
+          }
+        }
+        span(1) {
+          resourceNameContains(SpringWebFluxTestApplication.getSimpleName() + "\$", ".handle")
+          operationNameContains(SpringWebFluxTestApplication.getSimpleName() + "\$", ".handle")
+          spanType DDSpanTypes.HTTP_SERVER
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "spring-webflux-controller"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "request.predicate" "(GET && /double-greet)"
+            "handler.type" { String tagVal ->
+              return tagVal.contains(INNER_HANDLER_FUNCTION_CLASS_TAG_PREFIX)
+            }
             defaultTags()
           }
         }
@@ -467,10 +470,26 @@ class SpringWebfluxTest extends AgentTestRunner {
     then:
     responses.every { it.code == 200 }
     responses.every { it.body().string() == expectedResponseBody }
-    assertTraces(responses.size()) {
+    sortAndAssertTraces(responses.size()) {
       responses.eachWithIndex { def response, int i ->
         trace(i, 2) {
           span(0) {
+            resourceName "GET $urlPathWithVariables"
+            operationName "netty.request"
+            spanType DDSpanTypes.HTTP_SERVER
+            parent()
+            tags {
+              "$Tags.COMPONENT" "netty"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+              "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+              "$Tags.PEER_PORT" Integer
+              "$Tags.HTTP_URL" url
+              "$Tags.HTTP_METHOD" "GET"
+              "$Tags.HTTP_STATUS" 200
+              defaultTags()
+            }
+          }
+          span(1) {
             if (annotatedMethod == null) {
               // Functional API
               resourceNameContains(SPRING_APP_CLASS_ANON_NESTED_CLASS_PREFIX, ".handle")
@@ -481,7 +500,7 @@ class SpringWebfluxTest extends AgentTestRunner {
               operationName TestController.getSimpleName() + "." + annotatedMethod
             }
             spanType DDSpanTypes.HTTP_SERVER
-            childOf(span(1))
+            childOf(span(0))
             tags {
               "$Tags.COMPONENT" "spring-webflux-controller"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -498,22 +517,6 @@ class SpringWebfluxTest extends AgentTestRunner {
               defaultTags()
             }
           }
-          span(1) {
-            resourceName "GET $urlPathWithVariables"
-            operationName "netty.request"
-            spanType DDSpanTypes.HTTP_SERVER
-            parent()
-            tags {
-              "$Tags.COMPONENT" "netty"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-              "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-              "$Tags.PEER_PORT" Integer
-              "$Tags.HTTP_URL" url
-              "$Tags.HTTP_METHOD" "GET"
-              "$Tags.HTTP_STATUS" 200
-              defaultTags()
-            }
-          }
         }
       }
     }
@@ -522,5 +525,23 @@ class SpringWebfluxTest extends AgentTestRunner {
     testName                          | urlPath          | urlPathWithVariables | annotatedMethod | expectedResponseBody
     "functional API delayed response" | "/greet-delayed" | "/greet-delayed"     | null            | SpringWebFluxTestApplication.GreetingHandler.DEFAULT_RESPONSE
     "annotation API delayed response" | "/foo-delayed"   | "/foo-delayed"       | "getFooDelayed" | new FooModel(3L, "delayed").toString()
+  }
+
+  void sortAndAssertTraces(
+    final int size,
+    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
+    final Closure spec) {
+
+    TEST_WRITER.waitForTraces(size)
+
+    TEST_WRITER.each {
+      it.sort({
+        a, b ->
+          return a.startTime <=> b.startTime
+      })
+    }
+
+    assertTraces(size, spec)
   }
 }

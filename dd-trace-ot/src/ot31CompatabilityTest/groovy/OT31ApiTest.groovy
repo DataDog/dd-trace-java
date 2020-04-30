@@ -1,7 +1,5 @@
-import datadog.opentracing.DDSpan
-import datadog.opentracing.DDSpanContext
 import datadog.opentracing.DDTracer
-import datadog.opentracing.propagation.ExtractedContext
+import datadog.trace.core.DDSpan
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.util.test.DDSpecification
 import io.opentracing.Tracer
@@ -25,7 +23,7 @@ class OT31ApiTest extends DDSpecification {
     scope.close()
 
     then:
-    (scope.span() as DDSpan).isFinished() == finishSpan
+    (scope.span().delegate as DDSpan).isFinished() == finishSpan
 
     where:
     finishSpan << [true, false]
@@ -53,7 +51,7 @@ class OT31ApiTest extends DDSpecification {
 
     then:
     tracer.scopeManager().active().close()
-    (span as DDSpan).isFinished() == finishSpan
+    (span.delegate as DDSpan).isFinished() == finishSpan
 
     where:
     finishSpan << [true, false]
@@ -61,7 +59,7 @@ class OT31ApiTest extends DDSpecification {
 
   def "test inject extract"() {
     setup:
-    def context = tracer.buildSpan("some name").start().context() as DDSpanContext
+    def context = tracer.buildSpan("some name").start().context()
     def textMap = [:]
     def adapter = new TextMapAdapter(textMap)
 
@@ -72,16 +70,16 @@ class OT31ApiTest extends DDSpecification {
     textMap == [
       "x-datadog-trace-id"         : context.toTraceId(),
       "x-datadog-parent-id"        : context.toSpanId(),
-      "x-datadog-sampling-priority": "$context.samplingPriority",
+      "x-datadog-sampling-priority": "$context.delegate.samplingPriority",
     ]
 
     when:
-    def extract = tracer.extract(Format.Builtin.TEXT_MAP, adapter) as ExtractedContext
+    def extract = tracer.extract(Format.Builtin.TEXT_MAP, adapter)
 
     then:
-    extract.traceId == context.traceId
-    extract.spanId == context.spanId
-    extract.samplingPriority == context.samplingPriority
+    extract.toTraceId() == context.toTraceId()
+    extract.toSpanId() == context.toSpanId()
+    extract.extractedContext.samplingPriority == context.delegate.samplingPriority
   }
 
   static class TextMapAdapter implements TextMap {

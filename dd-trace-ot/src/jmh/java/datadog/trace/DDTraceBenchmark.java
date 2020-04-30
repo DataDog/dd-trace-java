@@ -13,7 +13,7 @@ public class DDTraceBenchmark {
   @State(org.openjdk.jmh.annotations.Scope.Thread)
   public static class TraceState {
     public ListWriter traceCollector = new ListWriter();
-    public Tracer tracer = new DDTracer(traceCollector);
+    public Tracer tracer = DDTracer.builder().writer(traceCollector).build();
     // TODO: this will need to be fixed if we want backwards compatibility for older versions...
     public io.opentracing.Scope scope = tracer.buildSpan(SPAN_NAME).startActive(true);
   }

@@ -1,7 +1,7 @@
 package springdata
 
 import com.anotherchrisberry.spock.extensions.retry.RetryOnFailure
-import datadog.opentracing.DDSpan
+import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags

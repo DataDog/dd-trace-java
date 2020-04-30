@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling;
 import datadog.opentracing.DDTracer;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.core.CoreTracer;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -11,13 +12,14 @@ public class TracerInstaller {
   public static synchronized void installGlobalTracer() {
     if (Config.get().isTraceEnabled()) {
       if (!io.opentracing.util.GlobalTracer.isRegistered()) {
-        final DDTracer tracer = DDTracer.builder().build();
+        final CoreTracer tracer = CoreTracer.builder().build();
+        final DDTracer tracerOT = new DDTracer(tracer);
         try {
-          io.opentracing.util.GlobalTracer.register(tracer);
+          io.opentracing.util.GlobalTracer.register(tracerOT);
           datadog.trace.api.GlobalTracer.registerIfAbsent(tracer);
-          AgentTracer.registerIfAbsent(new OpenTracing32());
+          AgentTracer.registerIfAbsent(tracer);
         } catch (final RuntimeException re) {
-          log.warn("Failed to register tracer '" + tracer + "'", re);
+          log.warn("Failed to register tracer: {}", tracerOT, re);
         }
       } else {
         log.debug("GlobalTracer already registered.");

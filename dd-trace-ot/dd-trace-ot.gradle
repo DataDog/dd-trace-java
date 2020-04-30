@@ -1,6 +1,7 @@
 plugins {
   id "com.github.johnrengelman.shadow" version "5.2.0"
   id "me.champeau.gradle.jmh" version "0.5.0"
+  id "com.palantir.revapi" version "1.4.0"
 }
 
 description = 'dd-trace-ot'
@@ -8,17 +9,17 @@ description = 'dd-trace-ot'
 apply from: "${rootDir}/gradle/java.gradle"
 apply from: "${rootDir}/gradle/publish.gradle"
 
+// TODO raise these when equals() and hashCode() are excluded
 minimumBranchCoverage = 0.5
-minimumInstructionCoverage = 0.6
+minimumInstructionCoverage = 0.5
+
 excludedClassesCoverage += [
-  'datadog.trace.common.writer.ListWriter',
-  'datadog.trace.common.writer.LoggingWriter',
-  'datadog.trace.common.writer.DDAgentWriter.DDAgentWriterBuilder',
-  'datadog.trace.common.sampling.PrioritySampling',
-  // This code is copied from okHttp samples and we have integration tests to verify that it works.
-  'datadog.trace.common.writer.unixdomainsockets.TunnelingUnixSocket',
-  'datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory',
-  'datadog.opentracing.StringCachingBigInteger'
+  // These are all equals() and hashCode()
+  "datadog.opentracing.OTTagContext",
+  "datadog.opentracing.OTExtractedContext",
+  "datadog.opentracing.OTGenericContext",
+  // The builder is generated
+  "datadog.opentracing.DDTracer.DDTracerBuilder"
 ]
 
 apply plugin: 'org.unbroken-dome.test-sets'
@@ -26,7 +27,6 @@ apply plugin: 'org.unbroken-dome.test-sets'
 testSets {
   ot31CompatabilityTest
   ot33CompatabilityTest
-  traceAgentTest
 }
 
 dependencies {
@@ -34,19 +34,12 @@ dependencies {
   implementation deps.autoservice
 
   compile project(':dd-trace-api')
-  compile project(':utils:thread-utils')
+  compile project(':dd-trace-core')
 
   compile deps.opentracing
   compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
-  compile group: 'com.datadoghq', name: 'java-dogstatsd-client', version: "${versions.dogstatsd}"
-
   compile deps.slf4j
-  compile deps.okhttp
-  compile group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
-  compile group: 'com.squareup.moshi', name: 'moshi', version: '1.9.2'
-  compile group: 'com.github.jnr', name: 'jnr-unixsocket', version: "${versions.jnr_unixsocket}"
-  compile group: 'com.lmax', name: 'disruptor', version: '3.4.2'
 
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor deps.autoservice
@@ -54,9 +47,6 @@ dependencies {
 
   testCompile project(":dd-java-agent:testing")
   testCompile group: 'com.github.stefanbirkner', name: 'system-rules', version: '1.19.0'
-  testCompile group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
-
-  traceAgentTestCompile deps.testcontainers
 
   ot31CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
   ot31CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
@@ -93,13 +83,36 @@ shadowJar {
   archiveClassifier = ''
 
   dependencies {
+    include(project(':dd-trace-core'))
+    include(project(':internal-api'))
     include(project(':utils:thread-utils'))
   }
 }
 
-// We don't want bundled dependencies to show up in the pom.
 modifyPom {
-  dependencies.removeAll { it.artifactId == "thread-utils" }
+  // We're bundling the internal dependencies.  So we need to add the transitive dependencies
+  // of those projects. Directly adding to the XML is the only way to prevent the shadowJar plugin
+  // from removing them
+  withXml({ XmlProvider provider ->
+    Node dependencies = provider.asNode().dependencies[0]
+    def addedDependencies = ['thread-utils', 'internal-api', 'slf4j-api', 'dd-trace-api']
+    [project(':dd-trace-core'), project(':utils:thread-utils'), project(':internal-api')].forEach {
+      bundledProject ->
+        bundledProject.configurations.getByName("compile").dependencies.forEach {
+          transitiveDependency ->
+            if (!addedDependencies.contains(transitiveDependency.name)) {
+              def dependency = dependencies.appendNode("dependency")
+              dependency.appendNode("groupId", transitiveDependency.group)
+              dependency.appendNode("artifactId", transitiveDependency.name)
+              dependency.appendNode("version", transitiveDependency.version)
+              dependency.appendNode("scope", "compile")
+              addedDependencies.add(transitiveDependency.name)
+            }
+        }
+    }
+  })
+
+  dependencies.removeAll { ['thread-utils', 'internal-api', 'dd-trace-core'].contains(it.artifactId) }
 }
 
 jmh {

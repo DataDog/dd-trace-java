@@ -1,22 +1,22 @@
-import datadog.opentracing.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.core.DDSpan
 
 import javax.servlet.ServletException
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
-import static datadog.opentracing.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_KEY
-import static datadog.opentracing.propagation.DatadogHttpCodec.SPAN_ID_KEY
-import static datadog.opentracing.propagation.DatadogHttpCodec.TRACE_ID_KEY
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE
+import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_KEY
+import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY
+import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY
 
 class RequestDispatcherTest extends AgentTestRunner {
 
   def request = Mock(HttpServletRequest)
   def response = Mock(HttpServletResponse)
-  def mockSpan = Mock(DDSpan)
+  def mockSpan = Stub(DDSpan)
   def dispatcher = new RequestDispatcherUtils(request, response)
 
   def "test dispatch no-parent"() {

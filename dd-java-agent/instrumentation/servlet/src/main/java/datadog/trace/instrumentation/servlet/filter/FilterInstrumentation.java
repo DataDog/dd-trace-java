@@ -78,7 +78,9 @@ public final class FilterInstrumentation extends Instrumenter.Default {
       // Here we use "this" instead of "the method target" to distinguish abstract filter instances.
       span.setTag(DDTags.RESOURCE_NAME, filter.getClass().getSimpleName() + ".doFilter");
 
-      return activateSpan(span, true).setAsyncPropagation(true);
+      final AgentScope agentScope = activateSpan(span, true);
+      agentScope.setAsyncPropagation(true);
+      return agentScope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

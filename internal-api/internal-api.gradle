@@ -1,0 +1,6 @@
+apply from: "${rootDir}/gradle/java.gradle"
+
+dependencies {
+  // references TraceScope and Continuation from public api
+  compile project(':dd-trace-api')
+}

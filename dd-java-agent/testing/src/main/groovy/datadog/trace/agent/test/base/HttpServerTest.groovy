@@ -1,7 +1,7 @@
 package datadog.trace.agent.test.base
 
 import ch.qos.logback.classic.Level
-import datadog.opentracing.DDSpan
+import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
