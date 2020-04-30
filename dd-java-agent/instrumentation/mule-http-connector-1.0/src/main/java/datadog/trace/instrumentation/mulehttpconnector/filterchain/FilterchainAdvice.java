@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.mulehttpconnector.filterchain;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static datadog.trace.instrumentation.mulehttpconnector.ContextAttributes.SPAN;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -13,10 +13,10 @@ public class FilterchainAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(0) final FilterChainContext ctx) {
-    if (ctx.getAttributes().getAttribute(SPAN) == null || activeScope() != null) {
+    if (ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE) == null || activeScope() != null) {
       return null;
     }
-    AgentScope scope = activateSpan((AgentSpan) ctx.getAttributes().getAttribute(SPAN));
+    AgentScope scope = activateSpan((AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE));
     scope.setAsyncPropagation(true);
     return scope;
   }

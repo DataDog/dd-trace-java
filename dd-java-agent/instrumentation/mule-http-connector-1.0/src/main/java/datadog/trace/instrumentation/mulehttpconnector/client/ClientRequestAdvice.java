@@ -34,6 +34,7 @@ public class ClientRequestAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void onExit(@Advice.Enter final AgentScope scope) {
+    // span closed in ClientResponseAdvice, scope only created for profiler's benefit
     scope.close();
   }
 }

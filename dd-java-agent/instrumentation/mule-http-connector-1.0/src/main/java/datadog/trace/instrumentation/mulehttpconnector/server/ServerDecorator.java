@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.mulehttpconnector.ContextAttributes.RESPONSE;
-import static datadog.trace.instrumentation.mulehttpconnector.ContextAttributes.SPAN;
 import static datadog.trace.instrumentation.mulehttpconnector.server.ExtractAdapter.GETTER;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -66,7 +65,7 @@ public class ServerDecorator
   public static void onHttpCodecFilterExit(FilterChainContext ctx, HttpHeader httpHeader) {
     // only create a span if there isn't another one attached to the current ctx
     // and if the httpHeader has been parsed into a HttpRequestPacket
-    if (ctx.getAttributes().getAttribute(SPAN) != null
+    if (ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE) != null
         || !(httpHeader instanceof HttpRequestPacket)) {
       return;
     }
@@ -76,7 +75,7 @@ public class ServerDecorator
     AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
     DECORATE.afterStart(span);
-    ctx.getAttributes().setAttribute(SPAN, span);
+    ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);
     ctx.getAttributes().setAttribute(RESPONSE, httpResponse);
     DECORATE.onConnection(span, httpRequest);
     DECORATE.onRequest(span, httpRequest);
@@ -85,13 +84,13 @@ public class ServerDecorator
   }
 
   public static void onFilterChainFail(FilterChainContext ctx, Throwable throwable) {
-    AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(SPAN);
+    AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
     if (null != span) {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span).finish();
       span.finish();
     }
-    ctx.getAttributes().removeAttribute(SPAN);
+    ctx.getAttributes().removeAttribute(DD_SPAN_ATTRIBUTE);
     ctx.getAttributes().removeAttribute(RESPONSE);
   }
 }

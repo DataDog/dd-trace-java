@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.mulehttpconnector.server;
 
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.mulehttpconnector.ContextAttributes.RESPONSE;
-import static datadog.trace.instrumentation.mulehttpconnector.ContextAttributes.SPAN;
 import static datadog.trace.instrumentation.mulehttpconnector.server.ServerDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -26,7 +26,7 @@ public class TraceCompletionListener implements FilterChainContext.CompletionLis
           span, (HttpResponsePacket) filterChainContext.getAttributes().getAttribute(RESPONSE));
       DECORATE.beforeFinish(span);
       span.finish();
-      filterChainContext.getAttributes().removeAttribute(SPAN);
+      filterChainContext.getAttributes().removeAttribute(DD_SPAN_ATTRIBUTE);
       filterChainContext.getAttributes().removeAttribute(RESPONSE);
     }
   }
