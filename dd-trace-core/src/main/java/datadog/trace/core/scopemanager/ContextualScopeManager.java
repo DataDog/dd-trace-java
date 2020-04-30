@@ -27,7 +27,7 @@ public class ContextualScopeManager implements DDScopeManager {
   @Override
   public AgentScope activate(final AgentSpan span, final boolean finishOnClose) {
     final DDScope active = tlsScope.get();
-    if (active.span().equals(span)) {
+    if (active != null && active.span().equals(span)) {
       return active.incrementReferences();
     }
     final int currentDepth = active == null ? 0 : active.depth();
