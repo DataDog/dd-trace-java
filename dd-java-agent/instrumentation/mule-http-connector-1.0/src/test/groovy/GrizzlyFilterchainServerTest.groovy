@@ -1,7 +1,15 @@
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.mulehttpconnector.server.ServerDecorator
-import org.glassfish.grizzly.filterchain.*
-import org.glassfish.grizzly.http.*
+import org.glassfish.grizzly.filterchain.BaseFilter
+import org.glassfish.grizzly.filterchain.FilterChain
+import org.glassfish.grizzly.filterchain.FilterChainContext
+import org.glassfish.grizzly.filterchain.NextAction
+import org.glassfish.grizzly.filterchain.TransportFilter
+import org.glassfish.grizzly.http.HttpContent
+import org.glassfish.grizzly.http.HttpHeader
+import org.glassfish.grizzly.http.HttpRequestPacket
+import org.glassfish.grizzly.http.HttpResponsePacket
+import org.glassfish.grizzly.http.HttpServerFilter
 import org.glassfish.grizzly.http.server.HttpServer
 import org.glassfish.grizzly.nio.transport.TCPNIOServerConnection
 import org.glassfish.grizzly.nio.transport.TCPNIOTransport
@@ -11,7 +19,14 @@ import org.glassfish.grizzly.utils.IdleTimeoutFilter
 
 import java.util.concurrent.Executors
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static java.lang.String.valueOf
 import static java.nio.charset.Charset.defaultCharset
 import static java.util.concurrent.TimeUnit.MILLISECONDS
@@ -173,7 +188,7 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
       byte[] responseBody
 
       ResponseParameters(HttpServerTest.ServerEndpoint endpoint,
-                         status,
+                         int status,
                          byte[] responseBody,
                          Map<String, String> headers) {
         this.endpoint = endpoint

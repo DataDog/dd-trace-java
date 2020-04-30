@@ -1,4 +1,8 @@
-import com.ning.http.client.*
+import com.ning.http.client.AsyncCompletionHandler
+import com.ning.http.client.AsyncHttpClient
+import com.ning.http.client.Request
+import com.ning.http.client.RequestBuilder
+import com.ning.http.client.Response
 import com.ning.http.client.uri.Uri
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.instrumentation.mulehttpconnector.client.ClientDecorator

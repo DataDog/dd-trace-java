@@ -1,21 +1,20 @@
 package datadog.trace.instrumentation.java.concurrent;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static net.bytebuddy.matcher.ElementMatchers.any;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import lombok.extern.slf4j.Slf4j;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.matcher.ElementMatcher;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Executor;
-
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
-import static net.bytebuddy.matcher.ElementMatchers.any;
-import static net.bytebuddy.matcher.ElementMatchers.named;
+import lombok.extern.slf4j.Slf4j;
+import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.matcher.ElementMatcher;
 
 @Slf4j
 public abstract class AbstractExecutorInstrumentation extends Instrumenter.Default {

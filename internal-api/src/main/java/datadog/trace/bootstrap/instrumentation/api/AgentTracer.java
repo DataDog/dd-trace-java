@@ -30,6 +30,7 @@ public class AgentTracer {
 
   /**
    * Activates the span without finishing on closing the active scope
+   *
    * @param span the span to activate
    * @return a newly activated scope
    */

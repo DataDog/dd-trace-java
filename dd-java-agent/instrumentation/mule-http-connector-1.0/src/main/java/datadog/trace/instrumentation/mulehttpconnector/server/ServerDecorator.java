@@ -73,7 +73,8 @@ public class ServerDecorator
     HttpRequestPacket httpRequest = (HttpRequestPacket) httpHeader;
     HttpResponsePacket httpResponse = httpRequest.getResponse();
     AgentSpan span = startSpan("http.request", propagate().extract(httpHeader, GETTER));
-    AgentScope scope = activateSpan(span).setAsyncPropagation(true);
+    AgentScope scope = activateSpan(span);
+    scope.setAsyncPropagation(true);
     DECORATE.afterStart(span);
     ctx.getAttributes().setAttribute(SPAN, span);
     ctx.getAttributes().setAttribute(RESPONSE, httpResponse);
