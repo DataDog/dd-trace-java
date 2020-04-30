@@ -20,8 +20,8 @@ public class TraceCompletionListener implements FilterChainContext.CompletionLis
   public void onComplete(final FilterChainContext filterChainContext) {
     HttpResponsePacket response =
         (HttpResponsePacket) filterChainContext.getAttributes().getAttribute(RESPONSE);
-    if (null != response) { // will have been removed and treated separately if an exception was
-      // encountered
+    if (null != response) {
+      // will have been removed and treated separately if an exception was encountered
       DECORATE.onResponse(
           span, (HttpResponsePacket) filterChainContext.getAttributes().getAttribute(RESPONSE));
       DECORATE.beforeFinish(span);

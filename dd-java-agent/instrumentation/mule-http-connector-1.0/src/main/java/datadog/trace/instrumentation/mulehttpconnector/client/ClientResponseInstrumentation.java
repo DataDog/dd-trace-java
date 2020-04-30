@@ -36,7 +36,6 @@ public final class ClientResponseInstrumentation extends Instrumenter.Default {
     return new String[] {packageName + ".ClientDecorator"};
   }
 
-  // TO-DO: might need to specify that it is a nested method
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
