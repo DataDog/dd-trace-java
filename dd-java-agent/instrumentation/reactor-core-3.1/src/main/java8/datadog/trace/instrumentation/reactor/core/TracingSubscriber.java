@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope;
 import datadog.trace.context.TraceScope;
 import java.io.Closeable;
 import java.util.concurrent.atomic.AtomicReference;
@@ -43,7 +44,7 @@ public class TracingSubscriber<T>
         // create a hard reference to the trace that we don't want reported until we are done
         continuation.set(activeScope().capture());
       } else {
-        continuation.set(AgentTracer.noopTraceScope().capture());
+        continuation.set(NoopAgentScope.INSTANCE.capture());
       }
     }
 

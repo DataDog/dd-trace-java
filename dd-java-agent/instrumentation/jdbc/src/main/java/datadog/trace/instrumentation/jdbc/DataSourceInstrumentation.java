@@ -62,7 +62,9 @@ public final class DataSourceInstrumentation extends Instrumenter.Default {
 
       span.setTag(DDTags.RESOURCE_NAME, ds.getClass().getSimpleName() + ".getConnection");
 
-      return activateSpan(span, true).setAsyncPropagation(true);
+      final AgentScope agentScope = activateSpan(span, true);
+      agentScope.setAsyncPropagation(true);
+      return agentScope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

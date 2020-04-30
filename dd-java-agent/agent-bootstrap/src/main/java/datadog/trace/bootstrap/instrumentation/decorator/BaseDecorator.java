@@ -4,7 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import io.opentracing.tag.Tags;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -44,7 +44,7 @@ public abstract class BaseDecorator {
     if (spanType() != null) {
       span.setTag(DDTags.SPAN_TYPE, spanType());
     }
-    span.setTag(Tags.COMPONENT.getKey(), component());
+    span.setTag(Tags.COMPONENT, component());
     if (traceAnalyticsEnabled) {
       span.setTag(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate);
     }
@@ -83,8 +83,8 @@ public abstract class BaseDecorator {
     if (remoteConnection != null) {
       onPeerConnection(span, remoteConnection.getAddress());
 
-      span.setTag(Tags.PEER_HOSTNAME.getKey(), remoteConnection.getHostName());
-      span.setTag(Tags.PEER_PORT.getKey(), remoteConnection.getPort());
+      span.setTag(Tags.PEER_HOSTNAME, remoteConnection.getHostName());
+      span.setTag(Tags.PEER_PORT, remoteConnection.getPort());
     }
     return span;
   }
@@ -92,11 +92,11 @@ public abstract class BaseDecorator {
   public AgentSpan onPeerConnection(final AgentSpan span, final InetAddress remoteAddress) {
     assert span != null;
     if (remoteAddress != null) {
-      span.setTag(Tags.PEER_HOSTNAME.getKey(), remoteAddress.getHostName());
+      span.setTag(Tags.PEER_HOSTNAME, remoteAddress.getHostName());
       if (remoteAddress instanceof Inet4Address) {
-        span.setTag(Tags.PEER_HOST_IPV4.getKey(), remoteAddress.getHostAddress());
+        span.setTag(Tags.PEER_HOST_IPV4, remoteAddress.getHostAddress());
       } else if (remoteAddress instanceof Inet6Address) {
-        span.setTag(Tags.PEER_HOST_IPV6.getKey(), remoteAddress.getHostAddress());
+        span.setTag(Tags.PEER_HOST_IPV6, remoteAddress.getHostAddress());
       }
     }
     return span;

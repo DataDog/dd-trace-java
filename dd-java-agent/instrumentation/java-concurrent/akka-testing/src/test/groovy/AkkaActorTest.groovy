@@ -1,4 +1,4 @@
-import datadog.opentracing.DDSpan
+import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 
 class AkkaActorTest extends AgentTestRunner {

@@ -34,7 +34,6 @@ ext {
       dependencies.create(group: 'io.opentracing', name: 'opentracing-noop', version: versions.opentracing),
       dependencies.create(group: 'io.opentracing', name: 'opentracing-util', version: versions.opentracing),
     ],
-    opentracingMock: dependencies.create(group: 'io.opentracing', name: 'opentracing-mock', version: versions.opentracing),
 
     // General
     slf4j          : "org.slf4j:slf4j-api:${versions.slf4j}",

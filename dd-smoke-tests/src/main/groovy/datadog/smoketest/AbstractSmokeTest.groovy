@@ -1,8 +1,15 @@
 package datadog.smoketest
 
+import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.agent.test.utils.PortUtils
+import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
+
+import java.util.concurrent.BlockingQueue
+import java.util.concurrent.LinkedBlockingQueue
+
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 abstract class AbstractSmokeTest extends Specification {
 
@@ -26,6 +33,28 @@ abstract class AbstractSmokeTest extends Specification {
   @Shared
   protected Process serverProcess
 
+  @Shared
+  protected BlockingQueue<TestHttpServer.HandlerApi.RequestApi> traceRequests = new LinkedBlockingQueue<>()
+
+  @Shared
+  @AutoCleanup
+  protected TestHttpServer server = httpServer {
+    handlers {
+      prefix("/v0.4/traces") {
+        traceRequests.add(request)
+        response.status(200).send()
+      }
+      all {
+        response.status(200).send()
+      }
+    }
+  }
+
+  def setup() {
+    traceRequests.clear()
+  }
+
+
   def setupSpec() {
     if (buildDirectory == null || shadowJarPath == null) {
       throw new AssertionError("Expected system properties not found. Smoke tests have to be run from Gradle. Please make sure that is the case.")
@@ -34,9 +63,11 @@ abstract class AbstractSmokeTest extends Specification {
     profilingPort = PortUtils.randomOpenPort()
     profilingUrl = "http://localhost:${profilingPort}/"
 
+    server.start()
+
     defaultJavaProperties = [
       "-javaagent:${shadowJarPath}",
-      "-Ddd.writer.type=LoggingWriter",
+      "-Ddd.trace.agent.port=${server.address.port}",
       "-Ddd.service.name=smoke-test-java-app",
       "-Ddd.profiling.enabled=true",
       "-Ddd.profiling.start-delay=${PROFILING_START_DELAY_SECONDS}",

@@ -275,7 +275,7 @@ public class Agent {
     }
     try {
       final Class<?> tracerInstallerClass =
-          AGENT_CLASSLOADER.loadClass("datadog.trace.common.util.ThreadCpuTimeAccess");
+          AGENT_CLASSLOADER.loadClass("datadog.trace.core.util.ThreadCpuTimeAccess");
       final Method enableJmxMethod = tracerInstallerClass.getMethod("enableJmx");
       enableJmxMethod.invoke(null);
     } catch (final Throwable ex) {
