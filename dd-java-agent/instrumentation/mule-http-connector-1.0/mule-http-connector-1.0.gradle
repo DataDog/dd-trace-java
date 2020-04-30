@@ -1,11 +1,4 @@
-muzzle {
-  pass {
-//    group = 'org.mule.connectors'
-//    module = 'mule-http-connector'
-//    versions = "[1.5.14-mule-plugin,)"
-  }
-}
-
+// no muzzle until/unless muzzle supports maven classifiers
 
 apply from: "${rootDir}/gradle/java.gradle"
 

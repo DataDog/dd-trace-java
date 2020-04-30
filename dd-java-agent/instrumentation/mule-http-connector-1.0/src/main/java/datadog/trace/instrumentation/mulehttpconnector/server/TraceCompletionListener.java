@@ -6,6 +6,7 @@ import static datadog.trace.instrumentation.mulehttpconnector.server.ServerDecor
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
+import org.glassfish.grizzly.http.HttpResponsePacket;
 
 public class TraceCompletionListener implements FilterChainContext.CompletionListener {
 
@@ -17,9 +18,16 @@ public class TraceCompletionListener implements FilterChainContext.CompletionLis
 
   @Override
   public void onComplete(final FilterChainContext filterChainContext) {
-    DECORATE.beforeFinish(span);
-    span.finish();
-    filterChainContext.getAttributes().removeAttribute(SPAN);
-    filterChainContext.getAttributes().removeAttribute(RESPONSE);
+    HttpResponsePacket response =
+        (HttpResponsePacket) filterChainContext.getAttributes().getAttribute(RESPONSE);
+    if (null != response) { // will have been removed and treated separately if an exception was
+      // encountered
+      DECORATE.onResponse(
+          span, (HttpResponsePacket) filterChainContext.getAttributes().getAttribute(RESPONSE));
+      DECORATE.beforeFinish(span);
+      span.finish();
+      filterChainContext.getAttributes().removeAttribute(SPAN);
+      filterChainContext.getAttributes().removeAttribute(RESPONSE);
+    }
   }
 }

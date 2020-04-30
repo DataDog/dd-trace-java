@@ -1,19 +1,7 @@
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.instrumentation.mulehttpconnector.server.ServerDecorator
-import okhttp3.OkHttpClient
-import org.glassfish.grizzly.filterchain.BaseFilter
-import org.glassfish.grizzly.filterchain.FilterChain
-import org.glassfish.grizzly.filterchain.FilterChainBuilder
-import org.glassfish.grizzly.filterchain.FilterChainContext
-import org.glassfish.grizzly.filterchain.NextAction
-import org.glassfish.grizzly.filterchain.TransportFilter
-import org.glassfish.grizzly.http.HttpContent
-import org.glassfish.grizzly.http.HttpHeader
-import org.glassfish.grizzly.http.HttpRequestPacket
-import org.glassfish.grizzly.http.HttpResponsePacket
-import org.glassfish.grizzly.http.HttpServerFilter
-import org.glassfish.grizzly.http.KeepAlive
+import org.glassfish.grizzly.filterchain.*
+import org.glassfish.grizzly.http.*
 import org.glassfish.grizzly.http.server.HttpServer
 import org.glassfish.grizzly.nio.transport.TCPNIOServerConnection
 import org.glassfish.grizzly.nio.transport.TCPNIOTransport
@@ -21,20 +9,9 @@ import org.glassfish.grizzly.nio.transport.TCPNIOTransportBuilder
 import org.glassfish.grizzly.utils.DelayedExecutor
 import org.glassfish.grizzly.utils.IdleTimeoutFilter
 
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static java.lang.Integer.max
-import static java.lang.Runtime.getRuntime
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.*
 import static java.lang.String.valueOf
 import static java.nio.charset.Charset.defaultCharset
 import static java.util.concurrent.TimeUnit.MILLISECONDS
@@ -42,10 +19,8 @@ import static org.glassfish.grizzly.memory.Buffers.wrap
 
 class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
 
-  private TCPNIOTransport transport;
-  private TCPNIOServerConnection serverConnection;
-  private final int DEFAULT_SERVER_TIMEOUT_MILLIS = 80000;
-  private final int DEFAULT_SERVER_CONNECTION_BACKLOG = 50;
+  private TCPNIOTransport transport
+  private TCPNIOServerConnection serverConnection
 
   @Override
   boolean testNotFound() {
@@ -58,8 +33,7 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
     FilterChain filterChain = setUpFilterChain()
     setUpTransport(filterChain)
 
-    final String IP = "localhost"
-    serverConnection = transport.bind(IP, port)
+    serverConnection = transport.bind("127.0.0.1", port)
     transport.start()
     return null
   }
@@ -84,18 +58,25 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
     true
   }
 
+  @Override
+  boolean testException() {
+    // justification: grizzly async closes the channel which
+    // looks like a ConnectException to the client when this happens
+    false
+  }
+
   void setUpTransport(FilterChain filterChain) {
     TCPNIOTransportBuilder transportBuilder = TCPNIOTransportBuilder.newInstance()
       .setOptimizedForMultiplexing(true)
 
-    transportBuilder.setTcpNoDelay(true);
+    transportBuilder.setTcpNoDelay(true)
     transportBuilder.setKeepAlive(false)
     transportBuilder.setReuseAddress(true)
-    transportBuilder.setServerConnectionBackLog(DEFAULT_SERVER_CONNECTION_BACKLOG)
-    transportBuilder.setServerSocketSoTimeout(DEFAULT_SERVER_TIMEOUT_MILLIS)
+    transportBuilder.setServerConnectionBackLog(50)
+    transportBuilder.setServerSocketSoTimeout(80000)
 
-    transport = transportBuilder.build();
-    transport.setProcessor(filterChain);
+    transport = transportBuilder.build()
+    transport.setProcessor(filterChain)
   }
 
   FilterChain setUpFilterChain() {
@@ -104,15 +85,15 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
               .add(createIdleTimeoutFilter())
               .add(new HttpServerFilter())
               .add(new LastFilter())
-              .build();
+              .build()
   }
 
   TransportFilter createTransportFilter() {
-    return new TransportFilter();
+    return new TransportFilter()
   }
 
   IdleTimeoutFilter createIdleTimeoutFilter() {
-    return new IdleTimeoutFilter(new DelayedExecutor(Executors.newCachedThreadPool()), DEFAULT_SERVER_TIMEOUT_MILLIS, MILLISECONDS);
+    return new IdleTimeoutFilter(new DelayedExecutor(Executors.newCachedThreadPool()), 80000, MILLISECONDS)
   }
 
   class LastFilter extends BaseFilter {
@@ -120,33 +101,32 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
     @Override
     NextAction handleRead(final FilterChainContext ctx) throws IOException {
       if (ctx.getMessage() instanceof HttpContent) {
-        final HttpContent httpContent = ctx.getMessage();
-        final HttpHeader httpHeader = httpContent.getHttpHeader();
+        final HttpContent httpContent = ctx.getMessage()
+        final HttpHeader httpHeader = httpContent.getHttpHeader()
         if (httpHeader instanceof HttpRequestPacket) {
-          HttpRequestPacket request = (HttpRequestPacket) httpContent.getHttpHeader();
-          ResponseParameters responseParameters = buildResponse(request);
-          HttpResponsePacket responsePacket = HttpResponsePacket.builder(request)
+          HttpRequestPacket request = (HttpRequestPacket) httpContent.getHttpHeader()
+          ResponseParameters responseParameters = buildResponse(request)
+          HttpResponsePacket.Builder builder = HttpResponsePacket.builder(request)
                             .status(responseParameters.getStatus())
                             .header("Content-Length", valueOf(responseParameters.getResponseBody().length))
-                            .build();
+          responseParameters.fillHeaders(builder)
+          HttpResponsePacket responsePacket = builder.build()
           controller(responseParameters.getEndpoint()) {
             ctx.write(HttpContent.builder(responsePacket)
               .content(wrap(ctx.getMemoryManager(), responseParameters.getResponseBody()))
-              .build());
+              .build())
           }
         }
       }
-      return ctx.getStopAction();
+      return ctx.getStopAction()
     }
 
     ResponseParameters buildResponse(HttpRequestPacket request) {
       final String uri = request.getRequestURI()
-      final String requestParams = request.getQueryString();
-      final String fullPath = uri + (requestParams != null ? "?" + requestParams : "");
+      final String requestParams = request.getQueryString()
+      final String fullPath = uri + (requestParams != null ? "?" + requestParams : "")
 
-      println requestParams
-      println uri
-      println fullPath
+      Map<String, String> headers = new HashMap<>()
 
       HttpServerTest.ServerEndpoint endpoint
       switch (fullPath) {
@@ -155,13 +135,13 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
           break
         case "/redirect":
           endpoint = REDIRECT
+          headers.put("location", REDIRECT.body)
           break
         case "/error-status":
           endpoint = ERROR
           break
         case "/exception":
-          endpoint = EXCEPTION
-          break
+          throw new Exception(EXCEPTION.body)
         case "/notFound":
           endpoint = NOT_FOUND
           break
@@ -180,33 +160,44 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
       }
 
       int status = endpoint.status
-      String responseBody = endpoint.body
+      String responseBody = endpoint == REDIRECT ? "" : endpoint.body
 
-      final byte[] responseBodyBytes = responseBody.getBytes(defaultCharset());
-      return new ResponseParameters(endpoint, status, responseBodyBytes);
+      final byte[] responseBodyBytes = responseBody.getBytes(defaultCharset())
+      return new ResponseParameters(endpoint, status, responseBodyBytes, headers)
     }
 
     class ResponseParameters {
+      Map<String, String> headers
       HttpServerTest.ServerEndpoint endpoint
       int status
       byte[] responseBody
 
-      ResponseParameters(HttpServerTest.ServerEndpoint endpoint, status, byte[] responseBody) {
+      ResponseParameters(HttpServerTest.ServerEndpoint endpoint,
+                         status,
+                         byte[] responseBody,
+                         Map<String, String> headers) {
         this.endpoint = endpoint
-        this.status = status;
-        this.responseBody = responseBody;
+        this.status = status
+        this.responseBody = responseBody
+        this.headers = headers
       }
 
       int getStatus() {
-        return status;
+        return status
       }
 
       byte[] getResponseBody() {
-        return responseBody;
+        return responseBody
       }
 
       HttpServerTest.ServerEndpoint getEndpoint() {
-        return endpoint;
+        return endpoint
+      }
+
+      void fillHeaders(HttpResponsePacket.Builder builder) {
+        for (Map.Entry<String, String> header : headers.entrySet()) {
+          builder.header(header.getKey(), header.getValue())
+        }
       }
     }
   }
