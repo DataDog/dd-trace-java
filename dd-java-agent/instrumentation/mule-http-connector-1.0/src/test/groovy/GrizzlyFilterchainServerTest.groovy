@@ -2,6 +2,7 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.instrumentation.mulehttpconnector.server.ServerDecorator
 import org.glassfish.grizzly.filterchain.BaseFilter
 import org.glassfish.grizzly.filterchain.FilterChain
+import org.glassfish.grizzly.filterchain.FilterChainBuilder
 import org.glassfish.grizzly.filterchain.FilterChainContext
 import org.glassfish.grizzly.filterchain.NextAction
 import org.glassfish.grizzly.filterchain.TransportFilter

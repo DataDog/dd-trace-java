@@ -16,9 +16,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
-public final class FilterchainInstrumentation extends Instrumenter.Default {
+public final class FilterInstrumentation extends Instrumenter.Default {
 
-  public FilterchainInstrumentation() {
+  public FilterInstrumentation() {
     super("mule-http-connector");
   }
 
@@ -43,6 +43,6 @@ public final class FilterchainInstrumentation extends Instrumenter.Default {
         named("handleRead")
             .and(takesArgument(0, named("org.glassfish.grizzly.filterchain.FilterChainContext")))
             .and(isPublic()),
-        packageName + ".FilterchainAdvice");
+        packageName + ".FilterAdvice");
   }
 }
