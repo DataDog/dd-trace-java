@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.mulehttpconnector.filterchain;
+package datadog.trace.instrumentation.mulehttpconnector.server;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
@@ -16,7 +16,8 @@ public class FilterAdvice {
     if (ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE) == null || activeScope() != null) {
       return null;
     }
-    AgentScope scope = activateSpan((AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE));
+    AgentScope scope =
+        activateSpan((AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE));
     scope.setAsyncPropagation(true);
     return scope;
   }

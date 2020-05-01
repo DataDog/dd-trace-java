@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.mulehttpconnector.server;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.mulehttpconnector.ContextAttributes.RESPONSE;
 import static datadog.trace.instrumentation.mulehttpconnector.server.ExtractAdapter.GETTER;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -76,7 +75,7 @@ public class ServerDecorator
     scope.setAsyncPropagation(true);
     DECORATE.afterStart(span);
     ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);
-    ctx.getAttributes().setAttribute(RESPONSE, httpResponse);
+    ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);
     DECORATE.onConnection(span, httpRequest);
     DECORATE.onRequest(span, httpRequest);
     ctx.addCompletionListener(new TraceCompletionListener(span));
@@ -91,6 +90,6 @@ public class ServerDecorator
       span.finish();
     }
     ctx.getAttributes().removeAttribute(DD_SPAN_ATTRIBUTE);
-    ctx.getAttributes().removeAttribute(RESPONSE);
+    ctx.getAttributes().removeAttribute(DD_RESPONSE_ATTRIBUTE);
   }
 }

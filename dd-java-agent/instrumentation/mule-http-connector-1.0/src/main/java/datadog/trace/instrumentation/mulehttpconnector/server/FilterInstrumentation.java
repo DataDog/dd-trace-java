@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.mulehttpconnector.filterchain;
+package datadog.trace.instrumentation.mulehttpconnector.server;
 
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.hasSuperClass;
@@ -30,11 +30,6 @@ public final class FilterInstrumentation extends Instrumenter.Default {
             not(
                 ElementMatchers.<TypeDescription>named(
                     "org.glassfish.grizzly.http.HttpCodecFilter")));
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {"datadog.trace.instrumentation.mulehttpconnector.ContextAttributes"};
   }
 
   @Override

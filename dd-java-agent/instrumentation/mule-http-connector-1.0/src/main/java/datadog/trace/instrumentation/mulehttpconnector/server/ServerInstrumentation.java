@@ -29,8 +29,7 @@ public final class ServerInstrumentation extends Instrumenter.Default {
     return new String[] {
       packageName + ".ServerDecorator",
       packageName + ".ExtractAdapter",
-      packageName + ".TraceCompletionListener",
-      "datadog.trace.instrumentation.mulehttpconnector.ContextAttributes"
+      packageName + ".TraceCompletionListener"
     };
   }
 
