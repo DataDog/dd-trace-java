@@ -28,6 +28,12 @@ public class AgentTracer {
     return get().startSpan(spanName, parent, startTimeMicros);
   }
 
+  public static AgentScope activateSpan(final AgentSpan span) {
+    return get().activateSpan(span);
+  }
+
+  /** @deprecated use {@link #activateSpan(AgentSpan)} instead */
+  @Deprecated
   public static AgentScope activateSpan(final AgentSpan span, final boolean finishSpanOnClose) {
     return get().activateSpan(span, finishSpanOnClose);
   }
@@ -72,6 +78,10 @@ public class AgentTracer {
 
     AgentSpan startSpan(String spanName, AgentSpan.Context parent, long startTimeMicros);
 
+    AgentScope activateSpan(AgentSpan span);
+
+    /** @deprecated use {@link #activateSpan(AgentSpan)} instead */
+    @Deprecated
     AgentScope activateSpan(AgentSpan span, boolean finishSpanOnClose);
 
     AgentSpan activeSpan();
@@ -108,6 +118,13 @@ public class AgentTracer {
       return NoopAgentSpan.INSTANCE;
     }
 
+    @Override
+    public AgentScope activateSpan(final AgentSpan span) {
+      return activateSpan(span);
+    }
+
+    /** @deprecated use {@link #activateSpan(AgentSpan)} instead */
+    @Deprecated
     @Override
     public AgentScope activateSpan(final AgentSpan span, final boolean finishSpanOnClose) {
       return NoopAgentScope.INSTANCE;
@@ -260,6 +277,9 @@ public class AgentTracer {
     public TraceScope activate() {
       return NoopAgentScope.INSTANCE;
     }
+
+    @Override
+    public void cancel() {}
 
     @Override
     public void close() {}

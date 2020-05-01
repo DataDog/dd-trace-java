@@ -270,6 +270,10 @@ class TestScopeManager implements ScopeManager {
         }
 
         @Override
+        void cancel() {
+        }
+
+        @Override
         void close() {
         }
 

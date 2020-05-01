@@ -282,6 +282,13 @@ public class CoreTracer
   }
 
   @Override
+  public AgentScope activateSpan(final AgentSpan span) {
+    return activateSpan(span, false);
+  }
+
+  /** @deprecated use {@link #activateSpan(AgentSpan)} instead */
+  @Deprecated
+  @Override
   public AgentScope activateSpan(final AgentSpan span, final boolean finishSpanOnClose) {
     return scopeManager.activate(span, finishSpanOnClose);
   }
@@ -475,6 +482,8 @@ public class CoreTracer
       return new DDSpan(timestampMicro, buildSpanContext());
     }
 
+    /** @deprecated use {@link #start()} instead. */
+    @Deprecated
     public AgentScope startActive(final boolean finishSpanOnClose) {
       final AgentSpan span = buildSpan();
       final AgentScope scope = scopeManager.activate(span, finishSpanOnClose);

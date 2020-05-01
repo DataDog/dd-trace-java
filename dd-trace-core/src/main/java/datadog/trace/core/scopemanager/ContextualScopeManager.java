@@ -25,6 +25,13 @@ public class ContextualScopeManager implements DDScopeManager {
   }
 
   @Override
+  public AgentScope activate(final AgentSpan span) {
+    return activate(span, false);
+  }
+
+  /** @deprecated use {@link #activate(AgentSpan)} instead. */
+  @Deprecated
+  @Override
   public AgentScope activate(final AgentSpan span, final boolean finishOnClose) {
     final DDScope active = tlsScope.get();
     if (active != null && active.span().equals(span)) {
