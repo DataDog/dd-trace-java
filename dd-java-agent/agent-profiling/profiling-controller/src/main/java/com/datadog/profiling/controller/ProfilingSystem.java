@@ -199,8 +199,13 @@ public final class ProfilingSystem {
       } catch (final Exception e) {
         log.error("Exception in profiling thread, continuing", e);
       } catch (final Throwable t) {
-        log.error("Fatal exception in profiling thread, exiting", t);
-        throw t;
+        /*
+        Try to continue even after fatal exception. It seems to be useful to attempt to store profile when this happens.
+        For example JVM maybe out of heap and throwing OutOfMemoryError - we probably still would want to continue and
+        try to save profile later.
+        Another reason is that it may be bad to stop profiling if the rest of the app is continuing.
+         */
+        log.error("Fatal exception in profiling thread, trying to continue", t);
       }
     }
   }
