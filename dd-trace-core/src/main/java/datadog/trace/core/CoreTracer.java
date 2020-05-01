@@ -441,7 +441,7 @@ public class CoreTracer
       return (DDScopeEventFactory)
           Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory").newInstance();
     } catch (final ClassFormatError | ReflectiveOperationException | NoClassDefFoundError e) {
-      log.debug("Profiling ScopeEvents is disabled");
+      log.debug("Profiling of ScopeEvents is not available");
     }
     return new DDNoopScopeEventFactory();
   }
