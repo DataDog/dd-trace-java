@@ -205,7 +205,12 @@ public final class ProfilingSystem {
         try to save profile later.
         Another reason is that it may be bad to stop profiling if the rest of the app is continuing.
          */
-        log.error("Fatal exception in profiling thread, trying to continue", t);
+        try {
+          log.error("Fatal exception in profiling thread, trying to continue", t);
+        } catch (final Throwable t2) {
+          // This should almost never happen and there is not much we can do here in cases like
+          // OutOfMemoryError, so we will just ignore this.
+        }
       }
     }
   }
