@@ -15,6 +15,7 @@ build:
   artifacts:
     paths:
       - "**/build/libs/*.jar"
+  tags: [ "runner:main", "size:large" ]
 test:
   stage: test
   script:
@@ -22,3 +23,4 @@ test:
   artifacts:
     reports:
       junit: "**/build/test-results/*/TEST-*.xml"
+  tags: [ "runner:main", "size:large" ]
