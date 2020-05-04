@@ -41,7 +41,7 @@ public final class ProfilingSystem {
   private final boolean isStartingFirst;
 
   private OngoingRecording recording;
-  private boolean started = false;
+  private volatile boolean started = false;
 
   /**
    * Constructor.
