@@ -9,12 +9,14 @@ public class JMXSessionFactory implements SessionFactory {
   private static final AtomicInteger refCount = new AtomicInteger();
   private static final AtomicReference<JMXSession> currentSession = new AtomicReference<>(null);
 
-  public Session createSession() {
+  public Session createSession(Thread thread) {
     int prevCount = refCount.getAndIncrement();
     if (prevCount == 0) {
-      currentSession.compareAndSet(null, new JMXSession(this));
+      currentSession.compareAndSet(null, new JMXSession(this, thread));
     }
-    return currentSession.get();
+    Session session = currentSession.get();
+    session.addThread(thread);
+    return session;
   }
 
   void decCount() {
