@@ -149,7 +149,7 @@ class JfrChunkWriterTest {
     Files.write(Paths.get("/tmp", "test.jfr"), data);
 
     // sanity check to make sure the recording is loaded
-    IItemCollection events = JfrLoaderToolkit.loadEvents(new File("/tmp/test1.jfr"));
+    IItemCollection events = JfrLoaderToolkit.loadEvents(new File("/tmp/test.jfr"));
 
     IAttribute<String> nameAttr = Attribute.attr("name", "name", UnitLookup.PLAIN_TEXT);
     IAttribute<String> msgAttr = Attribute.attr("message", "message", UnitLookup.PLAIN_TEXT);
