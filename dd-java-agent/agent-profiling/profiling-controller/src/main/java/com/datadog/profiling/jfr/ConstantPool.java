@@ -3,15 +3,22 @@ package com.datadog.profiling.jfr;
 import java.util.HashMap;
 import java.util.Map;
 
+/** An in-memory map of distinct values of a certain {@linkplain JFRType} */
 final class ConstantPool {
-  private final Type type;
+  private final JFRType type;
   private final Map<Object, TypedValue> constantMap = new HashMap<>();
   private final Map<Long, TypedValue> reverseMap = new HashMap<>();
 
-  protected ConstantPool(Type type) {
+  ConstantPool(JFRType type) {
     this.type = type;
   }
 
+  /**
+   * Tries to add a new value
+   *
+   * @param value the value
+   * @return the typed value representation - either created a-new or retrieved from the pool
+   */
   final TypedValue addOrGet(Object value) {
     if (value == null) {
       return type.nullValue();
@@ -19,10 +26,10 @@ final class ConstantPool {
     return constantMap.computeIfAbsent(
         value,
         v -> {
-          long index = constantMap.size() + 1;
+          long index = constantMap.size() + 1; // index 0 is reserved for NULL encoding
           TypedValue tValue;
           if (v instanceof TypedValue) {
-            tValue = TypedValue.cpClone((TypedValue) v, index);
+            tValue = TypedValue.withCpIndex((TypedValue) v, index);
           } else {
             tValue = new TypedValue(type, v, index);
           }
@@ -31,6 +38,12 @@ final class ConstantPool {
         });
   }
 
+  /**
+   * Get the value at the given index
+   *
+   * @param index the value index
+   * @return the value or {@literal null}
+   */
   TypedValue get(long index) {
     return reverseMap.get(index);
   }
@@ -45,7 +58,7 @@ final class ConstantPool {
   }
 
   private void writeValueType(ByteArrayWriter writer, TypedValue typedValue, boolean useCp) {
-    Type type = typedValue.getType();
+    JFRType type = typedValue.getType();
     if (type.isBuiltin()) {
       writeBuiltinType(writer, typedValue, useCp);
     } else {
@@ -59,7 +72,7 @@ final class ConstantPool {
             if (fieldValue == null) {
               throw new RuntimeException();
             }
-            if (fieldValue.isArray()) {
+            if (fieldValue.getField().isArray()) {
               writer.writeInt(fieldValue.getValues().length); // array length
               for (TypedValue t : fieldValue.getValues()) {
                 writeValueType(writer, t, true);
@@ -82,7 +95,7 @@ final class ConstantPool {
       throw new IllegalArgumentException();
     }
 
-    Type type = typedValue.getType();
+    JFRType type = typedValue.getType();
     Object value = typedValue.getValue();
     Types.Builtin builtin = Types.Builtin.ofType(type);
     if (value == null && builtin != Types.Builtin.STRING) {

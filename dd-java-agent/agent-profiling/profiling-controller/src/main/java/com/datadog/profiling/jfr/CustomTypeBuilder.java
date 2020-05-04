@@ -2,11 +2,12 @@ package com.datadog.profiling.jfr;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
+/** A fluent API for building custom type values lazily. */
 public final class CustomTypeBuilder {
-  public static final Type SELF_TYPE =
-      new BaseType(Long.MIN_VALUE, "", null, null) {
+  /** A place-holder for fields of the same type as they are defined in. */
+  public static final JFRType SELF_TYPE =
+      new BaseJFRType(Long.MIN_VALUE, "", null, null) {
         @Override
         public boolean isBuiltin() {
           return false;
@@ -34,7 +35,7 @@ public final class CustomTypeBuilder {
     return addField(name, types.getType(type));
   }
 
-  public CustomTypeBuilder addField(String name, Type type) {
+  public CustomTypeBuilder addField(String name, JFRType type) {
     fields.add(new TypedField(name, type));
     return this;
   }
@@ -43,21 +44,9 @@ public final class CustomTypeBuilder {
     return addArrayField(name, types.getType(type));
   }
 
-  public CustomTypeBuilder addArrayField(String name, Type type) {
+  public CustomTypeBuilder addArrayField(String name, JFRType type) {
     fields.add(new TypedField(name, type, true));
     return this;
-  }
-
-  public Type registerType(String name, String supertype, Consumer<CustomTypeBuilder> buildWith) {
-    return types.getOrAdd(name, supertype, buildWith);
-  }
-
-  public Type registerType(Types.Predefined type, Consumer<CustomTypeBuilder> buildWith) {
-    return registerType(type.getTypeName(), buildWith);
-  }
-
-  public Type registerType(String name, Consumer<CustomTypeBuilder> buildWith) {
-    return types.getOrAdd(name, buildWith);
   }
 
   List<TypedField> build() {

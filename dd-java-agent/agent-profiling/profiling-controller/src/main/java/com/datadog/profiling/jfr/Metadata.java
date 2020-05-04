@@ -8,65 +8,72 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 
-public final class Metadata {
+/** JFR type repository class. */
+final class Metadata {
+  private static final String CLASS_KEY = "class";
+  private static final String FIELD_KEY = "field";
+  private static final String NAME_KEY = "name";
+  private static final String ID_KEY = "id";
+  private static final String VALUE_KEY = "value";
+  private static final String SUPER_TYPE_KEY = "superType";
+  private static final String CONSTANT_POOL_KEY = "constantPool";
+  private static final String SIMPLE_TYPE_KEY = "simpleType";
+  private static final String ROOT_KEY = "root";
+  private static final String METADATA_KEY = "metadata";
+  private static final String TRUE_VALUE = "true";
+  private static final String REGION_KEY = "region";
+  private static final String DIMENSION_KEY = "dimension";
+  private static final String VAL_1_VALUE = "1";
   private final TypeFactory factory;
-  private final Map<String, Type> metadata = new HashMap<>();
+  private final Map<String, JFRType> metadata = new HashMap<>();
   private final Map<String, Integer> stringTable = new HashMap<>();
   private final Map<Integer, String> reverseStringTable = new TreeMap<>();
-  private final Set<ResolvableType> unresolvedTypes = new HashSet<>();
+  private final Set<ResolvableJFRType> unresolvedTypes = new HashSet<>();
 
   Metadata(TypeFactory factory) {
     this.factory = factory;
     fillStrings();
   }
 
+  /** Pre-fill the string constant pool with all used constant strings */
   private void fillStrings() {
-    storeString("1");
-    storeString("class");
-    storeString("field");
-    storeString("name");
-    storeString("id");
-    storeString("value");
-    storeString("superType");
-    storeString("constantPool");
-    storeString("simpleType");
-    storeString("root");
-    storeString("metadata");
-    storeString("true");
-    storeString("region");
-    storeString("dimension");
+    storeString(VAL_1_VALUE);
+    storeString(CLASS_KEY);
+    storeString(FIELD_KEY);
+    storeString(NAME_KEY);
+    storeString(ID_KEY);
+    storeString(VALUE_KEY);
+    storeString(SUPER_TYPE_KEY);
+    storeString(CONSTANT_POOL_KEY);
+    storeString(SIMPLE_TYPE_KEY);
+    storeString(ROOT_KEY);
+    storeString(METADATA_KEY);
+    storeString(TRUE_VALUE);
+    storeString(REGION_KEY);
+    storeString(DIMENSION_KEY);
   }
 
+  /**
+   * Register a built-in type
+   *
+   * @param typeDef a {@link com.datadog.profiling.jfr.Types.Builtin built-in} type
+   */
   void registerBuiltin(Types.Builtin typeDef) {
-    Type type = metadata.computeIfAbsent(typeDef.getTypeName(), factory::createBuiltinType);
+    JFRType type = metadata.computeIfAbsent(typeDef.getTypeName(), factory::createBuiltinType);
     storeTypeStrings(type);
   }
 
+  /**
+   * Resolve all dangling unresolved {@link ResolvableJFRType resolvable types}. This needs to be
+   * done if some of the type definitions are using forward references to not yet registered types.
+   */
   void resolveTypes() {
-    unresolvedTypes.removeIf(ResolvableType::resolve);
+    unresolvedTypes.removeIf(ResolvableJFRType::resolve);
   }
 
-  public Type registerType(String typeName, List<TypedField> fieldStructure) {
-    return registerType(typeName, null, fieldStructure);
-  }
-
-  public Type registerType(String typeName, String supertype, List<TypedField> fieldStructure) {
-    Type type = metadata.get(typeName);
-    if (type == null) {
-      type = factory.createCustomType(typeName, supertype, fieldStructure);
-      metadata.put(typeName, type);
-    }
-    storeTypeStrings(type);
-    return type;
-  }
-
-  public Type registerType(String typeName, Supplier<List<TypedField>> fieldStructureProvider) {
-    return registerType(typeName, null, fieldStructureProvider);
-  }
-
-  public Type registerType(
+  JFRType registerType(
       String typeName, String supertype, Supplier<List<TypedField>> fieldStructureProvider) {
-    Type type = metadata.get(typeName);
+    JFRType type = metadata.get(typeName);
     if (type == null) {
       type = factory.createCustomType(typeName, supertype, fieldStructureProvider.get());
       metadata.put(typeName, type);
@@ -75,7 +82,26 @@ public final class Metadata {
     return type;
   }
 
-  private void storeTypeStrings(Type type) {
+  /**
+   * Retrieve a type with the given name.
+   *
+   * @param name the type name
+   * @param asResolvable if the type is not found to be registered should a {@link ResolvableJFRType
+   *     resolvable} wrapper be returned instead?
+   * @return the type of the given name
+   */
+  JFRType getType(String name, boolean asResolvable) {
+    JFRType found = metadata.get(name);
+    if (found == null) {
+      if (asResolvable) {
+        found = new ResolvableJFRType(name, this);
+        unresolvedTypes.add((ResolvableJFRType) found);
+      }
+    }
+    return found;
+  }
+
+  private void storeTypeStrings(JFRType type) {
     storeString(type.getTypeName());
     if (type.getSupertype() != null) {
       storeString(type.getSupertype());
@@ -84,17 +110,6 @@ public final class Metadata {
     for (TypedField field : type.getFields()) {
       storeString(field.getName());
     }
-  }
-
-  public Type getType(String name, boolean asResolvable) {
-    Type found = metadata.get(name);
-    if (found == null) {
-      if (asResolvable) {
-        found = new ResolvableType(name, this);
-        unresolvedTypes.add((ResolvableType) found);
-      }
-    }
-    return found;
   }
 
   private void storeString(String value) {
@@ -114,31 +129,16 @@ public final class Metadata {
 
   void writeMetaEvent(ByteArrayWriter writer, long startTs, long duration) {
     ByteArrayWriter metaWriter = new ByteArrayWriter(4096);
-    metaWriter
-        .writeLong(0L) // metadata event id
-        .writeLong(startTs)
-        .writeLong(duration)
-        .writeLong(0L)
-        .writeInt(stringTable.size());
+    writeHeader(startTs, duration, metaWriter);
 
-    for (String text : reverseStringTable.values()) {
-      metaWriter.writeUTF(text);
-    }
-    metaWriter
-        .writeInt(stringIndex("root"))
-        .writeInt(0) // 0 attributes
-        .writeInt(2) // 1 elemen
-        .writeInt(stringIndex("metadata"))
-        .writeInt(0) // 0 attributes
-        .writeInt(metadata.size()); // metadata.size() elements
-    for (Type type : metadata.values()) {
-      writeType(metaWriter, type);
-    }
-    metaWriter
-        .writeInt(stringIndex("region"))
-        .writeInt(0) // 0 attributes
-        .writeInt(0); // 0 elements
+    writeStringConstants(metaWriter);
+    writeTypes(metaWriter);
+    writeRegion(metaWriter);
 
+    writeMetaEventSize(metaWriter, writer);
+  }
+
+  private void writeMetaEventSize(ByteArrayWriter metaWriter, ByteArrayWriter writer) {
     int len = metaWriter.length();
     int extraLen = 0;
     do {
@@ -149,7 +149,42 @@ public final class Metadata {
         .writeBytes(metaWriter.toByteArray());
   }
 
-  private void writeType(ByteArrayWriter writer, Type type) {
+  private void writeRegion(ByteArrayWriter metaWriter) {
+    metaWriter
+        .writeInt(stringIndex(REGION_KEY))
+        .writeInt(0) // 0 attributes
+        .writeInt(0); // 0 elements
+  }
+
+  private void writeTypes(ByteArrayWriter metaWriter) {
+    metaWriter
+        .writeInt(stringIndex(ROOT_KEY))
+        .writeInt(0) // 0 attributes
+        .writeInt(2) // 1 element
+        .writeInt(stringIndex(METADATA_KEY))
+        .writeInt(0) // 0 attributes
+        .writeInt(metadata.size()); // metadata.size() elements
+    for (JFRType type : metadata.values()) {
+      writeType(metaWriter, type);
+    }
+  }
+
+  private void writeStringConstants(ByteArrayWriter metaWriter) {
+    for (String text : reverseStringTable.values()) {
+      metaWriter.writeUTF(text);
+    }
+  }
+
+  private void writeHeader(long startTs, long duration, ByteArrayWriter metaWriter) {
+    metaWriter
+        .writeLong(0L) // metadata event id
+        .writeLong(startTs)
+        .writeLong(duration)
+        .writeLong(0L)
+        .writeInt(stringTable.size());
+  }
+
+  private void writeType(ByteArrayWriter writer, JFRType type) {
     int attributes = 2;
     if (type.getSupertype() != null) {
       attributes++;
@@ -158,17 +193,17 @@ public final class Metadata {
       attributes++;
     }
     writer
-        .writeInt(stringIndex("class"))
+        .writeInt(stringIndex(CLASS_KEY))
         .writeInt(attributes)
-        .writeInt(stringIndex("name"))
+        .writeInt(stringIndex(NAME_KEY))
         .writeInt(stringIndex(type.getTypeName()))
-        .writeInt(stringIndex("id"))
+        .writeInt(stringIndex(ID_KEY))
         .writeInt(stringIndex(String.valueOf(type.getId())));
     if (type.getSupertype() != null) {
-      writer.writeInt(stringIndex("superType")).writeInt(stringIndex(type.getSupertype()));
+      writer.writeInt(stringIndex(SUPER_TYPE_KEY)).writeInt(stringIndex(type.getSupertype()));
     }
     if (type.isSimple()) {
-      writer.writeInt(stringIndex("simpleType")).writeInt(stringIndex("true"));
+      writer.writeInt(stringIndex(SIMPLE_TYPE_KEY)).writeInt(stringIndex(TRUE_VALUE));
     }
     writer.writeInt(type.getFields().size());
     for (TypedField field : type.getFields()) {
@@ -177,13 +212,12 @@ public final class Metadata {
   }
 
   private void writeField(ByteArrayWriter writer, TypedField field) {
-    writer.writeInt(stringIndex("field"));
+    writer.writeInt(stringIndex(FIELD_KEY));
     int attrCount = 2;
 
     // java.lang.String is special - it is using constant pool but is not marked as such
     boolean withConstantPool =
-        !field.getType().getTypeName().equals("java.lang.String")
-            && field.getType().hasConstantPool();
+        !field.getType().isSame(Types.Builtin.STRING) && field.getType().hasConstantPool();
     if (withConstantPool) {
       attrCount++;
     }
@@ -192,15 +226,15 @@ public final class Metadata {
     }
     writer
         .writeInt(attrCount)
-        .writeInt(stringIndex("name"))
+        .writeInt(stringIndex(NAME_KEY))
         .writeInt(stringIndex(field.getName()))
-        .writeInt(stringIndex("class"))
+        .writeInt(stringIndex(CLASS_KEY))
         .writeInt(stringIndex(String.valueOf(field.getType().getId())));
     if (field.isArray()) {
-      writer.writeInt(stringIndex("dimension")).writeInt(stringIndex("1"));
+      writer.writeInt(stringIndex(DIMENSION_KEY)).writeInt(stringIndex(VAL_1_VALUE));
     }
     if (withConstantPool) {
-      writer.writeInt(stringIndex("constantPool")).writeInt(stringIndex("true"));
+      writer.writeInt(stringIndex(CONSTANT_POOL_KEY)).writeInt(stringIndex(TRUE_VALUE));
     }
     writer.writeInt(0); // 0 elements
   }

@@ -2,29 +2,33 @@ package com.datadog.profiling.jfr;
 
 import java.util.Objects;
 
+/** A representation of a typed field with a name */
 public final class TypedField {
   private final String name;
-  private final Type type;
+  private final JFRType type;
   private final boolean isArray;
 
-  TypedField(String name, Type type) {
+  TypedField(String name, JFRType type) {
     this(name, type, false);
   }
 
-  TypedField(String name, Type type, boolean isArray) {
+  TypedField(String name, JFRType type, boolean isArray) {
     this.name = name;
     this.type = type;
     this.isArray = isArray;
   }
 
+  /** @return field name */
   public String getName() {
     return name;
   }
 
-  public Type getType() {
+  /** @return field type */
+  public JFRType getType() {
     return type;
   }
 
+  /** @return is the field content an array */
   public boolean isArray() {
     return isArray;
   }

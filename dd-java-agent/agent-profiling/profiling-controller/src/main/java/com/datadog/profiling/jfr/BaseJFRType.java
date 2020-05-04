@@ -4,7 +4,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-abstract class BaseType implements Type {
+/** Common JFR type super-class */
+abstract class BaseJFRType implements JFRType {
   private final long id;
   private final String name;
   private final String supertype;
@@ -12,7 +13,7 @@ abstract class BaseType implements Type {
   private final Types types;
   private final TypedValue nullValue = TypedValue.of(this, (Object) null);
 
-  BaseType(long id, String name, String supertype, ConstantPools constantPools, Types types) {
+  BaseJFRType(long id, String name, String supertype, ConstantPools constantPools, Types types) {
     this.id = id;
     this.name = name;
     this.supertype = supertype;
@@ -20,7 +21,7 @@ abstract class BaseType implements Type {
     this.types = types;
   }
 
-  BaseType(long id, String name, ConstantPools constantPools, Types types) {
+  BaseJFRType(long id, String name, ConstantPools constantPools, Types types) {
     this(id, name, null, constantPools, types);
   }
 
@@ -100,8 +101,8 @@ abstract class BaseType implements Type {
   }
 
   @Override
-  public TypedValue asValue(Consumer<FieldValueBuilder> fieldAccess) {
-    return isBuiltin() ? null : TypedValue.of(this, fieldAccess);
+  public TypedValue asValue(Consumer<FieldValueBuilder> builderCallback) {
+    return isBuiltin() ? null : TypedValue.of(this, builderCallback);
   }
 
   @Override
@@ -127,7 +128,7 @@ abstract class BaseType implements Type {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    BaseType that = (BaseType) o;
+    BaseJFRType that = (BaseJFRType) o;
     return id == that.id && name.equals(that.name);
   }
 

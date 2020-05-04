@@ -2,6 +2,7 @@ package com.datadog.profiling.jfr;
 
 import java.util.Arrays;
 
+/** The composite of {@linkplain TypedField} and corresponding {@link TypedValue TypedValue(s)} */
 public final class TypedFieldValue {
   private final TypedField field;
   private final TypedValue[] values;
@@ -30,32 +31,34 @@ public final class TypedFieldValue {
     return values;
   }
 
-  public boolean isArray() {
-    return field.isArray();
-  }
-
-  public boolean isBuiltin() {
-    return field.getType().isBuiltin();
-  }
-
-  public Type getType() {
+  /** @return the corresponding {@linkplain JFRType} */
+  public JFRType getType() {
     return field.getType();
   }
 
-  public TypedValue getValue() {
-    if (isArray()) {
-      throw new UnsupportedOperationException();
-    }
-    return values[0];
-  }
-
+  /** @return the corresponding {@linkplain TypedField} */
   public TypedField getField() {
     return field;
   }
 
+  /**
+   * @return the associated value
+   * @throws IllegalArgumentException if the field is an array
+   */
+  public TypedValue getValue() {
+    if (field.isArray()) {
+      throw new IllegalArgumentException();
+    }
+    return values[0];
+  }
+
+  /**
+   * @return the associated values
+   * @throws IllegalArgumentException if the field is not an array
+   */
   public TypedValue[] getValues() {
-    if (!isArray()) {
-      throw new UnsupportedOperationException();
+    if (!field.isArray()) {
+      throw new IllegalArgumentException();
     }
     return Arrays.copyOf(values, values.length);
   }

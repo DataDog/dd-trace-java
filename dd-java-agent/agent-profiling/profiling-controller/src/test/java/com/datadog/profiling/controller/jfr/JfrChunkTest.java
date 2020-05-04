@@ -4,8 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import com.datadog.profiling.jfr.JfrWriter;
-import com.datadog.profiling.jfr.Type;
+import com.datadog.profiling.jfr.JFRType;
+import com.datadog.profiling.jfr.JFRWriter;
 import com.datadog.profiling.jfr.TypedValue;
 import com.datadog.profiling.jfr.Types;
 import java.io.File;
@@ -24,23 +24,23 @@ import org.openjdk.jmc.common.unit.UnitLookup;
 import org.openjdk.jmc.flightrecorder.JfrAttributes;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 
-class JfrChunkWriterTest {
+class JfrChunkTest {
 
   public static final String EVENT_NAME = "sample event";
   public static final String EVENT_MSG = "Hello world";
 
   @Test
   void writeEvent() throws Exception {
-    JfrWriter writer = new JfrWriter();
+    JFRWriter writer = new JFRWriter();
 
-    Type customSimpleType =
+    JFRType customSimpleType =
         writer.registerType(
             "com.datadog.types.Simple",
             b -> {
               b.addField("message", Types.Builtin.STRING);
             });
 
-    Type eventType =
+    JFRType eventType =
         writer.registerEventType(
             "dd.SampleEvent",
             eventTypeBuilder -> {
@@ -144,7 +144,7 @@ class JfrChunkWriterTest {
                       });
             });
 
-    byte[] data = writer.newChunk().writeEvent(eventValue).dump();
+    byte[] data = writer.newChunk().writeEvent(eventValue).finish();
 
     Files.write(Paths.get("/tmp", "test.jfr"), data);
 

@@ -6,10 +6,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-final class CustomType extends BaseType {
+/** A custom JFR type */
+final class CustomJFRType extends BaseJFRType {
   private final List<TypedField> fields;
 
-  CustomType(
+  CustomJFRType(
       long id,
       String name,
       String supertype,
@@ -43,9 +44,9 @@ final class CustomType extends BaseType {
     if (value == null) {
       return true;
     }
-    if (value instanceof Long && hasConstantPool()) {
-      return true;
-    }
+    //    if (value instanceof Long && hasConstantPool()) {
+    //      return true;
+    //    }
     if (value instanceof TypedValue) {
       return ((TypedValue) value).getType().equals(this);
     }

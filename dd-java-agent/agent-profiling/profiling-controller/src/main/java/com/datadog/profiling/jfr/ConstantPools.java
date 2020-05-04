@@ -10,11 +10,19 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/** A per-type map of {@linkplain ConstantPool} instances */
 final class ConstantPools implements Iterable<ConstantPool> {
-  private final Map<Type, ConstantPool> constantPoolMap = new HashMap<>();
+  private final Map<JFRType, ConstantPool> constantPoolMap = new HashMap<>();
 
+  /**
+   * Get the {@linkplain ConstantPool} instance associated with the given type
+   *
+   * @param type the type to get the constant pool for
+   * @return the associated {@linkplain ConstantPool} instance
+   * @throws IllegalArgumentException if the type does not support constant pools
+   */
   @SuppressWarnings("unchecked")
-  ConstantPool forType(Type type) {
+  ConstantPool forType(JFRType type) {
     if (!type.hasConstantPool()) {
       throw new IllegalArgumentException();
     }
@@ -40,6 +48,12 @@ final class ConstantPools implements Iterable<ConstantPool> {
     return getOrderedPools().spliterator();
   }
 
+  /**
+   * The pool instances need to be sorted in a way that if a value from pool P1 is using value(s)
+   * from pool P2 then P2 must come before P1.
+   *
+   * @return sorted pool instances
+   */
   @SuppressWarnings("unchecked")
   private Stream<ConstantPool> getOrderedPoolsStream() {
     return constantPoolMap
@@ -53,11 +67,11 @@ final class ConstantPools implements Iterable<ConstantPool> {
     return getOrderedPoolsStream().collect(Collectors.toList());
   }
 
-  private boolean isUsedBy(Type type1, Type type2) {
+  private boolean isUsedBy(JFRType type1, JFRType type2) {
     return isUsedBy(type1, type2, new HashSet<>());
   }
 
-  private boolean isUsedBy(Type type1, Type type2, HashSet<Type> track) {
+  private boolean isUsedBy(JFRType type1, JFRType type2, HashSet<JFRType> track) {
     if (!track.add(type2)) {
       return false;
     }
@@ -72,7 +86,7 @@ final class ConstantPools implements Iterable<ConstantPool> {
     return false;
   }
 
-  private ConstantPool newConstantPool(Type type) {
+  private ConstantPool newConstantPool(JFRType type) {
     return new ConstantPool(type);
   }
 }

@@ -1,8 +1,8 @@
 package com.datadog.profiling.sampler;
 
-import com.datadog.profiling.jfr.JfrChunkWriter;
-import com.datadog.profiling.jfr.JfrWriter;
-import com.datadog.profiling.jfr.Type;
+import com.datadog.profiling.jfr.JFRChunk;
+import com.datadog.profiling.jfr.JFRType;
+import com.datadog.profiling.jfr.JFRWriter;
 import com.datadog.profiling.jfr.TypedValue;
 import com.datadog.profiling.jfr.Types;
 import java.io.IOException;
@@ -12,21 +12,25 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * TODO This is an example of how the {@linkplain JFRWriter} can be used to write JMX generated
+ * stacktraces
+ */
 public final class SamplerWriter {
   static final String EVENT_NAME = "datadog.SamplerEvent";
 
-  private final Type sampleEventType;
-  private final JfrWriter jfrWriter;
-  private final AtomicReference<JfrChunkWriter> chunkWriter = new AtomicReference<>();
+  private final JFRType sampleEventType;
+  private final JFRWriter jfrWriter;
+  private final AtomicReference<JFRChunk> chunkWriter = new AtomicReference<>();
 
   public SamplerWriter() {
-    this.jfrWriter = new JfrWriter();
+    this.jfrWriter = new JFRWriter();
     this.sampleEventType = jfrWriter.registerEventType(EVENT_NAME);
     this.chunkWriter.set(jfrWriter.newChunk());
   }
 
   public void dump(Path target) throws IOException {
-    byte[] data = chunkWriter.getAndSet(jfrWriter.newChunk()).dump();
+    byte[] data = chunkWriter.getAndSet(jfrWriter.newChunk()).finish();
 
     Files.write(target, data);
   }
@@ -50,7 +54,7 @@ public final class SamplerWriter {
 
   private TypedValue getThread(ThreadInfo threadInfo) {
     return jfrWriter
-        .getJdkType(Types.JDK.THREAD)
+        .getType(Types.JDK.THREAD)
         .asValue(
             builder -> {
               builder
@@ -62,7 +66,7 @@ public final class SamplerWriter {
 
   private TypedValue getStackTrace(ThreadInfo threadInfo) {
     return jfrWriter
-        .getJdkType(Types.JDK.STACK_TRACE)
+        .getType(Types.JDK.STACK_TRACE)
         .asValue(
             builder -> {
               builder.putField("truncated", false).putField("frames", getFrames(threadInfo));
@@ -80,7 +84,7 @@ public final class SamplerWriter {
 
   private TypedValue getFrame(StackTraceElement element) {
     return jfrWriter
-        .getJdkType(Types.JDK.STACK_FRAME)
+        .getType(Types.JDK.STACK_FRAME)
         .asValue(
             builder -> {
               builder
@@ -91,7 +95,7 @@ public final class SamplerWriter {
 
   private TypedValue getMethod(StackTraceElement element) {
     return jfrWriter
-        .getJdkType(Types.JDK.METHOD)
+        .getType(Types.JDK.METHOD)
         .asValue(
             builder -> {
               builder
@@ -107,7 +111,7 @@ public final class SamplerWriter {
     int idx = fqn.lastIndexOf('.');
     String pkgName = idx > -1 ? fqn.substring(idx + 1) : "";
     return jfrWriter
-        .getJdkType(Types.JDK.CLASS)
+        .getType(Types.JDK.CLASS)
         .asValue(
             builder -> {
               builder

@@ -4,9 +4,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
+/** An access class for various {@linkplain JFRType} related operations */
 public final class Types {
   interface Predefined extends NamedType {}
 
+  /** Built-in types */
   public enum Builtin implements Predefined {
     BYTE("byte"),
     CHAR("char"),
@@ -45,7 +47,7 @@ public final class Types {
       return getNameMap().get(name);
     }
 
-    public static Builtin ofType(Type type) {
+    public static Builtin ofType(JFRType type) {
       return ofName(type.getTypeName());
     }
 
@@ -55,6 +57,7 @@ public final class Types {
     }
   }
 
+  /** Types (subset of) defined by the JFR JVM implementation */
   public enum JDK implements Predefined {
     TICKSPAN("jdk.type.Tickspan"),
     TICKS("jdk.type.Ticks"),
@@ -97,7 +100,7 @@ public final class Types {
       return getNameMap().get(name);
     }
 
-    public static JDK ofType(Type type) {
+    public static JDK ofType(JFRType type) {
       return ofName(type.getTypeName());
     }
 
@@ -140,7 +143,7 @@ public final class Types {
         builder -> {
           builder.addField("ticks", Builtin.LONG);
         });
-    Type threadGroupType =
+    JFRType threadGroupType =
         getOrAdd(
             JDK.THREAD_GROUP,
             tgBuilder -> {
@@ -157,19 +160,19 @@ public final class Types {
               .addField("javaName", getType(Builtin.STRING))
               .addField("group", threadGroupType);
         });
-    Type symbol =
+    JFRType symbol =
         getOrAdd(
             JDK.SYMBOL,
             builder -> {
               builder.addField("string", Builtin.STRING);
             });
-    Type classLoader =
+    JFRType classLoader =
         getOrAdd(
             JDK.CLASS_LOADER,
             builder -> {
               builder.addField("type", JDK.CLASS).addField("name", symbol);
             });
-    Type moduleType =
+    JFRType moduleType =
         getOrAdd(
             JDK.MODULE,
             builder -> {
@@ -179,7 +182,7 @@ public final class Types {
                   .addField("location", symbol)
                   .addField("classLoader", classLoader);
             });
-    Type packageType =
+    JFRType packageType =
         getOrAdd(
             JDK.PACKAGE,
             builder -> {
@@ -188,7 +191,7 @@ public final class Types {
                   .addField("module", moduleType)
                   .addField("exported", Builtin.BOOLEAN);
             });
-    Type classType =
+    JFRType classType =
         getOrAdd(
             JDK.CLASS,
             builder -> {
@@ -199,7 +202,7 @@ public final class Types {
                   .addField("modifiers", Builtin.INT)
                   .addField("hidden", Builtin.BOOLEAN);
             });
-    Type methodType =
+    JFRType methodType =
         getOrAdd(
             JDK.METHOD,
             builder -> {
@@ -239,19 +242,20 @@ public final class Types {
     return constantPools;
   }
 
-  public Type getOrAdd(Predefined type, Consumer<CustomTypeBuilder> buildWith) {
+  public JFRType getOrAdd(Predefined type, Consumer<CustomTypeBuilder> buildWith) {
     return getOrAdd(type.getTypeName(), buildWith);
   }
 
-  public Type getOrAdd(String name, Consumer<CustomTypeBuilder> buildWith) {
+  public JFRType getOrAdd(String name, Consumer<CustomTypeBuilder> buildWith) {
     return getOrAdd(name, null, buildWith);
   }
 
-  public Type getOrAdd(Predefined type, String supertype, Consumer<CustomTypeBuilder> buildWith) {
+  public JFRType getOrAdd(
+      Predefined type, String supertype, Consumer<CustomTypeBuilder> buildWith) {
     return getOrAdd(type.getTypeName(), supertype, buildWith);
   }
 
-  public Type getOrAdd(String name, String supertype, Consumer<CustomTypeBuilder> buildWith) {
+  public JFRType getOrAdd(String name, String supertype, Consumer<CustomTypeBuilder> buildWith) {
     return metadata.registerType(
         name,
         supertype,
@@ -262,15 +266,15 @@ public final class Types {
         });
   }
 
-  public Type getType(String name) {
+  public JFRType getType(String name) {
     return getType(name, false);
   }
 
-  public Type getType(String name, boolean asResolvable) {
+  public JFRType getType(String name, boolean asResolvable) {
     return metadata.getType(name, asResolvable);
   }
 
-  public Type getType(Predefined type) {
+  public JFRType getType(Predefined type) {
     return getType(type.getTypeName(), true);
   }
 

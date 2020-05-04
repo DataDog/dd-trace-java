@@ -1,6 +1,7 @@
 package com.datadog.profiling.jfr;
 
-public final class JfrChunkWriter {
+/** A representation of JFR chunk - self contained set of JFR data. */
+public final class JFRChunk {
   private static final byte[] MAGIC = new byte[] {'F', 'L', 'R', '\0'};
   private static final short MAJOR_VERSION = 2;
   private static final short MINOR_VERSION = 0;
@@ -14,10 +15,55 @@ public final class JfrChunkWriter {
   private final Types types;
   private final long ts;
 
-  JfrChunkWriter(Types types) {
+  JFRChunk(Types types) {
     this.types = types;
     this.ts = System.nanoTime();
     writeHeader();
+  }
+
+  /**
+   * Write a custom event
+   *
+   * @param event the event value
+   * @return {@literal this} for chaining
+   * @throws IllegalArgumentException if the event type has not got 'jdk.jfr.Event' as its super
+   *     type
+   */
+  public JFRChunk writeEvent(TypedValue event) {
+    if (!event.getType().getSupertype().equals("jdk.jfr.Event")) {
+      throw new IllegalArgumentException();
+    }
+
+    ByteArrayWriter eventWriter = new ByteArrayWriter(32767);
+    eventWriter.writeLong(event.getType().getId());
+    for (TypedFieldValue fieldValue : event.getFieldValues()) {
+      writeTypedValue(eventWriter, fieldValue.getValue());
+    }
+
+    int len = eventWriter.length();
+    int extraLen = 0;
+    do {
+      extraLen = ByteArrayWriter.getPackedIntLen(len + extraLen);
+    } while (ByteArrayWriter.getPackedIntLen(len + extraLen) != extraLen);
+    writer
+        .writeInt(len + extraLen) // write event size
+        .writeBytes(eventWriter.toByteArray());
+    return this;
+  }
+
+  /**
+   * Finalize the chunk and return the byte array representation. The chunk should not be used after
+   * it has been finished.
+   *
+   * @return the chunk raw data
+   */
+  public byte[] finish() {
+    long duration = System.nanoTime() - ts;
+    writeCheckPoint();
+    writeMetadata(duration);
+    writer.writeLongRaw(DURATION_NANOS_OFFSET, duration);
+    writer.writeLongRaw(CHUNK_SIZE_OFFSET, writer.length());
+    return writer.toByteArray();
   }
 
   private void writeCheckPoint() {
@@ -69,34 +115,12 @@ public final class JfrChunkWriter {
     types.getMetadata().writeMetaEvent(writer, ts, duration);
   }
 
-  public JfrChunkWriter writeEvent(TypedValue event) {
-    if (!event.getType().getSupertype().equals("jdk.jfr.Event")) {
-      throw new IllegalArgumentException();
-    }
-
-    ByteArrayWriter eventWriter = new ByteArrayWriter(32767);
-    eventWriter.writeLong(event.getType().getId());
-    for (TypedFieldValue fieldValue : event.getFieldValues()) {
-      writeTypedValue(eventWriter, fieldValue.getValue());
-    }
-
-    int len = eventWriter.length();
-    int extraLen = 0;
-    do {
-      extraLen = ByteArrayWriter.getPackedIntLen(len + extraLen);
-    } while (ByteArrayWriter.getPackedIntLen(len + extraLen) != extraLen);
-    writer
-        .writeInt(len + extraLen) // write event size
-        .writeBytes(eventWriter.toByteArray());
-    return this;
-  }
-
   private void writeTypedValue(ByteArrayWriter writer, TypedValue value) {
     if (value == null) {
       throw new IllegalArgumentException();
     }
 
-    Type t = value.getType();
+    JFRType t = value.getType();
     if (t.isBuiltin()) {
       writeBuiltinType(writer, value);
     } else {
@@ -104,7 +128,7 @@ public final class JfrChunkWriter {
         writer.writeLong(value.getCPIndex());
       } else {
         for (TypedFieldValue fieldValue : value.getFieldValues()) {
-          if (fieldValue.isArray()) {
+          if (fieldValue.getField().isArray()) {
             writer.writeInt(fieldValue.getValues().length); // array size
             for (TypedValue tValue : fieldValue.getValues()) {
               writeTypedValue(writer, tValue);
@@ -121,12 +145,10 @@ public final class JfrChunkWriter {
     if (typedValue == null) {
       throw new RuntimeException();
     }
-
-    if (!typedValue.isBuiltin()) {
+    JFRType type = typedValue.getType();
+    if (!type.isBuiltin()) {
       throw new IllegalArgumentException();
     }
-
-    Type type = typedValue.getType();
     Object value = typedValue.getValue();
     Types.Builtin builtin = Types.Builtin.ofType(type);
     if (value == null && builtin != Types.Builtin.STRING) {
@@ -195,14 +217,5 @@ public final class JfrChunkWriter {
           throw new IllegalArgumentException("Unsupported built-in type " + type.getTypeName());
         }
     }
-  }
-
-  public byte[] dump() {
-    long duration = System.nanoTime() - ts;
-    writeCheckPoint();
-    writeMetadata(duration);
-    writer.writeLongRaw(DURATION_NANOS_OFFSET, duration);
-    writer.writeLongRaw(CHUNK_SIZE_OFFSET, (long) writer.length());
-    return writer.toByteArray();
   }
 }

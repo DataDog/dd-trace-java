@@ -7,12 +7,13 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+/** A fluent API for lazy initialization of a custom type value */
 public final class FieldValueBuilder {
   private final Types types;
   private final Map<String, TypedField> fieldMap;
   private final Map<String, TypedFieldValue> fieldValueMap;
 
-  FieldValueBuilder(Type type) {
+  FieldValueBuilder(JFRType type) {
     this.types = type.getTypes();
     fieldMap =
         type.getFields()
@@ -29,7 +30,7 @@ public final class FieldValueBuilder {
     putArrayField(
         name,
         () -> {
-          Type type = types.getType(Types.Builtin.BYTE);
+          JFRType type = types.getType(Types.Builtin.BYTE);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -48,7 +49,7 @@ public final class FieldValueBuilder {
     putArrayField(
         name,
         () -> {
-          Type type = types.getType(Types.Builtin.CHAR);
+          JFRType type = types.getType(Types.Builtin.CHAR);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -67,7 +68,7 @@ public final class FieldValueBuilder {
     putArrayField(
         name,
         () -> {
-          Type type = types.getType(Types.Builtin.SHORT);
+          JFRType type = types.getType(Types.Builtin.SHORT);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -86,7 +87,7 @@ public final class FieldValueBuilder {
     putArrayField(
         name,
         () -> {
-          Type type = types.getType(Types.Builtin.INT);
+          JFRType type = types.getType(Types.Builtin.INT);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -105,7 +106,7 @@ public final class FieldValueBuilder {
     putArrayField(
         name,
         () -> {
-          Type type = types.getType(Types.Builtin.LONG);
+          JFRType type = types.getType(Types.Builtin.LONG);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -124,7 +125,7 @@ public final class FieldValueBuilder {
     putArrayField(
         name,
         () -> {
-          Type type = types.getType(Types.Builtin.FLOAT);
+          JFRType type = types.getType(Types.Builtin.FLOAT);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -143,7 +144,7 @@ public final class FieldValueBuilder {
     putArrayField(
         name,
         () -> {
-          Type type = types.getType(Types.Builtin.DOUBLE);
+          JFRType type = types.getType(Types.Builtin.DOUBLE);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -162,7 +163,7 @@ public final class FieldValueBuilder {
     putArrayField(
         name,
         () -> {
-          Type type = types.getType(Types.Builtin.BOOLEAN);
+          JFRType type = types.getType(Types.Builtin.BOOLEAN);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -181,7 +182,7 @@ public final class FieldValueBuilder {
     putArrayField(
         name,
         () -> {
-          Type type = types.getType(Types.Builtin.STRING);
+          JFRType type = types.getType(Types.Builtin.STRING);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -202,7 +203,7 @@ public final class FieldValueBuilder {
   public FieldValueBuilder putField(String name, TypedValue value) {
     TypedField field = fieldMap.get(name);
     if (field != null) {
-      Type type = field.getType();
+      JFRType type = field.getType();
       if (type.isSimple()) {
         value = wrapSimpleValue(type, value);
       }
@@ -215,9 +216,9 @@ public final class FieldValueBuilder {
     return this;
   }
 
-  private TypedValue wrapSimpleValue(Type targetType, TypedValue value) {
+  private TypedValue wrapSimpleValue(JFRType targetType, TypedValue value) {
     TypedField valueField = targetType.getFields().get(0);
-    Type fieldType = valueField.getType();
+    JFRType fieldType = valueField.getType();
     if (fieldType.canAccept(value)) {
       value =
           TypedValue.of(
@@ -259,7 +260,7 @@ public final class FieldValueBuilder {
   }
 
   private void putArrayField(TypedField field, TypedValue[] values) {
-    Type fieldType = field.getType();
+    JFRType fieldType = field.getType();
     for (TypedValue value : values) {
       if (!fieldType.canAccept(value)) {
         throw new IllegalArgumentException();
@@ -284,7 +285,7 @@ public final class FieldValueBuilder {
     if (field != null) {
       Consumer<FieldValueBuilder>[] builders = builderSupplier.get();
       TypedValue[] values = new TypedValue[builders.length];
-      Type fieldType = field.getType();
+      JFRType fieldType = field.getType();
       for (int i = 0; i < builders.length; i++) {
         values[i] = fieldType.asValue(builders[i]);
       }

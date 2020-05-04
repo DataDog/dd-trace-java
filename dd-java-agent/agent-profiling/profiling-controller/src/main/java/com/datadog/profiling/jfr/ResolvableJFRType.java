@@ -3,13 +3,13 @@ package com.datadog.profiling.jfr;
 import java.util.List;
 import java.util.function.Consumer;
 
-class ResolvableType implements Type {
+class ResolvableJFRType implements JFRType {
   private final String typeName;
   private final Metadata metadata;
 
-  private volatile Type delegate;
+  private volatile JFRType delegate;
 
-  ResolvableType(String typeName, Metadata metadata) {
+  ResolvableJFRType(String typeName, Metadata metadata) {
     this.typeName = typeName;
     this.metadata = metadata;
   }
@@ -87,9 +87,9 @@ class ResolvableType implements Type {
   }
 
   @Override
-  public TypedValue asValue(Consumer<FieldValueBuilder> fieldAccess) {
+  public TypedValue asValue(Consumer<FieldValueBuilder> builderCallback) {
     checkResolved();
-    return delegate.asValue(fieldAccess);
+    return delegate.asValue(builderCallback);
   }
 
   @Override
@@ -153,8 +153,8 @@ class ResolvableType implements Type {
   }
 
   boolean resolve() {
-    Type resolved = metadata.getType(typeName, false);
-    if (resolved instanceof BaseType) {
+    JFRType resolved = metadata.getType(typeName, false);
+    if (resolved instanceof BaseJFRType) {
       delegate = resolved;
       return true;
     }

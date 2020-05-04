@@ -3,10 +3,11 @@ package com.datadog.profiling.jfr;
 import java.util.Collections;
 import java.util.List;
 
-final class BuiltinType extends BaseType {
+/** A built-in type. Corresponds to a Java primitive type or {@link java.lang.String String} */
+final class BuiltinJFRType extends BaseJFRType {
   private final Types.Builtin builtin;
 
-  BuiltinType(long id, Types.Builtin type, ConstantPools constantPools, Types types) {
+  BuiltinJFRType(long id, Types.Builtin type, ConstantPools constantPools, Types types) {
     super(id, type.getTypeName(), constantPools, types);
     this.builtin = type;
   }
@@ -34,7 +35,7 @@ final class BuiltinType extends BaseType {
     switch (builtin) {
       case STRING:
         {
-          return (value instanceof String || value instanceof Long);
+          return (value instanceof String);
         }
       case BYTE:
         {
