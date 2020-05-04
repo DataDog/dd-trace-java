@@ -24,8 +24,16 @@ class OpenTracingAPITest extends DDSpecification {
   def scopeListener = Mock(ScopeListener)
 
   def setup() {
+    assert tracer.scopeManager().active() == null
     tracer.addTraceInterceptor(traceInterceptor)
     tracer.addScopeListener(scopeListener)
+  }
+
+  def "tracer/scopeManager returns null for no active span"() {
+    expect:
+    tracer.activeSpan() == null
+    tracer.scopeManager().active() == null
+    tracer.scopeManager().activeSpan() == null
   }
 
   def "single span"() {
