@@ -185,6 +185,20 @@ class ScopeManagerTest extends DDSpecification {
     continuation.close()
   }
 
+  def "Continuation.cancel doesn't close parent scope"() {
+    setup:
+    def span = tracer.buildSpan("test").start()
+    def scope = (ContinuableScope) tracer.activateSpan(span)
+    scope.setAsyncPropagation(true)
+    def continuation = scope.capture()
+
+    when:
+    continuation.cancel()
+
+    then:
+    scopeManager.active() == scope
+  }
+
   def "ContinuableScope doesn't close if non-zero"() {
     setup:
     def builder = tracer.buildSpan("test")

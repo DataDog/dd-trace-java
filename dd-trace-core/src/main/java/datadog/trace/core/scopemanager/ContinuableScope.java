@@ -183,11 +183,24 @@ public class ContinuableScope implements DDScope {
       }
     }
 
+    public void cancel() {
+      assert !finishOnClose : "cancel() should not be used with finishOnClose=true";
+      if (used.compareAndSet(false, true)) {
+        trace.cancelContinuation(this);
+      } else {
+        log.debug("Failed to close continuation {}. Already used.", this);
+      }
+    }
+
+    /** @deprecated use {@link #cancel()} instead. */
+    @Deprecated
     @Override
     public void close() {
       close(true);
     }
 
+    /** @deprecated use {@link #cancel()} instead. */
+    @Deprecated
     @Override
     public void close(final boolean closeContinuationScope) {
       if (used.compareAndSet(false, true)) {

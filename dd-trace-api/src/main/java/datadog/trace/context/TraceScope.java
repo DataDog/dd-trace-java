@@ -5,8 +5,8 @@ import java.io.Closeable;
 /** An object which can propagate a datadog trace across multiple threads. */
 public interface TraceScope extends Closeable {
   /**
-   * Prevent the trace attached to this TraceScope from reporting until the returned Continuation
-   * finishes.
+   * Prevent the trace attached to this TraceScope from reporting until the returned Continuation is
+   * either activated (and the returned scope is closed), or canceled.
    *
    * <p>Should be called on the parent thread.
    */
@@ -26,28 +26,40 @@ public interface TraceScope extends Closeable {
    */
   void setAsyncPropagation(boolean value);
 
-  /** Used to pass async context between workers. */
+  /**
+   * Used to pass async context between workers. Either activate or cancel must be called on each
+   * continuation instance to allow the trace to be reported.
+   */
   interface Continuation {
+
     /**
      * Activate the continuation.
      *
      * <p>Should be called on the child thread.
+     *
+     * <p>Consider calling this in a try-with-resources initialization block to ensure the returned
+     * scope is closed properly.
      */
     TraceScope activate();
+
+    /** Allow trace to stop waiting on this continuation for reporting. */
+    void cancel();
 
     /**
      * Cancel the continuation. This also closes parent scope.
      *
-     * <p>FIXME: the fact that this is closing parent scope is confusing, we should review this in
-     * new API.
+     * @deprecated use {@link #cancel()} instead. Will be removed in the next release.
      */
+    @Deprecated
     void close();
 
     /**
      * Close the continuation.
      *
+     * @deprecated use {@link #cancel()} instead. Will be removed in the next release.
      * @param closeContinuationScope true iff parent scope should also be closed
      */
+    @Deprecated
     void close(boolean closeContinuationScope);
   }
 }
