@@ -2,8 +2,8 @@ package datadog.trace.core;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import datadog.trace.bootstrap.instrumentation.api.DDComponents;
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.DDComponents;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
