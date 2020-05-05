@@ -19,7 +19,6 @@ import com.lambdaworks.redis.protocol.ProtocolKeyword;
 import com.lambdaworks.redis.protocol.RedisCommand;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -29,57 +28,59 @@ public final class InstrumentationPoints {
   private static final Set<CommandType> NON_INSTRUMENTING_COMMANDS = EnumSet.of(SHUTDOWN, DEBUG);
 
   private static final Set<CommandType> AGENT_CRASHING_COMMANDS =
-    EnumSet.of(CLIENT, CLUSTER, COMMAND, CONFIG, DEBUG, SCRIPT);
+      EnumSet.of(CLIENT, CLUSTER, COMMAND, CONFIG, DEBUG, SCRIPT);
 
   public static final String AGENT_CRASHING_COMMAND_PREFIX = "COMMAND-NAME:";
 
-  public static AgentScope beforeCommand(RedisCommand<?, ?, ?> command) {
-    AgentSpan span = startSpan("redis.query");
+  public static AgentScope beforeCommand(final RedisCommand<?, ?, ?> command) {
+    final AgentSpan span = startSpan("redis.query");
     DECORATE.afterStart(span);
     DECORATE.onCommand(span, command);
     return activateSpan(span, finishSpanEarly(command));
   }
 
-  public static void afterCommand(RedisCommand<?, ?, ?> command,
-                                  AgentScope scope,
-                                  Throwable throwable,
-                                  AsyncCommand<?, ?, ?> asyncCommand) {
-      AgentSpan span = scope.span();
-      if (throwable != null) {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        span.finish();
-      } else if (!finishSpanEarly(command)) {
-        asyncCommand.handleAsync((value, ex) -> {
-          if (ex instanceof CancellationException) {
-            span.setTag("db.command.cancelled", true);
-          } else {
-            DECORATE.onError(span, ex);
-          }
-          DECORATE.beforeFinish(span);
-          span.finish();
-          return null;
-        });
-      }
-      scope.close();
+  public static void afterCommand(
+      final RedisCommand<?, ?, ?> command,
+      final AgentScope scope,
+      final Throwable throwable,
+      final AsyncCommand<?, ?, ?> asyncCommand) {
+    final AgentSpan span = scope.span();
+    if (throwable != null) {
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
+      span.finish();
+    } else if (!finishSpanEarly(command)) {
+      asyncCommand.handleAsync(
+          (value, ex) -> {
+            if (ex instanceof CancellationException) {
+              span.setTag("db.command.cancelled", true);
+            } else {
+              DECORATE.onError(span, ex);
+            }
+            DECORATE.beforeFinish(span);
+            span.finish();
+            return null;
+          });
+    }
+    scope.close();
     // span may be finished by handleAsync call above.
   }
 
-  public static AgentScope beforeConnect(RedisURI redisURI) {
-    AgentSpan span = startSpan("redis.query");
+  public static AgentScope beforeConnect(final RedisURI redisURI) {
+    final AgentSpan span = startSpan("redis.query");
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, redisURI);
-    return activateSpan(span, false);
+    return activateSpan(span);
   }
 
-  public static void afterConnect(AgentScope scope, Throwable throwable) {
-    AgentSpan span = scope.span();
+  public static void afterConnect(final AgentScope scope, final Throwable throwable) {
+    final AgentSpan span = scope.span();
     if (throwable != null) {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
     }
-    span.finish();
     scope.close();
+    span.finish();
   }
 
   /**
@@ -90,29 +91,29 @@ public final class InstrumentationPoints {
    * @param command
    * @return true if finish the span early (the command will not have a return value)
    */
-  public static boolean finishSpanEarly(RedisCommand<?, ?, ?> command) {
-    ProtocolKeyword keyword = command.getType();
+  public static boolean finishSpanEarly(final RedisCommand<?, ?, ?> command) {
+    final ProtocolKeyword keyword = command.getType();
     return isNonInstrumentingCommand(keyword) || isNonInstrumentingKeyword(keyword);
   }
 
-  private static boolean isNonInstrumentingCommand(ProtocolKeyword keyword) {
+  private static boolean isNonInstrumentingCommand(final ProtocolKeyword keyword) {
     return keyword instanceof CommandType && NON_INSTRUMENTING_COMMANDS.contains(keyword);
   }
 
-  private static boolean isNonInstrumentingKeyword(ProtocolKeyword keyword) {
+  private static boolean isNonInstrumentingKeyword(final ProtocolKeyword keyword) {
     return keyword == SEGFAULT;
   }
 
   /**
-   * Workaround to keep trace agent from crashing Currently the commands in
-   * AGENT_CRASHING_COMMANDS will crash the trace agent and traces with these commands as the
-   * resource name will not be processed by the trace agent
+   * Workaround to keep trace agent from crashing Currently the commands in AGENT_CRASHING_COMMANDS
+   * will crash the trace agent and traces with these commands as the resource name will not be
+   * processed by the trace agent
    *
    * @param keyword the actual redis command
    * @return the redis command with a prefix if it is a command that will crash the trace agent,
    *     otherwise, the original command is returned.
    */
-  public static String getCommandResourceName(ProtocolKeyword keyword) {
+  public static String getCommandResourceName(final ProtocolKeyword keyword) {
     if (keyword instanceof CommandType && AGENT_CRASHING_COMMANDS.contains(keyword)) {
       return AGENT_CRASHING_COMMAND_PREFIX + keyword.name();
     }
