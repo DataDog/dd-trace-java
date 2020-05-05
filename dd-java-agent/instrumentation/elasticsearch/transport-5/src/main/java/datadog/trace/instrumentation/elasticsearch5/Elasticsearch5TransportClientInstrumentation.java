@@ -89,6 +89,7 @@ public class Elasticsearch5TransportClientInstrumentation extends Instrumenter.D
         span.finish();
       }
       scope.close();
+      // span finished by TransportActionListener
     }
   }
 }

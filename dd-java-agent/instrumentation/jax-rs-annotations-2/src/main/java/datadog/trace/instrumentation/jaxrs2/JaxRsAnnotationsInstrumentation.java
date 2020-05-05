@@ -148,6 +148,7 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Default 
         DECORATE.beforeFinish(span);
         span.finish();
       }
+      // else span finished by AsyncResponseAdvice
       scope.close();
     }
   }

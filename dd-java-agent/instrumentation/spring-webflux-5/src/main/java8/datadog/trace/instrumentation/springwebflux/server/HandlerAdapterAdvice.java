@@ -64,6 +64,7 @@ public class HandlerAdapterAdvice {
     }
     if (scope != null) {
       scope.close();
+      // span finished in SpanFinishingSubscriber
     }
   }
 }

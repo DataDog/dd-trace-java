@@ -101,6 +101,7 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Default {
         span.finish();
       }
       scope.close();
+      // span finished by SpanClosingListener
     }
   }
 

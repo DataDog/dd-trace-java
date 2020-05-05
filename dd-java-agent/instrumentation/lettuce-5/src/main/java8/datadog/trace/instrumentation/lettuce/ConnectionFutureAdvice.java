@@ -35,5 +35,6 @@ public class ConnectionFutureAdvice {
     }
     connectionFuture.handleAsync(new LettuceAsyncBiFunction<>(span));
     scope.close();
+    // span finished by LettuceAsyncBiFunction
   }
 }

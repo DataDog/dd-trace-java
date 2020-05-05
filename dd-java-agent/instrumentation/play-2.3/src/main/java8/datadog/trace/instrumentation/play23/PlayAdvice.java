@@ -60,6 +60,7 @@ public class PlayAdvice {
       playControllerSpan.finish();
     }
     playControllerScope.close();
+    // span finished in RequestCompleteCallback
 
     final AgentSpan rootSpan = activeSpan();
     // set the resource name on the upstream akka/netty span

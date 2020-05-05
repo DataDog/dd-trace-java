@@ -62,6 +62,7 @@ public final class InstrumentationPoints {
         });
       }
       scope.close();
+    // span may be finished by handleAsync call above.
   }
 
   public static AgentScope beforeConnect(RedisURI redisURI) {

@@ -218,7 +218,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
         @Advice.Return final GetResponse response,
         @Advice.Thrown final Throwable throwable) {
 
-      placeholderScope.close();
+      placeholderScope.close(); // noop span, so no need to finish.
 
       if (callDepth > 0) {
         return;

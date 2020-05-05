@@ -44,5 +44,6 @@ public class LettuceAsyncCommandsAdvice {
       asyncCommand.handleAsync(new LettuceAsyncBiFunction<>(span));
     }
     scope.close();
+    // span finished by LettuceAsyncBiFunction
   }
 }

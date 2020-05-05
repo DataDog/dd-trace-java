@@ -84,8 +84,9 @@ public class JettyHandlerAdvice {
       if (!req.isAsyncStarted() && activated.compareAndSet(false, true)) {
         DECORATE.onResponse(span, resp);
         DECORATE.beforeFinish(span);
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
+        span.finish();
       }
+      // else span finished by TagSettingAsyncListener
     }
     scope.close();
   }

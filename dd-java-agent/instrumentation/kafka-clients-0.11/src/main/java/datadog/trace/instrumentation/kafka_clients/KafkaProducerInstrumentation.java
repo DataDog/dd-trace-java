@@ -103,6 +103,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
+      // span finished by ProducerCallback
     }
   }
 

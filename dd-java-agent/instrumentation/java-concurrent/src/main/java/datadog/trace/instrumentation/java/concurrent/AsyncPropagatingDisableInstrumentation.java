@@ -99,6 +99,7 @@ public final class AsyncPropagatingDisableInstrumentation implements Instrumente
     public static void exit(@Advice.Enter final AgentScope scope) {
       if (scope != null) {
         scope.close();
+        // Don't need to finish noop span.
       }
     }
   }

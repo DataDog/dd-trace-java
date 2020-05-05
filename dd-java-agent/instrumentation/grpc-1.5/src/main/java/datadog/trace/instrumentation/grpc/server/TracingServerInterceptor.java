@@ -55,6 +55,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     } finally {
       scope.setAsyncPropagation(false);
       scope.close();
+      // span finished by TracingServerCall
     }
 
     // This ensures the server implementation can see the span in scope

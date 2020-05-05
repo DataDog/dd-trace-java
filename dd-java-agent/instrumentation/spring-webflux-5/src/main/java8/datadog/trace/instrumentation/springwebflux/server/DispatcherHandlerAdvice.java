@@ -49,5 +49,6 @@ public class DispatcherHandlerAdvice {
       AdviceUtils.finishSpanIfPresent(exchange, throwable);
     }
     scope.close();
+    // span finished in SpanFinishingSubscriber
   }
 }
