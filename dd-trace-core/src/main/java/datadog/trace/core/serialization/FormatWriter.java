@@ -109,7 +109,7 @@ public abstract class FormatWriter<DEST> {
     /* 6  */ writeBigInteger(PARENT_ID, span.getParentId(), destination);
     /* 7  */ writeLong(START, span.getStartTime(), destination);
     /* 8  */ writeLong(DURATION, span.getDurationNano(), destination);
-    /* 9  */ writeString(TYPE, span.getType(), destination);
+    /* 9  */ writeTag(TYPE, span.getType(), destination);
     /* 10 */ writeInt(ERROR, span.getError(), destination);
     /* 11 */ writeNumberMap(METRICS, span.getMetrics(), destination);
     /* 12 */ writeStringMap(META, span.getMeta(), destination);
