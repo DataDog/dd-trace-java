@@ -6,7 +6,7 @@ import java.util.Arrays;
 /** JFR specific binary encoding writer. Data is written to auto-scaled byte-array. */
 final class ByteArrayWriter {
   private static final int EXT_BIT = 0x80;
-  private static final long COMPRESSED_INT_MASK = ~((EXT_BIT - 1) & 0xff);
+  private static final long COMPRESSED_INT_MASK = -EXT_BIT;
   private byte[] array;
   private int pointer = 0;
 
