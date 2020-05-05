@@ -56,11 +56,14 @@ class ApacheHttpAsyncClientTest extends HttpClientTest {
       }
     }
 
-    def response = client.execute(request, handler).get()
-    response.entity?.content?.close() // Make sure the connection is closed.
-    blockUntilChildSpansFinished(1)
-    latch.await()
-    response.statusLine.statusCode
+    try {
+      def response = client.execute(request, handler).get()
+      response.entity?.content?.close() // Make sure the connection is closed.
+      latch.await()
+      response.statusLine.statusCode
+    } finally {
+      blockUntilChildSpansFinished(1)
+    }
   }
 
   @Override
