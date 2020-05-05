@@ -41,6 +41,17 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   }
 
   @Override
+  public void writeTag(String key, String value, MessagePacker destination) throws IOException {
+    // there's a good chance that the tag value will be something we have interned
+    writeStringUTF8(key, destination);
+    if (value == null) {
+      destination.packNil();
+    } else {
+      writeStringUTF8(value, destination);
+    }
+  }
+
+  @Override
   public void writeShort(final String key, final short value, final MessagePacker destination)
       throws IOException {
     writeStringUTF8(key, destination);

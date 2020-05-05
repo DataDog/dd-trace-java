@@ -30,6 +30,10 @@ public abstract class FormatWriter<DEST> {
 
   public abstract void writeMapFooter(DEST destination) throws IOException;
 
+  public void writeTag(String key, String value, DEST destination) throws IOException {
+    writeString(key, value, destination);
+  }
+
   public abstract void writeString(String key, String value, DEST destination) throws IOException;
 
   public abstract void writeShort(String key, short value, DEST destination) throws IOException;
@@ -81,7 +85,7 @@ public abstract class FormatWriter<DEST> {
     writeKey(key, destination);
     writeMapHeader(value.size(), destination);
     for (final Map.Entry<String, String> entry : value.entrySet()) {
-      writeString(entry.getKey(), entry.getValue(), destination);
+      writeTag(entry.getKey(), entry.getValue(), destination);
     }
     writeMapFooter(destination);
   }
