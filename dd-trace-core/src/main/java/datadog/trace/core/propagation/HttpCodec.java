@@ -149,15 +149,11 @@ public class HttpCodec {
   }
 
   static String firstHeaderValue(final String value) {
-    if (value == null || value.isEmpty()) {
-      return value;
+    if (value == null) {
+      return null;
     }
 
-    final String[] split = value.split(",");
-    if (split.length > 0) {
-      return split[0].trim();
-    } else {
-      return value;
-    }
+    int firstComma = value.indexOf(',');
+    return firstComma == -1 ? value : value.substring(0, firstComma).trim();
   }
 }

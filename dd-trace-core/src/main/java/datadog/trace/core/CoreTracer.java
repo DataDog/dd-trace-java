@@ -199,8 +199,10 @@ public class CoreTracer
   @Override
   public void finalize() {
     try {
-      Runtime.getRuntime().removeShutdownHook(shutdownCallback);
       shutdownCallback.run();
+      Runtime.getRuntime().removeShutdownHook(shutdownCallback);
+    } catch (final IllegalStateException e) {
+      // Do nothing.  Already shutting down
     } catch (final Exception e) {
       log.error("Error while finalizing DDTracer.", e);
     }
@@ -441,7 +443,7 @@ public class CoreTracer
       return (DDScopeEventFactory)
           Class.forName("datadog.trace.core.jfr.openjdk.ScopeEventFactory").newInstance();
     } catch (final ClassFormatError | ReflectiveOperationException | NoClassDefFoundError e) {
-      log.debug("Cannot create Openjdk JFR scope event factory", e);
+      log.debug("Profiling of ScopeEvents is not available");
     }
     return new DDNoopScopeEventFactory();
   }

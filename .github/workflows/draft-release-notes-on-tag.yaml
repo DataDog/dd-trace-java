@@ -36,24 +36,6 @@ jobs:
             } else {
               return null
             }
-      - name: Get pull requests for milestone
-        if: fromJSON(steps.milestone.outputs.result)
-        id: pulls
-        uses: actions/github-script@0.9.0
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const options = github.pulls.list.endpoint.merge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'closed'
-            })
-
-            const pullRequests = await github.paginate(options)
-
-            return pullRequests.filter(pullRequest => pullRequest.merged_at
-              && pullRequest.milestone
-              && pullRequest.milestone.number == ${{steps.milestone.outputs.result}})
       - name: Generate release notes text
         if: fromJSON(steps.milestone.outputs.result)
         id: generate
@@ -62,9 +44,25 @@ jobs:
           github-token: ${{secrets.GITHUB_TOKEN}}
           result-encoding: string
           script: |
+            const options = github.pulls.list.endpoint.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              base: 'master'
+            })
+
+            const pullRequests = await github.paginate(options)
+
             var draftText = "# Improvements \n\n# Changes \n\n"
-            for (let pull of ${{ steps.pulls.outputs.result }}) {
-              draftText += "* " + pull.title + " #" + pull.number + " \n"
+            for (let pull of pullRequests) {
+              if (pull.merged_at && pull.milestone && pull.milestone.number == ${{steps.milestone.outputs.result}}) {
+                // Add author if community labeled
+                if (pull.labels.some(label => label.name == "community")) {
+                  draftText += "* " + pull.title + " #" + pull.number + " (Thanks @" + pull.user.login + " for the contribution!)\n"
+                } else {
+                  draftText += "* " + pull.title + " #" + pull.number + " \n"
+                }
+              }
             }
             draftText += "\n# Fixes \n"
             return draftText

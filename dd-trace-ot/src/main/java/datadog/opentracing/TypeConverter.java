@@ -24,7 +24,9 @@ class TypeConverter {
   }
 
   public AgentSpan toAgentSpan(final Span span) {
-    if (span instanceof OTSpan) {
+    if (span == null) {
+      return null;
+    } else if (span instanceof OTSpan) {
       return ((OTSpan) span).getDelegate();
     } else {
       // NOOP Span
@@ -33,7 +35,9 @@ class TypeConverter {
   }
 
   public Span toSpan(final AgentSpan agentSpan) {
-    if (agentSpan instanceof DDSpan) {
+    if (agentSpan == null) {
+      return null;
+    } else if (agentSpan instanceof DDSpan) {
       return new OTSpan((DDSpan) agentSpan, this, logHandler);
     } else {
       // NOOP AgentSpans
@@ -45,7 +49,9 @@ class TypeConverter {
   // That fact that some methods return AgentScope and other TraceScope even though its the same
   // underlying object needs to be cleaned up
   public Scope toScope(final Object scope) {
-    if (scope instanceof CustomScopeManagerWrapper.CustomScopeManagerScope) {
+    if (scope == null) {
+      return null;
+    } else if (scope instanceof CustomScopeManagerWrapper.CustomScopeManagerScope) {
       return ((CustomScopeManagerWrapper.CustomScopeManagerScope) scope).getDelegate();
     } else if (scope instanceof TraceScope) {
       return new OTScopeManager.OTTraceScope((TraceScope) scope, this);
@@ -59,7 +65,9 @@ class TypeConverter {
   }
 
   public SpanContext toSpanContext(final TagContext tagContext) {
-    if (tagContext instanceof ExtractedContext) {
+    if (tagContext == null) {
+      return null;
+    } else if (tagContext instanceof ExtractedContext) {
       return new OTExtractedContext((ExtractedContext) tagContext);
     } else {
       return new OTTagContext(tagContext);
@@ -69,7 +77,9 @@ class TypeConverter {
   public AgentSpan.Context toContext(final SpanContext spanContext) {
     // FIXME: [API] DDSpanContext, ExtractedContext, TagContext, AgentSpan.Context
     // don't share a meaningful hierarchy
-    if (spanContext instanceof OTGenericContext) {
+    if (spanContext == null) {
+      return null;
+    } else if (spanContext instanceof OTGenericContext) {
       return ((OTGenericContext) spanContext).getDelegate();
     } else if (spanContext instanceof OTExtractedContext) {
       return ((OTExtractedContext) spanContext).getDelegate();
