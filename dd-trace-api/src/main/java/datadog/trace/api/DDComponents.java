@@ -49,6 +49,4 @@ public class DDComponents {
   public static final String SPRING_SCHEDULING = "spring-scheduling";
   public static final String SPRING_WEB_CONTROLLER = "spring-web-controller";
   public static final String JAVA_SPY_MEMCACHED = "java-spymemcached";
-
-
 }
