@@ -1,4 +1,4 @@
-package datadog.trace.api;
+package datadog.trace.bootstrap.instrumentation.api;
 
 public class DDComponents {
   public static final String ELASTICSEARCH_JAVA = "elasticsearch-java";
