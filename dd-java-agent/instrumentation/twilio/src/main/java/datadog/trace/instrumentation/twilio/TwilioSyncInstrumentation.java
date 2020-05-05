@@ -103,7 +103,7 @@ public class TwilioSyncInstrumentation extends Instrumenter.Default {
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     /** Method exit instrumentation. */
@@ -117,14 +117,14 @@ public class TwilioSyncInstrumentation extends Instrumenter.Default {
       }
 
       // If we have a scope (i.e. we were the top-level Twilio SDK invocation),
+      final AgentSpan span = scope.span();
       try {
-        final AgentSpan span = scope.span();
-
         DECORATE.onResult(span, response);
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
       } finally {
         scope.close();
+        span.finish();
         CallDepthThreadLocalMap.reset(Twilio.class); // reset call depth count
       }
     }

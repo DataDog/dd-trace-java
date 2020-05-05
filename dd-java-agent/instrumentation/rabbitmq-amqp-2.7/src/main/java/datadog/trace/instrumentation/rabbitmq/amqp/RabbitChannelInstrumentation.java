@@ -130,7 +130,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
               .setTag(Tags.PEER_PORT, connection.getPort());
       DECORATE.afterStart(span);
       DECORATE.onPeerConnection(span, connection.getAddress());
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -142,6 +142,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
       CallDepthThreadLocalMap.reset(Channel.class);
     }
   }
@@ -203,7 +204,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
 
       callDepth = CallDepthThreadLocalMap.incrementCallDepth(Channel.class);
       // Don't want RabbitCommandInstrumentation to mess up our actual parent span.
-      placeholderScope = activateSpan(noopSpan(), false);
+      placeholderScope = activateSpan(noopSpan());
       return System.currentTimeMillis();
     }
 
@@ -251,7 +252,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
         span.setTag("message.size", response.getBody().length);
       }
       span.setTag(Tags.PEER_PORT, connection.getPort());
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onGet(span, queue);
         CONSUMER_DECORATE.onPeerConnection(span, connection.getAddress());

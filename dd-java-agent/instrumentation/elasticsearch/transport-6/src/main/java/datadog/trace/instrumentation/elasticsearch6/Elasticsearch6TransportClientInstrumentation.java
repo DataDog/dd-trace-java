@@ -80,7 +80,7 @@ public class Elasticsearch6TransportClientInstrumentation extends Instrumenter.D
 
       actionListener = new TransportActionListener<>(actionRequest, actionListener, span);
 
-      return activateSpan(span, false);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

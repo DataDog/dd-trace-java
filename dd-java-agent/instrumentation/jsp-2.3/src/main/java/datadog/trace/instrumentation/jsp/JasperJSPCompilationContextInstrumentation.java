@@ -52,7 +52,7 @@ public final class JasperJSPCompilationContextInstrumentation extends Instrument
     public static AgentScope onEnter() {
       final AgentSpan span = startSpan("jsp.compile");
       DECORATE.afterStart(span);
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -66,6 +66,7 @@ public final class JasperJSPCompilationContextInstrumentation extends Instrument
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 }

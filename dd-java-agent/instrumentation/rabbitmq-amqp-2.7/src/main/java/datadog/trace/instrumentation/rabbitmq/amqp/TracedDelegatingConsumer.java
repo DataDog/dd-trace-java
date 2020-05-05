@@ -75,7 +75,7 @@ public class TracedDelegatingConsumer implements Consumer {
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);
 
-      scope = activateSpan(span, true);
+      scope = activateSpan(span);
 
     } catch (final Exception e) {
       log.debug("Instrumentation error in tracing consumer", e);
@@ -94,6 +94,7 @@ public class TracedDelegatingConsumer implements Consumer {
         if (scope != null) {
           CONSUMER_DECORATE.beforeFinish(scope);
           scope.close();
+          scope.span().finish();
         }
       }
     }

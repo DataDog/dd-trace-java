@@ -94,7 +94,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
         }
       }
 
-      return activateSpan(span, false);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -117,7 +117,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
 
     @Override
     public void onCompletion(final RecordMetadata metadata, final Exception exception) {
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         PRODUCER_DECORATE.onError(span, exception);
         try {
           if (callback != null) {

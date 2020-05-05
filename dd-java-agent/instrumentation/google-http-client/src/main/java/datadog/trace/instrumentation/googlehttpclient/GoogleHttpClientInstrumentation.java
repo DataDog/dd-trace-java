@@ -90,7 +90,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
 
       final AgentSpan span = state.getSpan();
 
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, request);
         propagate().inject(span, request, SETTER);
@@ -110,7 +110,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
       if (state != null) {
         final AgentSpan span = state.getSpan();
 
-        try (final AgentScope scope = activateSpan(span, false)) {
+        try (final AgentScope scope = activateSpan(span)) {
           DECORATE.onResponse(span, response);
           DECORATE.onError(span, throwable);
 
@@ -154,7 +154,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
         if (state != null) {
           final AgentSpan span = state.getSpan();
 
-          try (final AgentScope scope = activateSpan(span, false)) {
+          try (final AgentScope scope = activateSpan(span)) {
             DECORATE.onError(span, throwable);
 
             DECORATE.beforeFinish(span);
