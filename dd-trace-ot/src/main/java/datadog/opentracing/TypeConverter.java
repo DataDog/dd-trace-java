@@ -48,15 +48,15 @@ class TypeConverter {
   // FIXME [API] Need to use the runtime type not compile-time type so "Object" is used
   // That fact that some methods return AgentScope and other TraceScope even though its the same
   // underlying object needs to be cleaned up
-  public Scope toScope(final Object scope) {
+  public Scope toScope(final Object scope, final boolean finishSpanOnClose) {
     if (scope == null) {
       return null;
     } else if (scope instanceof CustomScopeManagerWrapper.CustomScopeManagerScope) {
       return ((CustomScopeManagerWrapper.CustomScopeManagerScope) scope).getDelegate();
     } else if (scope instanceof TraceScope) {
-      return new OTScopeManager.OTTraceScope((TraceScope) scope, this);
+      return new OTScopeManager.OTTraceScope((TraceScope) scope, finishSpanOnClose, this);
     } else {
-      return new OTScopeManager.OTScope((AgentScope) scope, this);
+      return new OTScopeManager.OTScope((AgentScope) scope, finishSpanOnClose, this);
     }
   }
 
