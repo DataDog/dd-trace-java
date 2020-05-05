@@ -144,6 +144,7 @@ public class ContinuableScope implements DDScope {
    * Static to avoid an unconstrained chain of references (using too much memory), but nested to
    * maintain private constructor access.
    */
+  @Slf4j // This is important to prevent the log messages below from referencing the super class.
   public static class Continuation implements TraceScope.Continuation {
     public WeakReference<Continuation> ref;
 
