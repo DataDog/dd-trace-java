@@ -61,6 +61,19 @@ public final class JFRWriter {
   }
 
   /**
+   * Try registering a user annotation type. If a same-named annotation already exists it will be
+   * returned.
+   *
+   * @param name the annotation name
+   * @param builderCallback will be called with the active {@linkplain CustomTypeBuilder} when the
+   *     annotation is newly registered
+   * @return a user annotation type of the given name
+   */
+  public JFRType registerAnnotationType(String name, Consumer<CustomTypeBuilder> builderCallback) {
+    return registerType(name, JFRAnnotation.ANNOTATION_SUPER_TYPE_NAME, builderCallback);
+  }
+
+  /**
    * Try registering a custom type. If a same-named type already exists it will be returned.
    *
    * @param name the type name
