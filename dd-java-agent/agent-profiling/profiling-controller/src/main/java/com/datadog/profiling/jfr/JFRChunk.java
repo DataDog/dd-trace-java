@@ -13,11 +13,13 @@ public final class JFRChunk {
 
   private final ByteArrayWriter writer = new ByteArrayWriter(65536);
   private final Types types;
-  private final long ts;
+  private final long startTicks;
+  private final long startNanos;
 
   JFRChunk(Types types) {
     this.types = types;
-    this.ts = System.nanoTime();
+    this.startTicks = System.nanoTime();
+    this.startNanos = System.currentTimeMillis() * 1_000_000L;
     writeHeader();
   }
 
@@ -58,7 +60,7 @@ public final class JFRChunk {
    * @return the chunk raw data
    */
   public byte[] finish() {
-    long duration = System.nanoTime() - ts;
+    long duration = System.nanoTime() - startTicks;
     writeCheckPoint();
     writeMetadata(duration);
     writer.writeLongRaw(DURATION_NANOS_OFFSET, duration);
@@ -73,8 +75,8 @@ public final class JFRChunk {
 
     cpWriter
         .writeLong(1L) // checkpoint event ID
-        .writeLong(ts) // start timestamp
-        .writeLong(System.nanoTime() - ts) // duration till now
+        .writeLong(startNanos) // start timestamp
+        .writeLong(System.nanoTime() - startTicks) // duration till now
         .writeLong(0L) // fake delta-to-next
         .writeInt(1) // all checkpoints are flush for now
         .writeInt(types.getConstantPools().size()); // start writing constant pools array
@@ -102,9 +104,9 @@ public final class JFRChunk {
         .writeLongRaw(0L) // size
         .writeLongRaw(0L) // CP event offset
         .writeLongRaw(0L) // meta event offset
-        .writeLongRaw(ts)
+        .writeLongRaw(startNanos)
         .writeLongRaw(0L)
-        .writeLongRaw(ts)
+        .writeLongRaw(startTicks)
         .writeLongRaw(1_000_000_000L) // 1 tick = 1 ns
         .writeIntRaw(1); // use compressed integers
   }
@@ -112,7 +114,7 @@ public final class JFRChunk {
   private void writeMetadata(long duration) {
     writer.writeLongRaw(METADATA_OFFSET_OFFSET, writer.length());
 
-    types.getMetadata().writeMetaEvent(writer, ts, duration);
+    types.getMetadata().writeMetaEvent(writer, startTicks, duration);
   }
 
   private void writeTypedValue(ByteArrayWriter writer, TypedValue value) {
@@ -127,16 +129,20 @@ public final class JFRChunk {
       if (value.getType().hasConstantPool()) {
         writer.writeLong(value.getCPIndex());
       } else {
-        for (TypedFieldValue fieldValue : value.getFieldValues()) {
-          if (fieldValue.getField().isArray()) {
-            writer.writeInt(fieldValue.getValues().length); // array size
-            for (TypedValue tValue : fieldValue.getValues()) {
-              writeTypedValue(writer, tValue);
-            }
-          } else {
-            writeTypedValue(writer, fieldValue.getValue());
-          }
+        writeFields(writer, value);
+      }
+    }
+  }
+
+  private void writeFields(ByteArrayWriter writer, TypedValue value) {
+    for (TypedFieldValue fieldValue : value.getFieldValues()) {
+      if (fieldValue.getField().isArray()) {
+        writer.writeInt(fieldValue.getValues().length); // array size
+        for (TypedValue tValue : fieldValue.getValues()) {
+          writeTypedValue(writer, tValue);
         }
+      } else {
+        writeTypedValue(writer, fieldValue.getValue());
       }
     }
   }

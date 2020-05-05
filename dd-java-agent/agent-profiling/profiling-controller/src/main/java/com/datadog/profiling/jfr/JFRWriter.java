@@ -50,7 +50,7 @@ public final class JFRWriter {
           builder
               .addField("stackTrace", Types.JDK.STACK_TRACE)
               .addField("eventThread", Types.JDK.THREAD)
-              .addField("startTime", Types.JDK.TICKS);
+              .addField("startTime", Types.Builtin.LONG, new JFRAnnotation(types.getType(Types.JDK.ANNOTATION_TIMESTAMP), "TICKS"));
           builderCallback.accept(builder);
         });
   }

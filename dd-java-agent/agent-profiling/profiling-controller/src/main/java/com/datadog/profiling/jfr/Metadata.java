@@ -23,7 +23,9 @@ final class Metadata {
   private static final String TRUE_VALUE = "true";
   private static final String REGION_KEY = "region";
   private static final String DIMENSION_KEY = "dimension";
+  private static final String ANNOTATION_KEY = "annotation";
   private static final String VAL_1_VALUE = "1";
+
   private final TypeFactory factory;
   private final Map<String, JFRType> metadata = new HashMap<>();
   private final Map<String, Integer> stringTable = new HashMap<>();
@@ -51,6 +53,7 @@ final class Metadata {
     storeString(TRUE_VALUE);
     storeString(REGION_KEY);
     storeString(DIMENSION_KEY);
+    storeString(ANNOTATION_KEY);
   }
 
   /**
@@ -72,10 +75,10 @@ final class Metadata {
   }
 
   JFRType registerType(
-      String typeName, String supertype, Supplier<List<TypedField>> fieldStructureProvider) {
+      String typeName, String supertype, Supplier<TypeStructure> typeStructureProvider) {
     JFRType type = metadata.get(typeName);
     if (type == null) {
-      type = factory.createCustomType(typeName, supertype, fieldStructureProvider.get());
+      type = factory.createCustomType(typeName, supertype, typeStructureProvider.get());
       metadata.put(typeName, type);
     }
     storeTypeStrings(type);
@@ -109,6 +112,16 @@ final class Metadata {
     storeString(String.valueOf(type.getId()));
     for (TypedField field : type.getFields()) {
       storeString(field.getName());
+      storeAnnotationStrings(field.getAnnotations());
+    }
+    storeAnnotationStrings(type.getAnnotations());
+  }
+
+  private void storeAnnotationStrings(List<JFRAnnotation> annotations) {
+    for (JFRAnnotation annotation : annotations) {
+      if (annotation.value != null) {
+        storeString(annotation.value);
+      }
     }
   }
 
@@ -205,9 +218,20 @@ final class Metadata {
     if (type.isSimple()) {
       writer.writeInt(stringIndex(SIMPLE_TYPE_KEY)).writeInt(stringIndex(TRUE_VALUE));
     }
-    writer.writeInt(type.getFields().size());
+    writer.writeInt(type.getFields().size() + type.getAnnotations().size());
+    writeTypeFields(writer, type);
+    writeTypeAnnotations(writer, type);
+  }
+
+  private void writeTypeFields(ByteArrayWriter writer, JFRType type) {
     for (TypedField field : type.getFields()) {
       writeField(writer, field);
+    }
+  }
+
+  private void writeTypeAnnotations(ByteArrayWriter writer, JFRType type) {
+    for (JFRAnnotation annotation : type.getAnnotations()) {
+      writeAnnotation(writer, annotation);
     }
   }
 
@@ -236,6 +260,28 @@ final class Metadata {
     if (withConstantPool) {
       writer.writeInt(stringIndex(CONSTANT_POOL_KEY)).writeInt(stringIndex(TRUE_VALUE));
     }
-    writer.writeInt(0); // 0 elements
+    writeFieldAnnotations(writer, field);
+  }
+
+  private void writeFieldAnnotations(ByteArrayWriter writer, TypedField field) {
+    writer.writeInt(field.getAnnotations().size()); // annotations are the only sub-elements
+    for (JFRAnnotation annotation : field.getAnnotations()) {
+      writeAnnotation(writer, annotation);
+    }
+  }
+
+  private void writeAnnotation(ByteArrayWriter writer, JFRAnnotation annotation) {
+    writer.writeInt(stringIndex(ANNOTATION_KEY));
+
+    writer
+      .writeInt(annotation.value != null ? 2 : 1) // number of attributes
+      .writeInt(stringIndex(CLASS_KEY))
+      .writeInt(stringIndex(String.valueOf(annotation.type.getId())));
+    if (annotation.value != null) {
+      writer
+        .writeInt(stringIndex(VALUE_KEY))
+        .writeInt(stringIndex(annotation.value));
+    }
+    writer.writeInt(0); // no sub-elements
   }
 }

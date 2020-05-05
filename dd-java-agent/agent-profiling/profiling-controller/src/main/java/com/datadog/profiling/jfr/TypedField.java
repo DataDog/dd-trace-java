@@ -1,5 +1,7 @@
 package com.datadog.profiling.jfr;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 /** A representation of a typed field with a name */
@@ -7,15 +9,25 @@ public final class TypedField {
   private final String name;
   private final JFRType type;
   private final boolean isArray;
+  private final List<JFRAnnotation> annotations;
 
   TypedField(String name, JFRType type) {
-    this(name, type, false);
+    this(name, type, false, Collections.emptyList());
+  }
+
+  TypedField(String name, JFRType type, List<JFRAnnotation> annotations) {
+    this(name, type, false, annotations);
   }
 
   TypedField(String name, JFRType type, boolean isArray) {
+    this(name, type, isArray, Collections.emptyList());
+  }
+
+  TypedField(String name, JFRType type, boolean isArray, List<JFRAnnotation> annotations) {
     this.name = name;
     this.type = type;
     this.isArray = isArray;
+    this.annotations = Collections.unmodifiableList(annotations);
   }
 
   /** @return field name */
@@ -33,6 +45,10 @@ public final class TypedField {
     return isArray;
   }
 
+  public List<JFRAnnotation> getAnnotations() {
+    return annotations;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -41,12 +57,15 @@ public final class TypedField {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    TypedField typedField = (TypedField) o;
-    return Objects.equals(name, typedField.name) && Objects.equals(type, typedField.type);
+    TypedField that = (TypedField) o;
+    return isArray == that.isArray &&
+      name.equals(that.name) &&
+      type.equals(that.type) &&
+      annotations.equals(that.annotations);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name, type);
+    return Objects.hash(name, type, isArray, annotations);
   }
 }

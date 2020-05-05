@@ -135,6 +135,12 @@ class ResolvableJFRType implements JFRType {
   }
 
   @Override
+  public List<JFRAnnotation> getAnnotations() {
+    checkResolved();
+    return delegate.getAnnotations();
+  }
+
+  @Override
   public boolean canAccept(Object value) {
     checkResolved();
     return delegate.canAccept(value);

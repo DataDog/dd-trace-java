@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import static com.datadog.profiling.jfr.JFRAnnotation.ANNOTATION_SUPER_TYPE_NAME;
+
 /** An access class for various {@linkplain JFRType} related operations */
 public final class Types {
   interface Predefined extends NamedType {}
@@ -71,7 +73,14 @@ public final class Types {
     SYMBOL("jdk.types.Symbol"),
     CLASS_LOADER("jdk.type.ClassLoader"),
     PACKAGE("jdk.types.Package"),
-    MODULE("jdk.types.Module");
+    MODULE("jdk.types.Module"),
+    ANNOTATION_LABEL("jdk.jfr.Label"),
+    ANNOTATION_CONTENT_TYPE("jdk.jfr.ContentType"),
+    ANNOTATION_NAME("jdk.jfr.Name"),
+    ANNOTATION_DESCRIPTION("jdk.jfr.Description"),
+    ANNOTATION_TIMESTAMP("jdk.jfr.Timestamp"),
+    ANNOTATION_TIMESPAN("jdk.jfr.Timespan"),
+    ANNOTATION_UNSIGNED("jdk.jfr.Unsigned");
 
     private static Map<String, JDK> NAME_MAP;
     private final String typeName;
@@ -133,6 +142,43 @@ public final class Types {
   }
 
   private void registerJdkTypes() {
+    JFRType annotationNameType = getOrAdd(JDK.ANNOTATION_NAME, ANNOTATION_SUPER_TYPE_NAME, builder -> {
+      builder.addField("value", Builtin.STRING);
+    });
+    JFRType annotationLabelType = getOrAdd(JDK.ANNOTATION_LABEL, ANNOTATION_SUPER_TYPE_NAME, builder -> {
+      builder.addField("value", Builtin.STRING);
+    });
+    JFRType annotationDescriptionType = getOrAdd(JDK.ANNOTATION_DESCRIPTION, ANNOTATION_SUPER_TYPE_NAME, builder -> {
+      builder.addField("value", Builtin.STRING);
+    });
+    JFRType annotationContentTypeType = getOrAdd(JDK.ANNOTATION_CONTENT_TYPE, ANNOTATION_SUPER_TYPE_NAME, builder -> {
+      builder.addField("value", Builtin.STRING);
+    });
+    getOrAdd(JDK.ANNOTATION_TIMESTAMP, ANNOTATION_SUPER_TYPE_NAME, builder -> {
+      builder
+        .addField("value", Builtin.STRING)
+        .addAnnotation(annotationNameType, "jdk.jfr.Timestamp")
+        .addAnnotation(annotationContentTypeType, null)
+        .addAnnotation(annotationLabelType, "Timestamp")
+        .addAnnotation(annotationDescriptionType, "A point in time");
+    });
+    getOrAdd(JDK.ANNOTATION_TIMESPAN, ANNOTATION_SUPER_TYPE_NAME, builder -> {
+      builder
+        .addField("value", Builtin.STRING)
+        .addAnnotation(annotationNameType, "jdk.jfr.Timespan")
+        .addAnnotation(annotationContentTypeType, null)
+        .addAnnotation(annotationLabelType, "Timespan")
+        .addAnnotation(annotationDescriptionType, "A duration, measured in nanoseconds by default");
+    });
+    getOrAdd(JDK.ANNOTATION_UNSIGNED, ANNOTATION_SUPER_TYPE_NAME, builder -> {
+      builder
+        .addField("value", Builtin.STRING)
+        .addAnnotation(annotationNameType, "jdk.jfr.Unsigned")
+        .addAnnotation(annotationContentTypeType, null)
+        .addAnnotation(annotationLabelType, "Unsigned value")
+        .addAnnotation(annotationDescriptionType, "Value should be interpreted as unsigned data type");
+    });
+    
     getOrAdd(
         JDK.TICKSPAN,
         builder -> {

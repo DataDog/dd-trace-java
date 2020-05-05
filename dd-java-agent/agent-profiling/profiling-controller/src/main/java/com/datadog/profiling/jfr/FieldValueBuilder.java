@@ -240,7 +240,6 @@ public final class FieldValueBuilder {
     return this;
   }
 
-  @SuppressWarnings("unchecked")
   public FieldValueBuilder putField(String name, Consumer<FieldValueBuilder>... builders) {
     if (builders.length > 0) {
       buildArrayField(name, () -> builders);

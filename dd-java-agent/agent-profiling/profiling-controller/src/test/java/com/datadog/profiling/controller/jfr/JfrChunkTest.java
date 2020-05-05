@@ -1,17 +1,15 @@
 package com.datadog.profiling.controller.jfr;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import com.datadog.profiling.jfr.JFRType;
 import com.datadog.profiling.jfr.JFRWriter;
 import com.datadog.profiling.jfr.TypedValue;
 import com.datadog.profiling.jfr.Types;
 import java.io.File;
+import java.io.FileInputStream;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+
 import org.junit.jupiter.api.Test;
 import org.openjdk.jmc.common.IMCStackTrace;
 import org.openjdk.jmc.common.IMCThread;
@@ -20,9 +18,17 @@ import org.openjdk.jmc.common.item.IAttribute;
 import org.openjdk.jmc.common.item.IItem;
 import org.openjdk.jmc.common.item.IItemCollection;
 import org.openjdk.jmc.common.item.IMemberAccessor;
+import org.openjdk.jmc.common.unit.IQuantity;
 import org.openjdk.jmc.common.unit.UnitLookup;
 import org.openjdk.jmc.flightrecorder.JfrAttributes;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
+import org.openjdk.jmc.flightrecorder.internal.ChunkInfo;
+import org.openjdk.jmc.flightrecorder.internal.FlightRecordingLoader;
+import org.openjdk.jmc.flightrecorder.internal.IChunkSupplier;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JfrChunkTest {
 
@@ -53,7 +59,7 @@ class JfrChunkTest {
         eventType.asValue(
             access -> {
               access
-                  .putField("startTime", System.currentTimeMillis() * 1_000_000L)
+                  .putField("startTime", System.nanoTime())
                   .putField("name", EVENT_NAME)
                   .putField("message", EVENT_MSG)
                   .putField(
@@ -162,6 +168,7 @@ class JfrChunkTest {
           IMemberAccessor<String, IItem> msgAcessor = msgAttr.getAccessor(iitem.getType());
           IMemberAccessor<IMCThread, IItem> eventThreadAccessor =
               JfrAttributes.EVENT_THREAD.getAccessor(iitem.getType());
+          IMemberAccessor<IQuantity, IItem> startTimeAccessor = JfrAttributes.START_TIME.getAccessor(iitem.getType());
           iitem.forEach(
               item -> {
                 assertEquals(EVENT_NAME, nameAcessor.getMember(item));
@@ -169,6 +176,8 @@ class JfrChunkTest {
                 assertNotNull(eventThreadAccessor.getMember(item));
                 IMCStackTrace stackTrace = stackTraceAccessor.getMember(item);
                 assertEquals(2, stackTrace.getFrames().size());
+
+                System.out.println(startTimeAccessor.getMember(item).interactiveFormat());
               });
         });
   }

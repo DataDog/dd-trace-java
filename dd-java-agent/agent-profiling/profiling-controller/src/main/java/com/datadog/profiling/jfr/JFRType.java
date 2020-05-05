@@ -27,6 +27,8 @@ public interface JFRType extends NamedType {
   /** @return the type field structure */
   List<TypedField> getFields();
 
+  List<JFRAnnotation> getAnnotations();
+
   /**
    * Checks whether the type can accept the given value
    *

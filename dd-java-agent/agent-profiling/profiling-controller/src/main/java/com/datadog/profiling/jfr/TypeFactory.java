@@ -42,11 +42,11 @@ final class TypeFactory {
    *
    * @param name the type name
    * @param supertype the super type name - may be {@literal null}
-   * @param fields the type structure/fields
+   * @param structure the type structure - fields, annotations
    * @return new custom type
    * @throws IllegalArgumentException if the name belongs to one of the built-in types
    */
-  BaseJFRType createCustomType(String name, String supertype, List<TypedField> fields) {
+  BaseJFRType createCustomType(String name, String supertype, TypeStructure structure) {
     if (Types.Builtin.hasType(name)) {
       throw new IllegalArgumentException();
     }
@@ -54,7 +54,7 @@ final class TypeFactory {
         typeCounter.getAndIncrement(),
         name,
         supertype,
-        fields,
+        structure,
         // TODO hack for event types not to go to constant pool
         !"jdk.jfr.Event".equals(supertype) ? constantPools : null,
         types);

@@ -23,6 +23,11 @@ final class BuiltinJFRType extends BaseJFRType {
   }
 
   @Override
+  public List<JFRAnnotation> getAnnotations() {
+    return Collections.emptyList();
+  }
+
+  @Override
   public boolean canAccept(Object value) {
     if (value == null) {
       // non-initialized built-ins will get the default value and String will be properly handled

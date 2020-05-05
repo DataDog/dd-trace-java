@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * TODO This is an example of how the {@linkplain JFRWriter} can be used to write JMX generated
- * stacktraces
+ * stacktraces.
  */
 public final class SamplerWriter {
   static final String EVENT_NAME = "datadog.SamplerEvent";
@@ -46,7 +46,7 @@ public final class SamplerWriter {
             sampleEventType.asValue(
                 builder -> {
                   builder
-                      .putField("startTime", System.currentTimeMillis() * 1_000_000L)
+                      .putField("startTime", System.nanoTime())
                       .putField("eventThread", getThread(threadInfo))
                       .putField("stackTrace", getStackTrace(threadInfo));
                 }));

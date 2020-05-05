@@ -5,28 +5,23 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /** A custom JFR type */
 final class CustomJFRType extends BaseJFRType {
   private final List<TypedField> fields;
+  private final List<JFRAnnotation> annotations;
 
   CustomJFRType(
       long id,
       String name,
       String supertype,
-      List<TypedField> fieldStructure,
+      TypeStructure typeStructure,
       ConstantPools constantPools,
       Types types) {
     super(id, name, supertype, constantPools, types);
-    Map<String, TypedField> fieldMap = new HashMap<>();
-    for (TypedField field : fieldStructure) {
-      fieldMap.put(
-          field.getName(),
-          field.getType() == CustomTypeBuilder.SELF_TYPE
-              ? new TypedField(field.getName(), this, field.isArray())
-              : field);
-    }
-    this.fields = new ArrayList<>(fieldMap.values());
+    this.fields = Collections.unmodifiableList(typeStructure.fields.stream().map(field -> field.getType() == CustomTypeBuilder.SELF_TYPE ? new TypedField(field.getName(), this, field.isArray()) : field).collect(Collectors.toList()));
+    this.annotations = Collections.unmodifiableList(typeStructure.annotations);
   }
 
   @Override
@@ -36,7 +31,12 @@ final class CustomJFRType extends BaseJFRType {
 
   @Override
   public List<TypedField> getFields() {
-    return fields == null ? Collections.emptyList() : Collections.unmodifiableList(fields);
+    return fields;
+  }
+
+  @Override
+  public List<JFRAnnotation> getAnnotations() {
+    return annotations;
   }
 
   @Override
@@ -44,9 +44,6 @@ final class CustomJFRType extends BaseJFRType {
     if (value == null) {
       return true;
     }
-    //    if (value instanceof Long && hasConstantPool()) {
-    //      return true;
-    //    }
     if (value instanceof TypedValue) {
       return ((TypedValue) value).getType().equals(this);
     }
