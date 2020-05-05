@@ -7,8 +7,8 @@ import java.util.List;
 final class BuiltinJFRType extends BaseJFRType {
   private final Types.Builtin builtin;
 
-  BuiltinJFRType(long id, Types.Builtin type, ConstantPools constantPools, Types types) {
-    super(id, type.getTypeName(), constantPools, types);
+  BuiltinJFRType(long id, Types.Builtin type, ConstantPools constantPools, Metadata metadata) {
+    super(id, type.getTypeName(), constantPools, metadata);
     this.builtin = type;
   }
 

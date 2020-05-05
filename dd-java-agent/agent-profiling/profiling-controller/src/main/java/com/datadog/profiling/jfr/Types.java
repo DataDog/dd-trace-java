@@ -1,13 +1,14 @@
 package com.datadog.profiling.jfr;
 
+import static com.datadog.profiling.jfr.JFRAnnotation.ANNOTATION_SUPER_TYPE_NAME;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static com.datadog.profiling.jfr.JFRAnnotation.ANNOTATION_SUPER_TYPE_NAME;
-
 /** An access class for various {@linkplain JFRType} related operations */
 public final class Types {
+  /** A {@link JFRType type} predefined by the writer */
   interface Predefined extends NamedType {}
 
   /** Built-in types */
@@ -82,35 +83,10 @@ public final class Types {
     ANNOTATION_TIMESPAN("jdk.jfr.Timespan"),
     ANNOTATION_UNSIGNED("jdk.jfr.Unsigned");
 
-    private static Map<String, JDK> NAME_MAP;
     private final String typeName;
 
     JDK(String name) {
-      addName(name);
       this.typeName = name;
-    }
-
-    private static Map<String, JDK> getNameMap() {
-      if (NAME_MAP == null) {
-        NAME_MAP = new HashMap<>();
-      }
-      return NAME_MAP;
-    }
-
-    private void addName(String name) {
-      getNameMap().put(name, this);
-    }
-
-    public static boolean hasType(String name) {
-      return getNameMap().containsKey(name);
-    }
-
-    public static JDK ofName(String name) {
-      return getNameMap().get(name);
-    }
-
-    public static JDK ofType(JFRType type) {
-      return ofName(type.getTypeName());
     }
 
     @Override
@@ -119,14 +95,14 @@ public final class Types {
     }
   }
 
-  private final ConstantPools constantPools = new ConstantPools();
-  private final TypeFactory typeFactory = new TypeFactory(constantPools, this);
-  private final Metadata metadata = new Metadata(typeFactory);
+  private final Metadata metadata;
 
-  Types() {
+  Types(Metadata metadata) {
+    this.metadata = metadata;
+
     registerBuiltins();
     registerJdkTypes();
-    metadata.resolveTypes(); // resolve all back-referenced types
+    this.metadata.resolveTypes(); // resolve all back-referenced types
   }
 
   private void registerBuiltins() {
@@ -142,43 +118,70 @@ public final class Types {
   }
 
   private void registerJdkTypes() {
-    JFRType annotationNameType = getOrAdd(JDK.ANNOTATION_NAME, ANNOTATION_SUPER_TYPE_NAME, builder -> {
-      builder.addField("value", Builtin.STRING);
-    });
-    JFRType annotationLabelType = getOrAdd(JDK.ANNOTATION_LABEL, ANNOTATION_SUPER_TYPE_NAME, builder -> {
-      builder.addField("value", Builtin.STRING);
-    });
-    JFRType annotationDescriptionType = getOrAdd(JDK.ANNOTATION_DESCRIPTION, ANNOTATION_SUPER_TYPE_NAME, builder -> {
-      builder.addField("value", Builtin.STRING);
-    });
-    JFRType annotationContentTypeType = getOrAdd(JDK.ANNOTATION_CONTENT_TYPE, ANNOTATION_SUPER_TYPE_NAME, builder -> {
-      builder.addField("value", Builtin.STRING);
-    });
-    getOrAdd(JDK.ANNOTATION_TIMESTAMP, ANNOTATION_SUPER_TYPE_NAME, builder -> {
-      builder
-        .addField("value", Builtin.STRING)
-        .addAnnotation(annotationNameType, "jdk.jfr.Timestamp")
-        .addAnnotation(annotationContentTypeType, null)
-        .addAnnotation(annotationLabelType, "Timestamp")
-        .addAnnotation(annotationDescriptionType, "A point in time");
-    });
-    getOrAdd(JDK.ANNOTATION_TIMESPAN, ANNOTATION_SUPER_TYPE_NAME, builder -> {
-      builder
-        .addField("value", Builtin.STRING)
-        .addAnnotation(annotationNameType, "jdk.jfr.Timespan")
-        .addAnnotation(annotationContentTypeType, null)
-        .addAnnotation(annotationLabelType, "Timespan")
-        .addAnnotation(annotationDescriptionType, "A duration, measured in nanoseconds by default");
-    });
-    getOrAdd(JDK.ANNOTATION_UNSIGNED, ANNOTATION_SUPER_TYPE_NAME, builder -> {
-      builder
-        .addField("value", Builtin.STRING)
-        .addAnnotation(annotationNameType, "jdk.jfr.Unsigned")
-        .addAnnotation(annotationContentTypeType, null)
-        .addAnnotation(annotationLabelType, "Unsigned value")
-        .addAnnotation(annotationDescriptionType, "Value should be interpreted as unsigned data type");
-    });
-    
+    JFRType annotationNameType =
+        getOrAdd(
+            JDK.ANNOTATION_NAME,
+            ANNOTATION_SUPER_TYPE_NAME,
+            builder -> {
+              builder.addField("value", Builtin.STRING);
+            });
+    JFRType annotationLabelType =
+        getOrAdd(
+            JDK.ANNOTATION_LABEL,
+            ANNOTATION_SUPER_TYPE_NAME,
+            builder -> {
+              builder.addField("value", Builtin.STRING);
+            });
+    JFRType annotationDescriptionType =
+        getOrAdd(
+            JDK.ANNOTATION_DESCRIPTION,
+            ANNOTATION_SUPER_TYPE_NAME,
+            builder -> {
+              builder.addField("value", Builtin.STRING);
+            });
+    JFRType annotationContentTypeType =
+        getOrAdd(
+            JDK.ANNOTATION_CONTENT_TYPE,
+            ANNOTATION_SUPER_TYPE_NAME,
+            builder -> {
+              builder.addField("value", Builtin.STRING);
+            });
+    getOrAdd(
+        JDK.ANNOTATION_TIMESTAMP,
+        ANNOTATION_SUPER_TYPE_NAME,
+        builder -> {
+          builder
+              .addField("value", Builtin.STRING)
+              .addAnnotation(annotationNameType, "jdk.jfr.Timestamp")
+              .addAnnotation(annotationContentTypeType, null)
+              .addAnnotation(annotationLabelType, "Timestamp")
+              .addAnnotation(annotationDescriptionType, "A point in time");
+        });
+    getOrAdd(
+        JDK.ANNOTATION_TIMESPAN,
+        ANNOTATION_SUPER_TYPE_NAME,
+        builder -> {
+          builder
+              .addField("value", Builtin.STRING)
+              .addAnnotation(annotationNameType, "jdk.jfr.Timespan")
+              .addAnnotation(annotationContentTypeType, null)
+              .addAnnotation(annotationLabelType, "Timespan")
+              .addAnnotation(
+                  annotationDescriptionType, "A duration, measured in nanoseconds by default");
+        });
+    getOrAdd(
+        JDK.ANNOTATION_UNSIGNED,
+        ANNOTATION_SUPER_TYPE_NAME,
+        builder -> {
+          builder
+              .addField("value", Builtin.STRING)
+              .addAnnotation(annotationNameType, "jdk.jfr.Unsigned")
+              .addAnnotation(annotationContentTypeType, null)
+              .addAnnotation(annotationLabelType, "Unsigned value")
+              .addAnnotation(
+                  annotationDescriptionType, "Value should be interpreted as unsigned data type");
+        });
+
     getOrAdd(
         JDK.TICKSPAN,
         builder -> {
@@ -280,50 +283,102 @@ public final class Types {
         });
   }
 
-  Metadata getMetadata() {
-    return metadata;
+  /**
+   * Retrieve the given type or create it a-new if it hasn't been added yet.
+   *
+   * @param type the type to retrieve
+   * @param builderCallback will be called lazily when the type is about to be initialized
+   * @return the corresponding {@link JFRType type} instance
+   */
+  public JFRType getOrAdd(Predefined type, Consumer<CustomTypeBuilder> builderCallback) {
+    return getOrAdd(type.getTypeName(), builderCallback);
   }
 
-  ConstantPools getConstantPools() {
-    return constantPools;
+  /**
+   * Retrieve the given type or create it a-new if it hasn't been added yet.
+   *
+   * @param name the name of the type to retrieve
+   * @param builderCallback will be called lazily when the type is about to be initialized
+   * @return the corresponding {@link JFRType type} instance
+   */
+  public JFRType getOrAdd(String name, Consumer<CustomTypeBuilder> builderCallback) {
+    return getOrAdd(name, null, builderCallback);
   }
 
-  public JFRType getOrAdd(Predefined type, Consumer<CustomTypeBuilder> buildWith) {
-    return getOrAdd(type.getTypeName(), buildWith);
-  }
-
-  public JFRType getOrAdd(String name, Consumer<CustomTypeBuilder> buildWith) {
-    return getOrAdd(name, null, buildWith);
-  }
-
+  /**
+   * Retrieve the given type or create it a-new if it hasn't been added yet.
+   *
+   * @param type the type to retrieve
+   * @param supertype the super type name
+   * @param builderCallback will be called lazily when the type is about to be initialized
+   * @return the corresponding {@link JFRType type} instance
+   */
   public JFRType getOrAdd(
-      Predefined type, String supertype, Consumer<CustomTypeBuilder> buildWith) {
-    return getOrAdd(type.getTypeName(), supertype, buildWith);
+      Predefined type, String supertype, Consumer<CustomTypeBuilder> builderCallback) {
+    return getOrAdd(type.getTypeName(), supertype, builderCallback);
   }
 
-  public JFRType getOrAdd(String name, String supertype, Consumer<CustomTypeBuilder> buildWith) {
+  /**
+   * Retrieve the given type or create it a-new if it hasn't been added yet.
+   *
+   * @param name the name of the type to retrieve
+   * @param supertype the super type name
+   * @param builderCallback will be called lazily when the type is about to be initialized
+   * @return the corresponding {@link JFRType type} instance
+   */
+  public JFRType getOrAdd(
+      String name, String supertype, Consumer<CustomTypeBuilder> builderCallback) {
     return metadata.registerType(
         name,
         supertype,
         () -> {
           CustomTypeBuilder builder = new CustomTypeBuilder(this);
-          buildWith.accept(builder);
+          builderCallback.accept(builder);
           return builder.build();
         });
   }
 
+  /**
+   * Retrieve the type by its name.
+   *
+   * @param name the type name
+   * @return the registered {@link JFRType type} or {@literal null}
+   */
   public JFRType getType(String name) {
     return getType(name, false);
   }
 
+  /**
+   * Retrieve the type by its name. If the type hasn't been added yet a {@linkplain
+   * ResolvableJFRType} wrapper may be returned.
+   *
+   * @param name the type name
+   * @param asResolvable if {@literal true} a {@linkplain ResolvableJFRType} wrapper will be
+   *     returned instead of {@literal null} for non-existent type
+   * @return an existing {@link JFRType} type, {@literal null} or a {@linkplain ResolvableJFRType}
+   *     wrapper
+   */
   public JFRType getType(String name, boolean asResolvable) {
     return metadata.getType(name, asResolvable);
   }
 
+  /**
+   * A convenience shortcut to get a {@linkplain JFRType} instance corresponding to the {@linkplain
+   * Predefined} type
+   *
+   * @param type the predefined/enum type
+   * @return the registered {@linkplain JFRType} instance or a {@linkplain ResolvableJFRType}
+   *     wrapper
+   */
   public JFRType getType(Predefined type) {
     return getType(type.getTypeName(), true);
   }
 
+  /**
+   * Resolve all unresolved types. After this method had been called all calls to {@linkplain
+   * ResolvableJFRType#isResolved()} will return {@literal true} if the target type was properly
+   * registered
+   */
   public void resolveAll() {
     metadata.resolveTypes();
   }

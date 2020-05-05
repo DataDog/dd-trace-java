@@ -18,6 +18,8 @@ public interface JFRType extends NamedType {
    */
   boolean isSimple();
 
+  boolean isResolved();
+
   /** @return is the type using constant pool */
   boolean hasConstantPool();
 
@@ -126,6 +128,5 @@ public interface JFRType extends NamedType {
   /** @return the associated {@linkplain ConstantPool} instance */
   ConstantPool getConstantPool();
 
-  /** @return the associated {@linkplain Types} instance */
-  Types getTypes();
+  Metadata getMetadata();
 }

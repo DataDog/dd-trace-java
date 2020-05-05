@@ -1,8 +1,6 @@
 package com.datadog.profiling.jfr;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -18,10 +16,25 @@ final class CustomJFRType extends BaseJFRType {
       String supertype,
       TypeStructure typeStructure,
       ConstantPools constantPools,
-      Types types) {
-    super(id, name, supertype, constantPools, types);
-    this.fields = Collections.unmodifiableList(typeStructure.fields.stream().map(field -> field.getType() == CustomTypeBuilder.SELF_TYPE ? new TypedField(field.getName(), this, field.isArray()) : field).collect(Collectors.toList()));
-    this.annotations = Collections.unmodifiableList(typeStructure.annotations);
+      Metadata metadata) {
+    super(id, name, supertype, constantPools, metadata);
+    this.fields =
+        typeStructure == null
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(
+                typeStructure
+                    .fields
+                    .stream()
+                    .map(
+                        field ->
+                            field.getType() == CustomTypeBuilder.SELF_TYPE
+                                ? new TypedField(field.getName(), this, field.isArray())
+                                : field)
+                    .collect(Collectors.toList()));
+    this.annotations =
+        typeStructure == null
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(typeStructure.annotations);
   }
 
   @Override

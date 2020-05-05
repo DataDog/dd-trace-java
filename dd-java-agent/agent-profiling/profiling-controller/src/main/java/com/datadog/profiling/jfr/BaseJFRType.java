@@ -10,19 +10,20 @@ abstract class BaseJFRType implements JFRType {
   private final String name;
   private final String supertype;
   private final ConstantPools constantPools;
-  private final Types types;
+  private final Metadata metadata;
   private final TypedValue nullValue = TypedValue.of(this, (Object) null);
 
-  BaseJFRType(long id, String name, String supertype, ConstantPools constantPools, Types types) {
+  BaseJFRType(
+      long id, String name, String supertype, ConstantPools constantPools, Metadata metadata) {
     this.id = id;
     this.name = name;
     this.supertype = supertype;
     this.constantPools = constantPools;
-    this.types = types;
+    this.metadata = metadata;
   }
 
-  BaseJFRType(long id, String name, ConstantPools constantPools, Types types) {
-    this(id, name, null, constantPools, types);
+  BaseJFRType(long id, String name, ConstantPools constantPools, Metadata metadata) {
+    this(id, name, null, constantPools, metadata);
   }
 
   @Override
@@ -38,6 +39,11 @@ abstract class BaseJFRType implements JFRType {
       return field.getType().isBuiltin() && !field.isArray();
     }
     return false;
+  }
+
+  @Override
+  public boolean isResolved() {
+    return true;
   }
 
   @Override
@@ -116,8 +122,8 @@ abstract class BaseJFRType implements JFRType {
   }
 
   @Override
-  public Types getTypes() {
-    return types;
+  public Metadata getMetadata() {
+    return metadata;
   }
 
   @Override

@@ -58,10 +58,10 @@ public final class TypedField {
       return false;
     }
     TypedField that = (TypedField) o;
-    return isArray == that.isArray &&
-      name.equals(that.name) &&
-      type.equals(that.type) &&
-      annotations.equals(that.annotations);
+    return isArray == that.isArray
+        && name.equals(that.name)
+        && type.equals(that.type)
+        && annotations.equals(that.annotations);
   }
 
   @Override

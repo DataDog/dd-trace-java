@@ -9,12 +9,12 @@ import java.util.stream.Collectors;
 
 /** A fluent API for lazy initialization of a custom type value */
 public final class FieldValueBuilder {
-  private final Types types;
+  private final Metadata metadata;
   private final Map<String, TypedField> fieldMap;
   private final Map<String, TypedFieldValue> fieldValueMap;
 
   FieldValueBuilder(JFRType type) {
-    this.types = type.getTypes();
+    this.metadata = type.getMetadata();
     fieldMap =
         type.getFields()
             .stream()
@@ -23,14 +23,14 @@ public final class FieldValueBuilder {
   }
 
   public FieldValueBuilder putField(String name, byte value) {
-    return putField(name, TypedValue.of(types.getType(Types.Builtin.BYTE), value));
+    return putField(name, TypedValue.of(metadata.getType(Types.Builtin.BYTE, false), value));
   }
 
   public FieldValueBuilder putField(String name, byte[] values) {
     putArrayField(
         name,
         () -> {
-          JFRType type = types.getType(Types.Builtin.BYTE);
+          JFRType type = metadata.getType(Types.Builtin.BYTE, false);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -42,14 +42,14 @@ public final class FieldValueBuilder {
   }
 
   public FieldValueBuilder putField(String name, char value) {
-    return putField(name, TypedValue.of(types.getType(Types.Builtin.CHAR), value));
+    return putField(name, TypedValue.of(metadata.getType(Types.Builtin.CHAR, false), value));
   }
 
   public FieldValueBuilder putField(String name, char[] values) {
     putArrayField(
         name,
         () -> {
-          JFRType type = types.getType(Types.Builtin.CHAR);
+          JFRType type = metadata.getType(Types.Builtin.CHAR, false);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -61,14 +61,14 @@ public final class FieldValueBuilder {
   }
 
   public FieldValueBuilder putField(String name, short value) {
-    return putField(name, TypedValue.of(types.getType(Types.Builtin.SHORT), value));
+    return putField(name, TypedValue.of(metadata.getType(Types.Builtin.SHORT, false), value));
   }
 
   public FieldValueBuilder putField(String name, short[] values) {
     putArrayField(
         name,
         () -> {
-          JFRType type = types.getType(Types.Builtin.SHORT);
+          JFRType type = metadata.getType(Types.Builtin.SHORT, false);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -80,14 +80,14 @@ public final class FieldValueBuilder {
   }
 
   public FieldValueBuilder putField(String name, int value) {
-    return putField(name, TypedValue.of(types.getType(Types.Builtin.INT), value));
+    return putField(name, TypedValue.of(metadata.getType(Types.Builtin.INT, false), value));
   }
 
   public FieldValueBuilder putField(String name, int[] values) {
     putArrayField(
         name,
         () -> {
-          JFRType type = types.getType(Types.Builtin.INT);
+          JFRType type = metadata.getType(Types.Builtin.INT, false);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -99,14 +99,14 @@ public final class FieldValueBuilder {
   }
 
   public FieldValueBuilder putField(String name, long value) {
-    return putField(name, TypedValue.of(types.getType(Types.Builtin.LONG), value));
+    return putField(name, TypedValue.of(metadata.getType(Types.Builtin.LONG, false), value));
   }
 
   public FieldValueBuilder putField(String name, long[] values) {
     putArrayField(
         name,
         () -> {
-          JFRType type = types.getType(Types.Builtin.LONG);
+          JFRType type = metadata.getType(Types.Builtin.LONG, false);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -118,14 +118,14 @@ public final class FieldValueBuilder {
   }
 
   public FieldValueBuilder putField(String name, float value) {
-    return putField(name, TypedValue.of(types.getType(Types.Builtin.FLOAT), value));
+    return putField(name, TypedValue.of(metadata.getType(Types.Builtin.FLOAT, false), value));
   }
 
   public FieldValueBuilder putField(String name, float[] values) {
     putArrayField(
         name,
         () -> {
-          JFRType type = types.getType(Types.Builtin.FLOAT);
+          JFRType type = metadata.getType(Types.Builtin.FLOAT, false);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -137,14 +137,14 @@ public final class FieldValueBuilder {
   }
 
   public FieldValueBuilder putField(String name, double value) {
-    return putField(name, TypedValue.of(types.getType(Types.Builtin.DOUBLE), value));
+    return putField(name, TypedValue.of(metadata.getType(Types.Builtin.DOUBLE, false), value));
   }
 
   public FieldValueBuilder putField(String name, double[] values) {
     putArrayField(
         name,
         () -> {
-          JFRType type = types.getType(Types.Builtin.DOUBLE);
+          JFRType type = metadata.getType(Types.Builtin.DOUBLE, false);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -156,14 +156,14 @@ public final class FieldValueBuilder {
   }
 
   public FieldValueBuilder putField(String name, boolean value) {
-    return putField(name, TypedValue.of(types.getType(Types.Builtin.BOOLEAN), value));
+    return putField(name, TypedValue.of(metadata.getType(Types.Builtin.BOOLEAN, false), value));
   }
 
   public FieldValueBuilder putField(String name, boolean[] values) {
     putArrayField(
         name,
         () -> {
-          JFRType type = types.getType(Types.Builtin.BOOLEAN);
+          JFRType type = metadata.getType(Types.Builtin.BOOLEAN, false);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);
@@ -175,14 +175,14 @@ public final class FieldValueBuilder {
   }
 
   public FieldValueBuilder putField(String name, String value) {
-    return putField(name, TypedValue.of(types.getType(Types.Builtin.STRING), value));
+    return putField(name, TypedValue.of(metadata.getType(Types.Builtin.STRING, false), value));
   }
 
   public FieldValueBuilder putField(String name, String[] values) {
     putArrayField(
         name,
         () -> {
-          JFRType type = types.getType(Types.Builtin.STRING);
+          JFRType type = metadata.getType(Types.Builtin.STRING, false);
           TypedValue[] typedValues = new TypedValue[values.length];
           for (int i = 0; i < values.length; i++) {
             typedValues[i] = TypedValue.of(type, values[i]);

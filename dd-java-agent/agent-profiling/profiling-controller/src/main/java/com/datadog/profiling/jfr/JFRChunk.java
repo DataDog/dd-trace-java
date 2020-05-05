@@ -12,11 +12,15 @@ public final class JFRChunk {
   private static final long DURATION_NANOS_OFFSET = 40;
 
   private final ByteArrayWriter writer = new ByteArrayWriter(65536);
+  private final ConstantPools constantPools;
+  private final Metadata metadata;
   private final Types types;
   private final long startTicks;
   private final long startNanos;
 
-  JFRChunk(Types types) {
+  JFRChunk(Metadata metadata, ConstantPools constantPools, Types types) {
+    this.metadata = metadata;
+    this.constantPools = constantPools;
     this.types = types;
     this.startTicks = System.nanoTime();
     this.startNanos = System.currentTimeMillis() * 1_000_000L;
@@ -79,9 +83,9 @@ public final class JFRChunk {
         .writeLong(System.nanoTime() - startTicks) // duration till now
         .writeLong(0L) // fake delta-to-next
         .writeInt(1) // all checkpoints are flush for now
-        .writeInt(types.getConstantPools().size()); // start writing constant pools array
+        .writeInt(constantPools.size()); // start writing constant pools array
 
-    for (ConstantPool cp : types.getConstantPools()) {
+    for (ConstantPool cp : constantPools) {
       cp.writeCheckpoint(cpWriter);
     }
 
@@ -114,7 +118,7 @@ public final class JFRChunk {
   private void writeMetadata(long duration) {
     writer.writeLongRaw(METADATA_OFFSET_OFFSET, writer.length());
 
-    types.getMetadata().writeMetaEvent(writer, startTicks, duration);
+    metadata.writeMetaEvent(writer, startTicks, duration);
   }
 
   private void writeTypedValue(ByteArrayWriter writer, TypedValue value) {

@@ -1,15 +1,17 @@
 package com.datadog.profiling.controller.jfr;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import com.datadog.profiling.jfr.JFRType;
 import com.datadog.profiling.jfr.JFRWriter;
 import com.datadog.profiling.jfr.TypedValue;
 import com.datadog.profiling.jfr.Types;
 import java.io.File;
-import java.io.FileInputStream;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-
 import org.junit.jupiter.api.Test;
 import org.openjdk.jmc.common.IMCStackTrace;
 import org.openjdk.jmc.common.IMCThread;
@@ -22,13 +24,6 @@ import org.openjdk.jmc.common.unit.IQuantity;
 import org.openjdk.jmc.common.unit.UnitLookup;
 import org.openjdk.jmc.flightrecorder.JfrAttributes;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
-import org.openjdk.jmc.flightrecorder.internal.ChunkInfo;
-import org.openjdk.jmc.flightrecorder.internal.FlightRecordingLoader;
-import org.openjdk.jmc.flightrecorder.internal.IChunkSupplier;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JfrChunkTest {
 
@@ -168,7 +163,8 @@ class JfrChunkTest {
           IMemberAccessor<String, IItem> msgAcessor = msgAttr.getAccessor(iitem.getType());
           IMemberAccessor<IMCThread, IItem> eventThreadAccessor =
               JfrAttributes.EVENT_THREAD.getAccessor(iitem.getType());
-          IMemberAccessor<IQuantity, IItem> startTimeAccessor = JfrAttributes.START_TIME.getAccessor(iitem.getType());
+          IMemberAccessor<IQuantity, IItem> startTimeAccessor =
+              JfrAttributes.START_TIME.getAccessor(iitem.getType());
           iitem.forEach(
               item -> {
                 assertEquals(EVENT_NAME, nameAcessor.getMember(item));

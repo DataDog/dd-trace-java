@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /** JFR type repository class. */
@@ -26,14 +27,15 @@ final class Metadata {
   private static final String ANNOTATION_KEY = "annotation";
   private static final String VAL_1_VALUE = "1";
 
-  private final TypeFactory factory;
+  private final AtomicLong typeCounter = new AtomicLong(1);
+  private final ConstantPools constantPools;
   private final Map<String, JFRType> metadata = new HashMap<>();
   private final Map<String, Integer> stringTable = new HashMap<>();
   private final Map<Integer, String> reverseStringTable = new TreeMap<>();
   private final Set<ResolvableJFRType> unresolvedTypes = new HashSet<>();
 
-  Metadata(TypeFactory factory) {
-    this.factory = factory;
+  Metadata(ConstantPools constantPools) {
+    this.constantPools = constantPools;
     fillStrings();
   }
 
@@ -62,7 +64,7 @@ final class Metadata {
    * @param typeDef a {@link com.datadog.profiling.jfr.Types.Builtin built-in} type
    */
   void registerBuiltin(Types.Builtin typeDef) {
-    JFRType type = metadata.computeIfAbsent(typeDef.getTypeName(), factory::createBuiltinType);
+    JFRType type = metadata.computeIfAbsent(typeDef.getTypeName(), this::createBuiltinType);
     storeTypeStrings(type);
   }
 
@@ -78,7 +80,11 @@ final class Metadata {
       String typeName, String supertype, Supplier<TypeStructure> typeStructureProvider) {
     JFRType type = metadata.get(typeName);
     if (type == null) {
-      type = factory.createCustomType(typeName, supertype, typeStructureProvider.get());
+      type =
+          createCustomType(
+              typeName,
+              supertype,
+              typeStructureProvider != null ? typeStructureProvider.get() : TypeStructure.EMPTY);
       metadata.put(typeName, type);
     }
     storeTypeStrings(type);
@@ -102,6 +108,52 @@ final class Metadata {
       }
     }
     return found;
+  }
+
+  /**
+   * Create a new built-in type of the given name.
+   *
+   * @param name the type name
+   * @return new built-in type
+   * @throws IllegalArgumentException if a the type name is not representing a built-in
+   */
+  JFRType createBuiltinType(String name) {
+    if (!Types.Builtin.hasType(name)) {
+      throw new IllegalArgumentException();
+    }
+    Types.Builtin type = Types.Builtin.ofName(name);
+    return new BuiltinJFRType(
+        typeCounter.getAndIncrement(),
+        type,
+        type == Types.Builtin.STRING ? constantPools : null,
+        this);
+  }
+
+  /**
+   * Create a new custom type of the given name and structure.
+   *
+   * @param name the type name
+   * @param supertype the super type name - may be {@literal null}
+   * @param structure the type structure - fields, annotations
+   * @return new custom type
+   * @throws IllegalArgumentException if the name belongs to one of the built-in types
+   */
+  JFRType createCustomType(String name, String supertype, TypeStructure structure) {
+    if (Types.Builtin.hasType(name)) {
+      throw new IllegalArgumentException();
+    }
+    return new CustomJFRType(
+        typeCounter.getAndIncrement(),
+        name,
+        supertype,
+        structure,
+        // TODO hack for event types not to go to constant pool
+        !"jdk.jfr.Event".equals(supertype) ? constantPools : null,
+        this);
+  }
+
+  JFRType getType(NamedType type, boolean asResolvable) {
+    return getType(type.getTypeName(), asResolvable);
   }
 
   private void storeTypeStrings(JFRType type) {
@@ -274,13 +326,11 @@ final class Metadata {
     writer.writeInt(stringIndex(ANNOTATION_KEY));
 
     writer
-      .writeInt(annotation.value != null ? 2 : 1) // number of attributes
-      .writeInt(stringIndex(CLASS_KEY))
-      .writeInt(stringIndex(String.valueOf(annotation.type.getId())));
+        .writeInt(annotation.value != null ? 2 : 1) // number of attributes
+        .writeInt(stringIndex(CLASS_KEY))
+        .writeInt(stringIndex(String.valueOf(annotation.type.getId())));
     if (annotation.value != null) {
-      writer
-        .writeInt(stringIndex(VALUE_KEY))
-        .writeInt(stringIndex(annotation.value));
+      writer.writeInt(stringIndex(VALUE_KEY)).writeInt(stringIndex(annotation.value));
     }
     writer.writeInt(0); // no sub-elements
   }

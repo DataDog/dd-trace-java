@@ -14,6 +14,11 @@ class ResolvableJFRType implements JFRType {
     this.metadata = metadata;
   }
 
+  @Override
+  public boolean isResolved() {
+    return delegate != null;
+  }
+
   private void checkResolved() {
     if (delegate == null) {
       throw new IllegalStateException();
@@ -105,9 +110,9 @@ class ResolvableJFRType implements JFRType {
   }
 
   @Override
-  public Types getTypes() {
+  public Metadata getMetadata() {
     checkResolved();
-    return delegate.getTypes();
+    return delegate.getMetadata();
   }
 
   @Override
@@ -148,8 +153,7 @@ class ResolvableJFRType implements JFRType {
 
   @Override
   public String getTypeName() {
-    checkResolved();
-    return delegate.getTypeName();
+    return typeName;
   }
 
   @Override
