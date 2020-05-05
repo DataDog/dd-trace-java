@@ -1,6 +1,6 @@
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
+import datadog.trace.core.DDSpan
 import scala.concurrent.forkjoin.ForkJoinPool
 import scala.concurrent.forkjoin.ForkJoinTask
 import spock.lang.Shared
@@ -48,6 +48,7 @@ class ScalaExecutorInstrumentationTest extends AgentTestRunner {
         m(pool, new ScalaAsyncChild())
         // this child won't
         m(pool, new ScalaAsyncChild(false, false))
+        blockUntilChildSpansFinished(1)
       }
     }.run()
 

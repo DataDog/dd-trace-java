@@ -176,10 +176,8 @@ class CoreSpanBuilderTest extends DDSpecification {
 
   def "should link to parent span implicitly"() {
     setup:
-    final AgentScope parent = noopParent ?
-      tracer.activateSpan(AgentTracer.NoopAgentSpan.INSTANCE, false) :
-      tracer.buildSpan("parent")
-        .startActive(false)
+    final AgentScope parent = tracer.activateSpan(noopParent ?
+      AgentTracer.NoopAgentSpan.INSTANCE : tracer.buildSpan("parent").start())
 
     final BigInteger expectedParentId = noopParent ? 0G : parent.span().context().getSpanId()
 

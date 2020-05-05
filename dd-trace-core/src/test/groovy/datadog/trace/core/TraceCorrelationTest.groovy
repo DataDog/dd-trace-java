@@ -12,10 +12,12 @@ class TraceCorrelationTest extends DDSpecification {
   @Shared
   CoreTracer tracer = CoreTracer.builder().writer(WRITER).build()
 
-  def scope = tracer.buildSpan("test").startActive(true)
+  def span = tracer.buildSpan("test").start()
+  def scope = tracer.activateSpan(span)
 
   def cleanup() {
     scope.close()
+    span.finish()
   }
 
   def "get trace id without trace"() {
