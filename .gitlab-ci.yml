@@ -1,0 +1,11 @@
+stages:
+  - build
+
+
+build-artifact:
+  stage: build
+  when: manual
+  tags: ["runner:main", "size:large"]
+  script:
+    - echo "start build"
+
