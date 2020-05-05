@@ -197,7 +197,7 @@ public final class Types {
             JDK.THREAD_GROUP,
             tgBuilder -> {
               tgBuilder
-                  .addField("parent", CustomTypeBuilder.SELF_TYPE)
+                  .addField("parent", CustomJFRType.SELF_TYPE)
                   .addField("name", getType(Builtin.STRING));
             });
     getOrAdd(

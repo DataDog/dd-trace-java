@@ -162,6 +162,12 @@ class ResolvableJFRType implements JFRType {
     return delegate.isSame(other);
   }
 
+  @Override
+  public boolean isUsedBy(JFRType other) {
+    checkResolved();
+    return delegate.isUsedBy(other);
+  }
+
   boolean resolve() {
     JFRType resolved = metadata.getType(typeName, false);
     if (resolved instanceof BaseJFRType) {

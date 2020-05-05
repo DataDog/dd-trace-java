@@ -1,5 +1,6 @@
 package com.datadog.profiling.jfr;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -124,6 +125,26 @@ abstract class BaseJFRType implements JFRType {
   @Override
   public Metadata getMetadata() {
     return metadata;
+  }
+
+  @Override
+  public boolean isUsedBy(JFRType other) {
+    return isUsedBy(this, other, new HashSet<>());
+  }
+
+  private static boolean isUsedBy(JFRType type1, JFRType type2, HashSet<JFRType> track) {
+    if (!track.add(type2)) {
+      return false;
+    }
+    for (TypedField typedField : type2.getFields()) {
+      if (typedField.getType().equals(type1)) {
+        return true;
+      }
+      if (isUsedBy(type1, typedField.getType(), track)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override

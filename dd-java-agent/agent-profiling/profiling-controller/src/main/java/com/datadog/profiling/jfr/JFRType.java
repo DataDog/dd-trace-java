@@ -129,4 +129,6 @@ public interface JFRType extends NamedType {
   ConstantPool getConstantPool();
 
   Metadata getMetadata();
+
+  boolean isUsedBy(JFRType other);
 }

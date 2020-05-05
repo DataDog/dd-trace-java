@@ -5,11 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.Collections;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,11 +24,7 @@ public class MetadataTest {
 
   @Test
   public void registerBuiltinNull() {
-    try {
-      instance.registerBuiltin(null);
-      Assertions.fail("Null built-in type may not be registered");
-    } catch (NullPointerException ignored) {
-    }
+    assertThrows(NullPointerException.class, () -> instance.registerBuiltin(null));
   }
 
   @Test
@@ -83,12 +78,8 @@ public class MetadataTest {
 
   @Test
   void createInvalidBuiltinType() {
-    try {
-      String typeName = "invalid";
-      instance.createBuiltinType(typeName);
-      fail("Should not be able to create a built-in type with name '" + typeName + "'");
-    } catch (IllegalArgumentException ignored) {
-    }
+    String typeName = "invalid";
+    assertThrows(IllegalArgumentException.class, () -> instance.createBuiltinType(typeName));
   }
 
   @Test
@@ -116,12 +107,10 @@ public class MetadataTest {
 
   @Test
   void createCustomTypeForBuiltin() {
-    try {
-      String typeName = Types.Builtin.BYTE.getTypeName();
-      instance.createCustomType(typeName, null, TypeStructure.EMPTY);
-      fail("Should not be able to create a custom type with name '" + typeName + "'");
-    } catch (IllegalArgumentException ignored) {
-    }
+    String typeName = Types.Builtin.BYTE.getTypeName();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> instance.createCustomType(typeName, null, TypeStructure.EMPTY));
   }
 
   @Test

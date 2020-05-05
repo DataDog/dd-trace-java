@@ -11,19 +11,19 @@ public final class TypedField {
   private final boolean isArray;
   private final List<JFRAnnotation> annotations;
 
-  TypedField(String name, JFRType type) {
-    this(name, type, false, Collections.emptyList());
+  TypedField(JFRType type, String name) {
+    this(type, name, false, Collections.emptyList());
   }
 
-  TypedField(String name, JFRType type, List<JFRAnnotation> annotations) {
-    this(name, type, false, annotations);
+  TypedField(JFRType type, String name, List<JFRAnnotation> annotations) {
+    this(type, name, false, annotations);
   }
 
-  TypedField(String name, JFRType type, boolean isArray) {
-    this(name, type, isArray, Collections.emptyList());
+  TypedField(JFRType type, String name, boolean isArray) {
+    this(type, name, isArray, Collections.emptyList());
   }
 
-  TypedField(String name, JFRType type, boolean isArray, List<JFRAnnotation> annotations) {
+  TypedField(JFRType type, String name, boolean isArray, List<JFRAnnotation> annotations) {
     this.name = name;
     this.type = type;
     this.isArray = isArray;

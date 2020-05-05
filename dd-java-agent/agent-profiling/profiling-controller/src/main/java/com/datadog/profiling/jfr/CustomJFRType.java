@@ -7,6 +7,34 @@ import java.util.stream.Collectors;
 
 /** A custom JFR type */
 final class CustomJFRType extends BaseJFRType {
+  /**
+   * A place-holder for fields of the same type as they are defined in. Keeping the default values
+   * intentionally 'wrong' in order for things to break soon if this type is not replaced by the
+   * concrete type counterpart correctly.
+   */
+  public static final JFRType SELF_TYPE =
+      new BaseJFRType(Long.MIN_VALUE, "", null, null) {
+        @Override
+        public boolean isBuiltin() {
+          return false;
+        }
+
+        @Override
+        public List<TypedField> getFields() {
+          return null;
+        }
+
+        @Override
+        public List<JFRAnnotation> getAnnotations() {
+          return null;
+        }
+
+        @Override
+        public boolean canAccept(Object value) {
+          return value == null;
+        }
+      };
+
   private final List<TypedField> fields;
   private final List<JFRAnnotation> annotations;
 
@@ -27,8 +55,8 @@ final class CustomJFRType extends BaseJFRType {
                     .stream()
                     .map(
                         field ->
-                            field.getType() == CustomTypeBuilder.SELF_TYPE
-                                ? new TypedField(field.getName(), this, field.isArray())
+                            field.getType() == SELF_TYPE
+                                ? new TypedField(this, field.getName(), field.isArray())
                                 : field)
                     .collect(Collectors.toList()));
     this.annotations =

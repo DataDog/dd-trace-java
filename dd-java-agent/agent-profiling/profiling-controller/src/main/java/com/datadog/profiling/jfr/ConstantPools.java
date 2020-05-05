@@ -1,7 +1,6 @@
 package com.datadog.profiling.jfr;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -59,31 +58,12 @@ final class ConstantPools implements Iterable<ConstantPool> {
     return constantPoolMap
         .entrySet()
         .stream()
-        .sorted((e1, e2) -> e1 == e2 ? 0 : isUsedBy(e1.getKey(), e2.getKey()) ? -1 : 1)
+        .sorted((e1, e2) -> e1 == e2 ? 0 : e1.getKey().isUsedBy(e2.getKey()) ? -1 : 1)
         .map(Map.Entry::getValue);
   }
 
   private List<ConstantPool> getOrderedPools() {
     return getOrderedPoolsStream().collect(Collectors.toList());
-  }
-
-  private boolean isUsedBy(JFRType type1, JFRType type2) {
-    return isUsedBy(type1, type2, new HashSet<>());
-  }
-
-  private boolean isUsedBy(JFRType type1, JFRType type2, HashSet<JFRType> track) {
-    if (!track.add(type2)) {
-      return false;
-    }
-    for (TypedField typedField : type2.getFields()) {
-      if (typedField.getType().equals(type1)) {
-        return true;
-      }
-      if (isUsedBy(type1, typedField.getType(), track)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   private ConstantPool newConstantPool(JFRType type) {
