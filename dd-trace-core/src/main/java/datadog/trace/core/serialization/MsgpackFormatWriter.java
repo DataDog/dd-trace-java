@@ -1,5 +1,6 @@
 package datadog.trace.core.serialization;
 
+import datadog.trace.core.StringTables;
 import java.io.IOException;
 import java.math.BigInteger;
 import org.msgpack.core.MessagePacker;
@@ -18,7 +19,7 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   }
 
   @Override
-  public void writeListFooter(final MessagePacker destination) throws IOException {}
+  public void writeListFooter(final MessagePacker destination) {}
 
   @Override
   public void writeMapHeader(final int size, final MessagePacker destination) throws IOException {
@@ -26,12 +27,12 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   }
 
   @Override
-  public void writeMapFooter(final MessagePacker destination) throws IOException {}
+  public void writeMapFooter(final MessagePacker destination) {}
 
   @Override
   public void writeString(final String key, final String value, final MessagePacker destination)
       throws IOException {
-    destination.packString(key);
+    writeStringUTF8(key, destination);
     if (value == null) {
       destination.packNil();
     } else {
@@ -42,42 +43,42 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   @Override
   public void writeShort(final String key, final short value, final MessagePacker destination)
       throws IOException {
-    destination.packString(key);
+    writeStringUTF8(key, destination);
     destination.packShort(value);
   }
 
   @Override
   public void writeByte(final String key, final byte value, final MessagePacker destination)
       throws IOException {
-    destination.packString(key);
+    writeStringUTF8(key, destination);
     destination.packByte(value);
   }
 
   @Override
   public void writeInt(final String key, final int value, final MessagePacker destination)
       throws IOException {
-    destination.packString(key);
+    writeStringUTF8(key, destination);
     destination.packInt(value);
   }
 
   @Override
   public void writeLong(final String key, final long value, final MessagePacker destination)
       throws IOException {
-    destination.packString(key);
+    writeStringUTF8(key, destination);
     destination.packLong(value);
   }
 
   @Override
   public void writeFloat(final String key, final float value, final MessagePacker destination)
       throws IOException {
-    destination.packString(key);
+    writeStringUTF8(key, destination);
     destination.packFloat(value);
   }
 
   @Override
   public void writeDouble(final String key, final double value, final MessagePacker destination)
       throws IOException {
-    destination.packString(key);
+    writeStringUTF8(key, destination);
     destination.packDouble(value);
   }
 
@@ -85,11 +86,21 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   public void writeBigInteger(
       final String key, final BigInteger value, final MessagePacker destination)
       throws IOException {
-    destination.packString(key);
+    writeStringUTF8(key, destination);
     if (value == null) {
       destination.packNil();
     } else {
       destination.packBigInteger(value);
+    }
+  }
+
+  private static void writeStringUTF8(String value, MessagePacker destination) throws IOException {
+    if (value.length() < 256) {
+      byte[] utf8 = StringTables.getBytesUTF8(value);
+      destination.packRawStringHeader(utf8.length);
+      destination.addPayload(utf8);
+    } else {
+      destination.packString(value);
     }
   }
 }

@@ -1,5 +1,18 @@
 package datadog.trace.core.serialization;
 
+import static datadog.trace.core.StringTables.DURATION;
+import static datadog.trace.core.StringTables.ERROR;
+import static datadog.trace.core.StringTables.META;
+import static datadog.trace.core.StringTables.METRICS;
+import static datadog.trace.core.StringTables.NAME;
+import static datadog.trace.core.StringTables.PARENT_ID;
+import static datadog.trace.core.StringTables.RESOURCE;
+import static datadog.trace.core.StringTables.SERVICE;
+import static datadog.trace.core.StringTables.SPAN_ID;
+import static datadog.trace.core.StringTables.START;
+import static datadog.trace.core.StringTables.TRACE_ID;
+import static datadog.trace.core.StringTables.TYPE;
+
 import datadog.trace.core.DDSpan;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -84,18 +97,18 @@ public abstract class FormatWriter<DEST> {
   public void writeDDSpan(final DDSpan span, final DEST destination) throws IOException {
     // Some of the tests rely on the specific ordering here.
     writeMapHeader(12, destination); // must match count below.
-    /* 1  */ writeString("service", span.getServiceName(), destination);
-    /* 2  */ writeString("name", span.getOperationName(), destination);
-    /* 3  */ writeString("resource", span.getResourceName(), destination);
-    /* 4  */ writeBigInteger("trace_id", span.getTraceId(), destination);
-    /* 5  */ writeBigInteger("span_id", span.getSpanId(), destination);
-    /* 6  */ writeBigInteger("parent_id", span.getParentId(), destination);
-    /* 7  */ writeLong("start", span.getStartTime(), destination);
-    /* 8  */ writeLong("duration", span.getDurationNano(), destination);
-    /* 9  */ writeString("type", span.getType(), destination);
-    /* 10 */ writeInt("error", span.getError(), destination);
-    /* 11 */ writeNumberMap("metrics", span.getMetrics(), destination);
-    /* 12 */ writeStringMap("meta", span.getMeta(), destination);
+    /* 1  */ writeString(SERVICE, span.getServiceName(), destination);
+    /* 2  */ writeString(NAME, span.getOperationName(), destination);
+    /* 3  */ writeString(RESOURCE, span.getResourceName(), destination);
+    /* 4  */ writeBigInteger(TRACE_ID, span.getTraceId(), destination);
+    /* 5  */ writeBigInteger(SPAN_ID, span.getSpanId(), destination);
+    /* 6  */ writeBigInteger(PARENT_ID, span.getParentId(), destination);
+    /* 7  */ writeLong(START, span.getStartTime(), destination);
+    /* 8  */ writeLong(DURATION, span.getDurationNano(), destination);
+    /* 9  */ writeString(TYPE, span.getType(), destination);
+    /* 10 */ writeInt(ERROR, span.getError(), destination);
+    /* 11 */ writeNumberMap(METRICS, span.getMetrics(), destination);
+    /* 12 */ writeStringMap(META, span.getMeta(), destination);
     writeMapFooter(destination);
   }
 }
