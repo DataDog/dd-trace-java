@@ -1,7 +1,7 @@
 package com.datadog.profiling.mlt;
 
-import datadog.trace.api.profiling.Session;
-import datadog.trace.api.profiling.SessionFactory;
+import datadog.trace.profiling.Session;
+import datadog.trace.profiling.SessionFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 

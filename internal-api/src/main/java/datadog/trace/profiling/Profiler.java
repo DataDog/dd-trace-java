@@ -1,4 +1,4 @@
-package datadog.trace.api.profiling;
+package datadog.trace.profiling;
 
 import lombok.extern.slf4j.Slf4j;
 

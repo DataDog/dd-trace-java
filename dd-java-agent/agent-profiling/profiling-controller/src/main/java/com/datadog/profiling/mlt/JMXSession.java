@@ -1,6 +1,6 @@
 package com.datadog.profiling.mlt;
 
-import datadog.trace.api.profiling.Session;
+import datadog.trace.profiling.Session;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -9,7 +9,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class JMXSession implements Session {
   private final JMXSessionFactory factory;
   private final ThreadStackProvider provider;
@@ -48,6 +50,7 @@ public class JMXSession implements Session {
           .getField("INSTANCE")
           .get(null);
     } catch (Exception ex) {
+      log.debug("Error getting ThreadStack provider: ", ex);
       return NoneThreadStackProvider.INSTANCE;
     }
   }

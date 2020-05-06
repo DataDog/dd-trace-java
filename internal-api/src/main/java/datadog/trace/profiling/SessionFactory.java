@@ -1,4 +1,4 @@
-package datadog.trace.api.profiling;
+package datadog.trace.profiling;
 
 /**
  * Factory of profiling session
