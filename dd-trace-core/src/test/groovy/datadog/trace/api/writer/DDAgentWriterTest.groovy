@@ -3,7 +3,7 @@ package datadog.trace.api.writer
 import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.DDAgentWriter
-import datadog.trace.common.writer.ddagent.BatchWritingDisruptor
+
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.Monitor
 import datadog.trace.core.CoreTracer
@@ -47,7 +47,7 @@ class DDAgentWriterTest extends DDSpecification {
 
   def "test happy path"() {
     setup:
-    def writer = DDAgentWriter.builder().agentApi(api).traceBufferSize(2).flushFrequencySeconds(-1).build()
+    def writer = DDAgentWriter.builder().agentApi(api).traceBufferSize(8).flushFrequencySeconds(-1).build()
     writer.start()
 
     when:
@@ -59,11 +59,10 @@ class DDAgentWriterTest extends DDSpecification {
     when:
     writer.write(trace)
     writer.write(trace)
-    writer.flush()
+    writer.close()
 
     then:
-    2 * api.serializeTrace(_) >> { trace -> callRealMethod() }
-    1 * api.sendSerializedTraces(2, _, { it.size() == 2 }) >> DDAgentApi.Response.success(200)
+    1 * api.sendTraces(2, _, { it.position() == 4 && it.limit() < it.capacity() }) >> DDAgentApi.Response.success(200)
     0 * _
 
     cleanup:

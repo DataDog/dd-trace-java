@@ -3,16 +3,20 @@ package datadog.trace.common.writer;
 import static datadog.trace.api.Config.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.Config.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.Config.DEFAULT_TRACE_AGENT_PORT;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.trace.common.writer.ddagent.BatchWritingDisruptor;
+import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.Monitor;
-import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor;
+import datadog.trace.common.writer.ddagent.TraceProcessor;
 import datadog.trace.core.DDSpan;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
+import org.jctools.queues.MpscCompoundQueue;
+
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * This writer buffers traces and sends them to the provided DDApi instance. Buffering is done with
@@ -34,10 +38,9 @@ public class DDAgentWriter implements Writer {
   private static final int DISRUPTOR_BUFFER_SIZE = 1024;
 
   private final DDAgentApi api;
-  private final TraceProcessingDisruptor traceProcessingDisruptor;
-  private final BatchWritingDisruptor batchWritingDisruptor;
-
-  private final AtomicInteger traceCount = new AtomicInteger(0);
+  private final TraceProcessor traceProcessor;
+  private final ExecutorService traceProcessingExecutor;
+  private final MpscCompoundQueue<List<DDSpan>> queue;
 
   public final Monitor monitor;
 
@@ -63,11 +66,10 @@ public class DDAgentWriter implements Writer {
   public DDAgentWriter(final DDAgentApi api, final Monitor monitor) {
     this.api = api;
     this.monitor = monitor;
-
-    batchWritingDisruptor = new BatchWritingDisruptor(DISRUPTOR_BUFFER_SIZE, 1, api, monitor, this);
-    traceProcessingDisruptor =
-        new TraceProcessingDisruptor(
-            DISRUPTOR_BUFFER_SIZE, api, batchWritingDisruptor, monitor, this);
+    this.queue = new MpscCompoundQueue<>(2048, 8);
+    // very bad: this escapes before the post-construction barrier :(
+    this.traceProcessor = new TraceProcessor(api, monitor, queue, this, 1, SECONDS);
+    this.traceProcessingExecutor = Executors.newSingleThreadExecutor(new DaemonThreadFactory("trace-processor"));
   }
 
   @lombok.Builder
@@ -86,11 +88,9 @@ public class DDAgentWriter implements Writer {
       api = new DDAgentApi(agentHost, traceAgentPort, unixDomainSocket);
     }
     this.monitor = monitor;
-
-    batchWritingDisruptor =
-        new BatchWritingDisruptor(traceBufferSize, flushFrequencySeconds, api, monitor, this);
-    traceProcessingDisruptor =
-        new TraceProcessingDisruptor(traceBufferSize, api, batchWritingDisruptor, monitor, this);
+    this.queue = new MpscCompoundQueue<>(traceBufferSize, 8);
+    this.traceProcessor = new TraceProcessor(api, monitor, queue, this, flushFrequencySeconds, SECONDS);
+    this.traceProcessingExecutor = Executors.newSingleThreadExecutor(new DaemonThreadFactory("trace-processor"));
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -99,7 +99,7 @@ public class DDAgentWriter implements Writer {
 
   // Exposing some statistics for consumption by monitors
   public final long getDisruptorCapacity() {
-    return traceProcessingDisruptor.getDisruptorCapacity();
+    return queue.capacity();
   }
 
   public final long getDisruptorUtilizedCapacity() {
@@ -107,45 +107,27 @@ public class DDAgentWriter implements Writer {
   }
 
   public final long getDisruptorRemainingCapacity() {
-    return traceProcessingDisruptor.getDisruptorRemainingCapacity();
+    return queue.capacity() - queue.size();
   }
 
   @Override
   public void write(final List<DDSpan> trace) {
-    // We can't add events after shutdown otherwise it will never complete shutting down.
-    if (traceProcessingDisruptor.running) {
-      final int representativeCount;
-      if (trace.isEmpty() || !(trace.get(0).isRootSpan())) {
-        // We don't want to reset the count if we can't correctly report the value.
-        representativeCount = 1;
-      } else {
-        representativeCount = traceCount.getAndSet(0) + 1;
-      }
-      final boolean published = traceProcessingDisruptor.publish(trace, representativeCount);
-
-      if (published) {
-        monitor.onPublish(DDAgentWriter.this, trace);
-      } else {
-        // We're discarding the trace, but we still want to count it.
-        traceCount.addAndGet(representativeCount);
-        log.debug("Trace written to overfilled buffer. Counted but dropping trace: {}", trace);
-
-        monitor.onFailedPublish(this, trace);
-      }
+    if (queue.offer(trace)) {
+      monitor.onPublish(DDAgentWriter.this, trace);
     } else {
-      log.debug("Trace written after shutdown. Ignoring trace: {}", trace);
-
+      traceProcessor.notifyDropped(1);
+      log.debug("Trace written to overfilled buffer. Counted but dropping trace: {}", trace);
       monitor.onFailedPublish(this, trace);
     }
   }
 
   public boolean flush() {
-    return traceProcessingDisruptor.flush(traceCount.getAndSet(0));
+    return false;
   }
 
   @Override
   public void incrementTraceCount() {
-    traceCount.incrementAndGet();
+    traceProcessor.notifyUnreportedTraces(1);
   }
 
   public DDAgentApi getApi() {
@@ -154,20 +136,16 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public void start() {
-    batchWritingDisruptor.start();
-    traceProcessingDisruptor.start();
+    traceProcessingExecutor.submit(traceProcessor);
     monitor.onStart(this);
   }
 
   @Override
   public void close() {
-    final boolean flushSuccess = traceProcessingDisruptor.flush(traceCount.getAndSet(0));
-    try {
-      traceProcessingDisruptor.close();
-    } finally { // in case first close fails.
-      batchWritingDisruptor.close();
-    }
-    monitor.onShutdown(this, flushSuccess);
+    traceProcessor.close();
+    // waits until processing task flushes its (bounded) input
+    traceProcessingExecutor.shutdown();
+    monitor.onShutdown(this, true);
   }
 
   @Override

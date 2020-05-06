@@ -1,14 +1,18 @@
 package datadog.trace.core
 
 import com.squareup.moshi.Moshi
+import datadog.trace.TestByteBufferAcceptor
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.common.writer.ddagent.DispatchingMessageBufferOutput
 import datadog.trace.util.test.DDSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferInput
 import org.msgpack.core.buffer.ArrayBufferOutput
 import org.msgpack.value.ValueType
+
+import java.nio.ByteBuffer
 
 import static datadog.trace.core.serialization.JsonFormatWriter.SPAN_ADAPTER
 import static datadog.trace.core.serialization.MsgpackFormatWriter.MSGPACK_WRITER
@@ -100,11 +104,11 @@ class DDSpanSerializationTest extends DDSpecification {
       tracer,
       [:])
     def span = new DDSpan(0, context)
-    def buffer = new ArrayBufferOutput()
-    def packer = MessagePack.newDefaultPacker(buffer)
+    def acceptor = new TestByteBufferAcceptor(true)
+    def packer = MessagePack.newDefaultPacker(new DispatchingMessageBufferOutput(acceptor))
     MSGPACK_WRITER.writeDDSpan(span, packer)
     packer.flush()
-    byte[] bytes = buffer.toByteArray()
+    byte[] bytes = acceptor.getData()
     def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(bytes))
     int size = unpacker.unpackMapHeader()
 

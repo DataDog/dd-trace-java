@@ -1,22 +1,12 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.core.serialization.MsgpackFormatWriter.MSGPACK_WRITER;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory;
 import datadog.trace.core.ContainerInfo;
-import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Dispatcher;
 import okhttp3.HttpUrl;
@@ -24,10 +14,15 @@ import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import okio.BufferedSink;
 import org.msgpack.core.MessagePack;
-import org.msgpack.core.MessagePacker;
-import org.msgpack.core.buffer.ArrayBufferOutput;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /** The API pointing to a DD agent */
 @Slf4j
@@ -78,152 +73,81 @@ public class DDAgentApi {
     }
   }
 
-  /**
-   * Send traces to the DD agent
-   *
-   * @param traces the traces to be sent
-   * @return a Response object -- encapsulating success of communication, sending, and result
-   *     parsing
-   */
-  Response sendTraces(final List<List<DDSpan>> traces) {
-    final List<byte[]> serializedTraces = new ArrayList<>(traces.size());
-    int sizeInBytes = 0;
-    for (final List<DDSpan> trace : traces) {
-      try {
-        final byte[] serializedTrace = serializeTrace(trace);
-        sizeInBytes += serializedTrace.length;
-        serializedTraces.add(serializedTrace);
-      } catch (final IOException e) {
-        log.warn("Error serializing trace", e);
-
-        // TODO: DQH - Incorporate the failed serialization into the Response object???
-      }
-    }
-
-    return sendSerializedTraces(serializedTraces.size(), sizeInBytes, serializedTraces);
-  }
-
-  byte[] serializeTrace(final List<DDSpan> trace) throws IOException {
-    // TODO: reuse byte array buffer
-    final ArrayBufferOutput output = new ArrayBufferOutput();
-    final MessagePacker packer = MessagePack.newDefaultPacker(output);
-    MSGPACK_WRITER.writeTrace(trace, packer);
-    packer.flush();
-    return output.toByteArray();
-  }
-
-  Response sendSerializedTraces(
-      final int representativeCount, final Integer sizeInBytes, final List<byte[]> traces) {
+  public void sendTraces(int traceCount, int representativeCount, ByteBuffer buffer) {
     if (httpClient == null) {
       detectEndpointAndBuildClient();
     }
-
-    try {
-      final RequestBody body =
-          new RequestBody() {
-            @Override
-            public MediaType contentType() {
-              return MSGPACK;
-            }
-
-            @Override
-            public long contentLength() {
-              final int traceCount = traces.size();
-              // Need to allocate additional to handle MessagePacker.packArrayHeader
-              if (traceCount < (1 << 4)) {
-                return sizeInBytes + 1; // byte
-              } else if (traceCount < (1 << 16)) {
-                return sizeInBytes + 3; // byte + short
-              } else {
-                return sizeInBytes + 5; // byte + int
-              }
-            }
-
-            @Override
-            public void writeTo(final BufferedSink sink) throws IOException {
-              final OutputStream out = sink.outputStream();
-              final MessagePacker packer = MessagePack.newDefaultPacker(out);
-              packer.packArrayHeader(traces.size());
-              for (final byte[] trace : traces) {
-                packer.writePayload(trace);
-              }
-              packer.close();
-              out.close();
-            }
-          };
-      final Request request =
-          prepareRequest(tracesUrl)
-              .addHeader(X_DATADOG_TRACE_COUNT, String.valueOf(representativeCount))
-              .put(body)
-              .build();
-
-      try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
-        if (response.code() != 200) {
-          if (log.isDebugEnabled()) {
-            log.debug(
-                "Error while sending {} of {} traces to the DD agent. Status: {}, Response: {}, Body: {}",
-                traces.size(),
-                representativeCount,
-                response.code(),
-                response.message(),
-                response.body().string());
-          } else if (nextAllowedLogTime < System.currentTimeMillis()) {
-            nextAllowedLogTime = System.currentTimeMillis() + MILLISECONDS_BETWEEN_ERROR_LOG;
-            log.warn(
-                "Error while sending {} of {} traces to the DD agent. Status: {} {} (going silent for {} minutes)",
-                traces.size(),
-                representativeCount,
-                response.code(),
-                response.message(),
-                TimeUnit.MILLISECONDS.toMinutes(MILLISECONDS_BETWEEN_ERROR_LOG));
-          }
-          return Response.failed(response.code());
-        }
-
-        log.debug(
-            "Successfully sent {} of {} traces to the DD agent.",
-            traces.size(),
-            representativeCount);
-
-        final String responseString = response.body().string().trim();
-        try {
-          if (!"".equals(responseString) && !"OK".equalsIgnoreCase(responseString)) {
-            final Map<String, Map<String, Number>> parsedResponse =
-                RESPONSE_ADAPTER.fromJson(responseString);
-            final String endpoint = tracesUrl.toString();
-
-            for (final DDAgentResponseListener listener : responseListeners) {
-              listener.onResponse(endpoint, parsedResponse);
-            }
-          }
-          return Response.success(response.code());
-        } catch (final IOException e) {
-          log.debug("Failed to parse DD agent response: " + responseString, e);
-
-          return Response.success(response.code(), e);
+    TraceMessageBody body = new TraceMessageBody(buffer);
+    Request request =
+      prepareRequest(tracesUrl)
+        .addHeader(X_DATADOG_TRACE_COUNT, representativeCount + "")
+        .put(body)
+        .build();
+    try (okhttp3.Response response = httpClient.newCall(request).execute()) {
+      if (response.code() != 200) {
+        if (log.isDebugEnabled()) {
+          log.debug(
+            "Error while sending {} of {} traces to the DD agent. Status: {}, Response: {}, Body: {}",
+            traceCount,
+            representativeCount,
+            response.code(),
+            response.message(),
+            response.body().string());
+        } else if (nextAllowedLogTime < System.currentTimeMillis()) {
+          nextAllowedLogTime = System.currentTimeMillis() + MILLISECONDS_BETWEEN_ERROR_LOG;
+          log.warn(
+            "Error while sending {} of {} traces to the DD agent. Status: {} {} (going silent for {} minutes)",
+            traceCount,
+            representativeCount,
+            response.code(),
+            response.message(),
+            TimeUnit.MILLISECONDS.toMinutes(MILLISECONDS_BETWEEN_ERROR_LOG));
         }
       }
-    } catch (final IOException e) {
       if (log.isDebugEnabled()) {
         log.debug(
-            "Error while sending "
-                + traces.size()
-                + " of "
-                + representativeCount
-                + " traces to the DD agent.",
-            e);
+          "Successfully sent {} of {} traces to the DD agent.",
+          traceCount,
+          representativeCount);
+      }
+
+      final String responseString = response.body().string().trim();
+      try {
+        if (!"".equals(responseString) && !"OK".equalsIgnoreCase(responseString)) {
+          final Map<String, Map<String, Number>> parsedResponse =
+            RESPONSE_ADAPTER.fromJson(responseString);
+          final String endpoint = tracesUrl.toString();
+
+          for (final DDAgentResponseListener listener : responseListeners) {
+            listener.onResponse(endpoint, parsedResponse);
+          }
+        }
+      } catch (final IOException e) {
+        if (log.isDebugEnabled()) {
+          log.debug("Failed to parse DD agent response: " + responseString, e);
+        }
+      }
+    } catch (IOException e) {
+      if (log.isDebugEnabled()) {
+        log.debug(
+          "Error while sending "
+            + traceCount
+            + " of "
+            + representativeCount
+            + " traces to the DD agent.",
+          e);
       } else if (nextAllowedLogTime < System.currentTimeMillis()) {
         nextAllowedLogTime = System.currentTimeMillis() + MILLISECONDS_BETWEEN_ERROR_LOG;
         log.warn(
-            "Error while sending {} of {} traces to the DD agent. {}: {} (going silent for {} minutes)",
-            traces.size(),
-            representativeCount,
-            e.getClass().getName(),
-            e.getMessage(),
-            TimeUnit.MILLISECONDS.toMinutes(MILLISECONDS_BETWEEN_ERROR_LOG));
+          "Error while sending {} of {} traces to the DD agent. {}: {} (going silent for {} minutes)",
+          traceCount,
+          representativeCount,
+          e.getClass().getName(),
+          e.getMessage(),
+          TimeUnit.MILLISECONDS.toMinutes(MILLISECONDS_BETWEEN_ERROR_LOG));
       }
-      return Response.failed(e);
     }
+
   }
 
   private static final byte[] EMPTY_LIST = new byte[] {MessagePack.Code.FIXARRAY_PREFIX};

@@ -7,16 +7,14 @@ import okio.BufferedSink;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public class RawMessageBody extends RequestBody {
+public class TraceMessageBody extends RequestBody {
 
   private static final MediaType MSGPACK = MediaType.get("application/msgpack");
 
   private final ByteBuffer payload;
-  private final int traceCount;
 
-  public RawMessageBody(ByteBuffer payload, int traceCount) {
+  public TraceMessageBody(ByteBuffer payload) {
     this.payload = payload;
-    this.traceCount = traceCount;
   }
 
   @Override
@@ -26,7 +24,7 @@ public class RawMessageBody extends RequestBody {
 
   @Override
   public long contentLength() {
-    return traceCount;
+    return payload.limit() - payload.position();
   }
 
   @Override
