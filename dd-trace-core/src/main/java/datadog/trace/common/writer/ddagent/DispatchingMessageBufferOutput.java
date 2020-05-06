@@ -7,6 +7,7 @@ import static org.msgpack.core.MessagePack.Code.FIXARRAY_PREFIX;
 import org.msgpack.core.buffer.MessageBuffer;
 import org.msgpack.core.buffer.MessageBufferOutput;
 
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -31,7 +32,7 @@ public class DispatchingMessageBufferOutput implements MessageBufferOutput {
   }
 
   public DispatchingMessageBufferOutput(Output output) {
-    this(10 << 20, output);
+    this(4 << 20, output);
   }
 
   public void onTraceWritten() {

@@ -12,9 +12,9 @@ import datadog.trace.common.writer.ddagent.Monitor;
 import datadog.trace.common.writer.ddagent.TraceProcessor;
 import datadog.trace.core.DDSpan;
 import lombok.extern.slf4j.Slf4j;
-import org.jctools.queues.MpscCompoundQueue;
 
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -40,7 +40,7 @@ public class DDAgentWriter implements Writer {
   private final DDAgentApi api;
   private final TraceProcessor traceProcessor;
   private final ExecutorService traceProcessingExecutor;
-  private final MpscCompoundQueue<List<DDSpan>> queue;
+  private final ArrayBlockingQueue<List<DDSpan>> queue;
 
   public final Monitor monitor;
 
@@ -66,7 +66,7 @@ public class DDAgentWriter implements Writer {
   public DDAgentWriter(final DDAgentApi api, final Monitor monitor) {
     this.api = api;
     this.monitor = monitor;
-    this.queue = new MpscCompoundQueue<>(2048, 8);
+    this.queue = new ArrayBlockingQueue<>(2048);
     // very bad: this escapes before the post-construction barrier :(
     this.traceProcessor = new TraceProcessor(api, monitor, queue, this, 1, SECONDS);
     this.traceProcessingExecutor = Executors.newSingleThreadExecutor(new DaemonThreadFactory("trace-processor"));
@@ -88,7 +88,7 @@ public class DDAgentWriter implements Writer {
       api = new DDAgentApi(agentHost, traceAgentPort, unixDomainSocket);
     }
     this.monitor = monitor;
-    this.queue = new MpscCompoundQueue<>(traceBufferSize, 8);
+    this.queue = new ArrayBlockingQueue<>(traceBufferSize);
     this.traceProcessor = new TraceProcessor(api, monitor, queue, this, flushFrequencySeconds, SECONDS);
     this.traceProcessingExecutor = Executors.newSingleThreadExecutor(new DaemonThreadFactory("trace-processor"));
   }
@@ -99,7 +99,7 @@ public class DDAgentWriter implements Writer {
 
   // Exposing some statistics for consumption by monitors
   public final long getDisruptorCapacity() {
-    return queue.capacity();
+    return 2048;
   }
 
   public final long getDisruptorUtilizedCapacity() {
@@ -107,7 +107,7 @@ public class DDAgentWriter implements Writer {
   }
 
   public final long getDisruptorRemainingCapacity() {
-    return queue.capacity() - queue.size();
+    return 2048 - queue.size();
   }
 
   @Override

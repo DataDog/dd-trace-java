@@ -3,6 +3,7 @@ package datadog.trace.common.writer.ddagent;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory;
 import datadog.trace.core.ContainerInfo;
@@ -77,6 +78,8 @@ public class DDAgentApi {
     if (httpClient == null) {
       detectEndpointAndBuildClient();
     }
+    int position = buffer.position();
+    int limit = buffer.limit();
     TraceMessageBody body = new TraceMessageBody(buffer);
     Request request =
       prepareRequest(tracesUrl)
@@ -137,6 +140,14 @@ public class DDAgentApi {
             + " traces to the DD agent.",
           e);
       } else if (nextAllowedLogTime < System.currentTimeMillis()) {
+        byte[] data = new byte[limit - position];
+        buffer.position(position);
+        buffer.get(data);
+        try {
+          log.error("{} {} {}", position, limit, Base64.encode(data));
+        } catch (Exception b64e) {
+
+        }
         nextAllowedLogTime = System.currentTimeMillis() + MILLISECONDS_BETWEEN_ERROR_LOG;
         log.warn(
           "Error while sending {} of {} traces to the DD agent. {}: {} (going silent for {} minutes)",

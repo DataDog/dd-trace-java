@@ -5,31 +5,46 @@ import static datadog.trace.core.serialization.MsgpackFormatWriter.MSGPACK_WRITE
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
 import lombok.extern.slf4j.Slf4j;
-import org.jctools.queues.MpscCompoundQueue;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessagePacker;
 
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class TraceProcessor implements AutoCloseable, Runnable {
 
+  private static final Field PACKER_POSITION;
+
+  static {
+    try {
+      Field field = MessagePacker.class.getDeclaredField("position");
+      field.setAccessible(true);
+      PACKER_POSITION = field;
+    } catch (NoSuchFieldException e) {
+      throw new IllegalStateException("Can't access MessagePacker.position");
+    }
+  }
+
   private volatile boolean running = true;
 
   private final DispatchingMessageBufferOutput buffer;
   private final MessagePacker packer;
-  private final MpscCompoundQueue<List<DDSpan>> queue;
+  private final ArrayBlockingQueue<List<DDSpan>> queue;
   private final Monitor monitor;
   private final DDAgentWriter ddAgentWriter;
   private final long flushDurationMillis;
+  private final int flushBytes;
 
   private long nextFlushMillis;
 
   public TraceProcessor(final DDAgentApi ddAgentApi,
                         Monitor monitor,
-                        MpscCompoundQueue<List<DDSpan>> queue,
+                        ArrayBlockingQueue<List<DDSpan>> queue,
                         DDAgentWriter ddAgentWriter,
                         long flushFrequency,
                         TimeUnit timeUnit) {
@@ -45,6 +60,7 @@ public class TraceProcessor implements AutoCloseable, Runnable {
     this.packer = MessagePack.newDefaultPacker(buffer);
     this.flushDurationMillis = timeUnit.toMillis(flushFrequency);
     this.nextFlushMillis = flushFrequency == -1L ? Long.MAX_VALUE : nowMillis() + flushDurationMillis;
+    this.flushBytes = 1 << 20;
   }
 
   public void notifyUnreportedTraces(int howMany) {
@@ -57,19 +73,27 @@ public class TraceProcessor implements AutoCloseable, Runnable {
 
   @Override
   public void run() {
+    List<List<DDSpan>> traces = new ArrayList<>(1024);
     while (running) {
-      List<DDSpan> trace = queue.poll();
-      if (null != trace) {
-        try {
-          MSGPACK_WRITER.writeTrace(trace, packer);
-          buffer.onTraceWritten();
-          flushPacker(false);
-        } catch (final Throwable e) {
-          if (log.isDebugEnabled()) {
-            log.debug("Error while serializing trace", e);
+      try {
+        List<DDSpan> first = queue.take();
+        traces.add(first);
+        queue.drainTo(traces, 1023);
+        for (List<DDSpan> trace : traces) {
+          try {
+            MSGPACK_WRITER.writeTrace(trace, packer);
+            buffer.onTraceWritten();
+          } catch (final Throwable e) {
+            if (log.isDebugEnabled()) {
+              log.debug("Error while serializing trace", e);
+            }
+            monitor.onFailedSerialize(ddAgentWriter, trace, e);
           }
-          monitor.onFailedSerialize(ddAgentWriter, trace, e);
         }
+        flushPacker(false);
+        traces.clear();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
       }
     }
     flushPacker(true);
@@ -82,7 +106,8 @@ public class TraceProcessor implements AutoCloseable, Runnable {
 
   private void flushPacker(boolean force) {
     long now = nowMillis();
-    if (now >= nextFlushMillis || force) {
+    if (force || now >= nextFlushMillis
+      || getMessagePackerPosition() >= flushBytes) {
       nextFlushMillis = now + flushDurationMillis;
       try {
         packer.flush();
@@ -95,5 +120,13 @@ public class TraceProcessor implements AutoCloseable, Runnable {
   private static long nowMillis() {
     // note that nanoTime is used in favour to currentTimeMillis because it is monotonic
     return System.nanoTime() / 1_000_000;
+  }
+
+  private int getMessagePackerPosition() {
+    try {
+      return (int) PACKER_POSITION.get(packer);
+    } catch (IllegalAccessException e) {
+      return 0;
+    }
   }
 }
