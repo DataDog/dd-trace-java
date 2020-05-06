@@ -92,7 +92,7 @@ class ResolvableJFRType implements JFRType {
   }
 
   @Override
-  public TypedValue asValue(Consumer<FieldValueBuilder> builderCallback) {
+  public TypedValue asValue(Consumer<TypeValueBuilder> builderCallback) {
     checkResolved();
     return delegate.asValue(builderCallback);
   }
@@ -137,6 +137,12 @@ class ResolvableJFRType implements JFRType {
   public List<TypedField> getFields() {
     checkResolved();
     return delegate.getFields();
+  }
+
+  @Override
+  public TypedField getField(String name) {
+    checkResolved();
+    return delegate.getField(name);
   }
 
   @Override

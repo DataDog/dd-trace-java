@@ -3,6 +3,7 @@ package com.datadog.profiling.jfr;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /** Common JFR type super-class */
@@ -12,7 +13,7 @@ abstract class BaseJFRType implements JFRType {
   private final String supertype;
   private final ConstantPools constantPools;
   private final Metadata metadata;
-  private final TypedValue nullValue = TypedValue.of(this, (Object) null);
+  private AtomicReference<TypedValue> nullValue = new AtomicReference<>();
 
   BaseJFRType(
       long id, String name, String supertype, ConstantPools constantPools, Metadata metadata) {
@@ -108,13 +109,13 @@ abstract class BaseJFRType implements JFRType {
   }
 
   @Override
-  public TypedValue asValue(Consumer<FieldValueBuilder> builderCallback) {
+  public TypedValue asValue(Consumer<TypeValueBuilder> builderCallback) {
     return isBuiltin() ? null : TypedValue.of(this, builderCallback);
   }
 
   @Override
   public TypedValue nullValue() {
-    return nullValue;
+    return nullValue.updateAndGet(v -> v == null ? new TypedValue(this, null, 0L) : v);
   }
 
   @Override

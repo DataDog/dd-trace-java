@@ -26,7 +26,7 @@ public final class TypedValue {
    * @param builderCallback will be called to initialize the {@linkplain TypedValue} instance lazily
    * @return a {@linkplain TypedValue} instance; either new or retrieved from the constant pool
    */
-  public static TypedValue of(JFRType type, Consumer<FieldValueBuilder> builderCallback) {
+  public static TypedValue of(JFRType type, Consumer<TypeValueBuilder> builderCallback) {
     TypedValue checkValue = new TypedValue(type, builderCallback);
     if (type.hasConstantPool()) {
       return type.getConstantPool().addOrGet(checkValue);
@@ -69,8 +69,12 @@ public final class TypedValue {
    * @param src the source value
    * @param cpIndex the constant pool index to bind to
    * @return a copy of {@linkplain TypedValue} but bound to the given constant pool index
+   * @throws IllegalArgumentException if the source value is a built-in
    */
   static TypedValue withCpIndex(TypedValue src, long cpIndex) {
+    if (src.getType().isBuiltin()) {
+      throw new IllegalArgumentException();
+    }
     return new TypedValue(src.getType(), src.fields, cpIndex);
   }
 
@@ -87,7 +91,7 @@ public final class TypedValue {
     this.cpIndex = cpIndex;
   }
 
-  private TypedValue(JFRType type, Consumer<FieldValueBuilder> fieldAccessTarget) {
+  private TypedValue(JFRType type, Consumer<TypeValueBuilder> fieldAccessTarget) {
     this(type, getFieldValues(type, fieldAccessTarget));
   }
 
@@ -100,10 +104,10 @@ public final class TypedValue {
   }
 
   private static Map<String, TypedFieldValue> getFieldValues(
-      JFRType type, Consumer<FieldValueBuilder> fieldAccessTarget) {
-    FieldValueBuilder access = new FieldValueBuilder(type);
+      JFRType type, Consumer<TypeValueBuilder> fieldAccessTarget) {
+    TypeValueBuilderImpl access = new TypeValueBuilderImpl(type);
     fieldAccessTarget.accept(access);
-    return access.getFieldValues();
+    return access.build();
   }
 
   /** @return the type */
@@ -113,7 +117,7 @@ public final class TypedValue {
 
   /** @return the wrapped value */
   public Object getValue() {
-    return value;
+    return type.isSimple() ? getFieldValues().get(0).getValue().getValue() : value;
   }
 
   long getCPIndex() {
@@ -140,38 +144,6 @@ public final class TypedValue {
       values.add(value);
     }
     return values;
-  }
-
-  @Override
-  public String toString() {
-    StringBuilder sb = new StringBuilder("TypedValue{\n");
-    sb.append("type=").append(type.getTypeName()).append("(").append(type.getId()).append(")\n");
-    if (isNull()) {
-      sb.append("NULL\n}");
-    } else {
-      if (cpIndex > Long.MIN_VALUE) {
-        sb.append("cpIndex=").append(cpIndex).append('\n');
-      }
-      if (value != null) {
-        sb.append("value=").append(value).append("\n");
-      } else {
-        sb.append("fields={\n");
-        for (TypedFieldValue fieldValue : getFieldValues()) {
-          String name = fieldValue.getField().getName();
-          if (fieldValue.getField().isArray()) {
-            sb.append(name).append("=[\n");
-            for (TypedValue value : fieldValue.getValues()) {
-              sb.append(value).append("\n");
-            }
-            sb.append("]\n");
-          } else {
-            sb.append(name).append("=").append(fieldValue.getValue()).append("\n");
-          }
-        }
-      }
-      sb.append("}\n");
-    }
-    return sb.toString();
   }
 
   @Override

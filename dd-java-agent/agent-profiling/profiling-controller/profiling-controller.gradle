@@ -8,7 +8,8 @@ excludedClassesCoverage += [
   'com.datadog.profiling.controller.ControllerFactory',
   // There are some code paths that is impossible/very-very hard to hit
   'com.datadog.profiling.controller.ProfilingSystem.StartRecording',
-  'com.datadog.profiling.controller.ProfilingSystem.StopRecording'
+  'com.datadog.profiling.controller.ProfilingSystem.StopRecording',
+  'com.datadog.profiling.jfr.ResolvableJFRType'
 ]
 
 dependencies {

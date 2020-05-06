@@ -2,6 +2,8 @@ package com.datadog.profiling.jfr;
 
 import static com.datadog.profiling.jfr.TypeUtils.BUILTIN_VALUE_MAP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -29,8 +31,25 @@ class BuiltinJFRTypeTest {
   }
 
   @Test
+  void isResolved() {
+    assertTrue(instance.isResolved());
+  }
+
+  @Test
+  void nullValue() {
+    TypedValue value = instance.nullValue();
+    assertNotNull(value);
+    assertTrue(value.isNull());
+  }
+
+  @Test
   void getFields() {
     assertTrue(instance.getFields().isEmpty());
+  }
+
+  @Test
+  void getField() {
+    assertThrows(IllegalArgumentException.class, () -> instance.getField("field"));
   }
 
   @Test

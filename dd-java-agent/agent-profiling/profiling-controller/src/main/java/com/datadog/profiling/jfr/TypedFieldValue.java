@@ -7,33 +7,19 @@ public final class TypedFieldValue {
   private final TypedField field;
   private final TypedValue[] values;
 
-  TypedFieldValue(TypedField field, TypedValue value, TypedValue... otherValues) {
-    this(field, mergeValues(value, otherValues));
+  TypedFieldValue(TypedField field, TypedValue value) {
+    this(field, new TypedValue[] {value});
   }
 
   TypedFieldValue(TypedField field, TypedValue[] values) {
     if (values == null) {
-      values = new TypedValue[1];
+      values = new TypedValue[0];
     }
     if (!field.isArray() && values.length > 1) {
       throw new IllegalArgumentException();
     }
     this.field = field;
     this.values = values;
-  }
-
-  private static TypedValue[] mergeValues(TypedValue value, TypedValue... otherValues) {
-    TypedValue[] values = new TypedValue[otherValues.length + 1];
-    if (otherValues.length > 0) {
-      System.arraycopy(otherValues, 0, values, 1, otherValues.length);
-    }
-    values[0] = value;
-    return values;
-  }
-
-  /** @return the corresponding {@linkplain JFRType} */
-  public JFRType getType() {
-    return field.getType();
   }
 
   /** @return the corresponding {@linkplain TypedField} */

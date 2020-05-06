@@ -55,7 +55,7 @@ public final class JFRWriter {
               .addField(
                   "startTime",
                   Types.Builtin.LONG,
-                  new JFRAnnotation(types.getType(Types.JDK.ANNOTATION_TIMESTAMP), "TICKS"));
+                  field -> field.addAnnotation(Types.JDK.ANNOTATION_TIMESTAMP, "TICKS"));
           builderCallback.accept(builder);
         });
   }

@@ -11,20 +11,22 @@ import org.junit.jupiter.api.Test;
 class CustomJFRTypeTest {
   private static final String TYPE_NAME = "test.Type";
   private static final String FIELD_NAME = "field1";
+  private static final String PARENT_FIELD_NAME = "parent";
   private static final String FIELD_VALUE = "hello";
   private CustomJFRType instance;
+  private Types types;
 
   @BeforeEach
   void setUp() {
     ConstantPools constantPools = new ConstantPools();
     Metadata metadata = new Metadata(constantPools);
-    Types types = new Types(metadata);
+    types = new Types(metadata);
 
     List<TypedField> fields = new ArrayList<>();
     List<JFRAnnotation> annotations = new ArrayList<>();
 
     fields.add(new TypedField(types.getType(Types.Builtin.STRING), FIELD_NAME));
-    fields.add(new TypedField(CustomJFRType.SELF_TYPE, "parent"));
+    fields.add(new TypedField(CustomJFRType.SELF_TYPE, PARENT_FIELD_NAME));
     annotations.add(new JFRAnnotation(types.getType(Types.JDK.ANNOTATION_NAME), "test.Type"));
 
     TypeStructure structure = new TypeStructure(fields, annotations);
@@ -51,6 +53,24 @@ class CustomJFRTypeTest {
   }
 
   @Test
+  void getField() {
+    assertNotNull(instance.getField(FIELD_NAME));
+    assertNotNull(instance.getField(PARENT_FIELD_NAME));
+  }
+
+  @Test
+  void isResolved() {
+    assertTrue(instance.isResolved());
+  }
+
+  @Test
+  void nullValue() {
+    TypedValue value = instance.nullValue();
+    assertNotNull(value);
+    assertTrue(value.isNull());
+  }
+
+  @Test
   void getAnnotations() {
     assertEquals(1, instance.getAnnotations().size());
   }
@@ -66,5 +86,28 @@ class CustomJFRTypeTest {
               builder.putField(FIELD_NAME, FIELD_VALUE);
             });
     assertTrue(instance.canAccept(value));
+  }
+
+  @Test
+  void testEquality() {
+    JFRType type1 = types.getType(Types.Builtin.STRING);
+    JFRType type2 = types.getType(Types.Builtin.INT);
+    JFRType type3 =
+        types.getOrAdd(
+            "type.Custom",
+            t -> {
+              t.addField("field1", types.getType(Types.Builtin.STRING))
+                  .addField("field2", types.getType(Types.Builtin.STRING));
+            });
+
+    assertEquals(type1, type1);
+    assertEquals(type2, type2);
+    assertEquals(type3, type3);
+    assertNotEquals(type1, type2);
+    assertNotEquals(type1, type3);
+    assertNotEquals(type2, type1);
+    assertNotEquals(type2, type3);
+    assertNotEquals(type3, type1);
+    assertNotEquals(type3, type2);
   }
 }

@@ -23,6 +23,11 @@ final class BuiltinJFRType extends BaseJFRType {
   }
 
   @Override
+  public TypedField getField(String name) {
+    throw new IllegalArgumentException();
+  }
+
+  @Override
   public List<JFRAnnotation> getAnnotations() {
     return Collections.emptyList();
   }

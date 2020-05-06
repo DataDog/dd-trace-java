@@ -1,4 +1,4 @@
-package com.datadog.profiling.sampler;
+package com.datadog.profiling.mlt;
 
 import com.datadog.profiling.jfr.JFRChunk;
 import com.datadog.profiling.jfr.JFRType;

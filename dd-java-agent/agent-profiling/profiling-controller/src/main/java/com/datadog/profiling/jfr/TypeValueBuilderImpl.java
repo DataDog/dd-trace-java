@@ -7,13 +7,12 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-/** A fluent API for lazy initialization of a custom type value */
-public final class FieldValueBuilder {
+final class TypeValueBuilderImpl implements TypeValueBuilder {
   private final Metadata metadata;
   private final Map<String, TypedField> fieldMap;
   private final Map<String, TypedFieldValue> fieldValueMap;
 
-  FieldValueBuilder(JFRType type) {
+  TypeValueBuilderImpl(JFRType type) {
     this.metadata = type.getMetadata();
     fieldMap =
         type.getFields()
@@ -22,11 +21,13 @@ public final class FieldValueBuilder {
     fieldValueMap = new HashMap<>();
   }
 
-  public FieldValueBuilder putField(String name, byte value) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, byte value) {
     return putField(name, TypedValue.of(metadata.getType(Types.Builtin.BYTE, false), value));
   }
 
-  public FieldValueBuilder putField(String name, byte[] values) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, byte[] values) {
     putArrayField(
         name,
         () -> {
@@ -41,11 +42,13 @@ public final class FieldValueBuilder {
     return this;
   }
 
-  public FieldValueBuilder putField(String name, char value) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, char value) {
     return putField(name, TypedValue.of(metadata.getType(Types.Builtin.CHAR, false), value));
   }
 
-  public FieldValueBuilder putField(String name, char[] values) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, char[] values) {
     putArrayField(
         name,
         () -> {
@@ -60,11 +63,13 @@ public final class FieldValueBuilder {
     return this;
   }
 
-  public FieldValueBuilder putField(String name, short value) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, short value) {
     return putField(name, TypedValue.of(metadata.getType(Types.Builtin.SHORT, false), value));
   }
 
-  public FieldValueBuilder putField(String name, short[] values) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, short[] values) {
     putArrayField(
         name,
         () -> {
@@ -79,11 +84,13 @@ public final class FieldValueBuilder {
     return this;
   }
 
-  public FieldValueBuilder putField(String name, int value) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, int value) {
     return putField(name, TypedValue.of(metadata.getType(Types.Builtin.INT, false), value));
   }
 
-  public FieldValueBuilder putField(String name, int[] values) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, int[] values) {
     putArrayField(
         name,
         () -> {
@@ -98,11 +105,13 @@ public final class FieldValueBuilder {
     return this;
   }
 
-  public FieldValueBuilder putField(String name, long value) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, long value) {
     return putField(name, TypedValue.of(metadata.getType(Types.Builtin.LONG, false), value));
   }
 
-  public FieldValueBuilder putField(String name, long[] values) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, long[] values) {
     putArrayField(
         name,
         () -> {
@@ -117,11 +126,13 @@ public final class FieldValueBuilder {
     return this;
   }
 
-  public FieldValueBuilder putField(String name, float value) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, float value) {
     return putField(name, TypedValue.of(metadata.getType(Types.Builtin.FLOAT, false), value));
   }
 
-  public FieldValueBuilder putField(String name, float[] values) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, float[] values) {
     putArrayField(
         name,
         () -> {
@@ -136,11 +147,13 @@ public final class FieldValueBuilder {
     return this;
   }
 
-  public FieldValueBuilder putField(String name, double value) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, double value) {
     return putField(name, TypedValue.of(metadata.getType(Types.Builtin.DOUBLE, false), value));
   }
 
-  public FieldValueBuilder putField(String name, double[] values) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, double[] values) {
     putArrayField(
         name,
         () -> {
@@ -155,11 +168,13 @@ public final class FieldValueBuilder {
     return this;
   }
 
-  public FieldValueBuilder putField(String name, boolean value) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, boolean value) {
     return putField(name, TypedValue.of(metadata.getType(Types.Builtin.BOOLEAN, false), value));
   }
 
-  public FieldValueBuilder putField(String name, boolean[] values) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, boolean[] values) {
     putArrayField(
         name,
         () -> {
@@ -174,11 +189,13 @@ public final class FieldValueBuilder {
     return this;
   }
 
-  public FieldValueBuilder putField(String name, String value) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, String value) {
     return putField(name, TypedValue.of(metadata.getType(Types.Builtin.STRING, false), value));
   }
 
-  public FieldValueBuilder putField(String name, String[] values) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, String[] values) {
     putArrayField(
         name,
         () -> {
@@ -193,14 +210,16 @@ public final class FieldValueBuilder {
     return this;
   }
 
-  public FieldValueBuilder putField(String name, TypedValue... values) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, TypedValue... values) {
     if (values.length > 0) {
       putArrayField(name, values);
     }
     return this;
   }
 
-  public FieldValueBuilder putField(String name, TypedValue value) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, TypedValue value) {
     TypedField field = fieldMap.get(name);
     if (field != null) {
       JFRType type = field.getType();
@@ -231,23 +250,26 @@ public final class FieldValueBuilder {
     return value;
   }
 
-  public FieldValueBuilder putField(String name, Consumer<FieldValueBuilder> fieldValueBuilder) {
+  @Override
+  public TypeValueBuilderImpl putField(String name, Consumer<TypeValueBuilder> fieldValueCallback) {
     TypedField field = fieldMap.get(name);
     if (field != null) {
       fieldValueMap.put(
-          name, new TypedFieldValue(field, field.getType().asValue(fieldValueBuilder)));
+          name, new TypedFieldValue(field, field.getType().asValue(fieldValueCallback)));
     }
     return this;
   }
 
-  public FieldValueBuilder putField(String name, Consumer<FieldValueBuilder>... builders) {
-    if (builders.length > 0) {
-      buildArrayField(name, () -> builders);
+  @Override
+  public TypeValueBuilderImpl putField(
+      String name, Consumer<TypeValueBuilder>... fieldValueCallbacks) {
+    if (fieldValueCallbacks.length > 0) {
+      buildArrayField(name, () -> fieldValueCallbacks);
     }
     return this;
   }
 
-  Map<String, TypedFieldValue> getFieldValues() {
+  Map<String, TypedFieldValue> build() {
     return Collections.unmodifiableMap(fieldValueMap);
   }
 
@@ -279,10 +301,10 @@ public final class FieldValueBuilder {
   }
 
   private void buildArrayField(
-      String name, Supplier<Consumer<FieldValueBuilder>[]> builderSupplier) {
+      String name, Supplier<Consumer<TypeValueBuilder>[]> builderSupplier) {
     TypedField field = fieldMap.get(name);
     if (field != null) {
-      Consumer<FieldValueBuilder>[] builders = builderSupplier.get();
+      Consumer<TypeValueBuilder>[] builders = builderSupplier.get();
       TypedValue[] values = new TypedValue[builders.length];
       JFRType fieldType = field.getType();
       for (int i = 0; i < builders.length; i++) {

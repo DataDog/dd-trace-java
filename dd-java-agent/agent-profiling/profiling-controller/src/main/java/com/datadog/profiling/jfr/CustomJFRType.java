@@ -25,6 +25,11 @@ final class CustomJFRType extends BaseJFRType {
         }
 
         @Override
+        public TypedField getField(String name) {
+          return null;
+        }
+
+        @Override
         public List<JFRAnnotation> getAnnotations() {
           return null;
         }
@@ -35,6 +40,7 @@ final class CustomJFRType extends BaseJFRType {
         }
       };
 
+  private final Map<String, TypedField> fieldMap;
   private final List<TypedField> fields;
   private final List<JFRAnnotation> annotations;
 
@@ -63,6 +69,7 @@ final class CustomJFRType extends BaseJFRType {
         typeStructure == null
             ? Collections.emptyList()
             : Collections.unmodifiableList(typeStructure.annotations);
+    this.fieldMap = fields.stream().collect(Collectors.toMap(TypedField::getName, f -> f));
   }
 
   @Override
@@ -73,6 +80,11 @@ final class CustomJFRType extends BaseJFRType {
   @Override
   public List<TypedField> getFields() {
     return fields;
+  }
+
+  @Override
+  public TypedField getField(String name) {
+    return fieldMap.get(name);
   }
 
   @Override

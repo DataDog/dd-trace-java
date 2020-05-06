@@ -24,6 +24,10 @@ public final class TypedField {
   }
 
   TypedField(JFRType type, String name, boolean isArray, List<JFRAnnotation> annotations) {
+    Objects.requireNonNull(type);
+    Objects.requireNonNull(name);
+    Objects.requireNonNull(annotations);
+
     this.name = name;
     this.type = type;
     this.isArray = isArray;

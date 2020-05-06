@@ -29,6 +29,8 @@ public interface JFRType extends NamedType {
   /** @return the type field structure */
   List<TypedField> getFields();
 
+  TypedField getField(String name);
+
   List<JFRAnnotation> getAnnotations();
 
   /**
@@ -117,7 +119,7 @@ public interface JFRType extends NamedType {
    * @param builderCallback will be called when the new {@linkplain TypedValue} is being initialized
    * @return a {@linkplain TypedValue} object representing the typed value
    */
-  TypedValue asValue(Consumer<FieldValueBuilder> builderCallback);
+  TypedValue asValue(Consumer<TypeValueBuilder> builderCallback);
 
   /**
    * @return a specific {@linkplain TypedValue} instance designated as the {@linkplain null} value

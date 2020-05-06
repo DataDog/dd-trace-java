@@ -1,13 +1,13 @@
-package com.datadog.profiling.sampler;
+package com.datadog.profiling.mlt;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.openjdk.jmc.common.item.IItemCollection;
 import org.openjdk.jmc.common.item.ItemFilters;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
@@ -26,7 +26,7 @@ public class SamplerWriterTest {
         for (ThreadInfo ti : bean.dumpAllThreads(false, false)) {
           writer.writeThreadSample(ti);
         }
-        Thread.sleep(ThreadLocalRandom.current().nextLong(150L) + 10);
+        Thread.sleep(ThreadLocalRandom.current().nextLong(20L) + 5);
       }
 
       writer.dump(target);

@@ -279,7 +279,9 @@ public final class Types {
     getOrAdd(
         JDK.STACK_TRACE,
         builder -> {
-          builder.addField("truncated", Builtin.BOOLEAN).addArrayField("frames", JDK.STACK_FRAME);
+          builder
+              .addField("truncated", Builtin.BOOLEAN)
+              .addField("frames", JDK.STACK_FRAME, field -> field.asArray());
         });
   }
 
@@ -332,7 +334,7 @@ public final class Types {
         name,
         supertype,
         () -> {
-          CustomTypeBuilder builder = new CustomTypeBuilder(this);
+          CustomTypeBuilderImpl builder = new CustomTypeBuilderImpl(this);
           builderCallback.accept(builder);
           return builder.build();
         });
