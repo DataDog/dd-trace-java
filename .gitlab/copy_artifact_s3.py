@@ -10,7 +10,7 @@ client = boto3.client('s3',
 transfer = boto3.s3.transfer.S3Transfer(client)
 
 p = re.compile(r"dd-java-agent.*jar$")
-LIBS_PATH = './workspace/dd-java-agent/build/libs'
+LIBS_PATH = '../workspace/dd-java-agent/build/libs'
 for path, sub_dirs, files in os.walk(LIBS_PATH):
   for name in files:
     if p.match(name):
