@@ -5,6 +5,7 @@ import com.timgroup.statsd.StatsDClient;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
+import java.nio.ByteBuffer;
 import java.util.List;
 
 /**
@@ -33,7 +34,7 @@ public interface Monitor {
   void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete);
 
   void onSerialize(
-      final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace);
+      final DDAgentWriter agentWriter, final List<DDSpan> trace, final ByteBuffer serializedTrace);
 
   void onFailedSerialize(
       final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause);
@@ -119,10 +120,12 @@ public interface Monitor {
 
     @Override
     public void onSerialize(
-        final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace) {
+        final DDAgentWriter agentWriter,
+        final List<DDSpan> trace,
+        final ByteBuffer serializedTrace) {
       // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
       // map precisely
-      statsd.count("queue.accepted_size", serializedTrace.length);
+      statsd.count("queue.accepted_size", serializedTrace.limit());
     }
 
     @Override
@@ -203,7 +206,9 @@ public interface Monitor {
 
     @Override
     public void onSerialize(
-        final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace) {}
+        final DDAgentWriter agentWriter,
+        final List<DDSpan> trace,
+        final ByteBuffer serializedTrace) {}
 
     @Override
     public void onFailedSerialize(

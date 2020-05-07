@@ -5,6 +5,7 @@ import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
+import java.nio.ByteBuffer;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
@@ -66,7 +67,7 @@ public class TraceProcessingDisruptor extends AbstractDisruptor<List<DDSpan>> {
           // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
           try {
             event.data = processor.onTraceComplete(event.data);
-            final byte[] serializedTrace = api.serializeTrace(event.data);
+            ByteBuffer serializedTrace = api.serializeTrace(event.data);
             batchWritingDisruptor.publish(serializedTrace, event.representativeCount);
             monitor.onSerialize(writer, event.data, serializedTrace);
             event.representativeCount = 0; // reset in case flush is invoked below.

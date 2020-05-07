@@ -5,6 +5,7 @@ import datadog.common.exec.CommonTaskExecutor;
 import datadog.common.exec.CommonTaskExecutor.Task;
 import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.common.writer.DDAgentWriter;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -17,10 +18,10 @@ import lombok.extern.slf4j.Slf4j;
  * <p>publishing to the buffer will block if the buffer is full.
  */
 @Slf4j
-public class BatchWritingDisruptor extends AbstractDisruptor<byte[]> {
+public class BatchWritingDisruptor extends AbstractDisruptor<ByteBuffer> {
   private static final int FLUSH_PAYLOAD_BYTES = 5_000_000; // 5 MB
 
-  private final DisruptorEvent.HeartbeatTranslator<byte[]> heartbeatTranslator =
+  private final DisruptorEvent.HeartbeatTranslator<ByteBuffer> heartbeatTranslator =
       new DisruptorEvent.HeartbeatTranslator();
 
   public BatchWritingDisruptor(
@@ -44,7 +45,7 @@ public class BatchWritingDisruptor extends AbstractDisruptor<byte[]> {
   }
 
   @Override
-  public boolean publish(final byte[] data, final int representativeCount) {
+  public boolean publish(final ByteBuffer data, final int representativeCount) {
     // blocking call to ensure serialized traces aren't discarded and apply back pressure.
     disruptor.getRingBuffer().publishEvent(dataTranslator, data, representativeCount);
     return true;
@@ -57,13 +58,13 @@ public class BatchWritingDisruptor extends AbstractDisruptor<byte[]> {
   }
 
   // Intentionally not thread safe.
-  private static class BatchWritingHandler implements EventHandler<DisruptorEvent<byte[]>> {
+  private static class BatchWritingHandler implements EventHandler<DisruptorEvent<ByteBuffer>> {
 
     private final long flushFrequencyNanos;
     private final DDAgentApi api;
     private final Monitor monitor;
     private final DDAgentWriter writer;
-    private final List<byte[]> serializedTraces = new ArrayList<>();
+    private final List<ByteBuffer> serializedTraces = new ArrayList<>();
     private int representativeCount = 0;
     private int sizeInBytes = 0;
     private long nextScheduledFlush;
@@ -83,10 +84,10 @@ public class BatchWritingDisruptor extends AbstractDisruptor<byte[]> {
     // TODO: reduce byte[] garbage by keeping the byte[] on the event and copy before returning.
     @Override
     public void onEvent(
-        final DisruptorEvent<byte[]> event, final long sequence, final boolean endOfBatch) {
+        final DisruptorEvent<ByteBuffer> event, final long sequence, final boolean endOfBatch) {
       try {
         if (event.data != null) {
-          sizeInBytes += event.data.length;
+          sizeInBytes += event.data.limit();
           serializedTraces.add(event.data);
         }
 

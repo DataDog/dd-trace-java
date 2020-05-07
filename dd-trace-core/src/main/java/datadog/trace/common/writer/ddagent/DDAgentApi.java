@@ -1,6 +1,9 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.core.serialization.MsgpackFormatWriter.MSGPACK_WRITER;
+import static org.msgpack.core.MessagePack.Code.ARRAY16;
+import static org.msgpack.core.MessagePack.Code.ARRAY32;
+import static org.msgpack.core.MessagePack.Code.FIXARRAY_PREFIX;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -12,7 +15,7 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -86,12 +89,12 @@ public class DDAgentApi {
    *     parsing
    */
   Response sendTraces(final List<List<DDSpan>> traces) {
-    final List<byte[]> serializedTraces = new ArrayList<>(traces.size());
+    final List<ByteBuffer> serializedTraces = new ArrayList<>(traces.size());
     int sizeInBytes = 0;
     for (final List<DDSpan> trace : traces) {
       try {
-        final byte[] serializedTrace = serializeTrace(trace);
-        sizeInBytes += serializedTrace.length;
+        final ByteBuffer serializedTrace = serializeTrace(trace);
+        sizeInBytes += serializedTrace.limit();
         serializedTraces.add(serializedTrace);
       } catch (final IOException e) {
         log.warn("Error serializing trace", e);
@@ -103,17 +106,18 @@ public class DDAgentApi {
     return sendSerializedTraces(serializedTraces.size(), sizeInBytes, serializedTraces);
   }
 
-  byte[] serializeTrace(final List<DDSpan> trace) throws IOException {
+  ByteBuffer serializeTrace(final List<DDSpan> trace) throws IOException {
     // TODO: reuse byte array buffer
     final ArrayBufferOutput output = new ArrayBufferOutput();
     final MessagePacker packer = MessagePack.newDefaultPacker(output);
     MSGPACK_WRITER.writeTrace(trace, packer);
     packer.flush();
-    return output.toByteArray();
+    int limit = (int) packer.getTotalWrittenBytes();
+    return output.toMessageBuffer().sliceAsByteBuffer(0, limit);
   }
 
   Response sendSerializedTraces(
-      final int representativeCount, final Integer sizeInBytes, final List<byte[]> traces) {
+      final int representativeCount, final Integer sizeInBytes, final List<ByteBuffer> traces) {
     if (httpClient == null) {
       detectEndpointAndBuildClient();
     }
@@ -141,14 +145,18 @@ public class DDAgentApi {
 
             @Override
             public void writeTo(final BufferedSink sink) throws IOException {
-              final OutputStream out = sink.outputStream();
-              final MessagePacker packer = MessagePack.newDefaultPacker(out);
-              packer.packArrayHeader(traces.size());
-              for (final byte[] trace : traces) {
-                packer.writePayload(trace);
+              if (traces.size() < 16) {
+                sink.writeByte((byte) (traces.size() | FIXARRAY_PREFIX));
+              } else if (traces.size() < 0x10000) {
+                sink.writeByte(ARRAY16);
+                sink.writeShort(traces.size());
+              } else {
+                sink.writeByte(ARRAY32);
+                sink.writeInt(traces.size());
               }
-              packer.close();
-              out.close();
+              for (ByteBuffer trace : traces) {
+                sink.write(trace);
+              }
             }
           };
       final Request request =
@@ -226,7 +234,7 @@ public class DDAgentApi {
     }
   }
 
-  private static final byte[] EMPTY_LIST = new byte[] {MessagePack.Code.FIXARRAY_PREFIX};
+  private static final byte[] EMPTY_LIST = new byte[] {FIXARRAY_PREFIX};
 
   private static boolean endpointAvailable(
       final HttpUrl url, final String unixDomainSocketPath, final boolean retry) {
