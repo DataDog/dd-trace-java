@@ -1,4 +1,4 @@
-package com.datadog.profiling.controller.jfr;
+package com.datadog.profiling.jfr;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -25,7 +25,7 @@ import org.openjdk.jmc.common.unit.UnitLookup;
 import org.openjdk.jmc.flightrecorder.JfrAttributes;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 
-class JfrChunkTest {
+class ChunkTest {
 
   public static final String EVENT_NAME = "sample event";
   public static final String EVENT_MSG = "Hello world";
