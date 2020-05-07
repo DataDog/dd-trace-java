@@ -9,8 +9,9 @@ import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.Monitor;
-import datadog.trace.common.writer.ddagent.TraceProcessor;
+import datadog.trace.common.writer.ddagent.TraceSerializer;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.processor.TraceProcessor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -38,7 +39,7 @@ public class DDAgentWriter implements Writer {
   private static final int DISRUPTOR_BUFFER_SIZE = 1024;
 
   private final DDAgentApi api;
-  private final TraceProcessor traceProcessor;
+  private final TraceSerializer traceSerializer;
   private final ExecutorService traceProcessingExecutor;
   private final ArrayBlockingQueue<List<DDSpan>> queue;
 
@@ -68,7 +69,7 @@ public class DDAgentWriter implements Writer {
     this.monitor = monitor;
     this.queue = new ArrayBlockingQueue<>(2048);
     // very bad: this escapes before the post-construction barrier :(
-    this.traceProcessor = new TraceProcessor(api, monitor, queue, this, 1, SECONDS);
+    this.traceSerializer = new TraceSerializer(api, monitor, queue, this, new TraceProcessor(), 1, SECONDS);
     this.traceProcessingExecutor = Executors.newSingleThreadExecutor(new DaemonThreadFactory("trace-processor"));
   }
 
@@ -89,7 +90,7 @@ public class DDAgentWriter implements Writer {
     }
     this.monitor = monitor;
     this.queue = new ArrayBlockingQueue<>(traceBufferSize);
-    this.traceProcessor = new TraceProcessor(api, monitor, queue, this, flushFrequencySeconds, SECONDS);
+    this.traceSerializer = new TraceSerializer(api, monitor, queue, this, new TraceProcessor(), flushFrequencySeconds, SECONDS);
     this.traceProcessingExecutor = Executors.newSingleThreadExecutor(new DaemonThreadFactory("trace-processor"));
   }
 
@@ -115,7 +116,7 @@ public class DDAgentWriter implements Writer {
     if (queue.offer(trace)) {
       monitor.onPublish(DDAgentWriter.this, trace);
     } else {
-      traceProcessor.notifyDropped(1);
+      traceSerializer.notifyDropped(1);
       log.debug("Trace written to overfilled buffer. Counted but dropping trace: {}", trace);
       monitor.onFailedPublish(this, trace);
     }
@@ -127,7 +128,7 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public void incrementTraceCount() {
-    traceProcessor.notifyUnreportedTraces(1);
+    traceSerializer.notifyUnreportedTraces(1);
   }
 
   public DDAgentApi getApi() {
@@ -136,13 +137,13 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public void start() {
-    traceProcessingExecutor.submit(traceProcessor);
+    traceProcessingExecutor.submit(traceSerializer);
     monitor.onStart(this);
   }
 
   @Override
   public void close() {
-    traceProcessor.close();
+    traceSerializer.close();
     // waits until processing task flushes its (bounded) input
     traceProcessingExecutor.shutdown();
     monitor.onShutdown(this, true);

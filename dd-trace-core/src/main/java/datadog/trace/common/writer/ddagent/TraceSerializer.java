@@ -4,6 +4,7 @@ import static datadog.trace.core.serialization.MsgpackFormatWriter.MSGPACK_WRITE
 
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.processor.TraceProcessor;
 import lombok.extern.slf4j.Slf4j;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessagePacker;
@@ -16,7 +17,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-public class TraceProcessor implements AutoCloseable, Runnable {
+public class TraceSerializer implements AutoCloseable, Runnable {
 
   private static final Field PACKER_POSITION;
 
@@ -37,17 +38,18 @@ public class TraceProcessor implements AutoCloseable, Runnable {
   private final ArrayBlockingQueue<List<DDSpan>> queue;
   private final Monitor monitor;
   private final DDAgentWriter ddAgentWriter;
+  private final TraceProcessor traceProcessor;
   private final long flushDurationMillis;
   private final int flushBytes;
 
   private long nextFlushMillis;
 
-  public TraceProcessor(final DDAgentApi ddAgentApi,
-                        Monitor monitor,
-                        ArrayBlockingQueue<List<DDSpan>> queue,
-                        DDAgentWriter ddAgentWriter,
-                        long flushFrequency,
-                        TimeUnit timeUnit) {
+  public TraceSerializer(final DDAgentApi ddAgentApi,
+                         Monitor monitor,
+                         ArrayBlockingQueue<List<DDSpan>> queue,
+                         DDAgentWriter ddAgentWriter,
+                         TraceProcessor traceProcessor, long flushFrequency,
+                         TimeUnit timeUnit) {
     this.buffer = new DispatchingMessageBufferOutput(new DispatchingMessageBufferOutput.Output() {
       @Override
       public void accept(int traceCount, int representativeCount, ByteBuffer buffer) {
@@ -57,6 +59,7 @@ public class TraceProcessor implements AutoCloseable, Runnable {
     this.monitor = monitor;
     this.queue = queue;
     this.ddAgentWriter = ddAgentWriter;
+    this.traceProcessor = traceProcessor;
     this.packer = MessagePack.newDefaultPacker(buffer);
     this.flushDurationMillis = timeUnit.toMillis(flushFrequency);
     this.nextFlushMillis = flushFrequency == -1L ? Long.MAX_VALUE : nowMillis() + flushDurationMillis;
@@ -81,7 +84,7 @@ public class TraceProcessor implements AutoCloseable, Runnable {
         queue.drainTo(traces, 1023);
         for (List<DDSpan> trace : traces) {
           try {
-            MSGPACK_WRITER.writeTrace(trace, packer);
+            MSGPACK_WRITER.writeTrace(traceProcessor.onTraceComplete(trace), packer);
             buffer.onTraceWritten();
           } catch (final Throwable e) {
             if (log.isDebugEnabled()) {
