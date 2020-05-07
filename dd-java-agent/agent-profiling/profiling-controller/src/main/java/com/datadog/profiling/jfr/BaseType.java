@@ -7,16 +7,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /** Common JFR type super-class */
-abstract class BaseJFRType implements JFRType {
+abstract class BaseType implements Type {
   private final long id;
   private final String name;
   private final String supertype;
   private final ConstantPools constantPools;
   private final Metadata metadata;
-  private AtomicReference<TypedValue> nullValue = new AtomicReference<>();
+  private final AtomicReference<TypedValue> nullValue = new AtomicReference<>();
 
-  BaseJFRType(
-      long id, String name, String supertype, ConstantPools constantPools, Metadata metadata) {
+  BaseType(long id, String name, String supertype, ConstantPools constantPools, Metadata metadata) {
     this.id = id;
     this.name = name;
     this.supertype = supertype;
@@ -24,7 +23,7 @@ abstract class BaseJFRType implements JFRType {
     this.metadata = metadata;
   }
 
-  BaseJFRType(long id, String name, ConstantPools constantPools, Metadata metadata) {
+  BaseType(long id, String name, ConstantPools constantPools, Metadata metadata) {
     this(id, name, null, constantPools, metadata);
   }
 
@@ -65,52 +64,55 @@ abstract class BaseJFRType implements JFRType {
 
   @Override
   public TypedValue asValue(String value) {
-    return isBuiltin() ? TypedValue.of(this, value) : null;
+    return TypedValue.of(this, value);
   }
 
   @Override
   public TypedValue asValue(byte value) {
-    return isBuiltin() ? TypedValue.of(this, value) : null;
+    return TypedValue.of(this, value);
   }
 
   @Override
   public TypedValue asValue(char value) {
-    return isBuiltin() ? TypedValue.of(this, value) : null;
+    return TypedValue.of(this, value);
   }
 
   @Override
   public TypedValue asValue(short value) {
-    return isBuiltin() ? TypedValue.of(this, value) : null;
+    return TypedValue.of(this, value);
   }
 
   @Override
   public TypedValue asValue(int value) {
-    return isBuiltin() ? TypedValue.of(this, value) : null;
+    return TypedValue.of(this, value);
   }
 
   @Override
   public TypedValue asValue(long value) {
-    return isBuiltin() ? TypedValue.of(this, value) : null;
+    return TypedValue.of(this, value);
   }
 
   @Override
   public TypedValue asValue(float value) {
-    return isBuiltin() ? TypedValue.of(this, value) : null;
+    return TypedValue.of(this, value);
   }
 
   @Override
   public TypedValue asValue(double value) {
-    return isBuiltin() ? TypedValue.of(this, value) : null;
+    return TypedValue.of(this, value);
   }
 
   @Override
   public TypedValue asValue(boolean value) {
-    return isBuiltin() ? TypedValue.of(this, value) : null;
+    return TypedValue.of(this, value);
   }
 
   @Override
   public TypedValue asValue(Consumer<TypeValueBuilder> builderCallback) {
-    return isBuiltin() ? null : TypedValue.of(this, builderCallback);
+    if (isBuiltin()) {
+      throw new IllegalArgumentException();
+    }
+    return TypedValue.of(this, builderCallback);
   }
 
   @Override
@@ -129,11 +131,11 @@ abstract class BaseJFRType implements JFRType {
   }
 
   @Override
-  public boolean isUsedBy(JFRType other) {
+  public boolean isUsedBy(Type other) {
     return isUsedBy(this, other, new HashSet<>());
   }
 
-  private static boolean isUsedBy(JFRType type1, JFRType type2, HashSet<JFRType> track) {
+  private static boolean isUsedBy(Type type1, Type type2, HashSet<Type> track) {
     if (!track.add(type2)) {
       return false;
     }
@@ -156,7 +158,7 @@ abstract class BaseJFRType implements JFRType {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    BaseJFRType that = (BaseJFRType) o;
+    BaseType that = (BaseType) o;
     return id == that.id && name.equals(that.name);
   }
 

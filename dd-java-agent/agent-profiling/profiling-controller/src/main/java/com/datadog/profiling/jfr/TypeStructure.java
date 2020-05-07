@@ -9,9 +9,9 @@ final class TypeStructure {
       new TypeStructure(Collections.emptyList(), Collections.emptyList());
 
   final List<TypedField> fields;
-  final List<JFRAnnotation> annotations;
+  final List<Annotation> annotations;
 
-  TypeStructure(List<TypedField> fields, List<JFRAnnotation> annotations) {
+  TypeStructure(List<TypedField> fields, List<Annotation> annotations) {
     this.fields = fields;
     this.annotations = annotations;
   }

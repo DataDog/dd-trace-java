@@ -3,13 +3,13 @@ package com.datadog.profiling.jfr;
 import java.util.List;
 import java.util.function.Consumer;
 
-class ResolvableJFRType implements JFRType {
+class ResolvableType implements Type {
   private final String typeName;
   private final Metadata metadata;
 
-  private volatile JFRType delegate;
+  private volatile Type delegate;
 
-  ResolvableJFRType(String typeName, Metadata metadata) {
+  ResolvableType(String typeName, Metadata metadata) {
     this.typeName = typeName;
     this.metadata = metadata;
   }
@@ -146,7 +146,7 @@ class ResolvableJFRType implements JFRType {
   }
 
   @Override
-  public List<JFRAnnotation> getAnnotations() {
+  public List<Annotation> getAnnotations() {
     checkResolved();
     return delegate.getAnnotations();
   }
@@ -169,14 +169,14 @@ class ResolvableJFRType implements JFRType {
   }
 
   @Override
-  public boolean isUsedBy(JFRType other) {
+  public boolean isUsedBy(Type other) {
     checkResolved();
     return delegate.isUsedBy(other);
   }
 
   boolean resolve() {
-    JFRType resolved = metadata.getType(typeName, false);
-    if (resolved instanceof BaseJFRType) {
+    Type resolved = metadata.getType(typeName, false);
+    if (resolved instanceof BaseType) {
       delegate = resolved;
       return true;
     }

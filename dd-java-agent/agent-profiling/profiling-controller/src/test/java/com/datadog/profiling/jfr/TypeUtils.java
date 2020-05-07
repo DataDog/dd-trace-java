@@ -18,4 +18,9 @@ public class TypeUtils {
     BUILTIN_VALUE_MAP.put(Types.Builtin.DOUBLE, Math.sqrt(2d));
     BUILTIN_VALUE_MAP.put(Types.Builtin.STRING, "hello");
   }
+
+  @SuppressWarnings("unchecked")
+  public static <T> T getBuiltinValue(Types.Builtin target, Class<T> type) {
+    return (T)BUILTIN_VALUE_MAP.get(target);
+  }
 }

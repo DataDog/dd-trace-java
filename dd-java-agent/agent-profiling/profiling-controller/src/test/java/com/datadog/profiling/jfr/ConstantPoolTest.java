@@ -16,7 +16,7 @@ class ConstantPoolTest {
 
   @BeforeEach
   void setUp() {
-    JFRType type = Mockito.mock(JFRType.class);
+    Type type = Mockito.mock(Type.class);
     Mockito.when(type.canAccept(ArgumentMatchers.any())).thenReturn(true);
 
     TypedValue nullValue = new TypedValue(type, null, 0);

@@ -8,11 +8,11 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * A wrapping type for a typed value. It has an associated {@linkplain JFRType} and a value (or an
+ * A wrapping type for a typed value. It has an associated {@linkplain Type} and a value (or an
  * index to constant-pool for that value).
  */
 public final class TypedValue {
-  private final JFRType type;
+  private final Type type;
   private final Object value;
   private final long cpIndex;
   private final Map<String, TypedFieldValue> fields;
@@ -26,7 +26,7 @@ public final class TypedValue {
    * @param builderCallback will be called to initialize the {@linkplain TypedValue} instance lazily
    * @return a {@linkplain TypedValue} instance; either new or retrieved from the constant pool
    */
-  public static TypedValue of(JFRType type, Consumer<TypeValueBuilder> builderCallback) {
+  public static TypedValue of(Type type, Consumer<TypeValueBuilder> builderCallback) {
     TypedValue checkValue = new TypedValue(type, builderCallback);
     if (type.hasConstantPool()) {
       return type.getConstantPool().addOrGet(checkValue);
@@ -42,7 +42,7 @@ public final class TypedValue {
    * @param value the value
    * @return a {@linkplain TypedValue} instance; either new or retrieved from the constant pool
    */
-  public static TypedValue of(JFRType type, Object value) {
+  public static TypedValue of(Type type, Object value) {
     if (type.hasConstantPool()) {
       return type.getConstantPool().addOrGet(value);
     }
@@ -56,7 +56,7 @@ public final class TypedValue {
    * @param type the value type
    * @return a null {@linkplain TypedValue} instance
    */
-  public static TypedValue ofNull(JFRType type) {
+  public static TypedValue ofNull(Type type) {
     if (!type.canAccept(null)) {
       throw new IllegalArgumentException();
     }
@@ -79,7 +79,7 @@ public final class TypedValue {
   }
 
   @SuppressWarnings("unchecked")
-  TypedValue(JFRType type, Object value, long cpIndex) {
+  TypedValue(Type type, Object value, long cpIndex) {
     if (!type.canAccept(value)) {
       throw new IllegalArgumentException();
     }
@@ -91,11 +91,11 @@ public final class TypedValue {
     this.cpIndex = cpIndex;
   }
 
-  private TypedValue(JFRType type, Consumer<TypeValueBuilder> fieldAccessTarget) {
+  private TypedValue(Type type, Consumer<TypeValueBuilder> fieldAccessTarget) {
     this(type, getFieldValues(type, fieldAccessTarget));
   }
 
-  private TypedValue(JFRType type, Map<String, TypedFieldValue> fields) {
+  private TypedValue(Type type, Map<String, TypedFieldValue> fields) {
     this.type = type;
     this.value = null;
     this.fields = fields;
@@ -104,14 +104,14 @@ public final class TypedValue {
   }
 
   private static Map<String, TypedFieldValue> getFieldValues(
-      JFRType type, Consumer<TypeValueBuilder> fieldAccessTarget) {
+      Type type, Consumer<TypeValueBuilder> fieldAccessTarget) {
     TypeValueBuilderImpl access = new TypeValueBuilderImpl(type);
     fieldAccessTarget.accept(access);
     return access.build();
   }
 
   /** @return the type */
-  public JFRType getType() {
+  public Type getType() {
     return type;
   }
 

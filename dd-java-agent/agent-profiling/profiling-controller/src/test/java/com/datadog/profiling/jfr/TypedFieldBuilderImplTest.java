@@ -19,21 +19,21 @@ class TypedFieldBuilderImplTest {
   private static final String ANNOTATION_LABEL = "test.Label";
 
   private TypedFieldBuilderImpl instance;
-  private JFRType stringType;
-  private JFRType customType;
-  private JFRType annotationType;
+  private Type stringType;
+  private Type customType;
+  private Type annotationType;
 
   @BeforeEach
   void setUp() {
     Metadata metadata = Mockito.mock(Metadata.class);
     ConstantPools constantPools = Mockito.mock(ConstantPools.class);
 
-    stringType = new BuiltinJFRType(1, Types.Builtin.STRING, constantPools, metadata);
+    stringType = new BuiltinType(1, Types.Builtin.STRING, constantPools, metadata);
 
     List<TypedField> customTypeFields =
         Collections.singletonList(new TypedField(stringType, "item"));
     customType =
-        new CustomJFRType(
+        new CustomType(
             2,
             CUSTOM_TYPE_NAME,
             null,
@@ -42,10 +42,10 @@ class TypedFieldBuilderImplTest {
             metadata);
 
     annotationType =
-        new CustomJFRType(
+        new CustomType(
             3,
             ANNOTATION_TYPE_NAME,
-            JFRAnnotation.ANNOTATION_SUPER_TYPE_NAME,
+            Annotation.ANNOTATION_SUPER_TYPE_NAME,
             new TypeStructure(
                 Collections.singletonList(new TypedField(stringType, "value")),
                 Collections.emptyList()),
@@ -76,7 +76,7 @@ class TypedFieldBuilderImplTest {
     assertEquals(customType, field.getType());
 
     assertEquals(1, field.getAnnotations().size());
-    JFRAnnotation annotation = field.getAnnotations().get(0);
+    Annotation annotation = field.getAnnotations().get(0);
     assertEquals(annotationType, annotation.type);
     assertNull(annotation.value);
   }
@@ -90,7 +90,7 @@ class TypedFieldBuilderImplTest {
     assertEquals(customType, field.getType());
 
     assertEquals(1, field.getAnnotations().size());
-    JFRAnnotation annotation = field.getAnnotations().get(0);
+    Annotation annotation = field.getAnnotations().get(0);
     assertEquals(annotationType, annotation.type);
     assertNull(annotation.value);
   }
@@ -104,7 +104,7 @@ class TypedFieldBuilderImplTest {
     assertEquals(customType, field.getType());
 
     assertEquals(1, field.getAnnotations().size());
-    JFRAnnotation annotation = field.getAnnotations().get(0);
+    Annotation annotation = field.getAnnotations().get(0);
     assertEquals(annotationType, annotation.type);
     assertEquals(ANNOTATION_LABEL, annotation.value);
   }
@@ -118,7 +118,7 @@ class TypedFieldBuilderImplTest {
     assertEquals(customType, field.getType());
 
     assertEquals(1, field.getAnnotations().size());
-    JFRAnnotation annotation = field.getAnnotations().get(0);
+    Annotation annotation = field.getAnnotations().get(0);
     assertEquals(annotationType, annotation.type);
     assertEquals(ANNOTATION_LABEL, annotation.value);
   }

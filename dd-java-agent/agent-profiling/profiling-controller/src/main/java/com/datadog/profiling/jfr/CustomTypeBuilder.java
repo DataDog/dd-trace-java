@@ -9,11 +9,15 @@ public interface CustomTypeBuilder {
   CustomTypeBuilder addField(
       String name, Types.Predefined type, Consumer<TypedFieldBuilder> fieldCallback);
 
-  CustomTypeBuilder addField(String name, JFRType type);
+  CustomTypeBuilder addField(String name, Type type);
 
-  CustomTypeBuilder addField(String name, JFRType type, Consumer<TypedFieldBuilder> fieldCallback);
+  CustomTypeBuilder addField(String name, Type type, Consumer<TypedFieldBuilder> fieldCallback);
 
-  CustomTypeBuilder addAnnotation(JFRType type);
+  CustomTypeBuilder addAnnotation(Type type);
 
-  CustomTypeBuilder addAnnotation(JFRType type, String value);
+  CustomTypeBuilder addAnnotation(Type type, String value);
+
+  default Type selfType() {
+    return SelfType.INSTANCE;
+  }
 }

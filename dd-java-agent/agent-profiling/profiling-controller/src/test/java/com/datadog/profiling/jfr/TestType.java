@@ -2,7 +2,7 @@ package com.datadog.profiling.jfr;
 
 import java.util.List;
 
-abstract class TestType extends BaseJFRType {
+abstract class TestType extends BaseType {
   public TestType(
       long id, String name, String supertype, ConstantPools constantPools, Metadata metadata) {
     super(id, name, supertype, constantPools, metadata);
@@ -24,7 +24,7 @@ abstract class TestType extends BaseJFRType {
   }
 
   @Override
-  public List<JFRAnnotation> getAnnotations() {
+  public List<Annotation> getAnnotations() {
     throw new IllegalArgumentException();
   }
 

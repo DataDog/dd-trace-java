@@ -30,7 +30,7 @@ class TypedValueTest {
 
   @Test
   void ofBuiltinNonCp() {
-    JFRType type = types.getType(Types.Builtin.INT);
+    Type type = types.getType(Types.Builtin.INT);
     TypedValue value = TypedValue.of(type, 1);
     assertNotNull(value);
     assertEquals(type, value.getType());
@@ -40,7 +40,7 @@ class TypedValueTest {
 
   @Test
   void ofBuiltinCp() {
-    JFRType type = types.getType(Types.Builtin.STRING);
+    Type type = types.getType(Types.Builtin.STRING);
     String targetValue = "hello";
     TypedValue value = TypedValue.of(type, targetValue);
     assertNotNull(value);
@@ -53,7 +53,7 @@ class TypedValueTest {
   @Test
   void ofCustom() {
     String targetValue = "hello";
-    JFRType type =
+    Type type =
         types.getOrAdd(
             "type.Custom",
             t -> {
@@ -79,7 +79,7 @@ class TypedValueTest {
         new TypeStructure(
             Collections.singletonList(new TypedField(types.getType(Types.Builtin.STRING), "field")),
             Collections.emptyList());
-    CustomJFRType nonCpType = new CustomJFRType(1234, "test.Type", null, structure, null, metadata);
+    CustomType nonCpType = new CustomType(1234, "test.Type", null, structure, null, metadata);
 
     TypedValue typedValue =
         TypedValue.of(
@@ -114,7 +114,7 @@ class TypedValueTest {
 
   @Test
   void ofNullCustom() {
-    JFRType type =
+    Type type =
         types.getOrAdd(
             "type.Custom",
             t -> {
@@ -126,7 +126,7 @@ class TypedValueTest {
   @Test
   void copyBuiltinWithCp() {
     int newCpIndex = 10;
-    JFRType type = types.getType(Types.Builtin.STRING);
+    Type type = types.getType(Types.Builtin.STRING);
     String targetValue = "hello";
     TypedValue value = new TypedValue(type, targetValue, -1);
 
@@ -139,7 +139,7 @@ class TypedValueTest {
     int newCpIndex = 10;
     String targetValue = "hello";
 
-    JFRType type =
+    Type type =
         types.getOrAdd(
             "type.Custom",
             t -> {
@@ -161,7 +161,7 @@ class TypedValueTest {
 
   @Test
   void getFieldValues() {
-    JFRType type =
+    Type type =
         types.getOrAdd(
             "type.Custom",
             t -> {
@@ -190,8 +190,8 @@ class TypedValueTest {
 
   @Test
   void testEquality() {
-    JFRType type1 = types.getType(Types.Builtin.STRING);
-    JFRType type2 =
+    Type type1 = types.getType(Types.Builtin.STRING);
+    Type type2 =
         types.getOrAdd(
             "type.Custom",
             t -> {

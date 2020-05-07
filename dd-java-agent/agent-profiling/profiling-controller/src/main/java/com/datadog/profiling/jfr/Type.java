@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /** A JFR type */
-public interface JFRType extends NamedType {
+public interface Type extends NamedType {
   /** @return unique type ID */
   long getId();
 
@@ -31,13 +31,14 @@ public interface JFRType extends NamedType {
 
   TypedField getField(String name);
 
-  List<JFRAnnotation> getAnnotations();
+  List<Annotation> getAnnotations();
 
   /**
    * Checks whether the type can accept the given value
    *
    * @param value the value to check
    * @return {@literal true} only if the type can safely hold the value
+   * @throws IllegalArgumentException if the type can not accept the given value
    */
   boolean canAccept(Object value);
 
@@ -46,6 +47,7 @@ public interface JFRType extends NamedType {
    *
    * @param value the value to wrap
    * @return a {@linkplain TypedValue} object representing the typed value
+   * @throws IllegalArgumentException if the type can not accept the given value
    */
   TypedValue asValue(String value);
 
@@ -54,6 +56,7 @@ public interface JFRType extends NamedType {
    *
    * @param value the value to wrap
    * @return a {@linkplain TypedValue} object representing the typed value
+   * @throws IllegalArgumentException if the type can not accept the given value
    */
   TypedValue asValue(byte value);
 
@@ -62,6 +65,7 @@ public interface JFRType extends NamedType {
    *
    * @param value the value to wrap
    * @return a {@linkplain TypedValue} object representing the typed value
+   * @throws IllegalArgumentException if the type can not accept the given value
    */
   TypedValue asValue(char value);
 
@@ -70,6 +74,7 @@ public interface JFRType extends NamedType {
    *
    * @param value the value to wrap
    * @return a {@linkplain TypedValue} object representing the typed value
+   * @throws IllegalArgumentException if the type can not accept the given value
    */
   TypedValue asValue(short value);
 
@@ -78,6 +83,7 @@ public interface JFRType extends NamedType {
    *
    * @param value the value to wrap
    * @return a {@linkplain TypedValue} object representing the typed value
+   * @throws IllegalArgumentException if the type can not accept the given value
    */
   TypedValue asValue(int value);
 
@@ -86,6 +92,7 @@ public interface JFRType extends NamedType {
    *
    * @param value the value to wrap
    * @return a {@linkplain TypedValue} object representing the typed value
+   * @throws IllegalArgumentException if the type can not accept the given value
    */
   TypedValue asValue(long value);
 
@@ -94,6 +101,7 @@ public interface JFRType extends NamedType {
    *
    * @param value the value to wrap
    * @return a {@linkplain TypedValue} object representing the typed value
+   * @throws IllegalArgumentException if the type can not accept the given value
    */
   TypedValue asValue(float value);
 
@@ -102,6 +110,7 @@ public interface JFRType extends NamedType {
    *
    * @param value the value to wrap
    * @return a {@linkplain TypedValue} object representing the typed value
+   * @throws IllegalArgumentException if the type can not accept the given value
    */
   TypedValue asValue(double value);
 
@@ -110,6 +119,7 @@ public interface JFRType extends NamedType {
    *
    * @param value the value to wrap
    * @return a {@linkplain TypedValue} object representing the typed value
+   * @throws IllegalArgumentException if the type can not accept the given value
    */
   TypedValue asValue(boolean value);
 
@@ -118,6 +128,7 @@ public interface JFRType extends NamedType {
    *
    * @param builderCallback will be called when the new {@linkplain TypedValue} is being initialized
    * @return a {@linkplain TypedValue} object representing the typed value
+   * @throws IllegalArgumentException if the type can not be used with builder callback
    */
   TypedValue asValue(Consumer<TypeValueBuilder> builderCallback);
 
@@ -132,5 +143,5 @@ public interface JFRType extends NamedType {
 
   Metadata getMetadata();
 
-  boolean isUsedBy(JFRType other);
+  boolean isUsedBy(Type other);
 }

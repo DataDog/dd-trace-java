@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.datadog.profiling.jfr.JFRType;
-import com.datadog.profiling.jfr.JFRWriter;
+import com.datadog.profiling.jfr.Recording;
+import com.datadog.profiling.jfr.Type;
 import com.datadog.profiling.jfr.TypedValue;
 import com.datadog.profiling.jfr.Types;
 import java.io.File;
@@ -32,16 +32,16 @@ class JfrChunkTest {
 
   @Test
   void writeEvent() throws Exception {
-    JFRWriter writer = new JFRWriter();
+    Recording writer = new Recording();
 
-    JFRType customSimpleType =
+    Type customSimpleType =
         writer.registerType(
             "com.datadog.types.Simple",
             b -> {
               b.addField("message", Types.Builtin.STRING);
             });
 
-    JFRType eventType =
+    Type eventType =
         writer.registerEventType(
             "dd.SampleEvent",
             eventTypeBuilder -> {

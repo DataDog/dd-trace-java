@@ -3,26 +3,26 @@ package com.datadog.profiling.jfr;
 import java.util.function.Consumer;
 
 /**
- * The main entry point to JFR writer functionality. Allows to define custom types and initiate
- * {@link JFRChunk chunks} for writing user events.
+ * The main entry point to JFR recording functionality. Allows to define custom types and initiate
+ * {@link Chunk chunks} for writing user events.
  */
-public final class JFRWriter {
+public final class Recording {
   private final ConstantPools constantPools = new ConstantPools();
   private final Metadata metadata = new Metadata(constantPools);
   private final Types types = new Types(metadata);
 
-  public JFRWriter() {}
+  public Recording() {}
 
   /**
    * Start a new chunk.<br>
    * A chunk is a self-contained JFR data set which can stored to disk and read back by eg. Mission
    * Control
    *
-   * @return a fresh new {@linkplain JFRChunk}
+   * @return a fresh new {@linkplain Chunk}
    */
-  public JFRChunk newChunk() {
+  public Chunk newChunk() {
     types.resolveAll(); // first resolve all dangling resolvable types
-    return new JFRChunk(metadata, constantPools, types);
+    return new Chunk(metadata, constantPools);
   }
 
   /**
@@ -32,7 +32,7 @@ public final class JFRWriter {
    * @param name the event name
    * @return a user event type of the given name
    */
-  public JFRType registerEventType(String name) {
+  public Type registerEventType(String name) {
     return registerEventType(name, builder -> {});
   }
 
@@ -44,7 +44,7 @@ public final class JFRWriter {
    *     event is newly registered
    * @return a user event type of the given name
    */
-  public JFRType registerEventType(String name, Consumer<CustomTypeBuilder> builderCallback) {
+  public Type registerEventType(String name, Consumer<CustomTypeBuilder> builderCallback) {
     return registerType(
         name,
         "jdk.jfr.Event",
@@ -69,8 +69,8 @@ public final class JFRWriter {
    *     annotation is newly registered
    * @return a user annotation type of the given name
    */
-  public JFRType registerAnnotationType(String name, Consumer<CustomTypeBuilder> builderCallback) {
-    return registerType(name, JFRAnnotation.ANNOTATION_SUPER_TYPE_NAME, builderCallback);
+  public Type registerAnnotationType(String name, Consumer<CustomTypeBuilder> builderCallback) {
+    return registerType(name, Annotation.ANNOTATION_SUPER_TYPE_NAME, builderCallback);
   }
 
   /**
@@ -81,7 +81,7 @@ public final class JFRWriter {
    *     type is newly registered
    * @return a custom type of the given name
    */
-  public JFRType registerType(String name, Consumer<CustomTypeBuilder> builderCallback) {
+  public Type registerType(String name, Consumer<CustomTypeBuilder> builderCallback) {
     return registerType(name, null, builderCallback);
   }
 
@@ -94,7 +94,7 @@ public final class JFRWriter {
    *     type is newly registered
    * @return a custom type of the given name
    */
-  public JFRType registerType(
+  public Type registerType(
       String name, String supertype, Consumer<CustomTypeBuilder> builderCallback) {
     return types.getOrAdd(name, supertype, builderCallback);
   }
@@ -106,7 +106,7 @@ public final class JFRWriter {
    * @return the previously registered JDK type
    * @throws IllegalArgumentException if an attempt to retrieve non-registered JDK type is made
    */
-  public JFRType getType(Types.JDK type) {
+  public Type getType(Types.JDK type) {
     return getType(type.getTypeName());
   }
 
@@ -117,8 +117,8 @@ public final class JFRWriter {
    * @return the previously registered custom type
    * @throws IllegalArgumentException if an attempt to retrieve non-registered custom type is made
    */
-  public JFRType getType(String typeName) {
-    JFRType type = types.getType(typeName);
+  public Type getType(String typeName) {
+    Type type = types.getType(typeName);
     if (type == null) {
       throw new IllegalArgumentException();
     }

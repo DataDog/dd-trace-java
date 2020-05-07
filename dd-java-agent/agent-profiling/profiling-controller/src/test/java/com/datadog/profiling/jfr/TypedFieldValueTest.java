@@ -15,7 +15,7 @@ class TypedFieldValueTest {
 
   @Test
   void testArrayForScalarField() {
-    JFRType type = types.getType(Types.Builtin.STRING);
+    Type type = types.getType(Types.Builtin.STRING);
     TypedField field = new TypedField(type, "field");
     TypedValue value = type.asValue("hello");
 
@@ -26,7 +26,7 @@ class TypedFieldValueTest {
 
   @Test
   void testScalarValue() {
-    JFRType type = types.getType(Types.Builtin.STRING);
+    Type type = types.getType(Types.Builtin.STRING);
     TypedField field = new TypedField(type, "field");
     TypedValue value = type.asValue("hello");
 
@@ -40,7 +40,7 @@ class TypedFieldValueTest {
 
   @Test
   void testArrayValue() {
-    JFRType type = types.getType(Types.Builtin.STRING);
+    Type type = types.getType(Types.Builtin.STRING);
     TypedField field = new TypedField(type, "field", true);
     TypedValue value1 = type.asValue("hello");
     TypedValue value2 = type.asValue("world");

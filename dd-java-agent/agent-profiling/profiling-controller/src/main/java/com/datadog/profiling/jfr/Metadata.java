@@ -29,10 +29,10 @@ final class Metadata {
 
   private final AtomicLong typeCounter = new AtomicLong(1);
   private final ConstantPools constantPools;
-  private final Map<String, JFRType> metadata = new HashMap<>();
+  private final Map<String, Type> metadata = new HashMap<>();
   private final Map<String, Integer> stringTable = new HashMap<>();
   private final Map<Integer, String> reverseStringTable = new TreeMap<>();
-  private final Set<ResolvableJFRType> unresolvedTypes = new HashSet<>();
+  private final Set<ResolvableType> unresolvedTypes = new HashSet<>();
 
   Metadata(ConstantPools constantPools) {
     this.constantPools = constantPools;
@@ -64,21 +64,21 @@ final class Metadata {
    * @param typeDef a {@link com.datadog.profiling.jfr.Types.Builtin built-in} type
    */
   void registerBuiltin(Types.Builtin typeDef) {
-    JFRType type = metadata.computeIfAbsent(typeDef.getTypeName(), this::createBuiltinType);
+    Type type = metadata.computeIfAbsent(typeDef.getTypeName(), this::createBuiltinType);
     storeTypeStrings(type);
   }
 
   /**
-   * Resolve all dangling unresolved {@link ResolvableJFRType resolvable types}. This needs to be
-   * done if some of the type definitions are using forward references to not yet registered types.
+   * Resolve all dangling unresolved {@link ResolvableType resolvable types}. This needs to be done
+   * if some of the type definitions are using forward references to not yet registered types.
    */
   void resolveTypes() {
-    unresolvedTypes.removeIf(ResolvableJFRType::resolve);
+    unresolvedTypes.removeIf(ResolvableType::resolve);
   }
 
-  JFRType registerType(
+  Type registerType(
       String typeName, String supertype, Supplier<TypeStructure> typeStructureProvider) {
-    JFRType type = metadata.get(typeName);
+    Type type = metadata.get(typeName);
     if (type == null) {
       type =
           createCustomType(
@@ -95,16 +95,16 @@ final class Metadata {
    * Retrieve a type with the given name.
    *
    * @param name the type name
-   * @param asResolvable if the type is not found to be registered should a {@link ResolvableJFRType
+   * @param asResolvable if the type is not found to be registered should a {@link ResolvableType
    *     resolvable} wrapper be returned instead?
    * @return the type of the given name
    */
-  JFRType getType(String name, boolean asResolvable) {
-    JFRType found = metadata.get(name);
+  Type getType(String name, boolean asResolvable) {
+    Type found = metadata.get(name);
     if (found == null) {
       if (asResolvable) {
-        found = new ResolvableJFRType(name, this);
-        unresolvedTypes.add((ResolvableJFRType) found);
+        found = new ResolvableType(name, this);
+        unresolvedTypes.add((ResolvableType) found);
       }
     }
     return found;
@@ -117,12 +117,12 @@ final class Metadata {
    * @return new built-in type
    * @throws IllegalArgumentException if a the type name is not representing a built-in
    */
-  JFRType createBuiltinType(String name) {
+  Type createBuiltinType(String name) {
     if (!Types.Builtin.hasType(name)) {
       throw new IllegalArgumentException();
     }
     Types.Builtin type = Types.Builtin.ofName(name);
-    return new BuiltinJFRType(
+    return new BuiltinType(
         typeCounter.getAndIncrement(),
         type,
         type == Types.Builtin.STRING ? constantPools : null,
@@ -138,11 +138,11 @@ final class Metadata {
    * @return new custom type
    * @throws IllegalArgumentException if the name belongs to one of the built-in types
    */
-  JFRType createCustomType(String name, String supertype, TypeStructure structure) {
+  Type createCustomType(String name, String supertype, TypeStructure structure) {
     if (Types.Builtin.hasType(name)) {
       throw new IllegalArgumentException();
     }
-    return new CustomJFRType(
+    return new CustomType(
         typeCounter.getAndIncrement(),
         name,
         supertype,
@@ -152,11 +152,11 @@ final class Metadata {
         this);
   }
 
-  JFRType getType(NamedType type, boolean asResolvable) {
+  Type getType(NamedType type, boolean asResolvable) {
     return getType(type.getTypeName(), asResolvable);
   }
 
-  private void storeTypeStrings(JFRType type) {
+  private void storeTypeStrings(Type type) {
     storeString(type.getTypeName());
     if (type.getSupertype() != null) {
       storeString(type.getSupertype());
@@ -169,8 +169,8 @@ final class Metadata {
     storeAnnotationStrings(type.getAnnotations());
   }
 
-  private void storeAnnotationStrings(List<JFRAnnotation> annotations) {
-    for (JFRAnnotation annotation : annotations) {
+  private void storeAnnotationStrings(List<Annotation> annotations) {
+    for (Annotation annotation : annotations) {
       if (annotation.value != null) {
         storeString(annotation.value);
       }
@@ -229,7 +229,7 @@ final class Metadata {
         .writeInt(stringIndex(METADATA_KEY))
         .writeInt(0) // 0 attributes
         .writeInt(metadata.size()); // metadata.size() elements
-    for (JFRType type : metadata.values()) {
+    for (Type type : metadata.values()) {
       writeType(metaWriter, type);
     }
   }
@@ -249,7 +249,7 @@ final class Metadata {
         .writeInt(stringTable.size());
   }
 
-  private void writeType(ByteArrayWriter writer, JFRType type) {
+  private void writeType(ByteArrayWriter writer, Type type) {
     int attributes = 2;
     if (type.getSupertype() != null) {
       attributes++;
@@ -275,14 +275,14 @@ final class Metadata {
     writeTypeAnnotations(writer, type);
   }
 
-  private void writeTypeFields(ByteArrayWriter writer, JFRType type) {
+  private void writeTypeFields(ByteArrayWriter writer, Type type) {
     for (TypedField field : type.getFields()) {
       writeField(writer, field);
     }
   }
 
-  private void writeTypeAnnotations(ByteArrayWriter writer, JFRType type) {
-    for (JFRAnnotation annotation : type.getAnnotations()) {
+  private void writeTypeAnnotations(ByteArrayWriter writer, Type type) {
+    for (Annotation annotation : type.getAnnotations()) {
       writeAnnotation(writer, annotation);
     }
   }
@@ -317,12 +317,12 @@ final class Metadata {
 
   private void writeFieldAnnotations(ByteArrayWriter writer, TypedField field) {
     writer.writeInt(field.getAnnotations().size()); // annotations are the only sub-elements
-    for (JFRAnnotation annotation : field.getAnnotations()) {
+    for (Annotation annotation : field.getAnnotations()) {
       writeAnnotation(writer, annotation);
     }
   }
 
-  private void writeAnnotation(ByteArrayWriter writer, JFRAnnotation annotation) {
+  private void writeAnnotation(ByteArrayWriter writer, Annotation annotation) {
     writer.writeInt(stringIndex(ANNOTATION_KEY));
 
     writer

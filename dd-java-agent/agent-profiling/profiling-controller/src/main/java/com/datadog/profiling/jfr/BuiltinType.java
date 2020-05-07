@@ -4,10 +4,10 @@ import java.util.Collections;
 import java.util.List;
 
 /** A built-in type. Corresponds to a Java primitive type or {@link java.lang.String String} */
-final class BuiltinJFRType extends BaseJFRType {
+final class BuiltinType extends BaseType {
   private final Types.Builtin builtin;
 
-  BuiltinJFRType(long id, Types.Builtin type, ConstantPools constantPools, Metadata metadata) {
+  BuiltinType(long id, Types.Builtin type, ConstantPools constantPools, Metadata metadata) {
     super(id, type.getTypeName(), constantPools, metadata);
     this.builtin = type;
   }
@@ -28,7 +28,7 @@ final class BuiltinJFRType extends BaseJFRType {
   }
 
   @Override
-  public List<JFRAnnotation> getAnnotations() {
+  public List<Annotation> getAnnotations() {
     return Collections.emptyList();
   }
 

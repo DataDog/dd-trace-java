@@ -39,7 +39,7 @@ public class MetadataTest {
   @Test
   public void resolveTypes() {
     // try to get a non-existing type
-    JFRType resolvable = instance.getType(TYPE_NAME, true);
+    Type resolvable = instance.getType(TYPE_NAME, true);
     assertFalse(resolvable.isResolved());
     assertEquals(TYPE_NAME, resolvable.getTypeName());
 
@@ -60,7 +60,7 @@ public class MetadataTest {
 
   @Test
   public void registerType() {
-    JFRType type = instance.registerType(TYPE_NAME, "type.Super", () -> TypeStructure.EMPTY);
+    Type type = instance.registerType(TYPE_NAME, "type.Super", () -> TypeStructure.EMPTY);
     assertNotNull(type);
     assertNotNull(type.getFields());
     assertNotNull(type.getAnnotations());
@@ -85,7 +85,7 @@ public class MetadataTest {
   @Test
   void createValidBuiltinType() {
     String typeName = Types.Builtin.BYTE.getTypeName();
-    JFRType type = instance.createBuiltinType(typeName);
+    Type type = instance.createBuiltinType(typeName);
     assertNotNull(type);
     assertTrue(type.isBuiltin());
     assertEquals(typeName, type.getTypeName());
@@ -94,11 +94,11 @@ public class MetadataTest {
   @Test
   void createDuplicateBuiltinType() {
     String typeName = Types.Builtin.BYTE.getTypeName();
-    JFRType type1 = instance.createBuiltinType(typeName);
+    Type type1 = instance.createBuiltinType(typeName);
     assertNotNull(type1);
     assertTrue(type1.isBuiltin());
 
-    JFRType type2 = instance.createBuiltinType(typeName);
+    Type type2 = instance.createBuiltinType(typeName);
     assertNotNull(type2);
     assertTrue(type2.isBuiltin());
     assertEquals(type1.getTypeName(), type2.getTypeName());
@@ -116,7 +116,7 @@ public class MetadataTest {
   @Test
   void createCustomTypeNullStructure() {
     String typeName = "dummy.Test";
-    JFRType type = instance.createCustomType(typeName, null, null);
+    Type type = instance.createCustomType(typeName, null, null);
     assertNotNull(type);
     assertFalse(type.isBuiltin());
     assertEquals(typeName, type.getTypeName());
@@ -128,7 +128,7 @@ public class MetadataTest {
   void createCustomType() {
     String typeName = "dummy.Test";
     String superName = "super.Type";
-    JFRType type = instance.createCustomType(typeName, superName, TypeStructure.EMPTY);
+    Type type = instance.createCustomType(typeName, superName, TypeStructure.EMPTY);
     assertNotNull(type);
     assertFalse(type.isBuiltin());
     assertEquals(typeName, type.getTypeName());
@@ -142,11 +142,11 @@ public class MetadataTest {
     String typeName = "dummy.Test";
     String superName = "super.Type";
 
-    JFRType type1 = instance.createCustomType(typeName, superName, TypeStructure.EMPTY);
+    Type type1 = instance.createCustomType(typeName, superName, TypeStructure.EMPTY);
     assertNotNull(type1);
     assertFalse(type1.isBuiltin());
 
-    JFRType type2 = instance.createCustomType(typeName, superName, TypeStructure.EMPTY);
+    Type type2 = instance.createCustomType(typeName, superName, TypeStructure.EMPTY);
     assertNotNull(type2);
     assertFalse(type2.isBuiltin());
     assertEquals(type1.getTypeName(), type2.getTypeName());

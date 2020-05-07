@@ -1,9 +1,9 @@
 package com.datadog.profiling.jfr;
 
 public interface TypedFieldBuilder {
-  TypedFieldBuilder addAnnotation(JFRType type);
+  TypedFieldBuilder addAnnotation(Type type);
 
-  TypedFieldBuilder addAnnotation(JFRType type, String value);
+  TypedFieldBuilder addAnnotation(Type type, String value);
 
   TypedFieldBuilder addAnnotation(Types.Predefined type);
 

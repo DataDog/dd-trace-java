@@ -6,45 +6,13 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /** A custom JFR type */
-final class CustomJFRType extends BaseJFRType {
-  /**
-   * A place-holder for fields of the same type as they are defined in. Keeping the default values
-   * intentionally 'wrong' in order for things to break soon if this type is not replaced by the
-   * concrete type counterpart correctly.
-   */
-  public static final JFRType SELF_TYPE =
-      new BaseJFRType(Long.MIN_VALUE, "", null, null) {
-        @Override
-        public boolean isBuiltin() {
-          return false;
-        }
-
-        @Override
-        public List<TypedField> getFields() {
-          return null;
-        }
-
-        @Override
-        public TypedField getField(String name) {
-          return null;
-        }
-
-        @Override
-        public List<JFRAnnotation> getAnnotations() {
-          return null;
-        }
-
-        @Override
-        public boolean canAccept(Object value) {
-          return value == null;
-        }
-      };
+final class CustomType extends BaseType {
 
   private final Map<String, TypedField> fieldMap;
   private final List<TypedField> fields;
-  private final List<JFRAnnotation> annotations;
+  private final List<Annotation> annotations;
 
-  CustomJFRType(
+  CustomType(
       long id,
       String name,
       String supertype,
@@ -61,7 +29,7 @@ final class CustomJFRType extends BaseJFRType {
                     .stream()
                     .map(
                         field ->
-                            field.getType() == SELF_TYPE
+                            field.getType() == SelfType.INSTANCE
                                 ? new TypedField(this, field.getName(), field.isArray())
                                 : field)
                     .collect(Collectors.toList()));
@@ -88,7 +56,7 @@ final class CustomJFRType extends BaseJFRType {
   }
 
   @Override
-  public List<JFRAnnotation> getAnnotations() {
+  public List<Annotation> getAnnotations() {
     return annotations;
   }
 

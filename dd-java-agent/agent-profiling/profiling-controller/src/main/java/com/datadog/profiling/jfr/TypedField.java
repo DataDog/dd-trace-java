@@ -7,23 +7,19 @@ import java.util.Objects;
 /** A representation of a typed field with a name */
 public final class TypedField {
   private final String name;
-  private final JFRType type;
+  private final Type type;
   private final boolean isArray;
-  private final List<JFRAnnotation> annotations;
+  private final List<Annotation> annotations;
 
-  TypedField(JFRType type, String name) {
+  TypedField(Type type, String name) {
     this(type, name, false, Collections.emptyList());
   }
 
-  TypedField(JFRType type, String name, List<JFRAnnotation> annotations) {
-    this(type, name, false, annotations);
-  }
-
-  TypedField(JFRType type, String name, boolean isArray) {
+  TypedField(Type type, String name, boolean isArray) {
     this(type, name, isArray, Collections.emptyList());
   }
 
-  TypedField(JFRType type, String name, boolean isArray, List<JFRAnnotation> annotations) {
+  TypedField(Type type, String name, boolean isArray, List<Annotation> annotations) {
     Objects.requireNonNull(type);
     Objects.requireNonNull(name);
     Objects.requireNonNull(annotations);
@@ -40,7 +36,7 @@ public final class TypedField {
   }
 
   /** @return field type */
-  public JFRType getType() {
+  public Type getType() {
     return type;
   }
 
@@ -49,7 +45,7 @@ public final class TypedField {
     return isArray;
   }
 
-  public List<JFRAnnotation> getAnnotations() {
+  public List<Annotation> getAnnotations() {
     return annotations;
   }
 

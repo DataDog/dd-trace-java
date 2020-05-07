@@ -8,12 +8,13 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class CustomJFRTypeTest {
+class CustomTypeTest {
   private static final String TYPE_NAME = "test.Type";
   private static final String FIELD_NAME = "field1";
   private static final String PARENT_FIELD_NAME = "parent";
   private static final String FIELD_VALUE = "hello";
-  private CustomJFRType instance;
+  public static final int TYPE_ID = 1;
+  private CustomType instance;
   private Types types;
 
   @BeforeEach
@@ -23,21 +24,21 @@ class CustomJFRTypeTest {
     types = new Types(metadata);
 
     List<TypedField> fields = new ArrayList<>();
-    List<JFRAnnotation> annotations = new ArrayList<>();
+    List<Annotation> annotations = new ArrayList<>();
 
     fields.add(new TypedField(types.getType(Types.Builtin.STRING), FIELD_NAME));
-    fields.add(new TypedField(CustomJFRType.SELF_TYPE, PARENT_FIELD_NAME));
-    annotations.add(new JFRAnnotation(types.getType(Types.JDK.ANNOTATION_NAME), "test.Type"));
+    fields.add(new TypedField(SelfType.INSTANCE, PARENT_FIELD_NAME));
+    annotations.add(new Annotation(types.getType(Types.JDK.ANNOTATION_NAME), "test.Type"));
 
     TypeStructure structure = new TypeStructure(fields, annotations);
-    instance = new CustomJFRType(1, TYPE_NAME, null, structure, constantPools, metadata);
+    instance = new CustomType(TYPE_ID, TYPE_NAME, null, structure, constantPools, metadata);
   }
 
   @Test
   void typeSelfReferenceResolved() {
     for (TypedField field : instance.getFields()) {
       if (field.getName().equals("parent")) {
-        assertNotEquals(CustomJFRType.SELF_TYPE, field.getType());
+        assertNotEquals(SelfType.INSTANCE, field.getType());
       }
     }
   }
@@ -68,6 +69,7 @@ class CustomJFRTypeTest {
     TypedValue value = instance.nullValue();
     assertNotNull(value);
     assertTrue(value.isNull());
+    assertEquals(value, instance.nullValue());
   }
 
   @Test
@@ -89,10 +91,72 @@ class CustomJFRTypeTest {
   }
 
   @Test
+  void getId() {
+    assertEquals(TYPE_ID, instance.getId());
+  }
+
+  @Test
+  void getTypeName() {
+    assertEquals(TYPE_NAME, instance.getTypeName());
+  }
+
+  @Test
+  void getSupertype() {
+    assertNull(instance.getSupertype());
+  }
+
+  @Test
+  void getMetadata() {
+    assertNotNull(instance.getMetadata());
+  }
+
+  @Test
+  void getConstantPool() {
+    assertNotNull(instance.getConstantPool());
+  }
+
+  @Test
+  void isUsedBySimple() {
+    Type other = types.getType(Types.Builtin.STRING);
+
+    // has a self-referenced field
+    assertTrue(instance.isUsedBy(instance));
+    assertFalse(instance.isUsedBy(other));
+    assertTrue(other.isUsedBy(instance));
+  }
+
+  @Test
+  void isUsedByComplex() {
+    Type target = types.getType(Types.Builtin.INT);
+
+    Type main =
+        types.getOrAdd(
+            "custom.Main",
+            type -> {
+              type.addField("parent", type.selfType())
+                  .addField("field", Types.Builtin.STRING)
+                  .addField("other", types.getType("custom.Other", true));
+            });
+
+    Type other =
+        types.getOrAdd(
+            "custom.Other",
+            type -> {
+              type.addField("loopback", main).addField("field", Types.Builtin.INT);
+            });
+    types.resolveAll();
+
+    // has a self-referenced field
+    assertTrue(main.isUsedBy(main));
+    assertTrue(main.isUsedBy(other));
+    assertTrue(target.isUsedBy(main));
+  }
+
+  @Test
   void testEquality() {
-    JFRType type1 = types.getType(Types.Builtin.STRING);
-    JFRType type2 = types.getType(Types.Builtin.INT);
-    JFRType type3 =
+    Type type1 = types.getType(Types.Builtin.STRING);
+    Type type2 = types.getType(Types.Builtin.INT);
+    Type type3 =
         types.getOrAdd(
             "type.Custom",
             t -> {

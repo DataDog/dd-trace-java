@@ -5,25 +5,25 @@ import java.util.List;
 
 final class TypedFieldBuilderImpl implements TypedFieldBuilder {
   private final Types types;
-  private final List<JFRAnnotation> annotations = new ArrayList<>();
-  private final JFRType type;
+  private final List<Annotation> annotations = new ArrayList<>();
+  private final Type type;
   private final String name;
   private boolean asArray;
 
-  TypedFieldBuilderImpl(JFRType type, String name, Types types) {
+  TypedFieldBuilderImpl(Type type, String name, Types types) {
     this.type = type;
     this.name = name;
     this.types = types;
   }
 
   @Override
-  public TypedFieldBuilderImpl addAnnotation(JFRType type) {
+  public TypedFieldBuilderImpl addAnnotation(Type type) {
     return addAnnotation(type, null);
   }
 
   @Override
-  public TypedFieldBuilderImpl addAnnotation(JFRType type, String value) {
-    annotations.add(new JFRAnnotation(type, value));
+  public TypedFieldBuilderImpl addAnnotation(Type type, String value) {
+    annotations.add(new Annotation(type, value));
     return this;
   }
 

@@ -18,8 +18,9 @@ class TypeValueBuilderImplTest {
   private static final String SIMPLE_FIELD_NAME = "field";
   private static Map<Types.Builtin, String> typeToFieldMap;
   private TypeValueBuilderImpl instance;
-  private JFRType simpleType;
-  private JFRType customType;
+  private Type simpleType;
+  private Type customType;
+  private Type stringType;
 
   @BeforeAll
   static void init() {
@@ -33,6 +34,8 @@ class TypeValueBuilderImplTest {
   void setUp() {
     // not mocking here since we will need quite a number of predefined types anyway
     Types types = new Types(new Metadata(new ConstantPools()));
+
+    stringType = types.getType(Types.Builtin.STRING);
 
     simpleType =
         types.getOrAdd(
@@ -65,7 +68,7 @@ class TypeValueBuilderImplTest {
       if (type == target) {
         assertCorrectFieldValueBuiltinType(target, type, 1, false);
       } else {
-        assertWrongFieldValueBuiltinType(target, type, 0, false);
+        assertWrongFieldValueBuiltinType(target, type, 0);
       }
     }
   }
@@ -77,9 +80,17 @@ class TypeValueBuilderImplTest {
       if (type == target) {
         assertCorrectFieldValueBuiltinType(target, type, 1, true);
       } else {
-        assertWrongFieldValueBuiltinType(target, type, 0, true);
+        assertWrongFieldValueBuiltinType(target, type, 0);
       }
     }
+  }
+
+  @ParameterizedTest
+  @EnumSource(Types.Builtin.class)
+  void putFieldBuiltinArrayNonExistent(Types.Builtin target) {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> testPutBuiltinFieldArray(target, "not a field name", 1));
   }
 
   @Test
@@ -93,12 +104,71 @@ class TypeValueBuilderImplTest {
   }
 
   @Test
+  void putFieldCustomBuilder() {
+    instance.putField(
+        CUSTOM_FIELD_NAME,
+        v -> {
+          v.putField(SIMPLE_FIELD_NAME, SIMPLE_FIELD_VALUE);
+        });
+
+    TypedFieldValue fieldValue = instance.build().get(CUSTOM_FIELD_NAME);
+    assertNotNull(fieldValue);
+    assertEquals(CUSTOM_FIELD_NAME, fieldValue.getField().getName());
+    assertEquals(SIMPLE_FIELD_VALUE, fieldValue.getValue().getValue());
+  }
+
+  @Test
+  void putFieldCustomArray() {
+    instance.putField(
+        CUSTOM_FIELD_ARRAY_NAME,
+        simpleType.asValue(v -> v.putField(SIMPLE_FIELD_NAME, "value1")),
+        simpleType.asValue(v -> v.putField(SIMPLE_FIELD_NAME, "value2")));
+
+    TypedFieldValue fieldValue = instance.build().get(CUSTOM_FIELD_ARRAY_NAME);
+    assertNotNull(fieldValue);
+    assertEquals(CUSTOM_FIELD_ARRAY_NAME, fieldValue.getField().getName());
+  }
+
+  @Test
+  void putFieldCustomArrayNonArrayField() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            instance.putField(
+                CUSTOM_FIELD_NAME,
+                simpleType.asValue(v -> v.putField(SIMPLE_FIELD_NAME, "value1")),
+                simpleType.asValue(v -> v.putField(SIMPLE_FIELD_NAME, "value2"))));
+  }
+
+  @Test
+  void putFieldCustomArrayNonExistingField() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            instance.putField(
+                "not a field name",
+                simpleType.asValue(v -> v.putField(SIMPLE_FIELD_NAME, "value1")),
+                simpleType.asValue(v -> v.putField(SIMPLE_FIELD_NAME, "value2"))));
+  }
+
+  @Test
+  void putFieldCustomArrayInvalidValues() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            instance.putField(
+                CUSTOM_FIELD_ARRAY_NAME,
+                stringType.asValue("value1"),
+                stringType.asValue("value2")));
+  }
+
+  @Test
   void putFieldCustomInvalid() {
     assertThrows(IllegalArgumentException.class, () -> instance.putField(CUSTOM_FIELD_NAME, 0L));
   }
 
   @Test
-  public void putFieldCustomArray() {
+  public void putFieldCustomBuilderArray() {
     TypedFieldValue value =
         instance
             .putField(
@@ -112,15 +182,54 @@ class TypeValueBuilderImplTest {
             .build()
             .get(CUSTOM_FIELD_ARRAY_NAME);
 
+    assertEquals(CUSTOM_FIELD_ARRAY_NAME, value.getField().getName());
     assertNotNull(value);
+  }
+
+  @Test
+  public void putFieldCustomBuilderArrayNonArrayField() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          instance
+              .putField(
+                  CUSTOM_FIELD_NAME,
+                  fld1 -> {
+                    fld1.putField(SIMPLE_FIELD_NAME, SIMPLE_FIELD_VALUE);
+                  },
+                  fld2 -> {
+                    fld2.putField(SIMPLE_FIELD_NAME, SIMPLE_FIELD_VALUE);
+                  })
+              .build()
+              .get(CUSTOM_FIELD_ARRAY_NAME);
+        });
+  }
+
+  @Test
+  public void putFieldCustomBuilderArrayNonExistingField() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          instance
+              .putField(
+                  "not a field name",
+                  fld1 -> {
+                    fld1.putField(SIMPLE_FIELD_NAME, SIMPLE_FIELD_VALUE);
+                  },
+                  fld2 -> {
+                    fld2.putField(SIMPLE_FIELD_NAME, SIMPLE_FIELD_VALUE);
+                  })
+              .build()
+              .get(CUSTOM_FIELD_ARRAY_NAME);
+        });
   }
 
   private void assertCorrectFieldValueBuiltinType(
       Types.Builtin target, Types.Builtin type, int value, boolean asArray) {
     if (asArray) {
-      testPutBuiltinFieldArray(target, type, value);
+      testPutBuiltinFieldArray(target, getArrayFieldName(type), value);
     } else {
-      testPutBuiltinField(target, type, value);
+      testPutBuiltinField(target, getFieldName(type), value);
     }
 
     String fieldName = asArray ? getArrayFieldName(type) : getFieldName(type);
@@ -148,105 +257,110 @@ class TypeValueBuilderImplTest {
   }
 
   private void assertWrongFieldValueBuiltinType(
-      Types.Builtin target, Types.Builtin type, int value, boolean asArray) {
-    assertThrows(IllegalArgumentException.class, () -> testPutBuiltinField(target, type, value));
+      Types.Builtin target, Types.Builtin type, int value) {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> testPutBuiltinField(target, getArrayFieldName(type), value));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> testPutBuiltinFieldArray(target, getFieldName(type), value));
   }
 
-  private void testPutBuiltinField(Types.Builtin target, Types.Builtin type, int value) {
+  private void testPutBuiltinField(Types.Builtin target, String fieldName, int value) {
     switch (target) {
       case BYTE:
         {
-          instance.putField(getFieldName(type), (byte) value);
+          instance.putField(fieldName, (byte) value);
           break;
         }
       case CHAR:
         {
-          instance.putField(getFieldName(type), (char) value);
+          instance.putField(fieldName, (char) value);
           break;
         }
       case SHORT:
         {
-          instance.putField(getFieldName(type), (short) value);
+          instance.putField(fieldName, (short) value);
           break;
         }
       case INT:
         {
-          instance.putField(getFieldName(type), (int) value);
+          instance.putField(fieldName, (int) value);
           break;
         }
       case LONG:
         {
-          instance.putField(getFieldName(type), (long) value);
+          instance.putField(fieldName, (long) value);
           break;
         }
       case FLOAT:
         {
-          instance.putField(getFieldName(type), (float) value);
+          instance.putField(fieldName, (float) value);
           break;
         }
       case DOUBLE:
         {
-          instance.putField(getFieldName(type), (double) value);
+          instance.putField(fieldName, (double) value);
           break;
         }
       case BOOLEAN:
         {
-          instance.putField(getFieldName(type), (int) (value) > 0);
+          instance.putField(fieldName, (int) (value) > 0);
           break;
         }
       case STRING:
         {
-          instance.putField(getFieldName(type), String.valueOf(value));
+          instance.putField(fieldName, String.valueOf(value));
           break;
         }
     }
   }
 
-  private void testPutBuiltinFieldArray(Types.Builtin target, Types.Builtin type, int value) {
+  private void testPutBuiltinFieldArray(Types.Builtin target, String fieldName, int value) {
     switch (target) {
       case BYTE:
         {
-          instance.putField(getArrayFieldName(type), new byte[] {(byte) value});
+          instance.putField(fieldName, new byte[] {(byte) value});
           break;
         }
       case CHAR:
         {
-          instance.putField(getArrayFieldName(type), new char[] {(char) value});
+          instance.putField(fieldName, new char[] {(char) value});
           break;
         }
       case SHORT:
         {
-          instance.putField(getArrayFieldName(type), new short[] {(short) value});
+          instance.putField(fieldName, new short[] {(short) value});
           break;
         }
       case INT:
         {
-          instance.putField(getArrayFieldName(type), new int[] {(int) value});
+          instance.putField(fieldName, new int[] {(int) value});
           break;
         }
       case LONG:
         {
-          instance.putField(getArrayFieldName(type), new long[] {(long) value});
+          instance.putField(fieldName, new long[] {(long) value});
           break;
         }
       case FLOAT:
         {
-          instance.putField(getArrayFieldName(type), new float[] {(float) value});
+          instance.putField(fieldName, new float[] {(float) value});
           break;
         }
       case DOUBLE:
         {
-          instance.putField(getArrayFieldName(type), new double[] {(double) value});
+          instance.putField(fieldName, new double[] {(double) value});
           break;
         }
       case BOOLEAN:
         {
-          instance.putField(getArrayFieldName(type), new boolean[] {(int) (value) > 0});
+          instance.putField(fieldName, new boolean[] {(int) (value) > 0});
           break;
         }
       case STRING:
         {
-          instance.putField(getArrayFieldName(type), new String[] {String.valueOf(value)});
+          instance.putField(fieldName, new String[] {String.valueOf(value)});
           break;
         }
     }

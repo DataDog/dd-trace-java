@@ -1,7 +1,7 @@
 package com.datadog.profiling.jfr;
 
 /** A representation of JFR chunk - self contained set of JFR data. */
-public final class JFRChunk {
+public final class Chunk {
   private static final byte[] MAGIC = new byte[] {'F', 'L', 'R', '\0'};
   private static final short MAJOR_VERSION = 2;
   private static final short MINOR_VERSION = 0;
@@ -14,14 +14,12 @@ public final class JFRChunk {
   private final ByteArrayWriter writer = new ByteArrayWriter(65536);
   private final ConstantPools constantPools;
   private final Metadata metadata;
-  private final Types types;
   private final long startTicks;
   private final long startNanos;
 
-  JFRChunk(Metadata metadata, ConstantPools constantPools, Types types) {
+  Chunk(Metadata metadata, ConstantPools constantPools) {
     this.metadata = metadata;
     this.constantPools = constantPools;
-    this.types = types;
     this.startTicks = System.nanoTime();
     this.startNanos = System.currentTimeMillis() * 1_000_000L;
     writeHeader();
@@ -35,7 +33,7 @@ public final class JFRChunk {
    * @throws IllegalArgumentException if the event type has not got 'jdk.jfr.Event' as its super
    *     type
    */
-  public JFRChunk writeEvent(TypedValue event) {
+  public Chunk writeEvent(TypedValue event) {
     if (!event.getType().getSupertype().equals("jdk.jfr.Event")) {
       throw new IllegalArgumentException();
     }
@@ -86,7 +84,7 @@ public final class JFRChunk {
         .writeInt(constantPools.size()); // start writing constant pools array
 
     for (ConstantPool cp : constantPools) {
-      cp.writeCheckpoint(cpWriter);
+      cp.writeTo(cpWriter);
     }
 
     int len = cpWriter.length();
@@ -126,7 +124,7 @@ public final class JFRChunk {
       throw new IllegalArgumentException();
     }
 
-    JFRType t = value.getType();
+    Type t = value.getType();
     if (t.isBuiltin()) {
       writeBuiltinType(writer, value);
     } else {
@@ -155,7 +153,7 @@ public final class JFRChunk {
     if (typedValue == null) {
       throw new RuntimeException();
     }
-    JFRType type = typedValue.getType();
+    Type type = typedValue.getType();
     if (!type.isBuiltin()) {
       throw new IllegalArgumentException();
     }

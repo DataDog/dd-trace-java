@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 
 /** A per-type map of {@linkplain ConstantPool} instances */
 final class ConstantPools implements Iterable<ConstantPool> {
-  private final Map<JFRType, ConstantPool> constantPoolMap = new HashMap<>();
+  private final Map<Type, ConstantPool> constantPoolMap = new HashMap<>();
 
   /**
    * Get the {@linkplain ConstantPool} instance associated with the given type
@@ -21,7 +21,7 @@ final class ConstantPools implements Iterable<ConstantPool> {
    * @throws IllegalArgumentException if the type does not support constant pools
    */
   @SuppressWarnings("unchecked")
-  ConstantPool forType(JFRType type) {
+  ConstantPool forType(Type type) {
     if (!type.hasConstantPool()) {
       throw new IllegalArgumentException();
     }
@@ -58,7 +58,7 @@ final class ConstantPools implements Iterable<ConstantPool> {
     return constantPoolMap
         .entrySet()
         .stream()
-        .sorted((e1, e2) -> e1 == e2 ? 0 : e1.getKey().isUsedBy(e2.getKey()) ? -1 : 1)
+        .sorted((e1, e2) -> TypeByUsageComparator.INSTANCE.compare(e1.getKey(), e2.getKey()))
         .map(Map.Entry::getValue);
   }
 
@@ -66,7 +66,7 @@ final class ConstantPools implements Iterable<ConstantPool> {
     return getOrderedPoolsStream().collect(Collectors.toList());
   }
 
-  private ConstantPool newConstantPool(JFRType type) {
+  private ConstantPool newConstantPool(Type type) {
     return new ConstantPool(type);
   }
 }

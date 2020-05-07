@@ -7,7 +7,7 @@ import java.util.function.Consumer;
 final class CustomTypeBuilderImpl implements CustomTypeBuilder {
   private final Types types;
   private final List<TypedField> fields = new ArrayList<>();
-  private final List<JFRAnnotation> annotations = new ArrayList<>();
+  private final List<Annotation> annotations = new ArrayList<>();
 
   CustomTypeBuilderImpl(Types types) {
     this.types = types;
@@ -25,13 +25,13 @@ final class CustomTypeBuilderImpl implements CustomTypeBuilder {
   }
 
   @Override
-  public CustomTypeBuilderImpl addField(String name, JFRType type) {
+  public CustomTypeBuilderImpl addField(String name, Type type) {
     return addField(name, type, null);
   }
 
   @Override
   public CustomTypeBuilderImpl addField(
-      String name, JFRType type, Consumer<TypedFieldBuilder> fieldCallback) {
+      String name, Type type, Consumer<TypedFieldBuilder> fieldCallback) {
     TypedFieldBuilderImpl annotationsBuilder = new TypedFieldBuilderImpl(type, name, types);
     if (fieldCallback != null) {
       fieldCallback.accept(annotationsBuilder);
@@ -41,13 +41,13 @@ final class CustomTypeBuilderImpl implements CustomTypeBuilder {
   }
 
   @Override
-  public CustomTypeBuilderImpl addAnnotation(JFRType type) {
+  public CustomTypeBuilderImpl addAnnotation(Type type) {
     return addAnnotation(type, null);
   }
 
   @Override
-  public CustomTypeBuilderImpl addAnnotation(JFRType type, String value) {
-    annotations.add(new JFRAnnotation(type, value));
+  public CustomTypeBuilderImpl addAnnotation(Type type, String value) {
+    annotations.add(new Annotation(type, value));
     return this;
   }
 
