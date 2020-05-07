@@ -1,10 +1,9 @@
-image: datadog/dd-trace-java-docker-build:latest
-
 .common: &common
   tags: [ "runner:main", "size:large" ]
 
 .gradle_build: &gradle_build
   <<: *common
+  image: datadog/dd-trace-java-docker-build:latest
   before_script:
     - export GRADLE_USER_HOME=`pwd`/.gradle
   cache:
@@ -25,16 +24,17 @@ build:
 copy_to_s3:
   <<: *common
   stage: deploy
-  image: python:3-alpine
+  # Not exactly best practice to use another repo's CI but the copy/down s3 stuff will probably become it's own image eventually
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-reliability-env:latest
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
     - when: manual
   script:
-    - export AWS_ACCESS_KEY_ID_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_key_id --with-decryption --query "Parameter.Value" --out text)
-    - export AWS_SECRET_ACCESS_KEY_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_sec_key_id --with-decryption --query "Parameter.Value" --out text)
+    - AWS_ACCESS_KEY_ID_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_key_id --with-decryption --query "Parameter.Value" --out text)
+    - AWS_SECRET_ACCESS_KEY_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_sec_key_id --with-decryption --query "Parameter.Value" --out text)
     - pip install boto3
-    - python .gitlab/copy_artifact_s3.py
+    - python3 .gitlab/copy_artifact_s3.py
 
 deploy_to_bintray:
   <<: *gradle_build
@@ -46,6 +46,6 @@ deploy_to_bintray:
       when: on_success
     - when: manual
   script:
-    - export BINTRAY_USER=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.bintray_user --with-decryption --query "Parameter.Value" --out text)
-    - export BINTRAY_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.bintray_api_key --with-decryption --query "Parameter.Value" --out text)
+    - BINTRAY_USER=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.bintray_user --with-decryption --query "Parameter.Value" --out text)
+    - BINTRAY_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.bintray_api_key --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbintrayUser=$BINTRAY_USER -PbintrayApiKey=$BINTRAY_API_KEY -PbuildInfo.build.number=$CI_JOB_ID artifactoryPublish --max-workers=1 --build-cache --stacktrace --no-daemon
