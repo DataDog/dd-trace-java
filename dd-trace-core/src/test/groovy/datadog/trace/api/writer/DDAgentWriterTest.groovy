@@ -675,7 +675,9 @@ class DDAgentWriterTest extends DDSpecification {
 
   static int calculateSize(List<DDSpan> trace) {
     def buffer = new ArrayBufferOutput()
-    def packer = MessagePack.newDefaultPacker(buffer)
+    def packer = MessagePack.DEFAULT_PACKER_CONFIG
+      .withSmallStringOptimizationThreshold(16)
+      .newPacker(buffer)
     MSGPACK_WRITER.writeTrace(trace, packer)
     packer.flush()
     return buffer.size
