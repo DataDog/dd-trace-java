@@ -4,6 +4,7 @@ import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.SpanFactory
+import datadog.trace.core.interceptor.TraceStatsCollector
 import datadog.trace.core.processor.rule.Status404Rule
 import datadog.trace.core.processor.rule.URLAsResourceNameRule
 import datadog.trace.util.test.DDSpecification
@@ -11,8 +12,10 @@ import spock.lang.Subject
 
 class TraceProcessorTest extends DDSpecification {
 
+  def statsCollector = Mock(TraceStatsCollector)
+
   @Subject
-  def processor = new TraceProcessor()
+  def processor = new TraceProcessor(statsCollector)
 
   def span = SpanFactory.newSpanOf(0)
   def trace = [span]
@@ -26,7 +29,7 @@ class TraceProcessorTest extends DDSpecification {
     ConfigUtils.updateConfig {
       System.setProperty("dd.trace.${name}.enabled", "false")
     }
-    def processor = new TraceProcessor()
+    def processor = new TraceProcessor(statsCollector)
 
     expect:
     !processor.rules.any {

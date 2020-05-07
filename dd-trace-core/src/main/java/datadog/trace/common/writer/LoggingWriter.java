@@ -3,13 +3,15 @@ package datadog.trace.common.writer;
 import static datadog.trace.core.serialization.JsonFormatWriter.TRACE_ADAPTER;
 
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.interceptor.TraceStatsCollector;
 import datadog.trace.core.processor.TraceProcessor;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class LoggingWriter implements Writer {
-  private final TraceProcessor processor = new TraceProcessor();
+  private final TraceStatsCollector collector = new TraceStatsCollector();
+  private final TraceProcessor processor = new TraceProcessor(collector);
 
   @Override
   public void write(List<DDSpan> trace) {
@@ -30,6 +32,11 @@ public class LoggingWriter implements Writer {
   @Override
   public void incrementTraceCount() {
     log.info("incrementTraceCount()");
+  }
+
+  @Override
+  public TraceStatsCollector getTraceStatsCollector() {
+    return collector;
   }
 
   @Override

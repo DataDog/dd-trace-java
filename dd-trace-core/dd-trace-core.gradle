@@ -39,6 +39,7 @@ dependencies {
   compile group: 'com.squareup.moshi', name: 'moshi', version: '1.9.2'
   compile group: 'com.github.jnr', name: 'jnr-unixsocket', version: "${versions.jnr_unixsocket}"
   compile group: 'com.lmax', name: 'disruptor', version: '3.4.2'
+  compile group: 'org.hdrhistogram', name: 'HdrHistogram', version: '2.1.12'
 
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor deps.autoservice

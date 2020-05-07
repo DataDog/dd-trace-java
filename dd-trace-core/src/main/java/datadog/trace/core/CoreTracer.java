@@ -24,6 +24,7 @@ import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.scopemanager.DDScopeManager;
+import datadog.trace.core.scopemanager.TraceProfilingScopeManager;
 import java.io.Closeable;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
@@ -163,7 +164,8 @@ public class CoreTracer
     this.sampler = sampler;
     this.injector = injector;
     this.extractor = extractor;
-    this.scopeManager = scopeManager;
+    this.scopeManager =
+        new TraceProfilingScopeManager(scopeManager, writer.getTraceStatsCollector());
     this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
     this.serviceNameMappings = serviceNameMappings;
@@ -345,6 +347,7 @@ public class CoreTracer
     if (interceptors.isEmpty()) {
       writtenTrace = new ArrayList<>(trace);
     } else {
+      // TODO: move this off application thread to TraceProcessor
       Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
       for (final TraceInterceptor interceptor : interceptors) {
         interceptedTrace = interceptor.onTraceComplete(interceptedTrace);

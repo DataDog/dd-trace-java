@@ -2,6 +2,7 @@ package datadog.trace.core.processor;
 
 import datadog.trace.api.Config;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.interceptor.TraceStatsCollector;
 import datadog.trace.core.processor.rule.AnalyticsSampleRateRule;
 import datadog.trace.core.processor.rule.DBStatementRule;
 import datadog.trace.core.processor.rule.ErrorRule;
@@ -33,7 +34,10 @@ public class TraceProcessor {
 
   private final List<Rule> rules;
 
-  public TraceProcessor() {
+  private final TraceStatsCollector statsCollector;
+
+  public TraceProcessor(final TraceStatsCollector statsCollector) {
+    this.statsCollector = statsCollector;
 
     rules = new ArrayList<>(DEFAULT_RULES.length);
     for (final Rule rule : DEFAULT_RULES) {
@@ -61,6 +65,12 @@ public class TraceProcessor {
   }
 
   public List<DDSpan> onTraceComplete(final List<DDSpan> trace) {
+    /**
+     * collect stats before applying rules because this is more realistic of what the trace will
+     * look like when comparing data before completion.
+     */
+    statsCollector.onTraceComplete(trace);
+
     for (final DDSpan span : trace) {
       applyRules(trace, span);
     }
@@ -74,5 +84,9 @@ public class TraceProcessor {
     for (final Rule rule : rules) {
       rule.processSpan(span, tags, trace);
     }
+  }
+
+  public TraceStatsCollector getTraceStatsCollector() {
+    return statsCollector;
   }
 }
