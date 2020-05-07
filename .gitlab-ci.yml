@@ -8,19 +8,42 @@ cache:
     - .gradle/wrapper
     - .gradle/caches
 
+.common: &common
+  tags: [ "runner:main", "size:large" ]
+
 build:
+  <<: *common
   stage: build
   script:
-    - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M" ./gradlew clean assemble --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+    - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
   artifacts:
     paths:
-      - "**/build/libs/*.jar"
-  tags: [ "runner:main", "size:large" ]
-test:
-  stage: test
+      - 'workspace/dd-java-agent/build/libs/*.jar'
+
+copy_to_s3:
+  <<: *common
+  stage: deploy
+  image: python:3-alpine
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - when: manual
   script:
-    - GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M" ./gradlew test --build-cache --parallel --stacktrace --no-daemon --max-workers=6
-  artifacts:
-    reports:
-      junit: "**/build/test-results/*/TEST-*.xml"
-  tags: [ "runner:main", "size:large" ]
+    - export AWS_ACCESS_KEY_ID_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_key_id --with-decryption --query "Parameter.Value" --out text)
+    - export AWS_SECRET_ACCESS_KEY_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_sec_key_id --with-decryption --query "Parameter.Value" --out text)
+    - pip install boto3
+    - python .gitlab/copy_artifact_s3.py
+
+deploy_to_bintray:
+  <<: *common
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - if: '$CI_COMMIT_TAG =~ /~v.*/'
+      when: on_success
+    - when: manual
+  script:
+    - export BINTRAY_USER=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.bintray_user --with-decryption --query "Parameter.Value" --out text)
+    - export BINTRAY_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.bintray_api_key --with-decryption --query "Parameter.Value" --out text)
+    - ./gradlew -PbintrayUser=$BINTRAY_USER -PbintrayApiKey=$BINTRAY_API_KEY -PbuildInfo.build.number=$CI_JOB_ID artifactoryPublish --max-workers=1 --build-cache --stacktrace --no-daemon
