@@ -46,6 +46,9 @@ public class DDAgentApi {
   private static final String TRACES_ENDPOINT_V4 = "v0.4/traces";
   private static final long MILLISECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toMillis(5);
 
+  // limiting the size this optimisation applies to decreases the likelihood
+  // that the MessagePacker will allocate a byte[] during UTF-8 encoding,
+  // and restricts the optimisation to very small strings which may scalarise
   private static final MessagePack.PackerConfig MESSAGE_PACKER_CONFIG =
       MessagePack.DEFAULT_PACKER_CONFIG.withSmallStringOptimizationThreshold(16);
 
