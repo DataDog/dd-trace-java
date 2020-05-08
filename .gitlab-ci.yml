@@ -5,6 +5,7 @@ stages:
 
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
+  BINTRAY_USER: robot-bintray-apm-integrations
 
 .common: &common
   tags: [ "runner:main", "size:large" ]
@@ -61,6 +62,5 @@ deploy_to_bintray:
       when: on_success
     - when: manual
   script:
-    - export BINTRAY_USER=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.bintray_user --with-decryption --query "Parameter.Value" --out text)
     - export BINTRAY_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.bintray_api_key --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbintrayUser=$BINTRAY_USER -PbintrayApiKey=$BINTRAY_API_KEY -PbuildInfo.build.number=$CI_JOB_ID artifactoryPublish --max-workers=1 --build-cache --stacktrace --no-daemon
