@@ -1,6 +1,7 @@
 package datadog.opentracing
 
 import datadog.trace.api.DDTags
+import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.ScopeListener
@@ -82,6 +83,7 @@ class OpenTracingAPITest extends DDSpecification {
 
     then:
     1 * traceInterceptor.onTraceComplete({ it.size() == 1 }) >> { args -> args[0] }
+    testSpan instanceof MutableSpan
 
     assertTraces(writer, 1) {
       trace(0, 1) {
@@ -107,6 +109,8 @@ class OpenTracingAPITest extends DDSpecification {
 
     then:
     1 * scopeListener.afterScopeActivated()
+    testSpan instanceof MutableSpan
+    scope.span() instanceof MutableSpan
 
     when:
     testSpan.setTag(DDTags.SERVICE_NAME, "someService")
