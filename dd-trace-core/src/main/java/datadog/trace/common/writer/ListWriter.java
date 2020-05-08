@@ -8,11 +8,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** List writer used by tests mostly */
 public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Writer {
   private final TraceProcessor processor = new TraceProcessor();
   private final List<CountDownLatch> latches = new ArrayList<>();
+  private final AtomicInteger traceCount = new AtomicInteger();
 
   public List<DDSpan> firstTrace() {
     return get(0);
@@ -20,6 +22,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
 
   @Override
   public void write(List<DDSpan> trace) {
+    incrementTraceCount();
     synchronized (latches) {
       trace = processor.onTraceComplete(trace);
       add(trace);
@@ -48,7 +51,9 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   }
 
   @Override
-  public void incrementTraceCount() {}
+  public void incrementTraceCount() {
+    traceCount.incrementAndGet();
+  }
 
   @Override
   public void start() {
