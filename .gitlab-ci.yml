@@ -49,7 +49,7 @@ copy_to_s3:
   script:
     - export AWS_ACCESS_KEY_ID_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_key_id --with-decryption --query "Parameter.Value" --out text)
     - export AWS_SECRET_ACCESS_KEY_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_sec_key_id --with-decryption --query "Parameter.Value" --out text)
-    - python .gitlab/copy_artifact_s3.py
+    - python -u .gitlab/copy_artifact_s3.py
 
 deploy_to_bintray:
   <<: *gradle_build

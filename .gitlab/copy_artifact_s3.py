@@ -15,6 +15,10 @@ for path, sub_dirs, files in os.walk(LIBS_PATH):
   for name in files:
     if p.match(name):
       # Write the artifact to S3
+      print(f"Uploading {name} to S3")
+      print(f"Commit Ref: {os.getenv('CI_COMMIT_REF_NAME')}")
+      print(f"Commit SHA: {os.getenv('CI_COMMIT_SHA')}")
+
       transfer.upload_file(os.path.join(path, name), S3_BUCKET_NAME, f'java/{name}')
       # write additional information used by the build
       with tempfile.NamedTemporaryFile(mode='w') as fp:
