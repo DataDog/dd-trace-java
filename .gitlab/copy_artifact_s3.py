@@ -1,6 +1,7 @@
 import boto3
 import os
 import re
+import sys
 import tempfile
 
 S3_BUCKET_NAME = 'datadog-reliability-env'
@@ -10,7 +11,7 @@ client = boto3.client('s3',
 transfer = boto3.s3.transfer.S3Transfer(client)
 
 p = re.compile(r"dd-java-agent.*jar$")
-LIBS_PATH = '../workspace/dd-java-agent/build/libs'
+LIBS_PATH = './workspace/dd-java-agent/build/libs'
 for path, sub_dirs, files in os.walk(LIBS_PATH):
   for name in files:
     if p.match(name):
@@ -28,3 +29,5 @@ for path, sub_dirs, files in os.walk(LIBS_PATH):
         fp.write(f"{os.getenv('GITLAB_USER_NAME')}\n")
         fp.seek(0)
         transfer.upload_file(fp.name, S3_BUCKET_NAME, 'java/index.txt')
+      sys.exit()
+sys.exit("Did not find dd-java-agent.jar")
