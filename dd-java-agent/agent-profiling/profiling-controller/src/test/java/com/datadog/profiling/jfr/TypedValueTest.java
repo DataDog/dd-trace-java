@@ -79,7 +79,7 @@ class TypedValueTest {
         new TypeStructure(
             Collections.singletonList(new TypedField(types.getType(Types.Builtin.STRING), "field")),
             Collections.emptyList());
-    CustomType nonCpType = new CustomType(1234, "test.Type", null, structure, null, metadata);
+    CompositeType nonCpType = new CompositeType(1234, "test.Type", null, structure, null, metadata);
 
     TypedValue typedValue =
         TypedValue.of(

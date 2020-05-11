@@ -298,7 +298,7 @@ public final class Types {
    * @param builderCallback will be called lazily when the type is about to be initialized
    * @return the corresponding {@link Type type} instance
    */
-  public Type getOrAdd(Predefined type, Consumer<CustomTypeBuilder> builderCallback) {
+  public Type getOrAdd(Predefined type, Consumer<CompositeTypeBuilder> builderCallback) {
     return getOrAdd(type.getTypeName(), builderCallback);
   }
 
@@ -309,7 +309,7 @@ public final class Types {
    * @param builderCallback will be called lazily when the type is about to be initialized
    * @return the corresponding {@link Type type} instance
    */
-  public Type getOrAdd(String name, Consumer<CustomTypeBuilder> builderCallback) {
+  public Type getOrAdd(String name, Consumer<CompositeTypeBuilder> builderCallback) {
     return getOrAdd(name, null, builderCallback);
   }
 
@@ -322,7 +322,7 @@ public final class Types {
    * @return the corresponding {@link Type type} instance
    */
   public Type getOrAdd(
-      Predefined type, String supertype, Consumer<CustomTypeBuilder> builderCallback) {
+      Predefined type, String supertype, Consumer<CompositeTypeBuilder> builderCallback) {
     return getOrAdd(type.getTypeName(), supertype, builderCallback);
   }
 
@@ -334,12 +334,13 @@ public final class Types {
    * @param builderCallback will be called lazily when the type is about to be initialized
    * @return the corresponding {@link Type type} instance
    */
-  public Type getOrAdd(String name, String supertype, Consumer<CustomTypeBuilder> builderCallback) {
+  public Type getOrAdd(
+      String name, String supertype, Consumer<CompositeTypeBuilder> builderCallback) {
     return metadata.registerType(
         name,
         supertype,
         () -> {
-          CustomTypeBuilderImpl builder = new CustomTypeBuilderImpl(this);
+          CompositeTypeBuilderImpl builder = new CompositeTypeBuilderImpl(this);
           builderCallback.accept(builder);
           return builder.build();
         });

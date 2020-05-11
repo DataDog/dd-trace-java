@@ -1,6 +1,5 @@
 package com.datadog.profiling.jfr;
 
-import static com.datadog.profiling.jfr.TypeUtils.BUILTIN_VALUE_MAP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -99,6 +98,7 @@ class BuiltinTypeTest {
             Mockito.mock(ConstantPools.class),
             Mockito.mock(Metadata.class));
 
+    assertFalse(instance.isUsedBy(null));
     assertFalse(instance.isUsedBy(instance));
     assertFalse(instance.isUsedBy(other));
   }
@@ -109,7 +109,11 @@ class BuiltinTypeTest {
     BaseType type =
         new BuiltinType(1, target, Mockito.mock(ConstantPools.class), Mockito.mock(Metadata.class));
     for (Types.Builtin builtin : Types.Builtin.values()) {
-      assertEquals(target == builtin, type.canAccept(BUILTIN_VALUE_MAP.get(builtin)));
+      for (Object value : TypeUtils.getBuiltinValues(builtin)) {
+        assertEquals(
+            target == builtin || value == null,
+            type.canAccept(value)); // null is generally accepted
+      }
     }
   }
 
@@ -145,26 +149,30 @@ class BuiltinTypeTest {
             target == Types.Builtin.STRING ? constantPools : null,
             Mockito.mock(Metadata.class));
     for (Types.Builtin builtin : Types.Builtin.values()) {
-      Object fromValue = BUILTIN_VALUE_MAP.get(builtin);
-      Method asValueMethod = getAsValueMethod(builtin);
+      for (Object fromValue : TypeUtils.getBuiltinValues(builtin)) {
+        Method asValueMethod = getAsValueMethod(builtin);
 
-      if (target == builtin) {
-        TypedValue typedValue = (TypedValue) asValueMethod.invoke(type, fromValue);
+        if (target == builtin) {
+          TypedValue typedValue = (TypedValue) asValueMethod.invoke(type, fromValue);
 
-        assertNotNull(typedValue);
-        assertEquals(fromValue, typedValue.getValue());
-      } else {
-        try {
-          asValueMethod.invoke(type, fromValue);
-          fail(
-              "Attempted conversion of a value of type '"
-                  + builtin.getTypeClass()
-                  + "' to '"
-                  + target.getTypeClass()
-                  + "'");
-        } catch (InvocationTargetException e) {
-          if (!(e.getCause() instanceof IllegalArgumentException)) {
-            fail(e);
+          assertNotNull(typedValue);
+          assertEquals(fromValue, typedValue.getValue());
+        } else {
+          try {
+            asValueMethod.invoke(type, fromValue);
+            // for 'null' values there is no extra type info so really can't assert anything
+            if (fromValue != null) {
+              fail(
+                  "Attempted conversion of a value of type '"
+                      + builtin.getTypeClass()
+                      + "' to '"
+                      + target.getTypeClass()
+                      + "'");
+            }
+          } catch (InvocationTargetException e) {
+            if (!(e.getCause() instanceof IllegalArgumentException)) {
+              fail(e);
+            }
           }
         }
       }

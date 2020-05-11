@@ -69,13 +69,14 @@ final class Metadata {
   }
 
   /**
-   * Resolve all dangling unresolved {@link ResolvableType resolvable types}. This needs to be done
-   * if some of the type definitions are using forward references to not yet registered types.
+   * Register a {@linkplain Type} instance
+   *
+   * @param typeName the type name
+   * @param supertype super type; may be {@literal null}
+   * @param typeStructureProvider type structure provider to be called lazily when a new type is
+   *     created
+   * @return registered type - either a new type or or a previously registered with the same name
    */
-  void resolveTypes() {
-    unresolvedTypes.removeIf(ResolvableType::resolve);
-  }
-
   Type registerType(
       String typeName, String supertype, Supplier<TypeStructure> typeStructureProvider) {
     Type type = metadata.get(typeName);
@@ -104,14 +105,13 @@ final class Metadata {
     if (found == null) {
       if (asResolvable) {
         found = new ResolvableType(name, this);
-        unresolvedTypes.add((ResolvableType) found);
       }
     }
     return found;
   }
 
   /**
-   * Create a new built-in type of the given name.
+   * Create a new built-in type of the given name. !Package visibility only because of unit testing!
    *
    * @param name the type name
    * @return new built-in type
@@ -130,7 +130,8 @@ final class Metadata {
   }
 
   /**
-   * Create a new custom type of the given name and structure.
+   * Create a new custom type of the given name and structure. !Package visibility only because of
+   * unit testing!
    *
    * @param name the type name
    * @param supertype the super type name - may be {@literal null}
@@ -142,7 +143,7 @@ final class Metadata {
     if (Types.Builtin.hasType(name)) {
       throw new IllegalArgumentException();
     }
-    return new CustomType(
+    return new CompositeType(
         typeCounter.getAndIncrement(),
         name,
         supertype,
@@ -152,8 +153,34 @@ final class Metadata {
         this);
   }
 
+  /**
+   * Retrieve a type from the metadata storage
+   *
+   * @param type the (enumerated) type to retrieve from the metadata storage
+   * @param asResolvable should a {@linkplain ResolvableType} wrapper be returned if the requested
+   *     type is not present in the metadata storage yet?
+   * @return the specified {@linkplain Type} instance or {@linkplain null} if that type is not in
+   *     the metadata storage yet and 'asResolvable' was {@literal false}
+   */
   Type getType(NamedType type, boolean asResolvable) {
     return getType(type.getTypeName(), asResolvable);
+  }
+
+  /**
+   * Add a new unresolved {@linkplain ResolvableType} instance.
+   *
+   * @param type unresolved type
+   */
+  void addUnresolved(ResolvableType type) {
+    unresolvedTypes.add(type);
+  }
+
+  /**
+   * Resolve all dangling unresolved {@link ResolvableType resolvable types}. This needs to be done
+   * if some of the type definitions are using forward references to not yet registered types.
+   */
+  void resolveTypes() {
+    unresolvedTypes.removeIf(ResolvableType::resolve);
   }
 
   private void storeTypeStrings(Type type) {

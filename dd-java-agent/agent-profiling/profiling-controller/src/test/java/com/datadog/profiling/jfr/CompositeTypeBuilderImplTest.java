@@ -11,13 +11,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
-class CustomTypeBuilderImplTest {
+class CompositeTypeBuilderImplTest {
   private static final String FIELD_NAME = "field";
   private static final String CUSTOM_TYPE_NAME = "test.Type";
   private static final String ANNOTATION_TYPE_NAME = "jdk.jfr.Label";
   private static final String ANNOTATION_LABEL = "test.Label";
 
-  private CustomTypeBuilderImpl instance;
+  private CompositeTypeBuilderImpl instance;
   private Type stringType;
   private Type customType;
   private Type annotationType;
@@ -32,7 +32,7 @@ class CustomTypeBuilderImplTest {
     List<TypedField> customTypeFields =
         Collections.singletonList(new TypedField(stringType, "item"));
     customType =
-        new CustomType(
+        new CompositeType(
             2,
             CUSTOM_TYPE_NAME,
             null,
@@ -41,7 +41,7 @@ class CustomTypeBuilderImplTest {
             metadata);
 
     annotationType =
-        new CustomType(
+        new CompositeType(
             3,
             ANNOTATION_TYPE_NAME,
             Annotation.ANNOTATION_SUPER_TYPE_NAME,
@@ -59,7 +59,7 @@ class CustomTypeBuilderImplTest {
     Mockito.when(types.getType(ArgumentMatchers.matches(ANNOTATION_TYPE_NAME.replace(".", "\\."))))
         .thenReturn(annotationType);
 
-    instance = new CustomTypeBuilderImpl(types);
+    instance = new CompositeTypeBuilderImpl(types);
   }
 
   @Test

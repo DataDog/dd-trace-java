@@ -1,6 +1,5 @@
 package com.datadog.profiling.jfr;
 
-import static com.datadog.profiling.jfr.TypeUtils.BUILTIN_VALUE_MAP;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
@@ -8,13 +7,13 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class CustomTypeTest {
+class CompositeTypeTest {
   private static final String TYPE_NAME = "test.Type";
   private static final String FIELD_NAME = "field1";
   private static final String PARENT_FIELD_NAME = "parent";
   private static final String FIELD_VALUE = "hello";
   public static final int TYPE_ID = 1;
-  private CustomType instance;
+  private CompositeType instance;
   private Types types;
 
   @BeforeEach
@@ -31,7 +30,7 @@ class CustomTypeTest {
     annotations.add(new Annotation(types.getType(Types.JDK.ANNOTATION_NAME), "test.Type"));
 
     TypeStructure structure = new TypeStructure(fields, annotations);
-    instance = new CustomType(TYPE_ID, TYPE_NAME, null, structure, constantPools, metadata);
+    instance = new CompositeType(TYPE_ID, TYPE_NAME, null, structure, constantPools, metadata);
   }
 
   @Test
@@ -79,8 +78,11 @@ class CustomTypeTest {
 
   @Test
   void canAccept() {
-    for (Object builtinVal : BUILTIN_VALUE_MAP.values()) {
-      assertFalse(instance.canAccept(builtinVal));
+    for (Types.Builtin builtin : Types.Builtin.values()) {
+      for (Object builtinVal : TypeUtils.getBuiltinValues(builtin)) {
+        // null is generally accepted
+        assertEquals(builtinVal == null, instance.canAccept(builtinVal));
+      }
     }
     TypedValue value =
         instance.asValue(
@@ -146,6 +148,7 @@ class CustomTypeTest {
             });
     types.resolveAll();
 
+    assertFalse(instance.isUsedBy(null));
     // has a self-referenced field
     assertTrue(main.isUsedBy(main));
     assertTrue(main.isUsedBy(other));

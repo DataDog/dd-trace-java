@@ -2,8 +2,9 @@ package com.datadog.profiling.jfr;
 
 import java.util.List;
 import java.util.function.Consumer;
+import lombok.Generated;
 
-class ResolvableType implements Type {
+final class ResolvableType implements Type {
   private final String typeName;
   private final Metadata metadata;
 
@@ -12,6 +13,8 @@ class ResolvableType implements Type {
   ResolvableType(String typeName, Metadata metadata) {
     this.typeName = typeName;
     this.metadata = metadata;
+    // self-register in metadata as 'unresolved'
+    this.metadata.addUnresolved(this);
   }
 
   @Override
@@ -37,54 +40,69 @@ class ResolvableType implements Type {
     return delegate.hasConstantPool();
   }
 
+  /*
+   * Following 'asValue()' methods are quite peculiar as they will never succeed - the resolvable type can not point
+   * to a built-in type and therefore all attempts to use a primitive value will faile. And jacoco will complain about
+   * low code coverage. The 'solution' is to hack the Lombok @Generated annotation which will cause such annotated
+   * methods not to appear in the jacoco coverage report.
+   */
+  @Generated
   @Override
   public TypedValue asValue(String value) {
     checkResolved();
     return delegate.asValue(value);
   }
 
+  @Generated
   @Override
   public TypedValue asValue(byte value) {
     checkResolved();
     return delegate.asValue(value);
   }
 
+  @Generated
   @Override
   public TypedValue asValue(char value) {
     checkResolved();
     return delegate.asValue(value);
   }
 
+  @Generated
   @Override
   public TypedValue asValue(short value) {
     checkResolved();
     return delegate.asValue(value);
   }
 
+  @Generated
   @Override
   public TypedValue asValue(int value) {
     checkResolved();
     return delegate.asValue(value);
   }
 
+  @Generated
   @Override
   public TypedValue asValue(long value) {
     checkResolved();
     return delegate.asValue(value);
   }
 
+  @Generated
   @Override
   public TypedValue asValue(float value) {
     checkResolved();
     return delegate.asValue(value);
   }
 
+  @Generated
   @Override
   public TypedValue asValue(double value) {
     checkResolved();
     return delegate.asValue(value);
   }
 
+  @Generated
   @Override
   public TypedValue asValue(boolean value) {
     checkResolved();

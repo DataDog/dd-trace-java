@@ -4,8 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 
 class ConstantPoolWriterTest {
   private ConstantPools constantPools;
@@ -49,6 +47,78 @@ class ConstantPoolWriterTest {
       for (Types.Builtin builtin : Types.Builtin.values()) {
         instance.writeBuiltinType(writer, types.getType(builtin).nullValue(), useCpFlag);
       }
+    }
+  }
+
+  @Test
+  void writeBuiltinByte() {
+    for (boolean useCpFlag : new boolean[] {true, false}) {
+      instance.writeBuiltinType(
+          writer, types.getType(Types.Builtin.BYTE).asValue((byte) 1), useCpFlag);
+    }
+  }
+
+  @Test
+  void writeBuiltinChar() {
+    for (boolean useCpFlag : new boolean[] {true, false}) {
+      instance.writeBuiltinType(
+          writer, types.getType(Types.Builtin.CHAR).asValue((char) 1), useCpFlag);
+    }
+  }
+
+  @Test
+  void writeBuiltinShort() {
+    for (boolean useCpFlag : new boolean[] {true, false}) {
+      instance.writeBuiltinType(
+          writer, types.getType(Types.Builtin.SHORT).asValue((short) 1), useCpFlag);
+    }
+  }
+
+  @Test
+  void writeBuiltinInt() {
+    for (boolean useCpFlag : new boolean[] {true, false}) {
+      instance.writeBuiltinType(
+          writer, types.getType(Types.Builtin.INT).asValue((int) 1), useCpFlag);
+    }
+  }
+
+  @Test
+  void writeBuiltinLong() {
+    for (boolean useCpFlag : new boolean[] {true, false}) {
+      instance.writeBuiltinType(
+          writer, types.getType(Types.Builtin.LONG).asValue((long) 1), useCpFlag);
+    }
+  }
+
+  @Test
+  void writeBuiltinFloat() {
+    for (boolean useCpFlag : new boolean[] {true, false}) {
+      instance.writeBuiltinType(
+          writer, types.getType(Types.Builtin.FLOAT).asValue((float) 1), useCpFlag);
+    }
+  }
+
+  @Test
+  void writeBuiltinDouble() {
+    for (boolean useCpFlag : new boolean[] {true, false}) {
+      instance.writeBuiltinType(
+          writer, types.getType(Types.Builtin.DOUBLE).asValue((double) 1), useCpFlag);
+    }
+  }
+
+  @Test
+  void writeBuiltinBoolean() {
+    for (boolean useCpFlag : new boolean[] {true, false}) {
+      instance.writeBuiltinType(
+          writer, types.getType(Types.Builtin.BOOLEAN).asValue(true), useCpFlag);
+    }
+  }
+
+  @Test
+  void writeBuiltinString() {
+    for (boolean useCpFlag : new boolean[] {true, false}) {
+      instance.writeBuiltinType(
+          writer, types.getType(Types.Builtin.STRING).asValue("1"), useCpFlag);
     }
   }
 

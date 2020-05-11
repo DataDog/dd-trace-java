@@ -33,7 +33,7 @@ class TypedFieldBuilderImplTest {
     List<TypedField> customTypeFields =
         Collections.singletonList(new TypedField(stringType, "item"));
     customType =
-        new CustomType(
+        new CompositeType(
             2,
             CUSTOM_TYPE_NAME,
             null,
@@ -42,7 +42,7 @@ class TypedFieldBuilderImplTest {
             metadata);
 
     annotationType =
-        new CustomType(
+        new CompositeType(
             3,
             ANNOTATION_TYPE_NAME,
             Annotation.ANNOTATION_SUPER_TYPE_NAME,

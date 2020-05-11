@@ -34,7 +34,7 @@ public final class Chunk {
    *     type
    */
   public Chunk writeEvent(TypedValue event) {
-    if (!event.getType().getSupertype().equals("jdk.jfr.Event")) {
+    if (!"jdk.jfr.Event".equals(event.getType().getSupertype())) {
       throw new IllegalArgumentException();
     }
 
@@ -119,7 +119,7 @@ public final class Chunk {
     metadata.writeMetaEvent(writer, startTicks, duration);
   }
 
-  private void writeTypedValue(ByteArrayWriter writer, TypedValue value) {
+  void writeTypedValue(ByteArrayWriter writer, TypedValue value) {
     if (value == null) {
       throw new IllegalArgumentException();
     }
@@ -150,15 +150,13 @@ public final class Chunk {
   }
 
   private void writeBuiltinType(ByteArrayWriter writer, TypedValue typedValue) {
-    if (typedValue == null) {
-      throw new RuntimeException();
-    }
     Type type = typedValue.getType();
-    if (!type.isBuiltin()) {
-      throw new IllegalArgumentException();
-    }
     Object value = typedValue.getValue();
     Types.Builtin builtin = Types.Builtin.ofType(type);
+    if (builtin == null) {
+      throw new IllegalArgumentException();
+    }
+
     if (value == null && builtin != Types.Builtin.STRING) {
       // skip the non-string built-in values
       return;

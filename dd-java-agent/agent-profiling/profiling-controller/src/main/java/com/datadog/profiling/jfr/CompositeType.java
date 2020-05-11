@@ -5,14 +5,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** A custom JFR type */
-final class CustomType extends BaseType {
+/** A composite JFR type */
+final class CompositeType extends BaseType {
 
   private final Map<String, TypedField> fieldMap;
   private final List<TypedField> fields;
   private final List<Annotation> annotations;
 
-  CustomType(
+  CompositeType(
       long id,
       String name,
       String supertype,

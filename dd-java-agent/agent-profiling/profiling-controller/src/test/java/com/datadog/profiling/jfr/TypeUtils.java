@@ -1,26 +1,29 @@
 package com.datadog.profiling.jfr;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class TypeUtils {
-  public static Map<Types.Builtin, Object> BUILTIN_VALUE_MAP;
+  private static final Map<Types.Builtin, List<Object>> BUILTIN_VALUES_MAP;
 
   static {
-    BUILTIN_VALUE_MAP = new HashMap<>();
-    BUILTIN_VALUE_MAP.put(Types.Builtin.BOOLEAN, true);
-    BUILTIN_VALUE_MAP.put(Types.Builtin.BYTE, (byte) 0x12);
-    BUILTIN_VALUE_MAP.put(Types.Builtin.CHAR, 'h');
-    BUILTIN_VALUE_MAP.put(Types.Builtin.SHORT, (short) 4);
-    BUILTIN_VALUE_MAP.put(Types.Builtin.INT, 7);
-    BUILTIN_VALUE_MAP.put(Types.Builtin.LONG, 1256L);
-    BUILTIN_VALUE_MAP.put(Types.Builtin.FLOAT, 3.14f);
-    BUILTIN_VALUE_MAP.put(Types.Builtin.DOUBLE, Math.sqrt(2d));
-    BUILTIN_VALUE_MAP.put(Types.Builtin.STRING, "hello");
+    BUILTIN_VALUES_MAP = new HashMap<>();
+    BUILTIN_VALUES_MAP.put(Types.Builtin.BOOLEAN, Arrays.asList(true, false));
+    BUILTIN_VALUES_MAP.put(Types.Builtin.BYTE, Collections.singletonList((byte) 0x12));
+    BUILTIN_VALUES_MAP.put(Types.Builtin.CHAR, Collections.singletonList('h'));
+    BUILTIN_VALUES_MAP.put(Types.Builtin.SHORT, Collections.singletonList((short) 4));
+    BUILTIN_VALUES_MAP.put(Types.Builtin.INT, Collections.singletonList(7));
+    BUILTIN_VALUES_MAP.put(Types.Builtin.LONG, Collections.singletonList(1256L));
+    BUILTIN_VALUES_MAP.put(Types.Builtin.FLOAT, Collections.singletonList(3.14f));
+    BUILTIN_VALUES_MAP.put(Types.Builtin.DOUBLE, Collections.singletonList(Math.sqrt(2d)));
+    BUILTIN_VALUES_MAP.put(Types.Builtin.STRING, Arrays.asList(null, "", "hello"));
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> T getBuiltinValue(Types.Builtin target, Class<T> type) {
-    return (T)BUILTIN_VALUE_MAP.get(target);
+  public static <T> List<T> getBuiltinValues(Types.Builtin target) {
+    return (List<T>) BUILTIN_VALUES_MAP.get(target);
   }
 }

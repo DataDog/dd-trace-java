@@ -132,6 +132,9 @@ abstract class BaseType implements Type {
 
   @Override
   public boolean isUsedBy(Type other) {
+    if (other == null) {
+      return false;
+    }
     return isUsedBy(this, other, new HashSet<>());
   }
 

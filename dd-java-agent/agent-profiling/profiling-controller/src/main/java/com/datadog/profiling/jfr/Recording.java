@@ -40,11 +40,15 @@ public final class Recording {
    * Try registering a user event type. If a same-named event already exists it will be returned.
    *
    * @param name the event name
-   * @param builderCallback will be called with the active {@linkplain CustomTypeBuilder} when the
-   *     event is newly registered
+   * @param builderCallback will be called with the active {@linkplain CompositeTypeBuilder} when
+   *     the event is newly registered
    * @return a user event type of the given name
+   * @throws IllegalArgumentException if 'name' or 'builderCallback' is {@literal null}
    */
-  public Type registerEventType(String name, Consumer<CustomTypeBuilder> builderCallback) {
+  public Type registerEventType(String name, Consumer<CompositeTypeBuilder> builderCallback) {
+    if (name == null || builderCallback == null) {
+      throw new IllegalArgumentException();
+    }
     return registerType(
         name,
         "jdk.jfr.Event",
@@ -65,11 +69,24 @@ public final class Recording {
    * returned.
    *
    * @param name the annotation name
-   * @param builderCallback will be called with the active {@linkplain CustomTypeBuilder} when the
-   *     annotation is newly registered
    * @return a user annotation type of the given name
+   * @throws IllegalArgumentException if 'name' is {@literal null}
    */
-  public Type registerAnnotationType(String name, Consumer<CustomTypeBuilder> builderCallback) {
+  public Type registerAnnotationType(String name) {
+    return registerAnnotationType(name, builder -> {});
+  }
+
+  /**
+   * Try registering a user annotation type. If a same-named annotation already exists it will be
+   * returned.
+   *
+   * @param name the annotation name
+   * @param builderCallback will be called with the active {@linkplain CompositeTypeBuilder} when
+   *     the annotation is newly registered
+   * @return a user annotation type of the given name
+   * @throws IllegalArgumentException if 'name' or 'builderCallback' is {@literal null}
+   */
+  public Type registerAnnotationType(String name, Consumer<CompositeTypeBuilder> builderCallback) {
     return registerType(name, Annotation.ANNOTATION_SUPER_TYPE_NAME, builderCallback);
   }
 
@@ -77,11 +94,12 @@ public final class Recording {
    * Try registering a custom type. If a same-named type already exists it will be returned.
    *
    * @param name the type name
-   * @param builderCallback will be called with the active {@linkplain CustomTypeBuilder} when the
-   *     type is newly registered
+   * @param builderCallback will be called with the active {@linkplain CompositeTypeBuilder} when
+   *     the type is newly registered
    * @return a custom type of the given name
+   * @throws IllegalArgumentException if 'name' or 'builderCallback' is {@literal null}
    */
-  public Type registerType(String name, Consumer<CustomTypeBuilder> builderCallback) {
+  public Type registerType(String name, Consumer<CompositeTypeBuilder> builderCallback) {
     return registerType(name, null, builderCallback);
   }
 
@@ -90,12 +108,16 @@ public final class Recording {
    *
    * @param name the type name
    * @param supertype the super type name
-   * @param builderCallback will be called with the active {@linkplain CustomTypeBuilder} when the
-   *     type is newly registered
+   * @param builderCallback will be called with the active {@linkplain CompositeTypeBuilder} when
+   *     the type is newly registered
    * @return a custom type of the given name
+   * @throws IllegalArgumentException if 'name' or 'builderCallback' is {@literal null}
    */
   public Type registerType(
-      String name, String supertype, Consumer<CustomTypeBuilder> builderCallback) {
+      String name, String supertype, Consumer<CompositeTypeBuilder> builderCallback) {
+    if (builderCallback == null || name == null) {
+      throw new IllegalArgumentException();
+    }
     return types.getOrAdd(name, supertype, builderCallback);
   }
 
@@ -104,9 +126,13 @@ public final class Recording {
    *
    * @param type the type
    * @return the previously registered JDK type
-   * @throws IllegalArgumentException if an attempt to retrieve non-registered JDK type is made
+   * @throws IllegalArgumentException if 'type' is {@literal null} or an attempt to retrieve
+   *     non-registered JDK type is made
    */
   public Type getType(Types.JDK type) {
+    if (type == null) {
+      throw new IllegalArgumentException();
+    }
     return getType(type.getTypeName());
   }
 
@@ -115,9 +141,14 @@ public final class Recording {
    *
    * @param typeName the type name
    * @return the previously registered custom type
-   * @throws IllegalArgumentException if an attempt to retrieve non-registered custom type is made
+   * @throws IllegalArgumentException if 'typeName' is {@literal null} or an attempt to retrieve
+   *     non-registered custom type is made
    */
   public Type getType(String typeName) {
+    if (typeName == null) {
+      throw new IllegalArgumentException();
+    }
+
     Type type = types.getType(typeName);
     if (type == null) {
       throw new IllegalArgumentException();

@@ -108,8 +108,7 @@ public final class SamplerWriter {
 
   private TypedValue getClass(StackTraceElement element) {
     String fqn = element.getClassName();
-    int idx = fqn.lastIndexOf('.');
-    String pkgName = idx > -1 ? fqn.substring(idx + 1) : "";
+    String pkgName = getPackageName(fqn);
     return recording
         .getType(Types.JDK.CLASS)
         .asValue(
@@ -122,5 +121,10 @@ public final class SamplerWriter {
                       })
                   .putField("name", fqn);
             });
+  }
+
+  static String getPackageName(String fqn) {
+    int idx = fqn.lastIndexOf('.');
+    return idx > -1 ? fqn.substring(0, idx) : "";
   }
 }

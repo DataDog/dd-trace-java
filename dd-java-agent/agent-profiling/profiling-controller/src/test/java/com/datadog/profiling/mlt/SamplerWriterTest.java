@@ -1,5 +1,6 @@
 package com.datadog.profiling.mlt;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.management.ManagementFactory;
@@ -35,5 +36,11 @@ public class SamplerWriterTest {
       IItemCollection events = JfrLoaderToolkit.loadEvents(target.toFile());
       assertTrue(events.apply(ItemFilters.type(SamplerWriter.EVENT_NAME)).hasItems());
     }
+  }
+
+  @Test
+  void checkPackageName() {
+    assertEquals("", SamplerWriter.getPackageName("Nopackage"));
+    assertEquals("package", SamplerWriter.getPackageName("package.Class"));
   }
 }
