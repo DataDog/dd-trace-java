@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DDSpan implements MutableSpan, AgentSpan {
 
-  public static DDSpan create(final long timestampMicro, final DDSpanContext context) {
+  static DDSpan create(final long timestampMicro, final DDSpanContext context) {
     DDSpan span = new DDSpan(timestampMicro, context);
     context.getTrace().registerSpan(span);
     return span;
@@ -61,7 +61,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  DDSpan(final long timestampMicro, final DDSpanContext context) {
+  private DDSpan(final long timestampMicro, final DDSpanContext context) {
     this.context = context;
 
     if (timestampMicro <= 0L) {
