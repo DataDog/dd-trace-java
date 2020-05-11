@@ -5,7 +5,6 @@ import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
-import java.nio.ByteBuffer;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,12 +20,14 @@ public class TraceProcessingDisruptor extends AbstractDisruptor<List<DDSpan>> {
 
   public TraceProcessingDisruptor(
       final int disruptorSize,
-      final DDAgentApi api,
       final BatchWritingDisruptor batchWritingDisruptor,
       final Monitor monitor,
-      final DDAgentWriter writer) {
+      final DDAgentWriter writer,
+      final StatefulSerializer serializer) {
     // TODO: add config to enable control over serialization overhead.
-    super(disruptorSize, new TraceSerializingHandler(api, batchWritingDisruptor, monitor, writer));
+    super(
+        disruptorSize,
+        new TraceSerializingHandler(batchWritingDisruptor, monitor, writer, serializer));
   }
 
   @Override
@@ -43,20 +44,20 @@ public class TraceProcessingDisruptor extends AbstractDisruptor<List<DDSpan>> {
   public static class TraceSerializingHandler
       implements EventHandler<DisruptorEvent<List<DDSpan>>> {
     private final TraceProcessor processor = new TraceProcessor();
-    private final DDAgentApi api;
     private final BatchWritingDisruptor batchWritingDisruptor;
     private final Monitor monitor;
     private final DDAgentWriter writer;
+    private final StatefulSerializer serializer;
 
     public TraceSerializingHandler(
-        final DDAgentApi api,
         final BatchWritingDisruptor batchWritingDisruptor,
         final Monitor monitor,
-        final DDAgentWriter writer) {
-      this.api = api;
+        final DDAgentWriter writer,
+        final StatefulSerializer serializer) {
       this.batchWritingDisruptor = batchWritingDisruptor;
       this.monitor = monitor;
       this.writer = writer;
+      this.serializer = serializer;
     }
 
     @Override
@@ -67,9 +68,11 @@ public class TraceProcessingDisruptor extends AbstractDisruptor<List<DDSpan>> {
           // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
           try {
             event.data = processor.onTraceComplete(event.data);
-            ByteBuffer serializedTrace = api.serializeTrace(event.data);
+            serializer.serialize(event.data);
+            TraceBuffer serializedTrace = serializer.getBuffer();
+            int sizeInBytes = serializedTrace.sizeInBytes();
             batchWritingDisruptor.publish(serializedTrace, event.representativeCount);
-            monitor.onSerialize(writer, event.data, serializedTrace);
+            monitor.onSerialize(writer, event.data, sizeInBytes);
             event.representativeCount = 0; // reset in case flush is invoked below.
           } catch (final Throwable e) {
             log.debug("Error while serializing trace", e);
