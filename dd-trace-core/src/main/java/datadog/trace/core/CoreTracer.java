@@ -363,7 +363,6 @@ public class CoreTracer
         }
       }
     }
-    incrementTraceCount();
 
     if (!writtenTrace.isEmpty()) {
       final DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
@@ -372,6 +371,8 @@ public class CoreTracer
       final DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
       if (sampler.sample(spanToSample)) {
         writer.write(writtenTrace);
+      } else {
+        incrementTraceCount();
       }
     }
   }
