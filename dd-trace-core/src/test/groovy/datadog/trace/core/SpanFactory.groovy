@@ -24,7 +24,7 @@ class SpanFactory {
       false,
       "fakeType",
       Collections.emptyMap(),
-      new PendingTrace(tracer, 1G),
+      PendingTrace.create(tracer, 1G),
       tracer, [:])
     Thread.currentThread().setName(currentThreadName)
     return DDSpan.create(timestampMicro, context)
@@ -44,7 +44,7 @@ class SpanFactory {
       false,
       "fakeType",
       Collections.emptyMap(),
-      new PendingTrace(tracer, 1G),
+      PendingTrace.create(tracer, 1G),
       tracer, [:])
     return DDSpan.create(1, context)
   }
@@ -84,7 +84,7 @@ class SpanFactory {
       false,
       "fakeType",
       Collections.emptyMap(),
-      new PendingTrace(tracer, 1G),
+      PendingTrace.create(tracer, 1G),
       tracer,
       [:])
     context.setTag("env", envName)

@@ -635,7 +635,7 @@ public class CoreTracer
 
         tags.putAll(localRootSpanTags);
 
-        parentTrace = new PendingTrace(CoreTracer.this, traceId);
+        parentTrace = PendingTrace.create(CoreTracer.this, traceId);
       }
 
       if (serviceName == null) {

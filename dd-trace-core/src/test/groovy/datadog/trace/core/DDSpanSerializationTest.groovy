@@ -60,7 +60,7 @@ class DDSpanSerializationTest extends DDSpecification {
         false,
         spanType,
         ["k1": "v1"],
-        new PendingTrace(tracer, 1G),
+        PendingTrace.create(tracer, 1G),
         tracer,
         [:])
 
@@ -96,7 +96,7 @@ class DDSpanSerializationTest extends DDSpecification {
       false,
       spanType,
       Collections.emptyMap(),
-      new PendingTrace(tracer, 1G),
+      PendingTrace.create(tracer, 1G),
       tracer,
       [:])
     def span = DDSpan.create(0, context)

@@ -34,7 +34,7 @@ class DDSpanTest extends DDSpecification {
         false,
         "fakeType",
         null,
-        new PendingTrace(tracer, 1G),
+        PendingTrace.create(tracer, 1G),
         tracer,
         [:])
 
