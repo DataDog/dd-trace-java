@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.lettuce.rx;
 
-import datadog.trace.instrumentation.lettuce.LettuceInstrumentationUtil;
+import static datadog.trace.instrumentation.lettuce.LettuceInstrumentationUtil.expectsResponse;
+
 import io.lettuce.core.protocol.RedisCommand;
 import java.util.function.Supplier;
 import net.bytebuddy.asm.Advice;
@@ -20,7 +21,7 @@ public class LettuceMonoCreationAdvice {
   public static void monitorSpan(
       @Advice.Enter final RedisCommand command,
       @Advice.Return(readOnly = false) Mono<?> publisher) {
-    final boolean finishSpanOnClose = LettuceInstrumentationUtil.doFinishSpanEarly(command);
+    final boolean finishSpanOnClose = !expectsResponse(command);
     final LettuceMonoDualConsumer mdc = new LettuceMonoDualConsumer(command, finishSpanOnClose);
     publisher = publisher.doOnSubscribe(mdc);
     // register the call back to close the span only if necessary
