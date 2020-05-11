@@ -8,6 +8,8 @@ import datadog.trace.common.writer.ddagent.BatchWritingDisruptor;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.Monitor;
+import datadog.trace.common.writer.ddagent.MsgPackStatefulSerializer;
+import datadog.trace.common.writer.ddagent.StatefulSerializer;
 import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor;
 import datadog.trace.core.DDSpan;
 import java.util.List;
@@ -67,7 +69,11 @@ public class DDAgentWriter implements Writer {
     batchWritingDisruptor = new BatchWritingDisruptor(DISRUPTOR_BUFFER_SIZE, 1, api, monitor, this);
     traceProcessingDisruptor =
         new TraceProcessingDisruptor(
-            DISRUPTOR_BUFFER_SIZE, api, batchWritingDisruptor, monitor, this);
+            DISRUPTOR_BUFFER_SIZE,
+            batchWritingDisruptor,
+            monitor,
+            this,
+            new MsgPackStatefulSerializer());
   }
 
   @lombok.Builder
@@ -79,7 +85,8 @@ public class DDAgentWriter implements Writer {
       final String unixDomainSocket,
       final int traceBufferSize,
       final Monitor monitor,
-      final int flushFrequencySeconds) {
+      final int flushFrequencySeconds,
+      final StatefulSerializer serializer) {
     if (agentApi != null) {
       api = agentApi;
     } else {
@@ -90,7 +97,12 @@ public class DDAgentWriter implements Writer {
     batchWritingDisruptor =
         new BatchWritingDisruptor(traceBufferSize, flushFrequencySeconds, api, monitor, this);
     traceProcessingDisruptor =
-        new TraceProcessingDisruptor(traceBufferSize, api, batchWritingDisruptor, monitor, this);
+        new TraceProcessingDisruptor(
+            traceBufferSize,
+            batchWritingDisruptor,
+            monitor,
+            this,
+            null == serializer ? new MsgPackStatefulSerializer() : serializer);
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {

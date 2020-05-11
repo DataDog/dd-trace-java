@@ -107,11 +107,13 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
 
   private static void writeStringUTF8(String value, MessagePacker destination) throws IOException {
     if (value.length() < 256) {
-      byte[] utf8 = StringTables.getBytesUTF8(value);
-      destination.packRawStringHeader(utf8.length);
-      destination.addPayload(utf8);
-    } else {
-      destination.packString(value);
+      byte[] interned = StringTables.getBytesUTF8(value);
+      if (null != interned) {
+        destination.packRawStringHeader(interned.length);
+        destination.addPayload(interned);
+        return;
+      }
     }
+    destination.packString(value);
   }
 }

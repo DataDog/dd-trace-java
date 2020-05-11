@@ -17,10 +17,10 @@ import lombok.extern.slf4j.Slf4j;
  * <p>publishing to the buffer will block if the buffer is full.
  */
 @Slf4j
-public class BatchWritingDisruptor extends AbstractDisruptor<byte[]> {
+public class BatchWritingDisruptor extends AbstractDisruptor<TraceBuffer> {
   private static final int FLUSH_PAYLOAD_BYTES = 5_000_000; // 5 MB
 
-  private final DisruptorEvent.HeartbeatTranslator<byte[]> heartbeatTranslator =
+  private final DisruptorEvent.HeartbeatTranslator<TraceBuffer> heartbeatTranslator =
       new DisruptorEvent.HeartbeatTranslator();
 
   public BatchWritingDisruptor(
@@ -44,7 +44,7 @@ public class BatchWritingDisruptor extends AbstractDisruptor<byte[]> {
   }
 
   @Override
-  public boolean publish(final byte[] data, final int representativeCount) {
+  public boolean publish(final TraceBuffer data, final int representativeCount) {
     // blocking call to ensure serialized traces aren't discarded and apply back pressure.
     disruptor.getRingBuffer().publishEvent(dataTranslator, data, representativeCount);
     return true;
@@ -57,14 +57,15 @@ public class BatchWritingDisruptor extends AbstractDisruptor<byte[]> {
   }
 
   // Intentionally not thread safe.
-  private static class BatchWritingHandler implements EventHandler<DisruptorEvent<byte[]>> {
+  private static class BatchWritingHandler implements EventHandler<DisruptorEvent<TraceBuffer>> {
 
     private final long flushFrequencyNanos;
     private final DDAgentApi api;
     private final Monitor monitor;
     private final DDAgentWriter writer;
-    private final List<byte[]> serializedTraces = new ArrayList<>();
+    private final List<TraceBuffer> serializedTraces = new ArrayList<>();
     private int representativeCount = 0;
+    private int traceCount = 0;
     private int sizeInBytes = 0;
     private long nextScheduledFlush;
 
@@ -83,10 +84,17 @@ public class BatchWritingDisruptor extends AbstractDisruptor<byte[]> {
     // TODO: reduce byte[] garbage by keeping the byte[] on the event and copy before returning.
     @Override
     public void onEvent(
-        final DisruptorEvent<byte[]> event, final long sequence, final boolean endOfBatch) {
+        final DisruptorEvent<TraceBuffer> event, final long sequence, final boolean endOfBatch) {
       try {
         if (event.data != null) {
-          sizeInBytes += event.data.length;
+          // the intention here is that the batching is done on the serialization thread
+          // directly into trace buffers pooled by the disruptor. The BatchWritingDisruptor
+          // will eventually not do any batching, but claim a trace buffer from the disruptor,
+          // publish it synchronously to the agent, and return it to the disruptor for reuse.
+          // This is an incremental step towards moving away from the status quo, where we
+          // could support a hybrid approach rather than refactor in one go.
+          sizeInBytes += event.data.sizeInBytes();
+          traceCount += event.data.traceCount();
           serializedTraces.add(event.data);
         }
 
@@ -113,7 +121,8 @@ public class BatchWritingDisruptor extends AbstractDisruptor<byte[]> {
 
         // TODO add retry and rate limiting
         final DDAgentApi.Response response =
-            api.sendSerializedTraces(representativeCount, sizeInBytes, serializedTraces);
+            api.sendSerializedTraces(
+                representativeCount, traceCount, sizeInBytes, serializedTraces);
 
         monitor.onFlush(writer, early);
 
@@ -142,6 +151,7 @@ public class BatchWritingDisruptor extends AbstractDisruptor<byte[]> {
       } finally {
         serializedTraces.clear();
         sizeInBytes = 0;
+        traceCount = 0;
         representativeCount = 0;
         scheduleNextFlush();
 

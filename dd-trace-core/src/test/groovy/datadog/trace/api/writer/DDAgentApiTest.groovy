@@ -2,6 +2,9 @@ package datadog.trace.api.writer
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import datadog.trace.common.writer.ddagent.MsgPackStatefulSerializer
+import datadog.trace.common.writer.ddagent.TraceBuffer
+import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.SpanFactory
 import datadog.trace.common.sampling.RateByServiceSampler
@@ -19,6 +22,25 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 @Timeout(20)
 class DDAgentApiTest extends DDSpecification {
   static mapper = new ObjectMapper(new MessagePackFactory())
+  def serializer = new MsgPackStatefulSerializer()
+
+  def prepareTraces(List<List<DDSpan>> traces) {
+    List<TraceBuffer> serialized = new ArrayList<>(traces.size())
+    int sizeInBytes = 0
+    int traceCount = 0
+    for (trace in traces) {
+      serializer.serialize(trace)
+      TraceBuffer buffer = serializer.getBuffer()
+      sizeInBytes += buffer.sizeInBytes()
+      traceCount += buffer.traceCount()
+      serialized.add(buffer)
+    }
+    return [
+      traces: serialized,
+      sizeInBytes: sizeInBytes,
+      traceCount: traceCount
+    ]
+  }
 
   def "sending an empty list of traces returns no errors"() {
     setup:
@@ -36,9 +58,9 @@ class DDAgentApiTest extends DDSpecification {
       }
     }
     def client = new DDAgentApi("localhost", agent.address.port, null)
-
+    def request = prepareTraces([])
     expect:
-    def response = client.sendTraces([])
+    def response = client.sendSerializedTraces(request.traceCount, request.traceCount, request.sizeInBytes, request.traces)
     response.success()
     response.status() == 200
     agent.getLastRequest().path == "/v0.4/traces"
@@ -61,9 +83,9 @@ class DDAgentApiTest extends DDSpecification {
       }
     }
     def client = new DDAgentApi("localhost", agent.address.port, null)
-
+    def request = prepareTraces([])
     expect:
-    def response = client.sendTraces([])
+    def response = client.sendSerializedTraces(request.traceCount, request.traceCount, request.sizeInBytes, request.traces)
     !response.success()
     response.status() == 404
     agent.getLastRequest().path == "/v0.3/traces"
@@ -82,9 +104,10 @@ class DDAgentApiTest extends DDSpecification {
       }
     }
     def client = new DDAgentApi("localhost", agent.address.port, null)
+    def request = prepareTraces(traces)
 
     expect:
-    client.sendTraces(traces).success()
+    client.sendSerializedTraces(request.traceCount, request.traceCount, request.sizeInBytes, request.traces).success()
     agent.lastRequest.contentType == "application/msgpack"
     agent.lastRequest.headers.get("Datadog-Meta-Lang") == "java"
     agent.lastRequest.headers.get("Datadog-Meta-Lang-Version") == System.getProperty("java.version", "unknown")
@@ -158,9 +181,10 @@ class DDAgentApiTest extends DDSpecification {
     }
     def client = new DDAgentApi("localhost", agent.address.port, null)
     client.addResponseListener(responseListener)
+    def request = prepareTraces([[], [], []])
 
     when:
-    client.sendTraces([[], [], []])
+    client.sendSerializedTraces(request.traceCount, request.traceCount, request.sizeInBytes, request.traces)
     then:
     agentResponse.get() == ["hello": [:]]
     agent.lastRequest.headers.get("Datadog-Meta-Lang") == "java"
@@ -183,9 +207,9 @@ class DDAgentApiTest extends DDSpecification {
       }
     }
     def client = new DDAgentApi("localhost", v3Agent.address.port, null)
-
+    def request = prepareTraces([])
     expect:
-    client.sendTraces([]).success()
+    client.sendSerializedTraces(request.traceCount, request.traceCount, request.sizeInBytes, request.traces).success()
     v3Agent.getLastRequest().path == "/v0.3/traces"
 
     cleanup:
@@ -210,7 +234,8 @@ class DDAgentApiTest extends DDSpecification {
     }
     def port = badPort ? 999 : agent.address.port
     def client = new DDAgentApi("localhost", port, null)
-    def result = client.sendTraces([])
+    def request = prepareTraces([])
+    def result = client.sendSerializedTraces(request.traceCount, request.traceCount, request.sizeInBytes, request.traces)
 
     expect:
     result.success() == !badPort // Expect success of port is ok
@@ -241,9 +266,9 @@ class DDAgentApiTest extends DDSpecification {
       }
     }
     def client = new DDAgentApi("localhost", agent.address.port, null)
-
+    def request = prepareTraces(traces)
     when:
-    def success = client.sendTraces(traces).success()
+    def success = client.sendSerializedTraces(request.traceCount, request.traceCount, request.sizeInBytes, request.traces).success()
     then:
     success
     receivedContentLength.get() == expectedLength
