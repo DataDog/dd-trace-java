@@ -42,9 +42,9 @@ public class SessionMethodUtils {
       final AgentSpan span = startSpan(operationName, sessionState.getSessionSpan().context());
       DECORATOR.afterStart(span);
       DECORATOR.onOperation(span, entity);
-      scope = activateSpan(span, true);
+      scope = activateSpan(span);
     } else {
-      scope = activateSpan(sessionState.getSessionSpan(), false);
+      scope = activateSpan(sessionState.getSessionSpan());
       sessionState.setHasChildSpan(false);
     }
 
@@ -54,7 +54,10 @@ public class SessionMethodUtils {
 
   // Closes a Scope/Span, adding an error tag if the given Throwable is not null.
   public static void closeScope(
-      final SessionState sessionState, final Throwable throwable, final Object entity) {
+    final SessionState sessionState,
+    final Throwable throwable,
+    final Object entity,
+    final boolean closeSpan) {
 
     if (sessionState == null || sessionState.getMethodScope() == null) {
       // This method call was re-entrant. Do nothing, since it is being traced by the parent/first
@@ -65,7 +68,7 @@ public class SessionMethodUtils {
     CallDepthThreadLocalMap.reset(SessionMethodUtils.class);
     final AgentScope scope = sessionState.getMethodScope();
     final AgentSpan span = scope.span();
-    if (span != null && sessionState.hasChildSpan) {
+    if (span != null && (sessionState.hasChildSpan || closeSpan)) {
       DECORATOR.onError(span, throwable);
       if (entity != null) {
         DECORATOR.onOperation(span, entity);

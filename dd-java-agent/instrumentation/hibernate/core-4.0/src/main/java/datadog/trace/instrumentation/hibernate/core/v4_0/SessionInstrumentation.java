@@ -132,9 +132,10 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     public static SessionState startMethod(
         @Advice.This final SharedSessionContract session,
         @Advice.Origin("#m") final String name,
-        @Advice.Argument(0) final Object entity) {
+        @Advice.Argument(0) final Object entity,
+        @Advice.Local("startSpan") boolean startSpan) {
 
-      final boolean startSpan = !SCOPE_ONLY_METHODS.contains(name);
+      startSpan = !SCOPE_ONLY_METHODS.contains(name);
       final ContextStore<SharedSessionContract, SessionState> contextStore =
           InstrumentationContext.get(SharedSessionContract.class, SessionState.class);
       return SessionMethodUtils.startScopeFrom(
@@ -143,12 +144,12 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void endMethod(
-        @Advice.This final SharedSessionContract session,
         @Advice.Enter final SessionState sessionState,
         @Advice.Thrown final Throwable throwable,
+        @Advice.Local("startSpan") final boolean startSpan,
         @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Object returned) {
 
-      SessionMethodUtils.closeScope(sessionState, throwable, returned);
+      SessionMethodUtils.closeScope(sessionState, throwable, returned, startSpan);
     }
   }
 

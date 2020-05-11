@@ -143,9 +143,10 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     public static SessionState startMethod(
         @Advice.This final Object session,
         @Advice.Origin("#m") final String name,
-        @Advice.Argument(0) final Object entity) {
+        @Advice.Argument(0) final Object entity,
+        @Advice.Local("startSpan") boolean startSpan) {
 
-      final boolean startSpan = !SCOPE_ONLY_METHODS.contains(name);
+      startSpan = !SCOPE_ONLY_METHODS.contains(name);
       if (session instanceof Session) {
         final ContextStore<Session, SessionState> contextStore =
             InstrumentationContext.get(Session.class, SessionState.class);
@@ -164,9 +165,10 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     public static void endMethod(
         @Advice.Enter final SessionState sessionState,
         @Advice.Thrown final Throwable throwable,
+        @Advice.Local("startSpan") final boolean startSpan,
         @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Object returned) {
 
-      SessionMethodUtils.closeScope(sessionState, throwable, returned);
+      SessionMethodUtils.closeScope(sessionState, throwable, returned, startSpan);
     }
   }
 
