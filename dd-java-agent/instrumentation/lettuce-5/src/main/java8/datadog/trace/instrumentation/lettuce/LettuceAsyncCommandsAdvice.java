@@ -34,8 +34,8 @@ public class LettuceAsyncCommandsAdvice {
     if (throwable != null) {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
-      span.finish();
       scope.close();
+      span.finish();
       return;
     }
 
@@ -44,5 +44,6 @@ public class LettuceAsyncCommandsAdvice {
       asyncCommand.handleAsync(new LettuceAsyncBiFunction<>(span));
     }
     scope.close();
+    // span finished by LettuceAsyncBiFunction
   }
 }

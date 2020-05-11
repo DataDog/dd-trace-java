@@ -71,7 +71,7 @@ public class CommonsHttpClientInstrumentation extends Instrumenter.Default {
       }
 
       final AgentSpan span = startSpan("http.request");
-      final AgentScope scope = activateSpan(span, true);
+      final AgentScope scope = activateSpan(span);
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, httpMethod);
@@ -89,14 +89,14 @@ public class CommonsHttpClientInstrumentation extends Instrumenter.Default {
       if (scope == null) {
         return;
       }
+      final AgentSpan span = scope.span();
       try {
-        final AgentSpan span = scope.span();
-
         DECORATE.onResponse(span, httpMethod);
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
       } finally {
         scope.close();
+        span.finish();
         CallDepthThreadLocalMap.reset(HttpClient.class);
       }
     }

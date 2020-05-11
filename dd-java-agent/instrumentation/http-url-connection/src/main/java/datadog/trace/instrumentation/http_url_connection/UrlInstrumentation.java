@@ -70,7 +70,7 @@ public class UrlInstrumentation extends Instrumenter.Default {
                 .setTag(DDTags.SPAN_TYPE, DDSpanTypes.HTTP_CLIENT)
                 .setTag(Tags.COMPONENT, COMPONENT);
 
-        try (final AgentScope scope = activateSpan(span, false)) {
+        try (final AgentScope scope = activateSpan(span)) {
           span.setTag(Tags.HTTP_URL, url.toString());
           span.setTag(Tags.PEER_PORT, url.getPort() == -1 ? 80 : url.getPort());
           span.setTag(Tags.PEER_HOSTNAME, url.getHost());

@@ -92,7 +92,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Defaul
       }
       span.setTag("span.origin.type", consumer.getClass().getName());
 
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         CONSUMER_DECORATE.afterStart(span);
         if (message == null) {
           CONSUMER_DECORATE.onReceive(span, method);

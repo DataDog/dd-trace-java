@@ -108,7 +108,7 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Default {
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 
-      final AgentScope scope = activateSpan(span, false);
+      final AgentScope scope = activateSpan(span);
       // Enable async propagation, so the newly spawned task will be associated back with this
       // original trace.
       scope.setAsyncPropagation(true);
@@ -141,7 +141,8 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Default {
               response, new SpanFinishingCallback(span), Twilio.getExecutorService());
         }
       } finally {
-        scope.close(); // won't finish the span.
+        scope.close();
+        // span finished in SpanFinishingCallback
         CallDepthThreadLocalMap.reset(Twilio.class); // reset call depth count
       }
     }

@@ -24,7 +24,7 @@ public class ClientTracingFilter implements ClientRequestFilter, ClientResponseF
   @Override
   public void filter(final ClientRequestContext requestContext) {
     final AgentSpan span = startSpan("jax-rs.client.call");
-    try (final AgentScope scope = activateSpan(span, false)) {
+    try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, requestContext);
 

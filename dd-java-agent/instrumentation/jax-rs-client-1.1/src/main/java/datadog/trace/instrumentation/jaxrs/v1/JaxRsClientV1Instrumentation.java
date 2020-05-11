@@ -77,7 +77,7 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Default {
         request.getProperties().put(DD_SPAN_ATTRIBUTE, span);
 
         propagate().inject(span, request.getHeaders(), SETTER);
-        return activateSpan(span, true);
+        return activateSpan(span);
       }
       return null;
     }
@@ -95,6 +95,7 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Default {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
       scope.close();
+      scope.span().finish();
     }
   }
 }

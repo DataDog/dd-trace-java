@@ -80,7 +80,7 @@ public class NettyChannelInstrumentation extends Instrumenter.Default {
                   .putIfAbsent(channel, ChannelTraceContext.Factory.INSTANCE)
                   .getConnectionContinuation()
               != null) {
-            continuation.close();
+            continuation.cancel();
           } else {
             contextStore.get(channel).setConnectionContinuation(continuation);
           }

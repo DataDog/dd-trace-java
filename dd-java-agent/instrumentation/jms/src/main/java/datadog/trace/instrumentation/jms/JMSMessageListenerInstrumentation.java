@@ -75,7 +75,7 @@ public final class JMSMessageListenerInstrumentation extends Instrumenter.Defaul
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onReceive(span, message);
 
-      final AgentScope scope = activateSpan(span, true);
+      final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
       return scope;
     }
@@ -89,6 +89,7 @@ public final class JMSMessageListenerInstrumentation extends Instrumenter.Defaul
       CONSUMER_DECORATE.onError(scope, throwable);
       CONSUMER_DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 }

@@ -1,9 +1,9 @@
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.java.concurrent.CallableWrapper
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
+import datadog.trace.core.DDSpan
 import spock.lang.Shared
 
 import java.lang.reflect.InvocationTargetException
@@ -74,6 +74,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
         m(pool, new JavaAsyncChild())
         // this child won't
         m(pool, new JavaAsyncChild(false, false))
+        blockUntilChildSpansFinished(1)
       }
     }.run()
 

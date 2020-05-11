@@ -37,7 +37,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     when:
     put("foo", "bar")
     AgentSpan rootSpan = startSpan("root")
-    AgentScope rootScope = activateSpan(rootSpan, true)
+    AgentScope rootScope = activateSpan(rootSpan)
 
     then:
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
@@ -46,7 +46,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
 
     when:
     AgentSpan childSpan = startSpan("child")
-    AgentScope childScope = activateSpan(childSpan, true)
+    AgentScope childScope = activateSpan(childSpan)
 
     then:
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
@@ -55,6 +55,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
 
     when:
     childScope.close()
+    childSpan.finish()
 
     then:
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
@@ -63,6 +64,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
 
     when:
     rootScope.close()
+    rootSpan.finish()
 
     then:
     get(CorrelationIdentifier.getTraceIdKey()) == null
@@ -91,16 +93,17 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
       void run() {
         // other trace in scope
         final AgentSpan thread2Span = startSpan("root2")
-        final AgentScope thread2Scope = activateSpan(thread2Span, true)
+        final AgentScope thread2Scope = activateSpan(thread2Span)
         try {
           thread2TraceId.set(get(CorrelationIdentifier.getTraceIdKey()))
         } finally {
           thread2Scope.close()
+          thread2Span.finish()
         }
       }
     }
     final AgentSpan mainSpan = startSpan("root")
-    final AgentScope mainScope = activateSpan(mainSpan, true)
+    final AgentScope mainScope = activateSpan(mainSpan)
     thread1.start()
     thread2.start()
     final String mainThreadTraceId = get(CorrelationIdentifier.getTraceIdKey())
@@ -117,5 +120,6 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
 
     cleanup:
     mainScope?.close()
+    mainSpan?.finish()
   }
 }

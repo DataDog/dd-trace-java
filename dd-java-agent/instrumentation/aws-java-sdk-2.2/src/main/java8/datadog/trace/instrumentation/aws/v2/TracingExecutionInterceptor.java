@@ -30,7 +30,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   public void beforeExecution(
       final Context.BeforeExecution context, final ExecutionAttributes executionAttributes) {
     final AgentSpan span = startSpan("aws.http");
-    try (final AgentScope scope = activateSpan(span, false)) {
+    try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, span);
     }
@@ -53,7 +53,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
     // This scope will be closed by AwsHttpClientInstrumentation since ExecutionInterceptor API
     // doesn't provide a way to run code in the same thread after transmission has been scheduled.
-    final AgentScope scope = activateSpan(span, false);
+    final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
   }
 

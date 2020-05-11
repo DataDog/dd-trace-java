@@ -3,7 +3,6 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
@@ -18,6 +17,7 @@ import java.time.Duration
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
 class ReactorCoreTest extends AgentTestRunner {
@@ -254,7 +254,7 @@ class ReactorCoreTest extends AgentTestRunner {
 
       AgentSpan intermediate = startSpan("intermediate")
       // After this activation, all additions to the assembly are children of this span
-      AgentScope scope = activateSpan(intermediate, true)
+      AgentScope scope = activateSpan(intermediate)
       try {
         if (publisher instanceof Mono) {
           return ((Mono) publisher).map(addOne)
@@ -264,6 +264,7 @@ class ReactorCoreTest extends AgentTestRunner {
         throw new IllegalStateException("Unknown publisher type")
       } finally {
         scope.close()
+        intermediate.finish()
       }
     }
 
@@ -310,7 +311,7 @@ class ReactorCoreTest extends AgentTestRunner {
       Publisher<Integer> publisher = publisherSupplier()
 
       // After this activation, all additions to the assembly will create new traces
-      AgentScope scope = activateSpan(AgentTracer.noopSpan(), true)
+      AgentScope scope = activateSpan(noopSpan())
       try {
         if (publisher instanceof Mono) {
           return ((Mono) publisher).map(addOne)
@@ -320,6 +321,7 @@ class ReactorCoreTest extends AgentTestRunner {
         throw new IllegalStateException("Unknown publisher type")
       } finally {
         scope.close()
+        scope.span().finish()
       }
     }
 
@@ -375,7 +377,7 @@ class ReactorCoreTest extends AgentTestRunner {
   def runUnderTrace(def publisherSupplier) {
     final AgentSpan span = startSpan("publisher-parent")
 
-    AgentScope scope = activateSpan(span, true)
+    AgentScope scope = activateSpan(span)
     try {
       scope.setAsyncPropagation(true)
 
@@ -390,13 +392,14 @@ class ReactorCoreTest extends AgentTestRunner {
       throw new RuntimeException("Unknown publisher: " + publisher)
     } finally {
       scope.close()
+      span.finish()
     }
   }
 
   @Trace(operationName = "trace-parent", resourceName = "trace-parent")
   def cancelUnderTrace(def publisherSupplier) {
     final AgentSpan span = startSpan("publisher-parent")
-    AgentScope scope = activateSpan(span, true)
+    AgentScope scope = activateSpan(span)
     scope.setAsyncPropagation(true)
 
     def publisher = publisherSupplier()
@@ -416,6 +419,7 @@ class ReactorCoreTest extends AgentTestRunner {
     })
 
     scope.close()
+    span.finish()
   }
 
   @Trace(operationName = "addOne", resourceName = "addOne")

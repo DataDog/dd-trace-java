@@ -38,13 +38,13 @@ public final class TracingHandler implements Handler {
     DECORATE.onRequest(ratpackSpan, request);
     ctx.getExecution().add(ratpackSpan);
 
-    try (final AgentScope scope = activateSpan(ratpackSpan, false)) {
+    try (final AgentScope scope = activateSpan(ratpackSpan)) {
       scope.setAsyncPropagation(true);
 
       ctx.getResponse()
           .beforeSend(
               response -> {
-                try (final AgentScope ignored = activateSpan(ratpackSpan, false)) {
+                try (final AgentScope ignored = activateSpan(ratpackSpan)) {
                   if (nettySpan != null) {
                     // Rename the netty span resource name with the ratpack route.
                     DECORATE.onContext(nettySpan, ctx);

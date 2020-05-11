@@ -24,7 +24,7 @@ public class TracingInterceptor implements Interceptor {
 
     final AgentSpan span = startSpan("okhttp.request");
 
-    try (final AgentScope scope = activateSpan(span, true)) {
+    try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, chain.request());
 
@@ -42,6 +42,8 @@ public class TracingInterceptor implements Interceptor {
       DECORATE.onResponse(span, response);
       DECORATE.beforeFinish(span);
       return response;
+    } finally {
+      span.finish();
     }
   }
 }

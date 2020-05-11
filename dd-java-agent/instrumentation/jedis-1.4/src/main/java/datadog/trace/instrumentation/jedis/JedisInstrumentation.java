@@ -68,7 +68,7 @@ public final class JedisInstrumentation extends Instrumenter.Default {
       final AgentSpan span = startSpan("redis.command");
       DECORATE.afterStart(span);
       DECORATE.onStatement(span, command.name());
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -77,6 +77,7 @@ public final class JedisInstrumentation extends Instrumenter.Default {
       DECORATE.onError(scope.span(), throwable);
       DECORATE.beforeFinish(scope.span());
       scope.close();
+      scope.span().finish();
     }
   }
 }

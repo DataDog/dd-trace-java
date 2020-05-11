@@ -95,7 +95,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
 
       propagate().inject(span, message, SETTER);
 
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -107,6 +107,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
       CallDepthThreadLocalMap.reset(MessageProducer.class);
     }
   }
@@ -130,7 +131,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
 
       propagate().inject(span, message, SETTER);
 
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -142,6 +143,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
       CallDepthThreadLocalMap.reset(MessageProducer.class);
     }
   }

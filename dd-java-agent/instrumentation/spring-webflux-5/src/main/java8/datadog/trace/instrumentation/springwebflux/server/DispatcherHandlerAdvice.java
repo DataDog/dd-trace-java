@@ -32,7 +32,7 @@ public class DispatcherHandlerAdvice {
     DECORATE.afterStart(span);
     exchange.getAttributes().put(AdviceUtils.SPAN_ATTRIBUTE, span);
 
-    final AgentScope scope = activateSpan(span, false);
+    final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
     return scope;
   }
@@ -49,5 +49,6 @@ public class DispatcherHandlerAdvice {
       AdviceUtils.finishSpanIfPresent(exchange, throwable);
     }
     scope.close();
+    // span finished in SpanFinishingSubscriber
   }
 }

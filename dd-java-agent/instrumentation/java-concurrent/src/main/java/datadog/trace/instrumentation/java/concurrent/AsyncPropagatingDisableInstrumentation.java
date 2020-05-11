@@ -90,7 +90,7 @@ public final class AsyncPropagatingDisableInstrumentation implements Instrumente
     public static AgentScope enter() {
       final TraceScope scope = activeScope();
       if (scope != null && scope.isAsyncPropagating()) {
-        return activateSpan(noopSpan(), false);
+        return activateSpan(noopSpan());
       }
       return null;
     }
@@ -99,6 +99,7 @@ public final class AsyncPropagatingDisableInstrumentation implements Instrumente
     public static void exit(@Advice.Enter final AgentScope scope) {
       if (scope != null) {
         scope.close();
+        // Don't need to finish noop span.
       }
     }
   }

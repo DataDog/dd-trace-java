@@ -22,7 +22,7 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       return;
     }
 
-    try (final AgentScope scope = activateSpan(span, false)) {
+    try (final AgentScope scope = activateSpan(span)) {
       final HttpResponse response = (HttpResponse) msg;
 
       try {

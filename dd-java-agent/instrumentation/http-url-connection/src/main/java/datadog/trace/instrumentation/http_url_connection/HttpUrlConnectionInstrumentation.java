@@ -137,7 +137,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Default {
 
     public AgentSpan start(final HttpURLConnection connection) {
       span = startSpan(OPERATION_NAME);
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, connection);
         return span;
@@ -157,7 +157,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Default {
     }
 
     public void finishSpan(final Throwable throwable) {
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
         span.finish();
@@ -173,7 +173,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Default {
        * (e.g. breaks getOutputStream).
        */
       if (responseCode > 0) {
-        try (final AgentScope scope = activateSpan(span, false)) {
+        try (final AgentScope scope = activateSpan(span)) {
           DECORATE.onResponse(span, responseCode);
           DECORATE.beforeFinish(span);
           span.finish();

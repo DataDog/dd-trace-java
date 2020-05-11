@@ -72,7 +72,7 @@ public final class RediscalaInstrumentation extends Instrumenter.Default {
       final AgentSpan span = startSpan("redis.command");
       DECORATE.afterStart(span);
       DECORATE.onStatement(span, cmd.getClass().getName());
-      return activateSpan(span, false);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -92,6 +92,7 @@ public final class RediscalaInstrumentation extends Instrumenter.Default {
         span.finish();
       }
       scope.close();
+      // span finished in OnCompleteHandler
     }
   }
 

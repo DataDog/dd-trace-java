@@ -225,7 +225,7 @@ public class TracingSession implements Session {
     return new Runnable() {
       @Override
       public void run() {
-        try (final AgentScope scope = activateSpan(span, false)) {
+        try (final AgentScope scope = activateSpan(span)) {
           beforeSpanFinish(span, future.get());
         } catch (final InterruptedException | ExecutionException e) {
           beforeSpanFinish(span, e);
@@ -241,7 +241,7 @@ public class TracingSession implements Session {
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, session);
     DECORATE.onStatement(span, query);
-    return activateSpan(span, false);
+    return activateSpan(span);
   }
 
   private static void beforeSpanFinish(final AgentSpan span, final ResultSet resultSet) {

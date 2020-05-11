@@ -26,7 +26,7 @@ public abstract class HttpServerTestAdvice {
         return null;
       } else {
         final AgentSpan span = startSpan("TEST_SPAN").setTag(DDTags.RESOURCE_NAME, "ServerEntry");
-        final AgentScope scope = activateSpan(span, true);
+        final AgentScope scope = activateSpan(span);
         scope.setAsyncPropagation(true);
         return scope;
       }
@@ -36,6 +36,7 @@ public abstract class HttpServerTestAdvice {
     public static void methodExit(@Advice.Enter final AgentScope scope) {
       if (scope != null) {
         scope.close();
+        scope.span().finish();
       }
     }
   }

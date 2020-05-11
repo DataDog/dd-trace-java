@@ -41,8 +41,8 @@ class ApacheHttpAsyncClientCallbackTest extends HttpClientTest {
 
       @Override
       void completed(HttpResponse result) {
-        responseFuture.complete(result.statusLine.statusCode)
         callback?.call()
+        responseFuture.complete(result.statusLine.statusCode)
       }
 
       @Override

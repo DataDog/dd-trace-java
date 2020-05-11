@@ -1,10 +1,10 @@
 package datadog.trace.agent.test.utils
 
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator
+import datadog.trace.core.DDSpan
 import lombok.SneakyThrows
 
 import java.util.concurrent.Callable
@@ -33,7 +33,7 @@ class TraceUtils {
     final AgentSpan span = startSpan(rootOperationName)
     DECORATOR.afterStart(span)
 
-    AgentScope scope = activateSpan(span, true)
+    AgentScope scope = activateSpan(span)
     scope.setAsyncPropagation(true)
 
     try {
@@ -44,6 +44,7 @@ class TraceUtils {
     } finally {
       DECORATOR.beforeFinish(span)
       scope.close()
+      span.finish()
     }
   }
 

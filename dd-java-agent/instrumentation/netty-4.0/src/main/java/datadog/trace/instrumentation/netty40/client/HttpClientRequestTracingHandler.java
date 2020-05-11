@@ -40,7 +40,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     ctx.channel().attr(AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY).set(activeSpan());
 
     final AgentSpan span = startSpan("netty.client.request");
-    try (final AgentScope scope = activateSpan(span, false)) {
+    try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       DECORATE.onPeerConnection(span, (InetSocketAddress) ctx.channel().remoteAddress());

@@ -17,7 +17,7 @@ public class ConnectionFutureAdvice {
     final AgentSpan span = startSpan("redis.query");
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, redisUri);
-    return activateSpan(span, false);
+    return activateSpan(span);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -29,11 +29,12 @@ public class ConnectionFutureAdvice {
     if (throwable != null) {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
-      span.finish();
       scope.close();
+      span.finish();
       return;
     }
     connectionFuture.handleAsync(new LettuceAsyncBiFunction<>(span));
     scope.close();
+    // span finished by LettuceAsyncBiFunction
   }
 }
