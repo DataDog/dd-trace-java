@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.Config
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -15,9 +16,12 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
+import spock.lang.Unroll
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+
+import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 
 class KafkaClientTest extends AgentTestRunner {
   static final SHARED_TOPIC = "shared.topic"
@@ -201,6 +205,73 @@ class KafkaClientTest extends AgentTestRunner {
     cleanup:
     consumer.close()
     producer.close()
+
+  }
+
+  @Unroll
+  def "test kafka headers manual config"() {
+    setup:
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
+    def kafkaTemplate = new KafkaTemplate<String, String>(producerFactory)
+
+    // set up the Kafka consumer properties
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+
+    // create a Kafka consumer factory
+    def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
+
+    // set the topic that needs to be consumed
+    def containerProperties
+    try {
+      // Different class names for test and latestDepTest.
+      containerProperties = Class.forName("org.springframework.kafka.listener.config.ContainerProperties").newInstance(SHARED_TOPIC)
+    } catch (ClassNotFoundException | NoClassDefFoundError e) {
+      containerProperties = Class.forName("org.springframework.kafka.listener.ContainerProperties").newInstance(SHARED_TOPIC)
+    }
+
+    // create a Kafka MessageListenerContainer
+    def container = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties)
+
+    // create a thread safe queue to store the received message
+    def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
+
+    // setup a Kafka message listener
+    container.setupMessageListener(new MessageListener<String, String>() {
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records.add(record)
+      }
+    })
+
+    // start the container and underlying message listener
+    container.start()
+
+    // wait until the container has the required number of assigned partitions
+    ContainerTestUtils.waitForAssignment(container, embeddedKafka.getPartitionsPerTopic())
+
+    when:
+    String message = "Testing without headers"
+    withConfigOverride(Config.KAFKA_HEADERS_ENABLED, value) {
+      kafkaTemplate.send(SHARED_TOPIC, message)
+    }
+
+    then:
+    // check that the message was received
+    def received = records.poll(5, TimeUnit.SECONDS)
+
+    received.headers().iterator().hasNext() == expected
+
+    cleanup:
+    producerFactory.stop()
+    container?.stop()
+
+    where:
+    value                                                | expected
+    "false"                                              | false
+    "true"                                               | true
+    String.valueOf(Config.DEFAULT_KAFKA_HEADERS_ENABLED) | true
 
   }
 
