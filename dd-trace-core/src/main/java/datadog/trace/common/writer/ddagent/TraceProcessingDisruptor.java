@@ -68,6 +68,11 @@ public class TraceProcessingDisruptor extends AbstractDisruptor<List<DDSpan>> {
           // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
           try {
             event.data = processor.onTraceComplete(event.data);
+            // the intention is that batching ends up being handled here,
+            // rather than on the BatchWritingDisruptor, which would
+            // be responsible for sending trace buffers to the agent
+            // synchronously, before returning the trace buffer for
+            // reuse.
             serializer.serialize(event.data);
             TraceBuffer serializedTrace = serializer.getBuffer();
             int sizeInBytes = serializedTrace.sizeInBytes();

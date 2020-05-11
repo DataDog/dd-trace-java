@@ -87,6 +87,12 @@ public class BatchWritingDisruptor extends AbstractDisruptor<TraceBuffer> {
         final DisruptorEvent<TraceBuffer> event, final long sequence, final boolean endOfBatch) {
       try {
         if (event.data != null) {
+          // the intention here is that the batching is done on the serialization thread
+          // directly into trace buffers pooled by the disruptor. The BatchWritingDisruptor
+          // will eventually not do any batching, but claim a trace buffer from the disruptor,
+          // publish it synchronously to the agent, and return it to the disruptor for reuse.
+          // This is an incremental step towards moving away from the status quo, where we
+          // could support a hybrid approach rather than refactor in one go.
           sizeInBytes += event.data.sizeInBytes();
           traceCount += event.data.traceCount();
           serializedTraces.add(event.data);

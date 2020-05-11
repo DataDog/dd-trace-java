@@ -3,6 +3,13 @@ package datadog.trace.common.writer.ddagent;
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
 
+/**
+ * The purpose of this abtraction is to decouple serialization from preparation of a request, to
+ * allow incremental refactoring towards building requests into a small number of TraceBuffers
+ * pooled in what is now the BatchWritingDisruptor. It independently tracks how many traces have
+ * been written into it and how many bytes have been written, so that it can simply be translated to
+ * an HTTP POST to the agent, before being returned to the disruptor in a single read transaction.
+ */
 public interface TraceBuffer {
 
   /**
