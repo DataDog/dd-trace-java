@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.ThreadLocalRandom;
@@ -18,8 +19,7 @@ public class SamplerWriterTest {
   public void test() throws Exception {
     Path target = Paths.get("/tmp", "sampler.jfr");
 
-    com.sun.management.ThreadMXBean bean =
-        (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
+    ThreadMXBean bean = ManagementFactory.getThreadMXBean();
     SamplerWriter writer = new SamplerWriter();
 
     for (int j = 0; j < 4; j++) {
