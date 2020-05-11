@@ -1,5 +1,7 @@
 package datadog.trace.core;
 
+import static datadog.trace.core.DDSpan.create;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
@@ -479,7 +481,7 @@ public class CoreTracer
     }
 
     private DDSpan buildSpan() {
-      return new DDSpan(timestampMicro, buildSpanContext());
+      return create(timestampMicro, buildSpanContext());
     }
 
     /** @deprecated use {@link #start()} instead. */

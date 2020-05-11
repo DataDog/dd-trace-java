@@ -27,7 +27,7 @@ class SpanFactory {
       new PendingTrace(tracer, 1G),
       tracer, [:])
     Thread.currentThread().setName(currentThreadName)
-    return new DDSpan(timestampMicro, context)
+    return DDSpan.create(timestampMicro, context)
   }
 
   static DDSpan newSpanOf(CoreTracer tracer) {
@@ -46,7 +46,7 @@ class SpanFactory {
       Collections.emptyMap(),
       new PendingTrace(tracer, 1G),
       tracer, [:])
-    return new DDSpan(1, context)
+    return DDSpan.create(1, context)
   }
 
   static DDSpan newSpanOf(PendingTrace trace) {
@@ -65,7 +65,7 @@ class SpanFactory {
       Collections.emptyMap(),
       trace,
       trace.tracer, [:])
-    return new DDSpan(1, context)
+    return DDSpan.create(1, context)
   }
 
   static DDSpan newSpanOf(String serviceName, String envName) {
@@ -88,6 +88,6 @@ class SpanFactory {
       tracer,
       [:])
     context.setTag("env", envName)
-    return new DDSpan(0l, context)
+    return DDSpan.create(0l, context)
   }
 }

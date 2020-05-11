@@ -38,7 +38,7 @@ class DDSpanTest extends DDSpecification {
         tracer,
         [:])
 
-    final DDSpan span = new DDSpan(1L, context)
+    final DDSpan span = DDSpan.create(1L, context)
 
     when:
     span.setServiceName("service")

@@ -64,7 +64,7 @@ class DDSpanSerializationTest extends DDSpecification {
         tracer,
         [:])
 
-    DDSpan span = new DDSpan(100L, context)
+    DDSpan span = DDSpan.create(100L, context)
 
     span.finish(133L)
 
@@ -99,7 +99,7 @@ class DDSpanSerializationTest extends DDSpecification {
       new PendingTrace(tracer, 1G),
       tracer,
       [:])
-    def span = new DDSpan(0, context)
+    def span = DDSpan.create(0, context)
     def buffer = new ArrayBufferOutput()
     def packer = MessagePack.newDefaultPacker(buffer)
     MSGPACK_WRITER.writeDDSpan(span, packer)
