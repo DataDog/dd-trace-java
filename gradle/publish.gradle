@@ -55,7 +55,7 @@ if (!isRoot) {
 }
 
 def isSnapshot = version.endsWith("-SNAPSHOT")
-def isCIandTagged = System.getenv("CIRCLE_TAG") != null
+def isCIandTagged = System.getenv("CIRCLE_TAG") != null || System.getenv("CI_COMMIT_TAG") != null
 // define in ~/.gradle/gradle.properties to override for testing
 def forceLocal = project.hasProperty('forceLocal') && forceLocal
 

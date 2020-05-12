@@ -1,0 +1,66 @@
+stages:
+  - ci-image
+  - build
+  - deploy
+
+variables:
+  REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
+  BINTRAY_USER: robot-bintray-apm-integrations
+
+.common: &common
+  tags: [ "runner:main", "size:large" ]
+
+.gradle_build: &gradle_build
+  <<: *common
+  image: datadog/dd-trace-java-docker-build:latest
+  before_script:
+    - export GRADLE_USER_HOME=`pwd`/.gradle
+  cache:
+    key: '$CI_COMMIT_REF_SLUG' # Cache per branch
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+
+ci-image:
+  stage: ci-image
+  when: manual
+  tags: ["runner:docker", "size:large"]
+  image: $REGISTRY/docker:18.03.1
+  script:
+    - docker build --tag $REGISTRY/ci/dd-trace-java:latest -f .gitlab/gitlab.dockerfile .gitlab
+    - docker push $REGISTRY/ci/dd-trace-java:latest
+
+build:
+  <<: *gradle_build
+  stage: build
+  script:
+    - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+  artifacts:
+    paths:
+      - 'workspace/dd-java-agent/build/libs/*.jar'
+
+copy_to_s3:
+  <<: *common
+  stage: deploy
+  image: $REGISTRY/ci/dd-trace-java:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - when: manual
+  script:
+    - export AWS_ACCESS_KEY_ID_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_key_id --with-decryption --query "Parameter.Value" --out text)
+    - export AWS_SECRET_ACCESS_KEY_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_sec_key_id --with-decryption --query "Parameter.Value" --out text)
+    - python -u .gitlab/copy_artifact_s3.py
+
+deploy_to_bintray:
+  <<: *gradle_build
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - if: '$CI_COMMIT_TAG =~ /^v.*/'
+      when: on_success
+    - when: manual
+  script:
+    - export BINTRAY_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.bintray_api_key --with-decryption --query "Parameter.Value" --out text)
+    - ./gradlew -PbintrayUser=$BINTRAY_USER -PbintrayApiKey=$BINTRAY_API_KEY -PbuildInfo.build.number=$CI_JOB_ID artifactoryPublish --max-workers=1 --build-cache --stacktrace --no-daemon
