@@ -28,7 +28,7 @@ public interface Monitor {
 
   void onFailedPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace);
 
-  void onFlush(final DDAgentWriter agentWriter, final boolean early);
+  void onSend(final DDAgentWriter agentWriter, int traceCount, int bytesWritten);
 
   void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete);
 
@@ -115,7 +115,8 @@ public interface Monitor {
     }
 
     @Override
-    public void onFlush(final DDAgentWriter agentWriter, final boolean early) {}
+    public void onSend(
+        final DDAgentWriter agentWriter, final int traceCount, final int bytesWritten) {}
 
     @Override
     public void onSerialize(
@@ -197,7 +198,8 @@ public interface Monitor {
     public void onFailedPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {}
 
     @Override
-    public void onFlush(final DDAgentWriter agentWriter, final boolean early) {}
+    public void onSend(
+        final DDAgentWriter agentWriter, final int traceCount, final int bytesWritten) {}
 
     @Override
     public void onScheduleFlush(

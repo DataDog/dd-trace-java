@@ -1,6 +1,9 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.core.serialization.MsgpackFormatWriter.MSGPACK_WRITER;
+import static org.msgpack.core.MessagePack.Code.ARRAY16;
+import static org.msgpack.core.MessagePack.Code.ARRAY32;
+import static org.msgpack.core.MessagePack.Code.FIXARRAY_PREFIX;
 
 import datadog.trace.core.DDSpan;
 import java.io.IOException;
@@ -8,6 +11,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessagePacker;
@@ -25,9 +30,11 @@ import org.msgpack.core.buffer.MessageBuffer;
 @Slf4j
 public class MsgPackStatefulSerializer implements StatefulSerializer {
 
+  public static final int DEFAULT_BUFFER_THRESHOLD = 1 << 20; // 1MB
+
   // assumed to be a power of 2 for arithmetic efficiency
   private static final int TRACE_HISTORY_SIZE = 16;
-  private static final int INITIAL_BUFFER_SIZE = 1024;
+  private static final int INITIAL_TRACE_SIZE_ESTIMATE = 8 * 1024; // 8KB
 
   // limiting the size this optimisation applies to decreases the likelihood
   // that the MessagePacker will allocate a byte[] during UTF-8 encoding,
@@ -37,89 +44,135 @@ public class MsgPackStatefulSerializer implements StatefulSerializer {
 
   // reusing this within the context of each thread is handy because it
   // caches an Encoder
-  private final MessagePacker messagePacker =
-      MESSAGE_PACKER_CONFIG.newPacker(new ArrayBufferOutput(0));
+  private final MessagePacker messagePacker;
 
   private final int[] traceSizes = new int[TRACE_HISTORY_SIZE];
+  private final int sizeThresholdBytes;
+  private final int bufferSize;
 
   private int traceSizeSum;
   private int position;
-  private MsgPackTraceBuffer lastBuffer;
+  private MsgPackTraceBuffer traceBuffer;
 
-  private int lastTracesPerBuffer = 1;
-  private int tracesPerBuffer;
+  private int currentSerializedBytes = 0;
 
   public MsgPackStatefulSerializer() {
-    Arrays.fill(traceSizes, INITIAL_BUFFER_SIZE);
-    this.traceSizeSum = INITIAL_BUFFER_SIZE * TRACE_HISTORY_SIZE;
+    this(DEFAULT_BUFFER_THRESHOLD, DEFAULT_BUFFER_THRESHOLD * 3 / 2); // 1MB
+  }
+
+  public MsgPackStatefulSerializer(int sizeThresholdBytes, int bufferSize) {
+    Arrays.fill(traceSizes, INITIAL_TRACE_SIZE_ESTIMATE);
+    this.traceSizeSum = INITIAL_TRACE_SIZE_ESTIMATE * TRACE_HISTORY_SIZE;
+    this.sizeThresholdBytes = sizeThresholdBytes;
+    this.bufferSize = bufferSize;
+    this.messagePacker = MESSAGE_PACKER_CONFIG.newPacker(new ArrayBufferOutput(0));
   }
 
   @Override
-  public void serialize(List<DDSpan> trace) throws IOException {
-    if (null == lastBuffer) {
-      lastBuffer = newBuffer();
-      messagePacker.reset(lastBuffer.buffer);
-      messagePacker.clear();
-    }
+  public int serialize(List<DDSpan> trace) throws IOException {
     MSGPACK_WRITER.writeTrace(trace, messagePacker);
-    int serializedSize = (int) messagePacker.getTotalWrittenBytes();
-    updateTraceSize(serializedSize);
-    lastBuffer.length += serializedSize;
-    ++lastBuffer.traceCount;
-    ++tracesPerBuffer;
+    int newSerializedSize = (int) messagePacker.getTotalWrittenBytes();
+    int serializedSize = newSerializedSize - currentSerializedBytes;
+    currentSerializedBytes = newSerializedSize;
+    updateTraceSizeEstimate(serializedSize);
+    ++traceBuffer.traceCount;
+    traceBuffer.length = newSerializedSize;
+    return serializedSize;
   }
 
   @Override
-  public TraceBuffer getBuffer() throws IOException {
+  public void dropBuffer() throws IOException {
+    messagePacker.flush();
+    traceBuffer = null;
+  }
+
+  @Override
+  public boolean shouldFlush() {
+    // Return true if could not take another average trace without allocating.
+    // There are many cases where this will lead to some amount of over allocation,
+    // e.g. a very large trace after many very small traces, but it's a best effort
+    // strategy to avoid buffer growth eventually.
+    return currentSerializedBytes + avgTraceSize() >= sizeThresholdBytes;
+  }
+
+  @Override
+  public void reset(TraceBuffer buffer) {
+    if (buffer instanceof MsgPackTraceBuffer) {
+      this.traceBuffer = (MsgPackTraceBuffer) buffer;
+      this.traceBuffer.reset();
+    } else { // i.e. if (null == buffer || unuseable)
+      this.traceBuffer = newBuffer();
+    }
+    messagePacker.clear();
     try {
-      messagePacker.flush();
-      return lastBuffer;
-    } finally {
-      lastTracesPerBuffer = tracesPerBuffer;
-      tracesPerBuffer = 0;
-      lastBuffer = null;
+      messagePacker.reset(traceBuffer.buffer);
+    } catch (IOException e) { // don't expect this to happen
+      log.error("Unexpected exception resetting MessagePacker buffer", e);
     }
   }
 
-  private MsgPackTraceBuffer newBuffer() {
-    MsgPackTraceBuffer buffer = new MsgPackTraceBuffer();
-    int traceBufferSize = traceBufferSize();
-    buffer.buffer = new ArrayBufferOutput(traceBufferSize);
-    return buffer;
+  @Override
+  public MsgPackTraceBuffer newBuffer() {
+    return new MsgPackTraceBuffer(new ArrayBufferOutput(bufferSize));
   }
 
-  private void updateTraceSize(int traceSize) {
+  private void updateTraceSizeEstimate(int traceSize) {
     traceSizeSum = (traceSizeSum - traceSizes[position] + traceSize);
     traceSizes[position] = traceSize;
     position = (position + 1) & (traceSizes.length - 1);
   }
 
-  private int traceBufferSize() {
-    // round up to next KB, assumes for now that there will be one trace per buffer
-    return ((lastTracesPerBuffer * traceSizeSum / TRACE_HISTORY_SIZE) + 1023) / 1024;
+  private int avgTraceSize() {
+    return traceSizeSum / TRACE_HISTORY_SIZE;
   }
 
-  public static class MsgPackTraceBuffer implements TraceBuffer {
+  static class MsgPackTraceBuffer implements TraceBuffer {
 
-    private ArrayBufferOutput buffer;
+    private static final AtomicInteger BUFFER_ID = new AtomicInteger(0);
+
+    private final ArrayBufferOutput buffer;
+    final int id;
     private int length;
     private int traceCount;
+    private int representativeCount;
+    private CountDownLatch flushLatch;
+
+    public MsgPackTraceBuffer(ArrayBufferOutput buffer) {
+      this.buffer = buffer;
+      this.id = BUFFER_ID.getAndIncrement();
+    }
 
     @Override
     public void writeTo(WritableByteChannel channel) throws IOException {
+      writeHeader(channel);
       int remaining = length;
       for (MessageBuffer messageBuffer : buffer.toBufferList()) {
         int size = messageBuffer.size();
-        ByteBuffer buffer =
-            size > remaining
-                ? messageBuffer.sliceAsByteBuffer(0, remaining)
-                : messageBuffer.sliceAsByteBuffer();
+        ByteBuffer buffer = messageBuffer.sliceAsByteBuffer(0, Math.min(size, remaining));
         while (buffer.hasRemaining()) {
-          channel.write(buffer);
+          remaining -= channel.write(buffer);
         }
-        remaining -= size;
       }
       assert remaining == 0;
+    }
+
+    private void writeHeader(WritableByteChannel channel) throws IOException {
+      // inlines behaviour from MessagePacker.packArrayHeader
+      if (traceCount < (1 << 4)) {
+        ByteBuffer buffer = ByteBuffer.allocate(1);
+        buffer.put(0, (byte) (traceCount | FIXARRAY_PREFIX));
+        channel.write(buffer);
+      } else if (traceCount < (1 << 16)) {
+        ByteBuffer buffer = ByteBuffer.allocate(3);
+        buffer.put(0, ARRAY16);
+        buffer.putShort(1, (short) traceCount);
+        channel.write(buffer);
+      } else {
+        ByteBuffer buffer = ByteBuffer.allocate(5);
+        buffer.put(0, ARRAY32);
+        buffer.putInt(1, traceCount);
+        channel.write(buffer);
+      }
     }
 
     @Override
@@ -128,8 +181,55 @@ public class MsgPackStatefulSerializer implements StatefulSerializer {
     }
 
     @Override
+    public int headerSize() {
+      // Need to allocate additional to handle MessagePacker.packArrayHeader
+      if (traceCount < (1 << 4)) {
+        return 1;
+      } else if (traceCount < (1 << 16)) {
+        return 3;
+      } else {
+        return 5;
+      }
+    }
+
+    @Override
     public int traceCount() {
       return traceCount;
+    }
+
+    @Override
+    public int representativeCount() {
+      return representativeCount;
+    }
+
+    @Override
+    public void setRepresentativeCount(int representativeCount) {
+      this.representativeCount = representativeCount;
+    }
+
+    @Override
+    public int id() {
+      return id;
+    }
+
+    @Override
+    public void setLatch(CountDownLatch latch) {
+      this.flushLatch = latch;
+    }
+
+    @Override
+    public void onDispatched() {
+      if (null != flushLatch) {
+        flushLatch.countDown();
+        flushLatch = null;
+      }
+    }
+
+    public void reset() {
+      buffer.clear();
+      traceCount = 0;
+      length = 0;
+      representativeCount = 0;
     }
   }
 }

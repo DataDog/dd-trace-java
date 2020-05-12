@@ -85,7 +85,7 @@ public abstract class FormatWriter<DEST> {
     writeKey(key, destination);
     writeMapHeader(value.size(), destination);
     for (final Map.Entry<String, String> entry : value.entrySet()) {
-      writeString(entry.getKey(), entry.getValue(), destination);
+      writeTag(entry.getKey(), entry.getValue(), destination);
     }
     writeMapFooter(destination);
   }

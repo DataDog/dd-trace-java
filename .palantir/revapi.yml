@@ -285,3 +285,21 @@ acceptedBreaks:
     - code: "java.method.removed"
       old: "method void datadog.trace.core.scopemanager.ContinuableScope.Continuation::close(boolean)"
       justification: "Removed deprecated APIs preventing refactoring"
+  "0.52.0":
+    com.datadoghq:dd-trace-core:
+    - code: "java.method.removed"
+      old: "method long datadog.trace.common.writer.ddagent.AbstractDisruptor<T>::getCurrentCount()\
+        \ @ datadog.trace.common.writer.ddagent.TraceProcessingDisruptor"
+      justification: "refactor serialization pipeline"
+    - code: "java.method.removed"
+      old: "method void datadog.trace.common.writer.ddagent.Monitor.Noop::onFlush(datadog.trace.common.writer.DDAgentWriter,\
+        \ boolean)"
+      justification: "refactor serialization pipeline"
+    - code: "java.method.removed"
+      old: "method void datadog.trace.common.writer.ddagent.Monitor.StatsD::onFlush(datadog.trace.common.writer.DDAgentWriter,\
+        \ boolean)"
+      justification: "refactor serialization pipeline"
+    - code: "java.method.removed"
+      old: "method void datadog.trace.common.writer.ddagent.Monitor::onFlush(datadog.trace.common.writer.DDAgentWriter,\
+        \ boolean)"
+      justification: "refactor serialization pipeline"

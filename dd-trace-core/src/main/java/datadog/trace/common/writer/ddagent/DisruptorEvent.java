@@ -9,6 +9,7 @@ class DisruptorEvent<T> {
   // Memory ordering enforced by disruptor's memory fences, so volatile not required.
   T data = null;
   int representativeCount = 0;
+  boolean force;
   CountDownLatch flushLatch = null;
 
   void reset() {
@@ -41,7 +42,7 @@ class DisruptorEvent<T> {
 
     @Override
     public void translateTo(final DisruptorEvent<T> event, final long sequence) {
-      return;
+      event.force = true;
     }
   }
 

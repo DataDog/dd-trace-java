@@ -10,17 +10,32 @@ public interface StatefulSerializer {
    * Serialises the trace into a trace buffer.
    *
    * @param trace a list of spans making up a trace
+   * @return how many bytes were serialized
    * @throws IOException
    */
-  void serialize(List<DDSpan> trace) throws IOException;
+  int serialize(List<DDSpan> trace) throws IOException;
+
+  void dropBuffer() throws IOException;
 
   /**
-   * Returns a buffer containing all traces written since the last call to this method. The buffer
-   * belongs to the caller and should no longer be referenced by the serializer after being
-   * released.
+   * returns a newly allocated buffer
    *
-   * @return the buffer into which traces have been serialized.
-   * @throws IOException
+   * @return a new buffer
    */
-  TraceBuffer getBuffer() throws IOException;
+  TraceBuffer newBuffer();
+
+  /**
+   * Returns true if the current buffer is near or exceeding capacity. This is advice to claim the
+   * buffer and reset.
+   *
+   * @return true if the buffer should be reset
+   */
+  boolean shouldFlush();
+
+  /**
+   * Resets the buffer to use
+   *
+   * @param buffer
+   */
+  void reset(TraceBuffer buffer);
 }
