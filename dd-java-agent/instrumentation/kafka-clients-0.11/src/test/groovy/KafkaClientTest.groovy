@@ -209,7 +209,7 @@ class KafkaClientTest extends AgentTestRunner {
   }
 
   @Unroll
-  def "test kafka headers manual config"() {
+  def "test kafka client header propagation manual config"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
@@ -253,7 +253,7 @@ class KafkaClientTest extends AgentTestRunner {
 
     when:
     String message = "Testing without headers"
-    withConfigOverride(Config.KAFKA_HEADERS_ENABLED, value) {
+    withConfigOverride(Config.KAFKA_CLIENT_PROPAGATION_ENABLED, value) {
       kafkaTemplate.send(SHARED_TOPIC, message)
     }
 
@@ -268,11 +268,12 @@ class KafkaClientTest extends AgentTestRunner {
     container?.stop()
 
     where:
-    value                                                | expected
-    "false"                                              | false
-    "true"                                               | true
-    String.valueOf(Config.DEFAULT_KAFKA_HEADERS_ENABLED) | true
+    value                                                           | expected
+    "false"                                                         | false
+    "true"                                                          | true
+    String.valueOf(Config.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED) | true
 
   }
 
 }
+

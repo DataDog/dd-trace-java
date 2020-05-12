@@ -148,7 +148,7 @@ public class Config {
   public static final String PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE =
       "profiling.exception.histogram.max-collection-size";
 
-  public static final String KAFKA_HEADERS_ENABLED = "kafka.headers.enabled";
+  public static final String KAFKA_CLIENT_PROPAGATION_ENABLED = "kafka.client.propagation.enabled";
 
   public static final String RUNTIME_ID_TAG = "runtime-id";
   public static final String SERVICE = "service";
@@ -207,7 +207,7 @@ public class Config {
   public static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS = 50;
   public static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE = 10000;
 
-  public static final boolean DEFAULT_KAFKA_HEADERS_ENABLED = true;
+  public static final boolean DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED = true;
 
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
@@ -334,7 +334,7 @@ public class Config {
   @Getter private final int profilingExceptionHistogramTopItems;
   @Getter private final int profilingExceptionHistogramMaxCollectionSize;
 
-  @Getter private final boolean kafkaHeadersEnabled;
+  @Getter private final boolean kafkaClientPropagationEnabled;
 
   // Values from an optionally provided properties file
   private static Properties propertiesFromConfigFile;
@@ -551,8 +551,9 @@ public class Config {
             PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
             DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE);
 
-    kafkaHeadersEnabled =
-        getBooleanSettingFromEnvironment(KAFKA_HEADERS_ENABLED, DEFAULT_KAFKA_HEADERS_ENABLED);
+    kafkaClientPropagationEnabled =
+        getBooleanSettingFromEnvironment(
+            KAFKA_CLIENT_PROPAGATION_ENABLED, DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED);
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
@@ -743,8 +744,9 @@ public class Config {
             PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
             parent.profilingExceptionHistogramMaxCollectionSize);
 
-    kafkaHeadersEnabled =
-        getPropertyBooleanValue(properties, KAFKA_HEADERS_ENABLED, parent.kafkaHeadersEnabled);
+    kafkaClientPropagationEnabled =
+        getPropertyBooleanValue(
+            properties, KAFKA_CLIENT_PROPAGATION_ENABLED, parent.kafkaClientPropagationEnabled);
 
     log.debug("New instance: {}", this);
   }
