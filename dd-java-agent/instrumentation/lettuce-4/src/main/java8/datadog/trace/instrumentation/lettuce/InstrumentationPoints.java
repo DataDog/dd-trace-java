@@ -36,7 +36,7 @@ public final class InstrumentationPoints {
     final AgentSpan span = startSpan("redis.query");
     DECORATE.afterStart(span);
     DECORATE.onCommand(span, command);
-    return activateSpan(span, finishSpanEarly(command));
+    return activateSpan(span);
   }
 
   public static void afterCommand(
@@ -49,7 +49,7 @@ public final class InstrumentationPoints {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
       span.finish();
-    } else if (!finishSpanEarly(command)) {
+    } else if (expectsResponse(command)) {
       asyncCommand.handleAsync(
           (value, ex) -> {
             if (ex instanceof CancellationException) {
@@ -61,6 +61,10 @@ public final class InstrumentationPoints {
             span.finish();
             return null;
           });
+    } else {
+      // No response is expected, so we must finish the span now.
+      DECORATE.beforeFinish(span);
+      span.finish();
     }
     scope.close();
     // span may be finished by handleAsync call above.
@@ -89,11 +93,11 @@ public final class InstrumentationPoints {
    * we must close the span early in order to provide info for the users
    *
    * @param command
-   * @return true if finish the span early (the command will not have a return value)
+   * @return false if the span should finish early (the command will not have a return value)
    */
-  public static boolean finishSpanEarly(final RedisCommand<?, ?, ?> command) {
+  public static boolean expectsResponse(final RedisCommand<?, ?, ?> command) {
     final ProtocolKeyword keyword = command.getType();
-    return isNonInstrumentingCommand(keyword) || isNonInstrumentingKeyword(keyword);
+    return !(isNonInstrumentingCommand(keyword) || isNonInstrumentingKeyword(keyword));
   }
 
   private static boolean isNonInstrumentingCommand(final ProtocolKeyword keyword) {

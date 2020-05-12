@@ -28,6 +28,7 @@ public class LettuceMonoDualConsumer<R, T, U extends Throwable>
     DECORATE.afterStart(span);
     DECORATE.onCommand(span, command);
     if (finishSpanOnClose) {
+      DECORATE.beforeFinish(span);
       span.finish();
     }
   }

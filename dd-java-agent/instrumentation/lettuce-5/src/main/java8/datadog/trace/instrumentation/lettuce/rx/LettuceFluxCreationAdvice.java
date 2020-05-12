@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.lettuce.rx;
 
-import static datadog.trace.instrumentation.lettuce.LettuceInstrumentationUtil.doFinishSpanEarly;
+import static datadog.trace.instrumentation.lettuce.LettuceInstrumentationUtil.expectsResponse;
 
 import io.lettuce.core.protocol.RedisCommand;
 import java.util.function.Supplier;
@@ -21,7 +21,7 @@ public class LettuceFluxCreationAdvice {
       @Advice.Enter final RedisCommand command,
       @Advice.Return(readOnly = false) Flux<?> publisher) {
 
-    final boolean finishSpanOnClose = doFinishSpanEarly(command);
+    final boolean finishSpanOnClose = !expectsResponse(command);
     final LettuceFluxTerminationRunnable handler =
         new LettuceFluxTerminationRunnable(command, finishSpanOnClose);
     publisher = publisher.doOnSubscribe(handler.getOnSubscribeConsumer());

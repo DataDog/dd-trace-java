@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.lettuce;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.lettuce.LettuceClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.lettuce.LettuceInstrumentationUtil.doFinishSpanEarly;
+import static datadog.trace.instrumentation.lettuce.LettuceInstrumentationUtil.expectsResponse;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -20,7 +20,7 @@ public class LettuceAsyncCommandsAdvice {
     DECORATE.afterStart(span);
     DECORATE.onCommand(span, command);
 
-    return activateSpan(span, doFinishSpanEarly(command));
+    return activateSpan(span);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -40,10 +40,13 @@ public class LettuceAsyncCommandsAdvice {
     }
 
     // close spans on error or normal completion
-    if (!doFinishSpanEarly(command)) {
+    if (expectsResponse(command)) {
       asyncCommand.handleAsync(new LettuceAsyncBiFunction<>(span));
+    } else {
+      DECORATE.beforeFinish(span);
+      span.finish();
     }
     scope.close();
-    // span finished by LettuceAsyncBiFunction
+    // span may be finished by LettuceAsyncBiFunction
   }
 }
