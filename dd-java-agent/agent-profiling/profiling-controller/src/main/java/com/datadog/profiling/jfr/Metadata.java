@@ -1,5 +1,7 @@
 package com.datadog.profiling.jfr;
 
+import lombok.NonNull;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -214,8 +216,7 @@ final class Metadata {
         });
   }
 
-  private int stringIndex(String value) {
-    // TODO handle NPE
+  int stringIndex(@NonNull String value) {
     return stringTable.get(value);
   }
 

@@ -18,4 +18,13 @@ class ByteArrayWriterTest {
       val = val << 7;
     }
   }
+
+  @Test
+  void testAdjustedLength() {
+    // numeric overflow over Integer.MAX_VALUE will cause negative number and we want stop right at that moment
+    for (int i = 1; i > 0; i = i *2) {
+      int estimatedLength = i + ByteArrayWriter.getPackedIntLen(i);
+      assertTrue(estimatedLength <= ByteArrayWriter.adjustLength(i));
+    }
+  }
 }

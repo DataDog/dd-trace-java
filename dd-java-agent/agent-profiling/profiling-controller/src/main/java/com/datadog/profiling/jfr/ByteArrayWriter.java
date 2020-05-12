@@ -245,7 +245,27 @@ final class ByteArrayWriter {
     return Arrays.copyOf(array, pointer);
   }
 
-  int length() {
+  /**
+   *
+   * @return current writer position
+   */
+  int position() {
     return pointer;
+  }
+
+  /**
+   *
+   * @return number of bytes written adjusted by the number of bytes necessary to encode the length itself
+   */
+  int length() {
+    return adjustLength(pointer);
+  }
+
+  static int adjustLength(int length) {
+    int extraLen = 0;
+    do {
+      extraLen = getPackedIntLen(length + extraLen);
+    } while (getPackedIntLen(length + extraLen) != extraLen);
+    return length + extraLen;
   }
 }

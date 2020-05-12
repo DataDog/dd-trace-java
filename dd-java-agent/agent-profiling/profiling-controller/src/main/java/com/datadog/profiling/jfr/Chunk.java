@@ -44,13 +44,8 @@ public final class Chunk {
       writeTypedValue(eventWriter, fieldValue.getValue());
     }
 
-    int len = eventWriter.length();
-    int extraLen = 0;
-    do {
-      extraLen = ByteArrayWriter.getPackedIntLen(len + extraLen);
-    } while (ByteArrayWriter.getPackedIntLen(len + extraLen) != extraLen);
     writer
-        .writeInt(len + extraLen) // write event size
+        .writeInt(eventWriter.length()) // write event size
         .writeBytes(eventWriter.toByteArray());
     return this;
   }
@@ -66,12 +61,12 @@ public final class Chunk {
     writeCheckPoint();
     writeMetadata(duration);
     writer.writeLongRaw(DURATION_NANOS_OFFSET, duration);
-    writer.writeLongRaw(CHUNK_SIZE_OFFSET, writer.length());
+    writer.writeLongRaw(CHUNK_SIZE_OFFSET, writer.position());
     return writer.toByteArray();
   }
 
   private void writeCheckPoint() {
-    writer.writeLongRaw(CONSTANT_OFFSET_OFFSET, writer.length());
+    writer.writeLongRaw(CONSTANT_OFFSET_OFFSET, writer.position());
 
     ByteArrayWriter cpWriter = new ByteArrayWriter(4096);
 
@@ -87,14 +82,8 @@ public final class Chunk {
       cp.writeTo(cpWriter);
     }
 
-    int len = cpWriter.length();
-    int extraLen = 0;
-    do {
-      extraLen = ByteArrayWriter.getPackedIntLen(len + extraLen);
-    } while (ByteArrayWriter.getPackedIntLen(len + extraLen) != extraLen);
-
     writer
-        .writeInt(len + extraLen) // write event size
+        .writeInt(cpWriter.length()) // write event size
         .writeBytes(cpWriter.toByteArray());
   }
 
@@ -114,7 +103,7 @@ public final class Chunk {
   }
 
   private void writeMetadata(long duration) {
-    writer.writeLongRaw(METADATA_OFFSET_OFFSET, writer.length());
+    writer.writeLongRaw(METADATA_OFFSET_OFFSET, writer.position());
 
     metadata.writeMetaEvent(writer, startTicks, duration);
   }

@@ -16,26 +16,26 @@ final class SelfType extends BaseType {
 
   @Override
   public boolean isBuiltin() {
-    return false;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public List<TypedField> getFields() {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public TypedField getField(String name) {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public List<Annotation> getAnnotations() {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public boolean canAccept(Object value) {
-    return value == null;
+    throw new UnsupportedOperationException();
   }
 }

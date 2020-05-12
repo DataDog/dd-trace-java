@@ -152,4 +152,9 @@ public class MetadataTest {
     assertEquals(type1.getTypeName(), type2.getTypeName());
     assertNotEquals(type1, type2);
   }
+
+  @Test
+  void stringIndexNull() {
+    assertThrows(NullPointerException.class, () -> instance.stringIndex(null));
+  }
 }
