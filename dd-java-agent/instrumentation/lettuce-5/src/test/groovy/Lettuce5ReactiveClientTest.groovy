@@ -18,9 +18,9 @@ import spock.util.concurrent.AsyncConditions
 import java.util.function.Consumer
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.instrumentation.lettuce.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
+import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
 
-class LettuceReactiveClientTest extends AgentTestRunner {
+class Lettuce5ReactiveClientTest extends AgentTestRunner {
   public static final String HOST = "127.0.0.1"
   public static final int DB_INDEX = 0
   // Disable autoreconnect so we do not get stray traces popping up on server shutdown

@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.lettuce;
+package datadog.trace.instrumentation.lettuce4;
 
 import com.lambdaworks.redis.protocol.AsyncCommand;
 import com.lambdaworks.redis.protocol.RedisCommand;
@@ -20,5 +20,4 @@ public class LettuceAsyncCommandsAdvice {
       @Advice.Return final AsyncCommand<?, ?, ?> asyncCommand) {
     InstrumentationPoints.afterCommand(command, scope, throwable, asyncCommand);
   }
-
 }

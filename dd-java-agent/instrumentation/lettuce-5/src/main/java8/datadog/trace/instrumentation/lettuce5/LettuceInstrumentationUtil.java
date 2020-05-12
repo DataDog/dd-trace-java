@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.lettuce;
+package datadog.trace.instrumentation.lettuce5;
 
 import io.lettuce.core.protocol.RedisCommand;
 import java.util.Arrays;

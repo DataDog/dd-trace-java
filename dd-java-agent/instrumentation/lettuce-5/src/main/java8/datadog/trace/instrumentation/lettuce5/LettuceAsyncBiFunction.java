@@ -1,6 +1,6 @@
-package datadog.trace.instrumentation.lettuce;
+package datadog.trace.instrumentation.lettuce5;
 
-import static datadog.trace.instrumentation.lettuce.LettuceClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.CancellationException;

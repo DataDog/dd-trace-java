@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.lettuce;
+package datadog.trace.instrumentation.lettuce4;
 
 import com.lambdaworks.redis.RedisURI;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -12,8 +12,8 @@ public class RedisConnectionAdvice {
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void onExit(@Advice.Enter final AgentScope scope,
-                            @Advice.Thrown final Throwable throwable) {
+  public static void onExit(
+      @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
     InstrumentationPoints.afterConnect(scope, throwable);
   }
 }

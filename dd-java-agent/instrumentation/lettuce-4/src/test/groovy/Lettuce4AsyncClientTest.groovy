@@ -1,37 +1,35 @@
+import com.lambdaworks.redis.ClientOptions
+import com.lambdaworks.redis.RedisClient
+import com.lambdaworks.redis.RedisConnectionException
+import com.lambdaworks.redis.RedisFuture
+import com.lambdaworks.redis.RedisURI
+import com.lambdaworks.redis.api.StatefulConnection
+import com.lambdaworks.redis.api.async.RedisAsyncCommands
+import com.lambdaworks.redis.api.sync.RedisCommands
+import com.lambdaworks.redis.codec.Utf8StringCodec
+import com.lambdaworks.redis.protocol.AsyncCommand
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import io.lettuce.core.ClientOptions
-import io.lettuce.core.ConnectionFuture
-import io.lettuce.core.RedisClient
-import io.lettuce.core.RedisFuture
-import io.lettuce.core.RedisURI
-import io.lettuce.core.api.StatefulConnection
-import io.lettuce.core.api.async.RedisAsyncCommands
-import io.lettuce.core.api.sync.RedisCommands
-import io.lettuce.core.codec.StringCodec
-import io.lettuce.core.protocol.AsyncCommand
 import redis.embedded.RedisServer
 import spock.lang.Shared
 import spock.util.concurrent.AsyncConditions
 
 import java.util.concurrent.CancellationException
-import java.util.concurrent.CompletionException
-import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.function.BiConsumer
 import java.util.function.BiFunction
 import java.util.function.Consumer
 import java.util.function.Function
 
-import static datadog.trace.instrumentation.lettuce.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
+import static datadog.trace.instrumentation.lettuce4.InstrumentationPoints.AGENT_CRASHING_COMMAND_PREFIX
 
-class LettuceAsyncClientTest extends AgentTestRunner {
+class Lettuce4AsyncClientTest extends AgentTestRunner {
   public static final String HOST = "127.0.0.1"
   public static final int DB_INDEX = 0
   // Disable autoreconnect so we do not get stray traces popping up on server shutdown
-  public static final ClientOptions CLIENT_OPTIONS = ClientOptions.builder().autoReconnect(false).build()
+  public static final ClientOptions CLIENT_OPTIONS = new ClientOptions.Builder().autoReconnect(false).build()
 
   @Shared
   int port
@@ -106,9 +104,8 @@ class LettuceAsyncClientTest extends AgentTestRunner {
     testConnectionClient.setOptions(CLIENT_OPTIONS)
 
     when:
-    ConnectionFuture connectionFuture = testConnectionClient.connectAsync(StringCodec.UTF8,
+    StatefulConnection connection = testConnectionClient.connect(new Utf8StringCodec(),
       new RedisURI(HOST, port, 3, TimeUnit.SECONDS))
-    StatefulConnection connection = connectionFuture.get()
 
     then:
     connection != null
@@ -144,13 +141,12 @@ class LettuceAsyncClientTest extends AgentTestRunner {
     testConnectionClient.setOptions(CLIENT_OPTIONS)
 
     when:
-    ConnectionFuture connectionFuture = testConnectionClient.connectAsync(StringCodec.UTF8,
+    StatefulConnection connection = testConnectionClient.connect(new Utf8StringCodec(),
       new RedisURI(HOST, incorrectPort, 3, TimeUnit.SECONDS))
-    StatefulConnection connection = connectionFuture.get()
 
     then:
     connection == null
-    thrown ExecutionException
+    thrown RedisConnectionException
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -167,7 +163,7 @@ class LettuceAsyncClientTest extends AgentTestRunner {
             "$Tags.PEER_PORT" incorrectPort
             "$Tags.DB_TYPE" "redis"
             "db.redis.dbIndex" 0
-            errorTags CompletionException, String
+            errorTags RedisConnectionException, String
             defaultTags()
           }
         }
