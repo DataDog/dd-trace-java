@@ -1,7 +1,5 @@
 package com.datadog.profiling.jfr;
 
-import lombok.NonNull;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -10,6 +8,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
+import lombok.NonNull;
 
 /** JFR type repository class. */
 final class Metadata {

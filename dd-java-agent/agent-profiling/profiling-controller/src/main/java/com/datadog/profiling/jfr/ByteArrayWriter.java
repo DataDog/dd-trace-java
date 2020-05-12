@@ -245,17 +245,14 @@ final class ByteArrayWriter {
     return Arrays.copyOf(array, pointer);
   }
 
-  /**
-   *
-   * @return current writer position
-   */
+  /** @return current writer position */
   int position() {
     return pointer;
   }
 
   /**
-   *
-   * @return number of bytes written adjusted by the number of bytes necessary to encode the length itself
+   * @return number of bytes written adjusted by the number of bytes necessary to encode the length
+   *     itself
    */
   int length() {
     return adjustLength(pointer);
