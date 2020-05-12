@@ -58,7 +58,7 @@ public class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
         @Advice.Thrown final Throwable throwable,
         @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Object entity) {
 
-      SessionMethodUtils.closeScope(state, throwable, entity);
+      SessionMethodUtils.closeScope(state, throwable, entity, true);
     }
   }
 }

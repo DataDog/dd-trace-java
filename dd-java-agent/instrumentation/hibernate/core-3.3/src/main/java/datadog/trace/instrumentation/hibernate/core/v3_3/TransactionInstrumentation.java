@@ -57,7 +57,7 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
         @Advice.Enter final SessionState state,
         @Advice.Thrown final Throwable throwable) {
 
-      SessionMethodUtils.closeScope(state, throwable, null);
+      SessionMethodUtils.closeScope(state, throwable, null, true);
     }
   }
 }
