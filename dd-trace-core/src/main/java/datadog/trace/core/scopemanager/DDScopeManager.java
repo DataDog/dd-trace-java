@@ -10,10 +10,6 @@ import datadog.trace.context.TraceScope;
 public interface DDScopeManager {
   AgentScope activate(AgentSpan span);
 
-  /** @deprecated use {@link #activate(AgentSpan)} instead. */
-  @Deprecated
-  AgentScope activate(AgentSpan span, boolean finishOnClose);
-
   TraceScope active();
 
   AgentSpan activeSpan();

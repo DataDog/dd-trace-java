@@ -8,7 +8,6 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.ScopeListener
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
-import datadog.trace.core.DDSpanContext
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Shared
 import spock.lang.Subject
@@ -17,6 +16,7 @@ import spock.lang.Timeout
 import java.lang.ref.WeakReference
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.util.gc.GCUtils.awaitGC
 import static java.util.concurrent.TimeUnit.SECONDS
@@ -196,130 +196,28 @@ class ScopeManagerTest extends DDSpecification {
     scopeManager.active() == scope
   }
 
-  def "ContinuableScope doesn't close if non-zero"() {
+  @Timeout(value = 10, unit = SECONDS)
+  def "test continuation doesn't have hard reference on scope"() {
     setup:
-    def builder = tracer.buildSpan("test")
-    def scope = (ContinuableScope) builder.startActive(true)
-    scope.setAsyncPropagation(true)
-    def continuation = scope.capture()
+    def span = tracer.buildSpan("test").start()
+    def scopeRef = new AtomicReference<ContinuableScope>(tracer.activateSpan(span) as ContinuableScope)
+    scopeRef.get().setAsyncPropagation(true)
+    def continuation = scopeRef.get().capture()
+    scopeRef.get().close()
 
     expect:
-    !spanFinished(scope.span())
-    scopeManager.active() == scope
-    scope instanceof ContinuableScope
-    writer.empty
-
-    when:
-    scope.close()
-
-    then:
-    !spanFinished(scope.span())
     scopeManager.active() == null
-    writer.empty
 
     when:
-    continuation.activate()
-    if (forceGC) {
-      continuation = null // Continuation references also hold up traces.
-      awaitGC() // The goal here is to make sure that continuation DOES NOT get GCed
-      while (((DDSpanContext) scope.span().context()).trace.clean()) {
-      }
-    }
-    if (autoClose) {
-      if (continuation != null) {
-        continuation.close()
-      }
-    }
+    def ref = new WeakReference<AgentScope>(scopeRef.get())
+    scopeRef.set(null)
+    awaitGC(ref)
 
     then:
-    scopeManager.active() != null
-
-    when:
-    scopeManager.active().close()
-    writer.waitForTraces(1)
-
-    then:
-    scopeManager.active() == null
-    spanFinished(scope.span())
-    writer == [[scope.span()]]
-
-    where:
-    autoClose | forceGC
-    true      | true
-    true      | false
-    false     | true
-  }
-
-  def "Continuation.close closes parent scope"() {
-    setup:
-    def builder = tracer.buildSpan("test")
-    def scope = (ContinuableScope) builder.startActive(true)
-    scope.setAsyncPropagation(true)
-    def continuation = scope.capture()
-
-    when:
-    /*
-    Note: this API is inherently broken. Our scope implementation doesn't allow us to close scopes
-    in random order, yet when we close continuation we attempt to close scope by default.
-    And in fact continuation trying to close parent scope is most likely a bug.
-     */
-    continuation.close(true)
-
-    then:
-    scopeManager.active() == null
-    !spanFinished(scope.span())
-
-    when:
-    scope.span().finish()
-
-    then:
-    scopeManager.active() == null
-  }
-
-  def "Continuation.close doesn't close parent scope"() {
-    setup:
-    def builder = tracer.buildSpan("test")
-    def scope = (ContinuableScope) builder.startActive(true)
-    scope.setAsyncPropagation(true)
-    def continuation = scope.capture()
-
-    when:
-    continuation.close(false)
-
-    then:
-    scopeManager.active() == scope
-  }
-
-  def "Continuation.close doesn't close parent scope, span finishes"() {
-    /*
-    This is highly confusing behaviour. Sequence of events is as following:
-      * Scope gets created along with span and with finishOnClose == true.
-      * Continuation gets created for that scope.
-      * Scope is closed.
-        At this point scope is not really closed. It is removed from scope
-        stack, but it is still alive because there is a live continuation attached
-        to it. This also means span is not closed.
-      * Continuation is closed.
-        This triggers final closing of scope and closing of the span.
-
-     This is confusing because expected behaviour is for span to be closed
-     with the scope when finishOnClose = true, but in fact span lingers until
-     continuation is closed.
-     */
-    setup:
-    def builder = tracer.buildSpan("test")
-    def scope = (ContinuableScope) builder.startActive(true)
-    scope.setAsyncPropagation(true)
-    def continuation = scope.capture()
-    scope.close()
-
-    when:
-    continuation.close(false)
-
-    then:
-    scopeManager.active() == null
-    spanFinished(scope.span())
-    writer == [[scope.span()]]
+    continuation != null
+    ref.get() == null
+    !spanFinished(span)
+    writer == []
   }
 
   @Timeout(value = 60, unit = SECONDS)

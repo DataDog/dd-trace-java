@@ -32,12 +32,6 @@ public class AgentTracer {
     return get().activateSpan(span);
   }
 
-  /** @deprecated use {@link #activateSpan(AgentSpan)} instead */
-  @Deprecated
-  public static AgentScope activateSpan(final AgentSpan span, final boolean finishSpanOnClose) {
-    return get().activateSpan(span, finishSpanOnClose);
-  }
-
   public static AgentSpan activeSpan() {
     return get().activeSpan();
   }
@@ -80,10 +74,6 @@ public class AgentTracer {
 
     AgentScope activateSpan(AgentSpan span);
 
-    /** @deprecated use {@link #activateSpan(AgentSpan)} instead */
-    @Deprecated
-    AgentScope activateSpan(AgentSpan span, boolean finishSpanOnClose);
-
     AgentSpan activeSpan();
 
     TraceScope activeScope();
@@ -120,13 +110,6 @@ public class AgentTracer {
 
     @Override
     public AgentScope activateSpan(final AgentSpan span) {
-      return activateSpan(span);
-    }
-
-    /** @deprecated use {@link #activateSpan(AgentSpan)} instead */
-    @Deprecated
-    @Override
-    public AgentScope activateSpan(final AgentSpan span, final boolean finishSpanOnClose) {
       return NoopAgentScope.INSTANCE;
     }
 
@@ -280,12 +263,6 @@ public class AgentTracer {
 
     @Override
     public void cancel() {}
-
-    @Override
-    public void close() {}
-
-    @Override
-    public void close(final boolean closeContinuationScope) {}
   }
 
   public static class NoopContext implements Context {

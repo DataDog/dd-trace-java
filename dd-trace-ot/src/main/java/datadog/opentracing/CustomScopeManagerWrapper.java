@@ -34,16 +34,9 @@ class CustomScopeManagerWrapper implements DDScopeManager {
   }
 
   @Override
-  public AgentScope activate(final AgentSpan span) {
-    return activate(span, false);
-  }
-
-  /** @deprecated use {@link #activate(AgentSpan)} instead. */
-  @Deprecated
-  @Override
-  public AgentScope activate(final AgentSpan agentSpan, final boolean finishOnClose) {
+  public AgentScope activate(final AgentSpan agentSpan) {
     final Span span = converter.toSpan(agentSpan);
-    final Scope scope = delegate.activate(span, finishOnClose);
+    final Scope scope = delegate.activate(span);
 
     return new CustomScopeManagerScope(scope);
   }

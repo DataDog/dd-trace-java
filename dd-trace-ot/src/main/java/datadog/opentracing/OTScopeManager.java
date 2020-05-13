@@ -9,7 +9,7 @@ import io.opentracing.ScopeManager;
 import io.opentracing.Span;
 import java.util.Objects;
 
-/** One of the two possible scope managers. See CustomScopeManager */
+/** One of the two possible scope managers. See CustomScopeManagerWrapper */
 class OTScopeManager implements ScopeManager {
   private final TypeConverter converter;
   private final CoreTracer coreTracer;
@@ -27,14 +27,16 @@ class OTScopeManager implements ScopeManager {
   @Override
   public Scope activate(final Span span, final boolean finishSpanOnClose) {
     final AgentSpan agentSpan = converter.toAgentSpan(span);
-    final AgentScope agentScope = coreTracer.activateSpan(agentSpan, finishSpanOnClose);
+    final AgentScope agentScope = coreTracer.activateSpan(agentSpan);
 
-    return converter.toScope(agentScope);
+    return converter.toScope(agentScope, finishSpanOnClose);
   }
 
+  @Deprecated
   @Override
   public Scope active() {
-    return converter.toScope(coreTracer.activeScope());
+    // WARNING... Making an assumption about finishSpanOnClose
+    return converter.toScope(coreTracer.activeScope(), false);
   }
 
   @Override
@@ -44,16 +46,23 @@ class OTScopeManager implements ScopeManager {
 
   static class OTScope implements Scope {
     private final AgentScope delegate;
+    private final boolean finishSpanOnClose;
     private final TypeConverter converter;
 
-    OTScope(final AgentScope delegate, final TypeConverter converter) {
+    OTScope(
+        final AgentScope delegate, final boolean finishSpanOnClose, final TypeConverter converter) {
       this.delegate = delegate;
+      this.finishSpanOnClose = finishSpanOnClose;
       this.converter = converter;
     }
 
     @Override
     public void close() {
       delegate.close();
+
+      if (finishSpanOnClose) {
+        delegate.span().finish();
+      }
     }
 
     @Override
@@ -82,9 +91,10 @@ class OTScopeManager implements ScopeManager {
   static class OTTraceScope extends OTScope implements TraceScope {
     private final TraceScope delegate;
 
-    OTTraceScope(final TraceScope delegate, final TypeConverter converter) {
+    OTTraceScope(
+        final TraceScope delegate, final boolean finishSpanOnClose, final TypeConverter converter) {
       // All instances of TraceScope implement agent scope (but not vice versa)
-      super((AgentScope) delegate, converter);
+      super((AgentScope) delegate, finishSpanOnClose, converter);
 
       this.delegate = delegate;
     }

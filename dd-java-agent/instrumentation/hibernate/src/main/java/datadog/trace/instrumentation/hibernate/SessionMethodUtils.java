@@ -17,8 +17,10 @@ public class SessionMethodUtils {
   public static final Set<String> SCOPE_ONLY_METHODS =
       new HashSet<>(Arrays.asList("immediateLoad", "internalLoad"));
 
-  // Starts a scope as a child from a Span, where the Span is attached to the given spanKey using
-  // the given contextStore.
+  /**
+   * Starts a scope as a child from a Span, where the Span is attached to the given spanKey using
+   * the given contextStore.
+   */
   public static <TARGET, ENTITY> SessionState startScopeFrom(
       final ContextStore<TARGET, SessionState> contextStore,
       final TARGET spanKey,
@@ -52,7 +54,7 @@ public class SessionMethodUtils {
     return sessionState;
   }
 
-  // Closes a Scope/Span, adding an error tag if the given Throwable is not null.
+  /** Closes a Scope/Span, adding an error tag if the given Throwable is not null. */
   public static void closeScope(
       final SessionState sessionState,
       final Throwable throwable,
@@ -81,8 +83,10 @@ public class SessionMethodUtils {
     sessionState.setMethodScope(null);
   }
 
-  // Copies a span from the given Session ContextStore into the targetContextStore. Used to
-  // propagate a Span from a Session to transient Session objects such as Transaction and Query.
+  /**
+   * Copies a span from the given Session ContextStore into the targetContextStore. Used to
+   * propagate a Span from a Session to transient Session objects such as Transaction and Query.
+   */
   public static <S, T> void attachSpanFromStore(
       final ContextStore<S, SessionState> sourceContextStore,
       final S source,

@@ -1,6 +1,6 @@
 import datadog.opentracing.DDTracer
-import datadog.trace.core.DDSpan
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.DDSpan
 import datadog.trace.util.test.DDSpecification
 import io.opentracing.Tracer
 import io.opentracing.propagation.Format
@@ -44,13 +44,22 @@ class OT31ApiTest extends DDSpecification {
   def "test scopemanager"() {
     setup:
     def span = tracer.buildSpan("some name").start()
+    def scope = tracer.scopeManager().activate(span, finishSpan)
 
-    when:
-    tracer.scopeManager().activate(span, finishSpan) != null
+    expect:
+    scope != null
     tracer.scopeManager().active().span() == span
 
-    then:
+    when: "attempting to close the span this way doesn't work because we lost the 'finishSpan' reference"
     tracer.scopeManager().active().close()
+
+    then:
+    !(span.delegate as DDSpan).isFinished()
+
+    when:
+    scope.close()
+
+    then:
     (span.delegate as DDSpan).isFinished() == finishSpan
 
     where:

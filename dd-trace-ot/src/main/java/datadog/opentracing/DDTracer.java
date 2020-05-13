@@ -3,7 +3,6 @@ package datadog.opentracing;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
@@ -475,8 +474,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     @Deprecated
     @Override
     public Scope startActive(final boolean finishSpanOnClose) {
-      final AgentScope agentScope = delegate.startActive(finishSpanOnClose);
-      return converter.toScope(agentScope);
+      return scopeManager.activate(start(), finishSpanOnClose);
     }
 
     public DDSpanBuilder withServiceName(final String serviceName) {
