@@ -74,7 +74,8 @@ public class ProfilingAgent {
           // The JVM is already shutting down.
         }
       } catch (final UnsupportedEnvironmentException | ConfigurationException e) {
-        log.warn("Failed to initialize profiling agent!", e);
+        log.warn("Failed to initialize profiling agent! " + e.getMessage());
+        log.debug("Failed to initialize profiling agent!", e);
       }
     }
   }
