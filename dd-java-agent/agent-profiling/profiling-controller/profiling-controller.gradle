@@ -8,7 +8,8 @@ excludedClassesCoverage += [
   'com.datadog.profiling.controller.ControllerFactory',
   // There are some code paths that is impossible/very-very hard to hit
   'com.datadog.profiling.controller.ProfilingSystem.StartRecording',
-  'com.datadog.profiling.controller.ProfilingSystem.StopRecording'
+  'com.datadog.profiling.controller.ProfilingSystem.StopRecording',
+  'com.datadog.profiling.jfr.ResolvableJFRType'
 ]
 
 dependencies {
@@ -18,6 +19,7 @@ dependencies {
   testCompile deps.junit5
   testCompile deps.guava
   testCompile deps.mockito
+  testCompile deps.jmc
   testCompile group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
 }
 
