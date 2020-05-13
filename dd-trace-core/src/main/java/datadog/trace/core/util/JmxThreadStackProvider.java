@@ -1,4 +1,4 @@
-package com.datadog.profiling.mlt;
+package datadog.trace.core.util;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;

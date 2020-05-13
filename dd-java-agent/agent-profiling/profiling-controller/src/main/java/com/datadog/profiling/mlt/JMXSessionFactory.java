@@ -2,27 +2,39 @@ package com.datadog.profiling.mlt;
 
 import datadog.trace.profiling.Session;
 import datadog.trace.profiling.SessionFactory;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 public class JMXSessionFactory implements SessionFactory {
-  private static final AtomicInteger refCount = new AtomicInteger();
-  private static final AtomicReference<JMXSession> currentSession = new AtomicReference<>(null);
+  private static final Map<Long, JMXSession> jmxSessions = new HashMap<>();
+
+  private final StackTraceSink sink;
+
+  public JMXSessionFactory(StackTraceSink sink) {
+    this.sink = sink;
+  }
 
   public Session createSession(Thread thread) {
-    int prevCount = refCount.getAndIncrement();
-    if (prevCount == 0) {
-      currentSession.compareAndSet(null, new JMXSession(this, thread));
+    long id = thread.getId();
+    JMXSession session;
+    synchronized (jmxSessions) {
+      session = jmxSessions.computeIfAbsent(id, this::newSession);
     }
-    Session session = currentSession.get();
+    session.incRefCount();
     session.addThread(thread);
     return session;
   }
 
-  void decCount() {
-    int currentCount = refCount.decrementAndGet();
-    if (currentCount == 0) {
-      currentSession.set(null);
+  private JMXSession newSession(Long key) {
+    return new JMXSession(sink, JMXSessionFactory::cleanup);
+  }
+
+  private static void cleanup(Set<Long> threadIds) {
+    synchronized (jmxSessions) {
+      for (Long id : threadIds) {
+        jmxSessions.remove(id);
+      }
     }
   }
 }
