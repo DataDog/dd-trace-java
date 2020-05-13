@@ -5,11 +5,8 @@ import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerFactory;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
-import com.datadog.profiling.mlt.JFRStackTraceSink;
-import com.datadog.profiling.mlt.JMXSessionFactory;
 import com.datadog.profiling.uploader.RecordingUploader;
 import datadog.trace.api.Config;
-import datadog.trace.profiling.Profiler;
 import java.lang.ref.WeakReference;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
@@ -44,8 +41,6 @@ public class ProfilingAgent {
 
       try {
         final Controller controller = ControllerFactory.createController(config);
-        // init the Profiler API for the Tracer
-        Profiler.initialize(new JMXSessionFactory(new JFRStackTraceSink()));
 
         final RecordingUploader uploader = new RecordingUploader(config);
 
