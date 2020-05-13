@@ -13,12 +13,12 @@ class OTExtractedContext extends OTTagContext {
 
   @Override
   public String toTraceId() {
-    return extractedContext.getTraceId().toString();
+    return String.valueOf(extractedContext.getTraceId());
   }
 
   @Override
   public String toSpanId() {
-    return extractedContext.getSpanId().toString();
+    return String.valueOf(extractedContext.getSpanId());
   }
 
   ExtractedContext getDelegate() {

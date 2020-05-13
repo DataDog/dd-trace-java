@@ -399,7 +399,7 @@ public class CoreTracer
   public String getTraceId() {
     final AgentSpan activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
-      return ((DDSpan) activeSpan).getTraceId().toString();
+      return Long.toString(((DDSpan) activeSpan).getTraceId());
     }
     return "0";
   }
@@ -408,7 +408,7 @@ public class CoreTracer
   public String getSpanId() {
     final AgentSpan activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
-      return ((DDSpan) activeSpan).getSpanId().toString();
+      return Long.toString(((DDSpan) activeSpan).getSpanId());
     }
     return "0";
   }
@@ -554,13 +554,13 @@ public class CoreTracer
       return this;
     }
 
-    private BigInteger generateNewId() {
+    private long generateNewId() {
       // It is **extremely** unlikely to generate the value "0" but we still need to handle that
       // case
-      BigInteger value;
+      long value;
       do {
-        value = new StringCachingBigInteger(63, ThreadLocalRandom.current());
-      } while (value.signum() == 0);
+        value = ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
+      } while (value == 0);
 
       return value;
     }
@@ -572,9 +572,9 @@ public class CoreTracer
      * @return the context
      */
     private DDSpanContext buildSpanContext() {
-      final BigInteger traceId;
-      final BigInteger spanId = generateNewId();
-      final BigInteger parentSpanId;
+      final long traceId;
+      final long spanId = generateNewId();
+      final long parentSpanId;
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
       final int samplingPriority;
@@ -619,7 +619,7 @@ public class CoreTracer
         } else {
           // Start a new trace
           traceId = generateNewId();
-          parentSpanId = BigInteger.ZERO;
+          parentSpanId = 0L;
           samplingPriority = PrioritySampling.UNSET;
           baggage = null;
         }

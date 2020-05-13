@@ -14,12 +14,12 @@ class OTGenericContext implements SpanContext {
 
   @Override
   public String toTraceId() {
-    return delegate.getTraceId().toString();
+    return String.valueOf(delegate.getTraceId());
   }
 
   @Override
   public String toSpanId() {
-    return delegate.getSpanId().toString();
+    return String.valueOf(delegate.getSpanId());
   }
 
   @Override

@@ -6,7 +6,6 @@ import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
-import java.math.BigInteger;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,9 +33,9 @@ public class HaystackHttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
-      setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString());
-      setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toString());
-      setter.set(carrier, PARENT_ID_KEY, context.getParentId().toString());
+      setter.set(carrier, TRACE_ID_KEY, String.valueOf(context.getTraceId()));
+      setter.set(carrier, SPAN_ID_KEY, String.valueOf(context.getSpanId()));
+      setter.set(carrier, PARENT_ID_KEY, String.valueOf(context.getParentId()));
 
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
         setter.set(carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
@@ -61,8 +60,8 @@ public class HaystackHttpCodec {
       try {
         Map<String, String> baggage = Collections.emptyMap();
         Map<String, String> tags = Collections.emptyMap();
-        BigInteger traceId = BigInteger.ZERO;
-        BigInteger spanId = BigInteger.ZERO;
+        long traceId = 0L;
+        long spanId = 0L;
         final int samplingPriority = PrioritySampling.SAMPLER_KEEP;
         final String origin = null; // Always null
 
@@ -93,14 +92,14 @@ public class HaystackHttpCodec {
           }
         }
 
-        if (!BigInteger.ZERO.equals(traceId)) {
+        if (traceId != 0L) {
           final ExtractedContext context =
               new ExtractedContext(traceId, spanId, samplingPriority, origin, baggage, tags);
           context.lockSamplingPriority();
 
           log.debug("{} - Parent context extracted", context.getTraceId());
           return context;
-        } else if (origin != null || !tags.isEmpty()) {
+        } else if (!tags.isEmpty()) {
           log.debug("Tags context extracted");
           return new TagContext(origin, tags);
         }

@@ -36,8 +36,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, MapGetter.INSTANCE)
 
     then:
-    context.traceId == new BigInteger(traceId)
-    context.spanId == new BigInteger(spanId)
+    context.traceId == new BigInteger(traceId).longValue()
+    context.spanId == new BigInteger(spanId).longValue()
     context.baggage == ["k1": "v1", "k2": "v2"]
     context.tags == ["some-tag": "my-interesting-info"]
     context.samplingPriority == samplingPriority
@@ -137,8 +137,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
 
     then:
     if (expectedTraceId) {
-      assert context.traceId == expectedTraceId
-      assert context.spanId == expectedSpanId
+      assert context.traceId == expectedTraceId.longValue()
+      assert context.spanId == expectedSpanId.longValue()
     } else {
       assert context == null
     }

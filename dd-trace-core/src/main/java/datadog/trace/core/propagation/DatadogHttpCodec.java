@@ -6,7 +6,6 @@ import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
-import java.math.BigInteger;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,8 +31,8 @@ class DatadogHttpCodec {
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
 
-      setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString());
-      setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toString());
+      setter.set(carrier, TRACE_ID_KEY, String.valueOf(context.getTraceId()));
+      setter.set(carrier, SPAN_ID_KEY, String.valueOf(context.getSpanId()));
       if (context.lockSamplingPriority()) {
         setter.set(carrier, SAMPLING_PRIORITY_KEY, String.valueOf(context.getSamplingPriority()));
       }
@@ -64,8 +63,8 @@ class DatadogHttpCodec {
       try {
         Map<String, String> baggage = Collections.emptyMap();
         Map<String, String> tags = Collections.emptyMap();
-        BigInteger traceId = BigInteger.ZERO;
-        BigInteger spanId = BigInteger.ZERO;
+        long traceId = 0L;
+        long spanId = 0L;
         int samplingPriority = PrioritySampling.UNSET;
         String origin = null;
 
@@ -100,7 +99,7 @@ class DatadogHttpCodec {
           }
         }
 
-        if (!BigInteger.ZERO.equals(traceId)) {
+        if (traceId != 0L) {
           final ExtractedContext context =
               new ExtractedContext(traceId, spanId, samplingPriority, origin, baggage, tags);
           context.lockSamplingPriority();

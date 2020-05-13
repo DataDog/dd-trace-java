@@ -48,9 +48,9 @@ class DDSpanSerializationTest extends DDSpecification {
     def tracer = CoreTracer.builder().writer(writer).build()
     final DDSpanContext context =
       new DDSpanContext(
-        1G,
-        2G,
-        0G,
+        1L,
+        2L,
+        0L,
         "service",
         "operation",
         null,
@@ -60,7 +60,7 @@ class DDSpanSerializationTest extends DDSpecification {
         false,
         spanType,
         ["k1": "v1"],
-        PendingTrace.create(tracer, 1G),
+        PendingTrace.create(tracer, 1L),
         tracer,
         [:])
 
@@ -86,7 +86,7 @@ class DDSpanSerializationTest extends DDSpecification {
     def context = new DDSpanContext(
       value,
       value,
-      0G,
+      0L,
       "fakeService",
       "fakeOperation",
       "fakeResource",
@@ -96,7 +96,7 @@ class DDSpanSerializationTest extends DDSpecification {
       false,
       spanType,
       Collections.emptyMap(),
-      PendingTrace.create(tracer, 1G),
+      PendingTrace.create(tracer, 1L),
       tracer,
       [:])
     def span = DDSpan.create(0, context)
@@ -125,11 +125,10 @@ class DDSpanSerializationTest extends DDSpecification {
 
     where:
     value                                           | spanType
-    0G                                              | null
-    1G                                              | "some-type"
-    8223372036854775807G                            | null
-    BigInteger.valueOf(Long.MAX_VALUE).subtract(1G) | "some-type"
-    BigInteger.valueOf(Long.MAX_VALUE).add(1G)      | null
-    2G.pow(64).subtract(1G)                         | "some-type"
+    0L                                              | null
+    1L                                              | "some-type"
+    8223372036854775807L                            | null
+    Long.MAX_VALUE - 1L                             | "some-type"
+    -1L                                             | "some-type"
   }
 }

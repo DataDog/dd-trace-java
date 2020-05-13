@@ -2,8 +2,6 @@ package datadog.trace.common.sampling;
 
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -12,19 +10,18 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class DeterministicSampler implements RateSampler {
-  private static final BigInteger KNUTH_FACTOR = new BigInteger("1111111111111111111");
-  private static final BigDecimal TRACE_ID_MAX_AS_BIG_DECIMAL =
-      new BigDecimal(CoreTracer.TRACE_ID_MAX);
-  private static final BigInteger MODULUS = new BigInteger("2").pow(64);
+  private static final long KNUTH_FACTOR = 1111111111111111111L;
 
-  private final BigInteger cutoff;
+  private final double cutoff;
   private final double rate;
 
   public DeterministicSampler(final double rate) {
     this.rate = rate;
-    cutoff = new BigDecimal(rate).multiply(TRACE_ID_MAX_AS_BIG_DECIMAL).toBigInteger();
+    cutoff = rate * CoreTracer.TRACE_ID_MAX.doubleValue();
 
-    log.debug("Initializing the RateSampler, sampleRate: {} %", rate * 100);
+    if (log.isDebugEnabled()) {
+      log.debug("Initializing the RateSampler, sampleRate: {} %", rate * 100);
+    }
   }
 
   @Override
@@ -35,10 +32,12 @@ public class DeterministicSampler implements RateSampler {
     } else if (rate == 0) {
       sampled = false;
     } else {
-      sampled = span.getTraceId().multiply(KNUTH_FACTOR).mod(MODULUS).compareTo(cutoff) < 0;
+      sampled = span.getTraceId() * KNUTH_FACTOR + Long.MIN_VALUE < cutoff + Long.MIN_VALUE;
     }
 
-    log.debug("{} - Span is sampled: {}", span, sampled);
+    if (log.isDebugEnabled()) {
+      log.debug("{} - Span is sampled: {}", span, sampled);
+    }
 
     return sampled;
   }
