@@ -20,7 +20,8 @@ import java.util.List;
 import java.util.Map;
 
 public abstract class FormatWriter<DEST> {
-  public abstract void writeKey(String key, DEST destination) throws IOException;
+
+  public abstract void writeKey(byte[] key, DEST destination) throws IOException;
 
   public abstract void writeListHeader(int size, DEST destination) throws IOException;
 
@@ -33,6 +34,27 @@ public abstract class FormatWriter<DEST> {
   public void writeTag(String key, String value, DEST destination) throws IOException {
     writeString(key, value, destination);
   }
+
+  public void writeTag(byte[] key, String value, DEST destination) throws IOException {
+    writeString(key, value, destination);
+  }
+
+  public abstract void writeString(byte[] key, String value, DEST destination) throws IOException;
+
+  public abstract void writeShort(byte[] key, short value, DEST destination) throws IOException;
+
+  public abstract void writeByte(byte[] key, byte value, DEST destination) throws IOException;
+
+  public abstract void writeInt(byte[] key, int value, DEST destination) throws IOException;
+
+  public abstract void writeLong(byte[] key, long value, DEST destination) throws IOException;
+
+  public abstract void writeFloat(byte[] key, float value, DEST destination) throws IOException;
+
+  public abstract void writeDouble(byte[] key, double value, DEST destination) throws IOException;
+
+  public abstract void writeBigInteger(byte[] key, BigInteger value, DEST destination)
+      throws IOException;
 
   public abstract void writeString(String key, String value, DEST destination) throws IOException;
 
@@ -47,9 +69,6 @@ public abstract class FormatWriter<DEST> {
   public abstract void writeFloat(String key, float value, DEST destination) throws IOException;
 
   public abstract void writeDouble(String key, double value, DEST destination) throws IOException;
-
-  public abstract void writeBigInteger(String key, BigInteger value, DEST destination)
-      throws IOException;
 
   public void writeNumber(final String key, final Number value, final DEST destination)
       throws IOException {
@@ -69,7 +88,7 @@ public abstract class FormatWriter<DEST> {
   }
 
   public void writeNumberMap(
-      final String key, final Map<String, Number> value, final DEST destination)
+      final byte[] key, final Map<String, Number> value, final DEST destination)
       throws IOException {
     writeKey(key, destination);
     writeMapHeader(value.size(), destination);
@@ -80,9 +99,13 @@ public abstract class FormatWriter<DEST> {
   }
 
   public void writeStringMap(
-      final String key, final Map<String, String> value, final DEST destination)
+      final byte[] key, final Map<String, String> value, final DEST destination)
       throws IOException {
     writeKey(key, destination);
+    writeStringMap(value, destination);
+  }
+
+  void writeStringMap(final Map<String, String> value, final DEST destination) throws IOException {
     writeMapHeader(value.size(), destination);
     for (final Map.Entry<String, String> entry : value.entrySet()) {
       writeString(entry.getKey(), entry.getValue(), destination);
