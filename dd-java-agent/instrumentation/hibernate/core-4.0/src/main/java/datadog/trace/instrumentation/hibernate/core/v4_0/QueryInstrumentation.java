@@ -79,7 +79,7 @@ public class QueryInstrumentation extends AbstractHibernateInstrumentation {
         entity = query.getQueryString();
       }
 
-      SessionMethodUtils.closeScope(state, throwable, entity);
+      SessionMethodUtils.closeScope(state, throwable, entity, true);
     }
   }
 }

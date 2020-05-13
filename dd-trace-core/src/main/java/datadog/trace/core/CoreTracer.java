@@ -283,14 +283,7 @@ public class CoreTracer
 
   @Override
   public AgentScope activateSpan(final AgentSpan span) {
-    return activateSpan(span, false);
-  }
-
-  /** @deprecated use {@link #activateSpan(AgentSpan)} instead */
-  @Deprecated
-  @Override
-  public AgentScope activateSpan(final AgentSpan span, final boolean finishSpanOnClose) {
-    return scopeManager.activate(span, finishSpanOnClose);
+    return scopeManager.activate(span);
   }
 
   @Override
@@ -363,7 +356,6 @@ public class CoreTracer
         }
       }
     }
-    incrementTraceCount();
 
     if (!writtenTrace.isEmpty()) {
       final DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
@@ -372,6 +364,8 @@ public class CoreTracer
       final DDSpan spanToSample = rootSpan == null ? writtenTrace.get(0) : rootSpan;
       if (sampler.sample(spanToSample)) {
         writer.write(writtenTrace);
+      } else {
+        incrementTraceCount();
       }
     }
   }
@@ -479,16 +473,7 @@ public class CoreTracer
     }
 
     private DDSpan buildSpan() {
-      return new DDSpan(timestampMicro, buildSpanContext());
-    }
-
-    /** @deprecated use {@link #start()} instead. */
-    @Deprecated
-    public AgentScope startActive(final boolean finishSpanOnClose) {
-      final AgentSpan span = buildSpan();
-      final AgentScope scope = scopeManager.activate(span, finishSpanOnClose);
-      log.debug("Starting a new active span: {}", span);
-      return scope;
+      return DDSpan.create(timestampMicro, buildSpanContext());
     }
 
     public AgentSpan start() {
@@ -633,7 +618,7 @@ public class CoreTracer
 
         tags.putAll(localRootSpanTags);
 
-        parentTrace = new PendingTrace(CoreTracer.this, traceId);
+        parentTrace = PendingTrace.create(CoreTracer.this, traceId);
       }
 
       if (serviceName == null) {

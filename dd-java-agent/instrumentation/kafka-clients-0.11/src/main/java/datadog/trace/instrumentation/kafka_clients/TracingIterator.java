@@ -37,6 +37,7 @@ public class TracingIterator implements Iterator<ConsumerRecord> {
   public boolean hasNext() {
     if (currentScope != null) {
       currentScope.close();
+      currentScope.span().finish();
       currentScope = null;
     }
     return delegateIterator.hasNext();
@@ -47,6 +48,7 @@ public class TracingIterator implements Iterator<ConsumerRecord> {
     if (currentScope != null) {
       // in case they didn't call hasNext()...
       currentScope.close();
+      currentScope.span().finish();
       currentScope = null;
     }
 
@@ -58,7 +60,7 @@ public class TracingIterator implements Iterator<ConsumerRecord> {
         final AgentSpan span = startSpan(operationName, spanContext);
         decorator.afterStart(span);
         decorator.onConsume(span, next);
-        currentScope = activateSpan(span, true);
+        currentScope = activateSpan(span);
         currentScope.setAsyncPropagation(true);
       }
     } catch (final Exception e) {

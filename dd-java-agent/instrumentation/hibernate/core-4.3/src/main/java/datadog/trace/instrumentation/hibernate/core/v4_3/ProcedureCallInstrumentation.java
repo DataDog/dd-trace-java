@@ -76,7 +76,7 @@ public class ProcedureCallInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void endMethod(
         @Advice.Enter final SessionState state, @Advice.Thrown final Throwable throwable) {
-      SessionMethodUtils.closeScope(state, throwable, null);
+      SessionMethodUtils.closeScope(state, throwable, null, true);
     }
   }
 }

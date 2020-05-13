@@ -56,15 +56,30 @@ jobs:
             var draftText = "# Improvements \n\n# Changes \n\n"
             for (let pull of pullRequests) {
               if (pull.merged_at && pull.milestone && pull.milestone.number == ${{steps.milestone.outputs.result}}) {
+                if (pull.labels.some(label => label.name == "no release notes")) {
+                  continue
+                }
+
+                var lineItem = "* "
+                for (let label of pull.labels) {
+                  lineItem += "[" + label.name.charAt(0).toUpperCase() + label.name.slice(1) + "] "
+                }
+
+                lineItem += pull.title + " #" + pull.number
+
                 // Add author if community labeled
                 if (pull.labels.some(label => label.name == "community")) {
-                  draftText += "* " + pull.title + " #" + pull.number + " (Thanks @" + pull.user.login + " for the contribution!)\n"
-                } else {
-                  draftText += "* " + pull.title + " #" + pull.number + " \n"
+                  lineItem += " (Thanks @" + pull.user.login + " for the contribution!)"
                 }
+
+                draftText += lineItem + "\n"
               }
             }
             draftText += "\n# Fixes \n"
+
+            // Escape backticks
+            draftText = draftText.replace(/`/g,"\\`")
+
             return draftText
       - name: Create release notes
         if: fromJSON(steps.milestone.outputs.result)

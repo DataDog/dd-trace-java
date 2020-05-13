@@ -34,11 +34,11 @@ class DDSpanTest extends DDSpecification {
         false,
         "fakeType",
         null,
-        new PendingTrace(tracer, 1G),
+        PendingTrace.create(tracer, 1G),
         tracer,
         [:])
 
-    final DDSpan span = new DDSpan(1L, context)
+    final DDSpan span = DDSpan.create(1L, context)
 
     when:
     span.setServiceName("service")

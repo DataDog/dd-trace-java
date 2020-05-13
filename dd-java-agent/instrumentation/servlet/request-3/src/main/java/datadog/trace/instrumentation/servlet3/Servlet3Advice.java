@@ -53,7 +53,7 @@ public class Servlet3Advice {
     DECORATE.onConnection(span, httpServletRequest);
     DECORATE.onRequest(span, httpServletRequest);
 
-    final AgentScope scope = activateSpan(span, false);
+    final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
@@ -115,6 +115,7 @@ public class Servlet3Advice {
           DECORATE.beforeFinish(span);
           span.finish(); // Finish the span manually since finishSpanOnClose was false
         }
+        // else span finished in TagSettingAsyncListener
       }
       scope.close();
     }

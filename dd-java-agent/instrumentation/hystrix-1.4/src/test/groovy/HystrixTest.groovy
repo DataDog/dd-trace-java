@@ -34,7 +34,11 @@ class HystrixTest extends AgentTestRunner {
       }
     }
     def result = runUnderTrace("parent") {
-      operation(command)
+      try {
+        operation(command)
+      } finally {
+        blockUntilChildSpansFinished(2)
+      }
     }
     expect:
     TRANSFORMED_CLASSES_NAMES.contains("com.netflix.hystrix.strategy.concurrency.HystrixContextScheduler\$ThreadPoolWorker")
@@ -112,7 +116,11 @@ class HystrixTest extends AgentTestRunner {
       }
     }
     def result = runUnderTrace("parent") {
-      operation(command)
+      try {
+        return operation(command)
+      } finally {
+        blockUntilChildSpansFinished(2)
+      }
     }
     expect:
     TRANSFORMED_CLASSES_NAMES.contains("com.netflix.hystrix.strategy.concurrency.HystrixContextScheduler\$ThreadPoolWorker")

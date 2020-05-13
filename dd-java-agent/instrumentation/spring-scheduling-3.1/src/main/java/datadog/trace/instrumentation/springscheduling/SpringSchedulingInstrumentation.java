@@ -64,7 +64,7 @@ public final class SpringSchedulingInstrumentation extends Instrumenter.Default 
       final AgentSpan span = startSpan("scheduled.call");
       DECORATE.afterStart(span);
 
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         DECORATE.onRun(span, runnable);
         scope.setAsyncPropagation(true);
 

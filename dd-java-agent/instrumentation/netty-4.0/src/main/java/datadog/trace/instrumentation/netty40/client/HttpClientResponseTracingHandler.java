@@ -25,7 +25,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final boolean finishSpan = msg instanceof HttpResponse;
 
     if (span != null && finishSpan) {
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         DECORATE.onResponse(span, (HttpResponse) msg);
         DECORATE.beforeFinish(span);
         span.finish();
@@ -33,7 +33,7 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     }
 
     // We want the callback in the scope of the parent, not the client span
-    try (final AgentScope scope = activateSpan(parent, false)) {
+    try (final AgentScope scope = activateSpan(parent)) {
       scope.setAsyncPropagation(true);
       ctx.fireChannelRead(msg);
     }

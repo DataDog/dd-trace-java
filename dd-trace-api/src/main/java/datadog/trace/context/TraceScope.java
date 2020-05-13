@@ -27,8 +27,9 @@ public interface TraceScope extends Closeable {
   void setAsyncPropagation(boolean value);
 
   /**
-   * Used to pass async context between workers. Either activate or cancel must be called on each
-   * continuation instance to allow the trace to be reported.
+   * Used to pass async context between workers. A trace will not be reported until all spans and
+   * continuations are resolved. You must call activate (and close on the returned scope) or cancel
+   * on each continuation to avoid discarding traces.
    */
   interface Continuation {
 
@@ -44,22 +45,5 @@ public interface TraceScope extends Closeable {
 
     /** Allow trace to stop waiting on this continuation for reporting. */
     void cancel();
-
-    /**
-     * Cancel the continuation. This also closes parent scope.
-     *
-     * @deprecated use {@link #cancel()} instead. Will be removed in the next release.
-     */
-    @Deprecated
-    void close();
-
-    /**
-     * Close the continuation.
-     *
-     * @deprecated use {@link #cancel()} instead. Will be removed in the next release.
-     * @param closeContinuationScope true iff parent scope should also be closed
-     */
-    @Deprecated
-    void close(boolean closeContinuationScope);
   }
 }

@@ -1,3 +1,4 @@
+import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activeScope, activeSpan}
 
@@ -8,8 +9,8 @@ import scala.concurrent.{Await, Future, Promise}
 class ScalaConcurrentTests {
 
   /**
-    * @return Number of expected spans in the trace
-    */
+   * @return Number of expected spans in the trace
+   */
   @Trace
   def traceWithFutureAndCallbacks(): Integer = {
     activeScope().setAsyncPropagation(true)
@@ -28,6 +29,7 @@ class ScalaConcurrentTests {
       case t: Throwable => tracedChild("failureCallback")
     }
 
+    blockUntilChildSpansFinished(4)
     return 5
   }
 
@@ -45,12 +47,13 @@ class ScalaConcurrentTests {
       }
     }
 
+    blockUntilChildSpansFinished(1)
     return 2
   }
 
   /**
-    * @return Number of expected spans in the trace
-    */
+   * @return Number of expected spans in the trace
+   */
   @Trace
   def traceWithPromises(): Integer = {
     activeScope().setAsyncPropagation(true)
@@ -78,12 +81,13 @@ class ScalaConcurrentTests {
       case t => tracedChild("brokenPromise")
     }
 
+    blockUntilChildSpansFinished(4)
     return 5
   }
 
   /**
-    * @return Number of expected spans in the trace
-    */
+   * @return Number of expected spans in the trace
+   */
   @Trace
   def tracedWithFutureFirstCompletions(): Integer = {
     activeScope().setAsyncPropagation(true)
@@ -102,12 +106,14 @@ class ScalaConcurrentTests {
           true
         }))
     Await.result(completedVal, 30 seconds)
+
+    blockUntilChildSpansFinished(3)
     return 4
   }
 
   /**
-    * @return Number of expected spans in the trace
-    */
+   * @return Number of expected spans in the trace
+   */
   @Trace
   def tracedTimeout(): Integer = {
     activeScope().setAsyncPropagation(true)
@@ -124,6 +130,8 @@ class ScalaConcurrentTests {
     } catch {
       case e: Exception => {}
     }
+
+    blockUntilChildSpansFinished(1)
     return 2
   }
 

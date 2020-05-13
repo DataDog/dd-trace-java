@@ -1,6 +1,8 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.core.serialization.MsgpackFormatWriter.MSGPACK_WRITER;
+import static org.msgpack.core.MessagePack.Code.ARRAY16;
+import static org.msgpack.core.MessagePack.Code.ARRAY32;
+import static org.msgpack.core.MessagePack.Code.FIXARRAY_PREFIX;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
@@ -8,11 +10,9 @@ import com.squareup.moshi.Types;
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory;
 import datadog.trace.core.ContainerInfo;
-import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,9 +25,6 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okio.BufferedSink;
-import org.msgpack.core.MessagePack;
-import org.msgpack.core.MessagePacker;
-import org.msgpack.core.buffer.ArrayBufferOutput;
 
 /** The API pointing to a DD agent */
 @Slf4j
@@ -45,12 +42,6 @@ public class DDAgentApi {
   private static final String TRACES_ENDPOINT_V3 = "v0.3/traces";
   private static final String TRACES_ENDPOINT_V4 = "v0.4/traces";
   private static final long MILLISECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toMillis(5);
-
-  // limiting the size this optimisation applies to decreases the likelihood
-  // that the MessagePacker will allocate a byte[] during UTF-8 encoding,
-  // and restricts the optimisation to very small strings which may scalarise
-  private static final MessagePack.PackerConfig MESSAGE_PACKER_CONFIG =
-      MessagePack.DEFAULT_PACKER_CONFIG.withSmallStringOptimizationThreshold(16);
 
   private final List<DDAgentResponseListener> responseListeners = new ArrayList<>();
 
@@ -84,83 +75,20 @@ public class DDAgentApi {
     }
   }
 
-  /**
-   * Send traces to the DD agent
-   *
-   * @param traces the traces to be sent
-   * @return a Response object -- encapsulating success of communication, sending, and result
-   *     parsing
-   */
-  Response sendTraces(final List<List<DDSpan>> traces) {
-    final List<byte[]> serializedTraces = new ArrayList<>(traces.size());
-    int sizeInBytes = 0;
-    for (final List<DDSpan> trace : traces) {
-      try {
-        final byte[] serializedTrace = serializeTrace(trace);
-        sizeInBytes += serializedTrace.length;
-        serializedTraces.add(serializedTrace);
-      } catch (final IOException e) {
-        log.warn("Error serializing trace", e);
-
-        // TODO: DQH - Incorporate the failed serialization into the Response object???
-      }
-    }
-
-    return sendSerializedTraces(serializedTraces.size(), sizeInBytes, serializedTraces);
-  }
-
-  byte[] serializeTrace(final List<DDSpan> trace) throws IOException {
-    // TODO: reuse byte array buffer
-    final ArrayBufferOutput output = new ArrayBufferOutput();
-    final MessagePacker packer = MESSAGE_PACKER_CONFIG.newPacker(output);
-    MSGPACK_WRITER.writeTrace(trace, packer);
-    packer.flush();
-    return output.toByteArray();
-  }
-
   Response sendSerializedTraces(
-      final int representativeCount, final Integer sizeInBytes, final List<byte[]> traces) {
+      final int representativeCount,
+      final int traceCount,
+      final int sizeInBytes,
+      final List<TraceBuffer> traces) {
     if (httpClient == null) {
       detectEndpointAndBuildClient();
     }
 
     try {
-      final RequestBody body =
-          new RequestBody() {
-            @Override
-            public MediaType contentType() {
-              return MSGPACK;
-            }
-
-            @Override
-            public long contentLength() {
-              final int traceCount = traces.size();
-              // Need to allocate additional to handle MessagePacker.packArrayHeader
-              if (traceCount < (1 << 4)) {
-                return sizeInBytes + 1; // byte
-              } else if (traceCount < (1 << 16)) {
-                return sizeInBytes + 3; // byte + short
-              } else {
-                return sizeInBytes + 5; // byte + int
-              }
-            }
-
-            @Override
-            public void writeTo(final BufferedSink sink) throws IOException {
-              final OutputStream out = sink.outputStream();
-              final MessagePacker packer = MessagePack.newDefaultPacker(out);
-              packer.packArrayHeader(traces.size());
-              for (final byte[] trace : traces) {
-                packer.writePayload(trace);
-              }
-              packer.close();
-              out.close();
-            }
-          };
       final Request request =
           prepareRequest(tracesUrl)
               .addHeader(X_DATADOG_TRACE_COUNT, String.valueOf(representativeCount))
-              .put(body)
+              .put(new MsgPackRequestBody(traceCount, sizeInBytes, traces))
               .build();
 
       try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
@@ -232,7 +160,7 @@ public class DDAgentApi {
     }
   }
 
-  private static final byte[] EMPTY_LIST = new byte[] {MessagePack.Code.FIXARRAY_PREFIX};
+  private static final byte[] EMPTY_LIST = new byte[] {FIXARRAY_PREFIX};
 
   private static boolean endpointAvailable(
       final HttpUrl url, final String unixDomainSocketPath, final boolean retry) {
@@ -367,6 +295,52 @@ public class DDAgentApi {
     // TODO: DQH - In Java 8, switch to Optional<Throwable>?
     public final Throwable exception() {
       return exception;
+    }
+  }
+
+  private static class MsgPackRequestBody extends RequestBody {
+    private final int traceCount;
+    private final int sizeInBytes;
+    private final List<TraceBuffer> traces;
+
+    private MsgPackRequestBody(int traceCount, int sizeInBytes, List<TraceBuffer> traces) {
+      this.traceCount = traceCount;
+      this.sizeInBytes = sizeInBytes;
+      this.traces = traces;
+    }
+
+    @Override
+    public MediaType contentType() {
+      return MSGPACK;
+    }
+
+    @Override
+    public long contentLength() {
+      // Need to allocate additional to handle MessagePacker.packArrayHeader
+      if (traceCount < (1 << 4)) {
+        return sizeInBytes + 1; // byte
+      } else if (traceCount < (1 << 16)) {
+        return sizeInBytes + 3; // byte + short
+      } else {
+        return sizeInBytes + 5; // byte + int
+      }
+    }
+
+    @Override
+    public void writeTo(final BufferedSink sink) throws IOException {
+      // inlines behaviour from MessagePacker.packArrayHeader
+      if (traceCount < (1 << 4)) {
+        sink.writeByte((byte) (traceCount | FIXARRAY_PREFIX));
+      } else if (traceCount < (1 << 16)) {
+        sink.writeByte(ARRAY16);
+        sink.writeShort(traceCount);
+      } else {
+        sink.writeByte(ARRAY32);
+        sink.writeInt(traceCount);
+      }
+      for (TraceBuffer trace : traces) {
+        trace.writeTo(sink);
+      }
     }
   }
 }

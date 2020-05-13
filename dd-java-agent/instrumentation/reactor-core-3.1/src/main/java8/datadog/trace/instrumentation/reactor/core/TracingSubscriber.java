@@ -37,7 +37,7 @@ public class TracingSubscriber<T>
         (AgentSpan)
             delegate.currentContext().getOrEmpty(AgentSpan.class).orElseGet(AgentTracer::noopSpan);
 
-    try (final AgentScope scope = activateSpan(downstreamSpan, false)) {
+    try (final AgentScope scope = activateSpan(downstreamSpan)) {
       final TraceScope downstreamScope = activeScope();
       if (downstreamScope != null) {
         downstreamScope.setAsyncPropagation(true);
@@ -62,7 +62,7 @@ public class TracingSubscriber<T>
   public void onSubscribe(final Subscription subscription) {
     this.subscription = subscription;
 
-    try (final AgentScope scope = activateSpan(downstreamSpan, false)) {
+    try (final AgentScope scope = activateSpan(downstreamSpan)) {
       scope.setAsyncPropagation(true);
       delegate.onSubscribe(this);
     }
@@ -70,7 +70,7 @@ public class TracingSubscriber<T>
 
   @Override
   public void onNext(final T t) {
-    try (final AgentScope scope = activateSpan(downstreamSpan, false)) {
+    try (final AgentScope scope = activateSpan(downstreamSpan)) {
       scope.setAsyncPropagation(true);
       delegate.onNext(t);
     }
@@ -83,7 +83,7 @@ public class TracingSubscriber<T>
       scope.setAsyncPropagation(true);
       return new UnifiedScope(scope);
     } else {
-      final AgentScope scope = activateSpan(downstreamSpan, false);
+      final AgentScope scope = activateSpan(downstreamSpan);
       scope.setAsyncPropagation(true);
       return new UnifiedScope(scope);
     }
@@ -109,7 +109,7 @@ public class TracingSubscriber<T>
 
   @Override
   public void request(final long n) {
-    try (final AgentScope scope = activateSpan(upstreamSpan, false)) {
+    try (final AgentScope scope = activateSpan(upstreamSpan)) {
       scope.setAsyncPropagation(true);
       subscription.request(n);
     }
@@ -117,11 +117,11 @@ public class TracingSubscriber<T>
 
   @Override
   public void cancel() {
-    try (final AgentScope scope = activateSpan(upstreamSpan, false)) {
+    try (final AgentScope scope = activateSpan(upstreamSpan)) {
       scope.setAsyncPropagation(true);
       final TraceScope.Continuation current = continuation.getAndSet(null);
       if (current != null) {
-        current.close();
+        current.cancel();
       }
       subscription.cancel();
     }

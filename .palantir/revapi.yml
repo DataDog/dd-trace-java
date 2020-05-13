@@ -257,3 +257,34 @@ acceptedBreaks:
       old: "method datadog.opentracing.DDTracer.DDSpanBuilder datadog.opentracing.DDTracer.DDSpanBuilder::withLogHandler(datadog.opentracing.LogHandler)"
       justification: "LogManager set once instead of per-span"
     # End: Breaking changes
+  "0.51.0":
+    com.datadoghq:dd-trace-ot:
+    - code: "java.method.removed"
+      old: "method datadog.trace.bootstrap.instrumentation.api.AgentScope datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI::activateSpan(datadog.trace.bootstrap.instrumentation.api.AgentSpan,\
+        \ boolean)"
+      justification: "Removed deprecated APIs preventing refactoring"
+    - code: "java.method.removed"
+      old: "method datadog.trace.bootstrap.instrumentation.api.AgentScope datadog.trace.bootstrap.instrumentation.api.AgentTracer::activateSpan(datadog.trace.bootstrap.instrumentation.api.AgentSpan,\
+        \ boolean)"
+      justification: "Removed deprecated APIs preventing refactoring"
+    - code: "java.method.removed"
+      old: "method datadog.trace.bootstrap.instrumentation.api.AgentScope datadog.trace.core.CoreTracer.CoreSpanBuilder::startActive(boolean)"
+      justification: "Removed deprecated APIs preventing refactoring"
+    - code: "java.method.removed"
+      old: "method datadog.trace.bootstrap.instrumentation.api.AgentScope datadog.trace.core.CoreTracer::activateSpan(datadog.trace.bootstrap.instrumentation.api.AgentSpan,\
+        \ boolean)"
+      justification: "Removed deprecated APIs preventing refactoring"
+    - code: "java.method.removed"
+      old: "method datadog.trace.bootstrap.instrumentation.api.AgentScope datadog.trace.core.scopemanager.ContextualScopeManager::activate(datadog.trace.bootstrap.instrumentation.api.AgentSpan,\
+        \ boolean)"
+      justification: "Removed deprecated APIs preventing refactoring"
+    - code: "java.method.removed"
+      old: "method datadog.trace.bootstrap.instrumentation.api.AgentScope datadog.trace.core.scopemanager.DDScopeManager::activate(datadog.trace.bootstrap.instrumentation.api.AgentSpan,\
+        \ boolean)"
+      justification: "Removed deprecated APIs preventing refactoring"
+    - code: "java.method.removed"
+      old: "method void datadog.trace.core.scopemanager.ContinuableScope.Continuation::close()"
+      justification: "Removed deprecated APIs preventing refactoring"
+    - code: "java.method.removed"
+      old: "method void datadog.trace.core.scopemanager.ContinuableScope.Continuation::close(boolean)"
+      justification: "Removed deprecated APIs preventing refactoring"

@@ -1,6 +1,5 @@
 package datadog.trace.core
 
-
 import datadog.trace.api.Config
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.util.gc.GCUtils
@@ -10,25 +9,18 @@ import spock.lang.Timeout
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.api.Config.PARTIAL_FLUSH_MIN_SPANS
 
 class PendingTraceTest extends DDSpecification {
 
-  def traceCount = new AtomicInteger()
-  def writer = new ListWriter() {
-    @Override
-    void incrementTraceCount() {
-      PendingTraceTest.this.traceCount.incrementAndGet()
-    }
-  }
+  def writer = new ListWriter()
   def tracer = CoreTracer.builder().writer(writer).build()
 
   BigInteger traceId = BigInteger.valueOf(System.identityHashCode(this))
 
   @Subject
-  PendingTrace trace = new PendingTrace(tracer, traceId)
+  PendingTrace trace = PendingTrace.create(tracer, traceId)
 
   DDSpan rootSpan = SpanFactory.newSpanOf(trace)
 
@@ -46,7 +38,7 @@ class PendingTraceTest extends DDSpecification {
     expect:
     trace.asList() == [rootSpan]
     writer == [[rootSpan]]
-    traceCount.get() == 1
+    writer.traceCount.get() == 1
   }
 
   def "child finishes before parent"() {
@@ -74,7 +66,7 @@ class PendingTraceTest extends DDSpecification {
     trace.weakReferences.size() == 0
     trace.asList() == [rootSpan, child]
     writer == [[rootSpan, child]]
-    traceCount.get() == 1
+    writer.traceCount.get() == 1
   }
 
   def "parent finishes before child which holds up trace"() {
@@ -102,7 +94,7 @@ class PendingTraceTest extends DDSpecification {
     trace.weakReferences.size() == 0
     trace.asList() == [child, rootSpan]
     writer == [[child, rootSpan]]
-    traceCount.get() == 1
+    writer.traceCount.get() == 1
   }
 
   @Timeout(value = 60, unit = TimeUnit.SECONDS)
@@ -130,7 +122,7 @@ class PendingTraceTest extends DDSpecification {
     trace.weakReferences.size() == 0
     trace.asList() == [rootSpan]
     writer == []
-    traceCount.get() == 1
+    writer.traceCount.get() == 1
     !PendingTrace.SPAN_CLEANER.get().pendingTraces.contains(trace)
   }
 
@@ -142,12 +134,12 @@ class PendingTraceTest extends DDSpecification {
     trace.pendingReferenceCount.get() == 1
     trace.weakReferences.size() == 1
     trace.asList() == []
-    traceCount.get() == 0
+    writer.traceCount.get() == 0
   }
 
   def "register span to wrong trace fails"() {
     setup:
-    def otherTrace = new PendingTrace(tracer, traceId - 10)
+    def otherTrace = PendingTrace.create(tracer, traceId - 10)
     otherTrace.registerSpan(new DDSpan(0, rootSpan.context()))
 
     expect:
@@ -158,7 +150,7 @@ class PendingTraceTest extends DDSpecification {
 
   def "add span to wrong trace fails"() {
     setup:
-    def otherTrace = new PendingTrace(tracer, traceId - 10)
+    def otherTrace = PendingTrace.create(tracer, traceId - 10)
     rootSpan.finish()
     otherTrace.addSpan(rootSpan)
 
@@ -196,7 +188,7 @@ class PendingTraceTest extends DDSpecification {
     properties.setProperty(PARTIAL_FLUSH_MIN_SPANS, "1")
     def config = Config.get(properties)
     def tracer = CoreTracer.builder().config(config).writer(writer).build()
-    def trace = new PendingTrace(tracer, traceId)
+    def trace = PendingTrace.create(tracer, traceId)
     def rootSpan = SpanFactory.newSpanOf(trace)
     def child1 = tracer.buildSpan("child1").asChildOf(rootSpan).start()
     def child2 = tracer.buildSpan("child2").asChildOf(rootSpan).start()
@@ -213,7 +205,7 @@ class PendingTraceTest extends DDSpecification {
     trace.weakReferences.size() == 2
     trace.asList() == [rootSpan]
     writer == []
-    traceCount.get() == 0
+    writer.traceCount.get() == 0
 
     when:
     child1.finish()
@@ -223,7 +215,7 @@ class PendingTraceTest extends DDSpecification {
     trace.weakReferences.size() == 1
     trace.asList() == [rootSpan]
     writer == [[child1]]
-    traceCount.get() == 1
+    writer.traceCount.get() == 1
 
     when:
     child2.finish()
@@ -233,7 +225,7 @@ class PendingTraceTest extends DDSpecification {
     trace.weakReferences.size() == 0
     trace.asList() == [child2, rootSpan]
     writer == [[child1], [child2, rootSpan]]
-    traceCount.get() == 2
+    writer.traceCount.get() == 2
   }
 
   def "partial flush with root span closed last"() {
@@ -242,7 +234,7 @@ class PendingTraceTest extends DDSpecification {
     properties.setProperty(PARTIAL_FLUSH_MIN_SPANS, "1")
     def config = Config.get(properties)
     def tracer = CoreTracer.builder().config(config).writer(writer).build()
-    def trace = new PendingTrace(tracer, traceId)
+    def trace = PendingTrace.create(tracer, traceId)
     def rootSpan = SpanFactory.newSpanOf(trace)
     def child1 = tracer.buildSpan("child1").asChildOf(rootSpan).start()
     def child2 = tracer.buildSpan("child2").asChildOf(rootSpan).start()
@@ -259,7 +251,7 @@ class PendingTraceTest extends DDSpecification {
     trace.weakReferences.size() == 2
     trace.asList() == [child1]
     writer == []
-    traceCount.get() == 0
+    writer.traceCount.get() == 0
 
     when:
     child2.finish()
@@ -269,7 +261,7 @@ class PendingTraceTest extends DDSpecification {
     trace.weakReferences.size() == 1
     trace.asList() == []
     writer == [[child2, child1]]
-    traceCount.get() == 1
+    writer.traceCount.get() == 1
 
     when:
     rootSpan.finish()
@@ -279,6 +271,6 @@ class PendingTraceTest extends DDSpecification {
     trace.weakReferences.size() == 0
     trace.asList() == [rootSpan]
     writer == [[child2, child1], [rootSpan]]
-    traceCount.get() == 2
+    writer.traceCount.get() == 2
   }
 }

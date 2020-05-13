@@ -113,7 +113,7 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
       requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
 
-      final AgentScope agentScope = activateSpan(span, true);
+      final AgentScope agentScope = activateSpan(span);
       agentScope.setAsyncPropagation(true);
       return agentScope;
     }
@@ -136,6 +136,7 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 }

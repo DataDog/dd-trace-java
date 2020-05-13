@@ -31,7 +31,7 @@ public abstract class CompletionListener<T> {
   public CompletionListener(final MemcachedConnection connection, final String methodName) {
     this.connection = connection;
     span = startSpan(OPERATION_NAME);
-    try (final AgentScope scope = activateSpan(span, false)) {
+    try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, connection);
       DECORATE.onOperation(span, methodName);
@@ -39,7 +39,7 @@ public abstract class CompletionListener<T> {
   }
 
   protected void closeAsyncSpan(final T future) {
-    try (final AgentScope scope = activateSpan(span, false)) {
+    try (final AgentScope scope = activateSpan(span)) {
       try {
         processResult(span, future);
       } catch (final CancellationException e) {
@@ -67,7 +67,7 @@ public abstract class CompletionListener<T> {
   }
 
   protected void closeSyncSpan(final Throwable thrown) {
-    try (final AgentScope scope = activateSpan(span, false)) {
+    try (final AgentScope scope = activateSpan(span)) {
       DECORATE.onError(span, thrown);
       DECORATE.beforeFinish(span);
       span.finish();

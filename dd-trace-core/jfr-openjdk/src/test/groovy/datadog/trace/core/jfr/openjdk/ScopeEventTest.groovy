@@ -58,8 +58,8 @@ class ScopeEventTest extends DDSpecification {
     def recording = JfrHelper.startRecording()
 
     when:
-    AgentScope scope = builder.startActive(false)
-    AgentSpan span = scope.span()
+    AgentSpan span = builder.start()
+    AgentScope scope = tracer.activateSpan(span)
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
     def events = JfrHelper.stopRecording(recording)
@@ -91,8 +91,8 @@ class ScopeEventTest extends DDSpecification {
     def recording = JfrHelper.startRecording()
 
     when:
-    AgentScope scope = builder.startActive(false)
-    AgentSpan span = scope.span()
+    AgentSpan span = builder.start()
+    AgentScope scope = tracer.activateSpan(span)
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
     def events = JfrHelper.stopRecording(recording)
@@ -124,8 +124,8 @@ class ScopeEventTest extends DDSpecification {
     def recording = JfrHelper.startRecording()
 
     when:
-    AgentScope scope = builder.startActive(false)
-    AgentSpan span = scope.span()
+    AgentSpan span = builder.start()
+    AgentScope scope = tracer.activateSpan(span)
     sleep(SLEEP_DURATION.toMillis())
     scope.close()
     def events = JfrHelper.stopRecording(recording)
@@ -150,9 +150,9 @@ class ScopeEventTest extends DDSpecification {
 
   def "Scope event is written after continuation activation"() {
     setup:
-    AgentScope parentScope = builder.startActive(false)
+    AgentSpan span = builder.start()
+    AgentScope parentScope = tracer.activateSpan(span)
     parentScope.setAsyncPropagation(true)
-    AgentSpan span = parentScope.span()
     TraceScope.Continuation continuation = ((TraceScope) parentScope).capture()
     def recording = JfrHelper.startRecording()
 

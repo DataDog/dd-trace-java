@@ -2,6 +2,8 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
+import datadog.trace.common.writer.ddagent.MsgPackStatefulSerializer
+import datadog.trace.common.writer.ddagent.TraceBuffer
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
@@ -119,18 +121,18 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def "Sending traces succeeds (test #test)"() {
     expect:
-    api.sendTraces(traces)
+    api.sendSerializedTraces(request.traceCount, request.traceCount, request.sizeInBytes, request.traces)
     assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
-    traces                                                                              | test
-    []                                                                                  | 1
-    [[], []]                                                                            | 2
-    [[new DDSpan(1, CONTEXT)]]                                                          | 3
-    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4
-    (1..15).collect { [] }                                                              | 5
-    (1..16).collect { [] }                                                              | 6
+    request                                                                                             | test
+    prepareRequest([])                                                                                  | 1
+    prepareRequest([[], []])                                                                            | 2
+    prepareRequest([[new DDSpan(1, CONTEXT)]])                                                          | 3
+    prepareRequest([[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]]) | 4
+    prepareRequest((1..15).collect { [] })                                                              | 5
+    prepareRequest((1..16).collect { [] })                                                              | 6
     // Larger traces take more than 1 second to send to the agent and get a timeout exception:
 //      (1..((1 << 16) - 1)).collect { [] }                                                 | 7
 //      (1..(1 << 16)).collect { [] }                                                       | 8
@@ -138,15 +140,35 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def "Sending traces to unix domain socket succeeds (test #test)"() {
     expect:
-    unixDomainSocketApi.sendTraces(traces)
+    unixDomainSocketApi.sendSerializedTraces(request.traceCount, request.traceCount, request.sizeInBytes, request.traces)
     assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/v0.4/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
-    traces                                                                              | test
-    []                                                                                  | 1
-    [[], []]                                                                            | 2
-    [[new DDSpan(1, CONTEXT)]]                                                          | 3
-    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4
+    request                                                                                             | test
+    prepareRequest([])                                                                                  | 1
+    prepareRequest([[], []])                                                                            | 2
+    prepareRequest([[new DDSpan(1, CONTEXT)]])                                                          | 3
+    prepareRequest([[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]]) | 4
+  }
+
+
+  def prepareRequest(List<List<DDSpan>> traces) {
+    def serializer = new MsgPackStatefulSerializer()
+    List<TraceBuffer> serialized = new ArrayList<>(traces.size())
+    int sizeInBytes = 0
+    int traceCount = 0
+    for (trace in traces) {
+      serializer.serialize(trace)
+      TraceBuffer buffer = serializer.getBuffer()
+      sizeInBytes += buffer.sizeInBytes()
+      traceCount += buffer.traceCount()
+      serialized.add(buffer)
+    }
+    return [
+      traces: serialized,
+      sizeInBytes: sizeInBytes,
+      traceCount: traceCount
+    ]
   }
 }

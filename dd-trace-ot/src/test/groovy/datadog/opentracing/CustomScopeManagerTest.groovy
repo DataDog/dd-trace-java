@@ -16,7 +16,6 @@ class CustomScopeManagerTest extends DDSpecification {
   def scopeManager = new TestScopeManager()
   def tracer = DDTracer.builder().writer(writer).scopeManager(scopeManager).build()
 
-
   def "simple span works"() {
     when:
     Scope scope
@@ -177,7 +176,7 @@ class CustomScopeManagerTest extends DDSpecification {
     continuation != null
 
     when:
-    continuation.close()
+    continuation.cancel()
     coreTracer.activeScope().close()
 
     then:
@@ -271,14 +270,6 @@ class TestScopeManager implements ScopeManager {
 
         @Override
         void cancel() {
-        }
-
-        @Override
-        void close() {
-        }
-
-        @Override
-        void close(boolean closeContinuationScope) {
         }
       }
     }

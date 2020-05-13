@@ -7,11 +7,11 @@ defaults: &defaults
     - image: &default_container datadog/dd-trace-java-docker-build:latest
 
 cache_keys: &cache_keys
-  # Reset the cache approx every release
   keys:
-    - dd-trace-java-{{ checksum "dd-trace-java.gradle" }}-{{ .Branch }}-{{ .Revision }}
-    - dd-trace-java-{{ checksum "dd-trace-java.gradle" }}-{{ .Branch }}
-    - dd-trace-java-{{ checksum "dd-trace-java.gradle" }}
+    # Rev the version when the cache gets too big
+    - dd-trace-java-v1-{{ .Branch }}-{{ .Revision }}
+    - dd-trace-java-v1-{{ .Branch }}
+    # - dd-trace-java-v1-
 
 jobs:
   build:
@@ -225,54 +225,19 @@ jobs:
       - checkout
 
       - restore_cache:
-          # Reset the cache approx every release
           keys:
-            - dd-trace-java-muzzle-{{ checksum "dd-trace-java.gradle" }}
+            # Rev the version when the cache gets too big
+            - dd-trace-java-muzzle-v1-{{ .Branch }}-{{ .Revision }}
+            - dd-trace-java-muzzle-v1-{{ .Branch }}
+            # - dd-trace-java-muzzle-v1-
 
       - run:
           name: Verify Muzzle
           command: SKIP_BUILDSCAN="true" GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4G -Xms64M' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M" ./gradlew muzzle --parallel --stacktrace --no-daemon --max-workers=16
 
       - save_cache:
-          key: dd-trace-java-muzzle-{{ checksum "dd-trace-java.gradle" }}
+          key: dd-trace-java-muzzle-v1-{{ .Branch }}-{{ .Revision }}
           paths: ~/.gradle
-
-  publish: &publish
-    <<: *defaults
-    steps:
-      - checkout
-
-      - attach_workspace:
-          at: .
-
-      - restore_cache:
-          <<: *cache_keys
-
-      - deploy:
-          name: Publish master to Artifactory
-          command: |
-            ./gradlew \
-              -PbintrayUser=${BINTRAY_USER} \
-              -PbintrayApiKey=${BINTRAY_API_KEY} \
-              -PbuildInfo.build.number=${CIRCLE_BUILD_NUM} \
-              artifactoryPublish --max-workers=1 --build-cache --stacktrace --no-daemon
-
-  publish_master:
-    <<: *publish
-  publish_tag:
-    <<: *publish
-
-  copy_artifact_s3:
-    docker:
-      - image: circleci/python:3.6.4
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          command: |
-            sudo pip install boto3
-            python .circleci/copy_artifact_s3.py
 
 workflows:
   version: 2
@@ -375,16 +340,6 @@ workflows:
             tags:
               only: /.*/
 
-      - copy_artifact_s3:
-          context: AWS_ACCESS
-          requires:
-            - build
-          filters:
-            branches:
-              only:
-                - master
-                - .*-reliability
-
       - check:
           requires:
             - build
@@ -398,51 +353,3 @@ workflows:
           filters:
             branches:
               ignore: master
-
-      - publish_master:
-          requires:
-            - test_7
-            - test_8
-            - test_latest8
-            - test_ibm8
-            - test_zulu8
-            - test_9
-            - test_10
-            - test_11
-            - test_zulu11
-            - test_12
-            - test_13
-            - test_zulu13
-            - test_14
-            - test_zulu14
-            - agent_integration_tests
-            - check
-          filters:
-            branches:
-              only: master
-            tags:
-              ignore: /.*/
-
-      - publish_tag:
-          requires:
-            - test_7
-            - test_8
-            - test_latest8
-            - test_ibm8
-            - test_zulu8
-            - test_9
-            - test_10
-            - test_11
-            - test_zulu11
-            - test_12
-            - test_13
-            - test_zulu13
-            - test_14
-            - test_zulu14
-            - agent_integration_tests
-            - check
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^v.*/

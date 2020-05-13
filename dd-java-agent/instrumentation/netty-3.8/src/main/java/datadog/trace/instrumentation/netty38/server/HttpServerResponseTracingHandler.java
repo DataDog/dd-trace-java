@@ -35,7 +35,7 @@ public class HttpServerResponseTracingHandler extends SimpleChannelDownstreamHan
       return;
     }
 
-    try (final AgentScope scope = activateSpan(span, false)) {
+    try (final AgentScope scope = activateSpan(span)) {
       final HttpResponse response = (HttpResponse) msg.getMessage();
 
       try {

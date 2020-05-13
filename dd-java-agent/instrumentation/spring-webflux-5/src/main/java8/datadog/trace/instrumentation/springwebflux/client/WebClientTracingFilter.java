@@ -34,7 +34,7 @@ public class WebClientTracingFilter implements ExchangeFilterFunction {
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
     DECORATE.afterStart(span);
 
-    try (final AgentScope scope = activateSpan(span, false)) {
+    try (final AgentScope scope = activateSpan(span)) {
       scope.setAsyncPropagation(true);
       final ClientRequest mutatedRequest =
           ClientRequest.from(request)

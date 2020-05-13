@@ -40,7 +40,7 @@ public class JettyHandlerAdvice {
     final String resourceName = req.getMethod() + " " + source.getClass().getName();
     span.setTag(DDTags.RESOURCE_NAME, resourceName);
 
-    final AgentScope scope = activateSpan(span, false);
+    final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
     req.setAttribute(DD_SPAN_ATTRIBUTE, span);
     req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
@@ -84,8 +84,9 @@ public class JettyHandlerAdvice {
       if (!req.isAsyncStarted() && activated.compareAndSet(false, true)) {
         DECORATE.onResponse(span, resp);
         DECORATE.beforeFinish(span);
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
+        span.finish();
       }
+      // else span finished by TagSettingAsyncListener
     }
     scope.close();
   }

@@ -1,8 +1,8 @@
 import akka.dispatch.forkjoin.ForkJoinPool
 import akka.dispatch.forkjoin.ForkJoinTask
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
+import datadog.trace.core.DDSpan
 import spock.lang.Shared
 
 import java.lang.reflect.InvocationTargetException
@@ -48,6 +48,7 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
         m(pool, new AkkaAsyncChild())
         // this child won't
         m(pool, new AkkaAsyncChild(false, false))
+        blockUntilChildSpansFinished(1)
       }
     }.run()
 

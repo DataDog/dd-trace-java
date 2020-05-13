@@ -7,7 +7,6 @@ import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.jfr.DDScopeEvent;
 import datadog.trace.core.jfr.DDScopeEventFactory;
-import java.io.Closeable;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,10 +24,6 @@ public class ContinuableScope implements DDScope {
   private final DDScopeEventFactory eventFactory;
   /** Event for this scope */
   private final DDScopeEvent event;
-  /** If true, finish the span when openCount hits 0. */
-  private final boolean finishOnClose;
-  /** Count of open scope and continuations */
-  private final AtomicInteger openCount;
   /** Scope to placed in the thread local after close. May be null. */
   private final DDScope toRestore;
   /** Continuation that created this scope. May be null. */
@@ -43,24 +38,19 @@ public class ContinuableScope implements DDScope {
   ContinuableScope(
       final ContextualScopeManager scopeManager,
       final DDSpan spanUnderScope,
-      final boolean finishOnClose,
       final DDScopeEventFactory eventFactory) {
-    this(scopeManager, new AtomicInteger(1), null, spanUnderScope, finishOnClose, eventFactory);
+    this(scopeManager, null, spanUnderScope, eventFactory);
   }
 
   private ContinuableScope(
       final ContextualScopeManager scopeManager,
-      final AtomicInteger openCount,
       final Continuation continuation,
       final DDSpan spanUnderScope,
-      final boolean finishOnClose,
       final DDScopeEventFactory eventFactory) {
     assert spanUnderScope != null : "span must not be null";
     this.scopeManager = scopeManager;
-    this.openCount = openCount;
     this.continuation = continuation;
     this.spanUnderScope = spanUnderScope;
-    this.finishOnClose = finishOnClose;
     this.eventFactory = eventFactory;
     event = eventFactory.create(spanUnderScope.context());
     event.start();
@@ -84,10 +74,6 @@ public class ContinuableScope implements DDScope {
 
     if (null != continuation) {
       spanUnderScope.context().getTrace().cancelContinuation(continuation);
-    }
-
-    if (openCount.decrementAndGet() == 0 && finishOnClose) {
-      spanUnderScope.finish();
     }
 
     for (final ScopeListener listener : scopeManager.scopeListeners) {
@@ -143,7 +129,7 @@ public class ContinuableScope implements DDScope {
   @Override
   public Continuation capture() {
     if (isAsyncPropagating()) {
-      return new Continuation();
+      return new Continuation(spanUnderScope, scopeManager, eventFactory);
     } else {
       return null;
     }
@@ -154,15 +140,30 @@ public class ContinuableScope implements DDScope {
     return super.toString() + "->" + spanUnderScope;
   }
 
-  public class Continuation implements Closeable, TraceScope.Continuation {
+  /**
+   * Static to avoid an unconstrained chain of references (using too much memory), but nested to
+   * maintain private constructor access.
+   */
+  @Slf4j // This is important to prevent the log messages below from referencing the super class.
+  public static class Continuation implements TraceScope.Continuation {
     public WeakReference<Continuation> ref;
 
-    private final AtomicBoolean used = new AtomicBoolean(false);
-    private final PendingTrace trace;
+    private final DDSpan spanUnderScope;
+    private final ContextualScopeManager scopeManager;
+    private final DDScopeEventFactory eventFactory;
 
-    private Continuation() {
-      openCount.incrementAndGet();
-      final DDSpanContext context = spanUnderScope.context();
+    private final PendingTrace trace;
+    private final AtomicBoolean used = new AtomicBoolean(false);
+
+    private Continuation(
+        final DDSpan spanUnderScope,
+        final ContextualScopeManager scopeManager,
+        final DDScopeEventFactory eventFactory) {
+
+      this.spanUnderScope = spanUnderScope;
+      this.scopeManager = scopeManager;
+      this.eventFactory = eventFactory;
+      final DDSpanContext context = this.spanUnderScope.context();
       trace = context.getTrace();
       trace.registerContinuation(this);
     }
@@ -171,48 +172,20 @@ public class ContinuableScope implements DDScope {
     public ContinuableScope activate() {
       if (used.compareAndSet(false, true)) {
         final ContinuableScope scope =
-            new ContinuableScope(
-                scopeManager, openCount, this, spanUnderScope, finishOnClose, eventFactory);
+            new ContinuableScope(scopeManager, this, spanUnderScope, eventFactory);
         log.debug("Activating continuation {}, scope: {}", this, scope);
         return scope;
       } else {
         log.debug(
-            "Failed to activate continuation. Reusing a continuation not allowed.  Returning a new scope. Spans will not be linked.");
-        return new ContinuableScope(
-            scopeManager, new AtomicInteger(1), null, spanUnderScope, finishOnClose, eventFactory);
+            "Failed to activate continuation. Reusing a continuation not allowed.  Returning a new scope. Spans may be reported separately.");
+        return new ContinuableScope(scopeManager, null, spanUnderScope, eventFactory);
       }
     }
 
+    @Override
     public void cancel() {
-      assert !finishOnClose : "cancel() should not be used with finishOnClose=true";
       if (used.compareAndSet(false, true)) {
         trace.cancelContinuation(this);
-      } else {
-        log.debug("Failed to close continuation {}. Already used.", this);
-      }
-    }
-
-    /** @deprecated use {@link #cancel()} instead. */
-    @Deprecated
-    @Override
-    public void close() {
-      close(true);
-    }
-
-    /** @deprecated use {@link #cancel()} instead. */
-    @Deprecated
-    @Override
-    public void close(final boolean closeContinuationScope) {
-      if (used.compareAndSet(false, true)) {
-        trace.cancelContinuation(this);
-        if (closeContinuationScope) {
-          ContinuableScope.this.close();
-        } else {
-          // Same as in 'close()' above.
-          if (openCount.decrementAndGet() == 0 && finishOnClose) {
-            spanUnderScope.finish();
-          }
-        }
       } else {
         log.debug("Failed to close continuation {}. Already used.", this);
       }

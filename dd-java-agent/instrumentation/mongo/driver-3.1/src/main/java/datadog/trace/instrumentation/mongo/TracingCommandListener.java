@@ -22,7 +22,7 @@ public class TracingCommandListener implements CommandListener {
   @Override
   public void commandStarted(final CommandStartedEvent event) {
     final AgentSpan span = startSpan("mongo.query");
-    try (final AgentScope scope = activateSpan(span, false)) {
+    try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, event);
       if (event.getConnectionDescription() != null

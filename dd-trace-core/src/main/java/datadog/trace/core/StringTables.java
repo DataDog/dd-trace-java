@@ -39,8 +39,7 @@ public class StringTables {
   }
 
   public static byte[] getBytesUTF8(String value) {
-    byte[] bytes = UTF8_INTERN_TABLE.get(value);
-    return null == bytes ? value.getBytes(UTF_8) : bytes;
+    return UTF8_INTERN_TABLE.get(value);
   }
 
   private static void internConstantsUTF8(Class<?> clazz) {

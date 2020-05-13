@@ -59,7 +59,7 @@ public class Servlet2Advice {
     DECORATE.onConnection(span, httpServletRequest);
     DECORATE.onRequest(span, httpServletRequest);
 
-    final AgentScope scope = activateSpan(span, true);
+    final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
@@ -111,5 +111,6 @@ public class Servlet2Advice {
 
     scope.setAsyncPropagation(false);
     scope.close();
+    span.finish();
   }
 }
