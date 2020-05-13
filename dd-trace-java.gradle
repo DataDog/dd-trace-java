@@ -25,6 +25,7 @@ scmVersion {
   }
 
   versionIncrementer 'incrementMinor'
+  versionCreator { versionFromTag, position -> return "$versionFromTag-MLT" }
 
   checks {
     uncommittedChanges = false
