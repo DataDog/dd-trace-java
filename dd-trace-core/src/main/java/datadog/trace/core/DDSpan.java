@@ -8,7 +8,6 @@ import datadog.trace.core.util.Clock;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.ref.WeakReference;
-import java.math.BigInteger;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -117,7 +116,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
    * @return true if root, false otherwise
    */
   public final boolean isRootSpan() {
-    return BigInteger.ZERO.equals(context.getParentId());
+    return context.getParentId() == 0L;
   }
 
   @Override
@@ -136,7 +135,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
     // FIXME [API] AgentSpan or AgentSpan.Context should have a "getTraceId()" type method
     if (otherSpan instanceof DDSpan) {
       // minor optimization to avoid BigInteger.toString()
-      return getTraceId().equals(((DDSpan) otherSpan).getTraceId());
+      return getTraceId() == ((DDSpan) otherSpan).getTraceId();
     }
 
     return false;
@@ -284,15 +283,15 @@ public class DDSpan implements MutableSpan, AgentSpan {
     return context.getServiceName();
   }
 
-  public BigInteger getTraceId() {
+  public long getTraceId() {
     return context.getTraceId();
   }
 
-  public BigInteger getSpanId() {
+  public long getSpanId() {
     return context.getSpanId();
   }
 
-  public BigInteger getParentId() {
+  public long getParentId() {
     return context.getParentId();
   }
 

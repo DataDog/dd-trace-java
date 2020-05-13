@@ -269,9 +269,9 @@ class DDAgentWriterTest extends DDSpecification {
 
   def createMinimalTrace() {
     def minimalContext = new DDSpanContext(
-      1G,
-      1G,
-      0G,
+      1L,
+      1L,
+      0L,
       "",
       "",
       "",
@@ -284,7 +284,7 @@ class DDAgentWriterTest extends DDSpecification {
       Mock(PendingTrace),
       Mock(CoreTracer),
       [:])
-    def minimalSpan = new DDSpan(0, minimalContext)
+    def minimalSpan = DDSpan.create(0, minimalContext)
     def minimalTrace = [minimalSpan]
 
     return minimalTrace

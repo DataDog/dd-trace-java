@@ -20,8 +20,8 @@ class HttpInjectorTest extends DDSpecification {
     }
     HttpCodec.Injector injector = HttpCodec.createInjector(config)
 
-    def traceId = 1G
-    def spanId = 2G
+    def traceId = 1L
+    def spanId = 2L
 
     def writer = new ListWriter()
     def tracer = CoreTracer.builder().writer(writer).build()
@@ -29,7 +29,7 @@ class HttpInjectorTest extends DDSpecification {
       new DDSpanContext(
         traceId,
         spanId,
-        0G,
+        0L,
         "fakeService",
         "fakeOperation",
         "fakeResource",
@@ -44,7 +44,7 @@ class HttpInjectorTest extends DDSpecification {
         false,
         "fakeType",
         null,
-        new PendingTrace(tracer, 1G),
+        new PendingTrace(tracer, 1L),
         tracer,
         [:])
 

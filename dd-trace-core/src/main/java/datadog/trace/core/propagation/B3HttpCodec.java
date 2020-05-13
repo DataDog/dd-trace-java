@@ -6,7 +6,6 @@ import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
-import java.math.BigInteger;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,8 +38,8 @@ class B3HttpCodec {
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       try {
-        setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString(HEX_RADIX).toLowerCase());
-        setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toString(HEX_RADIX).toLowerCase());
+        setter.set(carrier, TRACE_ID_KEY, Long.toHexString(context.getTraceId()));
+        setter.set(carrier, SPAN_ID_KEY, Long.toHexString(context.getSpanId()));
 
         if (context.lockSamplingPriority()) {
           setter.set(
@@ -77,8 +76,8 @@ class B3HttpCodec {
     public <C> TagContext extract(final C carrier, final AgentPropagation.Getter<C> getter) {
       try {
         Map<String, String> tags = Collections.emptyMap();
-        BigInteger traceId = BigInteger.ZERO;
-        BigInteger spanId = BigInteger.ZERO;
+        long traceId = 0L;
+        long spanId = 0L;
         int samplingPriority = PrioritySampling.UNSET;
 
         for (final String uncasedKey : getter.keys(carrier)) {
@@ -94,7 +93,7 @@ class B3HttpCodec {
             final int length = value.length();
             if (length > 32) {
               log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, value);
-              traceId = BigInteger.ZERO;
+              traceId = 0L;
               continue;
             } else if (length > 16) {
               trimmedValue = value.substring(length - 16);
@@ -116,7 +115,7 @@ class B3HttpCodec {
           }
         }
 
-        if (!BigInteger.ZERO.equals(traceId)) {
+        if (traceId != 0L) {
           final ExtractedContext context =
               new ExtractedContext(
                   traceId,
