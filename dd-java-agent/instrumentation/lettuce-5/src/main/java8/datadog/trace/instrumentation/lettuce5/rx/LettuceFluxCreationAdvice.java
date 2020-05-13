@@ -1,6 +1,6 @@
-package datadog.trace.instrumentation.lettuce.rx;
+package datadog.trace.instrumentation.lettuce5.rx;
 
-import static datadog.trace.instrumentation.lettuce.LettuceInstrumentationUtil.expectsResponse;
+import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.expectsResponse;
 
 import io.lettuce.core.protocol.RedisCommand;
 import java.util.function.Supplier;

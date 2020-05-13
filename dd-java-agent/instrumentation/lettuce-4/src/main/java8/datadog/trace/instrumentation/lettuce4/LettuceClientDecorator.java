@@ -1,14 +1,17 @@
-package datadog.trace.instrumentation.lettuce;
+package datadog.trace.instrumentation.lettuce4;
 
+import static datadog.trace.instrumentation.lettuce4.InstrumentationPoints.getCommandResourceName;
+
+import com.lambdaworks.redis.RedisURI;
+import com.lambdaworks.redis.protocol.RedisCommand;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
-import io.lettuce.core.RedisURI;
-import io.lettuce.core.protocol.RedisCommand;
 
 public class LettuceClientDecorator extends DatabaseClientDecorator<RedisURI> {
+
   public static final LettuceClientDecorator DECORATE = new LettuceClientDecorator();
 
   @Override
@@ -51,24 +54,25 @@ public class LettuceClientDecorator extends DatabaseClientDecorator<RedisURI> {
     if (connection != null) {
       span.setTag(Tags.PEER_HOSTNAME, connection.getHost());
       span.setTag(Tags.PEER_PORT, connection.getPort());
-
       span.setTag("db.redis.dbIndex", connection.getDatabase());
-      span.setTag(
-          DDTags.RESOURCE_NAME,
-          "CONNECT:"
-              + connection.getHost()
-              + ":"
-              + connection.getPort()
-              + "/"
-              + connection.getDatabase());
+      span.setTag(DDTags.RESOURCE_NAME, resourceName(connection));
     }
     return super.onConnection(span, connection);
   }
 
-  public AgentSpan onCommand(final AgentSpan span, final RedisCommand command) {
-    final String commandName = LettuceInstrumentationUtil.getCommandName(command);
+  public AgentSpan onCommand(final AgentSpan span, final RedisCommand<?, ?, ?> command) {
     span.setTag(
-        DDTags.RESOURCE_NAME, LettuceInstrumentationUtil.getCommandResourceName(commandName));
+        DDTags.RESOURCE_NAME,
+        null == command ? "Redis Command" : getCommandResourceName(command.getType()));
     return span;
+  }
+
+  private static String resourceName(final RedisURI connection) {
+    return "CONNECT:"
+        + connection.getHost()
+        + ":"
+        + connection.getPort()
+        + "/"
+        + connection.getDatabase();
   }
 }

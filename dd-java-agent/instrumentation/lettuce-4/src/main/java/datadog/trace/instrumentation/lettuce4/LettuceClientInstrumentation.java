@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.lettuce;
+package datadog.trace.instrumentation.lettuce4;
 
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;

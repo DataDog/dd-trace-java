@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.lettuce;
+package datadog.trace.instrumentation.lettuce4;
 
 import static com.lambdaworks.redis.protocol.CommandKeyword.SEGFAULT;
 import static com.lambdaworks.redis.protocol.CommandType.CLIENT;
@@ -10,7 +10,7 @@ import static com.lambdaworks.redis.protocol.CommandType.SCRIPT;
 import static com.lambdaworks.redis.protocol.CommandType.SHUTDOWN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.lettuce.LettuceClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.lettuce4.LettuceClientDecorator.DECORATE;
 
 import com.lambdaworks.redis.RedisURI;
 import com.lambdaworks.redis.protocol.AsyncCommand;

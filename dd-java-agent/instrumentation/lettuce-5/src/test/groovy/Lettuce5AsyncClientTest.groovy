@@ -3,18 +3,31 @@ import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import io.lettuce.core.ClientOptions
+import io.lettuce.core.ConnectionFuture
 import io.lettuce.core.RedisClient
-import io.lettuce.core.RedisConnectionException
+import io.lettuce.core.RedisFuture
+import io.lettuce.core.RedisURI
 import io.lettuce.core.api.StatefulConnection
+import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
+import io.lettuce.core.codec.StringCodec
+import io.lettuce.core.protocol.AsyncCommand
 import redis.embedded.RedisServer
 import spock.lang.Shared
+import spock.util.concurrent.AsyncConditions
 
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletionException
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit
+import java.util.function.BiConsumer
+import java.util.function.BiFunction
+import java.util.function.Consumer
+import java.util.function.Function
 
-import static datadog.trace.instrumentation.lettuce.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
+import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.AGENT_CRASHING_COMMAND_PREFIX
 
-class LettuceSyncClientTest extends AgentTestRunner {
+class Lettuce5AsyncClientTest extends AgentTestRunner {
   public static final String HOST = "127.0.0.1"
   public static final int DB_INDEX = 0
   // Disable autoreconnect so we do not get stray traces popping up on server shutdown
@@ -45,6 +58,7 @@ class LettuceSyncClientTest extends AgentTestRunner {
 
   RedisClient redisClient
   StatefulConnection connection
+  RedisAsyncCommands<String, ?> asyncCommands
   RedisCommands<String, ?> syncCommands
 
   def setupSpec() {
@@ -66,15 +80,18 @@ class LettuceSyncClientTest extends AgentTestRunner {
   def setup() {
     redisClient = RedisClient.create(embeddedDbUri)
 
+    println "Using redis: $redisServer.args"
     redisServer.start()
+    redisClient.setOptions(CLIENT_OPTIONS)
+
     connection = redisClient.connect()
+    asyncCommands = connection.async()
     syncCommands = connection.sync()
 
     syncCommands.set("TESTKEY", "TESTVAL")
-    syncCommands.hmset("TESTHM", testHashMap)
 
-    // 2 sets + 1 connect trace
-    TEST_WRITER.waitForTraces(3)
+    // 1 set + 1 connect trace
+    TEST_WRITER.waitForTraces(2)
     TEST_WRITER.clear()
   }
 
@@ -83,15 +100,18 @@ class LettuceSyncClientTest extends AgentTestRunner {
     redisServer.stop()
   }
 
-  def "connect"() {
+  def "connect using get on ConnectionFuture"() {
     setup:
     RedisClient testConnectionClient = RedisClient.create(embeddedDbUri)
     testConnectionClient.setOptions(CLIENT_OPTIONS)
 
     when:
-    StatefulConnection connection = testConnectionClient.connect()
+    ConnectionFuture connectionFuture = testConnectionClient.connectAsync(StringCodec.UTF8,
+      new RedisURI(HOST, port, 3, TimeUnit.SECONDS))
+    StatefulConnection connection = connectionFuture.get()
 
     then:
+    connection != null
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -118,16 +138,19 @@ class LettuceSyncClientTest extends AgentTestRunner {
     connection.close()
   }
 
-  def "connect exception"() {
+  def "connect exception inside the connection future"() {
     setup:
     RedisClient testConnectionClient = RedisClient.create(dbUriNonExistent)
     testConnectionClient.setOptions(CLIENT_OPTIONS)
 
     when:
-    testConnectionClient.connect()
+    ConnectionFuture connectionFuture = testConnectionClient.connectAsync(StringCodec.UTF8,
+      new RedisURI(HOST, incorrectPort, 3, TimeUnit.SECONDS))
+    StatefulConnection connection = connectionFuture.get()
 
     then:
-    thrown RedisConnectionException
+    connection == null
+    thrown ExecutionException
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -152,9 +175,10 @@ class LettuceSyncClientTest extends AgentTestRunner {
     }
   }
 
-  def "set command"() {
+  def "set command using Future get with timeout"() {
     setup:
-    String res = syncCommands.set("TESTSETKEY", "TESTSETVAL")
+    RedisFuture<String> redisFuture = asyncCommands.set("TESTSETKEY", "TESTSETVAL")
+    String res = redisFuture.get(3, TimeUnit.SECONDS)
 
     expect:
     res == "OK"
@@ -178,12 +202,24 @@ class LettuceSyncClientTest extends AgentTestRunner {
     }
   }
 
-  def "get command"() {
+  def "get command chained with thenAccept"() {
     setup:
-    String res = syncCommands.get("TESTKEY")
+    def conds = new AsyncConditions()
+    Consumer<String> consumer = new Consumer<String>() {
+      @Override
+      void accept(String res) {
+        conds.evaluate {
+          assert res == "TESTVAL"
+        }
+      }
+    }
 
-    expect:
-    res == "TESTVAL"
+    when:
+    RedisFuture<String> redisFuture = asyncCommands.get("TESTKEY")
+    redisFuture.thenAccept(consumer)
+
+    then:
+    conds.await()
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -204,12 +240,38 @@ class LettuceSyncClientTest extends AgentTestRunner {
     }
   }
 
-  def "get non existent key command"() {
+  // to make sure instrumentation's chained completion stages won't interfere with user's, while still
+  // recording metrics
+  def "get non existent key command with handleAsync and chained with thenApply"() {
     setup:
-    String res = syncCommands.get("NON_EXISTENT_KEY")
+    def conds = new AsyncConditions()
+    final String successStr = "KEY MISSING"
+    BiFunction<String, Throwable, String> firstStage = new BiFunction<String, Throwable, String>() {
+      @Override
+      String apply(String res, Throwable throwable) {
+        conds.evaluate {
+          assert res == null
+          assert throwable == null
+        }
+        return (res == null ? successStr : res)
+      }
+    }
+    Function<String, Object> secondStage = new Function<String, Object>() {
+      @Override
+      Object apply(String input) {
+        conds.evaluate {
+          assert input == successStr
+        }
+        return null
+      }
+    }
 
-    expect:
-    res == null
+    when:
+    RedisFuture<String> redisFuture = asyncCommands.get("NON_EXISTENT_KEY")
+    redisFuture.handleAsync(firstStage).thenApply(secondStage)
+
+    then:
+    conds.await()
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -230,12 +292,24 @@ class LettuceSyncClientTest extends AgentTestRunner {
     }
   }
 
-  def "command with no arguments"() {
+  def "command with no arguments using a biconsumer"() {
     setup:
-    def keyRetrieved = syncCommands.randomkey()
+    def conds = new AsyncConditions()
+    BiConsumer<String, Throwable> biConsumer = new BiConsumer<String, Throwable>() {
+      @Override
+      void accept(String keyRetrieved, Throwable throwable) {
+        conds.evaluate {
+          assert keyRetrieved != null
+        }
+      }
+    }
 
-    expect:
-    keyRetrieved != null
+    when:
+    RedisFuture<String> redisFuture = asyncCommands.randomkey()
+    redisFuture.whenCompleteAsync(biConsumer)
+
+    then:
+    conds.await()
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -256,39 +330,44 @@ class LettuceSyncClientTest extends AgentTestRunner {
     }
   }
 
-  def "list command"() {
+  def "hash set and then nest apply to hash getall"() {
     setup:
-    long res = syncCommands.lpush("TESTLIST", "TESTLIST ELEMENT")
+    def conds = new AsyncConditions()
 
-    expect:
-    res == 1
-    assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
-          serviceName "redis"
-          operationName "redis.query"
-          spanType DDSpanTypes.REDIS
-          resourceName "LPUSH"
-          errored false
-
-          tags {
-            "$Tags.COMPONENT" "redis-client"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "redis"
-            defaultTags()
-          }
+    when:
+    RedisFuture<String> hmsetFuture = asyncCommands.hmset("TESTHM", testHashMap)
+    hmsetFuture.thenApplyAsync(new Function<String, Object>() {
+      @Override
+      Object apply(String setResult) {
+        TEST_WRITER.waitForTraces(1) // Wait for 'hmset' trace to get written
+        conds.evaluate {
+          assert setResult == "OK"
         }
+        RedisFuture<Map<String, String>> hmGetAllFuture = asyncCommands.hgetall("TESTHM")
+        hmGetAllFuture.exceptionally(new Function<Throwable, Map<String, String>>() {
+          @Override
+          Map<String, String> apply(Throwable throwable) {
+            println("unexpected:" + throwable.toString())
+            throwable.printStackTrace()
+            assert false
+            return null
+          }
+        })
+        hmGetAllFuture.thenAccept(new Consumer<Map<String, String>>() {
+          @Override
+          void accept(Map<String, String> hmGetAllResult) {
+            conds.evaluate {
+              assert testHashMap == hmGetAllResult
+            }
+          }
+        })
+        return null
       }
-    }
-  }
+    })
 
-  def "hash set command"() {
-    setup:
-    def res = syncCommands.hmset("user", testHashMap)
-
-    expect:
-    res == "OK"
-    assertTraces(1) {
+    then:
+    conds.await()
+    assertTraces(2) {
       trace(0, 1) {
         span(0) {
           serviceName "redis"
@@ -305,17 +384,7 @@ class LettuceSyncClientTest extends AgentTestRunner {
           }
         }
       }
-    }
-  }
-
-  def "hash getall command"() {
-    setup:
-    Map<String, String> res = syncCommands.hgetall("TESTHM")
-
-    expect:
-    res == testHashMap
-    assertTraces(1) {
-      trace(0, 1) {
+      trace(1, 1) {
         span(0) {
           serviceName "redis"
           operationName "redis.query"
@@ -334,9 +403,97 @@ class LettuceSyncClientTest extends AgentTestRunner {
     }
   }
 
+  def "command completes exceptionally"() {
+    setup:
+    // turn off auto flush to complete the command exceptionally manually
+    asyncCommands.setAutoFlushCommands(false)
+    def conds = new AsyncConditions()
+    RedisFuture redisFuture = asyncCommands.del("key1", "key2")
+    boolean completedExceptionally = ((AsyncCommand) redisFuture).completeExceptionally(new IllegalStateException("TestException"))
+    redisFuture.exceptionally({
+      throwable ->
+        conds.evaluate {
+          assert throwable != null
+          assert throwable instanceof IllegalStateException
+          assert throwable.getMessage() == "TestException"
+        }
+        throw throwable
+    })
+
+    when:
+    // now flush and execute the command
+    asyncCommands.flushCommands()
+    redisFuture.get()
+
+    then:
+    conds.await()
+    completedExceptionally == true
+    thrown Exception
+    assertTraces(1) {
+      trace(0, 1) {
+        span(0) {
+          serviceName "redis"
+          operationName "redis.query"
+          spanType DDSpanTypes.REDIS
+          resourceName "DEL"
+          errored true
+
+          tags {
+            "$Tags.COMPONENT" "redis-client"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "redis"
+            errorTags(IllegalStateException, "TestException")
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
+  def "cancel command before it finishes"() {
+    setup:
+    asyncCommands.setAutoFlushCommands(false)
+    def conds = new AsyncConditions()
+    RedisFuture redisFuture = asyncCommands.sadd("SKEY", "1", "2")
+    redisFuture.whenCompleteAsync({
+      res, throwable ->
+        conds.evaluate {
+          assert throwable != null
+          assert throwable instanceof CancellationException
+        }
+    })
+
+    when:
+    boolean cancelSuccess = redisFuture.cancel(true)
+    asyncCommands.flushCommands()
+
+    then:
+    conds.await()
+    cancelSuccess == true
+    assertTraces(1) {
+      trace(0, 1) {
+        span(0) {
+          serviceName "redis"
+          operationName "redis.query"
+          spanType DDSpanTypes.REDIS
+          resourceName "SADD"
+          errored false
+
+          tags {
+            "$Tags.COMPONENT" "redis-client"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "redis"
+            "db.command.cancelled" true
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
   def "debug segfault command (returns void) with no argument should produce span"() {
     setup:
-    syncCommands.debugSegfault()
+    asyncCommands.debugSegfault()
 
     expect:
     assertTraces(1) {
@@ -359,9 +516,10 @@ class LettuceSyncClientTest extends AgentTestRunner {
     }
   }
 
+
   def "shutdown command (returns void) should produce a span"() {
     setup:
-    syncCommands.shutdown(false)
+    asyncCommands.shutdown(false)
 
     expect:
     assertTraces(1) {

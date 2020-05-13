@@ -10,9 +10,9 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import redis.embedded.RedisServer
 import spock.lang.Shared
 
-import static datadog.trace.instrumentation.lettuce.InstrumentationPoints.AGENT_CRASHING_COMMAND_PREFIX
+import static datadog.trace.instrumentation.lettuce4.InstrumentationPoints.AGENT_CRASHING_COMMAND_PREFIX
 
-class LettuceSyncClientTest extends AgentTestRunner {
+class Lettuce4SyncClientTest extends AgentTestRunner {
   public static final String HOST = "127.0.0.1"
   public static final int DB_INDEX = 0
   // Disable autoreconnect so we do not get stray traces popping up on server shutdown

@@ -1,8 +1,12 @@
-package datadog.trace.instrumentation.lettuce;
+package datadog.trace.instrumentation.lettuce5;
 
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
+import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
+import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -13,23 +17,23 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class LettuceAsyncCommandsInstrumentation extends Instrumenter.Default {
+public final class LettuceClientInstrumentation extends Instrumenter.Default {
 
-  public LettuceAsyncCommandsInstrumentation() {
-    super("lettuce", "lettuce-5-async");
+  public LettuceClientInstrumentation() {
+    super("lettuce");
   }
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.lettuce.core.AbstractRedisAsyncCommands");
+    return named("io.lettuce.core.RedisClient");
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".LettuceClientDecorator",
-      packageName + ".LettuceAsyncBiFunction",
-      packageName + ".LettuceInstrumentationUtil"
+      packageName + ".LettuceInstrumentationUtil",
+      packageName + ".LettuceAsyncBiFunction"
     };
   }
 
@@ -37,9 +41,12 @@ public class LettuceAsyncCommandsInstrumentation extends Instrumenter.Default {
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
         isMethod()
-            .and(named("dispatch"))
-            .and(takesArgument(0, named("io.lettuce.core.protocol.RedisCommand"))),
+            .and(isPrivate())
+            .and(returns(named("io.lettuce.core.ConnectionFuture")))
+            .and(nameStartsWith("connect"))
+            .and(nameEndsWith("Async"))
+            .and(takesArgument(1, named("io.lettuce.core.RedisURI"))),
         // Cannot reference class directly here because it would lead to class load failure on Java7
-        packageName + ".LettuceAsyncCommandsAdvice");
+        packageName + ".ConnectionFutureAdvice");
   }
 }

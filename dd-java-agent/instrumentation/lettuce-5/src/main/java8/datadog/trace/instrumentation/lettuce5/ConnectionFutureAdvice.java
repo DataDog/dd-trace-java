@@ -1,35 +1,30 @@
-package datadog.trace.instrumentation.lettuce;
+package datadog.trace.instrumentation.lettuce5;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.lettuce.LettuceClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.lettuce.LettuceInstrumentationUtil.expectsResponse;
+import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import io.lettuce.core.protocol.AsyncCommand;
-import io.lettuce.core.protocol.RedisCommand;
+import io.lettuce.core.ConnectionFuture;
+import io.lettuce.core.RedisURI;
 import net.bytebuddy.asm.Advice;
 
-public class LettuceAsyncCommandsAdvice {
+public class ConnectionFutureAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(@Advice.Argument(0) final RedisCommand command) {
-
+  public static AgentScope onEnter(@Advice.Argument(1) final RedisURI redisUri) {
     final AgentSpan span = startSpan("redis.query");
     DECORATE.afterStart(span);
-    DECORATE.onCommand(span, command);
-
+    DECORATE.onConnection(span, redisUri);
     return activateSpan(span);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void stopSpan(
-      @Advice.Argument(0) final RedisCommand command,
       @Advice.Enter final AgentScope scope,
       @Advice.Thrown final Throwable throwable,
-      @Advice.Return final AsyncCommand<?, ?, ?> asyncCommand) {
-
+      @Advice.Return final ConnectionFuture<?> connectionFuture) {
     final AgentSpan span = scope.span();
     if (throwable != null) {
       DECORATE.onError(span, throwable);
@@ -38,15 +33,8 @@ public class LettuceAsyncCommandsAdvice {
       span.finish();
       return;
     }
-
-    // close spans on error or normal completion
-    if (expectsResponse(command)) {
-      asyncCommand.handleAsync(new LettuceAsyncBiFunction<>(span));
-    } else {
-      DECORATE.beforeFinish(span);
-      span.finish();
-    }
+    connectionFuture.handleAsync(new LettuceAsyncBiFunction<>(span));
     scope.close();
-    // span may be finished by LettuceAsyncBiFunction
+    // span finished by LettuceAsyncBiFunction
   }
 }

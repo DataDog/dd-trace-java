@@ -1,7 +1,7 @@
-package datadog.trace.instrumentation.lettuce.rx;
+package datadog.trace.instrumentation.lettuce5.rx;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.lettuce.LettuceClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.lettuce.core.protocol.RedisCommand;
