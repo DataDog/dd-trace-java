@@ -1,5 +1,6 @@
 package datadog.trace.core.scopemanager;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.ScopeListener;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -54,7 +55,7 @@ public class SimpleScope implements DDScope {
   }
 
   @Override
-  public Continuation capture() {
+  public AgentScope.Continuation capture() {
     return null;
   }
 

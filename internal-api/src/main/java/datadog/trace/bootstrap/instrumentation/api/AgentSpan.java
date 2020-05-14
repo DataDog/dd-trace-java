@@ -1,6 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-public interface AgentSpan {
+import datadog.trace.api.interceptor.MutableSpan;
+
+public interface AgentSpan extends MutableSpan {
+  @Override
   AgentSpan setTag(String key, boolean value);
 
   AgentSpan setTag(String key, int value);
@@ -9,14 +12,17 @@ public interface AgentSpan {
 
   AgentSpan setTag(String key, double value);
 
+  @Override
   AgentSpan setTag(String key, String value);
 
+  @Override
   AgentSpan setError(boolean error);
 
   AgentSpan setErrorMessage(String errorMessage);
 
   AgentSpan addThrowable(Throwable throwable);
 
+  @Override
   AgentSpan getLocalRootSpan();
 
   boolean isSameTrace(AgentSpan otherSpan);
@@ -31,5 +37,7 @@ public interface AgentSpan {
 
   boolean hasResourceName();
 
-  interface Context {}
+  interface Context {
+    AgentTrace getTrace();
+  }
 }

@@ -1,6 +1,6 @@
 package datadog.trace.core.jfr;
 
-import datadog.trace.core.DDSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 /** Factory that produces scope events */
 public interface DDScopeEventFactory {
@@ -11,5 +11,5 @@ public interface DDScopeEventFactory {
    * @param context span context.
    * @return scope event instance
    */
-  DDScopeEvent create(final DDSpanContext context);
+  DDScopeEvent create(final AgentSpan.Context context);
 }

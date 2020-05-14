@@ -1,5 +1,6 @@
 package datadog.trace.core.jfr.openjdk
 
+import datadog.trace.core.DDSpanContext
 import datadog.trace.core.jfr.DDNoopScopeEvent
 import spock.lang.Requires
 import spock.lang.Specification
@@ -22,7 +23,7 @@ class ScopeEventFactoryTest extends Specification {
     def recording = JfrHelper.startRecording()
 
     when:
-    def event = factory.create(null)
+    def event = factory.create(Mock(DDSpanContext))
     JfrHelper.stopRecording(recording)
 
     then:
