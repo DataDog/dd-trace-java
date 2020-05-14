@@ -85,7 +85,7 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Default {
       DECORATE.afterStart(span);
       DECORATE.onHandle(span, handler);
 
-      final AgentScope scope = activateSpan(span, true);
+      final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
       return scope;
     }
@@ -99,6 +99,7 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Default {
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 }

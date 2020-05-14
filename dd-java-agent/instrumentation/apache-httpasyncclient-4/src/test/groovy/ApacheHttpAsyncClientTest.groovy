@@ -9,6 +9,8 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Timeout
 
+import java.util.concurrent.CountDownLatch
+
 @Timeout(5)
 class ApacheHttpAsyncClientTest extends HttpClientTest {
 
@@ -33,25 +35,35 @@ class ApacheHttpAsyncClientTest extends HttpClientTest {
       request.addHeader(new BasicHeader(it.key, it.value))
     }
 
+    def latch = new CountDownLatch(callback == null ? 0 : 1)
+
     def handler = callback == null ? null : new FutureCallback<HttpResponse>() {
 
       @Override
       void completed(HttpResponse result) {
         callback()
+        latch.countDown()
       }
 
       @Override
       void failed(Exception ex) {
+        latch.countDown()
       }
 
       @Override
       void cancelled() {
+        latch.countDown()
       }
     }
 
-    def response = client.execute(request, handler).get()
-    response.entity?.content?.close() // Make sure the connection is closed.
-    response.statusLine.statusCode
+    try {
+      def response = client.execute(request, handler).get()
+      response.entity?.content?.close() // Make sure the connection is closed.
+      latch.await()
+      response.statusLine.statusCode
+    } finally {
+      blockUntilChildSpansFinished(1)
+    }
   }
 
   @Override

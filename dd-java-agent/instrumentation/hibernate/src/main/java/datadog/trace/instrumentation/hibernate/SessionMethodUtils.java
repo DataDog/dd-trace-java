@@ -17,8 +17,10 @@ public class SessionMethodUtils {
   public static final Set<String> SCOPE_ONLY_METHODS =
       new HashSet<>(Arrays.asList("immediateLoad", "internalLoad"));
 
-  // Starts a scope as a child from a Span, where the Span is attached to the given spanKey using
-  // the given contextStore.
+  /**
+   * Starts a scope as a child from a Span, where the Span is attached to the given spanKey using
+   * the given contextStore.
+   */
   public static <TARGET, ENTITY> SessionState startScopeFrom(
       final ContextStore<TARGET, SessionState> contextStore,
       final TARGET spanKey,
@@ -42,9 +44,9 @@ public class SessionMethodUtils {
       final AgentSpan span = startSpan(operationName, sessionState.getSessionSpan().context());
       DECORATOR.afterStart(span);
       DECORATOR.onOperation(span, entity);
-      scope = activateSpan(span, true);
+      scope = activateSpan(span);
     } else {
-      scope = activateSpan(sessionState.getSessionSpan(), false);
+      scope = activateSpan(sessionState.getSessionSpan());
       sessionState.setHasChildSpan(false);
     }
 
@@ -52,9 +54,12 @@ public class SessionMethodUtils {
     return sessionState;
   }
 
-  // Closes a Scope/Span, adding an error tag if the given Throwable is not null.
+  /** Closes a Scope/Span, adding an error tag if the given Throwable is not null. */
   public static void closeScope(
-      final SessionState sessionState, final Throwable throwable, final Object entity) {
+      final SessionState sessionState,
+      final Throwable throwable,
+      final Object entity,
+      final boolean closeSpan) {
 
     if (sessionState == null || sessionState.getMethodScope() == null) {
       // This method call was re-entrant. Do nothing, since it is being traced by the parent/first
@@ -65,7 +70,7 @@ public class SessionMethodUtils {
     CallDepthThreadLocalMap.reset(SessionMethodUtils.class);
     final AgentScope scope = sessionState.getMethodScope();
     final AgentSpan span = scope.span();
-    if (span != null && sessionState.hasChildSpan) {
+    if (span != null && (sessionState.hasChildSpan || closeSpan)) {
       DECORATOR.onError(span, throwable);
       if (entity != null) {
         DECORATOR.onOperation(span, entity);
@@ -78,8 +83,10 @@ public class SessionMethodUtils {
     sessionState.setMethodScope(null);
   }
 
-  // Copies a span from the given Session ContextStore into the targetContextStore. Used to
-  // propagate a Span from a Session to transient Session objects such as Transaction and Query.
+  /**
+   * Copies a span from the given Session ContextStore into the targetContextStore. Used to
+   * propagate a Span from a Session to transient Session objects such as Transaction and Query.
+   */
   public static <S, T> void attachSpanFromStore(
       final ContextStore<S, SessionState> sourceContextStore,
       final S source,

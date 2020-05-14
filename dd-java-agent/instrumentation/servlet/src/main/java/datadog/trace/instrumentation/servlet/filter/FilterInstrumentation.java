@@ -78,7 +78,7 @@ public final class FilterInstrumentation extends Instrumenter.Default {
       // Here we use "this" instead of "the method target" to distinguish abstract filter instances.
       span.setTag(DDTags.RESOURCE_NAME, filter.getClass().getSimpleName() + ".doFilter");
 
-      final AgentScope agentScope = activateSpan(span, true);
+      final AgentScope agentScope = activateSpan(span);
       agentScope.setAsyncPropagation(true);
       return agentScope;
     }
@@ -92,6 +92,7 @@ public final class FilterInstrumentation extends Instrumenter.Default {
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 }

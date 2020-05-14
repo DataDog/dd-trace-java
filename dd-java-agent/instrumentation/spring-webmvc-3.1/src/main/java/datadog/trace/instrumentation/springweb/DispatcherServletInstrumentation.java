@@ -122,7 +122,7 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Default
       final AgentSpan span = startSpan("response.render");
       DECORATE_RENDER.afterStart(span);
       DECORATE_RENDER.onRender(span, mv);
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -131,6 +131,7 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Default
       DECORATE_RENDER.onError(scope, throwable);
       DECORATE_RENDER.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 

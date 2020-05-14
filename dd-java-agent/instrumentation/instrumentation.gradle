@@ -83,6 +83,7 @@ dependencies {
 }
 
 shadowJar {
+  duplicatesStrategy = DuplicatesStrategy.FAIL
   dependencies deps.sharedInverse
   dependencies {
     exclude(project(':dd-java-agent:agent-bootstrap'))

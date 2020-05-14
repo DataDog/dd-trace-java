@@ -24,6 +24,13 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
+
+  static PendingTrace create(final CoreTracer tracer, final BigInteger traceId) {
+    PendingTrace pendingTrace = new PendingTrace(tracer, traceId);
+    pendingTrace.addPendingTrace();
+    return pendingTrace;
+  }
+
   private static final AtomicReference<SpanCleaner> SPAN_CLEANER = new AtomicReference<>();
 
   private final CoreTracer tracer;
@@ -67,14 +74,12 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
   /** Ensure a trace is never written multiple times */
   private final AtomicBoolean isWritten = new AtomicBoolean(false);
 
-  PendingTrace(final CoreTracer tracer, final BigInteger traceId) {
+  private PendingTrace(final CoreTracer tracer, final BigInteger traceId) {
     this.tracer = tracer;
     this.traceId = traceId;
 
     startTimeNano = Clock.currentNanoTime();
     startNanoTicks = Clock.currentNanoTicks();
-
-    addPendingTrace();
   }
 
   /**

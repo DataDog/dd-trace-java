@@ -6,7 +6,7 @@ class TraceCorrelationTest extends AgentTestRunner {
   def "access trace correlation only under trace"() {
     when:
     def span = getTestTracer().startSpan("myspan")
-    def scope = getTestTracer().activateSpan(span, true)
+    def scope = getTestTracer().activateSpan(span)
 
     then:
     CorrelationIdentifier.traceId == span.traceId.toString()
@@ -14,6 +14,7 @@ class TraceCorrelationTest extends AgentTestRunner {
 
     when:
     scope.close()
+    span.finish()
 
     then:
     CorrelationIdentifier.traceId == "0"

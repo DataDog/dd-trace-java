@@ -113,7 +113,7 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Default 
       DECORATE.onJaxRsSpan(span, parent, target.getClass(), method);
       DECORATE.afterStart(span);
 
-      final AgentScope scope = activateSpan(span, false);
+      final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
 
       if (contextStore != null && asyncResponse != null) {
@@ -148,6 +148,7 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Default 
         DECORATE.beforeFinish(span);
         span.finish();
       }
+      // else span finished by AsyncResponseAdvice
       scope.close();
     }
   }

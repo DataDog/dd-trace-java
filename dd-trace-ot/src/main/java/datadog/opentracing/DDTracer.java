@@ -3,7 +3,6 @@ package datadog.opentracing;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
@@ -180,8 +179,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   @Deprecated
   public DDTracer(final CoreTracer coreTracer) {
     this.coreTracer = coreTracer;
-    this.converter = new TypeConverter(new DefaultLogHandler());
-    this.scopeManager = new OTScopeManager(coreTracer, converter);
+    converter = new TypeConverter(new DefaultLogHandler());
+    scopeManager = new OTScopeManager(coreTracer, converter);
   }
 
   @Builder
@@ -202,9 +201,9 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
       final LogHandler logHandler) {
 
     if (logHandler != null) {
-      this.converter = new TypeConverter(logHandler);
+      converter = new TypeConverter(logHandler);
     } else {
-      this.converter = new TypeConverter(new DefaultLogHandler());
+      converter = new TypeConverter(new DefaultLogHandler());
     }
 
     // Each of these are only overriden if set
@@ -471,10 +470,11 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
       return converter.toSpan(agentSpan);
     }
 
+    /** @deprecated use {@link #start()} instead. */
+    @Deprecated
     @Override
     public Scope startActive(final boolean finishSpanOnClose) {
-      final AgentScope agentScope = delegate.startActive(finishSpanOnClose);
-      return converter.toScope(agentScope);
+      return scopeManager.activate(start(), finishSpanOnClose);
     }
 
     public DDSpanBuilder withServiceName(final String serviceName) {

@@ -74,7 +74,7 @@ public abstract class AbstractRequestContextInstrumentation extends Instrumenter
           parent = activeSpan();
           span = startSpan("jax-rs.request.abort");
 
-          final AgentScope scope = activateSpan(span, false);
+          final AgentScope scope = activateSpan(span);
           scope.setAsyncPropagation(true);
 
           DECORATE.afterStart(span);
@@ -101,8 +101,8 @@ public abstract class AbstractRequestContextInstrumentation extends Instrumenter
       }
 
       DECORATE.beforeFinish(span);
-      span.finish();
       scope.close();
+      span.finish();
     }
   }
 }

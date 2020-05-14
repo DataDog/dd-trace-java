@@ -53,7 +53,7 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
     channelTraceContext.setClientParentSpan(activeSpan());
 
     final AgentSpan span = startSpan("netty.client.request");
-    try (final AgentScope scope = activateSpan(span, false)) {
+    try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       DECORATE.onPeerConnection(span, (InetSocketAddress) ctx.getChannel().getRemoteAddress());

@@ -1,5 +1,6 @@
 package datadog.opentracing;
 
+import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.core.DDSpan;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -7,7 +8,11 @@ import io.opentracing.tag.Tag;
 import java.util.Map;
 import java.util.Objects;
 
-class OTSpan implements Span {
+/**
+ * This class should be castable to MutableSpan since that is the way we've encouraged users to
+ * interact with non-ot parts of our API.
+ */
+class OTSpan implements Span, MutableSpan {
   private final DDSpan delegate;
   private final TypeConverter converter;
   private final LogHandler logHandler;
@@ -24,21 +29,41 @@ class OTSpan implements Span {
   }
 
   @Override
-  public Span setTag(final String key, final String value) {
+  public OTSpan setTag(final String key, final String value) {
     delegate.setTag(key, value);
     return this;
   }
 
   @Override
-  public Span setTag(final String key, final boolean value) {
+  public OTSpan setTag(final String key, final boolean value) {
     delegate.setTag(key, value);
     return this;
   }
 
   @Override
-  public Span setTag(final String key, final Number value) {
+  public OTSpan setTag(final String key, final Number value) {
     delegate.setTag(key, value);
     return this;
+  }
+
+  @Override
+  public Boolean isError() {
+    return delegate.isError();
+  }
+
+  @Override
+  public MutableSpan setError(final boolean value) {
+    return delegate.setError(value);
+  }
+
+  @Override
+  public MutableSpan getRootSpan() {
+    return delegate.getLocalRootSpan();
+  }
+
+  @Override
+  public MutableSpan getLocalRootSpan() {
+    return delegate.getLocalRootSpan();
   }
 
   @Override
@@ -83,9 +108,69 @@ class OTSpan implements Span {
   }
 
   @Override
-  public Span setOperationName(final String operationName) {
+  public long getStartTime() {
+    return delegate.getStartTime();
+  }
+
+  @Override
+  public long getDurationNano() {
+    return delegate.getDurationNano();
+  }
+
+  @Override
+  public String getOperationName() {
+    return delegate.getOperationName();
+  }
+
+  @Override
+  public OTSpan setOperationName(final String operationName) {
     delegate.setOperationName(operationName);
     return this;
+  }
+
+  @Override
+  public String getServiceName() {
+    return delegate.getServiceName();
+  }
+
+  @Override
+  public MutableSpan setServiceName(final String serviceName) {
+    return delegate.setServiceName(serviceName);
+  }
+
+  @Override
+  public String getResourceName() {
+    return delegate.getResourceName();
+  }
+
+  @Override
+  public MutableSpan setResourceName(final String resourceName) {
+    return delegate.setResourceName(resourceName);
+  }
+
+  @Override
+  public Integer getSamplingPriority() {
+    return delegate.getSamplingPriority();
+  }
+
+  @Override
+  public MutableSpan setSamplingPriority(final int newPriority) {
+    return delegate.setSamplingPriority(newPriority);
+  }
+
+  @Override
+  public String getSpanType() {
+    return delegate.getSpanType();
+  }
+
+  @Override
+  public MutableSpan setSpanType(final String type) {
+    return delegate.setSpanType(type);
+  }
+
+  @Override
+  public Map<String, Object> getTags() {
+    return delegate.getTags();
   }
 
   @Override

@@ -61,7 +61,7 @@ public final class RmiClientInstrumentation extends Instrumenter.Default {
               .setTag("span.origin.type", method.getDeclaringClass().getCanonicalName());
 
       DECORATE.afterStart(span);
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -71,7 +71,9 @@ public final class RmiClientInstrumentation extends Instrumenter.Default {
         return;
       }
       DECORATE.onError(scope, throwable);
+      DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 }

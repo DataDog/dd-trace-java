@@ -67,7 +67,7 @@ public final class JSPInstrumentation extends Instrumenter.Default {
               .setTag("servlet.context", req.getContextPath());
       DECORATE.afterStart(span);
       DECORATE.onRender(span, req);
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -76,6 +76,7 @@ public final class JSPInstrumentation extends Instrumenter.Default {
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 }

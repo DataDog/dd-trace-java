@@ -110,7 +110,7 @@ public final class SpringRepositoryInstrumentation extends Instrumenter.Default 
       DECORATOR.afterStart(span);
       DECORATOR.onOperation(span, invokedMethod);
 
-      final AgentScope scope = activateSpan(span, true);
+      final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
 
       Object result = null;
@@ -122,6 +122,7 @@ public final class SpringRepositoryInstrumentation extends Instrumenter.Default 
       } finally {
         DECORATOR.beforeFinish(scope);
         scope.close();
+        span.finish();
       }
       return result;
     }

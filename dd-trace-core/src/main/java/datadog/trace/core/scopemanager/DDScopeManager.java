@@ -8,7 +8,7 @@ import datadog.trace.context.TraceScope;
  * Allows custom scope managers. See OTScopeManager, CustomScopeManager, and ContextualScopeManager
  */
 public interface DDScopeManager {
-  AgentScope activate(AgentSpan span, boolean finishOnClose);
+  AgentScope activate(AgentSpan span);
 
   TraceScope active();
 

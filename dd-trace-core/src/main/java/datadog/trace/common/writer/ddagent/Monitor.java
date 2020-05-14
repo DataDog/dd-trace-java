@@ -33,7 +33,7 @@ public interface Monitor {
   void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete);
 
   void onSerialize(
-      final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace);
+      final DDAgentWriter agentWriter, final List<DDSpan> trace, final int serializedSizeInBytes);
 
   void onFailedSerialize(
       final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause);
@@ -119,10 +119,12 @@ public interface Monitor {
 
     @Override
     public void onSerialize(
-        final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace) {
+        final DDAgentWriter agentWriter,
+        final List<DDSpan> trace,
+        final int serializedSizeInBytes) {
       // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
       // map precisely
-      statsd.count("queue.accepted_size", serializedTrace.length);
+      statsd.count("queue.accepted_size", serializedSizeInBytes);
     }
 
     @Override
@@ -203,7 +205,9 @@ public interface Monitor {
 
     @Override
     public void onSerialize(
-        final DDAgentWriter agentWriter, final List<DDSpan> trace, final byte[] serializedTrace) {}
+        final DDAgentWriter agentWriter,
+        final List<DDSpan> trace,
+        final int serializedSizeInBytes) {}
 
     @Override
     public void onFailedSerialize(

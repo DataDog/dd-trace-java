@@ -154,7 +154,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
   public static class HelperMethods {
     public static AgentScope doMethodEnter(final HttpUriRequest request) {
       final AgentSpan span = startSpan("http.request");
-      final AgentScope scope = activateSpan(span, true);
+      final AgentScope scope = activateSpan(span);
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
@@ -172,9 +172,8 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
       if (scope == null) {
         return;
       }
+      final AgentSpan span = scope.span();
       try {
-        final AgentSpan span = scope.span();
-
         if (result instanceof HttpResponse) {
           DECORATE.onResponse(span, (HttpResponse) result);
         } // else they probably provided a ResponseHandler.
@@ -183,6 +182,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
         DECORATE.beforeFinish(span);
       } finally {
         scope.close();
+        span.finish();
         CallDepthThreadLocalMap.reset(HttpClient.class);
       }
     }

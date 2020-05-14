@@ -77,7 +77,7 @@ public class Elasticsearch53TransportClientInstrumentation extends Instrumenter.
 
       actionListener = new TransportActionListener<>(actionRequest, actionListener, span);
 
-      return activateSpan(span, false);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -90,6 +90,7 @@ public class Elasticsearch53TransportClientInstrumentation extends Instrumenter.
         span.finish();
       }
       scope.close();
+      // span finished by TransportActionListener
     }
   }
 }

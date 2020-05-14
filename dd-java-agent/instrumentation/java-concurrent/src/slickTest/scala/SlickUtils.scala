@@ -1,3 +1,4 @@
+import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import slick.jdbc.H2Profile.api._
@@ -21,8 +22,12 @@ class SlickUtils {
 
   @Trace
   def startQuery(query: String): Future[Vector[Int]] = {
-    activeScope().setAsyncPropagation(true)
-    database.run(sql"#$query".as[Int])
+    try {
+      activeScope().setAsyncPropagation(true)
+      database.run(sql"#$query".as[Int])
+    } finally {
+      blockUntilChildSpansFinished(1)
+    }
   }
 
   def getResults(future: Future[Vector[Int]]): Int = {

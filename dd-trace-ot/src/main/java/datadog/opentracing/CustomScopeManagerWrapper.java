@@ -29,14 +29,14 @@ class CustomScopeManagerWrapper implements DDScopeManager {
   private final TypeConverter converter;
 
   CustomScopeManagerWrapper(final ScopeManager scopeManager, final TypeConverter converter) {
-    this.delegate = scopeManager;
+    delegate = scopeManager;
     this.converter = converter;
   }
 
   @Override
-  public AgentScope activate(final AgentSpan agentSpan, final boolean finishOnClose) {
+  public AgentScope activate(final AgentSpan agentSpan) {
     final Span span = converter.toSpan(agentSpan);
-    final Scope scope = delegate.activate(span, finishOnClose);
+    final Scope scope = delegate.activate(span);
 
     return new CustomScopeManagerScope(scope);
   }

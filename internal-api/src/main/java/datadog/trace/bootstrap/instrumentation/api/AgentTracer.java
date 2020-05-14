@@ -28,18 +28,8 @@ public class AgentTracer {
     return get().startSpan(spanName, parent, startTimeMicros);
   }
 
-  /**
-   * Activates the span without finishing on closing the active scope
-   *
-   * @param span the span to activate
-   * @return a newly activated scope
-   */
   public static AgentScope activateSpan(final AgentSpan span) {
-    return get().activateSpan(span, false);
-  }
-
-  public static AgentScope activateSpan(final AgentSpan span, final boolean finishSpanOnClose) {
-    return get().activateSpan(span, finishSpanOnClose);
+    return get().activateSpan(span);
   }
 
   public static AgentSpan activeSpan() {
@@ -82,7 +72,7 @@ public class AgentTracer {
 
     AgentSpan startSpan(String spanName, AgentSpan.Context parent, long startTimeMicros);
 
-    AgentScope activateSpan(AgentSpan span, boolean finishSpanOnClose);
+    AgentScope activateSpan(AgentSpan span);
 
     AgentSpan activeSpan();
 
@@ -119,7 +109,7 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentScope activateSpan(final AgentSpan span, final boolean finishSpanOnClose) {
+    public AgentScope activateSpan(final AgentSpan span) {
       return NoopAgentScope.INSTANCE;
     }
 
@@ -272,10 +262,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void close() {}
-
-    @Override
-    public void close(final boolean closeContinuationScope) {}
+    public void cancel() {}
   }
 
   public static class NoopContext implements Context {

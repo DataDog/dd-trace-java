@@ -25,7 +25,7 @@ public class ContextualScopeManager implements DDScopeManager {
   }
 
   @Override
-  public AgentScope activate(final AgentSpan span, final boolean finishOnClose) {
+  public AgentScope activate(final AgentSpan span) {
     final DDScope active = tlsScope.get();
     if (active != null && active.span().equals(span)) {
       return active.incrementReferences();
@@ -37,10 +37,10 @@ public class ContextualScopeManager implements DDScopeManager {
     }
 
     if (span instanceof DDSpan) {
-      return new ContinuableScope(this, (DDSpan) span, finishOnClose, scopeEventFactory);
+      return new ContinuableScope(this, (DDSpan) span, scopeEventFactory);
     } else {
       // Noop Span
-      return new SimpleScope(this, span, finishOnClose);
+      return new SimpleScope(this, span);
     }
   }
 

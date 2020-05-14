@@ -26,6 +26,7 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
     def ratpack = GroovyEmbeddedApp.ratpack {
       serverConfig {
         port bindPort
+        address InetAddress.getByName('localhost')
       }
       bindings {
         bind TestErrorHandler

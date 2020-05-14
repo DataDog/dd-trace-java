@@ -76,7 +76,7 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Default {
       DECORATE.onConnection(span, request);
       DECORATE.onRequest(span, request);
 
-      final AgentScope scope = activateSpan(span, false);
+      final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
 
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
@@ -101,6 +101,7 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Default {
         span.finish();
       }
       scope.close();
+      // span finished by SpanClosingListener
     }
   }
 

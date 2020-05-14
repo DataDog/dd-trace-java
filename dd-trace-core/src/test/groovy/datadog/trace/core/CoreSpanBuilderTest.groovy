@@ -156,7 +156,7 @@ class CoreSpanBuilderTest extends DDSpecification {
     1 * mockedContext.getSpanId() >> spanId
     _ * mockedContext.getServiceName() >> "foo"
     1 * mockedContext.getBaggageItems() >> [:]
-    1 * mockedContext.getTrace() >> new PendingTrace(tracer, 1G)
+    1 * mockedContext.getTrace() >> PendingTrace.create(tracer, 1G)
 
     final String expectedName = "fakeName"
 
@@ -176,10 +176,8 @@ class CoreSpanBuilderTest extends DDSpecification {
 
   def "should link to parent span implicitly"() {
     setup:
-    final AgentScope parent = noopParent ?
-      tracer.activateSpan(AgentTracer.NoopAgentSpan.INSTANCE, false) :
-      tracer.buildSpan("parent")
-        .startActive(false)
+    final AgentScope parent = tracer.activateSpan(noopParent ?
+      AgentTracer.NoopAgentSpan.INSTANCE : tracer.buildSpan("parent").start())
 
     final BigInteger expectedParentId = noopParent ? 0G : parent.span().context().getSpanId()
 
