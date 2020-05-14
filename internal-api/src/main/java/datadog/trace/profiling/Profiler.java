@@ -3,10 +3,12 @@ package datadog.trace.profiling;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Entry point of the Profiling API to allow trigger sampling profiling on demand Example of usage:
+ * Entry point of the Profiling API to allow trigger sampling profiling on demand
+ *
+ * <p>Example of usage:
  *
  * <pre>
- *   try (Session session = Profiler.startProfiling()) {
+ *   try (Session session = Profiler.startProfiling(spanId)) {
  *     // ...
  *   }
  * </pre>
@@ -14,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
  * or
  *
  * <pre>
- *   Session session = Profiler.startProfiling()
+ *   Session session = Profiler.startProfiling(spanId)
  *   // ... and into another method:
  *   session.close();
  * </pre>
@@ -31,8 +33,8 @@ public class Profiler {
    *
    * @return an instance of profiling session
    */
-  public static Session startProfiling() {
-    return startProfiling(Thread.currentThread());
+  public static Session startProfiling(String id) {
+    return startProfiling(id, Thread.currentThread());
   }
 
   /**
@@ -40,13 +42,13 @@ public class Profiler {
    *
    * @return an instance of profiling session
    */
-  public static Session startProfiling(Thread thread) {
+  public static Session startProfiling(String id, Thread thread) {
     SessionFactory localFactory = factory;
     if (localFactory == null) {
       log.warn("Profiling session not initialized");
       return NO_SESSION;
     }
-    return localFactory.createSession(thread);
+    return localFactory.createSession(id, thread);
   }
 
   /**
@@ -59,9 +61,6 @@ public class Profiler {
   }
 
   private static class NoSession implements Session {
-    @Override
-    public void addThread(Thread thread) {}
-
     @Override
     public void close() {}
   }

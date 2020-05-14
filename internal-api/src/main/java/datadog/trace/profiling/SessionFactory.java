@@ -8,5 +8,5 @@ public interface SessionFactory {
    *
    * @return an instance of the profiling session
    */
-  Session createSession(Thread thread);
+  Session createSession(String id, Thread thread);
 }
