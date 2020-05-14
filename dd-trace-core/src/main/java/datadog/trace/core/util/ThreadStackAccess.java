@@ -4,16 +4,15 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ThreadStackAccess {
-  private static volatile ThreadStackProvider threadStackProvider =
-      NoneThreadStackProvider.INSTANCE;
+  private static volatile ThreadStackProvider threadStackProvider = new NoneThreadStackProvider();
 
   /**
-   * Disable JMX based ThreadStack. Will flip back to the {@linkplain
-   * NoneThreadStackProvider#INSTANCE} implementation.
+   * Disable JMX based ThreadStack. Will flip back to the {@linkplain NoneThreadStackProvider}
+   * implementation.
    */
   public static void disableJmx() {
     log.debug("Disabling JMX thread CPU time provider");
-    threadStackProvider = NoneThreadStackProvider.INSTANCE;
+    threadStackProvider = new NoneThreadStackProvider();
   }
 
   /** Enable JMX based ThreadStack */
@@ -42,8 +41,8 @@ public class ThreadStackAccess {
   /**
    * Get the current ThreadStack provider
    *
-   * @return the actual current ThreadStack provider or {@linkplain
-   *     NoneThreadStackProvider#INSTANCE} if the JMX provider is not available
+   * @return the actual current ThreadStack provider or {@linkplain NoneThreadStackProvider} if the
+   *     JMX provider is not available
    */
   public static ThreadStackProvider getCurrentThreadStackProvider() {
     return threadStackProvider;
