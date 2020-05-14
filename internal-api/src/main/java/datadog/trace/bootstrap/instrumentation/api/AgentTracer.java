@@ -42,6 +42,8 @@ public class AgentTracer {
     return get().activeSpan();
   }
 
+  // TODO figure out an alternative for this since it limits cleanup in ScopeManager.
+  @Deprecated
   public static TraceScope activeScope() {
     return get().activeScope();
   }
