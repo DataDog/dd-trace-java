@@ -145,7 +145,6 @@ class DDAgentWriterTest extends DDSpecification {
     1 * api.sendSerializedTraces( { it.traceCount() == 5 }) >> DDAgentApi.Response.success(200)
     _ * monitor.onPublish(_, _)
     _ * monitor.onSerialize(_, _, _)
-    1 * monitor.onSend(_, _, _)
     1 * monitor.onSend(_, _, _, _) >> {
       phaser.arrive()
     }
@@ -230,7 +229,9 @@ class DDAgentWriterTest extends DDSpecification {
 //    2 * monitor.onFlush(_, false)
     _ * serializer.reset(_)
     _ * serializer.dropBuffer()
+    _ * serializer.newBuffer()
     1 * monitor.onFailedPublish(_, _)
+    1 * monitor.onFlush(_, _)
     1 * monitor.onShutdown(_, _)
     0 * _
     writer.traceCount.get() == 0
@@ -314,7 +315,7 @@ class DDAgentWriterTest extends DDSpecification {
     then:
     1 * monitor.onPublish(writer, minimalTrace)
     1 * monitor.onSerialize(writer, minimalTrace, _)
-    1 * monitor.onSend(writer, 1, _)
+    1 * monitor.onFlush(writer, false)
     1 * monitor.onSend(writer, 1, _, { response -> response.success() && response.status() == 200 })
 
     when:
@@ -361,7 +362,7 @@ class DDAgentWriterTest extends DDSpecification {
     then:
     1 * monitor.onPublish(writer, minimalTrace)
     1 * monitor.onSerialize(writer, minimalTrace, _)
-    1 * monitor.onSend(writer, 1, _)
+    1 * monitor.onFlush(writer, false)
     1 * monitor.onFailedSend(writer, 1, _, { response -> !response.success() && response.status() == 500 })
 
     when:
@@ -399,7 +400,7 @@ class DDAgentWriterTest extends DDSpecification {
     then:
     1 * monitor.onPublish(writer, minimalTrace)
     1 * monitor.onSerialize(writer, minimalTrace, _)
-    1 * monitor.onSend(writer, 1, _)
+    1 * monitor.onFlush(writer, false)
     1 * monitor.onFailedSend(writer, 1, _, { response -> !response.success() && response.status() == null })
 
     when:
@@ -445,7 +446,7 @@ class DDAgentWriterTest extends DDSpecification {
       onFailedPublish(_, _) >> {
         numFailedPublish.incrementAndGet()
       }
-      onSend(_, _, _) >> {
+      onFlush(_, _) >> {
         numFlushes.incrementAndGet()
       }
       onSend(_, _, _, _) >> {

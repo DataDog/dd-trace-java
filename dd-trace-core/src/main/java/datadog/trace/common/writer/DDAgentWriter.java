@@ -164,7 +164,10 @@ public class DDAgentWriter implements Writer {
 
   public boolean flush() {
     if (!closed) { // give up after a second
-      return traceProcessingDisruptor.flush(1, TimeUnit.SECONDS);
+      if (traceProcessingDisruptor.flush(1, TimeUnit.SECONDS)) {
+          monitor.onFlush(this, false);
+          return true;
+      }
     }
     return false;
   }

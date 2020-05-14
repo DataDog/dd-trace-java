@@ -86,7 +86,6 @@ public class DispatchingDisruptor implements AutoCloseable {
       try {
         if (traces.traceCount() > 0) {
           final DDAgentApi.Response response = api.sendSerializedTraces(traces);
-          monitor.onSend(writer, traces.traceCount(), traces.sizeInBytes());
           if (response.success()) {
             if (log.isDebugEnabled()) {
               log.debug(
