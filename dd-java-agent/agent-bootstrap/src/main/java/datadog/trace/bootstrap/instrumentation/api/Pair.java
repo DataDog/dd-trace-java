@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-public class Pair<T, U> {
+public final class Pair<T, U> {
 
   public static <T, U> Pair<T, U> of(T left, U right) {
     return new Pair<>(left, right);
