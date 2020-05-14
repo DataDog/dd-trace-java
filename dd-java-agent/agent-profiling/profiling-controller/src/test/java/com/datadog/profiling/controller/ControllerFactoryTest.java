@@ -27,18 +27,17 @@ public class ControllerFactoryTest {
               ControllerFactory.createController(config);
             });
     String expected =
-        "The JFR controller could not find a supported JFR API, use OpenJDK 11+ or Azul zulu version 1.8.0_212+";
+        "Not enabling profiling; it requires OpenJDK 11+, Oracle Java 11+, or Zulu Java 8 (1.8.0_212+).";
     final String javaVendor = System.getProperty("java.vendor");
     final String javaRuntimeName = System.getProperty("java.runtime.name");
     final String javaVersion = System.getProperty("java.version");
     if ("Azul Systems, Inc.".equals(javaVendor)) {
-      expected =
-          "The JFR controller could not find a supported JFR API, use Azul zulu version 1.8.0_212+";
+      expected = "Not enabling profiling; it requires Zulu Java 8 (1.8.0_212+).";
     } else if ("Java(TM) SE Runtime Environment".equals(javaRuntimeName)
         && "Oracle Corporation".equals(javaVendor)
         && javaVersion.startsWith("1.8")) {
       // condition for OracleJRE8 (with proprietary JFR inside)
-      expected = "The JFR controller is currently not supported on the Oracle JDK <= JDK 11!";
+      expected = "Not enabling profiling; it requires Oracle Java 11+.";
     }
     assertEquals(
         expected,
