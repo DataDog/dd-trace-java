@@ -6,6 +6,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.interceptor.TraceStatsCollector;
+import datadog.trace.profiling.Profiler;
+import datadog.trace.profiling.Session;
 import java.util.concurrent.TimeUnit;
 import org.HdrHistogram.Histogram;
 
@@ -97,11 +99,13 @@ public class TraceProfilingScopeManager implements DDScopeManager {
   private static class TraceProfilingScope implements AgentScope {
 
     private final AgentScope delegate;
+    private final Session session;
 
     private TraceProfilingScope(final AgentScope delegate) {
       IS_THREAD_PROFILING.set(true);
-      // Start profiling
       this.delegate = delegate;
+      // FIXME expose trace id in the Agent API.
+      session = Profiler.startProfiling(((DDSpan) span()).getTraceId().toString());
     }
 
     @Override
@@ -117,8 +121,8 @@ public class TraceProfilingScopeManager implements DDScopeManager {
     @Override
     public void close() {
       IS_THREAD_PROFILING.set(false);
-      // Stop profiling
       delegate.close();
+      session.close();
     }
   }
 }

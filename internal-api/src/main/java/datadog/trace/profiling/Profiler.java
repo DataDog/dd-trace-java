@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>Example of usage:
  *
  * <pre>
- *   try (Session session = Profiler.startProfiling(spanId)) {
+ *   try (Session session = Profiler.startProfiling(traceId)) {
  *     // ...
  *   }
  * </pre>
@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
  * or
  *
  * <pre>
- *   Session session = Profiler.startProfiling(spanId)
+ *   Session session = Profiler.startProfiling(traceId)
  *   // ... and into another method:
  *   session.close();
  * </pre>
@@ -33,7 +33,7 @@ public class Profiler {
    *
    * @return an instance of profiling session
    */
-  public static Session startProfiling(String id) {
+  public static Session startProfiling(final String id) {
     return startProfiling(id, Thread.currentThread());
   }
 
@@ -42,8 +42,8 @@ public class Profiler {
    *
    * @return an instance of profiling session
    */
-  public static Session startProfiling(String id, Thread thread) {
-    SessionFactory localFactory = factory;
+  public static Session startProfiling(final String id, final Thread thread) {
+    final SessionFactory localFactory = factory;
     if (localFactory == null) {
       log.warn("Profiling session not initialized");
       return NO_SESSION;
@@ -56,7 +56,7 @@ public class Profiler {
    *
    * @param sessionFactory
    */
-  public static void initialize(SessionFactory sessionFactory) {
+  public static void initialize(final SessionFactory sessionFactory) {
     factory = sessionFactory;
   }
 
