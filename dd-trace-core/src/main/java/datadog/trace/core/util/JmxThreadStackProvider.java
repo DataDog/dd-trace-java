@@ -6,7 +6,6 @@ import java.lang.management.ThreadMXBean;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 public class JmxThreadStackProvider implements ThreadStackProvider {
   private final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
@@ -14,7 +13,7 @@ public class JmxThreadStackProvider implements ThreadStackProvider {
   public static final ThreadStackProvider INSTANCE = new JmxThreadStackProvider();
 
   @Override
-  public List<StackTraceElement[]> getStackTrace(Set<Long> threadIds) {
+  public List<StackTraceElement[]> getStackTrace(List<Long> threadIds) {
     long[] ids = new long[threadIds.size()];
     int idx = 0;
     for (Long id : threadIds) {

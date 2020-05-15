@@ -24,7 +24,7 @@ class ThreadStackAccessTest extends DDSpecification {
 
     when:
     def provider = ThreadStackAccess.getCurrentThreadStackProvider()
-    def stackTraces = provider.getStackTrace(new HashSet<Long>(Arrays.asList(Thread.currentThread().getId())))
+    def stackTraces = provider.getStackTrace(Collections.singletonList(Thread.currentThread().getId()))
 
     then:
     provider instanceof JmxThreadStackProvider
