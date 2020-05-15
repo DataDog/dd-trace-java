@@ -73,7 +73,13 @@ public final class StreamUtils {
       return readStream(is, expectedSize, consumer);
     } else {
       final FastByteArrayOutputStream baos = new FastByteArrayOutputStream(expectedSize);
-      try (final OutputStream zipped = new LZ4FrameOutputStream(baos)) {
+      try (final OutputStream zipped =
+          new LZ4FrameOutputStream(
+              baos,
+              LZ4FrameOutputStream.BLOCKSIZE.SIZE_64KB,
+              LZ4FrameOutputStream.FLG.Bits.BLOCK_CHECKSUM,
+              LZ4FrameOutputStream.FLG.Bits.CONTENT_CHECKSUM,
+              LZ4FrameOutputStream.FLG.Bits.BLOCK_INDEPENDENCE)) {
         copy(is, zipped);
       }
       return baos.consume(consumer);
