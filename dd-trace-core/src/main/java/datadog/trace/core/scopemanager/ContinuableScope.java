@@ -4,8 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.context.ScopeListener;
-import datadog.trace.core.jfr.DDScopeEvent;
-import datadog.trace.core.jfr.DDScopeEventFactory;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.Set;
@@ -14,17 +12,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ContinuableScope implements DDScope {
+public class ContinuableScope extends DelegatingScope implements DDScope {
   /** ScopeManager holding the thread-local to this scope. */
   private final ContextualScopeManager scopeManager;
-  /**
-   * Span contained by this scope. Async scopes will hold a reference to the parent scope's span.
-   */
-  private final AgentSpan spanUnderScope;
 
-  private final DDScopeEventFactory eventFactory;
-  /** Event for this scope */
-  private final DDScopeEvent event;
   /** Scope to placed in the thread local after close. May be null. */
   private final DDScope toRestore;
   /** Continuation that created this scope. May be null. */
@@ -38,25 +29,13 @@ public class ContinuableScope implements DDScope {
 
   ContinuableScope(
       final ContextualScopeManager scopeManager,
-      final AgentSpan spanUnderScope,
-      final DDScopeEventFactory eventFactory) {
-    this(scopeManager, null, spanUnderScope, eventFactory);
-  }
-
-  private ContinuableScope(
-      final ContextualScopeManager scopeManager,
       final Continuation continuation,
-      final AgentSpan spanUnderScope,
-      final DDScopeEventFactory eventFactory) {
-    assert spanUnderScope != null : "span must not be null";
+      final AgentScope delegate) {
+    super(delegate);
+    assert delegate.span() != null;
     this.scopeManager = scopeManager;
     this.continuation = continuation;
-    this.spanUnderScope = spanUnderScope;
-    this.eventFactory = eventFactory;
-    event = eventFactory.create(spanUnderScope.context());
-    event.start();
     toRestore = scopeManager.tlsScope.get();
-    scopeManager.tlsScope.set(this);
     depth = toRestore == null ? 0 : toRestore.depth() + 1;
     for (final ScopeListener listener : scopeManager.scopeListeners) {
       listener.afterScopeActivated();
@@ -68,13 +47,9 @@ public class ContinuableScope implements DDScope {
     if (referenceCount.decrementAndGet() > 0) {
       return;
     }
-    // We have to scope finish event before we finish then span (which finishes span event).
-    // The reason is that we get span on construction and span event starts when span is created.
-    // This means from JFR perspective scope is included into the span.
-    event.finish();
 
     if (null != continuation) {
-      spanUnderScope.context().getTrace().cancelContinuation(continuation);
+      span().context().getTrace().cancelContinuation(continuation);
     }
 
     for (final ScopeListener listener : scopeManager.scopeListeners) {
@@ -94,11 +69,6 @@ public class ContinuableScope implements DDScope {
           this,
           scopeManager.tlsScope.get());
     }
-  }
-
-  @Override
-  public AgentSpan span() {
-    return spanUnderScope;
   }
 
   @Override
@@ -130,7 +100,7 @@ public class ContinuableScope implements DDScope {
   @Override
   public Continuation capture() {
     if (isAsyncPropagating()) {
-      return Continuation.create(spanUnderScope, scopeManager, eventFactory);
+      return Continuation.create(span(), scopeManager);
     } else {
       return null;
     }
@@ -138,7 +108,7 @@ public class ContinuableScope implements DDScope {
 
   @Override
   public String toString() {
-    return super.toString() + "->" + spanUnderScope;
+    return super.toString() + "->" + span();
   }
 
   /**
@@ -151,43 +121,35 @@ public class ContinuableScope implements DDScope {
 
     private final AgentSpan spanUnderScope;
     private final ContextualScopeManager scopeManager;
-    private final DDScopeEventFactory eventFactory;
 
     private final AgentTrace trace;
     private final AtomicBoolean used = new AtomicBoolean(false);
 
     private Continuation(
-        final AgentSpan spanUnderScope,
-        final ContextualScopeManager scopeManager,
-        final DDScopeEventFactory eventFactory) {
+        final AgentSpan spanUnderScope, final ContextualScopeManager scopeManager) {
 
       this.spanUnderScope = spanUnderScope;
       this.scopeManager = scopeManager;
-      this.eventFactory = eventFactory;
       trace = spanUnderScope.context().getTrace();
     }
 
     public static Continuation create(
-        final AgentSpan spanUnderScope,
-        final ContextualScopeManager scopeManager,
-        final DDScopeEventFactory eventFactory) {
-      final Continuation continuation =
-          new Continuation(spanUnderScope, scopeManager, eventFactory);
+        final AgentSpan spanUnderScope, final ContextualScopeManager scopeManager) {
+      final Continuation continuation = new Continuation(spanUnderScope, scopeManager);
       continuation.trace.registerContinuation(continuation);
       return continuation;
     }
 
     @Override
-    public ContinuableScope activate() {
+    public AgentScope activate() {
       if (used.compareAndSet(false, true)) {
-        final ContinuableScope scope =
-            new ContinuableScope(scopeManager, this, spanUnderScope, eventFactory);
+        final AgentScope scope = scopeManager.handleSpan(this, spanUnderScope);
         log.debug("Activating continuation {}, scope: {}", this, scope);
         return scope;
       } else {
         log.debug(
-            "Failed to activate continuation. Reusing a continuation not allowed.  Returning a new scope. Spans may be reported separately.");
-        return new ContinuableScope(scopeManager, null, spanUnderScope, eventFactory);
+            "Failed to activate continuation. Reusing a continuation not allowed. Spans may be reported separately.");
+        return scopeManager.handleSpan(null, spanUnderScope);
       }
     }
 

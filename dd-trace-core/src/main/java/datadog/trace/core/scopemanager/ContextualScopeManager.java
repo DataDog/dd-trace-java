@@ -11,16 +11,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ContextualScopeManager implements DDScopeManager {
+public class ContextualScopeManager extends DelegateScopeInterceptor implements DDScopeManager {
   static final ThreadLocal<DDScope> tlsScope = new ThreadLocal<>();
   final List<ScopeListener> scopeListeners = new CopyOnWriteArrayList<>();
 
   private final int depthLimit;
-  private final DDScopeEventFactory scopeEventFactory;
 
   public ContextualScopeManager(final int depthLimit, final DDScopeEventFactory scopeEventFactory) {
+    super(new EventScopeInterceptor(scopeEventFactory, null));
     this.depthLimit = depthLimit;
-    this.scopeEventFactory = scopeEventFactory;
   }
 
   @Override
@@ -34,7 +33,19 @@ public class ContextualScopeManager implements DDScopeManager {
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
       return AgentTracer.NoopAgentScope.INSTANCE;
     }
-    return new ContinuableScope(this, span, scopeEventFactory);
+    return handleSpan(span);
+  }
+
+  @Override
+  public AgentScope handleSpan(final AgentSpan span) {
+    return handleSpan(null, span);
+  }
+
+  AgentScope handleSpan(final ContinuableScope.Continuation continuation, final AgentSpan span) {
+    final ContinuableScope scope =
+        new ContinuableScope(this, continuation, delegate.handleSpan(span));
+    tlsScope.set(scope);
+    return scope;
   }
 
   @Override
