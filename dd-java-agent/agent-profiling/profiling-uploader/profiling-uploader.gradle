@@ -5,6 +5,8 @@ ext {
 
 apply from: "${rootDir}/gradle/java.gradle"
 
+minimumBranchCoverage = 0.8
+
 excludedClassesCoverage += [
   // This is just a static declaration that is hard to test
   'com.datadog.profiling.uploader.VersionInfo',
