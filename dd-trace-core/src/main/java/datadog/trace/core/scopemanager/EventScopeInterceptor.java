@@ -7,7 +7,7 @@ import datadog.trace.core.jfr.DDScopeEventFactory;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class EventScopeInterceptor extends DelegateScopeInterceptor {
+class EventScopeInterceptor extends DelegateScopeInterceptor {
 
   private final DDScopeEventFactory eventFactory;
 

@@ -7,7 +7,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ListenerScopeInterceptor extends DelegateScopeInterceptor {
+class ListenerScopeInterceptor extends DelegateScopeInterceptor {
   final List<ScopeListener> scopeListeners;
 
   public ListenerScopeInterceptor(
