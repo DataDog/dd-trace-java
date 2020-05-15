@@ -1,5 +1,6 @@
 package datadog.trace.core.jfr.openjdk;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.jfr.DDNoopScopeEvent;
 import datadog.trace.core.jfr.DDScopeEvent;
@@ -19,7 +20,9 @@ public class ScopeEventFactory implements DDScopeEventFactory {
   }
 
   @Override
-  public DDScopeEvent create(final DDSpanContext context) {
-    return eventType.isEnabled() ? new ScopeEvent(context) : DDNoopScopeEvent.INSTANCE;
+  public DDScopeEvent create(final AgentSpan.Context context) {
+    return eventType.isEnabled() && context instanceof DDSpanContext
+        ? new ScopeEvent((DDSpanContext) context)
+        : DDNoopScopeEvent.INSTANCE;
   }
 }

@@ -1,6 +1,8 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.Collections;
 import java.util.Map;
 
@@ -27,5 +29,10 @@ public class TagContext implements AgentSpan.Context {
 
   public Iterable<Map.Entry<String, String>> baggageItems() {
     return Collections.emptyList();
+  }
+
+  @Override
+  public AgentTrace getTrace() {
+    return AgentTracer.NoopAgentTrace.INSTANCE;
   }
 }

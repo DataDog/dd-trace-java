@@ -52,13 +52,13 @@ class ScopeManagerTest extends DDSpecification {
     writer.clear()
   }
 
-  def "non-ddspan activation results in a simple scope"() {
+  def "non-ddspan activation results in a continuable scope"() {
     when:
     def scope = scopeManager.activate(NoopAgentSpan.INSTANCE)
 
     then:
     scopeManager.active() == scope
-    scope instanceof SimpleScope
+    scope instanceof ContinuableScope
 
     when:
     scope.close()
