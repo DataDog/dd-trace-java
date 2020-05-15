@@ -11,18 +11,19 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ContextualScopeManager extends DelegateScopeInterceptor implements DDScopeManager {
+public class ContinuableScopeManager extends DelegateScopeInterceptor implements DDScopeManager {
   static final ThreadLocal<ContinuableScope> tlsScope = new ThreadLocal<>();
   private final List<ScopeListener> scopeListeners;
 
   private final int depthLimit;
 
-  public ContextualScopeManager(final int depthLimit, final DDScopeEventFactory scopeEventFactory) {
+  public ContinuableScopeManager(
+      final int depthLimit, final DDScopeEventFactory scopeEventFactory) {
     this(depthLimit, scopeEventFactory, new CopyOnWriteArrayList<ScopeListener>());
   }
 
   // Separate constructor to allow passing scopeListeners to super and assign locally.
-  private ContextualScopeManager(
+  private ContinuableScopeManager(
       final int depthLimit,
       final DDScopeEventFactory scopeEventFactory,
       final List<ScopeListener> scopeListeners) {

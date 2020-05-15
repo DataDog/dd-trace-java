@@ -32,7 +32,7 @@ class ScopeManagerTest extends DDSpecification {
 
   @Shared
   @Subject
-  ContextualScopeManager scopeManager
+  ContinuableScopeManager scopeManager
 
   def setupSpec() {
     latch = new CountDownLatch(1)

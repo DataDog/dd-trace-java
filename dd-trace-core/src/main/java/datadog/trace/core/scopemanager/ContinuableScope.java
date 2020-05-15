@@ -13,7 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ContinuableScope extends DelegatingScope implements DDScope {
   /** ScopeManager holding the thread-local to this scope. */
-  private final ContextualScopeManager scopeManager;
+  private final ContinuableScopeManager scopeManager;
 
   /** Scope to placed in the thread local after close. May be null. */
   private final ContinuableScope toRestore;
@@ -27,7 +27,7 @@ public class ContinuableScope extends DelegatingScope implements DDScope {
   private final AtomicInteger referenceCount = new AtomicInteger(1);
 
   ContinuableScope(
-      final ContextualScopeManager scopeManager,
+      final ContinuableScopeManager scopeManager,
       final Continuation continuation,
       final AgentScope delegate) {
     super(delegate);
@@ -109,13 +109,13 @@ public class ContinuableScope extends DelegatingScope implements DDScope {
     public WeakReference<AgentScope.Continuation> ref;
 
     private final AgentSpan spanUnderScope;
-    private final ContextualScopeManager scopeManager;
+    private final ContinuableScopeManager scopeManager;
 
     private final AgentTrace trace;
     private final AtomicBoolean used = new AtomicBoolean(false);
 
     private Continuation(
-        final AgentSpan spanUnderScope, final ContextualScopeManager scopeManager) {
+        final AgentSpan spanUnderScope, final ContinuableScopeManager scopeManager) {
 
       this.spanUnderScope = spanUnderScope;
       this.scopeManager = scopeManager;
@@ -123,7 +123,7 @@ public class ContinuableScope extends DelegatingScope implements DDScope {
     }
 
     public static Continuation create(
-        final AgentSpan spanUnderScope, final ContextualScopeManager scopeManager) {
+        final AgentSpan spanUnderScope, final ContinuableScopeManager scopeManager) {
       final Continuation continuation = new Continuation(spanUnderScope, scopeManager);
       continuation.trace.registerContinuation(continuation);
       return continuation;
