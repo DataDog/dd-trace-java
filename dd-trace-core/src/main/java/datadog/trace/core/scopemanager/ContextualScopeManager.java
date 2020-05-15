@@ -12,14 +12,25 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ContextualScopeManager extends DelegateScopeInterceptor implements DDScopeManager {
-  static final ThreadLocal<DDScope> tlsScope = new ThreadLocal<>();
-  final List<ScopeListener> scopeListeners = new CopyOnWriteArrayList<>();
+  static final ThreadLocal<ContinuableScope> tlsScope = new ThreadLocal<>();
+  private final List<ScopeListener> scopeListeners;
 
   private final int depthLimit;
 
   public ContextualScopeManager(final int depthLimit, final DDScopeEventFactory scopeEventFactory) {
-    super(new EventScopeInterceptor(scopeEventFactory, null));
+    this(depthLimit, scopeEventFactory, new CopyOnWriteArrayList<ScopeListener>());
+  }
+
+  // Separate constructor to allow passing scopeListeners to super and assign locally.
+  private ContextualScopeManager(
+      final int depthLimit,
+      final DDScopeEventFactory scopeEventFactory,
+      final List<ScopeListener> scopeListeners) {
+    super(
+        new EventScopeInterceptor(
+            scopeEventFactory, new ListenerScopeInterceptor(scopeListeners, null)));
     this.depthLimit = depthLimit;
+    this.scopeListeners = scopeListeners;
   }
 
   @Override

@@ -3,7 +3,6 @@ package datadog.trace.core.scopemanager;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
-import datadog.trace.context.ScopeListener;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.Set;
@@ -17,7 +16,7 @@ public class ContinuableScope extends DelegatingScope implements DDScope {
   private final ContextualScopeManager scopeManager;
 
   /** Scope to placed in the thread local after close. May be null. */
-  private final DDScope toRestore;
+  private final ContinuableScope toRestore;
   /** Continuation that created this scope. May be null. */
   private final Continuation continuation;
   /** Flag to propagate this scope across async boundaries. */
@@ -37,9 +36,6 @@ public class ContinuableScope extends DelegatingScope implements DDScope {
     this.continuation = continuation;
     toRestore = scopeManager.tlsScope.get();
     depth = toRestore == null ? 0 : toRestore.depth() + 1;
-    for (final ScopeListener listener : scopeManager.scopeListeners) {
-      listener.afterScopeActivated();
-    }
   }
 
   @Override
@@ -48,27 +44,20 @@ public class ContinuableScope extends DelegatingScope implements DDScope {
       return;
     }
 
-    if (null != continuation) {
-      span().context().getTrace().cancelContinuation(continuation);
-    }
-
-    for (final ScopeListener listener : scopeManager.scopeListeners) {
-      listener.afterScopeClosed();
-    }
-
-    if (scopeManager.tlsScope.get() == this) {
-      scopeManager.tlsScope.set(toRestore);
-      if (toRestore != null) {
-        for (final ScopeListener listener : scopeManager.scopeListeners) {
-          listener.afterScopeActivated();
-        }
-      }
-    } else {
+    if (scopeManager.tlsScope.get() != this) {
       log.debug(
           "Tried to close {} scope when {} is on top. Ignoring!",
           this,
           scopeManager.tlsScope.get());
+      return;
     }
+
+    if (null != continuation) {
+      span().context().getTrace().cancelContinuation(continuation);
+    }
+    scopeManager.tlsScope.set(toRestore);
+
+    super.close();
   }
 
   @Override

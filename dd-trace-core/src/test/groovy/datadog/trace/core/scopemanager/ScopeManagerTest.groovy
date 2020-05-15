@@ -420,6 +420,7 @@ class ScopeManagerTest extends DDSpecification {
     then:
     continuableScope instanceof ContinuableScope
     activatedCount.get() == 2
+    closedCount.get() == 1
 
     when:
     AgentSpan childSpan = tracer.buildSpan("foo").start()
@@ -435,7 +436,7 @@ class ScopeManagerTest extends DDSpecification {
     childSpan.finish()
 
     then:
-    activatedCount.get() == 4
+    activatedCount.get() == 3
     closedCount.get() == 2
 
     when:
@@ -443,7 +444,7 @@ class ScopeManagerTest extends DDSpecification {
     span.finish()
 
     then:
-    activatedCount.get() == 4 // the last scope closed was the last one on the stack so nothing more got activated
+    activatedCount.get() == 3 // the last scope closed was the last one on the stack so nothing more got activated
     closedCount.get() == 3
   }
 
