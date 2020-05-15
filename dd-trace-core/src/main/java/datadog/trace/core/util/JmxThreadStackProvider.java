@@ -3,6 +3,8 @@ package datadog.trace.core.util;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -12,7 +14,7 @@ public class JmxThreadStackProvider implements ThreadStackProvider {
   public static final ThreadStackProvider INSTANCE = new JmxThreadStackProvider();
 
   @Override
-  public void getStackTrace(Set<Long> threadIds, List<StackTraceElement[]> stackTraces) {
+  public List<StackTraceElement[]> getStackTrace(Set<Long> threadIds) {
     long[] ids = new long[threadIds.size()];
     int idx = 0;
     for (Long id : threadIds) {
@@ -20,8 +22,13 @@ public class JmxThreadStackProvider implements ThreadStackProvider {
       idx++;
     }
     ThreadInfo[] threadInfos = threadMXBean.getThreadInfo(ids); // maxDepth?
+    if (threadInfos.length == 0) {
+      return Collections.emptyList();
+    }
+    List<StackTraceElement[]> stackTraces = new ArrayList<>();
     for (int i = 0; i < threadInfos.length; i++) {
       stackTraces.add(threadInfos[i].getStackTrace());
     }
+    return stackTraces;
   }
 }
