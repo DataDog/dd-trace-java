@@ -145,29 +145,27 @@ public class TraceProcessingDisruptor implements AutoCloseable {
         beginTransaction();
       }
       try {
-        try {
-          if (event.force
-              || (representativeCount > 0 && serializer.shouldFlush())
-              || event.flushLatch != null) {
-            commitTransaction(event.flushLatch);
+        if (event.force
+            || (representativeCount > 0 && serializer.isAtCapacity())
+            || event.flushLatch != null) {
+          commitTransaction(event.flushLatch);
+          beginTransaction();
+        } else if (doTimeFlush && representativeCount > 0) {
+          long now = millisecondTime();
+          if (now >= nextFlushMillis) {
+            commitTransaction();
             beginTransaction();
-          } else if (doTimeFlush && representativeCount > 0) {
-            long now = millisecondTime();
-            if (now >= nextFlushMillis) {
-              commitTransaction();
-              beginTransaction();
-              scheduleNextTimeFlush(now);
-            }
+            scheduleNextTimeFlush(now);
           }
-          if (event.data != null) {
-            serialize(event.data, event.representativeCount);
-          }
-        } catch (final Throwable e) {
-          if (log.isDebugEnabled()) {
-            log.debug("Error while serializing trace", e);
-          }
-          monitor.onFailedSerialize(writer, event.data, e);
         }
+        if (event.data != null) {
+          serialize(event.data, event.representativeCount);
+        }
+      } catch (final Throwable e) {
+        if (log.isDebugEnabled()) {
+          log.debug("Error while serializing trace", e);
+        }
+        monitor.onFailedSerialize(writer, event.data, e);
       } finally {
         event.reset();
       }
@@ -185,10 +183,18 @@ public class TraceProcessingDisruptor implements AutoCloseable {
       commitTransaction(null);
     }
 
-    private void commitTransaction(CountDownLatch flushLatch) throws IOException {
+    private void commitTransaction(final CountDownLatch flushLatch) throws IOException {
       serializer.dropBuffer();
       TraceBuffer buffer = dispatchingDisruptor.getTraceBuffer(publicationTxn);
-      buffer.setLatch(flushLatch);
+      if (null != flushLatch) {
+        buffer.setDispatchRunnable(
+            new Runnable() {
+              @Override
+              public void run() {
+                flushLatch.countDown();
+              }
+            });
+      }
       buffer.setRepresentativeCount(representativeCount);
       if (log.isDebugEnabled()) {
         log.debug(

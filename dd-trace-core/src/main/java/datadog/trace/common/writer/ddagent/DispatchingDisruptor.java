@@ -44,15 +44,15 @@ public class DispatchingDisruptor implements AutoCloseable {
     disruptor.halt();
   }
 
-  public long beginTransaction() {
+  long beginTransaction() {
     return disruptor.getRingBuffer().next();
   }
 
-  public TraceBuffer getTraceBuffer(long sequence) {
+  TraceBuffer getTraceBuffer(long sequence) {
     return disruptor.getRingBuffer().get(sequence);
   }
 
-  public void commit(long sequence) {
+  void commit(long sequence) {
     disruptor.getRingBuffer().publish(sequence);
   }
 
@@ -107,7 +107,7 @@ public class DispatchingDisruptor implements AutoCloseable {
           log.debug("buffer {} was empty", traces.id());
         }
       } catch (final Throwable e) {
-        log.debug("Failed to send traces to the API: {}", e.getMessage());
+        log.debug("Failed to send traces to the API: {}", e.getMessage(), e);
 
         // DQH - 10/2019 - DDApi should wrap most exceptions itself, so this really
         // shouldn't occur.

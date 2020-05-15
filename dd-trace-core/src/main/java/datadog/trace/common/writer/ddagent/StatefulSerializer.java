@@ -30,7 +30,7 @@ public interface StatefulSerializer {
    *
    * @return true if the buffer should be reset
    */
-  boolean shouldFlush();
+  boolean isAtCapacity();
 
   /**
    * Resets the buffer to use

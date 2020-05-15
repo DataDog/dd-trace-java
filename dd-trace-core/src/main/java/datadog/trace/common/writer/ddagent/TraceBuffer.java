@@ -2,7 +2,6 @@ package datadog.trace.common.writer.ddagent;
 
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
-import java.util.concurrent.CountDownLatch;
 
 /**
  * The purpose of this abtraction is to decouple serialization from preparation of a request, to
@@ -57,11 +56,11 @@ public interface TraceBuffer {
   int id();
 
   /**
-   * Set a latch to count down when the event has been used.
+   * Set a runnable to invoke when the event has been used.
    *
-   * @param latch
+   * @param runnable
    */
-  void setLatch(CountDownLatch latch);
+  void setDispatchRunnable(Runnable runnable);
 
   /**
    * To be called when the buffer has been used, for the purposes of flushing. Doesn't have to do

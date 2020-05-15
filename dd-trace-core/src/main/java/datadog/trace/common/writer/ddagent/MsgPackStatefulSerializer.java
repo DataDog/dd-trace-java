@@ -11,7 +11,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.msgpack.core.MessagePack;
@@ -87,7 +86,7 @@ public class MsgPackStatefulSerializer implements StatefulSerializer {
   }
 
   @Override
-  public boolean shouldFlush() {
+  public boolean isAtCapacity() {
     // Return true if could not take another average trace without allocating.
     // There are many cases where this will lead to some amount of over allocation,
     // e.g. a very large trace after many very small traces, but it's a best effort
@@ -103,6 +102,7 @@ public class MsgPackStatefulSerializer implements StatefulSerializer {
     } else { // i.e. if (null == buffer || unuseable)
       this.traceBuffer = newBuffer();
     }
+    // reset the packer's position to zero
     messagePacker.clear();
     try {
       messagePacker.reset(traceBuffer.buffer);
@@ -135,7 +135,7 @@ public class MsgPackStatefulSerializer implements StatefulSerializer {
     private int length;
     private int traceCount;
     private int representativeCount;
-    private CountDownLatch flushLatch;
+    private Runnable flush;
 
     public MsgPackTraceBuffer(ArrayBufferOutput buffer) {
       this.buffer = buffer;
@@ -213,15 +213,15 @@ public class MsgPackStatefulSerializer implements StatefulSerializer {
     }
 
     @Override
-    public void setLatch(CountDownLatch latch) {
-      this.flushLatch = latch;
+    public void setDispatchRunnable(Runnable flush) {
+      this.flush = flush;
     }
 
     @Override
     public void onDispatched() {
-      if (null != flushLatch) {
-        flushLatch.countDown();
-        flushLatch = null;
+      if (null != flush) {
+        flush.run();
+        flush = null;
       }
     }
 

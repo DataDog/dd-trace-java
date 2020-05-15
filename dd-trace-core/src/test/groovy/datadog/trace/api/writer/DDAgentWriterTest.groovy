@@ -75,7 +75,7 @@ class DDAgentWriterTest extends DDSpecification {
     2 * serializer.serialize(_) >> { trace -> callRealMethod() }
     _ * serializer.reset(_) >> { trace -> callRealMethod() }
     _ * serializer.dropBuffer() >> { trace -> callRealMethod() }
-    2 * serializer.shouldFlush() >> { trace -> callRealMethod() }
+    2 * serializer.isAtCapacity() >> { trace -> callRealMethod() }
     1 * api.sendSerializedTraces({
       (it.traceCount() == 2) && (it.headerSize() == 1) && (it.representativeCount() == 2)
     }) >> DDAgentApi.Response.success(200)
@@ -105,7 +105,7 @@ class DDAgentWriterTest extends DDSpecification {
     writer.flush()
 
     then:
-    _ * serializer.shouldFlush() >> { trace -> callRealMethod() }
+    _ * serializer.isAtCapacity() >> { trace -> callRealMethod() }
     _ * serializer.dropBuffer() >> { trace -> callRealMethod() }
     _ * serializer.serialize(_) >> { trace -> callRealMethod() }
     _ * serializer.reset(_) >> { trace -> callRealMethod() }
@@ -139,7 +139,7 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     _ * serializer.serialize(_) >> { trace -> callRealMethod() }
-    _ * serializer.shouldFlush() >> { trace -> callRealMethod() }
+    _ * serializer.isAtCapacity() >> { trace -> callRealMethod() }
     _ * serializer.dropBuffer() >> { trace -> callRealMethod() }
     _ * serializer.reset(_) >> { trace -> callRealMethod() }
     1 * api.sendSerializedTraces( { it.traceCount() == 5 }) >> DDAgentApi.Response.success(200)
@@ -253,7 +253,7 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     1 * serializer.serialize(_) >> { trace -> callRealMethod() }
-    1 * serializer.shouldFlush() >> { trace -> callRealMethod() }
+    1 * serializer.isAtCapacity() >> { trace -> callRealMethod() }
     _ * serializer.dropBuffer() >> { trace -> callRealMethod() }
     _ * serializer.reset(_) >> { trace -> callRealMethod() }
     1 * monitor.onSerialize(writer, _, _)

@@ -6,7 +6,7 @@ import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
 import java.util.concurrent.ThreadFactory;
 
-public class DisruptorUtils {
+public final class DisruptorUtils {
 
   public static <T> Disruptor<T> create(
       EventFactory<T> factory,

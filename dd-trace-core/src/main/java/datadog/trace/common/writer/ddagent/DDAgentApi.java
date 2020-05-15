@@ -81,7 +81,7 @@ public class DDAgentApi {
     try {
       final Request request =
           prepareRequest(tracesUrl)
-              .addHeader(X_DATADOG_TRACE_COUNT, traces.representativeCount() + "")
+              .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(traces.representativeCount()))
               .put(new MsgPackRequestBody(traces))
               .build();
       try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
