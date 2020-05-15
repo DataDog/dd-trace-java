@@ -130,7 +130,7 @@ public class ContinuableScope implements DDScope {
   @Override
   public Continuation capture() {
     if (isAsyncPropagating()) {
-      return new Continuation(spanUnderScope, scopeManager, eventFactory);
+      return Continuation.create(spanUnderScope, scopeManager, eventFactory);
     } else {
       return null;
     }
@@ -164,9 +164,17 @@ public class ContinuableScope implements DDScope {
       this.spanUnderScope = spanUnderScope;
       this.scopeManager = scopeManager;
       this.eventFactory = eventFactory;
-      final AgentSpan.Context context = this.spanUnderScope.context();
-      trace = context.getTrace();
-      trace.registerContinuation(this);
+      trace = spanUnderScope.context().getTrace();
+    }
+
+    public static Continuation create(
+        final AgentSpan spanUnderScope,
+        final ContextualScopeManager scopeManager,
+        final DDScopeEventFactory eventFactory) {
+      final Continuation continuation =
+          new Continuation(spanUnderScope, scopeManager, eventFactory);
+      continuation.trace.registerContinuation(continuation);
+      return continuation;
     }
 
     @Override
