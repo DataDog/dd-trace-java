@@ -1,7 +1,6 @@
 package datadog.trace.core.scopemanager;
 
 import com.google.common.util.concurrent.RateLimiter;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.DDSpan;
@@ -11,7 +10,7 @@ import datadog.trace.profiling.Session;
 import java.util.concurrent.TimeUnit;
 import org.HdrHistogram.Histogram;
 
-public class TraceProfilingScopeManager implements DDScopeManager {
+public class TraceProfilingScopeManager extends ScopeInterceptor.DelegatingInterceptor {
   private static final long MAX_NANOSECONDS_BETWEEN_ACTIVATIONS = TimeUnit.SECONDS.toNanos(1);
   private static final double ACTIVATIONS_PER_SECOND = 5;
   private static final ThreadLocal<Boolean> IS_THREAD_PROFILING =
@@ -22,43 +21,27 @@ public class TraceProfilingScopeManager implements DDScopeManager {
         }
       };
 
-  private final DDScopeManager delegate;
   private final TraceStatsCollector statsCollector;
   private final RateLimiter rateLimiter = RateLimiter.create(ACTIVATIONS_PER_SECOND);
   private volatile long lastProfileTimestamp = System.nanoTime();
 
   public TraceProfilingScopeManager(
-      final DDScopeManager delegate, final TraceStatsCollector statsCollector) {
-    this.delegate = delegate;
+      final TraceStatsCollector statsCollector, final ScopeInterceptor delegate) {
+    super(delegate);
     this.statsCollector = statsCollector;
   }
 
   @Override
-  public AgentScope activate(final AgentSpan span) {
-    return considerProfiling(delegate.activate(span), span);
-  }
-
-  @Override
-  public TraceScope active() {
-    return delegate.active();
-  }
-
-  @Override
-  public AgentSpan activeSpan() {
-    return delegate.activeSpan();
-  }
-
-  private AgentScope considerProfiling(final AgentScope scope, final AgentSpan span) {
-    if (scope instanceof TraceProfilingScope
-        || IS_THREAD_PROFILING.get() // don't need to waste a permit if so.
+  public Scope handleSpan(final AgentSpan span) {
+    if (IS_THREAD_PROFILING.get() // don't need to waste a permit if so.
         || !(span instanceof DDSpan)
         || !maybeInteresting((DDSpan) span)
         || !acquireProfilePermit()) {
       // We don't want to wrap the scope for profiling.
-      return scope;
+      return delegate.handleSpan(span);
     }
     lastProfileTimestamp = System.nanoTime();
-    return new TraceProfilingScope(scope);
+    return new TraceProfilingScope(delegate.handleSpan(span));
   }
 
   private boolean maybeInteresting(final DDSpan span) {
@@ -96,14 +79,13 @@ public class TraceProfilingScopeManager implements DDScopeManager {
     return rateLimiter.tryAcquire();
   }
 
-  private static class TraceProfilingScope implements AgentScope {
+  private static class TraceProfilingScope extends DelegatingScope {
 
-    private final AgentScope delegate;
     private final Session session;
 
-    private TraceProfilingScope(final AgentScope delegate) {
+    private TraceProfilingScope(final Scope delegate) {
+      super(delegate);
       IS_THREAD_PROFILING.set(true);
-      this.delegate = delegate;
       // FIXME expose trace id in the Agent API.
       session = Profiler.startProfiling(((DDSpan) span()).getTraceId().toString());
     }
@@ -119,10 +101,20 @@ public class TraceProfilingScopeManager implements DDScopeManager {
     }
 
     @Override
+    public TraceScope.Continuation capture() {
+      return delegate.capture();
+    }
+
+    @Override
     public void close() {
       IS_THREAD_PROFILING.set(false);
       delegate.close();
       session.close();
+    }
+
+    @Override
+    public boolean isAsyncPropagating() {
+      return delegate.isAsyncPropagating();
     }
   }
 }

@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
+import datadog.trace.core.interceptor.TraceStatsCollector;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -31,18 +32,27 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
   private final int depthLimit;
 
   public ContinuableScopeManager(
-      final int depthLimit, final DDScopeEventFactory scopeEventFactory) {
-    this(depthLimit, scopeEventFactory, new CopyOnWriteArrayList<ScopeListener>());
+      final int depthLimit,
+      final DDScopeEventFactory scopeEventFactory,
+      final TraceStatsCollector traceStatsCollector) {
+    this(
+        depthLimit,
+        scopeEventFactory,
+        traceStatsCollector,
+        new CopyOnWriteArrayList<ScopeListener>());
   }
 
   // Separate constructor to allow passing scopeListeners to super arg and assign locally.
   private ContinuableScopeManager(
       final int depthLimit,
       final DDScopeEventFactory scopeEventFactory,
+      final TraceStatsCollector traceStatsCollector,
       final List<ScopeListener> scopeListeners) {
     super(
         new EventScopeInterceptor(
-            scopeEventFactory, new ListenerScopeInterceptor(scopeListeners, null)));
+            scopeEventFactory,
+            new TraceProfilingScopeManager(
+                traceStatsCollector, new ListenerScopeInterceptor(scopeListeners, null))));
     this.depthLimit = depthLimit;
     this.scopeListeners = scopeListeners;
   }

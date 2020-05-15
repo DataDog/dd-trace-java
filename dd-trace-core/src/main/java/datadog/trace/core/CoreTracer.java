@@ -24,7 +24,6 @@ import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.scopemanager.DDScopeManager;
-import datadog.trace.core.scopemanager.TraceProfilingScopeManager;
 import java.io.Closeable;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
@@ -123,8 +122,6 @@ public class CoreTracer
       sampler(Sampler.Builder.forConfig(config));
       injector(HttpCodec.createInjector(config));
       extractor(HttpCodec.createExtractor(config, config.getHeaderTags()));
-      scopeManager(
-          new ContinuableScopeManager(config.getScopeDepthLimit(), createScopeEventFactory()));
       localRootSpanTags(config.getLocalRootSpanTags());
       defaultSpanTags(config.getMergedSpanTags());
       serviceNameMappings(config.getServiceMapping());
@@ -156,16 +153,23 @@ public class CoreTracer
     assert taggedHeaders != null;
 
     this.serviceName = serviceName;
-    if (writer == null) {
-      this.writer = Writer.Builder.forConfig(config);
-    } else {
+    if (writer != null) {
       this.writer = writer;
+    } else {
+      this.writer = Writer.Builder.forConfig(config);
+    }
+    if (scopeManager != null) {
+      this.scopeManager = scopeManager;
+    } else {
+      this.scopeManager =
+          new ContinuableScopeManager(
+              config.getScopeDepthLimit(),
+              createScopeEventFactory(),
+              this.writer.getTraceStatsCollector());
     }
     this.sampler = sampler;
     this.injector = injector;
     this.extractor = extractor;
-    this.scopeManager =
-        new TraceProfilingScopeManager(scopeManager, writer.getTraceStatsCollector());
     this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
     this.serviceNameMappings = serviceNameMappings;
