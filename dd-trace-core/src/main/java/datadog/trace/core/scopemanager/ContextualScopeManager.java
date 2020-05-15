@@ -5,7 +5,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
-import datadog.trace.core.DDSpan;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -35,13 +34,7 @@ public class ContextualScopeManager implements DDScopeManager {
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
       return AgentTracer.NoopAgentScope.INSTANCE;
     }
-
-    if (span instanceof DDSpan) {
-      return new ContinuableScope(this, (DDSpan) span, scopeEventFactory);
-    } else {
-      // Noop Span
-      return new SimpleScope(this, span);
-    }
+    return new ContinuableScope(this, span, scopeEventFactory);
   }
 
   @Override

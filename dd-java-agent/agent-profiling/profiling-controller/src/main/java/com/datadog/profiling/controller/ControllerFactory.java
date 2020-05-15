@@ -35,7 +35,7 @@ public final class ControllerFactory {
     try {
       Class.forName("com.oracle.jrockit.jfr.Producer");
       throw new UnsupportedEnvironmentException(
-          "The JFR controller is currently not supported on the Oracle JDK <= JDK 11!");
+          "Not enabling profiling; it requires Oracle Java 11+.");
     } catch (final ClassNotFoundException e) {
       // Fall through - until we support Oracle JDK 7 & 8, this is a good thing. ;)
     }
@@ -49,8 +49,7 @@ public final class ControllerFactory {
         | InstantiationException
         | IllegalAccessException
         | InvocationTargetException e) {
-      String exMsg =
-          "The JFR controller could not find a supported JFR API" + getFixProposalMessage();
+      String exMsg = "Not enabling profiling" + getFixProposalMessage();
       throw new UnsupportedEnvironmentException(exMsg, e);
     }
   }
@@ -64,11 +63,11 @@ public final class ControllerFactory {
       String javaVendor = System.getProperty("java.vendor", "");
       if (javaVersion.startsWith("1.8")) {
         if (javaVendor.startsWith("Azul Systems")) {
-          return ", use Azul zulu version 1.8.0_212+";
+          return "; it requires Zulu Java 8 (1.8.0_212+).";
         }
         // TODO Add version minimum once JFR backported into OpenJDK distros
       }
-      return ", use OpenJDK 11+ or Azul zulu version 1.8.0_212+";
+      return "; it requires OpenJDK 11+, Oracle Java 11+, or Zulu Java 8 (1.8.0_212+).";
     } catch (Exception ex) {
       return "";
     }

@@ -80,7 +80,7 @@ class CustomScopeManagerWrapper implements DDScopeManager {
     }
 
     @Override
-    public Continuation capture() {
+    public TraceScope.Continuation capture() {
       if (traceScope) {
         return ((TraceScope) delegate).capture();
       } else {

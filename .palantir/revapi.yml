@@ -1,7 +1,6 @@
 acceptedBreaks:
   "0.48.0":
     com.datadoghq:dd-trace-ot:
-    # Begin classes moved to core
     - code: "java.class.removed"
       old: "class datadog.opentracing.ContainerInfo"
       justification: "Non-api class moved to core"
@@ -134,8 +133,35 @@ acceptedBreaks:
     - code: "java.class.removed"
       old: "interface datadog.opentracing.scopemanager.ScopeContext"
       justification: "Non-api class moved to core"
-    # End: Classes moved to core
-    # Begin: LogHandler method changes
+    - code: "java.field.removed"
+      old: "field datadog.opentracing.DDTracer.TRACE_ID_MAX"
+      justification: "Internal field"
+    - code: "java.field.removed"
+      old: "field datadog.opentracing.DDTracer.TRACE_ID_MIN"
+      justification: "Internal field"
+    - code: "java.method.exception.checkedAdded"
+      old: "method void datadog.opentracing.DDTracer::finalize()"
+      new: "method void java.lang.Object::finalize() throws java.lang.Throwable @\
+        \ datadog.opentracing.DDTracer"
+      justification: "finalize only needed on CoreTracer"
+    - code: "java.method.movedToSuperClass"
+      old: "method void datadog.opentracing.DDTracer::finalize()"
+      new: "method void java.lang.Object::finalize() throws java.lang.Throwable @\
+        \ datadog.opentracing.DDTracer"
+      justification: "finalize only needed on CoreTracer"
+    - code: "java.method.numberOfParametersChanged"
+      old: "method void datadog.opentracing.DDTracer.DDSpanBuilder::<init>(java.lang.String,\
+        \ io.opentracing.ScopeManager)"
+      new: "method void datadog.opentracing.DDTracer.DDSpanBuilder::<init>(java.lang.String)"
+      justification: "ScopeManager should always be the DDTracer's scopemanager"
+    - code: "java.method.parameterTypeChanged"
+      old: "parameter datadog.opentracing.DDTracer.DDTracerBuilder datadog.opentracing.DDTracer.DDTracerBuilder::extractor(===datadog.opentracing.propagation.HttpCodec.Extractor===)"
+      new: "parameter datadog.opentracing.DDTracer.DDTracerBuilder datadog.opentracing.DDTracer.DDTracerBuilder::extractor(===datadog.trace.core.propagation.HttpCodec.Extractor===)"
+      justification: "HttpCodec package and interface changed"
+    - code: "java.method.parameterTypeChanged"
+      old: "parameter datadog.opentracing.DDTracer.DDTracerBuilder datadog.opentracing.DDTracer.DDTracerBuilder::injector(===datadog.opentracing.propagation.HttpCodec.Injector===)"
+      new: "parameter datadog.opentracing.DDTracer.DDTracerBuilder datadog.opentracing.DDTracer.DDTracerBuilder::injector(===datadog.trace.core.propagation.HttpCodec.Injector===)"
+      justification: "HttpCodec package and interface changed"
     - code: "java.method.parameterTypeChanged"
       old: "parameter void datadog.opentracing.DefaultLogHandler::log(java.lang.String,\
         \ ===datadog.opentracing.DDSpan===)"
@@ -182,35 +208,17 @@ acceptedBreaks:
       new: "parameter void datadog.opentracing.LogHandler::log(long, java.util.Map<java.lang.String,\
         \ ?>, ===datadog.trace.core.DDSpan===)"
       justification: "DDSpan package changed.  LogHandler is internal"
-    # End:  Log Handler changes
-    # Begin: Internal fields and classes
-    - code: "java.field.removed"
-      old: "field datadog.opentracing.DDTracer.TRACE_ID_MAX"
-      justification: "Internal field"
-    - code: "java.field.removed"
-      old: "field datadog.opentracing.DDTracer.TRACE_ID_MIN"
-      justification: "Internal field"
-    - code: "java.method.exception.checkedAdded"
-      old: "method void datadog.opentracing.DDTracer::finalize()"
-      new: "method void java.lang.Object::finalize() throws java.lang.Throwable @\
-        \ datadog.opentracing.DDTracer"
-      justification: "finalize only needed on CoreTracer"
-    - code: "java.method.movedToSuperClass"
-      old: "method void datadog.opentracing.DDTracer::finalize()"
-      new: "method void java.lang.Object::finalize() throws java.lang.Throwable @\
-        \ datadog.opentracing.DDTracer"
-      justification: "finalize only needed on CoreTracer"
-    - code: "java.method.visibilityReduced"
-      old: "method void datadog.opentracing.DDTracer::finalize()"
-      new: "method void java.lang.Object::finalize() throws java.lang.Throwable @\
-        \ datadog.opentracing.DDTracer"
-      justification: "finalize only needed on CoreTracer"
+    - code: "java.method.removed"
+      old: "method datadog.opentracing.DDTracer.DDSpanBuilder datadog.opentracing.DDTracer.DDSpanBuilder::withLogHandler(datadog.opentracing.LogHandler)"
+      justification: "LogManager set once instead of per-span"
     - code: "java.method.removed"
       old: "method int datadog.opentracing.DDTracer::getPartialFlushMinSpans()"
       justification: "Internal method used by writer"
     - code: "java.method.removed"
-      old: "method void datadog.opentracing.DDTracer::registerClassLoader(java.lang.ClassLoader)"
-      justification: "Internal method"
+      old: "method java.lang.Iterable<java.util.Map.Entry<java.lang.String, java.lang.String>>\
+        \ datadog.opentracing.DDTracer.DDSpanBuilder::baggageItems()"
+      justification: "baggageItems() not part of SpanBuilder interface.  Was not accessible\
+        \ through buildSpan(..) workflow"
     - code: "java.method.removed"
       old: "method java.util.List<datadog.opentracing.decorators.AbstractDecorator>\
         \ datadog.opentracing.DDTracer::getSpanContextDecorators(java.lang.String)"
@@ -218,47 +226,36 @@ acceptedBreaks:
     - code: "java.method.removed"
       old: "method void datadog.opentracing.DDTracer::addDecorator(datadog.opentracing.decorators.AbstractDecorator)"
       justification: "Internal method"
-    # End: Internal fields and classes
-    # DDSpanBuilder: nonbreaking
+    - code: "java.method.removed"
+      old: "method void datadog.opentracing.DDTracer::addScopeContext(datadog.opentracing.scopemanager.ScopeContext)"
+      justification: "Deprecated ScopeContext removed"
+    - code: "java.method.removed"
+      old: "method void datadog.opentracing.DDTracer::registerClassLoader(java.lang.ClassLoader)"
+      justification: "Internal method"
     - code: "java.method.returnTypeChangedCovariantly"
-      old: "method io.opentracing.Tracer.SpanBuilder datadog.opentracing.DDTracer::buildSpan(java.lang.String)"
-      new: "method datadog.opentracing.DDTracer.DDSpanBuilder datadog.opentracing.DDTracer::buildSpan(java.lang.String)"
-      justification: "DDSpanBuilder allows extensions like withServiceName() and withResourceName()"
-    - code: "java.method.returnTypeChangedCovariantly"
-      old: "method <T> io.opentracing.Tracer.SpanBuilder datadog.opentracing.DDTracer.DDSpanBuilder::withTag(io.opentracing.tag.Tag<T>, T)"
-      new: "method <T> datadog.opentracing.DDTracer.DDSpanBuilder datadog.opentracing.DDTracer.DDSpanBuilder::withTag(io.opentracing.tag.Tag<T>, T)"
+      old: "method <T> io.opentracing.Tracer.SpanBuilder datadog.opentracing.DDTracer.DDSpanBuilder::withTag(io.opentracing.tag.Tag<T>,\
+        \ T)"
+      new: "method <T> datadog.opentracing.DDTracer.DDSpanBuilder datadog.opentracing.DDTracer.DDSpanBuilder::withTag(io.opentracing.tag.Tag<T>,\
+        \ T)"
       justification: "Returning DDSpanBuilder allows chaining"
     - code: "java.method.returnTypeChangedCovariantly"
       old: "method io.opentracing.Tracer.SpanBuilder datadog.opentracing.DDTracer.DDSpanBuilder::ignoreActiveSpan()"
       new: "method datadog.opentracing.DDTracer.DDSpanBuilder datadog.opentracing.DDTracer.DDSpanBuilder::ignoreActiveSpan()"
       justification: "Returning DDSpanBuilder allows chaining"
-    # DDSpanBuilder: nonbreaking
-    # Begin: Breaking changes
-    - code: "java.method.parameterTypeChanged"
-      old: "parameter datadog.opentracing.DDTracer.DDTracerBuilder datadog.opentracing.DDTracer.DDTracerBuilder::extractor(===datadog.opentracing.propagation.HttpCodec.Extractor===)"
-      new: "parameter datadog.opentracing.DDTracer.DDTracerBuilder datadog.opentracing.DDTracer.DDTracerBuilder::extractor(===datadog.trace.core.propagation.HttpCodec.Extractor===)"
-      justification: "HttpCodec package and interface changed"
-    - code: "java.method.parameterTypeChanged"
-      old: "parameter datadog.opentracing.DDTracer.DDTracerBuilder datadog.opentracing.DDTracer.DDTracerBuilder::injector(===datadog.opentracing.propagation.HttpCodec.Injector===)"
-      new: "parameter datadog.opentracing.DDTracer.DDTracerBuilder datadog.opentracing.DDTracer.DDTracerBuilder::injector(===datadog.trace.core.propagation.HttpCodec.Injector===)"
-      justification: "HttpCodec package and interface changed"
-    - code: "java.method.removed"
-      old: "method void datadog.opentracing.DDTracer::addScopeContext(datadog.opentracing.scopemanager.ScopeContext)"
-      justification: "Deprecated ScopeContext removed"
-    - code: "java.method.removed"
-      old: "method java.lang.Iterable<java.util.Map.Entry<java.lang.String, java.lang.String>>\
-        \ datadog.opentracing.DDTracer.DDSpanBuilder::baggageItems()"
-      justification: "baggageItems() not part of SpanBuilder interface.  Was not accessible through buildSpan(..) workflow"
-    - code: "java.method.numberOfParametersChanged"
-      old: "method void datadog.opentracing.DDTracer.DDSpanBuilder::<init>(java.lang.String, io.opentracing.ScopeManager)"
-      new: "method void datadog.opentracing.DDTracer.DDSpanBuilder::<init>(java.lang.String)"
-      justification: "ScopeManager should always be the DDTracer's scopemanager"
-    - code: "java.method.removed"
-      old: "method datadog.opentracing.DDTracer.DDSpanBuilder datadog.opentracing.DDTracer.DDSpanBuilder::withLogHandler(datadog.opentracing.LogHandler)"
-      justification: "LogManager set once instead of per-span"
-    # End: Breaking changes
+    - code: "java.method.returnTypeChangedCovariantly"
+      old: "method io.opentracing.Tracer.SpanBuilder datadog.opentracing.DDTracer::buildSpan(java.lang.String)"
+      new: "method datadog.opentracing.DDTracer.DDSpanBuilder datadog.opentracing.DDTracer::buildSpan(java.lang.String)"
+      justification: "DDSpanBuilder allows extensions like withServiceName() and withResourceName()"
+    - code: "java.method.visibilityReduced"
+      old: "method void datadog.opentracing.DDTracer::finalize()"
+      new: "method void java.lang.Object::finalize() throws java.lang.Throwable @\
+        \ datadog.opentracing.DDTracer"
+      justification: "finalize only needed on CoreTracer"
   "0.51.0":
     com.datadoghq:dd-trace-ot:
+    - code: "java.class.removed"
+      old: "class datadog.trace.core.scopemanager.SimpleScope"
+      justification: "SimpleScope shouldn't be used and is now removed"
     - code: "java.method.removed"
       old: "method datadog.trace.bootstrap.instrumentation.api.AgentScope datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI::activateSpan(datadog.trace.bootstrap.instrumentation.api.AgentSpan,\
         \ boolean)"

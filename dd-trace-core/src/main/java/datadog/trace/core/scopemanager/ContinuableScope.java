@@ -1,13 +1,14 @@
 package datadog.trace.core.scopemanager;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.context.ScopeListener;
-import datadog.trace.context.TraceScope;
-import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.PendingTrace;
 import datadog.trace.core.jfr.DDScopeEvent;
 import datadog.trace.core.jfr.DDScopeEventFactory;
+import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +20,7 @@ public class ContinuableScope implements DDScope {
   /**
    * Span contained by this scope. Async scopes will hold a reference to the parent scope's span.
    */
-  private final DDSpan spanUnderScope;
+  private final AgentSpan spanUnderScope;
 
   private final DDScopeEventFactory eventFactory;
   /** Event for this scope */
@@ -37,7 +38,7 @@ public class ContinuableScope implements DDScope {
 
   ContinuableScope(
       final ContextualScopeManager scopeManager,
-      final DDSpan spanUnderScope,
+      final AgentSpan spanUnderScope,
       final DDScopeEventFactory eventFactory) {
     this(scopeManager, null, spanUnderScope, eventFactory);
   }
@@ -45,7 +46,7 @@ public class ContinuableScope implements DDScope {
   private ContinuableScope(
       final ContextualScopeManager scopeManager,
       final Continuation continuation,
-      final DDSpan spanUnderScope,
+      final AgentSpan spanUnderScope,
       final DDScopeEventFactory eventFactory) {
     assert spanUnderScope != null : "span must not be null";
     this.scopeManager = scopeManager;
@@ -96,7 +97,7 @@ public class ContinuableScope implements DDScope {
   }
 
   @Override
-  public DDSpan span() {
+  public AgentSpan span() {
     return spanUnderScope;
   }
 
@@ -129,7 +130,7 @@ public class ContinuableScope implements DDScope {
   @Override
   public Continuation capture() {
     if (isAsyncPropagating()) {
-      return new Continuation(spanUnderScope, scopeManager, eventFactory);
+      return Continuation.create(spanUnderScope, scopeManager, eventFactory);
     } else {
       return null;
     }
@@ -145,27 +146,35 @@ public class ContinuableScope implements DDScope {
    * maintain private constructor access.
    */
   @Slf4j // This is important to prevent the log messages below from referencing the super class.
-  public static class Continuation implements TraceScope.Continuation {
-    public WeakReference<Continuation> ref;
+  public static class Continuation implements AgentScope.Continuation {
+    public WeakReference<AgentScope.Continuation> ref;
 
-    private final DDSpan spanUnderScope;
+    private final AgentSpan spanUnderScope;
     private final ContextualScopeManager scopeManager;
     private final DDScopeEventFactory eventFactory;
 
-    private final PendingTrace trace;
+    private final AgentTrace trace;
     private final AtomicBoolean used = new AtomicBoolean(false);
 
     private Continuation(
-        final DDSpan spanUnderScope,
+        final AgentSpan spanUnderScope,
         final ContextualScopeManager scopeManager,
         final DDScopeEventFactory eventFactory) {
 
       this.spanUnderScope = spanUnderScope;
       this.scopeManager = scopeManager;
       this.eventFactory = eventFactory;
-      final DDSpanContext context = this.spanUnderScope.context();
-      trace = context.getTrace();
-      trace.registerContinuation(this);
+      trace = spanUnderScope.context().getTrace();
+    }
+
+    public static Continuation create(
+        final AgentSpan spanUnderScope,
+        final ContextualScopeManager scopeManager,
+        final DDScopeEventFactory eventFactory) {
+      final Continuation continuation =
+          new Continuation(spanUnderScope, scopeManager, eventFactory);
+      continuation.trace.registerContinuation(continuation);
+      return continuation;
     }
 
     @Override
@@ -189,6 +198,24 @@ public class ContinuableScope implements DDScope {
       } else {
         log.debug("Failed to close continuation {}. Already used.", this);
       }
+    }
+
+    @Override
+    public boolean isRegistered() {
+      return ref != null;
+    }
+
+    @Override
+    public WeakReference<AgentScope.Continuation> register(final ReferenceQueue referenceQueue) {
+      ref = new WeakReference<AgentScope.Continuation>(this, referenceQueue);
+      return ref;
+    }
+
+    @Override
+    public void cancel(final Set<WeakReference<?>> weakReferences) {
+      weakReferences.remove(ref);
+      ref.clear();
+      ref = null;
     }
   }
 }
