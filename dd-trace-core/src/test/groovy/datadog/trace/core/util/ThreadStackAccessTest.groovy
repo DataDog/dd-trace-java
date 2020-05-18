@@ -13,6 +13,8 @@ class ThreadStackAccessTest extends DDSpecification {
 
     then:
     provider instanceof NoneThreadStackProvider
+    provider.getStackTrace(Collections.emptyList()).isEmpty()
+    provider.getThreadInfo(Collections.emptyList()).isEmpty()
 
     cleanup:
     ThreadStackAccess.disableJmx()
