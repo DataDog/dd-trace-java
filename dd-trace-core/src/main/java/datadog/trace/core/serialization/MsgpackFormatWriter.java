@@ -31,31 +31,13 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   public void writeMapFooter(final MessagePacker destination) {}
 
   @Override
-  public void writeString(final String key, final String value, final MessagePacker destination)
-      throws IOException {
-    writeStringUTF8(key, destination);
+  public void writeString(byte[] key, String value, MessagePacker destination) throws IOException {
+    writeKey(key, destination);
     if (value == null) {
       destination.packNil();
     } else {
       destination.packString(value);
     }
-  }
-
-  @Override
-  public void writeTag(String key, String value, MessagePacker destination) throws IOException {
-    // there's a good chance that the tag value will be something we have interned
-    writeStringUTF8(key, destination);
-    if (value == null) {
-      destination.packNil();
-    } else {
-      writeStringUTF8(value, destination);
-    }
-  }
-
-  @Override
-  public void writeString(byte[] key, String value, MessagePacker destination) throws IOException {
-    writeKey(key, destination);
-    destination.packString(value);
   }
 
   @Override
@@ -103,48 +85,6 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
     } else {
       destination.packBigInteger(value);
     }
-  }
-
-  @Override
-  public void writeShort(final String key, final short value, final MessagePacker destination)
-      throws IOException {
-    writeStringUTF8(key, destination);
-    destination.packShort(value);
-  }
-
-  @Override
-  public void writeByte(final String key, final byte value, final MessagePacker destination)
-      throws IOException {
-    writeStringUTF8(key, destination);
-    destination.packByte(value);
-  }
-
-  @Override
-  public void writeInt(final String key, final int value, final MessagePacker destination)
-      throws IOException {
-    writeStringUTF8(key, destination);
-    destination.packInt(value);
-  }
-
-  @Override
-  public void writeLong(final String key, final long value, final MessagePacker destination)
-      throws IOException {
-    writeStringUTF8(key, destination);
-    destination.packLong(value);
-  }
-
-  @Override
-  public void writeFloat(final String key, final float value, final MessagePacker destination)
-      throws IOException {
-    writeStringUTF8(key, destination);
-    destination.packFloat(value);
-  }
-
-  @Override
-  public void writeDouble(final String key, final double value, final MessagePacker destination)
-      throws IOException {
-    writeStringUTF8(key, destination);
-    destination.packDouble(value);
   }
 
   private static void writeStringUTF8(String value, MessagePacker destination) throws IOException {

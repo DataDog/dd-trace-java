@@ -14,8 +14,10 @@ import static datadog.trace.core.StringTables.TRACE_ID;
 import static datadog.trace.core.StringTables.TYPE;
 
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.StringTables;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -30,10 +32,6 @@ public abstract class FormatWriter<DEST> {
   public abstract void writeMapHeader(int size, DEST destination) throws IOException;
 
   public abstract void writeMapFooter(DEST destination) throws IOException;
-
-  public void writeTag(String key, String value, DEST destination) throws IOException {
-    writeString(key, value, destination);
-  }
 
   public void writeTag(byte[] key, String value, DEST destination) throws IOException {
     writeString(key, value, destination);
@@ -56,21 +54,7 @@ public abstract class FormatWriter<DEST> {
   public abstract void writeBigInteger(byte[] key, BigInteger value, DEST destination)
       throws IOException;
 
-  public abstract void writeString(String key, String value, DEST destination) throws IOException;
-
-  public abstract void writeShort(String key, short value, DEST destination) throws IOException;
-
-  public abstract void writeByte(String key, byte value, DEST destination) throws IOException;
-
-  public abstract void writeInt(String key, int value, DEST destination) throws IOException;
-
-  public abstract void writeLong(String key, long value, DEST destination) throws IOException;
-
-  public abstract void writeFloat(String key, float value, DEST destination) throws IOException;
-
-  public abstract void writeDouble(String key, double value, DEST destination) throws IOException;
-
-  public void writeNumber(final String key, final Number value, final DEST destination)
+  public void writeNumber(final byte[] key, final Number value, final DEST destination)
       throws IOException {
     if (value instanceof Double) {
       writeDouble(key, value.doubleValue(), destination);
@@ -93,7 +77,7 @@ public abstract class FormatWriter<DEST> {
     writeKey(key, destination);
     writeMapHeader(value.size(), destination);
     for (final Map.Entry<String, Number> entry : value.entrySet()) {
-      writeNumber(entry.getKey(), entry.getValue(), destination);
+      writeNumber(stringToBytes(entry.getKey()), entry.getValue(), destination);
     }
     writeMapFooter(destination);
   }
@@ -108,7 +92,7 @@ public abstract class FormatWriter<DEST> {
   void writeStringMap(final Map<String, String> value, final DEST destination) throws IOException {
     writeMapHeader(value.size(), destination);
     for (final Map.Entry<String, String> entry : value.entrySet()) {
-      writeString(entry.getKey(), entry.getValue(), destination);
+      writeString(stringToBytes(entry.getKey()), entry.getValue(), destination);
     }
     writeMapFooter(destination);
   }
@@ -137,5 +121,10 @@ public abstract class FormatWriter<DEST> {
     /* 11 */ writeNumberMap(METRICS, span.getMetrics(), destination);
     /* 12 */ writeStringMap(META, span.getMeta(), destination);
     writeMapFooter(destination);
+  }
+
+  private byte[] stringToBytes(String string) {
+    byte[] key = StringTables.getBytesUTF8(string);
+    return null == key ? string.getBytes(StandardCharsets.UTF_8) : key;
   }
 }

@@ -96,55 +96,6 @@ public class JsonFormatWriter extends FormatWriter<JsonWriter> {
     destination.value(value);
   }
 
-  @Override
-  public void writeString(final String key, final String value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
-    destination.value(value);
-  }
-
-  @Override
-  public void writeShort(final String key, final short value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
-    destination.value(value);
-  }
-
-  @Override
-  public void writeByte(final String key, final byte value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
-    destination.value(value);
-  }
-
-  @Override
-  public void writeInt(final String key, final int value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
-    destination.value(value);
-  }
-
-  @Override
-  public void writeLong(final String key, final long value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
-    destination.value(value);
-  }
-
-  @Override
-  public void writeFloat(final String key, final float value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
-    destination.value(value);
-  }
-
-  @Override
-  public void writeDouble(final String key, final double value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
-    destination.value(value);
-  }
-
   static class DDSpanAdapter extends JsonAdapter<DDSpan> {
     public static final JsonAdapter.Factory FACTORY =
         new JsonAdapter.Factory() {
