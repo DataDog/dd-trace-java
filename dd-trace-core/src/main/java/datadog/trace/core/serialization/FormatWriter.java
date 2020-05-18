@@ -14,6 +14,7 @@ import static datadog.trace.core.StringTables.TRACE_ID;
 import static datadog.trace.core.StringTables.TYPE;
 
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.MapAcceptor;
 import datadog.trace.core.StringTables;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -82,19 +83,9 @@ public abstract class FormatWriter<DEST> {
     writeMapFooter(destination);
   }
 
-  public void writeStringMap(
-      final byte[] key, final Map<String, String> value, final DEST destination)
-      throws IOException {
-    writeKey(key, destination);
-    writeStringMap(value, destination);
-  }
-
-  void writeStringMap(final Map<String, String> value, final DEST destination) throws IOException {
-    writeMapHeader(value.size(), destination);
-    for (final Map.Entry<String, String> entry : value.entrySet()) {
-      writeTag(stringToBytes(entry.getKey()), entry.getValue(), destination);
-    }
-    writeMapFooter(destination);
+  public void writeMeta(final DDSpan span, final DEST destination) throws IOException {
+    writeKey(META, destination);
+    span.transferMeta(getMetaAcceptor(destination));
   }
 
   public void writeTrace(final List<DDSpan> trace, final DEST destination) throws IOException {
@@ -119,9 +110,12 @@ public abstract class FormatWriter<DEST> {
     /* 9  */ writeTag(TYPE, span.getType(), destination);
     /* 10 */ writeInt(ERROR, span.getError(), destination);
     /* 11 */ writeNumberMap(METRICS, span.getMetrics(), destination);
-    /* 12 */ writeStringMap(META, span.getMeta(), destination);
+    /* 12 */ writeMeta(span, destination);
     writeMapFooter(destination);
   }
+
+  /** A destination to serialize the span's meta into */
+  protected abstract MapAcceptor<String> getMetaAcceptor(DEST destination);
 
   private byte[] stringToBytes(String string) {
     byte[] key = StringTables.getBytesUTF8(string);

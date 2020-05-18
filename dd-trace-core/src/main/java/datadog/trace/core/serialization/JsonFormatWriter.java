@@ -6,6 +6,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.MapAcceptor;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -94,6 +95,39 @@ public class JsonFormatWriter extends FormatWriter<JsonWriter> {
       throws IOException {
     writeKey(key, destination);
     destination.value(value);
+  }
+
+  @Override
+  protected MapAcceptor<String> getMetaAcceptor(final JsonWriter destination) {
+    return new MapAcceptor<String>() {
+      @Override
+      public void beginMap(int size) {
+        try {
+          writeMapHeader(size, destination);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      @Override
+      public void acceptValue(String key, String value) {
+        try {
+          destination.name(key);
+          destination.value(value);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      @Override
+      public void endMap() {
+        try {
+          writeMapFooter(destination);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    };
   }
 
   static class DDSpanAdapter extends JsonAdapter<DDSpan> {

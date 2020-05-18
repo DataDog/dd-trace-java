@@ -9,7 +9,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -261,19 +261,21 @@ public class DDSpan implements MutableSpan, AgentSpan {
   // Getters
 
   /**
-   * Meta merges baggage and tags (stringified values)
+   * Meta merges baggage and tags (stringified values) into a writable destination
    *
-   * @return merged context baggage and tags
+   * @return
    */
-  public Map<String, String> getMeta() {
-    final Map<String, String> meta = new HashMap<>();
-    for (final Map.Entry<String, String> entry : context.getBaggageItems().entrySet()) {
-      meta.put(entry.getKey(), entry.getValue());
+  public void transferMeta(MapAcceptor<String> acceptor) {
+    Map<String, String> baggageItems = context.getBaggageItems();
+    Map<String, Object> tags = context.getTags();
+    acceptor.beginMap(baggageItems.size() + tags.size());
+    for (Map.Entry<String, String> entry : baggageItems.entrySet()) {
+      acceptor.acceptValue(entry.getKey(), entry.getValue());
     }
-    for (final Map.Entry<String, Object> entry : getTags().entrySet()) {
-      meta.put(entry.getKey(), String.valueOf(entry.getValue()));
+    for (Map.Entry<String, Object> entry : tags.entrySet()) {
+      acceptor.acceptValue(entry.getKey(), String.valueOf(entry.getValue()));
     }
-    return meta;
+    acceptor.endMap();
   }
 
   /**
@@ -354,7 +356,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
 
   @Override
   public Map<String, Object> getTags() {
-    return context.getTags();
+    return Collections.unmodifiableMap(context.getTags());
   }
 
   public String getType() {
