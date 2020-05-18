@@ -5,7 +5,5 @@ import datadog.trace.context.TraceScope;
 
 // Intentionally package private.
 interface DDScope extends AgentScope, TraceScope {
-  int depth();
-
-  DDScope incrementReferences();
+  void afterActivated();
 }

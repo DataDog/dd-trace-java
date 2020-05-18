@@ -1,13 +1,12 @@
 package datadog.trace.core.scopemanager;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.ScopeListener;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-class ListenerScopeInterceptor extends DelegateScopeInterceptor {
+class ListenerScopeInterceptor extends ScopeInterceptor.DelegateScopeInterceptor {
   final List<ScopeListener> scopeListeners;
 
   public ListenerScopeInterceptor(
@@ -17,18 +16,24 @@ class ListenerScopeInterceptor extends DelegateScopeInterceptor {
   }
 
   @Override
-  public AgentScope handleSpan(final AgentSpan span) {
-    final AgentScope wrapped = new NotifyingScope(delegate.handleSpan(span));
-    for (final ScopeListener listener : scopeListeners) {
-      listener.afterScopeActivated();
+  public DDScope handleSpan(final AgentSpan span) {
+    if (scopeListeners.isEmpty()) {
+      return delegate.handleSpan(span);
     }
-    return wrapped;
+    return new NotifyingScope(delegate.handleSpan(span));
   }
 
   private class NotifyingScope extends DelegatingScope {
-
-    public NotifyingScope(final AgentScope delegate) {
+    public NotifyingScope(final DDScope delegate) {
       super(delegate);
+    }
+
+    @Override
+    public void afterActivated() {
+      super.afterActivated();
+      for (final ScopeListener listener : scopeListeners) {
+        listener.afterScopeActivated();
+      }
     }
 
     @Override

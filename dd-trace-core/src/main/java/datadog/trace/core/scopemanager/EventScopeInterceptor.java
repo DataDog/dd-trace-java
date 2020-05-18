@@ -1,13 +1,12 @@
 package datadog.trace.core.scopemanager;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.jfr.DDScopeEvent;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-class EventScopeInterceptor extends DelegateScopeInterceptor {
+class EventScopeInterceptor extends ScopeInterceptor.DelegateScopeInterceptor {
 
   private final DDScopeEventFactory eventFactory;
 
@@ -18,7 +17,7 @@ class EventScopeInterceptor extends DelegateScopeInterceptor {
   }
 
   @Override
-  public AgentScope handleSpan(final AgentSpan span) {
+  public DDScope handleSpan(final AgentSpan span) {
     return new EventScope(span.context(), delegate.handleSpan(span));
   }
 
@@ -26,9 +25,14 @@ class EventScopeInterceptor extends DelegateScopeInterceptor {
 
     private final DDScopeEvent event;
 
-    public EventScope(final AgentSpan.Context context, final AgentScope delegate) {
+    public EventScope(final AgentSpan.Context context, final DDScope delegate) {
       super(delegate);
       event = eventFactory.create(context);
+    }
+
+    @Override
+    public void afterActivated() {
+      super.afterActivated();
       event.start();
     }
 

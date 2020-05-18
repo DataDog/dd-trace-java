@@ -17,7 +17,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ContinuableScopeManager extends DelegateScopeInterceptor implements DDScopeManager {
+public class ContinuableScopeManager extends ScopeInterceptor.DelegateScopeInterceptor
+    implements DDScopeManager {
   static final ThreadLocal<ContinuableScope> tlsScope = new ThreadLocal<>();
 
   private final List<ScopeListener> scopeListeners;
@@ -42,7 +43,7 @@ public class ContinuableScopeManager extends DelegateScopeInterceptor implements
 
   @Override
   public AgentScope activate(final AgentSpan span) {
-    final DDScope active = tlsScope.get();
+    final ContinuableScope active = tlsScope.get();
     if (active != null && active.span().equals(span)) {
       return active.incrementReferences();
     }
@@ -55,13 +56,14 @@ public class ContinuableScopeManager extends DelegateScopeInterceptor implements
   }
 
   @Override
-  public AgentScope handleSpan(final AgentSpan span) {
+  public DDScope handleSpan(final AgentSpan span) {
     return handleSpan(null, span);
   }
 
-  private AgentScope handleSpan(final Continuation continuation, final AgentSpan span) {
+  private DDScope handleSpan(final Continuation continuation, final AgentSpan span) {
     final ContinuableScope scope = new ContinuableScope(continuation, delegate.handleSpan(span));
     tlsScope.set(scope);
+    scope.afterActivated();
     return scope;
   }
 
@@ -85,7 +87,7 @@ public class ContinuableScopeManager extends DelegateScopeInterceptor implements
     /** Scope to placed in the thread local after close. May be null. */
     private final ContinuableScope toRestore;
     /** Continuation that created this scope. May be null. */
-    private final Continuation continuation;
+    private final ContinuableScopeManager.Continuation continuation;
     /** Flag to propagate this scope across async boundaries. */
     private final AtomicBoolean isAsyncPropagating = new AtomicBoolean(false);
     /** depth of scope on thread */
@@ -93,7 +95,8 @@ public class ContinuableScopeManager extends DelegateScopeInterceptor implements
 
     private final AtomicInteger referenceCount = new AtomicInteger(1);
 
-    ContinuableScope(final Continuation continuation, final AgentScope delegate) {
+    ContinuableScope(
+        final ContinuableScopeManager.Continuation continuation, final DDScope delegate) {
       super(delegate);
       assert delegate.span() != null;
       this.continuation = continuation;
@@ -120,12 +123,10 @@ public class ContinuableScopeManager extends DelegateScopeInterceptor implements
       super.close();
     }
 
-    @Override
     public int depth() {
       return depth;
     }
 
-    @Override
     public DDScope incrementReferences() {
       referenceCount.incrementAndGet();
       return this;
