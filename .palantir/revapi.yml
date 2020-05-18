@@ -254,8 +254,22 @@ acceptedBreaks:
   "0.51.0":
     com.datadoghq:dd-trace-ot:
     - code: "java.class.removed"
+      old: "class datadog.trace.common.writer.ddagent.BatchWritingDisruptor"
+      justification: "refactor trace serialization pipeline"
+    - code: "java.class.removed"
       old: "class datadog.trace.core.scopemanager.SimpleScope"
       justification: "SimpleScope shouldn't be used and is now removed"
+    - code: "java.field.removed"
+      old: "field datadog.trace.common.writer.ddagent.AbstractDisruptor<T>.running\
+        \ @ datadog.trace.common.writer.ddagent.TraceProcessingDisruptor"
+      justification: "refactor trace serialization pipeline"
+    - code: "java.method.removed"
+      old: "method boolean datadog.trace.common.writer.ddagent.AbstractDisruptor<T>::flush(int,\
+        \ java.util.concurrent.CountDownLatch) @ datadog.trace.common.writer.ddagent.TraceProcessingDisruptor"
+      justification: "refactor trace serialization pipeline"
+    - code: "java.method.removed"
+      old: "method datadog.common.exec.DaemonThreadFactory datadog.trace.common.writer.ddagent.TraceProcessingDisruptor::getThreadFactory()"
+      justification: "refactor trace serialization pipeline"
     - code: "java.method.removed"
       old: "method datadog.trace.bootstrap.instrumentation.api.AgentScope datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI::activateSpan(datadog.trace.bootstrap.instrumentation.api.AgentSpan,\
         \ boolean)"
@@ -279,6 +293,10 @@ acceptedBreaks:
       old: "method datadog.trace.bootstrap.instrumentation.api.AgentScope datadog.trace.core.scopemanager.DDScopeManager::activate(datadog.trace.bootstrap.instrumentation.api.AgentSpan,\
         \ boolean)"
       justification: "Removed deprecated APIs preventing refactoring"
+    - code: "java.method.removed"
+      old: "method long datadog.trace.common.writer.ddagent.AbstractDisruptor<T>::getCurrentCount()\
+        \ @ datadog.trace.common.writer.ddagent.TraceProcessingDisruptor"
+      justification: "refactor trace serialization pipeline"
     - code: "java.method.removed"
       old: "method void datadog.trace.core.scopemanager.ContinuableScope.Continuation::close()"
       justification: "Removed deprecated APIs preventing refactoring"
