@@ -138,11 +138,11 @@ class ScopeManagerTest extends DDSpecification {
     for (int i = 0; i <= depth; i++) {
       def span = tracer.buildSpan("test").start()
       scope = tracer.activateSpan(span)
-      assert scope instanceof ScopeInterceptor.Scope
+      assert scope instanceof ContinuableScopeManager.ContinuableScope
     }
 
     then: "last scope is still valid"
-    (scope as ScopeInterceptor.Scope).depth() == depth
+    (scope as ContinuableScopeManager.ContinuableScope).depth() == depth
 
     when: "activate a scope over the limit"
     scope = scopeManager.activate(NoopAgentSpan.INSTANCE)
@@ -157,7 +157,7 @@ class ScopeManagerTest extends DDSpecification {
     scope instanceof NoopAgentScope
 
     and: "scope stack not effected."
-    (scopeManager.active() as ScopeInterceptor.Scope).depth() == depth
+    (scopeManager.active() as ContinuableScopeManager.ContinuableScope).depth() == depth
 
     where:
     depth = scopeManager.depthLimit
@@ -200,7 +200,7 @@ class ScopeManagerTest extends DDSpecification {
   def "test continuation doesn't have hard reference on scope"() {
     setup:
     def span = tracer.buildSpan("test").start()
-    def scopeRef = new AtomicReference<ScopeInterceptor.Scope>(tracer.activateSpan(span) as ScopeInterceptor.Scope)
+    def scopeRef = new AtomicReference<AgentScope>(tracer.activateSpan(span))
     scopeRef.get().setAsyncPropagation(true)
     def continuation = scopeRef.get().capture()
     scopeRef.get().close()
