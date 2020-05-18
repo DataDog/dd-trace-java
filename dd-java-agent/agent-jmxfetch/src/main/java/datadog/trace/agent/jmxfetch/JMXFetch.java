@@ -56,16 +56,18 @@ public class JMXFetch {
     final Map<String, String> globalTags = config.getMergedJmxTags();
     final String reporter = getReporter(config);
 
-    log.info(
-        "JMXFetch config: {} {} {} {} {} {} {} {}",
-        jmxFetchConfigDir,
-        jmxFetchConfigs,
-        internalMetricsConfigs,
-        metricsConfigs,
-        checkPeriod,
-        refreshBeansPeriod,
-        globalTags,
-        reporter);
+    if (log.isInfoEnabled()) {
+      log.info(
+          "JMXFetch config: {} {} {} {} {} {} {} {}",
+          jmxFetchConfigDir,
+          jmxFetchConfigs,
+          internalMetricsConfigs,
+          metricsConfigs,
+          checkPeriod,
+          refreshBeansPeriod,
+          globalTags,
+          reporter);
+    }
 
     final AppConfig.AppConfigBuilder configBuilder =
         AppConfig.builder()

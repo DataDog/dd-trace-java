@@ -2,7 +2,8 @@ package datadog.trace.core;
 
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.common.exec.CommonTaskExecutor.Task;
-import datadog.trace.core.scopemanager.ContinuableScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.core.util.Clock;
 import java.io.Closeable;
 import java.lang.ref.Reference;
@@ -23,10 +24,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
+public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements AgentTrace {
 
   static PendingTrace create(final CoreTracer tracer, final BigInteger traceId) {
-    PendingTrace pendingTrace = new PendingTrace(tracer, traceId);
+    final PendingTrace pendingTrace = new PendingTrace(tracer, traceId);
     pendingTrace.addPendingTrace();
     return pendingTrace;
   }
@@ -113,7 +114,9 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
         span.ref = new WeakReference<DDSpan>(span, referenceQueue);
         weakReferences.add(span.ref);
         final int count = pendingReferenceCount.incrementAndGet();
-        log.debug("traceId: {} -- registered span {}. count = {}", traceId, span, count);
+        if (log.isDebugEnabled()) {
+          log.debug("traceId: {} -- registered span {}. count = {}", traceId, span, count);
+        }
       } else {
         log.debug("span {} already registered in trace {}", span, traceId);
       }
@@ -174,30 +177,33 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> {
    * When using continuations, it's possible one may be used after all existing spans are otherwise
    * completed, so we need to wait till continuations are de-referenced before reporting.
    */
-  public void registerContinuation(final ContinuableScope.Continuation continuation) {
+  @Override
+  public void registerContinuation(final AgentScope.Continuation continuation) {
     synchronized (continuation) {
-      if (continuation.ref == null) {
-        continuation.ref =
-            new WeakReference<ContinuableScope.Continuation>(continuation, referenceQueue);
-        weakReferences.add(continuation.ref);
+      if (!continuation.isRegistered()) {
+        weakReferences.add(continuation.register(referenceQueue));
         final int count = pendingReferenceCount.incrementAndGet();
-        log.debug(
-            "traceId: {} -- registered continuation {}. count = {}", traceId, continuation, count);
+        if (log.isDebugEnabled()) {
+          log.debug(
+              "traceId: {} -- registered continuation {}. count = {}",
+              traceId,
+              continuation,
+              count);
+        }
       } else {
         log.debug("continuation {} already registered in trace {}", continuation, traceId);
       }
     }
   }
 
-  public void cancelContinuation(final ContinuableScope.Continuation continuation) {
+  @Override
+  public void cancelContinuation(final AgentScope.Continuation continuation) {
     synchronized (continuation) {
-      if (continuation.ref == null) {
-        log.debug("continuation {} not registered in trace {}", continuation, traceId);
-      } else {
-        weakReferences.remove(continuation.ref);
-        continuation.ref.clear();
-        continuation.ref = null;
+      if (continuation.isRegistered()) {
+        continuation.cancel(weakReferences);
         expireReference();
+      } else {
+        log.debug("continuation {} not registered in trace {}", continuation, traceId);
       }
     }
   }

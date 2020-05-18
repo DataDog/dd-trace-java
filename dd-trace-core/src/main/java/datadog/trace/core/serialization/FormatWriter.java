@@ -92,7 +92,7 @@ public abstract class FormatWriter<DEST> {
   void writeStringMap(final Map<String, String> value, final DEST destination) throws IOException {
     writeMapHeader(value.size(), destination);
     for (final Map.Entry<String, String> entry : value.entrySet()) {
-      writeString(stringToBytes(entry.getKey()), entry.getValue(), destination);
+      writeTag(stringToBytes(entry.getKey()), entry.getValue(), destination);
     }
     writeMapFooter(destination);
   }

@@ -1,8 +1,14 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.interceptor.MutableSpan;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.context.TraceScope;
-import datadog.trace.context.TraceScope.Continuation;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class AgentTracer {
@@ -32,16 +38,12 @@ public class AgentTracer {
     return get().activateSpan(span);
   }
 
-  /** @deprecated use {@link #activateSpan(AgentSpan)} instead */
-  @Deprecated
-  public static AgentScope activateSpan(final AgentSpan span, final boolean finishSpanOnClose) {
-    return get().activateSpan(span, finishSpanOnClose);
-  }
-
   public static AgentSpan activeSpan() {
     return get().activeSpan();
   }
 
+  // TODO figure out an alternative for this since it limits cleanup in ScopeManager.
+  @Deprecated
   public static TraceScope activeScope() {
     return get().activeScope();
   }
@@ -80,10 +82,6 @@ public class AgentTracer {
 
     AgentScope activateSpan(AgentSpan span);
 
-    /** @deprecated use {@link #activateSpan(AgentSpan)} instead */
-    @Deprecated
-    AgentScope activateSpan(AgentSpan span, boolean finishSpanOnClose);
-
     AgentSpan activeSpan();
 
     TraceScope activeScope();
@@ -120,13 +118,6 @@ public class AgentTracer {
 
     @Override
     public AgentScope activateSpan(final AgentSpan span) {
-      return activateSpan(span);
-    }
-
-    /** @deprecated use {@link #activateSpan(AgentSpan)} instead */
-    @Deprecated
-    @Override
-    public AgentScope activateSpan(final AgentSpan span, final boolean finishSpanOnClose) {
       return NoopAgentScope.INSTANCE;
     }
 
@@ -160,6 +151,16 @@ public class AgentTracer {
     }
 
     @Override
+    public MutableSpan setTag(final String tag, final Number value) {
+      return this;
+    }
+
+    @Override
+    public Boolean isError() {
+      return false;
+    }
+
+    @Override
     public AgentSpan setTag(final String key, final int value) {
       return this;
     }
@@ -175,12 +176,82 @@ public class AgentTracer {
     }
 
     @Override
+    public long getStartTime() {
+      return 0;
+    }
+
+    @Override
+    public long getDurationNano() {
+      return 0;
+    }
+
+    @Override
+    public String getOperationName() {
+      return null;
+    }
+
+    @Override
+    public MutableSpan setOperationName(final String serviceName) {
+      return this;
+    }
+
+    @Override
+    public String getServiceName() {
+      return null;
+    }
+
+    @Override
+    public MutableSpan setServiceName(final String serviceName) {
+      return this;
+    }
+
+    @Override
+    public String getResourceName() {
+      return null;
+    }
+
+    @Override
+    public MutableSpan setResourceName(final String resourceName) {
+      return this;
+    }
+
+    @Override
+    public Integer getSamplingPriority() {
+      return PrioritySampling.UNSET;
+    }
+
+    @Override
+    public MutableSpan setSamplingPriority(final int newPriority) {
+      return this;
+    }
+
+    @Override
+    public String getSpanType() {
+      return null;
+    }
+
+    @Override
+    public MutableSpan setSpanType(final String type) {
+      return this;
+    }
+
+    @Override
+    public Map<String, Object> getTags() {
+      return Collections.emptyMap();
+    }
+
+    @Override
     public AgentSpan setTag(final String key, final String value) {
       return this;
     }
 
     @Override
     public AgentSpan setError(final boolean error) {
+      return this;
+    }
+
+    @Override
+    public MutableSpan getRootSpan() {
       return this;
     }
 
@@ -240,7 +311,7 @@ public class AgentTracer {
     public void setAsyncPropagation(final boolean value) {}
 
     @Override
-    public Continuation capture() {
+    public AgentScope.Continuation capture() {
       return NoopContinuation.INSTANCE;
     }
 
@@ -257,7 +328,7 @@ public class AgentTracer {
     static final NoopAgentPropagation INSTANCE = new NoopAgentPropagation();
 
     @Override
-    public Continuation capture() {
+    public AgentScope.Continuation capture() {
       return NoopContinuation.INSTANCE;
     }
 
@@ -270,7 +341,7 @@ public class AgentTracer {
     }
   }
 
-  static class NoopContinuation implements Continuation {
+  static class NoopContinuation implements AgentScope.Continuation {
     static final NoopContinuation INSTANCE = new NoopContinuation();
 
     @Override
@@ -282,13 +353,35 @@ public class AgentTracer {
     public void cancel() {}
 
     @Override
-    public void close() {}
+    public boolean isRegistered() {
+      return false;
+    }
 
     @Override
-    public void close(final boolean closeContinuationScope) {}
+    public WeakReference<AgentScope.Continuation> register(final ReferenceQueue referenceQueue) {
+      return new WeakReference<>(null);
+    }
+
+    @Override
+    public void cancel(final Set<WeakReference<?>> weakReferences) {}
   }
 
   public static class NoopContext implements Context {
     public static final NoopContext INSTANCE = new NoopContext();
+
+    @Override
+    public AgentTrace getTrace() {
+      return NoopAgentTrace.INSTANCE;
+    }
+  }
+
+  public static class NoopAgentTrace implements AgentTrace {
+    public static final NoopAgentTrace INSTANCE = new NoopAgentTrace();
+
+    @Override
+    public void registerContinuation(final AgentScope.Continuation continuation) {}
+
+    @Override
+    public void cancelContinuation(final AgentScope.Continuation continuation) {}
   }
 }

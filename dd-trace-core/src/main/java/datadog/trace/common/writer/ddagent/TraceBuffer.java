@@ -16,9 +16,16 @@ public interface TraceBuffer {
    * The size in bytes of the data in the buffer, may be less than or equal to the total size of the
    * buffer.
    *
-   * @return
+   * @return the size in bytes
    */
   int sizeInBytes();
+
+  /**
+   * The size of any metadata which will be written
+   *
+   * @return
+   */
+  int headerSize();
 
   /**
    * The number of traces held in the buffer
@@ -26,6 +33,40 @@ public interface TraceBuffer {
    * @return the number of traces in the buffer.
    */
   int traceCount();
+
+  /**
+   * The number of traces during the period this buffer was being written to, including those which
+   * were dropped.
+   *
+   * @return the representative count of traces
+   */
+  int representativeCount();
+
+  /**
+   * Tag the buffer with the representative count of all traces which weren't dropped while it was
+   * being built.
+   */
+  void setRepresentativeCount(int representativeCount);
+
+  /**
+   * The identity
+   *
+   * @return
+   */
+  int id();
+
+  /**
+   * Set a runnable to invoke when the event has been used.
+   *
+   * @param runnable
+   */
+  void setDispatchRunnable(Runnable runnable);
+
+  /**
+   * To be called when the buffer has been used, for the purposes of flushing. Doesn't have to do
+   * anything.
+   */
+  void onDispatched();
 
   /**
    * Writes the pooled buffer to the channel and consumes the buffer. Can only be called once; after
