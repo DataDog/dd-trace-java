@@ -15,7 +15,9 @@ public class JMXSessionFactory implements SessionFactory {
 
   public Session createSession(String id, Thread thread) {
     long threadId = thread.getId();
-    JMXSession session = jmxSessions.computeIfAbsent(threadId, key -> new JMXSession(id, threadId, sink, jmxSessions));
+    JMXSession session =
+        jmxSessions.computeIfAbsent(
+            threadId, key -> new JMXSession(id, threadId, sink, jmxSessions));
     session.incRefCount();
     return session;
   }
