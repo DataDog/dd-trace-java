@@ -1,6 +1,5 @@
 package datadog.trace.core.serialization;
 
-import datadog.trace.core.StringTables;
 import java.io.IOException;
 import java.math.BigInteger;
 import org.msgpack.core.MessagePacker;
@@ -9,7 +8,7 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   public static MsgpackFormatWriter MSGPACK_WRITER = new MsgpackFormatWriter();
 
   @Override
-  public void writeKey(byte[] key, MessagePacker destination) throws IOException {
+  public void writeKey(final byte[] key, final MessagePacker destination) throws IOException {
     destination.packRawStringHeader(key.length);
     destination.addPayload(key);
   }
@@ -31,7 +30,8 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   public void writeMapFooter(final MessagePacker destination) {}
 
   @Override
-  public void writeString(byte[] key, String value, MessagePacker destination) throws IOException {
+  public void writeString(final byte[] key, final String value, final MessagePacker destination)
+      throws IOException {
     writeKey(key, destination);
     if (value == null) {
       destination.packNil();
@@ -41,43 +41,50 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   }
 
   @Override
-  public void writeShort(byte[] key, short value, MessagePacker destination) throws IOException {
+  public void writeShort(final byte[] key, final short value, final MessagePacker destination)
+      throws IOException {
     writeKey(key, destination);
     destination.packShort(value);
   }
 
   @Override
-  public void writeByte(byte[] key, byte value, MessagePacker destination) throws IOException {
+  public void writeByte(final byte[] key, final byte value, final MessagePacker destination)
+      throws IOException {
     writeKey(key, destination);
     destination.packByte(value);
   }
 
   @Override
-  public void writeInt(byte[] key, int value, MessagePacker destination) throws IOException {
+  public void writeInt(final byte[] key, final int value, final MessagePacker destination)
+      throws IOException {
     writeKey(key, destination);
     destination.packInt(value);
   }
 
   @Override
-  public void writeLong(byte[] key, long value, MessagePacker destination) throws IOException {
+  public void writeLong(final byte[] key, final long value, final MessagePacker destination)
+      throws IOException {
     writeKey(key, destination);
     destination.packLong(value);
   }
 
   @Override
-  public void writeFloat(byte[] key, float value, MessagePacker destination) throws IOException {
+  public void writeFloat(final byte[] key, final float value, final MessagePacker destination)
+      throws IOException {
     writeKey(key, destination);
     destination.packFloat(value);
   }
 
   @Override
-  public void writeDouble(byte[] key, double value, MessagePacker destination) throws IOException {
+  public void writeDouble(final byte[] key, final double value, final MessagePacker destination)
+      throws IOException {
     writeKey(key, destination);
     destination.packDouble(value);
   }
 
   @Override
-  public void writeBigInteger(byte[] key, BigInteger value, MessagePacker destination)
+  public void writeBigInteger(
+      final byte[] key, final BigInteger value, final MessagePacker destination)
       throws IOException {
     writeKey(key, destination);
     if (value == null) {
@@ -85,17 +92,5 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
     } else {
       destination.packBigInteger(value);
     }
-  }
-
-  private static void writeStringUTF8(String value, MessagePacker destination) throws IOException {
-    if (value.length() < 256) {
-      byte[] interned = StringTables.getBytesUTF8(value);
-      if (null != interned) {
-        destination.packRawStringHeader(interned.length);
-        destination.addPayload(interned);
-        return;
-      }
-    }
-    destination.packString(value);
   }
 }
