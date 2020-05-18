@@ -16,8 +16,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * The primary ScopeManager. This class has ownership of the core ThreadLocal containing the
+ * currently active Scope. Such scopes can be suspended with a Continuation to prevent the trace
+ * from being reported even if all related spans are finished. It also delegates to other
+ * ScopeInterceptors to provide additional functionality.
+ */
 @Slf4j
-public class ContinuableScopeManager extends ScopeInterceptor.DelegateScopeInterceptor
+public class ContinuableScopeManager extends ScopeInterceptor.DelegatingInterceptor
     implements DDScopeManager {
   static final ThreadLocal<ContinuableScope> tlsScope = new ThreadLocal<>();
 
@@ -56,11 +62,11 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegateScopeInter
   }
 
   @Override
-  public DDScope handleSpan(final AgentSpan span) {
+  public Scope handleSpan(final AgentSpan span) {
     return handleSpan(null, span);
   }
 
-  private DDScope handleSpan(final Continuation continuation, final AgentSpan span) {
+  private Scope handleSpan(final Continuation continuation, final AgentSpan span) {
     final ContinuableScope scope = new ContinuableScope(continuation, delegate.handleSpan(span));
     tlsScope.set(scope);
     scope.afterActivated();
@@ -74,7 +80,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegateScopeInter
 
   @Override
   public AgentSpan activeSpan() {
-    final DDScope active = tlsScope.get();
+    final Scope active = tlsScope.get();
     return active == null ? null : active.span();
   }
 
@@ -83,7 +89,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegateScopeInter
     scopeListeners.add(listener);
   }
 
-  private class ContinuableScope extends DelegatingScope implements DDScope {
+  private class ContinuableScope extends DelegatingScope implements Scope {
     /** Scope to placed in the thread local after close. May be null. */
     private final ContinuableScope toRestore;
     /** Continuation that created this scope. May be null. */
@@ -96,7 +102,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegateScopeInter
     private final AtomicInteger referenceCount = new AtomicInteger(1);
 
     ContinuableScope(
-        final ContinuableScopeManager.Continuation continuation, final DDScope delegate) {
+        final ContinuableScopeManager.Continuation continuation, final Scope delegate) {
       super(delegate);
       assert delegate.span() != null;
       this.continuation = continuation;
@@ -127,7 +133,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegateScopeInter
       return depth;
     }
 
-    public DDScope incrementReferences() {
+    public Scope incrementReferences() {
       referenceCount.incrementAndGet();
       return this;
     }

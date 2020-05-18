@@ -5,8 +5,9 @@ import datadog.trace.core.jfr.DDScopeEvent;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import lombok.extern.slf4j.Slf4j;
 
+/** Manages events' lifecycle for JFR based on the start and stop of a particular scope */
 @Slf4j
-class EventScopeInterceptor extends ScopeInterceptor.DelegateScopeInterceptor {
+class EventScopeInterceptor extends ScopeInterceptor.DelegatingInterceptor {
 
   private final DDScopeEventFactory eventFactory;
 
@@ -17,7 +18,7 @@ class EventScopeInterceptor extends ScopeInterceptor.DelegateScopeInterceptor {
   }
 
   @Override
-  public DDScope handleSpan(final AgentSpan span) {
+  public Scope handleSpan(final AgentSpan span) {
     return new EventScope(span.context(), delegate.handleSpan(span));
   }
 
@@ -25,7 +26,7 @@ class EventScopeInterceptor extends ScopeInterceptor.DelegateScopeInterceptor {
 
     private final DDScopeEvent event;
 
-    public EventScope(final AgentSpan.Context context, final DDScope delegate) {
+    public EventScope(final AgentSpan.Context context, final Scope delegate) {
       super(delegate);
       event = eventFactory.create(context);
     }

@@ -5,8 +5,9 @@ import datadog.trace.context.ScopeListener;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
+/** This class is responsible for calling the ScopeListeners when the scope changes. */
 @Slf4j
-class ListenerScopeInterceptor extends ScopeInterceptor.DelegateScopeInterceptor {
+class ListenerScopeInterceptor extends ScopeInterceptor.DelegatingInterceptor {
   final List<ScopeListener> scopeListeners;
 
   public ListenerScopeInterceptor(
@@ -16,7 +17,7 @@ class ListenerScopeInterceptor extends ScopeInterceptor.DelegateScopeInterceptor
   }
 
   @Override
-  public DDScope handleSpan(final AgentSpan span) {
+  public Scope handleSpan(final AgentSpan span) {
     if (scopeListeners.isEmpty()) {
       return delegate.handleSpan(span);
     }
@@ -24,7 +25,7 @@ class ListenerScopeInterceptor extends ScopeInterceptor.DelegateScopeInterceptor
   }
 
   private class NotifyingScope extends DelegatingScope {
-    public NotifyingScope(final DDScope delegate) {
+    public NotifyingScope(final Scope delegate) {
       super(delegate);
     }
 
@@ -42,6 +43,11 @@ class ListenerScopeInterceptor extends ScopeInterceptor.DelegateScopeInterceptor
       for (final ScopeListener listener : scopeListeners) {
         listener.afterScopeClosed();
       }
+      /**
+       * We could check if a new span is active and call afterActivated again to maintain prior
+       * semantics, but this causes extra modifications for our primary use case -- Logging MDC
+       * updates, which have copy-on-write semantics, so the extra modifications are undesirable.
+       */
     }
   }
 }
