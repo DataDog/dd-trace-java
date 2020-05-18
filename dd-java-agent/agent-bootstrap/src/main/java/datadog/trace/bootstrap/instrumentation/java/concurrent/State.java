@@ -23,7 +23,7 @@ public class State {
 
   public boolean setContinuation(final TraceScope.Continuation continuation) {
     final boolean result = continuationRef.compareAndSet(null, continuation);
-    if (!result) {
+    if (!result && log.isDebugEnabled()) {
       log.debug(
           "Failed to set continuation because another continuation is already set {}: new: {}, old: {}",
           this,

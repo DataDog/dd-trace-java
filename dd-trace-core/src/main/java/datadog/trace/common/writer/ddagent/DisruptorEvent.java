@@ -40,9 +40,7 @@ class DisruptorEvent<T> {
   static class HeartbeatTranslator<T> implements EventTranslator<DisruptorEvent<T>> {
 
     @Override
-    public void translateTo(final DisruptorEvent<T> event, final long sequence) {
-      return;
-    }
+    public void translateTo(final DisruptorEvent<T> event, final long sequence) {}
   }
 
   static class FlushTranslator<T>

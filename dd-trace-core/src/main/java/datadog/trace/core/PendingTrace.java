@@ -114,7 +114,9 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
         span.ref = new WeakReference<DDSpan>(span, referenceQueue);
         weakReferences.add(span.ref);
         final int count = pendingReferenceCount.incrementAndGet();
-        log.debug("traceId: {} -- registered span {}. count = {}", traceId, span, count);
+        if (log.isDebugEnabled()) {
+          log.debug("traceId: {} -- registered span {}. count = {}", traceId, span, count);
+        }
       } else {
         log.debug("span {} already registered in trace {}", span, traceId);
       }
@@ -181,8 +183,13 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
       if (!continuation.isRegistered()) {
         weakReferences.add(continuation.register(referenceQueue));
         final int count = pendingReferenceCount.incrementAndGet();
-        log.debug(
-            "traceId: {} -- registered continuation {}. count = {}", traceId, continuation, count);
+        if (log.isDebugEnabled()) {
+          log.debug(
+              "traceId: {} -- registered continuation {}. count = {}",
+              traceId,
+              continuation,
+              count);
+        }
       } else {
         log.debug("continuation {} already registered in trace {}", continuation, traceId);
       }

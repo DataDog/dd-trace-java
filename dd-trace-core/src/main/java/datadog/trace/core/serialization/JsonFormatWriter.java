@@ -23,8 +23,8 @@ public class JsonFormatWriter extends FormatWriter<JsonWriter> {
   public static JsonFormatWriter JSON_WRITER = new JsonFormatWriter();
 
   @Override
-  public void writeKey(final String key, final JsonWriter destination) throws IOException {
-    destination.name(key);
+  public void writeKey(byte[] key, JsonWriter destination) throws IOException {
+    destination.name(new String(key));
   }
 
   @Override
@@ -48,58 +48,51 @@ public class JsonFormatWriter extends FormatWriter<JsonWriter> {
   }
 
   @Override
-  public void writeString(final String key, final String value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
+  public void writeString(byte[] key, String value, JsonWriter destination) throws IOException {
+    writeKey(key, destination);
     destination.value(value);
   }
 
   @Override
-  public void writeShort(final String key, final short value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
+  public void writeShort(byte[] key, short value, JsonWriter destination) throws IOException {
+    writeKey(key, destination);
     destination.value(value);
   }
 
   @Override
-  public void writeByte(final String key, final byte value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
+  public void writeByte(byte[] key, byte value, JsonWriter destination) throws IOException {
+    writeKey(key, destination);
     destination.value(value);
   }
 
   @Override
-  public void writeInt(final String key, final int value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
+  public void writeInt(byte[] key, int value, JsonWriter destination) throws IOException {
+    writeKey(key, destination);
     destination.value(value);
   }
 
   @Override
-  public void writeLong(final String key, final long value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
+  public void writeLong(byte[] key, long value, JsonWriter destination) throws IOException {
+    writeKey(key, destination);
     destination.value(value);
   }
 
   @Override
-  public void writeFloat(final String key, final float value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
+  public void writeFloat(byte[] key, float value, JsonWriter destination) throws IOException {
+    writeKey(key, destination);
     destination.value(value);
   }
 
   @Override
-  public void writeDouble(final String key, final double value, final JsonWriter destination)
-      throws IOException {
-    destination.name(key);
+  public void writeDouble(byte[] key, double value, JsonWriter destination) throws IOException {
+    writeKey(key, destination);
     destination.value(value);
   }
 
   @Override
-  public void writeBigInteger(
-      final String key, final BigInteger value, final JsonWriter destination) throws IOException {
-    destination.name(key);
+  public void writeBigInteger(byte[] key, BigInteger value, JsonWriter destination)
+      throws IOException {
+    writeKey(key, destination);
     destination.value(value);
   }
 

@@ -114,6 +114,10 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     true
   }
 
+  boolean testException() {
+    true
+  }
+
   /** Return the expected resource name */
   String testPathParam() {
     null
@@ -431,6 +435,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 
   def "test exception"() {
     setup:
+    assumeTrue(testException())
     def request = request(EXCEPTION, method, body).build()
     def response = client.newCall(request).execute()
 

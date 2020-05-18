@@ -50,8 +50,10 @@ class B3HttpCodec {
         }
         log.debug("{} - B3 parent context injected", context.getTraceId());
       } catch (final NumberFormatException e) {
-        log.debug(
-            "Cannot parse context id(s): {} {}", context.getTraceId(), context.getSpanId(), e);
+        if (log.isDebugEnabled()) {
+          log.debug(
+              "Cannot parse context id(s): {} {}", context.getTraceId(), context.getSpanId(), e);
+        }
       }
     }
 

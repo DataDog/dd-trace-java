@@ -49,4 +49,6 @@ public class DDComponents {
   public static final String SPRING_SCHEDULING = "spring-scheduling";
   public static final String SPRING_WEB_CONTROLLER = "spring-web-controller";
   public static final String JAVA_SPY_MEMCACHED = "java-spymemcached";
+  public static final String GRIZZLY_HTTP_ASYNC_CLIENT = "grizzly-http-async-client";
+  public static final String GRIZZLY_FILTER_CHAIN_SERVER = "grizzly-filterchain-server";
 }

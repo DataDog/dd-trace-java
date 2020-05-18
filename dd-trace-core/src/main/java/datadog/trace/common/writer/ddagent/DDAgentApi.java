@@ -1,7 +1,5 @@
 package datadog.trace.common.writer.ddagent;
 
-import static org.msgpack.core.MessagePack.Code.ARRAY16;
-import static org.msgpack.core.MessagePack.Code.ARRAY32;
 import static org.msgpack.core.MessagePack.Code.FIXARRAY_PREFIX;
 
 import com.squareup.moshi.JsonAdapter;
@@ -75,11 +73,7 @@ public class DDAgentApi {
     }
   }
 
-  Response sendSerializedTraces(
-      final int representativeCount,
-      final int traceCount,
-      final int sizeInBytes,
-      final List<TraceBuffer> traces) {
+  Response sendSerializedTraces(final TraceBuffer traces) {
     if (httpClient == null) {
       detectEndpointAndBuildClient();
     }
@@ -87,17 +81,16 @@ public class DDAgentApi {
     try {
       final Request request =
           prepareRequest(tracesUrl)
-              .addHeader(X_DATADOG_TRACE_COUNT, String.valueOf(representativeCount))
-              .put(new MsgPackRequestBody(traceCount, sizeInBytes, traces))
+              .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(traces.representativeCount()))
+              .put(new MsgPackRequestBody(traces))
               .build();
-
       try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
         if (response.code() != 200) {
           if (log.isDebugEnabled()) {
             log.debug(
                 "Error while sending {} of {} traces to the DD agent. Status: {}, Response: {}, Body: {}",
-                traces.size(),
-                representativeCount,
+                traces.traceCount(),
+                traces.representativeCount(),
                 response.code(),
                 response.message(),
                 response.body().string());
@@ -105,27 +98,26 @@ public class DDAgentApi {
             nextAllowedLogTime = System.currentTimeMillis() + MILLISECONDS_BETWEEN_ERROR_LOG;
             log.warn(
                 "Error while sending {} of {} traces to the DD agent. Status: {} {} (going silent for {} minutes)",
-                traces.size(),
-                representativeCount,
+                traces.traceCount(),
+                traces.representativeCount(),
                 response.code(),
                 response.message(),
                 TimeUnit.MILLISECONDS.toMinutes(MILLISECONDS_BETWEEN_ERROR_LOG));
           }
           return Response.failed(response.code());
         }
-
-        log.debug(
-            "Successfully sent {} of {} traces to the DD agent.",
-            traces.size(),
-            representativeCount);
-
+        if (log.isDebugEnabled()) {
+          log.debug(
+              "Successfully sent {} of {} traces to the DD agent.",
+              traces.traceCount(),
+              traces.representativeCount());
+        }
         final String responseString = response.body().string().trim();
         try {
           if (!"".equals(responseString) && !"OK".equalsIgnoreCase(responseString)) {
             final Map<String, Map<String, Number>> parsedResponse =
                 RESPONSE_ADAPTER.fromJson(responseString);
             final String endpoint = tracesUrl.toString();
-
             for (final DDAgentResponseListener listener : responseListeners) {
               listener.onResponse(endpoint, parsedResponse);
             }
@@ -133,7 +125,6 @@ public class DDAgentApi {
           return Response.success(response.code());
         } catch (final IOException e) {
           log.debug("Failed to parse DD agent response: " + responseString, e);
-
           return Response.success(response.code(), e);
         }
       }
@@ -141,17 +132,22 @@ public class DDAgentApi {
       if (log.isDebugEnabled()) {
         log.debug(
             "Error while sending "
-                + traces.size()
+                + traces.traceCount()
                 + " of "
-                + representativeCount
+                + traces.representativeCount()
+                + " (size="
+                + (traces.sizeInBytes() / 1024)
+                + "KB)"
                 + " traces to the DD agent.",
             e);
       } else if (nextAllowedLogTime < System.currentTimeMillis()) {
         nextAllowedLogTime = System.currentTimeMillis() + MILLISECONDS_BETWEEN_ERROR_LOG;
         log.warn(
-            "Error while sending {} of {} traces to the DD agent. {}: {} (going silent for {} minutes)",
-            traces.size(),
-            representativeCount,
+            "Error while sending {} of {} (size={}KB, bufferId={}) traces to the DD agent. {}: {} (going silent for {} minutes)",
+            traces.traceCount(),
+            traces.representativeCount(),
+            (traces.sizeInBytes() / 1024),
+            ((MsgPackStatefulSerializer.MsgPackTraceBuffer) traces).id,
             e.getClass().getName(),
             e.getMessage(),
             TimeUnit.MILLISECONDS.toMinutes(MILLISECONDS_BETWEEN_ERROR_LOG));
@@ -254,22 +250,22 @@ public class DDAgentApi {
    */
   public static final class Response {
     /** Factory method for a successful request with a trivial response body */
-    public static final Response success(final int status) {
+    public static Response success(final int status) {
       return new Response(true, status, null);
     }
 
     /** Factory method for a successful request will a malformed response body */
-    public static final Response success(final int status, final Throwable exception) {
+    public static Response success(final int status, final Throwable exception) {
       return new Response(true, status, exception);
     }
 
     /** Factory method for a request that receive an error status in response */
-    public static final Response failed(final int status) {
+    public static Response failed(final int status) {
       return new Response(false, status, null);
     }
 
     /** Factory method for a failed communication attempt */
-    public static final Response failed(final Throwable exception) {
+    public static Response failed(final Throwable exception) {
       return new Response(false, null, exception);
     }
 
@@ -299,13 +295,9 @@ public class DDAgentApi {
   }
 
   private static class MsgPackRequestBody extends RequestBody {
-    private final int traceCount;
-    private final int sizeInBytes;
-    private final List<TraceBuffer> traces;
+    private final TraceBuffer traces;
 
-    private MsgPackRequestBody(int traceCount, int sizeInBytes, List<TraceBuffer> traces) {
-      this.traceCount = traceCount;
-      this.sizeInBytes = sizeInBytes;
+    private MsgPackRequestBody(TraceBuffer traces) {
       this.traces = traces;
     }
 
@@ -316,31 +308,13 @@ public class DDAgentApi {
 
     @Override
     public long contentLength() {
-      // Need to allocate additional to handle MessagePacker.packArrayHeader
-      if (traceCount < (1 << 4)) {
-        return sizeInBytes + 1; // byte
-      } else if (traceCount < (1 << 16)) {
-        return sizeInBytes + 3; // byte + short
-      } else {
-        return sizeInBytes + 5; // byte + int
-      }
+      return traces.headerSize() + traces.sizeInBytes();
     }
 
     @Override
     public void writeTo(final BufferedSink sink) throws IOException {
-      // inlines behaviour from MessagePacker.packArrayHeader
-      if (traceCount < (1 << 4)) {
-        sink.writeByte((byte) (traceCount | FIXARRAY_PREFIX));
-      } else if (traceCount < (1 << 16)) {
-        sink.writeByte(ARRAY16);
-        sink.writeShort(traceCount);
-      } else {
-        sink.writeByte(ARRAY32);
-        sink.writeInt(traceCount);
-      }
-      for (TraceBuffer trace : traces) {
-        trace.writeTo(sink);
-      }
+      traces.writeTo(sink);
+      sink.flush();
     }
   }
 }

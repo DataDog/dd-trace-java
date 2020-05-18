@@ -2,6 +2,7 @@ apply from: "${rootDir}/gradle/java.gradle"
 
 // We have some general logging paths that are hard to test
 minimumInstructionCoverage = 0.8
+minimumBranchCoverage = 0.8
 
 excludedClassesCoverage += [
   // ControllerFactory gets better tested in actual controller implementations
