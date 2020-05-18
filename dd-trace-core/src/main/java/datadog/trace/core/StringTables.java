@@ -14,18 +14,18 @@ import java.util.Map;
 
 public class StringTables {
 
-  public static final String SERVICE = "service";
-  public static final String NAME = "name";
-  public static final String RESOURCE = "resource";
-  public static final String TRACE_ID = "trace_id";
-  public static final String SPAN_ID = "span_id";
-  public static final String PARENT_ID = "parent_id";
-  public static final String START = "start";
-  public static final String DURATION = "duration";
-  public static final String TYPE = "type";
-  public static final String ERROR = "error";
-  public static final String METRICS = "metrics";
-  public static final String META = "meta";
+  public static final byte[] SERVICE = "service".getBytes(UTF_8);
+  public static final byte[] NAME = "name".getBytes(UTF_8);
+  public static final byte[] RESOURCE = "resource".getBytes(UTF_8);
+  public static final byte[] TRACE_ID = "trace_id".getBytes(UTF_8);
+  public static final byte[] SPAN_ID = "span_id".getBytes(UTF_8);
+  public static final byte[] PARENT_ID = "parent_id".getBytes(UTF_8);
+  public static final byte[] START = "start".getBytes(UTF_8);
+  public static final byte[] DURATION = "duration".getBytes(UTF_8);
+  public static final byte[] TYPE = "type".getBytes(UTF_8);
+  public static final byte[] ERROR = "error".getBytes(UTF_8);
+  public static final byte[] METRICS = "metrics".getBytes(UTF_8);
+  public static final byte[] META = "meta".getBytes(UTF_8);
 
   // intentionally not thread safe; must be maintained to be effectively immutable
   // if a constant registration API is added, should be ensured that this is only used during
