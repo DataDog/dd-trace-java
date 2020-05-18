@@ -3,8 +3,8 @@ package datadog.trace.common.writer.ddagent;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import com.lmax.disruptor.BlockingWaitStrategy;
 import com.lmax.disruptor.EventHandler;
+import com.lmax.disruptor.SleepingWaitStrategy;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
 import datadog.common.exec.CommonTaskExecutor;
@@ -53,7 +53,9 @@ public class TraceProcessingDisruptor implements AutoCloseable {
             disruptorSize,
             DaemonThreadFactory.TRACE_PROCESSOR,
             ProducerType.MULTI,
-            new BlockingWaitStrategy());
+            // use sleeping wait strategy because it reduces CPU usage,
+            // and is cheaper for application threads publishing traces
+            new SleepingWaitStrategy(0, MILLISECONDS.toNanos(10)));
     disruptor.handleEventsWith(
         new TraceSerializingHandler(
             dispatchingDisruptor, monitor, writer, serializer, flushInterval, timeUnit));
