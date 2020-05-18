@@ -31,6 +31,7 @@ public class DispatchingDisruptor implements AutoCloseable {
             disruptorSize,
             DaemonThreadFactory.TRACE_WRITER,
             ProducerType.SINGLE,
+            // block (and use no resources) until there's a batch of data to dispatch
             new BlockingWaitStrategy());
     disruptor.handleEventsWith(new TraceDispatchingHandler(api, monitor, writer));
   }
