@@ -6,6 +6,8 @@ import java.util.List;
 
 public interface StatefulSerializer {
 
+  // TODO make this generic in T extends TraceBuffer
+
   /**
    * Serialises the trace into a trace buffer.
    *

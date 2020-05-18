@@ -37,7 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 public class DDAgentWriter implements Writer {
 
   private static final int DISRUPTOR_BUFFER_SIZE = 1024;
-  private static final int OUTSTANDING_REQUESTS = 8;
+  private static final int OUTSTANDING_REQUESTS = 4;
 
   private final DDAgentApi api;
   private final TraceProcessingDisruptor traceProcessingDisruptor;
@@ -96,8 +96,7 @@ public class DDAgentWriter implements Writer {
       final int traceBufferSize,
       final Monitor monitor,
       final int flushFrequencySeconds,
-      final StatefulSerializer serializer,
-      final boolean disableHeartbeat) {
+      final StatefulSerializer serializer) {
     if (agentApi != null) {
       api = agentApi;
     } else {
@@ -116,7 +115,7 @@ public class DDAgentWriter implements Writer {
             s,
             flushFrequencySeconds,
             TimeUnit.SECONDS,
-            !disableHeartbeat && flushFrequencySeconds > 0);
+            flushFrequencySeconds > 0);
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -183,9 +182,11 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public void start() {
-    dispatchingDisruptor.start();
-    traceProcessingDisruptor.start();
-    monitor.onStart(this);
+    if (!closed) {
+      dispatchingDisruptor.start();
+      traceProcessingDisruptor.start();
+      monitor.onStart(this);
+    }
   }
 
   @Override

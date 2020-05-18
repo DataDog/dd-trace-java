@@ -166,7 +166,6 @@ class DDAgentWriterTest extends DDSpecification {
       .traceBufferSize(DISRUPTOR_BUFFER_SIZE)
       .flushFrequencySeconds(-1)
       .serializer(serializer)
-      .disableHeartbeat(true)
       .build()
     writer.start()
 
