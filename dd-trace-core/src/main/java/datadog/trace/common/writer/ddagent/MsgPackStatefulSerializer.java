@@ -45,11 +45,11 @@ public class MsgPackStatefulSerializer implements StatefulSerializer {
   // caches an Encoder
   private final MessagePacker messagePacker;
 
-  private final int[] traceSizes = new int[TRACE_HISTORY_SIZE];
+  private final int[] traceSizeHistory = new int[TRACE_HISTORY_SIZE];
   private final int sizeThresholdBytes;
   private final int bufferSize;
 
-  private int traceSizeSum;
+  private int runningTraceSizeSum;
   private int position;
   private MsgPackTraceBuffer traceBuffer;
 
@@ -60,8 +60,8 @@ public class MsgPackStatefulSerializer implements StatefulSerializer {
   }
 
   public MsgPackStatefulSerializer(int sizeThresholdBytes, int bufferSize) {
-    Arrays.fill(traceSizes, INITIAL_TRACE_SIZE_ESTIMATE);
-    this.traceSizeSum = INITIAL_TRACE_SIZE_ESTIMATE * TRACE_HISTORY_SIZE;
+    Arrays.fill(traceSizeHistory, INITIAL_TRACE_SIZE_ESTIMATE);
+    this.runningTraceSizeSum = INITIAL_TRACE_SIZE_ESTIMATE * TRACE_HISTORY_SIZE;
     this.sizeThresholdBytes = sizeThresholdBytes;
     this.bufferSize = bufferSize;
     this.messagePacker = MESSAGE_PACKER_CONFIG.newPacker(new ArrayBufferOutput(0));
@@ -117,13 +117,25 @@ public class MsgPackStatefulSerializer implements StatefulSerializer {
   }
 
   private void updateTraceSizeEstimate(int traceSize) {
-    traceSizeSum = (traceSizeSum - traceSizes[position] + traceSize);
-    traceSizes[position] = traceSize;
-    position = (position + 1) & (traceSizes.length - 1);
+    // This is a moving average calculation based on the last
+    // TRACE_HISTORY_SIZE trace sizes, stored in a ring buffer.
+    // A ring buffer of recent trace sizes is maintained. On each
+    // update, the value at position is subtracted from the running
+    // sum, and the new value is added. The value at position is
+    // replaced by the new value. The position is incremented modulo
+    // TRACE_HISTORY_SIZE. TRACE_HISTORY_SIZE has been chosen as a
+    // power of two to keep this calculation as cheap as possible.
+    //
+    // The trace history is initialised to INITIAL_TRACE_SIZE_ESTIMATE to
+    // simplify the calculation during the initial filling of the history,
+    // and to bias early estimates toward small trace sizes.
+    runningTraceSizeSum = (runningTraceSizeSum - traceSizeHistory[position] + traceSize);
+    traceSizeHistory[position] = traceSize;
+    position = (position + 1) & (traceSizeHistory.length - 1);
   }
 
   private int avgTraceSize() {
-    return traceSizeSum / TRACE_HISTORY_SIZE;
+    return runningTraceSizeSum / TRACE_HISTORY_SIZE;
   }
 
   static class MsgPackTraceBuffer implements TraceBuffer {
