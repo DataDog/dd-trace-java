@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.DDComponents;
+import datadog.trace.bootstrap.instrumentation.api.DDSpanNames;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -36,6 +37,7 @@ public class StringTables {
     internConstantsUTF8(Tags.class);
     internConstantsUTF8(DDSpanTypes.class);
     internConstantsUTF8(DDComponents.class);
+    internConstantsUTF8(DDSpanNames.class);
   }
 
   public static byte[] getBytesUTF8(String value) {
