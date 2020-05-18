@@ -9,7 +9,6 @@ class DisruptorEvent<T> {
   // Memory ordering enforced by disruptor's memory fences, so volatile not required.
   T data = null;
   int representativeCount = 0;
-  boolean force;
   CountDownLatch flushLatch = null;
 
   void reset() {
@@ -41,9 +40,7 @@ class DisruptorEvent<T> {
   static class HeartbeatTranslator<T> implements EventTranslator<DisruptorEvent<T>> {
 
     @Override
-    public void translateTo(final DisruptorEvent<T> event, final long sequence) {
-      event.force = true;
-    }
+    public void translateTo(final DisruptorEvent<T> event, final long sequence) {}
   }
 
   static class FlushTranslator<T>

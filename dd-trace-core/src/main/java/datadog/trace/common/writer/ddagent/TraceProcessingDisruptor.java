@@ -1,5 +1,8 @@
 package datadog.trace.common.writer.ddagent;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+
 import com.lmax.disruptor.BlockingWaitStrategy;
 import com.lmax.disruptor.EventHandler;
 import com.lmax.disruptor.dsl.Disruptor;
@@ -30,7 +33,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
   private final DisruptorEvent.DataTranslator<List<DDSpan>> dataTranslator;
   private final DisruptorEvent.FlushTranslator<List<DDSpan>> flushTranslator;
   private final DisruptorEvent.HeartbeatTranslator<List<DDSpan>> heartbeatTranslator =
-      new DisruptorEvent.HeartbeatTranslator();
+      new DisruptorEvent.HeartbeatTranslator<>();
   private final boolean doHeartbeat;
 
   private volatile ScheduledFuture<?> heartbeat;
@@ -64,7 +67,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
       // This provides a steady stream of events to enable flushing with a low throughput.
       heartbeat =
           CommonTaskExecutor.INSTANCE.scheduleAtFixedRate(
-              new HeartbeatTask(), this, 100, 100, TimeUnit.MILLISECONDS, "disruptor heartbeat");
+              new HeartbeatTask(), this, 100, 100, MILLISECONDS, "disruptor heartbeat");
     }
     disruptor.start();
   }
@@ -132,7 +135,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
       this.doTimeFlush = flushInterval > 0;
       if (doTimeFlush) {
         this.flushIntervalMillis = timeUnit.toMillis(flushInterval);
-        scheduleNextTimeFlush(millisecondTime());
+        scheduleNextTimeFlush();
       } else {
         this.flushIntervalMillis = Long.MAX_VALUE;
       }
@@ -145,17 +148,15 @@ public class TraceProcessingDisruptor implements AutoCloseable {
         beginTransaction();
       }
       try {
-        if (event.force
-            || (representativeCount > 0 && serializer.isAtCapacity())
-            || event.flushLatch != null) {
-          commitTransaction(event.flushLatch);
-          beginTransaction();
-        } else if (doTimeFlush && representativeCount > 0) {
-          long now = millisecondTime();
-          if (now >= nextFlushMillis) {
-            commitTransaction();
-            beginTransaction();
-            scheduleNextTimeFlush(now);
+        if (representativeCount > 0 || event.flushLatch != null) {
+          // publish the batch if
+          // 1. the buffer is full
+          // 2. we get a heartbeat, and it's time to send (early heartbeats will be ignored)
+          // 3. a synchronous flush command is received (at shutdown)
+          if (serializer.isAtCapacity()
+              || (doTimeFlush && millisecondTime() > nextFlushMillis)
+              || event.flushLatch != null) {
+            commitTransaction(event.flushLatch);
           }
         }
         if (event.data != null) {
@@ -179,10 +180,6 @@ public class TraceProcessingDisruptor implements AutoCloseable {
       monitor.onSerialize(writer, trace, sizeInBytes);
     }
 
-    private void commitTransaction() throws IOException {
-      commitTransaction(null);
-    }
-
     private void commitTransaction(final CountDownLatch flushLatch) throws IOException {
       serializer.dropBuffer();
       TraceBuffer buffer = dispatchingDisruptor.getTraceBuffer(publicationTxn);
@@ -204,21 +201,25 @@ public class TraceProcessingDisruptor implements AutoCloseable {
             buffer.traceCount());
       }
       dispatchingDisruptor.commit(publicationTxn);
+      beginTransaction();
     }
 
     private void beginTransaction() {
       this.publicationTxn = dispatchingDisruptor.beginTransaction();
       this.representativeCount = 0;
       serializer.reset(dispatchingDisruptor.getTraceBuffer(publicationTxn));
+      scheduleNextTimeFlush();
     }
 
-    private void scheduleNextTimeFlush(long now) {
-      nextFlushMillis = now + flushIntervalMillis;
+    private void scheduleNextTimeFlush() {
+      if (doTimeFlush) {
+        nextFlushMillis = millisecondTime() + flushIntervalMillis;
+      }
     }
 
     private long millisecondTime() {
       // important: nanoTime is monotonic, currentTimeMillis is not
-      return System.nanoTime() / 1_000_000L;
+      return NANOSECONDS.toMillis(System.nanoTime());
     }
   }
 

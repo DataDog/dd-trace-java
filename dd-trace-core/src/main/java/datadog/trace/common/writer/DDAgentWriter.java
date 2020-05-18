@@ -116,7 +116,7 @@ public class DDAgentWriter implements Writer {
             s,
             flushFrequencySeconds,
             TimeUnit.SECONDS,
-            !disableHeartbeat && flushFrequencySeconds <= 0);
+            !disableHeartbeat && flushFrequencySeconds > 0);
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {

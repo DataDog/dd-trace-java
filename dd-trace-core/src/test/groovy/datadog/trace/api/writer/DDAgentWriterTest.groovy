@@ -63,6 +63,7 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     _ * serializer.reset(_) >> { trace -> callRealMethod() }
+    _ * serializer.isAtCapacity() >> false
     _ * serializer.dropBuffer() >> { trace -> callRealMethod() }
     0 * _
 
@@ -127,7 +128,7 @@ class DDAgentWriterTest extends DDSpecification {
       .agentApi(api)
       .monitor(monitor)
       .serializer(serializer)
-      .flushFrequencySeconds(-1)
+      .flushFrequencySeconds(1)
       .build()
     writer.start()
 
@@ -230,6 +231,8 @@ class DDAgentWriterTest extends DDSpecification {
     _ * serializer.reset(_)
     _ * serializer.dropBuffer()
     _ * serializer.newBuffer()
+    // this will be checked during flushing
+    1 * serializer.isAtCapacity() >> { trace -> callRealMethod() }
     1 * monitor.onFailedPublish(_, _)
     1 * monitor.onFlush(_, _)
     1 * monitor.onShutdown(_, _)
