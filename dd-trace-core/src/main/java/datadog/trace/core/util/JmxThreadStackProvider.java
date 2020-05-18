@@ -4,6 +4,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -14,12 +15,7 @@ public class JmxThreadStackProvider implements ThreadStackProvider {
 
   @Override
   public List<StackTraceElement[]> getStackTrace(List<Long> threadIds) {
-    long[] ids = new long[threadIds.size()];
-    int idx = 0;
-    for (Long id : threadIds) {
-      ids[idx] = id;
-      idx++;
-    }
+    long[] ids = convertIds(threadIds);
     ThreadInfo[] threadInfos = threadMXBean.getThreadInfo(ids); // maxDepth?
     if (threadInfos.length == 0) {
       return Collections.emptyList();
@@ -29,5 +25,25 @@ public class JmxThreadStackProvider implements ThreadStackProvider {
       stackTraces.add(threadInfos[i].getStackTrace());
     }
     return stackTraces;
+  }
+
+  @Override
+  public List<ThreadInfo> getThreadInfo(List<Long> threadIds) {
+    long[] ids = convertIds(threadIds);
+    ThreadInfo[] threadInfos = threadMXBean.getThreadInfo(ids); // maxDepth?
+    if (threadInfos.length == 0) {
+      return Collections.emptyList();
+    }
+    return Arrays.asList(threadInfos);
+  }
+
+  private long[] convertIds(List<Long> threadIds) {
+    long[] ids = new long[threadIds.size()];
+    int idx = 0;
+    for (Long id : threadIds) {
+      ids[idx] = id;
+      idx++;
+    }
+    return ids;
   }
 }

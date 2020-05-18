@@ -25,10 +25,12 @@ class ThreadStackAccessTest extends DDSpecification {
     when:
     def provider = ThreadStackAccess.getCurrentThreadStackProvider()
     def stackTraces = provider.getStackTrace(Collections.singletonList(Thread.currentThread().getId()))
+    def threadInfos = provider.getThreadInfo(Collections.singletonList(Thread.currentThread().getId()))
 
     then:
     provider instanceof JmxThreadStackProvider
     !stackTraces.isEmpty()
+    !threadInfos.isEmpty()
 
     cleanup:
     ThreadStackAccess.disableJmx()
