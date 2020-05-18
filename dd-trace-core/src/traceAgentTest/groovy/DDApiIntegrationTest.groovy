@@ -3,7 +3,6 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
 import datadog.trace.common.writer.ddagent.MsgPackStatefulSerializer
-import datadog.trace.common.writer.ddagent.TraceBuffer
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
@@ -121,7 +120,7 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def "Sending traces succeeds (test #test)"() {
     expect:
-    api.sendSerializedTraces(request.traceCount, request.traceCount, request.sizeInBytes, request.traces)
+    api.sendSerializedTraces(request)
     assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
@@ -140,7 +139,7 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def "Sending traces to unix domain socket succeeds (test #test)"() {
     expect:
-    unixDomainSocketApi.sendSerializedTraces(request.traceCount, request.traceCount, request.sizeInBytes, request.traces)
+    unixDomainSocketApi.sendSerializedTraces(request)
     assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/v0.4/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
@@ -155,20 +154,13 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def prepareRequest(List<List<DDSpan>> traces) {
     def serializer = new MsgPackStatefulSerializer()
-    List<TraceBuffer> serialized = new ArrayList<>(traces.size())
-    int sizeInBytes = 0
-    int traceCount = 0
+    def traceRequest = serializer.newBuffer()
+    serializer.reset(traceRequest)
     for (trace in traces) {
       serializer.serialize(trace)
-      TraceBuffer buffer = serializer.getBuffer()
-      sizeInBytes += buffer.sizeInBytes()
-      traceCount += buffer.traceCount()
-      serialized.add(buffer)
     }
-    return [
-      traces: serialized,
-      sizeInBytes: sizeInBytes,
-      traceCount: traceCount
-    ]
+    serializer.dropBuffer()
+    traceRequest.setRepresentativeCount(traces.size())
+    return traceRequest
   }
 }

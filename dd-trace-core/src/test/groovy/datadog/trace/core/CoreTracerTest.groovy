@@ -10,6 +10,7 @@ import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.common.writer.ddagent.Monitor
+import datadog.trace.common.writer.ddagent.TraceBuffer
 import datadog.trace.core.propagation.DatadogHttpCodec
 import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.util.test.DDSpecification
@@ -111,7 +112,7 @@ class CoreTracerTest extends DDSpecification {
     def tracer = CoreTracer.builder().config(new Config()).build()
     then:
     tracer.writer instanceof DDAgentWriter
-    ((DDAgentWriter) tracer.writer).api.sendSerializedTraces(0, 0, 0, [])
+    ((DDAgentWriter) tracer.writer).api.sendSerializedTraces(Mock(TraceBuffer))
     ((DDAgentWriter) tracer.writer).api.tracesUrl.host() == value
     ((DDAgentWriter) tracer.writer).api.tracesUrl.port() == 8126
 
@@ -127,7 +128,7 @@ class CoreTracerTest extends DDSpecification {
 
     then:
     tracer.writer instanceof DDAgentWriter
-    ((DDAgentWriter) tracer.writer).api.sendSerializedTraces(0, 0, 0, [])
+    ((DDAgentWriter) tracer.writer).api.sendSerializedTraces(Mock(TraceBuffer))
     ((DDAgentWriter) tracer.writer).api.tracesUrl.host() == "localhost"
     ((DDAgentWriter) tracer.writer).api.tracesUrl.port() == Integer.valueOf(value)
 

@@ -4,15 +4,18 @@ import static datadog.trace.api.Config.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.Config.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.Config.DEFAULT_TRACE_AGENT_PORT;
 
-import datadog.trace.common.writer.ddagent.BatchWritingDisruptor;
+import com.lmax.disruptor.EventFactory;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
+import datadog.trace.common.writer.ddagent.DispatchingDisruptor;
 import datadog.trace.common.writer.ddagent.Monitor;
 import datadog.trace.common.writer.ddagent.MsgPackStatefulSerializer;
 import datadog.trace.common.writer.ddagent.StatefulSerializer;
+import datadog.trace.common.writer.ddagent.TraceBuffer;
 import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor;
 import datadog.trace.core.DDSpan;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,12 +37,14 @@ import lombok.extern.slf4j.Slf4j;
 public class DDAgentWriter implements Writer {
 
   private static final int DISRUPTOR_BUFFER_SIZE = 1024;
+  private static final int OUTSTANDING_REQUESTS = 4;
 
   private final DDAgentApi api;
   private final TraceProcessingDisruptor traceProcessingDisruptor;
-  private final BatchWritingDisruptor batchWritingDisruptor;
+  private final DispatchingDisruptor dispatchingDisruptor;
 
   private final AtomicInteger traceCount = new AtomicInteger(0);
+  private volatile boolean closed;
 
   public final Monitor monitor;
 
@@ -63,17 +68,22 @@ public class DDAgentWriter implements Writer {
 
   @Deprecated
   public DDAgentWriter(final DDAgentApi api, final Monitor monitor) {
+    StatefulSerializer serializer = new MsgPackStatefulSerializer();
     this.api = api;
     this.monitor = monitor;
-
-    batchWritingDisruptor = new BatchWritingDisruptor(DISRUPTOR_BUFFER_SIZE, 1, api, monitor, this);
+    dispatchingDisruptor =
+        new DispatchingDisruptor(
+            OUTSTANDING_REQUESTS, toEventFactory(serializer), api, monitor, this);
     traceProcessingDisruptor =
         new TraceProcessingDisruptor(
             DISRUPTOR_BUFFER_SIZE,
-            batchWritingDisruptor,
+            dispatchingDisruptor,
             monitor,
             this,
-            new MsgPackStatefulSerializer());
+            serializer,
+            1,
+            TimeUnit.SECONDS,
+            false);
   }
 
   @lombok.Builder
@@ -92,17 +102,20 @@ public class DDAgentWriter implements Writer {
     } else {
       api = new DDAgentApi(agentHost, traceAgentPort, unixDomainSocket);
     }
+    final StatefulSerializer s = null == serializer ? new MsgPackStatefulSerializer() : serializer;
     this.monitor = monitor;
-
-    batchWritingDisruptor =
-        new BatchWritingDisruptor(traceBufferSize, flushFrequencySeconds, api, monitor, this);
-    traceProcessingDisruptor =
+    this.dispatchingDisruptor =
+        new DispatchingDisruptor(OUTSTANDING_REQUESTS, toEventFactory(s), api, monitor, this);
+    this.traceProcessingDisruptor =
         new TraceProcessingDisruptor(
             traceBufferSize,
-            batchWritingDisruptor,
+            dispatchingDisruptor,
             monitor,
             this,
-            null == serializer ? new MsgPackStatefulSerializer() : serializer);
+            s,
+            flushFrequencySeconds,
+            TimeUnit.SECONDS,
+            flushFrequencySeconds > 0);
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -125,7 +138,7 @@ public class DDAgentWriter implements Writer {
   @Override
   public void write(final List<DDSpan> trace) {
     // We can't add events after shutdown otherwise it will never complete shutting down.
-    if (traceProcessingDisruptor.running) {
+    if (!closed) {
       final int representativeCount;
       if (trace.isEmpty() || !(trace.get(0).isRootSpan())) {
         // We don't want to reset the count if we can't correctly report the value.
@@ -134,25 +147,28 @@ public class DDAgentWriter implements Writer {
         representativeCount = traceCount.getAndSet(0) + 1;
       }
       final boolean published = traceProcessingDisruptor.publish(trace, representativeCount);
-
       if (published) {
         monitor.onPublish(DDAgentWriter.this, trace);
       } else {
         // We're discarding the trace, but we still want to count it.
         traceCount.addAndGet(representativeCount);
         log.debug("Trace written to overfilled buffer. Counted but dropping trace: {}", trace);
-
         monitor.onFailedPublish(this, trace);
       }
     } else {
       log.debug("Trace written after shutdown. Ignoring trace: {}", trace);
-
       monitor.onFailedPublish(this, trace);
     }
   }
 
   public boolean flush() {
-    return traceProcessingDisruptor.flush(traceCount.getAndSet(0));
+    if (!closed) { // give up after a second
+      if (traceProcessingDisruptor.flush(1, TimeUnit.SECONDS)) {
+        monitor.onFlush(this, false);
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override
@@ -166,20 +182,23 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public void start() {
-    batchWritingDisruptor.start();
-    traceProcessingDisruptor.start();
-    monitor.onStart(this);
+    if (!closed) {
+      dispatchingDisruptor.start();
+      traceProcessingDisruptor.start();
+      monitor.onStart(this);
+    }
   }
 
   @Override
   public void close() {
-    final boolean flushSuccess = traceProcessingDisruptor.flush(traceCount.getAndSet(0));
+    boolean flushed = flush();
+    closed = true;
     try {
       traceProcessingDisruptor.close();
     } finally { // in case first close fails.
-      batchWritingDisruptor.close();
+      dispatchingDisruptor.close();
     }
-    monitor.onShutdown(this, flushSuccess);
+    monitor.onShutdown(this, flushed);
   }
 
   @Override
@@ -196,5 +215,22 @@ public class DDAgentWriter implements Writer {
     str += " }";
 
     return str;
+  }
+
+  private static EventFactory<TraceBuffer> toEventFactory(final StatefulSerializer serializer) {
+    return new SerializerBackedEventFactory(serializer);
+  }
+
+  private static final class SerializerBackedEventFactory implements EventFactory<TraceBuffer> {
+    private final StatefulSerializer serializer;
+
+    private SerializerBackedEventFactory(StatefulSerializer serializer) {
+      this.serializer = serializer;
+    }
+
+    @Override
+    public TraceBuffer newInstance() {
+      return serializer.newBuffer();
+    }
   }
 }
