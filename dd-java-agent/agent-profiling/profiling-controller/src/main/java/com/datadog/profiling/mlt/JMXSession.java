@@ -4,6 +4,7 @@ import datadog.trace.core.util.NoneThreadStackProvider;
 import datadog.trace.core.util.ThreadStackAccess;
 import datadog.trace.core.util.ThreadStackProvider;
 import datadog.trace.profiling.Session;
+import java.lang.management.ThreadInfo;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +63,7 @@ public class JMXSession implements Session {
   }
 
   private void sample() {
-    List<StackTraceElement[]> stackTraces = provider.getStackTrace(threadIds);
-    sink.dump(id, stackTraces);
+    List<ThreadInfo> threadInfos = provider.getThreadInfos(threadIds);
+    sink.dump(id, threadInfos);
   }
 }
