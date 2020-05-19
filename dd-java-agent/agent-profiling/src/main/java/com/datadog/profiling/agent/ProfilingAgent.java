@@ -45,7 +45,7 @@ public class ProfilingAgent {
       try {
         final Controller controller = ControllerFactory.createController(config);
         // init the Profiler API for the Tracer
-        Profiler.initialize(new JMXSessionFactory(new JFRStackTraceSink()));
+        Profiler.initialize(new JMXSessionFactory(JFRStackTraceSink::new));
         final RecordingUploader uploader = new RecordingUploader(config);
 
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());
