@@ -1,6 +1,5 @@
 package datadog.trace.core.serialization;
 
-import datadog.trace.core.MapAcceptor;
 import datadog.trace.core.StringTables;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -94,11 +93,6 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
     }
   }
 
-  @Override
-  protected MapAcceptor<String> getMetaAcceptor(MessagePacker destination) {
-    return new MsgPackMapAcceptor(destination);
-  }
-
   private static void writeStringUTF8(String value, MessagePacker destination) throws IOException {
     if (null == value) {
       destination.packNil();
@@ -111,35 +105,5 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
         destination.packString(value);
       }
     }
-  }
-
-  private static class MsgPackMapAcceptor implements MapAcceptor<String> {
-    private final MessagePacker packer;
-
-    private MsgPackMapAcceptor(MessagePacker packer) {
-      this.packer = packer;
-    }
-
-    @Override
-    public void beginMap(int size) {
-      try {
-        packer.packMapHeader(size);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    @Override
-    public void acceptValue(String key, String value) {
-      try {
-        writeStringUTF8(key, packer);
-        writeStringUTF8(value, packer);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    @Override
-    public void endMap() {}
   }
 }

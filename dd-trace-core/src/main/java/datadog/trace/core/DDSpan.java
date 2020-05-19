@@ -261,24 +261,6 @@ public class DDSpan implements MutableSpan, AgentSpan {
   // Getters
 
   /**
-   * Meta merges baggage and tags (stringified values) into a writable destination
-   *
-   * @return
-   */
-  public void transferMeta(MapAcceptor<String> acceptor) {
-    Map<String, String> baggageItems = context.getBaggageItems();
-    Map<String, Object> tags = context.getTags();
-    acceptor.beginMap(baggageItems.size() + tags.size());
-    for (Map.Entry<String, String> entry : baggageItems.entrySet()) {
-      acceptor.acceptValue(entry.getKey(), entry.getValue());
-    }
-    for (Map.Entry<String, Object> entry : tags.entrySet()) {
-      acceptor.acceptValue(entry.getKey(), String.valueOf(entry.getValue()));
-    }
-    acceptor.endMap();
-  }
-
-  /**
    * Span metrics.
    *
    * @return metrics for this span
