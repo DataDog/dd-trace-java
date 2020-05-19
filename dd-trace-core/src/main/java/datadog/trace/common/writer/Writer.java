@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.Monitor;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.interceptor.TraceStatsCollector;
 import java.io.Closeable;
 import java.util.List;
 import java.util.Properties;
@@ -31,6 +32,8 @@ public interface Writer extends Closeable {
 
   /** Count that a trace was captured for stats, but without reporting it. */
   void incrementTraceCount();
+
+  TraceStatsCollector getTraceStatsCollector();
 
   @Slf4j
   final class Builder {

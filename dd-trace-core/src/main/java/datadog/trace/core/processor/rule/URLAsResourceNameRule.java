@@ -34,7 +34,7 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
     final String normalizedPath = normalizePath(rawPath);
     final String resourceName = addMethodIfAvailable(tags, normalizedPath);
 
-    context.setResourceName(resourceName);
+    span.setResourceName(resourceName);
   }
 
   private String rawPathFromUrlString(final String url) {

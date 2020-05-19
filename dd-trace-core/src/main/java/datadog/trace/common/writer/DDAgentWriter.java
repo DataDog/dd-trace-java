@@ -14,6 +14,7 @@ import datadog.trace.common.writer.ddagent.StatefulSerializer;
 import datadog.trace.common.writer.ddagent.TraceBuffer;
 import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.interceptor.TraceStatsCollector;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,6 +43,7 @@ public class DDAgentWriter implements Writer {
   private final DDAgentApi api;
   private final TraceProcessingDisruptor traceProcessingDisruptor;
   private final DispatchingDisruptor dispatchingDisruptor;
+  private final TraceStatsCollector statsCollector = new TraceStatsCollector();
 
   private final AtomicInteger traceCount = new AtomicInteger(0);
   private volatile boolean closed;
@@ -78,6 +80,7 @@ public class DDAgentWriter implements Writer {
         new TraceProcessingDisruptor(
             DISRUPTOR_BUFFER_SIZE,
             dispatchingDisruptor,
+            statsCollector,
             monitor,
             this,
             serializer,
@@ -110,6 +113,7 @@ public class DDAgentWriter implements Writer {
         new TraceProcessingDisruptor(
             traceBufferSize,
             dispatchingDisruptor,
+            statsCollector,
             monitor,
             this,
             s,
@@ -174,6 +178,11 @@ public class DDAgentWriter implements Writer {
   @Override
   public void incrementTraceCount() {
     traceCount.incrementAndGet();
+  }
+
+  @Override
+  public TraceStatsCollector getTraceStatsCollector() {
+    return statsCollector;
   }
 
   public DDAgentApi getApi() {

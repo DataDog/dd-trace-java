@@ -122,8 +122,6 @@ public class CoreTracer
       sampler(Sampler.Builder.forConfig(config));
       injector(HttpCodec.createInjector(config));
       extractor(HttpCodec.createExtractor(config, config.getHeaderTags()));
-      scopeManager(
-          new ContinuableScopeManager(config.getScopeDepthLimit(), createScopeEventFactory()));
       localRootSpanTags(config.getLocalRootSpanTags());
       defaultSpanTags(config.getMergedSpanTags());
       serviceNameMappings(config.getServiceMapping());
@@ -155,15 +153,23 @@ public class CoreTracer
     assert taggedHeaders != null;
 
     this.serviceName = serviceName;
-    if (writer == null) {
-      this.writer = Writer.Builder.forConfig(config);
-    } else {
+    if (writer != null) {
       this.writer = writer;
+    } else {
+      this.writer = Writer.Builder.forConfig(config);
+    }
+    if (scopeManager != null) {
+      this.scopeManager = scopeManager;
+    } else {
+      this.scopeManager =
+          new ContinuableScopeManager(
+              config.getScopeDepthLimit(),
+              createScopeEventFactory(),
+              this.writer.getTraceStatsCollector());
     }
     this.sampler = sampler;
     this.injector = injector;
     this.extractor = extractor;
-    this.scopeManager = scopeManager;
     this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
     this.serviceNameMappings = serviceNameMappings;
@@ -345,6 +351,7 @@ public class CoreTracer
     if (interceptors.isEmpty()) {
       writtenTrace = new ArrayList<>(trace);
     } else {
+      // TODO: move this off application thread to TraceProcessor
       Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
       for (final TraceInterceptor interceptor : interceptors) {
         interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
