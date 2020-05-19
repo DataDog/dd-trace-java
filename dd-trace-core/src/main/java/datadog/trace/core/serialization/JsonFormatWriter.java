@@ -23,7 +23,7 @@ public class JsonFormatWriter extends FormatWriter<JsonWriter> {
   public static JsonFormatWriter JSON_WRITER = new JsonFormatWriter();
 
   @Override
-  public void writeKey(byte[] key, JsonWriter destination) throws IOException {
+  public void writeKey(final byte[] key, final JsonWriter destination) throws IOException {
     destination.name(new String(key));
   }
 
@@ -48,50 +48,57 @@ public class JsonFormatWriter extends FormatWriter<JsonWriter> {
   }
 
   @Override
-  public void writeString(byte[] key, String value, JsonWriter destination) throws IOException {
-    writeKey(key, destination);
-    destination.value(value);
-  }
-
-  @Override
-  public void writeShort(byte[] key, short value, JsonWriter destination) throws IOException {
-    writeKey(key, destination);
-    destination.value(value);
-  }
-
-  @Override
-  public void writeByte(byte[] key, byte value, JsonWriter destination) throws IOException {
-    writeKey(key, destination);
-    destination.value(value);
-  }
-
-  @Override
-  public void writeInt(byte[] key, int value, JsonWriter destination) throws IOException {
-    writeKey(key, destination);
-    destination.value(value);
-  }
-
-  @Override
-  public void writeLong(byte[] key, long value, JsonWriter destination) throws IOException {
-    writeKey(key, destination);
-    destination.value(value);
-  }
-
-  @Override
-  public void writeFloat(byte[] key, float value, JsonWriter destination) throws IOException {
-    writeKey(key, destination);
-    destination.value(value);
-  }
-
-  @Override
-  public void writeDouble(byte[] key, double value, JsonWriter destination) throws IOException {
-    writeKey(key, destination);
-    destination.value(value);
-  }
-
-  @Override
-  public void writeBigInteger(byte[] key, BigInteger value, JsonWriter destination)
+  public void writeString(final byte[] key, final String value, final JsonWriter destination)
       throws IOException {
+    writeKey(key, destination);
+    destination.value(value);
+  }
+
+  @Override
+  public void writeShort(final byte[] key, final short value, final JsonWriter destination)
+      throws IOException {
+    writeKey(key, destination);
+    destination.value(value);
+  }
+
+  @Override
+  public void writeByte(final byte[] key, final byte value, final JsonWriter destination)
+      throws IOException {
+    writeKey(key, destination);
+    destination.value(value);
+  }
+
+  @Override
+  public void writeInt(final byte[] key, final int value, final JsonWriter destination)
+      throws IOException {
+    writeKey(key, destination);
+    destination.value(value);
+  }
+
+  @Override
+  public void writeLong(final byte[] key, final long value, final JsonWriter destination)
+      throws IOException {
+    writeKey(key, destination);
+    destination.value(value);
+  }
+
+  @Override
+  public void writeFloat(final byte[] key, final float value, final JsonWriter destination)
+      throws IOException {
+    writeKey(key, destination);
+    destination.value(value);
+  }
+
+  @Override
+  public void writeDouble(final byte[] key, final double value, final JsonWriter destination)
+      throws IOException {
+    writeKey(key, destination);
+    destination.value(value);
+  }
+
+  @Override
+  public void writeBigInteger(
+      final byte[] key, final BigInteger value, final JsonWriter destination) throws IOException {
     writeKey(key, destination);
     destination.value(value);
   }

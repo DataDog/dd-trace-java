@@ -23,36 +23,44 @@ import java.util.Map;
 
 public abstract class FormatWriter<DEST> {
 
-  public abstract void writeKey(byte[] key, DEST destination) throws IOException;
+  public abstract void writeKey(final byte[] key, final DEST destination) throws IOException;
 
-  public abstract void writeListHeader(int size, DEST destination) throws IOException;
+  public abstract void writeListHeader(final int size, final DEST destination) throws IOException;
 
-  public abstract void writeListFooter(DEST destination) throws IOException;
+  public abstract void writeListFooter(final DEST destination) throws IOException;
 
-  public abstract void writeMapHeader(int size, DEST destination) throws IOException;
+  public abstract void writeMapHeader(final int size, final DEST destination) throws IOException;
 
-  public abstract void writeMapFooter(DEST destination) throws IOException;
+  public abstract void writeMapFooter(final DEST destination) throws IOException;
 
-  public void writeTag(byte[] key, String value, DEST destination) throws IOException {
+  public void writeTag(final byte[] key, final String value, final DEST destination)
+      throws IOException {
     writeString(key, value, destination);
   }
 
-  public abstract void writeString(byte[] key, String value, DEST destination) throws IOException;
-
-  public abstract void writeShort(byte[] key, short value, DEST destination) throws IOException;
-
-  public abstract void writeByte(byte[] key, byte value, DEST destination) throws IOException;
-
-  public abstract void writeInt(byte[] key, int value, DEST destination) throws IOException;
-
-  public abstract void writeLong(byte[] key, long value, DEST destination) throws IOException;
-
-  public abstract void writeFloat(byte[] key, float value, DEST destination) throws IOException;
-
-  public abstract void writeDouble(byte[] key, double value, DEST destination) throws IOException;
-
-  public abstract void writeBigInteger(byte[] key, BigInteger value, DEST destination)
+  public abstract void writeString(final byte[] key, final String value, final DEST destination)
       throws IOException;
+
+  public abstract void writeShort(final byte[] key, final short value, final DEST destination)
+      throws IOException;
+
+  public abstract void writeByte(final byte[] key, final byte value, final DEST destination)
+      throws IOException;
+
+  public abstract void writeInt(final byte[] key, final int value, final DEST destination)
+      throws IOException;
+
+  public abstract void writeLong(final byte[] key, final long value, final DEST destination)
+      throws IOException;
+
+  public abstract void writeFloat(final byte[] key, final float value, final DEST destination)
+      throws IOException;
+
+  public abstract void writeDouble(final byte[] key, final double value, final DEST destination)
+      throws IOException;
+
+  public abstract void writeBigInteger(
+      final byte[] key, final BigInteger value, final DEST destination) throws IOException;
 
   public void writeNumber(final byte[] key, final Number value, final DEST destination)
       throws IOException {
@@ -88,7 +96,10 @@ public abstract class FormatWriter<DEST> {
     Map<String, Object> tags = span.context().getTags();
     writeMapHeader(baggage.size() + tags.size(), destination);
     for (Map.Entry<String, String> entry : baggage.entrySet()) {
-      writeTag(stringToBytes(entry.getKey()), entry.getValue(), destination);
+      // tags and baggage may intersect, but tags take priority
+      if (!tags.containsKey(entry.getKey())) {
+        writeTag(stringToBytes(entry.getKey()), entry.getValue(), destination);
+      }
     }
     for (Map.Entry<String, Object> entry : tags.entrySet()) {
       if (entry.getValue() instanceof String) {
@@ -126,8 +137,9 @@ public abstract class FormatWriter<DEST> {
     writeMapFooter(destination);
   }
 
-  private byte[] stringToBytes(String string) {
-    byte[] key = StringTables.getBytesUTF8(string);
+  private byte[] stringToBytes(final String string) {
+    // won't reassign key or string in this method
+    final byte[] key = StringTables.getBytesUTF8(string);
     return null == key ? string.getBytes(StandardCharsets.UTF_8) : key;
   }
 }
