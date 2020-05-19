@@ -65,6 +65,8 @@ class TraceProcessorTest extends DDSpecification {
     setup:
     if (type) {
       span.setSpanType(DDSpanTypes."$type")
+    } else {
+      span.setSpanType(null)
     }
     span.setTag(Tags.HTTP_STATUS, status)
 

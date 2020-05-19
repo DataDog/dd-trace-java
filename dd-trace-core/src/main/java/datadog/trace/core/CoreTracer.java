@@ -22,7 +22,7 @@ import datadog.trace.core.jfr.DDScopeEventFactory;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
-import datadog.trace.core.scopemanager.ContextualScopeManager;
+import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.scopemanager.DDScopeManager;
 import java.io.Closeable;
 import java.lang.ref.WeakReference;
@@ -123,7 +123,7 @@ public class CoreTracer
       injector(HttpCodec.createInjector(config));
       extractor(HttpCodec.createExtractor(config, config.getHeaderTags()));
       scopeManager(
-          new ContextualScopeManager(config.getScopeDepthLimit(), createScopeEventFactory()));
+          new ContinuableScopeManager(config.getScopeDepthLimit(), createScopeEventFactory()));
       localRootSpanTags(config.getLocalRootSpanTags());
       defaultSpanTags(config.getMergedSpanTags());
       serviceNameMappings(config.getServiceMapping());
@@ -413,8 +413,8 @@ public class CoreTracer
 
   @Override
   public void addScopeListener(final ScopeListener listener) {
-    if (scopeManager instanceof ContextualScopeManager) {
-      ((ContextualScopeManager) scopeManager).addScopeListener(listener);
+    if (scopeManager instanceof ContinuableScopeManager) {
+      ((ContinuableScopeManager) scopeManager).addScopeListener(listener);
     }
   }
 

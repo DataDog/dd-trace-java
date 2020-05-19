@@ -13,7 +13,8 @@ excludedClassesCoverage += [
   // This code is copied from okHttp samples and we have integration tests to verify that it works.
   'datadog.trace.common.writer.unixdomainsockets.TunnelingUnixSocket',
   'datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory',
-  'datadog.trace.core.StringCachingBigInteger'
+  'datadog.trace.core.StringCachingBigInteger',
+  'datadog.trace.core.scopemanager.ScopeInterceptor.DelegatingScope',
 ]
 
 apply plugin: 'org.unbroken-dome.test-sets'

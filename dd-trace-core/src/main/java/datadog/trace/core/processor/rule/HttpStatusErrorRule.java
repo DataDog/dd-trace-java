@@ -22,11 +22,11 @@ public class HttpStatusErrorRule implements TraceProcessor.Rule {
       try {
         final int status =
             value instanceof Integer ? (int) value : Integer.parseInt(value.toString());
-        if (span.getType().equals(DDSpanTypes.HTTP_SERVER)) {
+        if (DDSpanTypes.HTTP_SERVER.equals(span.getType())) {
           if (Config.get().getHttpServerErrorStatuses().contains(status)) {
             span.setError(true);
           }
-        } else if (span.getType().equals(DDSpanTypes.HTTP_CLIENT)) {
+        } else if (DDSpanTypes.HTTP_CLIENT.equals((span.getType()))) {
           if (Config.get().getHttpClientErrorStatuses().contains(status)) {
             span.setError(true);
           }
