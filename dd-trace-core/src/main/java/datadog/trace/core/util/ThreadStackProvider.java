@@ -1,7 +1,13 @@
 package datadog.trace.core.util;
 
-import java.util.List;
+import java.lang.management.ThreadInfo;
 
 public interface ThreadStackProvider {
-  List<StackTraceElement[]> getStackTrace(List<Long> threadIds);
+  StackTraceElement[][] EMPTY_STACKTRACE_ARRAY = new StackTraceElement[0][];
+
+  ThreadInfo[] EMPTY_THERADINFO_ARRAY = new ThreadInfo[0];
+
+  StackTraceElement[][] getStackTrace(long[] threadIds);
+
+  ThreadInfo[] getThreadInfo(long[] threadIds);
 }
