@@ -9,7 +9,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -261,22 +261,6 @@ public class DDSpan implements MutableSpan, AgentSpan {
   // Getters
 
   /**
-   * Meta merges baggage and tags (stringified values)
-   *
-   * @return merged context baggage and tags
-   */
-  public Map<String, String> getMeta() {
-    final Map<String, String> meta = new HashMap<>();
-    for (final Map.Entry<String, String> entry : context.getBaggageItems().entrySet()) {
-      meta.put(entry.getKey(), entry.getValue());
-    }
-    for (final Map.Entry<String, Object> entry : getTags().entrySet()) {
-      meta.put(entry.getKey(), String.valueOf(entry.getValue()));
-    }
-    return meta;
-  }
-
-  /**
    * Span metrics.
    *
    * @return metrics for this span
@@ -354,7 +338,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
 
   @Override
   public Map<String, Object> getTags() {
-    return context.getTags();
+    return Collections.unmodifiableMap(context.getTags());
   }
 
   public String getType() {
