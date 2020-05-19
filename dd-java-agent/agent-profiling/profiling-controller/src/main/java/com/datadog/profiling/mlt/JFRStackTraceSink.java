@@ -8,7 +8,8 @@ public class JFRStackTraceSink implements StackTraceSink {
   private final SamplerWriter writer = new SamplerWriter();
 
   @Override
-  public void write(String id, ThreadInfo[] threadInfos) {
+  public void write(String[] ids, ThreadInfo[] threadInfos) {
+    // TODO handle ids
     for (ThreadInfo threadInfo : threadInfos) {
       writer.writeThreadSample(threadInfo);
     }

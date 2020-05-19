@@ -15,7 +15,7 @@ public class JMXSessionTest {
     Object lock = new Object();
     AtomicBoolean asserted = new AtomicBoolean();
     JMXSessionFactory sessionFactory =
-        new JMXSessionFactory(() -> new AssertStackTraceSink(asserted, lock));
+        new JMXSessionFactory(new AssertStackTraceSink(asserted, lock));
     try (Session session = sessionFactory.createSession("id", Thread.currentThread())) {
       synchronized (lock) {
         lock.wait(2000);
@@ -30,7 +30,7 @@ public class JMXSessionTest {
     Object lock = new Object();
     AtomicBoolean asserted = new AtomicBoolean();
     JMXSessionFactory sessionFactory =
-        new JMXSessionFactory(() -> new AssertStackTraceSink(asserted, lock));
+        new JMXSessionFactory(new AssertStackTraceSink(asserted, lock));
     try (Session session = sessionFactory.createSession("id", Thread.currentThread())) {
       try (Session session2 = sessionFactory.createSession("id", Thread.currentThread())) {
         Assert.assertSame(session, session2);
@@ -69,7 +69,7 @@ public class JMXSessionTest {
     }
 
     @Override
-    public void write(String id, ThreadInfo[] threadInfos) {
+    public void write(String[] id, ThreadInfo[] threadInfos) {
       Assert.assertTrue(threadInfos.length > 0);
       synchronized (lock) {
         asserted.set(true);
