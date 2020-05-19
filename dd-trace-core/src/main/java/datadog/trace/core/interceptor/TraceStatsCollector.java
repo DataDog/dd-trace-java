@@ -6,6 +6,7 @@ import com.google.common.cache.LoadingCache;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import java.util.Collection;
@@ -25,8 +26,8 @@ public class TraceStatsCollector extends CacheLoader<String, Histogram>
   public Collection<? extends MutableSpan> onTraceComplete(
       final Collection<? extends MutableSpan> trace) {
     if (trace instanceof List && !trace.isEmpty()) {
-      final MutableSpan firstSpan = ((List<MutableSpan>) trace).get(0);
-      final MutableSpan rootSpan = firstSpan.getLocalRootSpan();
+      final AgentSpan firstSpan = ((List<AgentSpan>) trace).get(0);
+      final AgentSpan rootSpan = firstSpan.getLocalRootSpan();
       if (!(rootSpan instanceof DDSpan && ((DDSpan) rootSpan).isFinished())) {
         // This is probably a partial flush, so skip processing.
         return trace;
@@ -45,8 +46,8 @@ public class TraceStatsCollector extends CacheLoader<String, Histogram>
     return trace;
   }
 
-  public Histogram getTraceStats(final DDSpan currentSpan) {
-    final DDSpan rootSpan = currentSpan.getLocalRootSpan();
+  public Histogram getTraceStats(final AgentSpan currentSpan) {
+    final AgentSpan rootSpan = currentSpan.getLocalRootSpan();
     return rootSpan == null ? null : cache.getIfPresent(getCacheKey(rootSpan));
   }
 
@@ -54,7 +55,7 @@ public class TraceStatsCollector extends CacheLoader<String, Histogram>
     return overallStats;
   }
 
-  private String getCacheKey(final MutableSpan span) {
+  private String getCacheKey(final AgentSpan span) {
     final Map<String, Object> tags = span.getTags();
     Object value = tags.get(DDTags.RESOURCE_NAME);
     if (value != null) {

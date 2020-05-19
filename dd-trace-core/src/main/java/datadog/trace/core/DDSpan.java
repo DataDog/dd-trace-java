@@ -25,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 public class DDSpan implements MutableSpan, AgentSpan {
 
   static DDSpan create(final long timestampMicro, final DDSpanContext context) {
-    DDSpan span = new DDSpan(timestampMicro, context);
+    final DDSpan span = new DDSpan(timestampMicro, context);
     context.getTrace().registerSpan(span);
     return span;
   }
@@ -300,14 +300,17 @@ public class DDSpan implements MutableSpan, AgentSpan {
     return context.getServiceName();
   }
 
+  @Override
   public BigInteger getTraceId() {
     return context.getTraceId();
   }
 
+  @Override
   public BigInteger getSpanId() {
     return context.getSpanId();
   }
 
+  @Override
   public BigInteger getParentId() {
     return context.getParentId();
   }
