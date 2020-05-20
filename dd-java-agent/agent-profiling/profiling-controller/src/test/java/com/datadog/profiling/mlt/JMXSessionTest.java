@@ -44,19 +44,17 @@ public class JMXSessionTest {
 
   @Test
   public void createJFRSession() throws InterruptedException {
-    // TODO
-    /*
     ThreadStackAccess.enableJmx();
     Object lock = new Object();
     AtomicBoolean asserted = new AtomicBoolean();
-    JMXSessionFactory sessionFactory = new JMXSessionFactory(JFRStackTraceSink::new);
+    StackTraceSink sink = new JFRStackTraceSink();
+    JMXSessionFactory sessionFactory = new JMXSessionFactory(sink);
     try (Session session = sessionFactory.createSession("id", Thread.currentThread())) {
       Thread.sleep(100);
     }
-    Assert.assertTrue(jfrFile.toFile().exists());
-    Assert.assertTrue(jfrFile.toFile().length() > 0);
-
-     */
+    byte[] buffer = sink.flush();
+    Assert.assertNotNull(buffer);
+    Assert.assertTrue(buffer.length > 0);
   }
 
   private static class AssertStackTraceSink implements StackTraceSink {

@@ -79,6 +79,7 @@ public class JMXSampler {
       return;
     }
     ThreadInfo[] threadInfos = provider.getThreadInfo(tmpArray);
+    // TODO handle ids
     sink.write(null, threadInfos);
     samplingCount++;
     // TODO flushing time as parameter
