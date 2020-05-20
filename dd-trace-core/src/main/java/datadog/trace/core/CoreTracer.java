@@ -164,6 +164,7 @@ public class CoreTracer
       this.scopeManager =
           new ContinuableScopeManager(
               config.getScopeDepthLimit(),
+              config.getMethodTraceSampleRate(),
               createScopeEventFactory(),
               this.writer.getTraceStatsCollector());
     }
@@ -398,8 +399,8 @@ public class CoreTracer
   @Override
   public String getTraceId() {
     final AgentSpan activeSpan = activeSpan();
-    if (activeSpan instanceof DDSpan) {
-      return ((DDSpan) activeSpan).getTraceId().toString();
+    if (activeSpan != null) {
+      return activeSpan.getTraceId().toString();
     }
     return "0";
   }
@@ -407,8 +408,8 @@ public class CoreTracer
   @Override
   public String getSpanId() {
     final AgentSpan activeSpan = activeSpan();
-    if (activeSpan instanceof DDSpan) {
-      return ((DDSpan) activeSpan).getSpanId().toString();
+    if (activeSpan != null) {
+      return activeSpan.getSpanId().toString();
     }
     return "0";
   }

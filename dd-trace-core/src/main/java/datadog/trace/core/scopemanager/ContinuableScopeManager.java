@@ -33,10 +33,12 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
   public ContinuableScopeManager(
       final int depthLimit,
+      final Double methodTraceSampleRate,
       final DDScopeEventFactory scopeEventFactory,
       final TraceStatsCollector traceStatsCollector) {
     this(
         depthLimit,
+        methodTraceSampleRate,
         scopeEventFactory,
         traceStatsCollector,
         new CopyOnWriteArrayList<ScopeListener>());
@@ -45,14 +47,17 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
   // Separate constructor to allow passing scopeListeners to super arg and assign locally.
   private ContinuableScopeManager(
       final int depthLimit,
+      final Double methodTraceSampleRate,
       final DDScopeEventFactory scopeEventFactory,
       final TraceStatsCollector traceStatsCollector,
       final List<ScopeListener> scopeListeners) {
     super(
         new EventScopeInterceptor(
             scopeEventFactory,
-            new TraceProfilingScopeManager(
-                traceStatsCollector, new ListenerScopeInterceptor(scopeListeners, null))));
+            TraceProfilingScopeManager.create(
+                methodTraceSampleRate,
+                traceStatsCollector,
+                new ListenerScopeInterceptor(scopeListeners, null))));
     this.depthLimit = depthLimit;
     this.scopeListeners = scopeListeners;
   }

@@ -85,6 +85,7 @@ public class Config {
   public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
   public static final String TRACE_SAMPLE_RATE = "trace.sample.rate";
   public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
+  public static final String METHOD_TRACE_SAMPLE_RATE = "method.trace.sample.rate";
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
   public static final String HEADER_TAGS = "trace.header.tags";
   public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
@@ -317,6 +318,8 @@ public class Config {
   @Getter private final Double traceSampleRate;
   @Getter private final Double traceRateLimit;
 
+  @Getter private final Double methodTraceSampleRate;
+
   @Getter private final boolean profilingEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
@@ -481,6 +484,8 @@ public class Config {
     traceSampleRate = getDoubleSettingFromEnvironment(TRACE_SAMPLE_RATE, null);
     traceRateLimit = getDoubleSettingFromEnvironment(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
+    methodTraceSampleRate = getDoubleSettingFromEnvironment(METHOD_TRACE_SAMPLE_RATE, null);
+
     profilingEnabled =
         getBooleanSettingFromEnvironment(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
     profilingUrl = getSettingFromEnvironment(PROFILING_URL, null);
@@ -593,7 +598,7 @@ public class Config {
           new HashMap<>(
               getPropertyMapValue(properties, GLOBAL_TAGS, Collections.<String, String>emptyMap()));
       preTags.putAll(getPropertyMapValue(properties, TAGS, parent.tags));
-      this.tags = overwriteKeysFromProperties(preTags, properties, ENV, VERSION);
+      tags = overwriteKeysFromProperties(preTags, properties, ENV, VERSION);
     }
     spanTags = getPropertyMapValue(properties, SPAN_TAGS, parent.spanTags);
     jmxTags = getPropertyMapValue(properties, JMX_TAGS, parent.jmxTags);
@@ -701,6 +706,9 @@ public class Config {
             properties, TRACE_SAMPLING_OPERATION_RULES, parent.traceSamplingOperationRules);
     traceSampleRate = getPropertyDoubleValue(properties, TRACE_SAMPLE_RATE, parent.traceSampleRate);
     traceRateLimit = getPropertyDoubleValue(properties, TRACE_RATE_LIMIT, parent.traceRateLimit);
+
+    methodTraceSampleRate =
+        getPropertyDoubleValue(properties, METHOD_TRACE_SAMPLE_RATE, parent.methodTraceSampleRate);
 
     profilingEnabled =
         getPropertyBooleanValue(properties, PROFILING_ENABLED, parent.profilingEnabled);
@@ -1043,7 +1051,7 @@ public class Config {
   }
 
   private static <T> T getSettingFromEnvironmentWithLog(
-      final String name, Class<T> tClass, final T defaultValue) {
+      final String name, final Class<T> tClass, final T defaultValue) {
     try {
       return valueOf(getSettingFromEnvironment(name, null), tClass, defaultValue);
     } catch (final NumberFormatException e) {
@@ -1126,12 +1134,12 @@ public class Config {
           PUBLIC_LOOKUP
               .findStatic(tClass, "valueOf", MethodType.methodType(tClass, String.class))
               .invoke(value);
-    } catch (NumberFormatException e) {
+    } catch (final NumberFormatException e) {
       throw e;
-    } catch (NoSuchMethodException | IllegalAccessException e) {
+    } catch (final NoSuchMethodException | IllegalAccessException e) {
       log.debug("Can't invoke or access 'valueOf': ", e);
       throw new NumberFormatException(e.toString());
-    } catch (Throwable e) {
+    } catch (final Throwable e) {
       log.debug("Can't parse: ", e);
       throw new NumberFormatException(e.toString());
     }
