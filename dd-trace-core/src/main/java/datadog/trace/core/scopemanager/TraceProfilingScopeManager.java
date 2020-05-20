@@ -40,6 +40,19 @@ public abstract class TraceProfilingScopeManager extends ScopeInterceptor.Delega
     return new Heuristical(statsCollector, delegate);
   }
 
+  @Override
+  public Scope handleSpan(final AgentSpan span) {
+    if (IS_THREAD_PROFILING.get() // don't need to waste a permit if so.
+        || span instanceof AgentTracer.NoopAgentSpan
+        || !shouldProfile(span.getLocalRootSpan())) {
+      // We don't want to wrap the scope for profiling.
+      return delegate.handleSpan(span);
+    }
+    return new TraceProfilingScope(delegate.handleSpan(span));
+  }
+
+  abstract boolean shouldProfile(AgentSpan span);
+
   private static class Percentage extends TraceProfilingScopeManager {
     private static final BigDecimal TRACE_ID_MAX_AS_BIG_DECIMAL =
         new BigDecimal(CoreTracer.TRACE_ID_MAX);
@@ -53,17 +66,8 @@ public abstract class TraceProfilingScopeManager extends ScopeInterceptor.Delega
     }
 
     @Override
-    public Scope handleSpan(final AgentSpan span) {
-      if (IS_THREAD_PROFILING.get() // don't need to waste a permit if so.
-          || !shouldSample(span.getLocalRootSpan())) {
-        // Do we want to apply rate limiting?
-        // We don't want to wrap the scope for profiling.
-        return delegate.handleSpan(span);
-      }
-      return new TraceProfilingScope(delegate.handleSpan(span));
-    }
-
-    private boolean shouldSample(final AgentSpan span) {
+    boolean shouldProfile(final AgentSpan span) {
+      // Do we want to apply rate limiting?
       return span.getTraceId().compareTo(cutoff) <= 0;
     }
   }
@@ -79,16 +83,12 @@ public abstract class TraceProfilingScopeManager extends ScopeInterceptor.Delega
     }
 
     @Override
-    public Scope handleSpan(final AgentSpan span) {
-      if (IS_THREAD_PROFILING.get() // don't need to waste a permit if so.
-          || span instanceof AgentTracer.NoopAgentSpan
-          || !maybeInteresting(span.getLocalRootSpan())
-          || !acquireProfilePermit()) {
-        // We don't want to wrap the scope for profiling.
-        return delegate.handleSpan(span);
+    boolean shouldProfile(final AgentSpan span) {
+      if (maybeInteresting(span) && acquireProfilePermit()) {
+        lastProfileTimestamp = System.nanoTime();
+        return true;
       }
-      lastProfileTimestamp = System.nanoTime();
-      return new TraceProfilingScope(delegate.handleSpan(span));
+      return false;
     }
 
     private boolean maybeInteresting(final AgentSpan span) {
