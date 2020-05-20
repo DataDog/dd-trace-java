@@ -1,8 +1,8 @@
 package com.datadog.profiling.mlt;
 
 import datadog.trace.core.util.ThreadStackAccess;
+import org.junit.Assert;
 import org.junit.jupiter.api.Test;
-import org.testng.Assert;
 
 public class JMXSamplerTest {
 
