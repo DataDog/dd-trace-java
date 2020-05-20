@@ -2,6 +2,7 @@ package datadog.trace.core.scopemanager;
 
 import com.google.common.util.concurrent.RateLimiter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.interceptor.TraceStatsCollector;
@@ -80,6 +81,7 @@ public abstract class TraceProfilingScopeManager extends ScopeInterceptor.Delega
     @Override
     public Scope handleSpan(final AgentSpan span) {
       if (IS_THREAD_PROFILING.get() // don't need to waste a permit if so.
+          || span instanceof AgentTracer.NoopAgentSpan
           || !maybeInteresting(span.getLocalRootSpan())
           || !acquireProfilePermit()) {
         // We don't want to wrap the scope for profiling.
