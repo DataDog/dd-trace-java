@@ -47,6 +47,7 @@ copy_to_s3:
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
     - when: manual
+      allow_failure: true
   script:
     - export AWS_ACCESS_KEY_ID_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_key_id --with-decryption --query "Parameter.Value" --out text)
     - export AWS_SECRET_ACCESS_KEY_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_sec_key_id --with-decryption --query "Parameter.Value" --out text)
@@ -63,6 +64,7 @@ deploy_to_bintray:
     - if: '$CI_COMMIT_TAG =~ /^v.*/'
       when: on_success
     - when: manual
+      allow_failure: true
   script:
     - export BINTRAY_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.bintray_api_key --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbintrayUser=$BINTRAY_USER -PbintrayApiKey=$BINTRAY_API_KEY -PbuildInfo.build.number=$CI_JOB_ID artifactoryPublish --max-workers=1 --build-cache --stacktrace --no-daemon

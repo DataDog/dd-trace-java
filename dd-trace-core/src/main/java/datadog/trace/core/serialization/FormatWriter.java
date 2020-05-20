@@ -23,36 +23,44 @@ import java.util.Map;
 
 public abstract class FormatWriter<DEST> {
 
-  public abstract void writeKey(byte[] key, DEST destination) throws IOException;
+  public abstract void writeKey(final byte[] key, final DEST destination) throws IOException;
 
-  public abstract void writeListHeader(int size, DEST destination) throws IOException;
+  public abstract void writeListHeader(final int size, final DEST destination) throws IOException;
 
-  public abstract void writeListFooter(DEST destination) throws IOException;
+  public abstract void writeListFooter(final DEST destination) throws IOException;
 
-  public abstract void writeMapHeader(int size, DEST destination) throws IOException;
+  public abstract void writeMapHeader(final int size, final DEST destination) throws IOException;
 
-  public abstract void writeMapFooter(DEST destination) throws IOException;
+  public abstract void writeMapFooter(final DEST destination) throws IOException;
 
-  public void writeTag(byte[] key, String value, DEST destination) throws IOException {
+  public void writeTag(final byte[] key, final String value, final DEST destination)
+      throws IOException {
     writeString(key, value, destination);
   }
 
-  public abstract void writeString(byte[] key, String value, DEST destination) throws IOException;
-
-  public abstract void writeShort(byte[] key, short value, DEST destination) throws IOException;
-
-  public abstract void writeByte(byte[] key, byte value, DEST destination) throws IOException;
-
-  public abstract void writeInt(byte[] key, int value, DEST destination) throws IOException;
-
-  public abstract void writeLong(byte[] key, long value, DEST destination) throws IOException;
-
-  public abstract void writeFloat(byte[] key, float value, DEST destination) throws IOException;
-
-  public abstract void writeDouble(byte[] key, double value, DEST destination) throws IOException;
-
-  public abstract void writeBigInteger(byte[] key, BigInteger value, DEST destination)
+  public abstract void writeString(final byte[] key, final String value, final DEST destination)
       throws IOException;
+
+  public abstract void writeShort(final byte[] key, final short value, final DEST destination)
+      throws IOException;
+
+  public abstract void writeByte(final byte[] key, final byte value, final DEST destination)
+      throws IOException;
+
+  public abstract void writeInt(final byte[] key, final int value, final DEST destination)
+      throws IOException;
+
+  public abstract void writeLong(final byte[] key, final long value, final DEST destination)
+      throws IOException;
+
+  public abstract void writeFloat(final byte[] key, final float value, final DEST destination)
+      throws IOException;
+
+  public abstract void writeDouble(final byte[] key, final double value, final DEST destination)
+      throws IOException;
+
+  public abstract void writeBigInteger(
+      final byte[] key, final BigInteger value, final DEST destination) throws IOException;
 
   public void writeNumber(final byte[] key, final Number value, final DEST destination)
       throws IOException {
@@ -82,17 +90,23 @@ public abstract class FormatWriter<DEST> {
     writeMapFooter(destination);
   }
 
-  public void writeStringMap(
-      final byte[] key, final Map<String, String> value, final DEST destination)
-      throws IOException {
-    writeKey(key, destination);
-    writeStringMap(value, destination);
-  }
-
-  void writeStringMap(final Map<String, String> value, final DEST destination) throws IOException {
-    writeMapHeader(value.size(), destination);
-    for (final Map.Entry<String, String> entry : value.entrySet()) {
-      writeTag(stringToBytes(entry.getKey()), entry.getValue(), destination);
+  public void writeMeta(final DDSpan span, final DEST destination) throws IOException {
+    writeKey(META, destination);
+    Map<String, String> baggage = span.context().getBaggageItems();
+    Map<String, Object> tags = span.context().getTags();
+    writeMapHeader(baggage.size() + tags.size(), destination);
+    for (Map.Entry<String, String> entry : baggage.entrySet()) {
+      // tags and baggage may intersect, but tags take priority
+      if (!tags.containsKey(entry.getKey())) {
+        writeTag(stringToBytes(entry.getKey()), entry.getValue(), destination);
+      }
+    }
+    for (Map.Entry<String, Object> entry : tags.entrySet()) {
+      if (entry.getValue() instanceof String) {
+        writeTag(stringToBytes(entry.getKey()), (String) entry.getValue(), destination);
+      } else {
+        writeString(stringToBytes(entry.getKey()), String.valueOf(entry.getValue()), destination);
+      }
     }
     writeMapFooter(destination);
   }
@@ -119,12 +133,13 @@ public abstract class FormatWriter<DEST> {
     /* 9  */ writeTag(TYPE, span.getType(), destination);
     /* 10 */ writeInt(ERROR, span.getError(), destination);
     /* 11 */ writeNumberMap(METRICS, span.getMetrics(), destination);
-    /* 12 */ writeStringMap(META, span.getMeta(), destination);
+    /* 12 */ writeMeta(span, destination);
     writeMapFooter(destination);
   }
 
-  private byte[] stringToBytes(String string) {
-    byte[] key = StringTables.getBytesUTF8(string);
+  private byte[] stringToBytes(final String string) {
+    // won't reassign key or string in this method
+    final byte[] key = StringTables.getBytesUTF8(string);
     return null == key ? string.getBytes(StandardCharsets.UTF_8) : key;
   }
 }

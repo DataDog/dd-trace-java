@@ -1,5 +1,6 @@
 package datadog.trace.core.serialization;
 
+import datadog.trace.core.StringTables;
 import java.io.IOException;
 import java.math.BigInteger;
 import org.msgpack.core.MessagePacker;
@@ -8,7 +9,7 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   public static MsgpackFormatWriter MSGPACK_WRITER = new MsgpackFormatWriter();
 
   @Override
-  public void writeKey(final byte[] key, final MessagePacker destination) throws IOException {
+  public void writeKey(final byte[] key, MessagePacker destination) throws IOException {
     destination.packRawStringHeader(key.length);
     destination.addPayload(key);
   }
@@ -30,7 +31,7 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   public void writeMapFooter(final MessagePacker destination) {}
 
   @Override
-  public void writeString(final byte[] key, final String value, final MessagePacker destination)
+  public void writeString(final byte[] key, final String value, MessagePacker destination)
       throws IOException {
     writeKey(key, destination);
     if (value == null) {
@@ -38,6 +39,13 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
     } else {
       destination.packString(value);
     }
+  }
+
+  @Override
+  public void writeTag(final byte[] key, final String value, final MessagePacker destination)
+      throws IOException {
+    writeKey(key, destination);
+    writeStringUTF8(value, destination);
   }
 
   @Override
@@ -91,6 +99,21 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
       destination.packNil();
     } else {
       destination.packBigInteger(value);
+    }
+  }
+
+  private static void writeStringUTF8(final String value, final MessagePacker destination)
+      throws IOException {
+    if (null == value) {
+      destination.packNil();
+    } else {
+      byte[] interned = StringTables.getBytesUTF8(value);
+      if (null != interned) {
+        destination.packRawStringHeader(interned.length);
+        destination.addPayload(interned);
+      } else {
+        destination.packString(value);
+      }
     }
   }
 }
