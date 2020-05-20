@@ -32,7 +32,7 @@ public class DeterministicSampler implements RateSampler {
     } else if (rate == 0) {
       sampled = false;
     } else {
-      sampled = span.getTraceId() * KNUTH_FACTOR + Long.MIN_VALUE < cutoff + Long.MIN_VALUE;
+      sampled = span.getTraceId().toLong() * KNUTH_FACTOR + Long.MIN_VALUE < cutoff + Long.MIN_VALUE;
     }
 
     if (log.isDebugEnabled()) {

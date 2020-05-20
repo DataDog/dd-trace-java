@@ -5,6 +5,7 @@ import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.core.DDId;
 import datadog.trace.core.DDSpanContext;
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,8 +39,8 @@ class B3HttpCodec {
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       try {
-        setter.set(carrier, TRACE_ID_KEY, Long.toHexString(context.getTraceId()));
-        setter.set(carrier, SPAN_ID_KEY, Long.toHexString(context.getSpanId()));
+        setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toHexString());
+        setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toHexString());
 
         if (context.lockSamplingPriority()) {
           setter.set(
@@ -118,8 +119,8 @@ class B3HttpCodec {
         if (traceId != 0L) {
           final ExtractedContext context =
               new ExtractedContext(
-                  traceId,
-                  spanId,
+                  DDId.from(traceId),
+                  DDId.from(spanId),
                   samplingPriority,
                   null,
                   Collections.<String, String>emptyMap(),

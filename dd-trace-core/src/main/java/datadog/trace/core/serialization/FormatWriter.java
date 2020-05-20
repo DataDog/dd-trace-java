@@ -125,9 +125,9 @@ public abstract class FormatWriter<DEST> {
     /* 1  */ writeString(SERVICE, span.getServiceName(), destination);
     /* 2  */ writeString(NAME, span.getOperationName(), destination);
     /* 3  */ writeString(RESOURCE, span.getResourceName(), destination);
-    /* 4  */ writeLong(TRACE_ID, span.getTraceId(), destination);
-    /* 5  */ writeLong(SPAN_ID, span.getSpanId(), destination);
-    /* 6  */ writeLong(PARENT_ID, span.getParentId(), destination);
+    /* 4  */ writeLong(TRACE_ID, span.getTraceId().toLong(), destination);
+    /* 5  */ writeLong(SPAN_ID, span.getSpanId().toLong(), destination);
+    /* 6  */ writeLong(PARENT_ID, span.getParentId().toLong(), destination);
     /* 7  */ writeLong(START, span.getStartTime(), destination);
     /* 8  */ writeLong(DURATION, span.getDurationNano(), destination);
     /* 9  */ writeTag(TYPE, span.getType(), destination);

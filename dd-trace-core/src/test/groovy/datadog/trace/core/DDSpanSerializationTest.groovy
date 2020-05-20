@@ -28,9 +28,9 @@ class DDSpanSerializationTest extends DDSpecification {
       service  : "service",
       name     : "operation",
       resource : "operation",
-      trace_id : 1l,
-      span_id  : 2l,
-      parent_id: 0l,
+      trace_id : DDId.from(1),
+      span_id  : DDId.from(2),
+      parent_id: DDId.ZERO,
       start    : 100000,
       duration : 33000,
       type     : spanType,
@@ -48,9 +48,9 @@ class DDSpanSerializationTest extends DDSpecification {
     def tracer = CoreTracer.builder().writer(writer).build()
     final DDSpanContext context =
       new DDSpanContext(
-        1L,
-        2L,
-        0L,
+        DDId.from(1),
+        DDId.from(2),
+        DDId.ZERO,
         "service",
         "operation",
         null,
@@ -60,7 +60,7 @@ class DDSpanSerializationTest extends DDSpecification {
         false,
         spanType,
         ["k1": "v1"],
-        PendingTrace.create(tracer, 1L),
+        PendingTrace.create(tracer, DDId.from(1)),
         tracer,
         [:])
 
@@ -86,7 +86,7 @@ class DDSpanSerializationTest extends DDSpecification {
     def context = new DDSpanContext(
       value,
       value,
-      0L,
+      DDId.ZERO,
       "fakeService",
       "fakeOperation",
       "fakeResource",
@@ -96,7 +96,7 @@ class DDSpanSerializationTest extends DDSpecification {
       false,
       spanType,
       Collections.emptyMap(),
-      PendingTrace.create(tracer, 1L),
+      PendingTrace.create(tracer, DDId.from(1)),
       tracer,
       [:])
     def span = DDSpan.create(0, context)
@@ -125,10 +125,10 @@ class DDSpanSerializationTest extends DDSpecification {
 
     where:
     value                                           | spanType
-    0L                                              | null
-    1L                                              | "some-type"
-    8223372036854775807L                            | null
-    Long.MAX_VALUE - 1L                             | "some-type"
-    -1L                                             | "some-type"
+    DDId.ZERO                                       | null
+    DDId.from(1)                                    | "some-type"
+    DDId.from(8223372036854775807)                  | null
+    DDId.from(Long.MAX_VALUE - 1)                   | "some-type"
+    DDId.from(-1)                                   | "some-type"
   }
 }

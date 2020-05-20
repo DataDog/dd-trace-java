@@ -62,9 +62,9 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
       if (cpuTime > 0) {
         cpuTime = ThreadCpuTimeAccess.getCurrentThreadCpuTime() - cpuTime;
       }
-      traceId = Long.toHexString(spanContext.getTraceId());
-      spanId = Long.toHexString(spanContext.getSpanId());
-      parentId = Long.toHexString(spanContext.getParentId());
+      traceId = spanContext.getTraceId().toHexString();
+      spanId = spanContext.getSpanId().toHexString();
+      parentId = spanContext.getParentId().toHexString();
       serviceName = spanContext.getServiceName();
       resourceName = spanContext.getResourceName();
       operationName = spanContext.getOperationName();

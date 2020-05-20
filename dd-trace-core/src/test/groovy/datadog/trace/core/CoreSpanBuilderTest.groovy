@@ -156,7 +156,7 @@ class CoreSpanBuilderTest extends DDSpecification {
     1 * mockedContext.getSpanId() >> spanId
     _ * mockedContext.getServiceName() >> "foo"
     1 * mockedContext.getBaggageItems() >> [:]
-    1 * mockedContext.getTrace() >> PendingTrace.create(tracer, 1L)
+    1 * mockedContext.getTrace() >> PendingTrace.create(tracer, DDId.from(1))
 
     final String expectedName = "fakeName"
 

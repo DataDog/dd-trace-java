@@ -4,6 +4,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
+import datadog.trace.core.DDId
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.util.test.DDSpecification
@@ -20,8 +21,8 @@ class HttpInjectorTest extends DDSpecification {
     }
     HttpCodec.Injector injector = HttpCodec.createInjector(config)
 
-    def traceId = 1L
-    def spanId = 2L
+    def traceId = DDId.from(1)
+    def spanId = DDId.from(2)
 
     def writer = new ListWriter()
     def tracer = CoreTracer.builder().writer(writer).build()
@@ -29,7 +30,7 @@ class HttpInjectorTest extends DDSpecification {
       new DDSpanContext(
         traceId,
         spanId,
-        0L,
+        DDId.ZERO,
         "fakeService",
         "fakeOperation",
         "fakeResource",
@@ -44,7 +45,7 @@ class HttpInjectorTest extends DDSpecification {
         false,
         "fakeType",
         null,
-        new PendingTrace(tracer, 1L),
+        new PendingTrace(tracer, DDId.from(1)),
         tracer,
         [:])
 

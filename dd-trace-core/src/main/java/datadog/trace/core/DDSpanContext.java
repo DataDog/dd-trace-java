@@ -39,9 +39,9 @@ public class DDSpanContext implements AgentSpan.Context {
   private final Map<String, String> baggageItems;
 
   // Not Shared with other span contexts
-  private final long traceId;
-  private final long spanId;
-  private final long parentId;
+  private final DDId traceId;
+  private final DDId spanId;
+  private final DDId parentId;
 
   /** Tags are associated to the current span, they will not propagate to the children span */
   private final Map<String, Object> tags = new ConcurrentHashMap<>();
@@ -75,9 +75,9 @@ public class DDSpanContext implements AgentSpan.Context {
   private final Map<String, String> serviceNameMappings;
 
   public DDSpanContext(
-      final long traceId,
-      final long spanId,
-      final long parentId,
+      final DDId traceId,
+      final DDId spanId,
+      final DDId parentId,
       final String serviceName,
       final String operationName,
       final String resourceName,
@@ -129,15 +129,15 @@ public class DDSpanContext implements AgentSpan.Context {
     this.tags.put(DDTags.THREAD_ID, threadId);
   }
 
-  public long getTraceId() {
+  public DDId getTraceId() {
     return traceId;
   }
 
-  public long getParentId() {
+  public DDId getParentId() {
     return parentId;
   }
 
-  public long getSpanId() {
+  public DDId getSpanId() {
     return spanId;
   }
 

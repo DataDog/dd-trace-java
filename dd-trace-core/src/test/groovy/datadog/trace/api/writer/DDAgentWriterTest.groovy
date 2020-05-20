@@ -8,6 +8,7 @@ import datadog.trace.common.writer.ddagent.Monitor
 import datadog.trace.common.writer.ddagent.MsgPackStatefulSerializer
 import datadog.trace.common.writer.ddagent.TraceBuffer
 import datadog.trace.core.CoreTracer
+import datadog.trace.core.DDId
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
@@ -189,9 +190,9 @@ class DDAgentWriterTest extends DDSpecification {
 
     where:
     minimalContext = new DDSpanContext(
-      1G,
-      1G,
-      0G,
+      DDId.from(1),
+      DDId.from(1),
+      DDId.ZERO,
       "",
       "",
       "",
@@ -269,9 +270,9 @@ class DDAgentWriterTest extends DDSpecification {
 
   def createMinimalTrace() {
     def minimalContext = new DDSpanContext(
-      1L,
-      1L,
-      0L,
+      DDId.from(1),
+      DDId.from(1),
+      DDId.ZERO,
       "",
       "",
       "",

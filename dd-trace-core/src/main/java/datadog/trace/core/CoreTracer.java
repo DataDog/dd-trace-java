@@ -392,7 +392,7 @@ public class CoreTracer
   public String getTraceId() {
     final AgentSpan activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
-      return Long.toString(((DDSpan) activeSpan).getTraceId());
+      return ((DDSpan) activeSpan).getTraceId().toString();
     }
     return "0";
   }
@@ -401,7 +401,7 @@ public class CoreTracer
   public String getSpanId() {
     final AgentSpan activeSpan = activeSpan();
     if (activeSpan instanceof DDSpan) {
-      return Long.toString(((DDSpan) activeSpan).getSpanId());
+      return ((DDSpan) activeSpan).getSpanId().toString();
     }
     return "0";
   }
@@ -538,17 +538,6 @@ public class CoreTracer
       return this;
     }
 
-    private long generateNewId() {
-      // It is **extremely** unlikely to generate the value "0" but we still need to handle that
-      // case
-      long value;
-      do {
-        value = ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
-      } while (value == 0);
-
-      return value;
-    }
-
     /**
      * Build the SpanContext, if the actual span has a parent, the following attributes must be
      * propagated: - ServiceName - Baggage - Trace (a list of all spans related) - SpanType
@@ -556,9 +545,9 @@ public class CoreTracer
      * @return the context
      */
     private DDSpanContext buildSpanContext() {
-      final long traceId;
-      final long spanId = generateNewId();
-      final long parentSpanId;
+      final DDId traceId;
+      final DDId spanId = new DDId();
+      final DDId parentSpanId;
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
       final int samplingPriority;
@@ -602,8 +591,8 @@ public class CoreTracer
           baggage = extractedContext.getBaggage();
         } else {
           // Start a new trace
-          traceId = generateNewId();
-          parentSpanId = 0L;
+          traceId = new DDId();
+          parentSpanId = DDId.ZERO;
           samplingPriority = PrioritySampling.UNSET;
           baggage = null;
         }

@@ -22,9 +22,9 @@ class DDSpanTest extends DDSpecification {
     setup:
     final DDSpanContext context =
       new DDSpanContext(
-        1L,
-        1L,
-        0L,
+        DDId.from(1),
+        DDId.from(1),
+        DDId.ZERO,
         "fakeService",
         "fakeOperation",
         "fakeResource",
@@ -34,7 +34,7 @@ class DDSpanTest extends DDSpecification {
         false,
         "fakeType",
         null,
-        PendingTrace.create(tracer, 1L),
+        PendingTrace.create(tracer, DDId.from(1)),
         tracer,
         [:])
 
@@ -204,7 +204,7 @@ class DDSpanTest extends DDSpecification {
     where:
     extractedContext                                         | _
     new TagContext("some-origin", [:])                       | _
-    new ExtractedContext(1L, 2L, 0, "some-origin", [:], [:]) | _
+    new ExtractedContext(DDId.from(1), DDId.from(2), 0, "some-origin", [:], [:]) | _
   }
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
@@ -223,7 +223,7 @@ class DDSpanTest extends DDSpecification {
     where:
     extractedContext                                     | isTraceRootSpan
     null                                                 | true
-    new ExtractedContext(123L, 456L, 1, "789", [:], [:]) | false
+    new ExtractedContext(DDId.from(123), DDId.from(456), 1, "789", [:], [:]) | false
   }
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {

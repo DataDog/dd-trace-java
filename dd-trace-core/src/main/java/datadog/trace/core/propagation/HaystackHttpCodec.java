@@ -5,6 +5,7 @@ import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.core.DDId;
 import datadog.trace.core.DDSpanContext;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,9 +34,9 @@ public class HaystackHttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
-      setter.set(carrier, TRACE_ID_KEY, String.valueOf(context.getTraceId()));
-      setter.set(carrier, SPAN_ID_KEY, String.valueOf(context.getSpanId()));
-      setter.set(carrier, PARENT_ID_KEY, String.valueOf(context.getParentId()));
+      setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString());
+      setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toString());
+      setter.set(carrier, PARENT_ID_KEY, context.getParentId().toString());
 
       for (final Map.Entry<String, String> entry : context.baggageItems()) {
         setter.set(carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
@@ -94,7 +95,7 @@ public class HaystackHttpCodec {
 
         if (traceId != 0L) {
           final ExtractedContext context =
-              new ExtractedContext(traceId, spanId, samplingPriority, origin, baggage, tags);
+              new ExtractedContext(DDId.from(traceId), DDId.from(spanId), samplingPriority, origin, baggage, tags);
           context.lockSamplingPriority();
 
           log.debug("{} - Parent context extracted", context.getTraceId());

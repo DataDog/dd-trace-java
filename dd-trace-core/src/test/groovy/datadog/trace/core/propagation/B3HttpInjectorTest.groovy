@@ -3,6 +3,7 @@ package datadog.trace.core.propagation
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
+import datadog.trace.core.DDId
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.util.test.DDSpecification
@@ -24,7 +25,7 @@ class B3HttpInjectorTest extends DDSpecification {
       new DDSpanContext(
         traceId,
         spanId,
-        0G,
+        DDId.ZERO,
         "fakeService",
         "fakeOperation",
         "fakeResource",

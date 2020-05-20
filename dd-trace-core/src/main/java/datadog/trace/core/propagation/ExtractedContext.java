@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import datadog.trace.core.DDId;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -7,15 +8,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Propagated data resulting from calling tracer.extract with header data from an incoming request.
  */
 public class ExtractedContext extends TagContext {
-  private final long traceId;
-  private final long spanId;
+  private final DDId traceId;
+  private final DDId spanId;
   private final int samplingPriority;
   private final Map<String, String> baggage;
   private final AtomicBoolean samplingPriorityLocked = new AtomicBoolean(false);
 
   public ExtractedContext(
-      final long traceId,
-      final long spanId,
+      final DDId traceId,
+      final DDId spanId,
       final int samplingPriority,
       final String origin,
       final Map<String, String> baggage,
@@ -36,11 +37,11 @@ public class ExtractedContext extends TagContext {
     samplingPriorityLocked.set(true);
   }
 
-  public long getTraceId() {
+  public DDId getTraceId() {
     return traceId;
   }
 
-  public long getSpanId() {
+  public DDId getSpanId() {
     return spanId;
   }
 

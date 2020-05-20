@@ -25,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements AgentTrace {
 
-  static PendingTrace create(final CoreTracer tracer, final long traceId) {
+  static PendingTrace create(final CoreTracer tracer, final DDId traceId) {
     final PendingTrace pendingTrace = new PendingTrace(tracer, traceId);
     pendingTrace.addPendingTrace();
     return pendingTrace;
@@ -34,7 +34,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   private static final AtomicReference<SpanCleaner> SPAN_CLEANER = new AtomicReference<>();
 
   private final CoreTracer tracer;
-  private final long traceId;
+  private final DDId traceId;
 
   // TODO: consider moving these time fields into DDTracer to ensure that traces have precise
   // relative time
@@ -74,7 +74,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   /** Ensure a trace is never written multiple times */
   private final AtomicBoolean isWritten = new AtomicBoolean(false);
 
-  private PendingTrace(final CoreTracer tracer, final long traceId) {
+  private PendingTrace(final CoreTracer tracer, final DDId traceId) {
     this.tracer = tracer;
     this.traceId = traceId;
 
@@ -97,13 +97,13 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   }
 
   public void registerSpan(final DDSpan span) {
-    if (traceId == 0L || span.context() == null) {
+    if (DDId.ZERO.equals(traceId) || span.context() == null) {
       log.error(
           "Failed to register span ({}) due to null PendingTrace traceId or null span context",
           span);
       return;
     }
-    if (traceId != span.context().getTraceId()) {
+    if (!traceId.equals(span.context().getTraceId())) {
       log.debug("{} - span registered for wrong trace ({})", span, traceId);
       return;
     }
@@ -123,12 +123,12 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   }
 
   private void expireSpan(final DDSpan span) {
-    if (traceId == 0L || span.context() == null) {
+    if (DDId.ZERO.equals(traceId) || span.context() == null) {
       log.error(
           "Failed to expire span ({}) due to null PendingTrace traceId or null span context", span);
       return;
     }
-    if (traceId != span.context().getTraceId()) {
+    if (!traceId.equals(span.context().getTraceId())) {
       log.debug("{} - span expired for wrong trace ({})", span, traceId);
       return;
     }
@@ -149,12 +149,12 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
       log.debug("{} - added to trace, but not complete.", span);
       return;
     }
-    if (traceId == 0L || span.context() == null) {
+    if (DDId.ZERO.equals(traceId) || span.context() == null) {
       log.error(
           "Failed to add span ({}) due to null PendingTrace traceId or null span context", span);
       return;
     }
-    if (traceId != span.getTraceId()) {
+    if (!traceId.equals(span.getTraceId())) {
       log.debug("{} - added to a mismatched trace.", span);
       return;
     }

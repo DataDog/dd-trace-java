@@ -116,7 +116,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
    * @return true if root, false otherwise
    */
   public final boolean isRootSpan() {
-    return context.getParentId() == 0L;
+    return DDId.ZERO.equals(context.getParentId());
   }
 
   @Override
@@ -134,8 +134,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
   public boolean isSameTrace(final AgentSpan otherSpan) {
     // FIXME [API] AgentSpan or AgentSpan.Context should have a "getTraceId()" type method
     if (otherSpan instanceof DDSpan) {
-      // minor optimization to avoid BigInteger.toString()
-      return getTraceId() == ((DDSpan) otherSpan).getTraceId();
+      return getTraceId().equals(((DDSpan) otherSpan).getTraceId());
     }
 
     return false;
@@ -283,15 +282,15 @@ public class DDSpan implements MutableSpan, AgentSpan {
     return context.getServiceName();
   }
 
-  public long getTraceId() {
+  public DDId getTraceId() {
     return context.getTraceId();
   }
 
-  public long getSpanId() {
+  public DDId getSpanId() {
     return context.getSpanId();
   }
 
-  public long getParentId() {
+  public DDId getParentId() {
     return context.getParentId();
   }
 

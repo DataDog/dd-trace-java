@@ -5,6 +5,7 @@ import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.core.DDId;
 import datadog.trace.core.DDSpanContext;
 import java.util.Collections;
 import java.util.HashMap;
@@ -101,7 +102,7 @@ class DatadogHttpCodec {
 
         if (traceId != 0L) {
           final ExtractedContext context =
-              new ExtractedContext(traceId, spanId, samplingPriority, origin, baggage, tags);
+              new ExtractedContext(DDId.from(traceId), DDId.from(spanId), samplingPriority, origin, baggage, tags);
           context.lockSamplingPriority();
 
           log.debug("{} - Parent context extracted", context.getTraceId());

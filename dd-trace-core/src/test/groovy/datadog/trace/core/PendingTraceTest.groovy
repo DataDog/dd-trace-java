@@ -17,7 +17,7 @@ class PendingTraceTest extends DDSpecification {
   def writer = new ListWriter()
   def tracer = CoreTracer.builder().writer(writer).build()
 
-  long traceId = System.identityHashCode(this)
+  DDId traceId = DDId.from(System.identityHashCode(this))
 
   @Subject
   PendingTrace trace = PendingTrace.create(tracer, traceId)

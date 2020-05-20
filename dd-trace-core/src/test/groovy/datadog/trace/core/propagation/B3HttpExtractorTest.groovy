@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation
 
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.core.DDId
 import datadog.trace.util.test.DDSpecification
 
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
@@ -28,8 +29,8 @@ class B3HttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, MapGetter.INSTANCE)
 
     then:
-    context.traceId == traceId.longValue()
-    context.spanId == spanId.longValue()
+    context.traceId == DDId.from(traceId.longValue())
+    context.spanId == DDId.from(spanId.longValue())
     context.baggage == [:]
     context.tags == ["some-tag": "my-interesting-info"]
     context.samplingPriority == expectedSamplingPriority
@@ -56,8 +57,8 @@ class B3HttpExtractorTest extends DDSpecification {
 
     then:
     if (expectedTraceId) {
-      assert context.traceId == expectedTraceId.longValue()
-      assert context.spanId == expectedSpanId.longValue()
+      assert context.traceId == DDId.from(expectedTraceId.longValue())
+      assert context.spanId == DDId.from(expectedSpanId.longValue())
     } else {
       assert context == null
     }
