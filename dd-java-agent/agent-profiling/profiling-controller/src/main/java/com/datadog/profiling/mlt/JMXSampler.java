@@ -16,8 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 class JMXSampler {
   private final StackTraceSink sink;
   private final ThreadStackProvider provider;
-  private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
-    new DaemonThreadFactory("dd-profiling-sampler"));
+  private final ScheduledExecutorService executor =
+      Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory("dd-profiling-sampler"));
   private long samplingCount;
   private AtomicReference<long[]> threadIds = new AtomicReference<>();
 
@@ -38,8 +38,9 @@ class JMXSampler {
   }
 
   /**
-   * Adds a thread id to be sampled by the sampler thread.
-   * /!\ There is no verification of multiple occurrences of this id.
+   * Adds a thread id to be sampled by the sampler thread. /!\ There is no verification of multiple
+   * occurrences of this id.
+   *
    * @param threadId
    */
   public void addThreadId(long threadId) {
