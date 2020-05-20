@@ -1,5 +1,6 @@
 package com.datadog.profiling.mlt;
 
+import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.core.util.NoneThreadStackProvider;
 import datadog.trace.core.util.ThreadStackAccess;
 import datadog.trace.core.util.ThreadStackProvider;
@@ -12,10 +13,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class JMXSampler {
+class JMXSampler {
   private final StackTraceSink sink;
   private final ThreadStackProvider provider;
-  private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+  private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
+    new DaemonThreadFactory("dd-profiling-sampler"));
   private long samplingCount;
   private AtomicReference<long[]> threadIds = new AtomicReference<>();
 
@@ -35,6 +37,11 @@ public class JMXSampler {
     log.info("Flushing remaining {} bytes", buffer.length);
   }
 
+  /**
+   * Adds a thread id to be sampled by the sampler thread.
+   * /!\ There is no verification of multiple occurrences of this id.
+   * @param threadId
+   */
   public void addThreadId(long threadId) {
     long[] tmpArray;
     long[] prev = threadIds.get();

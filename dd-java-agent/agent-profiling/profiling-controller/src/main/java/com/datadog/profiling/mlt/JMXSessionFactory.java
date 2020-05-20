@@ -29,6 +29,9 @@ public class JMXSessionFactory implements SessionFactory {
     sampler.shutdown();
   }
 
+  // This method is invoked under the assumption that we are using a ConcurrentHashMap
+  // and the method Map#computeIfAbsent is therefore atomic for the update of the value
+  // inside the map
   private JMXSession createNewSession(String id, long threadId) {
     sampler.addThreadId(threadId);
     return new JMXSession(id, threadId, this::cleanup);
@@ -38,6 +41,9 @@ public class JMXSessionFactory implements SessionFactory {
     jmxSessions.computeIfPresent(session.getThreadId(), this::closeSession);
   }
 
+  // This method is invoked under the assumption that we are using a ConcurrentHashMap
+  // and the method Map#computeIfPresent is therefore atomic for the update of the value
+  // inside the map
   private JMXSession closeSession(Long key, JMXSession jmxSession) {
     int current = jmxSession.deactivate();
     if (current == 0) {
