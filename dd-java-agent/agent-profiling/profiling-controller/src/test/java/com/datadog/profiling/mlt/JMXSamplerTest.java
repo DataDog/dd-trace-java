@@ -21,4 +21,16 @@ public class JMXSamplerTest {
     Assert.assertNotNull(buffer);
     Assert.assertTrue(buffer.length > 0);
   }
+
+  @Test
+  public void emptySampler() throws InterruptedException {
+    ThreadStackAccess.enableJmx();
+    StackTraceSink sink = new JFRStackTraceSink();
+    JMXSampler sampler = new JMXSampler(sink);
+    Thread.sleep(100);
+    sampler.shutdown();
+    byte[] buffer = sink.flush();
+    Assert.assertNotNull(buffer);
+    Assert.assertTrue(buffer.length > 0);
+  }
 }
