@@ -1,44 +1,41 @@
 package com.datadog.profiling.mlt;
 
 import datadog.trace.profiling.Session;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class JMXSession implements Session {
   private final String id;
-  private final long[] threadIds;
-  private final Map<Long, JMXSession> sessions;
+  private final long threadId;
+  private final Consumer<JMXSession> cleanup;
   private final AtomicInteger refCount = new AtomicInteger();
 
-  public JMXSession(String id, long threadId, Map<Long, JMXSession> sessions) {
+  public JMXSession(String id, long threadId, Consumer<JMXSession> cleanup) {
     this.id = id;
-    this.threadIds = new long[] { threadId };
-    this.sessions = sessions;
+    this.threadId = threadId;
+    this.cleanup = cleanup;
   }
 
+  @Override
   public void close() {
-    sessions.computeIfPresent(threadIds[0], this::closeSession);
+    cleanup.accept(this);
   }
 
-  public String getId() {
+  String getId() {
     return id;
   }
 
-  private JMXSession closeSession(Long key, JMXSession jmxSession) {
-    int current = jmxSession.decRefCount();
-    if (current == 0) {
-      return null;
-    }
-    return jmxSession;
+  long getThreadId() {
+    return threadId;
   }
 
-  void incRefCount() {
+  void activate() {
     refCount.getAndIncrement();
   }
 
-  int decRefCount() {
+  int deactivate() {
     return refCount.decrementAndGet();
   }
 }

@@ -1,72 +1,49 @@
 package com.datadog.profiling.mlt;
 
-import datadog.trace.core.util.NoneThreadStackProvider;
-import datadog.trace.core.util.ThreadStackAccess;
-import datadog.trace.core.util.ThreadStackProvider;
 import datadog.trace.profiling.Session;
 import datadog.trace.profiling.SessionFactory;
-import java.lang.management.ThreadInfo;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class JMXSessionFactory implements SessionFactory {
-  private final StackTraceSink sink;
-  private final ThreadStackProvider provider;
   private final Map<Long, JMXSession> jmxSessions = new ConcurrentHashMap<>();
-  private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-  private long samplingCount;
+  private final JMXSampler sampler;
 
   public JMXSessionFactory(StackTraceSink sink) {
-    this.sink = sink;
-    provider = ThreadStackAccess.getCurrentThreadStackProvider();
-    if (provider instanceof NoneThreadStackProvider) {
-      log.warn("ThreadStack provider is oo op. It will not provide thread stacks.");
-    }
-    start();
+    this.sampler = new JMXSampler(sink);
   }
 
+  @Override
   public Session createSession(String id, Thread thread) {
     long threadId = thread.getId();
     JMXSession session =
         jmxSessions.computeIfAbsent(threadId, key -> createNewSession(id, threadId));
-    session.incRefCount();
+    session.activate();
     return session;
   }
 
+  @Override
+  public void shutdown() {
+    sampler.shutdown();
+  }
+
   private JMXSession createNewSession(String id, long threadId) {
-    return new JMXSession(id, threadId, jmxSessions);
+    sampler.addThreadId(threadId);
+    return new JMXSession(id, threadId, this::cleanup);
   }
 
-  private void start() {
-    // TODO period as parameter
-    executor.scheduleAtFixedRate(this::sample, 0, 10, TimeUnit.MILLISECONDS);
+  private void cleanup(JMXSession session) {
+    jmxSessions.computeIfPresent(session.getThreadId(), this::closeSession);
   }
 
-  private void sample() {
-    int size = jmxSessions.size();
-    if (size == 0) {
-      return;
+  private JMXSession closeSession(Long key, JMXSession jmxSession) {
+    int current = jmxSession.deactivate();
+    if (current == 0) {
+      sampler.removeThread(jmxSession.getThreadId());
+      return null;
     }
-    long[] threadIds = new long[size];
-    String[] ids = new String[size];
-    int i = 0;
-    for (Map.Entry<Long, JMXSession> entry : jmxSessions.entrySet()) {
-      threadIds[i] = entry.getKey();
-      ids[i] = entry.getValue().getId();
-      i++;
-    }
-    ThreadInfo[] threadInfos = provider.getThreadInfo(threadIds);
-    sink.write(ids, threadInfos);
-    samplingCount++;
-    // TODO flushing time as parameter
-    if (samplingCount % 100 == 0) {
-      byte[] buffer = sink.flush();
-      log.info("flushing {} bytes", buffer.length);
-    }
+    return jmxSession;
   }
 }

@@ -60,6 +60,13 @@ public class Profiler {
     factory = sessionFactory;
   }
 
+  public static void shutdown() {
+    SessionFactory localFactory = factory;
+    if (localFactory != null) {
+      factory.shutdown();
+    }
+  }
+
   private static class NoSession implements Session {
     @Override
     public void close() {}

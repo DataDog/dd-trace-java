@@ -2,10 +2,10 @@ package com.datadog.profiling.mlt;
 
 import datadog.trace.core.util.ThreadStackAccess;
 import datadog.trace.profiling.Session;
-import org.junit.Assert;
-import org.junit.jupiter.api.Test;
 import java.lang.management.ThreadInfo;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.Assert;
+import org.junit.jupiter.api.Test;
 
 public class JMXSessionTest {
 
@@ -75,7 +75,6 @@ public class JMXSessionTest {
         asserted.set(true);
         lock.notifyAll();
       }
-
     }
 
     @Override
