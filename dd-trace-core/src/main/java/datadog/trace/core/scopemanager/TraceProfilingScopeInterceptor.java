@@ -3,7 +3,6 @@ package datadog.trace.core.scopemanager;
 import com.google.common.util.concurrent.RateLimiter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.context.TraceScope;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.interceptor.TraceStatsCollector;
 import datadog.trace.profiling.Profiler;
@@ -13,7 +12,8 @@ import java.math.BigInteger;
 import java.util.concurrent.TimeUnit;
 import org.HdrHistogram.Histogram;
 
-public abstract class TraceProfilingScopeManager extends ScopeInterceptor.DelegatingInterceptor {
+public abstract class TraceProfilingScopeInterceptor
+    extends ScopeInterceptor.DelegatingInterceptor {
   private static final long MAX_NANOSECONDS_BETWEEN_ACTIVATIONS = TimeUnit.SECONDS.toNanos(1);
   private static final double ACTIVATIONS_PER_SECOND = 5;
   private static final ThreadLocal<Boolean> IS_THREAD_PROFILING =
@@ -26,11 +26,11 @@ public abstract class TraceProfilingScopeManager extends ScopeInterceptor.Delega
 
   protected final RateLimiter rateLimiter = RateLimiter.create(ACTIVATIONS_PER_SECOND);
 
-  private TraceProfilingScopeManager(final ScopeInterceptor delegate) {
+  private TraceProfilingScopeInterceptor(final ScopeInterceptor delegate) {
     super(delegate);
   }
 
-  public static TraceProfilingScopeManager create(
+  public static TraceProfilingScopeInterceptor create(
       final Double methodTraceSampleRate,
       final TraceStatsCollector statsCollector,
       final ScopeInterceptor delegate) {
@@ -44,16 +44,16 @@ public abstract class TraceProfilingScopeManager extends ScopeInterceptor.Delega
   public Scope handleSpan(final AgentSpan span) {
     if (IS_THREAD_PROFILING.get() // don't need to waste a permit if so.
         || span instanceof AgentTracer.NoopAgentSpan
-        || !shouldProfile(span.getLocalRootSpan())) {
+        || !shouldProfile(span)) {
       // We don't want to wrap the scope for profiling.
       return delegate.handleSpan(span);
     }
-    return new TraceProfilingScope(delegate.handleSpan(span));
+    return new TraceProfilingScope(span, delegate.handleSpan(span));
   }
 
   abstract boolean shouldProfile(AgentSpan span);
 
-  private static class Percentage extends TraceProfilingScopeManager {
+  private static class Percentage extends TraceProfilingScopeInterceptor {
     private static final BigDecimal TRACE_ID_MAX_AS_BIG_DECIMAL =
         new BigDecimal(CoreTracer.TRACE_ID_MAX);
 
@@ -72,7 +72,7 @@ public abstract class TraceProfilingScopeManager extends ScopeInterceptor.Delega
     }
   }
 
-  private static class Heuristical extends TraceProfilingScopeManager {
+  private static class Heuristical extends TraceProfilingScopeInterceptor {
     private volatile long lastProfileTimestamp = System.nanoTime();
 
     private final TraceStatsCollector statsCollector;
@@ -92,7 +92,7 @@ public abstract class TraceProfilingScopeManager extends ScopeInterceptor.Delega
     }
 
     private boolean maybeInteresting(final AgentSpan span) {
-      final Histogram traceStats = statsCollector.getTraceStats(span);
+      final Histogram traceStats = statsCollector.getTraceStats(span.getLocalRootSpan());
       if (traceStats == null) {
         // No historical data for this trace yet.
         return false;
@@ -131,25 +131,10 @@ public abstract class TraceProfilingScopeManager extends ScopeInterceptor.Delega
 
     private final Session session;
 
-    private TraceProfilingScope(final Scope delegate) {
+    private TraceProfilingScope(final AgentSpan span, final Scope delegate) {
       super(delegate);
       IS_THREAD_PROFILING.set(true);
-      session = Profiler.startProfiling(span().getTraceId().toString());
-    }
-
-    @Override
-    public AgentSpan span() {
-      return delegate.span();
-    }
-
-    @Override
-    public void setAsyncPropagation(final boolean value) {
-      delegate.setAsyncPropagation(value);
-    }
-
-    @Override
-    public TraceScope.Continuation capture() {
-      return delegate.capture();
+      session = Profiler.startProfiling(span.getTraceId().toString());
     }
 
     @Override
@@ -157,11 +142,6 @@ public abstract class TraceProfilingScopeManager extends ScopeInterceptor.Delega
       IS_THREAD_PROFILING.set(false);
       delegate.close();
       session.close();
-    }
-
-    @Override
-    public boolean isAsyncPropagating() {
-      return delegate.isAsyncPropagating();
     }
   }
 }
