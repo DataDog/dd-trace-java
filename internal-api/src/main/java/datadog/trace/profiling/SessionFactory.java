@@ -9,4 +9,7 @@ public interface SessionFactory {
    * @return an instance of the profiling session
    */
   Session createSession(String id, Thread thread);
+
+  /** Shutdowns some resources associated with the SessionFactory */
+  void shutdown();
 }

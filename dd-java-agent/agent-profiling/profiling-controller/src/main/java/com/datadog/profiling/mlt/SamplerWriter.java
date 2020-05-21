@@ -29,8 +29,12 @@ public final class SamplerWriter {
     this.chunkWriter.set(recording.newChunk());
   }
 
+  public byte[] flush() {
+    return chunkWriter.getAndSet(recording.newChunk()).finish();
+  }
+
   public void dump(Path target) throws IOException {
-    byte[] data = chunkWriter.getAndSet(recording.newChunk()).finish();
+    byte[] data = flush();
 
     Files.write(target, data);
   }
