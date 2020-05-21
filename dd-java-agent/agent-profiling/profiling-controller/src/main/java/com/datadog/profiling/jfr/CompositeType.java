@@ -1,13 +1,12 @@
 package com.datadog.profiling.jfr;
 
-import lombok.Generated;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import lombok.Generated;
 
 /** A composite JFR type */
 final class CompositeType extends BaseType {

@@ -1,10 +1,9 @@
 package com.datadog.profiling.jfr;
 
-import lombok.Generated;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import lombok.Generated;
 
 /** A representation of a typed field with a name */
 public final class TypedField {

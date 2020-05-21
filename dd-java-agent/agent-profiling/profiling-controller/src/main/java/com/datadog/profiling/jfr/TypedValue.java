@@ -1,13 +1,12 @@
 package com.datadog.profiling.jfr;
 
-import lombok.Generated;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import lombok.Generated;
 
 /**
  * A wrapping type for a typed value. It has an associated {@linkplain Type} and a value (or an

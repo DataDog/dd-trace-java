@@ -1,9 +1,8 @@
 package com.datadog.profiling.jfr;
 
-import lombok.Generated;
-
 import java.util.Arrays;
 import java.util.Objects;
+import lombok.Generated;
 
 /** The composite of {@linkplain TypedField} and corresponding {@link TypedValue TypedValue(s)} */
 public final class TypedFieldValue {

@@ -1,12 +1,11 @@
 package com.datadog.profiling.jfr;
 
-import lombok.Generated;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import lombok.Generated;
 
 /** Common JFR type super-class */
 abstract class BaseType implements Type {

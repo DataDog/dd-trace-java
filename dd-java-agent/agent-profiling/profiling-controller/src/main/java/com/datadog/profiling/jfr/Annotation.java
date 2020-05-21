@@ -1,8 +1,7 @@
 package com.datadog.profiling.jfr;
 
-import lombok.Generated;
-
 import java.util.Objects;
+import lombok.Generated;
 
 /** A struct-like representation of a JFR annotation */
 public final class Annotation {

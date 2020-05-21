@@ -2,7 +2,6 @@ package com.datadog.profiling.jfr;
 
 import java.util.Map;
 import java.util.Objects;
-
 import lombok.Generated;
 import lombok.Getter;
 import lombok.NonNull;

@@ -1,10 +1,9 @@
 package com.datadog.profiling.jfr;
 
-import lombok.Generated;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import lombok.Generated;
 
 /** A built-in type. Corresponds to a Java primitive type or {@link java.lang.String String} */
 final class BuiltinType extends BaseType {
