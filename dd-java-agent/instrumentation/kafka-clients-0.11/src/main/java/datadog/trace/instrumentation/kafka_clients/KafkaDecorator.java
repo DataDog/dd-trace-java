@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import java.util.concurrent.TimeUnit;
+
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -59,6 +61,10 @@ public abstract class KafkaDecorator extends ClientDecorator {
       span.setTag(DDTags.RESOURCE_NAME, "Consume Topic " + topic);
       span.setTag("partition", record.partition());
       span.setTag("offset", record.offset());
+
+      final long produceTime = record.timestamp();
+      final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getLocalRootSpan().getStartTime());
+      span.setTag("record.time_in_queue_milliseconds", consumeTime - produceTime);
     }
   }
 
@@ -69,7 +75,6 @@ public abstract class KafkaDecorator extends ClientDecorator {
       if (record.partition() != null) {
         span.setTag("kafka.partition", record.partition());
       }
-
       span.setTag(DDTags.RESOURCE_NAME, "Produce Topic " + topic);
     }
   }
