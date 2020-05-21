@@ -1,11 +1,16 @@
 package com.datadog.profiling.jfr;
 
+import lombok.Generated;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 /** A representation of a typed field with a name */
 public final class TypedField {
+  private volatile boolean computeHashCode = true;
+  private int hashCode;
+
   private final String name;
   private final Type type;
   private final boolean isArray;
@@ -49,6 +54,7 @@ public final class TypedField {
     return annotations;
   }
 
+  @Generated
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -64,8 +70,13 @@ public final class TypedField {
         && annotations.equals(that.annotations);
   }
 
+  @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(name, type, isArray, annotations);
+    if (computeHashCode) {
+      hashCode = Objects.hash(name, type, isArray, annotations);
+      computeHashCode = false;
+    }
+    return hashCode;
   }
 }

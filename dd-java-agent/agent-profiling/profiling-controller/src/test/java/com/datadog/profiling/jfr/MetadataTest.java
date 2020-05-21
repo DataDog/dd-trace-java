@@ -2,7 +2,6 @@ package com.datadog.profiling.jfr;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -102,7 +101,7 @@ public class MetadataTest {
     assertNotNull(type2);
     assertTrue(type2.isBuiltin());
     assertEquals(type1.getTypeName(), type2.getTypeName());
-    assertNotEquals(type1, type2);
+    assertEquals(type1, type2);
   }
 
   @Test
@@ -150,7 +149,7 @@ public class MetadataTest {
     assertNotNull(type2);
     assertFalse(type2.isBuiltin());
     assertEquals(type1.getTypeName(), type2.getTypeName());
-    assertNotEquals(type1, type2);
+    assertEquals(type1, type2);
   }
 
   @Test

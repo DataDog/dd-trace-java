@@ -242,8 +242,7 @@ final class TypeValueBuilderImpl implements TypeValueBuilder {
       value =
           TypedValue.of(
               targetType,
-              Collections.singletonMap(
-                  valueField.getName(), new TypedFieldValue(valueField, value)));
+              new SingleFieldMap(valueField.getName(), new TypedFieldValue(valueField, value)));
     } else {
       throw new IllegalArgumentException();
     }

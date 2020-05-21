@@ -1,5 +1,7 @@
 package com.datadog.profiling.jfr;
 
+import lombok.Generated;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -153,6 +155,7 @@ abstract class BaseType implements Type {
     return false;
   }
 
+  @Generated
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -161,12 +164,13 @@ abstract class BaseType implements Type {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    BaseType that = (BaseType) o;
-    return id == that.id && name.equals(that.name);
+    BaseType baseType = (BaseType) o;
+    return name.equals(baseType.name) && Objects.equals(supertype, baseType.supertype);
   }
 
+  @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(id, name);
+    return Objects.hash(name, supertype);
   }
 }

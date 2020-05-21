@@ -1,7 +1,10 @@
 package com.datadog.profiling.jfr;
 
+import lombok.Generated;
+
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /** A built-in type. Corresponds to a Java primitive type or {@link java.lang.String String} */
 final class BuiltinType extends BaseType {
@@ -81,5 +84,27 @@ final class BuiltinType extends BaseType {
         }
     }
     return false;
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    BuiltinType that = (BuiltinType) o;
+    return builtin == that.builtin;
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), builtin);
   }
 }

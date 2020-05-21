@@ -1,9 +1,15 @@
 package com.datadog.profiling.jfr;
 
+import lombok.Generated;
+
 import java.util.Arrays;
+import java.util.Objects;
 
 /** The composite of {@linkplain TypedField} and corresponding {@link TypedValue TypedValue(s)} */
 public final class TypedFieldValue {
+  private volatile boolean computeHashCode = true;
+  private int hashCode;
+
   private final TypedField field;
   private final TypedValue[] values;
 
@@ -47,5 +53,29 @@ public final class TypedFieldValue {
       throw new IllegalArgumentException();
     }
     return Arrays.copyOf(values, values.length);
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    TypedFieldValue that = (TypedFieldValue) o;
+    return field.equals(that.field) && Arrays.equals(values, that.values);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    if (computeHashCode) {
+      int result = Objects.hash(field);
+      hashCode = 31 * result + Arrays.hashCode(values);
+      computeHashCode = false;
+    }
+    return hashCode;
   }
 }

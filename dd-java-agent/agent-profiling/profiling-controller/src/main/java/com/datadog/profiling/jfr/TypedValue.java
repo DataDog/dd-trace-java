@@ -1,5 +1,7 @@
 package com.datadog.profiling.jfr;
 
+import lombok.Generated;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -12,6 +14,9 @@ import java.util.function.Consumer;
  * index to constant-pool for that value).
  */
 public final class TypedValue {
+  private volatile boolean computeHashCode = true;
+  private int hashCode;
+
   private final Type type;
   private final Object value;
   private final long cpIndex;
@@ -146,6 +151,7 @@ public final class TypedValue {
     return values;
   }
 
+  @Generated
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -161,8 +167,13 @@ public final class TypedValue {
         && Objects.equals(fields, that.fields);
   }
 
+  @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(type, value, fields, isNull);
+    if (computeHashCode) {
+      hashCode = Objects.hash(type, value, fields, isNull);
+      computeHashCode = false;
+    }
+    return hashCode;
   }
 }

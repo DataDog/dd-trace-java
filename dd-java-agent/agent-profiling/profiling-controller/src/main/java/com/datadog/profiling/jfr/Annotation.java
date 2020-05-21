@@ -1,5 +1,9 @@
 package com.datadog.profiling.jfr;
 
+import lombok.Generated;
+
+import java.util.Objects;
+
 /** A struct-like representation of a JFR annotation */
 public final class Annotation {
   public static final String ANNOTATION_SUPER_TYPE_NAME = "java.lang.annotation.Annotation";
@@ -25,5 +29,24 @@ public final class Annotation {
 
   public static boolean isAnnotationType(Type type) {
     return ANNOTATION_SUPER_TYPE_NAME.equals(type.getSupertype());
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Annotation that = (Annotation) o;
+    return type.equals(that.type) && Objects.equals(value, that.value);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return Objects.hash(type, value);
   }
 }
