@@ -175,25 +175,25 @@ public class DDSpan implements MutableSpan, AgentSpan {
 
   @Override
   public AgentSpan setTag(final String tag, final int value) {
-    context.setTag(tag, value);
+    context.setMetric(tag, value);
     return this;
   }
 
   @Override
   public AgentSpan setTag(final String tag, final long value) {
-    context.setTag(tag, value);
+    context.setMetric(tag, value);
     return this;
   }
 
   @Override
   public AgentSpan setTag(final String tag, final double value) {
-    context.setTag(tag, value);
+    context.setMetric(tag, value);
     return this;
   }
 
   @Override
   public DDSpan setTag(final String tag, final Number value) {
-    context.setTag(tag, value);
+    context.setMetric(tag, value);
     return this;
   }
 
