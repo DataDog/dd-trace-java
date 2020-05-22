@@ -363,7 +363,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void cancel(final Set<WeakReference<?>> weakReferences) {}
+    public void cancel(final Set<WeakReference<AgentScope.Continuation>> weakReferences) {}
   }
 
   public static class NoopContext implements Context {

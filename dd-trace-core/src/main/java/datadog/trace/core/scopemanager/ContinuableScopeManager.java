@@ -227,7 +227,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     }
 
     @Override
-    public void cancel(final Set<WeakReference<?>> weakReferences) {
+    public void cancel(final Set<WeakReference<AgentScope.Continuation>> weakReferences) {
       weakReferences.remove(ref);
       ref.clear();
       ref = null;

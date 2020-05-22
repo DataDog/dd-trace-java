@@ -20,6 +20,6 @@ public interface AgentScope extends TraceScope, Closeable {
 
     WeakReference<Continuation> register(ReferenceQueue referenceQueue);
 
-    void cancel(Set<WeakReference<?>> weakReferences);
+    void cancel(Set<WeakReference<AgentScope.Continuation>> weakReferences);
   }
 }

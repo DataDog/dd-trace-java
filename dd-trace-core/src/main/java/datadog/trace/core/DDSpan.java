@@ -25,7 +25,8 @@ import lombok.extern.slf4j.Slf4j;
 public class DDSpan implements MutableSpan, AgentSpan {
 
   static DDSpan create(final long timestampMicro, final DDSpanContext context) {
-    DDSpan span = new DDSpan(timestampMicro, context);
+    final DDSpan span = new DDSpan(timestampMicro, context);
+    log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
     return span;
   }
@@ -82,10 +83,10 @@ public class DDSpan implements MutableSpan, AgentSpan {
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (this.durationNano.compareAndSet(0, Math.max(1, durationNano))) {
-      log.debug("Finished: {}", this);
+      log.debug("Finished span: {}", this);
       context.getTrace().addSpan(this);
     } else {
-      log.debug("{} - already finished!", this);
+      log.debug("Already finished: {}", this);
     }
   }
 
