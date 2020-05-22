@@ -1,5 +1,6 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.NonZeroHashCode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -149,6 +150,7 @@ public final class TypedValue {
     return values;
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
   @Generated
   @Override
   public boolean equals(Object o) {
@@ -165,11 +167,12 @@ public final class TypedValue {
         && Objects.equals(fields, that.fields);
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
   @Generated
   @Override
   public int hashCode() {
     if (hashCode == 0) {
-      hashCode = Objects.hash(type, value, fields, isNull);
+      hashCode = NonZeroHashCode.hash(type, value, fields, isNull);
     }
     return hashCode;
   }

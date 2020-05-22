@@ -1,11 +1,13 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.NonZeroHashCode;
 import java.util.Map;
 import java.util.Objects;
 import lombok.Generated;
 import lombok.Getter;
 import lombok.NonNull;
 
+// use Lombok @Generated to skip jacoco coverage verification
 @Generated
 final class ImmutableMapEntry<K, V> implements Map.Entry<K, V> {
   private int hashCode = 0;
@@ -23,6 +25,8 @@ final class ImmutableMapEntry<K, V> implements Map.Entry<K, V> {
     throw new UnsupportedOperationException();
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
+  @Generated
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -35,10 +39,12 @@ final class ImmutableMapEntry<K, V> implements Map.Entry<K, V> {
     return key.equals(that.key) && Objects.equals(value, that.value);
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
+  @Generated
   @Override
   public int hashCode() {
     if (hashCode == 0) {
-      hashCode = Objects.hash(key, value);
+      hashCode = NonZeroHashCode.hash(key, value);
     }
     return hashCode;
   }

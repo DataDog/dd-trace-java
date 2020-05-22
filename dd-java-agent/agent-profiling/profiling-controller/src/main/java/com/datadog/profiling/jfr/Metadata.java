@@ -199,8 +199,8 @@ final class Metadata {
 
   private void storeAnnotationStrings(List<Annotation> annotations) {
     for (Annotation annotation : annotations) {
-      if (annotation.value != null) {
-        storeString(annotation.value);
+      if (annotation.getValue() != null) {
+        storeString(annotation.getValue());
       }
     }
   }
@@ -349,11 +349,11 @@ final class Metadata {
     writer.writeInt(stringIndex(ANNOTATION_KEY));
 
     writer
-        .writeInt(annotation.value != null ? 2 : 1) // number of attributes
+        .writeInt(annotation.getValue() != null ? 2 : 1) // number of attributes
         .writeInt(stringIndex(CLASS_KEY))
-        .writeInt(stringIndex(String.valueOf(annotation.type.getId())));
-    if (annotation.value != null) {
-      writer.writeInt(stringIndex(VALUE_KEY)).writeInt(stringIndex(annotation.value));
+        .writeInt(stringIndex(String.valueOf(annotation.getType().getId())));
+    if (annotation.getValue() != null) {
+      writer.writeInt(stringIndex(VALUE_KEY)).writeInt(stringIndex(annotation.getValue()));
     }
     writer.writeInt(0); // no sub-elements
   }

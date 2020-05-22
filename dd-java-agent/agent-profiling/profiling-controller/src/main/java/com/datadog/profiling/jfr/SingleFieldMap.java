@@ -1,9 +1,9 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.NonZeroHashCode;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import lombok.Generated;
 import lombok.NonNull;
@@ -77,6 +77,8 @@ final class SingleFieldMap implements Map<String, TypedFieldValue> {
     return Collections.singleton(entry);
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
+  @Generated
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -89,10 +91,12 @@ final class SingleFieldMap implements Map<String, TypedFieldValue> {
     return entry.equals(that.entry);
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
+  @Generated
   @Override
   public int hashCode() {
     if (hashCode == 0) {
-      hashCode = Objects.hash(entry);
+      hashCode = NonZeroHashCode.hash(entry);
     }
     return hashCode;
   }

@@ -1,15 +1,17 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.NonZeroHashCode;
 import java.util.Objects;
 import lombok.Generated;
+import lombok.Getter;
 
 /** A struct-like representation of a JFR annotation */
 public final class Annotation {
   public static final String ANNOTATION_SUPER_TYPE_NAME = "java.lang.annotation.Annotation";
   private int hashCode = 0;
 
-  public final Type type;
-  public final String value;
+  @Getter private final Type type;
+  @Getter private final String value;
 
   /**
    * Create a new {@linkplain Annotation} instance
@@ -32,6 +34,7 @@ public final class Annotation {
     return ANNOTATION_SUPER_TYPE_NAME.equals(type.getSupertype());
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
   @Generated
   @Override
   public boolean equals(Object o) {
@@ -45,11 +48,12 @@ public final class Annotation {
     return type.equals(that.type) && Objects.equals(value, that.value);
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
   @Generated
   @Override
   public int hashCode() {
     if (hashCode == 0) {
-      hashCode = Objects.hash(type, value);
+      hashCode = NonZeroHashCode.hash(type, value);
     }
     return hashCode;
   }

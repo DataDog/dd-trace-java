@@ -1,10 +1,10 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.NonZeroHashCode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.Generated;
 
@@ -75,6 +75,7 @@ final class CompositeType extends BaseType {
     return value instanceof Map;
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
   @Generated
   @Override
   public boolean equals(Object o) {
@@ -91,6 +92,7 @@ final class CompositeType extends BaseType {
     return fields.equals(that.fields) && annotations.equals(that.annotations);
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
   @Generated
   @Override
   public int hashCode() {
@@ -101,7 +103,7 @@ final class CompositeType extends BaseType {
           nonRecursiveFields.add(typedField);
         }
       }
-      hashCode = Objects.hash(super.hashCode(), nonRecursiveFields, annotations);
+      hashCode = NonZeroHashCode.hash(super.hashCode(), nonRecursiveFields, annotations);
     }
     return hashCode;
   }

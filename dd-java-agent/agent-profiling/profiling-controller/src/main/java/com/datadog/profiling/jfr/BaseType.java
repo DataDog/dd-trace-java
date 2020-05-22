@@ -1,5 +1,6 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.NonZeroHashCode;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -154,6 +155,7 @@ abstract class BaseType implements Type {
     return false;
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
   @Generated
   @Override
   public boolean equals(Object o) {
@@ -169,9 +171,10 @@ abstract class BaseType implements Type {
         && Objects.equals(supertype, baseType.supertype);
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, supertype);
+    return NonZeroHashCode.hash(id, name, supertype);
   }
 }

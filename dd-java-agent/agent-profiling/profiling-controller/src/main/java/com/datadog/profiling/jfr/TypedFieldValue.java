@@ -1,7 +1,7 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.NonZeroHashCode;
 import java.util.Arrays;
-import java.util.Objects;
 import lombok.Generated;
 
 /** The composite of {@linkplain TypedField} and corresponding {@link TypedValue TypedValue(s)} */
@@ -53,6 +53,7 @@ public final class TypedFieldValue {
     return Arrays.copyOf(values, values.length);
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
   @Generated
   @Override
   public boolean equals(Object o) {
@@ -66,12 +67,15 @@ public final class TypedFieldValue {
     return field.equals(that.field) && Arrays.equals(values, that.values);
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
   @Generated
   @Override
   public int hashCode() {
     if (hashCode == 0) {
-      int result = Objects.hash(field);
-      hashCode = 31 * result + Arrays.hashCode(values);
+      Object[] objValues = new Object[values.length + 1];
+      System.arraycopy(values, 0, objValues, 1, values.length);
+      objValues[0] = field;
+      hashCode = NonZeroHashCode.hash(objValues);
     }
     return hashCode;
   }
