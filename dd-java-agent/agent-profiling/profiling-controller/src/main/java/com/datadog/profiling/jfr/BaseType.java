@@ -164,12 +164,14 @@ abstract class BaseType implements Type {
       return false;
     }
     BaseType baseType = (BaseType) o;
-    return name.equals(baseType.name) && Objects.equals(supertype, baseType.supertype);
+    return id == baseType.id &&
+      name.equals(baseType.name) &&
+      Objects.equals(supertype, baseType.supertype);
   }
 
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(name, supertype);
+    return Objects.hash(id, name, supertype);
   }
 }
