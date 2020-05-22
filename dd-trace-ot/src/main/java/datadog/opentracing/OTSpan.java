@@ -42,7 +42,8 @@ class OTSpan implements Span, MutableSpan {
 
   @Override
   public OTSpan setTag(final String key, final Number value) {
-    delegate.setTag(key, value);
+    // make sure this is not treated as a metric if the delegate is DDSpan
+    delegate.setTag(key, (Object) value);
     return this;
   }
 
