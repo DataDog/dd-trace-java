@@ -197,7 +197,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     public AgentScope activate() {
       if (used.compareAndSet(false, true)) {
         final AgentScope scope = handleSpan(this, spanUnderScope);
-        log.debug("Activating continuation {}, scope: {}", this, scope);
+        log.debug("t_id={} -> activating continuation {}", spanUnderScope.getTraceId(), this);
         return scope;
       } else {
         log.debug(
@@ -231,6 +231,15 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       weakReferences.remove(ref);
       ref.clear();
       ref = null;
+    }
+
+    @Override
+    public String toString() {
+      return getClass().getSimpleName()
+          + "@"
+          + Integer.toHexString(hashCode())
+          + "->"
+          + spanUnderScope;
     }
   }
 }

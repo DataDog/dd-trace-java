@@ -285,6 +285,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
     return context.getServiceName();
   }
 
+  @Override
   public BigInteger getTraceId() {
     return context.getTraceId();
   }
