@@ -84,10 +84,9 @@ class Aws2ClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
-            "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_STATUS" "200"
             "aws.service" "$service"
             "aws.operation" "${operation}"
             "aws.agent" "java-aws-sdk"
@@ -105,6 +104,10 @@ class Aws2ClientTest extends AgentTestRunner {
             }
             defaultTags()
           }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
+            defaultMetrics()
+          }
         }
         span(1) {
           operationName "http.request"
@@ -116,11 +119,13 @@ class Aws2ClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
-            "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_STATUS" "200"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
           }
         }
       }
@@ -201,10 +206,9 @@ class Aws2ClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
-            "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_STATUS" "200"
             "aws.service" "$service"
             "aws.operation" "${operation}"
             "aws.agent" "java-aws-sdk"
@@ -222,6 +226,10 @@ class Aws2ClientTest extends AgentTestRunner {
             }
             defaultTags()
           }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
+            defaultMetrics()
+          }
         }
       }
       // TODO: this should be part of the same trace but netty instrumentation doesn't cooperate
@@ -237,11 +245,14 @@ class Aws2ClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
-            "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
-            "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_STATUS" "200"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
+            defaultMetrics()
           }
         }
       }
@@ -322,7 +333,6 @@ class Aws2ClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-aws-sdk"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "$server.address/somebucket/somekey"
             "$Tags.HTTP_METHOD" "GET"
             "aws.service" "S3"
@@ -331,6 +341,10 @@ class Aws2ClientTest extends AgentTestRunner {
             "aws.bucket.name" "somebucket"
             errorTags SdkClientException, "Unable to execute HTTP request: Read timed out"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
+            defaultMetrics()
           }
         }
         (1..4).each {
@@ -344,11 +358,13 @@ class Aws2ClientTest extends AgentTestRunner {
               "$Tags.COMPONENT" "apache-httpclient"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
               "$Tags.PEER_HOSTNAME" "localhost"
-              "$Tags.PEER_PORT" server.address.port
               "$Tags.HTTP_URL" "$server.address/somebucket/somekey"
               "$Tags.HTTP_METHOD" "GET"
               errorTags SocketTimeoutException, "Read timed out"
               defaultTags()
+            }
+            metrics {
+              "$Tags.PEER_PORT" server.address.port
             }
           }
         }
