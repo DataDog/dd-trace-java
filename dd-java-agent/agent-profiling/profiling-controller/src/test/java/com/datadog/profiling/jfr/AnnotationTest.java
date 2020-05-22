@@ -23,8 +23,8 @@ class AnnotationTest {
     Type type = types.getType(Types.JDK.ANNOTATION_LABEL);
     Annotation annotation = new Annotation(type, null);
     assertNotNull(annotation);
-    assertNull(annotation.value);
-    assertEquals(type, annotation.type);
+    assertNull(annotation.getValue());
+    assertEquals(type, annotation.getType());
   }
 
   @Test
@@ -33,8 +33,8 @@ class AnnotationTest {
     Type type = types.getType(Types.JDK.ANNOTATION_LABEL);
     Annotation annotation = new Annotation(type, value);
     assertNotNull(annotation);
-    assertEquals(value, annotation.value);
-    assertEquals(type, annotation.type);
+    assertEquals(value, annotation.getValue());
+    assertEquals(type, annotation.getType());
   }
 
   @Test
