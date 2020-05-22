@@ -71,8 +71,6 @@ class ScopeEventTest extends DDSpecification {
     event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
     event.getString("traceId") == span.context().traceId.toHexString()
-    event.getString("spanId") == span.context().spanId.toHexString()
-    event.getString("parentId") == span.context().parentId.toHexString()
     event.getString("serviceName") == "test service"
     event.getString("resourceName") == "test resource"
     event.getString("operationName") == "test operation"
@@ -104,8 +102,6 @@ class ScopeEventTest extends DDSpecification {
     event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
     event.getString("traceId") == span.context().traceId.toHexString()
-    event.getString("spanId") == span.context().spanId.toHexString()
-    event.getString("parentId") == span.context().parentId.toHexString()
     event.getString("serviceName") == "test service"
     event.getString("resourceName") == "test resource"
     event.getString("operationName") == "test operation"
@@ -137,8 +133,6 @@ class ScopeEventTest extends DDSpecification {
     event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
     event.getString("traceId") == span.context().traceId.toHexString()
-    event.getString("spanId") == span.context().spanId.toHexString()
-    event.getString("parentId") == span.context().parentId.toHexString()
     event.getString("serviceName") == "test service"
     event.getString("resourceName") == "test resource"
     event.getString("operationName") == "test operation"
@@ -169,8 +163,6 @@ class ScopeEventTest extends DDSpecification {
     event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
     event.getString("traceId") == span.context().traceId.toHexString()
-    event.getString("spanId") == span.context().spanId.toHexString()
-    event.getString("parentId") == span.context().parentId.toHexString()
     event.getString("serviceName") == "test service"
     event.getString("resourceName") == "test resource"
     event.getString("operationName") == "test operation"
