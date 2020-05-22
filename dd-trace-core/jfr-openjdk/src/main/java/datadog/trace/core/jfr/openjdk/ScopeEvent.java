@@ -25,15 +25,6 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
   @Label("Trace Id")
   private String traceId;
 
-  @Label("Service Name")
-  private String serviceName;
-
-  @Label("Resource Name")
-  private String resourceName;
-
-  @Label("Operation Name")
-  private String operationName;
-
   @Label("Thread CPU Time")
   @Timespan
   // does not need to be volatile since the event is created and committed from the same thread
@@ -59,9 +50,6 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
         cpuTime = ThreadCpuTimeAccess.getCurrentThreadCpuTime() - cpuTime;
       }
       traceId = spanContext.getTraceId().toHexString();
-      serviceName = spanContext.getServiceName();
-      resourceName = spanContext.getResourceName();
-      operationName = spanContext.getOperationName();
       commit();
     }
   }
