@@ -11,7 +11,8 @@ public class JmxThreadStackProvider implements ThreadStackProvider {
 
   @Override
   public StackTraceElement[][] getStackTrace(long[] threadIds) {
-    ThreadInfo[] threadInfos = threadMXBean.getThreadInfo(threadIds); // maxDepth?
+    // TODO maxDepth should be configurable
+    ThreadInfo[] threadInfos = threadMXBean.getThreadInfo(threadIds, 128);
     if (threadInfos.length == 0) {
       return ThreadStackProvider.EMPTY_STACKTRACE_ARRAY;
     }
@@ -24,7 +25,8 @@ public class JmxThreadStackProvider implements ThreadStackProvider {
 
   @Override
   public ThreadInfo[] getThreadInfo(long[] threadIds) {
-    ThreadInfo[] threadInfos = threadMXBean.getThreadInfo(threadIds); // maxDepth?
+    // TODO maxDepth should be configurable
+    ThreadInfo[] threadInfos = threadMXBean.getThreadInfo(threadIds, 128);
     if (threadInfos.length == 0) {
       return ThreadStackProvider.EMPTY_THERADINFO_ARRAY;
     }

@@ -32,7 +32,9 @@ class ThreadStackAccessTest extends DDSpecification {
     then:
     provider instanceof JmxThreadStackProvider
     stackTraces.length > 0
+    stackTraces[0].length > 0
     threadInfos.length > 0
+    threadInfos[0].getStackTrace().length > 0
 
     cleanup:
     ThreadStackAccess.disableJmx()
