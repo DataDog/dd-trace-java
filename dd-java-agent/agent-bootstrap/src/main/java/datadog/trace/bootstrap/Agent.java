@@ -286,12 +286,12 @@ public class Agent {
 
   private static void initializeJmxThreadStackProvider() {
     log.info("Initializing JMX ThreadStack provider");
-    if (AGENT_CLASSLOADER == null) {
+    if (PROFILING_CLASSLOADER == null) {
       throw new IllegalStateException("Datadog agent should have been started already");
     }
     try {
       final Class<?> tracerInstallerClass =
-          AGENT_CLASSLOADER.loadClass("datadog.trace.core.util.ThreadStackAccess");
+          PROFILING_CLASSLOADER.loadClass("datadog.trace.core.util.ThreadStackAccess");
       final Method enableJmxMethod = tracerInstallerClass.getMethod("enableJmx");
       enableJmxMethod.invoke(null);
     } catch (final Throwable ex) {
