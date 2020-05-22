@@ -413,7 +413,7 @@ abstract class TomcatDispatchTest extends TomcatServlet3Test {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" "${Integer.toString(endpoint.status)}"
+            "$Tags.HTTP_STATUS" "$endpoint.status"
             "servlet.context" "/$context"
             "servlet.path" endpoint.status == 404 ? endpoint.path : "/dispatch$endpoint.path"
             "servlet.dispatch" endpoint.path

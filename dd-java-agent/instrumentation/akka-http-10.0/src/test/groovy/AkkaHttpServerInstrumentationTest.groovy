@@ -55,7 +55,7 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object> 
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" "${Integer.toString(endpoint.status)}"
+        "$Tags.HTTP_STATUS" "$endpoint.status"
         if (endpoint.errored) {
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }

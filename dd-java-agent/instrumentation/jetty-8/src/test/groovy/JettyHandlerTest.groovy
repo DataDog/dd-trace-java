@@ -142,7 +142,7 @@ class JettyHandlerTest extends HttpServerTest<Server> {
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" "${Integer.toString(endpoint.status)}"
+        "$Tags.HTTP_STATUS" "$endpoint.status"
         "span.origin.type" handlerName
         if (endpoint.errored) {
           "error.msg" { it == null || it == EXCEPTION.body }
