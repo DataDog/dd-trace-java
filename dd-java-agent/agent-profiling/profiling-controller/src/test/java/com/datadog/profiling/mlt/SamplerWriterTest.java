@@ -8,7 +8,7 @@ import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.openjdk.jmc.common.item.Attribute;
 import org.openjdk.jmc.common.item.IAttribute;
@@ -28,18 +28,24 @@ public class SamplerWriterTest {
     SamplerWriter writer = new SamplerWriter();
 
     for (int j = 0; j < 4; j++) {
-      for (int i = 0; i < 15; i++) {
+      int samples = 0;
+      for (int i = 0; i < 1000; i++) {
         for (ThreadInfo ti : bean.dumpAllThreads(false, false)) {
           writer.writeThreadSample(ti);
+          samples += (ti.getStackTrace().length == 0 ? 0 : 1);
         }
-        Thread.sleep(ThreadLocalRandom.current().nextLong(20L) + 5);
       }
 
       writer.dump(target);
 
       // sanity check to make sure the recording is loaded
-      IItemCollection events = JfrLoaderToolkit.loadEvents(target.toFile());
-      assertTrue(events.apply(ItemFilters.type(SamplerWriter.SAMPLER_EVENT_NAME)).hasItems());
+      IItemCollection events =
+          JfrLoaderToolkit.loadEvents(target.toFile())
+              .apply(ItemFilters.type(SamplerWriter.SAMPLER_EVENT_NAME));
+      assertTrue(events.hasItems());
+      AtomicInteger counter = new AtomicInteger();
+      events.forEach(iitem -> iitem.forEach(item -> counter.incrementAndGet()));
+      assertEquals(samples, counter.get());
     }
   }
 
