@@ -139,7 +139,7 @@ public abstract class FormatWriter<DEST> {
 
   private byte[] stringToBytes(final String string) {
     // won't reassign key or string in this method
-    final byte[] key = StringTables.getBytesUTF8(string);
+    final byte[] key = StringTables.getKeyBytesUTF8(string);
     return null == key ? string.getBytes(StandardCharsets.UTF_8) : key;
   }
 }
