@@ -232,12 +232,8 @@ final class Metadata {
 
   private void writeMetaEventSize(ByteArrayWriter metaWriter, ByteArrayWriter writer) {
     int len = metaWriter.length();
-    int extraLen = 0;
-    do {
-      extraLen = ByteArrayWriter.getPackedIntLen(len + extraLen);
-    } while (ByteArrayWriter.getPackedIntLen(len + extraLen) != extraLen);
     writer
-        .writeInt(len + extraLen) // write the meta event size
+        .writeInt(len) // write the meta event size
         .writeBytes(metaWriter.toByteArray());
   }
 
