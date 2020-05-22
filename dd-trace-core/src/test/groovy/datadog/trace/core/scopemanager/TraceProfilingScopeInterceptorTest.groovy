@@ -175,4 +175,47 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     50         | 1            | 50       | 1          | false         | false
     50         | 1            | 80       | 1          | false         | true
   }
+
+  def "validate Heuristical rate limiting"() {
+    setup:
+    Histogram overall = new Histogram(1)
+    Histogram traceStats = new Histogram(1)
+    for (int i = 0; i < overallCount; i++) {
+      overall.recordValue(overallVal)
+    }
+    for (int i = 0; i < traceCount; i++) {
+      traceStats.recordValue(traceVal)
+    }
+
+    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, delegate)
+
+    when:
+    def activations = 0
+    for (int i = 0; i < 25; i++) {
+      Thread.sleep(100) // Slow it down a bit
+      def scope = interceptor.handleSpan(span)
+      if (scope instanceof TraceProfilingScopeInterceptor.TraceProfilingScope) {
+        activations++
+      }
+      scope.close()
+    }
+
+    then:
+    TraceProfilingScopeInterceptor.ACTIVATIONS_PER_SECOND < activations
+    activations < TraceProfilingScopeInterceptor.ACTIVATIONS_PER_SECOND * 3
+    _ * delegate.handleSpan(_) >> delegateScope
+    _ * span.getLocalRootSpan() >> span
+    _ * statsCollector.getTraceStats(span) >> traceStats
+    _ * statsCollector.getOverallStats() >> overall
+    _ * span.getTraceId() >> 5g
+    _ * factory.createSession("5", _) >> session
+    _ * delegateScope.close()
+    _ * session.close()
+    0 * _
+
+    where:
+    overallVal | overallCount | traceVal | traceCount
+    1          | 100          | 1        | 4
+    50         | 1            | 80       | 1
+  }
 }
