@@ -8,8 +8,7 @@ import lombok.NonNull;
 
 @Generated
 final class ImmutableMapEntry<K, V> implements Map.Entry<K, V> {
-  private volatile boolean computeHashCode = true;
-  private int hashCode;
+  private int hashCode = 0;
 
   @Getter private final K key;
   @Getter private final V value;
@@ -38,9 +37,8 @@ final class ImmutableMapEntry<K, V> implements Map.Entry<K, V> {
 
   @Override
   public int hashCode() {
-    if (computeHashCode) {
+    if (hashCode == 0) {
       hashCode = Objects.hash(key, value);
-      computeHashCode = false;
     }
     return hashCode;
   }

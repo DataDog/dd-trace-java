@@ -10,8 +10,7 @@ import lombok.Generated;
 
 /** A composite JFR type */
 final class CompositeType extends BaseType {
-  private volatile boolean computeHashCode = true;
-  private int hashCode;
+  private int hashCode = 0;
 
   private final Map<String, TypedField> fieldMap;
   private final List<TypedField> fields;
@@ -95,7 +94,7 @@ final class CompositeType extends BaseType {
   @Generated
   @Override
   public int hashCode() {
-    if (computeHashCode) {
+    if (hashCode == 0) {
       List<TypedField> nonRecursiveFields = new ArrayList<>(fields.size());
       for (TypedField typedField : fields) {
         if (typedField.getType() != this) {
@@ -103,7 +102,6 @@ final class CompositeType extends BaseType {
         }
       }
       hashCode = Objects.hash(super.hashCode(), nonRecursiveFields, annotations);
-      computeHashCode = false;
     }
     return hashCode;
   }

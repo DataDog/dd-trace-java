@@ -13,8 +13,7 @@ import lombok.Generated;
  * index to constant-pool for that value).
  */
 public final class TypedValue {
-  private volatile boolean computeHashCode = true;
-  private int hashCode;
+  private int hashCode = 0;
 
   private final Type type;
   private final Object value;
@@ -169,9 +168,8 @@ public final class TypedValue {
   @Generated
   @Override
   public int hashCode() {
-    if (computeHashCode) {
+    if (hashCode == 0) {
       hashCode = Objects.hash(type, value, fields, isNull);
-      computeHashCode = false;
     }
     return hashCode;
   }

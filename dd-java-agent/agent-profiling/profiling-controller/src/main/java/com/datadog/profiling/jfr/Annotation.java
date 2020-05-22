@@ -6,6 +6,8 @@ import lombok.Generated;
 /** A struct-like representation of a JFR annotation */
 public final class Annotation {
   public static final String ANNOTATION_SUPER_TYPE_NAME = "java.lang.annotation.Annotation";
+  private int hashCode = 0;
+
   public final Type type;
   public final String value;
 
@@ -46,6 +48,9 @@ public final class Annotation {
   @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(type, value);
+    if (hashCode == 0) {
+      hashCode = Objects.hash(type, value);
+    }
+    return hashCode;
   }
 }

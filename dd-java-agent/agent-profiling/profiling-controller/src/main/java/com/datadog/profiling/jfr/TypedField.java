@@ -7,8 +7,7 @@ import lombok.Generated;
 
 /** A representation of a typed field with a name */
 public final class TypedField {
-  private volatile boolean computeHashCode = true;
-  private int hashCode;
+  private int hashCode = 0;
 
   private final String name;
   private final Type type;
@@ -72,9 +71,8 @@ public final class TypedField {
   @Generated
   @Override
   public int hashCode() {
-    if (computeHashCode) {
+    if (hashCode == 0) {
       hashCode = Objects.hash(name, type, isArray, annotations);
-      computeHashCode = false;
     }
     return hashCode;
   }
