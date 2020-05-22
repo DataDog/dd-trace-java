@@ -10,7 +10,9 @@ excludedClassesCoverage += [
   // There are some code paths that is impossible/very-very hard to hit
   'com.datadog.profiling.controller.ProfilingSystem.StartRecording',
   'com.datadog.profiling.controller.ProfilingSystem.StopRecording',
-  'com.datadog.profiling.jfr.ResolvableJFRType'
+  'com.datadog.profiling.jfr.ResolvableJFRType',
+  // TODO: JMXSampler is not complete yet - skip the coverage test until it is final
+  'com.datadog.profiling.mlt.JMXSampler'
 ]
 
 dependencies {
