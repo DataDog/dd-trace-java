@@ -1,10 +1,12 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.NonZeroHashCode;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import lombok.Generated;
 
 /** Common JFR type super-class */
 abstract class BaseType implements Type {
@@ -153,6 +155,8 @@ abstract class BaseType implements Type {
     return false;
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
+  @Generated
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -161,12 +165,16 @@ abstract class BaseType implements Type {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    BaseType that = (BaseType) o;
-    return id == that.id && name.equals(that.name);
+    BaseType baseType = (BaseType) o;
+    return id == baseType.id
+        && name.equals(baseType.name)
+        && Objects.equals(supertype, baseType.supertype);
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
+  @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(id, name);
+    return NonZeroHashCode.hash(id, name, supertype);
   }
 }

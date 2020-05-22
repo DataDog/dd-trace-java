@@ -1,5 +1,6 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.NonZeroHashCode;
 import java.util.List;
 import java.util.function.Consumer;
 import lombok.Generated;
@@ -199,5 +200,24 @@ final class ResolvableType implements Type {
       return true;
     }
     return false;
+  }
+
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ResolvableType that = (ResolvableType) o;
+    return typeName.equals(that.typeName);
+  }
+
+  @Generated
+  @Override
+  public int hashCode() {
+    return NonZeroHashCode.hash(typeName);
   }
 }

@@ -146,12 +146,7 @@ public final class Types {
               builder.addField("value", Builtin.STRING);
             });
     Type annotationContentTypeType =
-        getOrAdd(
-            JDK.ANNOTATION_CONTENT_TYPE,
-            ANNOTATION_SUPER_TYPE_NAME,
-            builder -> {
-              builder.addField("value", Builtin.STRING);
-            });
+        getOrAdd(JDK.ANNOTATION_CONTENT_TYPE, ANNOTATION_SUPER_TYPE_NAME, builder -> {});
     getOrAdd(
         JDK.ANNOTATION_TIMESTAMP,
         ANNOTATION_SUPER_TYPE_NAME,

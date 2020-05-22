@@ -1,17 +1,21 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.NonZeroHashCode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import lombok.Generated;
 
 /**
  * A wrapping type for a typed value. It has an associated {@linkplain Type} and a value (or an
  * index to constant-pool for that value).
  */
 public final class TypedValue {
+  private int hashCode = 0;
+
   private final Type type;
   private final Object value;
   private final long cpIndex;
@@ -146,6 +150,8 @@ public final class TypedValue {
     return values;
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
+  @Generated
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -161,8 +167,13 @@ public final class TypedValue {
         && Objects.equals(fields, that.fields);
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
+  @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(type, value, fields, isNull);
+    if (hashCode == 0) {
+      hashCode = NonZeroHashCode.hash(type, value, fields, isNull);
+    }
+    return hashCode;
   }
 }

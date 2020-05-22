@@ -1,11 +1,15 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.NonZeroHashCode;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import lombok.Generated;
 
 /** A representation of a typed field with a name */
 public final class TypedField {
+  private int hashCode = 0;
+
   private final String name;
   private final Type type;
   private final boolean isArray;
@@ -49,6 +53,8 @@ public final class TypedField {
     return annotations;
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
+  @Generated
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -64,8 +70,13 @@ public final class TypedField {
         && annotations.equals(that.annotations);
   }
 
+  // use Lombok @Generated to skip jacoco coverage verification
+  @Generated
   @Override
   public int hashCode() {
-    return Objects.hash(name, type, isArray, annotations);
+    if (hashCode == 0) {
+      hashCode = NonZeroHashCode.hash(name, type, isArray, annotations);
+    }
+    return hashCode;
   }
 }

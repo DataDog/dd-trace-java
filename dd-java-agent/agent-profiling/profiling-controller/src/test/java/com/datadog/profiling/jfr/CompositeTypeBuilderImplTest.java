@@ -102,8 +102,8 @@ class CompositeTypeBuilderImplTest {
     assertEquals(1, structure.annotations.size());
 
     Annotation annotation = structure.annotations.get(0);
-    assertEquals(annotationType, annotation.type);
-    assertEquals(ANNOTATION_LABEL, annotation.value);
+    assertEquals(annotationType, annotation.getType());
+    assertEquals(ANNOTATION_LABEL, annotation.getValue());
   }
 
   @Test
@@ -113,7 +113,7 @@ class CompositeTypeBuilderImplTest {
     assertEquals(1, structure.annotations.size());
 
     Annotation annotation = structure.annotations.get(0);
-    assertEquals(annotationType, annotation.type);
-    assertNull(annotation.value);
+    assertEquals(annotationType, annotation.getType());
+    assertNull(annotation.getValue());
   }
 }

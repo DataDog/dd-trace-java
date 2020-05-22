@@ -1,7 +1,9 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.NonZeroHashCode;
 import java.util.Collections;
 import java.util.List;
+import lombok.Generated;
 
 /** A built-in type. Corresponds to a Java primitive type or {@link java.lang.String String} */
 final class BuiltinType extends BaseType {
@@ -81,5 +83,29 @@ final class BuiltinType extends BaseType {
         }
     }
     return false;
+  }
+
+  // use Lombok @Generated to skip jacoco coverage verification
+  @Generated
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+    BuiltinType that = (BuiltinType) o;
+    return builtin == that.builtin;
+  }
+
+  // use Lombok @Generated to skip jacoco coverage verification
+  @Generated
+  @Override
+  public int hashCode() {
+    return NonZeroHashCode.hash(super.hashCode(), builtin);
   }
 }
