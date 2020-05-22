@@ -44,9 +44,13 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   /** Nano second ticks value at trace start */
   private final long startNanoTicks;
 
-  private final ReferenceQueue referenceQueue = new ReferenceQueue();
-  private final Set<WeakReference<?>> weakReferences =
-      Collections.newSetFromMap(new ConcurrentHashMap<WeakReference<?>, Boolean>());
+  private final ReferenceQueue spanReferenceQueue = new ReferenceQueue();
+  private final Set<WeakReference<DDSpan>> weakSpans =
+      Collections.newSetFromMap(new ConcurrentHashMap<WeakReference<DDSpan>, Boolean>());
+  private final ReferenceQueue continuationReferenceQueue = new ReferenceQueue();
+  private final Set<WeakReference<AgentScope.Continuation>> weakContinuations =
+      Collections.newSetFromMap(
+          new ConcurrentHashMap<WeakReference<AgentScope.Continuation>, Boolean>());
 
   private final AtomicInteger pendingReferenceCount = new AtomicInteger(0);
 
@@ -105,20 +109,20 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
       return;
     }
     if (!traceId.equals(span.context().getTraceId())) {
-      log.debug("{} - span registered for wrong trace ({})", span, traceId);
+      log.debug("t_id={} -> registered for wrong trace {}", traceId, span);
       return;
     }
     rootSpan.compareAndSet(null, new WeakReference<>(span));
     synchronized (span) {
       if (null == span.ref) {
-        span.ref = new WeakReference<DDSpan>(span, referenceQueue);
-        weakReferences.add(span.ref);
+        span.ref = new WeakReference<DDSpan>(span, spanReferenceQueue);
+        weakSpans.add(span.ref);
         final int count = pendingReferenceCount.incrementAndGet();
         if (log.isDebugEnabled()) {
-          log.debug("traceId: {} -- registered span {}. count = {}", traceId, span, count);
+          log.debug("t_id={} -> registered span {}. count = {}", traceId, span, count);
         }
       } else {
-        log.debug("span {} already registered in trace {}", span, traceId);
+        log.debug("t_id={} -> span already registered {}", traceId, span);
       }
     }
   }
@@ -130,14 +134,14 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
       return;
     }
     if (!traceId.equals(span.context().getTraceId())) {
-      log.debug("{} - span expired for wrong trace ({})", span, traceId);
+      log.debug("t_id={} -> span expired for wrong trace {}", traceId, span);
       return;
     }
     synchronized (span) {
       if (null == span.ref) {
-        log.debug("span {} not registered in trace {}", span, traceId);
+        log.debug("t_id={} -> not registered in trace: {}", traceId, span);
       } else {
-        weakReferences.remove(span.ref);
+        weakSpans.remove(span.ref);
         span.ref.clear();
         span.ref = null;
         expireReference();
@@ -147,7 +151,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
 
   public void addSpan(final DDSpan span) {
     if (span.getDurationNano() == 0) {
-      log.debug("{} - added to trace, but not complete.", span);
+      log.debug("t_id={} -> added to trace, but not complete: {}", traceId, span);
       return;
     }
     if (traceId == null || span.context() == null) {
@@ -156,14 +160,14 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
       return;
     }
     if (!traceId.equals(span.getTraceId())) {
-      log.debug("{} - added to a mismatched trace.", span);
+      log.debug("t_id={} -> added to a mismatched trace: {}", traceId, span);
       return;
     }
 
     if (!isWritten.get()) {
       addFirst(span);
     } else {
-      log.debug("{} - finished after trace reported.", span);
+      log.debug("t_id={} -> finished after trace reported: {}", traceId, span);
     }
     expireSpan(span);
   }
@@ -181,14 +185,11 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   public void registerContinuation(final AgentScope.Continuation continuation) {
     synchronized (continuation) {
       if (!continuation.isRegistered()) {
-        weakReferences.add(continuation.register(referenceQueue));
+        weakContinuations.add(continuation.register(continuationReferenceQueue));
         final int count = pendingReferenceCount.incrementAndGet();
         if (log.isDebugEnabled()) {
           log.debug(
-              "traceId: {} -- registered continuation {}. count = {}",
-              traceId,
-              continuation,
-              count);
+              "t_id={} -> registered continuation {} -- count = {}", traceId, continuation, count);
         }
       } else {
         log.debug("continuation {} already registered in trace {}", continuation, traceId);
@@ -200,10 +201,10 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   public void cancelContinuation(final AgentScope.Continuation continuation) {
     synchronized (continuation) {
       if (continuation.isRegistered()) {
-        continuation.cancel(weakReferences);
+        continuation.cancel(weakContinuations);
         expireReference();
       } else {
-        log.debug("continuation {} not registered in trace {}", continuation, traceId);
+        log.debug("t_id={} -> not registered in trace: {}", traceId, continuation);
       }
     }
   }
@@ -233,7 +234,14 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
         }
       }
     }
-    log.debug("traceId: {} -- Expired reference. count = {}", traceId, count);
+    if (log.isDebugEnabled()) {
+      log.debug(
+          "t_id={} -> expired reference. count={} spans={} continuations={}",
+          traceId,
+          count,
+          weakSpans.size(),
+          weakContinuations.size());
+    }
   }
 
   private synchronized void write() {
@@ -249,8 +257,18 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   public synchronized boolean clean() {
     Reference ref;
     int count = 0;
-    while ((ref = referenceQueue.poll()) != null) {
-      weakReferences.remove(ref);
+    while ((ref = continuationReferenceQueue.poll()) != null) {
+      weakContinuations.remove(ref);
+      count++;
+      expireReference();
+    }
+    if (count > 0) {
+      log.debug("t_id={} -> {} unfinished continuations garbage collected.", traceId, count);
+    }
+
+    count = 0;
+    while ((ref = spanReferenceQueue.poll()) != null) {
+      weakSpans.remove(ref);
       if (isWritten.compareAndSet(false, true)) {
         removePendingTrace();
         // preserve throughput count.
@@ -263,7 +281,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     if (count > 0) {
       // TODO attempt to flatten and report if top level spans are finished. (for accurate metrics)
       log.debug(
-          "trace {} : {} unfinished spans garbage collected. Trace will not report.",
+          "t_id={} -> {} unfinished spans garbage collected. Trace will not be reported.",
           traceId,
           count);
     }

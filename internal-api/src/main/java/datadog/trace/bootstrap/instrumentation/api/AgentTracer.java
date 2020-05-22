@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.context.TraceScope;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -144,6 +145,11 @@ public class AgentTracer {
 
   public static class NoopAgentSpan implements AgentSpan {
     public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
+
+    @Override
+    public BigInteger getTraceId() {
+      return BigInteger.ZERO;
+    }
 
     @Override
     public AgentSpan setTag(final String key, final boolean value) {
@@ -363,7 +369,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void cancel(final Set<WeakReference<?>> weakReferences) {}
+    public void cancel(final Set<WeakReference<AgentScope.Continuation>> weakReferences) {}
   }
 
   public static class NoopContext implements Context {
