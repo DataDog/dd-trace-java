@@ -22,7 +22,7 @@ class MetricsAssert {
     clone.delegate = asserter
     clone.resolveStrategy = Closure.DELEGATE_FIRST
     clone(asserter)
-    asserter.assertTagsAllVerified()
+    asserter.assertMetricsAllVerified()
   }
 
   def defaultMetrics() {
@@ -38,8 +38,10 @@ class MetricsAssert {
     if (value instanceof Number) {
       metric(name, (Number) value)
     } else if (value instanceof Closure) {
+      assertedMetrics.add(name)
       assert ((Closure) value).call(metrics[name])
     } else if (value instanceof Class) {
+      assertedMetrics.add(name)
       assert ((Class) value).isInstance(metrics[name])
     }
   }
@@ -52,7 +54,7 @@ class MetricsAssert {
     assert metrics[name] == value
   }
 
-  void assertTagsAllVerified() {
+  void assertMetricsAllVerified() {
     def set = new TreeMap<>(metrics).keySet()
     set.removeAll(assertedMetrics)
     // The primary goal is to ensure the set is empty.

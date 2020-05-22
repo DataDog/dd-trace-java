@@ -67,12 +67,15 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
             "$Tags.COMPONENT" "google-http-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" String
             "$Tags.HTTP_METHOD" String
-            "$Tags.HTTP_STATUS" Integer
+            "$Tags.HTTP_STATUS" String
             "$DDTags.ERROR_MSG" "Server Error"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" Integer
+            defaultMetrics()
           }
         }
       }
