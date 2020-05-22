@@ -17,15 +17,18 @@ import java.util.concurrent.atomic.AtomicReference;
  * stacktraces.
  */
 public final class SamplerWriter {
-  static final String EVENT_NAME = "datadog.SamplerEvent";
+  static final String CONTEXT_EVENT_NAME = "datadog.TraceContextEvent";
+  static final String SAMPLER_EVENT_NAME = "datadog.SamplerEvent";
 
   private final Type sampleEventType;
+  private final Type contextEventType;
   private final Recording recording;
   private final AtomicReference<Chunk> chunkWriter = new AtomicReference<>();
 
   public SamplerWriter() {
     this.recording = new Recording();
-    this.sampleEventType = recording.registerEventType(EVENT_NAME);
+    this.contextEventType = registerContextEventType();
+    this.sampleEventType = recording.registerEventType(SAMPLER_EVENT_NAME);
     this.chunkWriter.set(recording.newChunk());
   }
 
@@ -37,6 +40,22 @@ public final class SamplerWriter {
     byte[] data = flush();
 
     Files.write(target, data);
+  }
+
+  public void writeContextEvent(SamplerContext context) {
+    if (context == null) {
+      return;
+    }
+    chunkWriter
+        .get()
+        .writeEvent(
+            contextEventType.asValue(
+                builder -> {
+                  builder
+                      .putField("startTime", System.nanoTime())
+                      .putField("eventThread", getThread(context.getThread()))
+                      .putField("traceId", context.getTraceId());
+                }));
   }
 
   public void writeThreadSample(ThreadInfo threadInfo) {
@@ -54,6 +73,26 @@ public final class SamplerWriter {
                       .putField("eventThread", getThread(threadInfo))
                       .putField("stackTrace", getStackTrace(threadInfo));
                 }));
+  }
+
+  private Type registerContextEventType() {
+    return recording.registerEventType(
+        CONTEXT_EVENT_NAME,
+        builder -> {
+          builder.addField("traceId", Types.Builtin.STRING);
+        });
+  }
+
+  private TypedValue getThread(Thread thread) {
+    return recording
+        .getType(Types.JDK.THREAD)
+        .asValue(
+            builder -> {
+              builder
+                  .putField("javaName", thread.getName())
+                  .putField("osName", thread.getName())
+                  .putField("osThreadId", thread.getId());
+            });
   }
 
   private TypedValue getThread(ThreadInfo threadInfo) {
