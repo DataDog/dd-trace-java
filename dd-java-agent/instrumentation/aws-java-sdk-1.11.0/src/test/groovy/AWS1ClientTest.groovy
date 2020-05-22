@@ -145,8 +145,7 @@ class AWS1ClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.HTTP_URL" "$server.address/"
             "$Tags.HTTP_METHOD" "$method"
-            "$Tags.HTTP_STATUS" 200
-            "$Tags.PEER_PORT" server.address.port
+            "$Tags.HTTP_STATUS" "200"
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" { it.contains(service) }
             "aws.endpoint" "$server.address"
@@ -156,6 +155,10 @@ class AWS1ClientTest extends AgentTestRunner {
               "$addedTag.key" "$addedTag.value"
             }
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
+            defaultMetrics()
           }
         }
         span(1) {
@@ -168,11 +171,14 @@ class AWS1ClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" server.address.port
             "$Tags.HTTP_URL" "${server.address}${path}"
             "$Tags.HTTP_METHOD" "$method"
-            "$Tags.HTTP_STATUS" 200
+            "$Tags.HTTP_STATUS" "200"
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
+            defaultMetrics()
           }
         }
       }
@@ -243,7 +249,6 @@ class AWS1ClientTest extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:${UNUSABLE_PORT}/"
             "$Tags.HTTP_METHOD" "$method"
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" 61
             "aws.service" { it.contains(service) }
             "aws.endpoint" "http://localhost:${UNUSABLE_PORT}"
             "aws.operation" "${operation}Request"
@@ -253,6 +258,10 @@ class AWS1ClientTest extends AgentTestRunner {
             }
             errorTags SdkClientException, ~/Unable to execute HTTP request/
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" 61
+            defaultMetrics()
           }
         }
         span(1) {
@@ -265,11 +274,14 @@ class AWS1ClientTest extends AgentTestRunner {
             "$Tags.COMPONENT" "apache-httpclient"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" UNUSABLE_PORT
             "$Tags.HTTP_URL" "http://localhost:${UNUSABLE_PORT}/$url"
             "$Tags.HTTP_METHOD" "$method"
             errorTags HttpHostConnectException, ~/Connection refused/
             defaultTags()
+          }
+          metrics {
+            "$Tags.PEER_PORT" UNUSABLE_PORT
+            defaultMetrics()
           }
         }
       }
@@ -357,7 +369,6 @@ class AWS1ClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.HTTP_URL" "$server.address/"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.PEER_PORT" server.address.port
             "$Tags.PEER_HOSTNAME" "localhost"
             "aws.service" "Amazon S3"
             "aws.endpoint" "$server.address"
@@ -371,6 +382,10 @@ class AWS1ClientTest extends AgentTestRunner {
             }
             defaultTags()
           }
+          metrics {
+            "$Tags.PEER_PORT" server.address.port
+            defaultMetrics()
+          }
         }
         (1..4).each {
           span(it) {
@@ -383,7 +398,6 @@ class AWS1ClientTest extends AgentTestRunner {
               "$Tags.COMPONENT" "apache-httpclient"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
               "$Tags.PEER_HOSTNAME" "localhost"
-              "$Tags.PEER_PORT" server.address.port
               "$Tags.HTTP_URL" "$server.address/someBucket/someKey"
               "$Tags.HTTP_METHOD" "GET"
               try {
@@ -392,6 +406,10 @@ class AWS1ClientTest extends AgentTestRunner {
                 errorTags RequestAbortedException, "Request aborted"
               }
               defaultTags()
+            }
+            metrics {
+              "$Tags.PEER_PORT" server.address.port
+              defaultMetrics()
             }
           }
         }
