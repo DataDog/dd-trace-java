@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OF
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -14,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.record.TimestampType;
 
 public abstract class KafkaDecorator extends ClientDecorator {
 
@@ -67,7 +67,8 @@ public abstract class KafkaDecorator extends ClientDecorator {
       span.setTag(DDTags.RESOURCE_NAME, "Consume Topic " + topic);
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
-      if (Config.get().isKafkaClientPropagationEnabled()) {
+      // don't record a duration if the message was sent from an old Kafka client
+      if (record.timestampType() != TimestampType.NO_TIMESTAMP_TYPE) {
         final long produceTime = record.timestamp();
         final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
         span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
