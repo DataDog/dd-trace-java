@@ -423,7 +423,7 @@ abstract class HttpClientTest extends AgentTestRunner {
         "$Tags.HTTP_URL" "${uri.resolve(uri.path)}"
         "$Tags.HTTP_METHOD" method
         if (status) {
-          "$Tags.HTTP_STATUS" status
+          "$Tags.HTTP_STATUS" "${status.toString()}"
         }
         if (tagQueryString) {
           "$DDTags.HTTP_QUERY" uri.query

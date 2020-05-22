@@ -129,7 +129,7 @@ class PlayServerTest extends HttpServerTest<Server> {
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.HTTP_STATUS" endpoint.status
+        "$Tags.HTTP_STATUS" "${Integer.toString(endpoint.status)}"
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
         if (endpoint.errored) {

@@ -585,7 +585,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
         "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" endpoint.status
+        "$Tags.HTTP_STATUS" "${String.valueOf(endpoint.status)}"
         if (endpoint.query) {
           "$DDTags.HTTP_QUERY" endpoint.query
         }

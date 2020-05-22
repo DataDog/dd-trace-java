@@ -91,7 +91,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" endpoint.status
+        "$Tags.HTTP_STATUS" "${Integer.toString(endpoint.status)}"
         if (context) {
           "servlet.context" "/$context"
         }

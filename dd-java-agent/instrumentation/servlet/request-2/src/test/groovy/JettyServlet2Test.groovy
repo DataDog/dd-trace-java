@@ -104,7 +104,7 @@ class JettyServlet2Test extends HttpServerTest<Server> {
         // No peer port
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" endpoint.status
+        "$Tags.HTTP_STATUS" "${Integer.toString(endpoint.status)}"
         "servlet.context" "/$CONTEXT"
         "servlet.path" endpoint.path
         "span.origin.type" TestServlet2.Sync.name

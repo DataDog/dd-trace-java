@@ -152,7 +152,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" endpoint.status
+        "$Tags.HTTP_STATUS" "${Integer.toString(endpoint.status)}"
         "span.origin.type" ApplicationFilterChain.name
         "servlet.path" endpoint.path
         if (endpoint.errored) {
