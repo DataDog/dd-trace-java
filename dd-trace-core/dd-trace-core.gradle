@@ -1,7 +1,7 @@
 description = 'dd-trace-core'
 
 apply from: "${rootDir}/gradle/java.gradle"
-apply from: "${rootDir}/gradle/publish.gradle"
+apply from: "${rootDir}/gradle/version.gradle"
 
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.6
