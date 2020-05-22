@@ -136,16 +136,18 @@ class TraceInterceptorTest extends DDSpecification {
     span.context().getErrorFlag()
 
     def tags = span.context().tags
+    def metrics = span.context().metrics
 
     tags["boolean-tag"] == true
-    tags["number-tag"] == 5.0
+    metrics["number-tag"] == 5.0
     tags["string-tag"] == "howdy"
 
     tags["thread.name"] != null
     tags["thread.id"] != null
     tags["runtime-id"] != null
     tags["language"] != null
-    tags.size() == 7
+    tags.size() == 6
+    metrics.size() >= 1
   }
 
   def "register interceptor through bridge"() {

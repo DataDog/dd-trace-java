@@ -17,11 +17,14 @@ public class HttpStatusErrorRule implements TraceProcessor.Rule {
   @Override
   public void processSpan(
       final DDSpan span, final Map<String, Object> tags, final Collection<DDSpan> trace) {
-    final Object value = tags.get(Tags.HTTP_STATUS);
+    final Number value = span.getMetrics().remove(Tags.HTTP_STATUS);
+    if (value instanceof Integer) {
+      span.setTag(Tags.HTTP_STATUS, Integer.toString(value.intValue()));
+    }
+
     if (value != null && !span.context().getErrorFlag()) {
       try {
-        final int status =
-            value instanceof Integer ? (int) value : Integer.parseInt(value.toString());
+        final int status = value.intValue();
         if (DDSpanTypes.HTTP_SERVER.equals(span.getType())) {
           if (Config.get().getHttpServerErrorStatuses().contains(status)) {
             span.setError(true);
