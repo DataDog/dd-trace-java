@@ -45,7 +45,7 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   public void writeTag(final byte[] key, final String value, final MessagePacker destination)
       throws IOException {
     writeKey(key, destination);
-    writeStringUTF8(value, destination);
+    writeUTF8Tag(value, destination);
   }
 
   @Override
@@ -102,12 +102,12 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
     }
   }
 
-  private static void writeStringUTF8(final String value, final MessagePacker destination)
+  private static void writeUTF8Tag(final String value, final MessagePacker destination)
       throws IOException {
     if (null == value) {
       destination.packNil();
     } else {
-      byte[] interned = StringTables.getBytesUTF8(value);
+      byte[] interned = StringTables.getTagBytesUTF8(value);
       if (null != interned) {
         destination.packRawStringHeader(interned.length);
         destination.addPayload(interned);

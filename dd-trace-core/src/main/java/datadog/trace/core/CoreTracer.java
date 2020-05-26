@@ -486,7 +486,6 @@ public class CoreTracer
 
     public AgentSpan start() {
       final AgentSpan span = buildSpan();
-      log.debug("Starting a new span: {}", span);
       return span;
     }
 
