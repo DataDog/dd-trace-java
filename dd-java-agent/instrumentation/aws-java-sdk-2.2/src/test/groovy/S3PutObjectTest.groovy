@@ -10,6 +10,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
+import software.amazon.awssdk.services.s3.model.PutObjectResponse
 import spock.lang.Shared
 
 import java.util.concurrent.CompletableFuture
@@ -29,9 +30,7 @@ class S3PutObjectTest extends AgentTestRunner {
   @Shared
   Random random = new Random()
 
-  @Override
-  void setupBeforeTests() {
-    super.setupBeforeTests()
+  def setup() {
     s3Client = S3AsyncClient
       .builder()
       .endpointOverride(localStack.getEndpointOverride(LocalStackContainer.Service.S3))
@@ -42,6 +41,9 @@ class S3PutObjectTest extends AgentTestRunner {
       .build()
 
     s3Client.createBucket({ b -> b.bucket("test") }).get()
+
+    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.clear()
   }
 
   def "Send large file"() {
@@ -55,14 +57,17 @@ class S3PutObjectTest extends AgentTestRunner {
 
     Executor executor = Executors.newFixedThreadPool(5)
 
+    List<CompletableFuture<PutObjectResponse>> responses = []
+
     when:
-    for (int i = 0; i < 50; i++) {
-      executor.submit {
-        TraceUtils.runUnderTrace("put-$i") {
-          s3Client.putObject(PutObjectRequest.builder().bucket("test").key("test-$i").build() as PutObjectRequest,
-            AsyncRequestBody.fromFile(file)).join()
-        }
+    for (int i = 0; i < 20; i++) {
+      TraceUtils.runUnderTrace("put-$i") {
+        responses.add(s3Client.putObject(PutObjectRequest.builder().bucket("test").key("test-$i").build() as PutObjectRequest,
+          AsyncRequestBody.fromFile(file)))
       }
+    }
+    responses.forEach {
+      it.get()
     }
 
     and:
@@ -77,9 +82,11 @@ class S3PutObjectTest extends AgentTestRunner {
     }
 
     then:
-    response.get().contents().any({ it.key() == "test-50" })
+    response.get().contents().findAll { it.key().startsWith("test-") }.size() == 20
+    response.get().contents().any({ it.key() == "test-0" })
+    response.get().contents().any({ it.key() == "test-19" })
 
     and:
-    TEST_WRITER.size() == 51
+    TEST_WRITER.size() == 21
   }
 }
