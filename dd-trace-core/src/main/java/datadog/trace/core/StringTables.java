@@ -3,8 +3,10 @@ package datadog.trace.core;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.CommonTagValues;
 import datadog.trace.bootstrap.instrumentation.api.DDComponents;
 import datadog.trace.bootstrap.instrumentation.api.DDSpanNames;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -30,27 +32,33 @@ public class StringTables {
   // intentionally not thread safe; must be maintained to be effectively immutable
   // if a constant registration API is added, should be ensured that this is only used during
   // startup
-  private static final Map<String, byte[]> UTF8_INTERN_TABLE = new HashMap<>(256);
+  private static final Map<String, byte[]> UTF8_INTERN_KEYS_TABLE = new HashMap<>(256);
+  private static final Map<String, byte[]> UTF8_INTERN_TAGS_TABLE = new HashMap<>(256);
 
   static {
-    internConstantsUTF8(StringTables.class);
-    internConstantsUTF8(Tags.class);
-    internConstantsUTF8(DDSpanTypes.class);
-    internConstantsUTF8(DDComponents.class);
-    internConstantsUTF8(DDSpanNames.class);
+    internConstantsUTF8(Tags.class, UTF8_INTERN_KEYS_TABLE);
+    internConstantsUTF8(InstrumentationTags.class, UTF8_INTERN_KEYS_TABLE);
+    internConstantsUTF8(DDSpanTypes.class, UTF8_INTERN_TAGS_TABLE);
+    internConstantsUTF8(DDComponents.class, UTF8_INTERN_TAGS_TABLE);
+    internConstantsUTF8(DDSpanNames.class, UTF8_INTERN_TAGS_TABLE);
+    internConstantsUTF8(CommonTagValues.class, UTF8_INTERN_TAGS_TABLE);
   }
 
-  public static byte[] getBytesUTF8(String value) {
-    return UTF8_INTERN_TABLE.get(value);
+  public static byte[] getKeyBytesUTF8(String value) {
+    return UTF8_INTERN_KEYS_TABLE.get(value);
   }
 
-  private static void internConstantsUTF8(Class<?> clazz) {
+  public static byte[] getTagBytesUTF8(String value) {
+    return UTF8_INTERN_TAGS_TABLE.get(value);
+  }
+
+  private static void internConstantsUTF8(Class<?> clazz, Map<String, byte[]> map) {
     for (Field field : clazz.getDeclaredFields()) {
       if (Modifier.isStatic(field.getModifiers())
           && Modifier.isPublic(field.getModifiers())
           && field.getType() == String.class) {
         try {
-          intern(UTF8_INTERN_TABLE, (String) field.get(null), UTF_8);
+          intern(map, (String) field.get(null), UTF_8);
         } catch (IllegalAccessException e) {
           // won't happen
         }

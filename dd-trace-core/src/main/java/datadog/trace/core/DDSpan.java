@@ -9,7 +9,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -25,7 +25,8 @@ import lombok.extern.slf4j.Slf4j;
 public class DDSpan implements MutableSpan, AgentSpan {
 
   static DDSpan create(final long timestampMicro, final DDSpanContext context) {
-    DDSpan span = new DDSpan(timestampMicro, context);
+    final DDSpan span = new DDSpan(timestampMicro, context);
+    log.debug("Started span: {}", span);
     context.getTrace().registerSpan(span);
     return span;
   }
@@ -82,10 +83,10 @@ public class DDSpan implements MutableSpan, AgentSpan {
   private void finishAndAddToTrace(final long durationNano) {
     // ensure a min duration of 1
     if (this.durationNano.compareAndSet(0, Math.max(1, durationNano))) {
-      log.debug("Finished: {}", this);
+      log.debug("Finished span: {}", this);
       context.getTrace().addSpan(this);
     } else {
-      log.debug("{} - already finished!", this);
+      log.debug("Already finished: {}", this);
     }
   }
 
@@ -261,22 +262,6 @@ public class DDSpan implements MutableSpan, AgentSpan {
   // Getters
 
   /**
-   * Meta merges baggage and tags (stringified values)
-   *
-   * @return merged context baggage and tags
-   */
-  public Map<String, String> getMeta() {
-    final Map<String, String> meta = new HashMap<>();
-    for (final Map.Entry<String, String> entry : context.getBaggageItems().entrySet()) {
-      meta.put(entry.getKey(), entry.getValue());
-    }
-    for (final Map.Entry<String, Object> entry : getTags().entrySet()) {
-      meta.put(entry.getKey(), String.valueOf(entry.getValue()));
-    }
-    return meta;
-  }
-
-  /**
    * Span metrics.
    *
    * @return metrics for this span
@@ -300,6 +285,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
     return context.getServiceName();
   }
 
+  @Override
   public BigInteger getTraceId() {
     return context.getTraceId();
   }
@@ -354,7 +340,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
 
   @Override
   public Map<String, Object> getTags() {
-    return context.getTags();
+    return Collections.unmodifiableMap(context.getTags());
   }
 
   public String getType() {

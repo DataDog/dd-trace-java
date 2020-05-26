@@ -349,8 +349,8 @@ public class DDSpanContext implements AgentSpan.Context {
     }
   }
 
-  public synchronized Map<String, Object> getTags() {
-    return Collections.unmodifiableMap(tags);
+  public Map<String, Object> getTags() {
+    return tags;
   }
 
   @Override
