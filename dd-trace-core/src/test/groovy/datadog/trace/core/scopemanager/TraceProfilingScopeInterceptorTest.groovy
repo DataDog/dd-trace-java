@@ -19,7 +19,12 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
   def session = Mock(Session)
 
   def setup() {
+    assert !TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.get()
     Profiler.initialize(factory)
+  }
+
+  def cleanup() {
+    TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.set(false)
   }
 
   def "validate Percentage scope lifecycle"() {
@@ -52,9 +57,11 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
       interceptor.handleSpan(span)
     }
 
-    then: "nested interaction is ignored"
+    then: "nested interaction is permitted"
     if (isProfiling) {
       1 * delegate.handleSpan(span) >> delegateScope
+      1 * span.getTraceId() >> traceId
+      1 * factory.createSession("$traceId", _) >> session
       0 * _
     }
 
@@ -148,9 +155,11 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
       interceptor.handleSpan(span)
     }
 
-    then: "nested interaction is ignored"
+    then: "nested interaction is permitted"
     if (isProfiling) {
-      1 * delegate.handleSpan(span) >> delegateScope
+      1 * delegate.handleSpan(_) >> delegateScope
+      1 * span.getTraceId() >> 5g
+      1 * factory.createSession("5", _) >> session
       0 * _
     }
 

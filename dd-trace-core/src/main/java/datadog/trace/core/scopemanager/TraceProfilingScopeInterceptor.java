@@ -42,13 +42,13 @@ public abstract class TraceProfilingScopeInterceptor
 
   @Override
   public Scope handleSpan(final AgentSpan span) {
-    if (IS_THREAD_PROFILING.get() // don't need to waste a permit if so.
-        || span instanceof AgentTracer.NoopAgentSpan
-        || !shouldProfile(span)) {
-      // We don't want to wrap the scope for profiling.
-      return delegate.handleSpan(span);
+    if (!(span instanceof AgentTracer.NoopAgentSpan)
+        && (IS_THREAD_PROFILING.get() // if already profiling, we want to add more context.
+            || shouldProfile(span))) {
+      return new TraceProfilingScope(span, delegate.handleSpan(span));
     }
-    return new TraceProfilingScope(span, delegate.handleSpan(span));
+    // We don't want to wrap the scope for profiling.
+    return delegate.handleSpan(span);
   }
 
   abstract boolean shouldProfile(AgentSpan span);
