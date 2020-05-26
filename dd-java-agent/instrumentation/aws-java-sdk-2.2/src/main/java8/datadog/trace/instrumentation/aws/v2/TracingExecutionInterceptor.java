@@ -7,6 +7,8 @@ import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORAT
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.function.Consumer;
+
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import software.amazon.awssdk.core.client.builder.SdkClientBuilder;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.interceptor.Context;
@@ -30,6 +32,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   public void beforeExecution(
       final Context.BeforeExecution context, final ExecutionAttributes executionAttributes) {
     final AgentSpan span = startSpan("aws.http");
+    span.setTag(Tags.DD_MEASURED, "1");
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, span);

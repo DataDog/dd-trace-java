@@ -127,7 +127,8 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       final AgentSpan span =
           startSpan("amqp.command")
               .setTag(DDTags.RESOURCE_NAME, method)
-              .setTag(Tags.PEER_PORT, connection.getPort());
+              .setTag(Tags.PEER_PORT, connection.getPort())
+              .setTag(Tags.DD_MEASURED, "1");
       DECORATE.afterStart(span);
       DECORATE.onPeerConnection(span, connection.getAddress());
       return activateSpan(span);
@@ -248,6 +249,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       } else {
         span = startSpan("amqp.command", TimeUnit.MILLISECONDS.toMicros(startTime));
       }
+      span.setTag(Tags.DD_MEASURED, "1");
       if (response != null) {
         span.setTag("message.size", response.getBody().length);
       }

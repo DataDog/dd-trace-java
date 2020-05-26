@@ -13,6 +13,7 @@ import com.rabbitmq.client.ShutdownSignalException;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -71,7 +72,8 @@ public class TracedDelegatingConsumer implements Consumer {
       final AgentSpan span =
           startSpan("amqp.command", context)
               .setTag("message.size", body == null ? 0 : body.length)
-              .setTag("span.origin.type", delegate.getClass().getName());
+              .setTag("span.origin.type", delegate.getClass().getName())
+              .setTag(Tags.DD_MEASURED, "1");
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);
 
