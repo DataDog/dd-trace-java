@@ -1,7 +1,6 @@
 package com.datadog.profiling.mlt;
 
 import datadog.trace.profiling.Session;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 
@@ -10,7 +9,6 @@ public class JMXSession implements Session {
   private final String id;
   private final long threadId;
   private final Consumer<JMXSession> cleanup;
-  private final AtomicInteger refCount = new AtomicInteger();
 
   public JMXSession(String id, long threadId, Consumer<JMXSession> cleanup) {
     this.id = id;
@@ -29,13 +27,5 @@ public class JMXSession implements Session {
 
   long getThreadId() {
     return threadId;
-  }
-
-  void activate() {
-    refCount.getAndIncrement();
-  }
-
-  int deactivate() {
-    return refCount.decrementAndGet();
   }
 }

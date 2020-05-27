@@ -18,9 +18,8 @@ public class JMXSessionFactory implements SessionFactory {
   @Override
   public Session createSession(String id, Thread thread) {
     long threadId = thread.getId();
-    JMXSession session =
-        jmxSessions.computeIfAbsent(threadId, key -> createNewSession(id, threadId));
-    session.activate();
+    JMXSession session = createNewSession(id, threadId);
+    jmxSessions.put(threadId, session);
     return session;
   }
 
@@ -45,11 +44,7 @@ public class JMXSessionFactory implements SessionFactory {
   // and the method Map#computeIfPresent is therefore atomic for the update of the value
   // inside the map
   private JMXSession closeSession(Long key, JMXSession jmxSession) {
-    int current = jmxSession.deactivate();
-    if (current == 0) {
-      sampler.removeThread(jmxSession.getThreadId());
-      return null;
-    }
-    return jmxSession;
+    sampler.removeThread(jmxSession.getThreadId());
+    return null;
   }
 }
