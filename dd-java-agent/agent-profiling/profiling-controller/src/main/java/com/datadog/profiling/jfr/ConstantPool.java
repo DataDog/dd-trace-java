@@ -1,5 +1,7 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.ByteArrayWriter;
+
 import java.util.HashMap;
 import java.util.Map;
 

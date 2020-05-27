@@ -8,6 +8,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
+
+import com.datadog.profiling.util.ByteArrayWriter;
 import lombok.NonNull;
 
 /** JFR type repository class. */
