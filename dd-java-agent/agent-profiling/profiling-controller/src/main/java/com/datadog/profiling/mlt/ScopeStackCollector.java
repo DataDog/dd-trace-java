@@ -88,7 +88,7 @@ final class ScopeStackCollector {
   }
 
   byte[] serialize() {
-    ByteArrayWriter writer = new ByteArrayWriter(65536);
+    ByteArrayWriter writer = new ByteArrayWriter(16384); // conservatively pre-allocate 16k byte array
     writer
       .writeBytes(MAGIC) // MAGIC
       .writeByte(VERSION) // version
@@ -101,6 +101,7 @@ final class ScopeStackCollector {
     IntHashSet stringConstants = IntHashSet.newSetWith(0); // always include ptr 0 (thread name)
     IntHashSet frameConstants = IntHashSet.newSetWith();
     IntHashSet stackConstants = IntHashSet.newSetWith();
+    // write out the stack trace sequence and collect the constant pool usage
     stacks.forEach(ptr -> {
       writer.writeInt(ptr);
       if (ptr >= 0) {
@@ -108,15 +109,18 @@ final class ScopeStackCollector {
       }
     });
     writer.writeIntRaw(CONSTANT_POOLS_OFFSET, writer.position()); // write the constant pools offset
+    // write constant pool array
     writer.writeInt(stringConstants.size());
     stringConstants.forEach(ptr -> {
       writer.writeUTF(stringPool.get(ptr));
     });
+    // write frame pool array
     writer.writeInt(frameConstants.size());
     frameConstants.forEach(ptr -> {
       FrameElement frame = framePool.get(ptr);
       writer.writeInt(frame.getOwnerPtr()).writeInt(frame.getMethodPtr()).writeInt(frame.getLine());
     });
+    // write stack pool array
     writer.writeInt(stackConstants.size());
     stackConstants.forEach(ptr -> {
       StackElement stack = stackPool.get(ptr);
