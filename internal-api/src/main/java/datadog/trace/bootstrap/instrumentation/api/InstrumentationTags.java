@@ -76,4 +76,5 @@ public class InstrumentationTags {
   public static final String TWILIO_SID = "twilio.sid";
   public static final String TWILIO_STATUS = "twilio.status";
   public static final String TWILIO_PARENT_SID = "twilio.parentSid";
+  public static final String DD_MEASURED = "_dd.measured";
 }

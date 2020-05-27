@@ -8,7 +8,7 @@ import static datadog.trace.instrumentation.okhttp3.RequestBuilderInjectAdapter.
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Interceptor;
@@ -24,7 +24,7 @@ public class TracingInterceptor implements Interceptor {
     }
 
     final AgentSpan span = startSpan("okhttp.request");
-    span.setTag(Tags.DD_MEASURED, 1);
+    span.setTag(InstrumentationTags.DD_MEASURED, true);
 
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);

@@ -16,6 +16,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.dropwizard.views.View;
 import java.util.Map;
@@ -65,7 +66,7 @@ public final class DropwizardViewInstrumentation extends Instrumenter.Default {
               .setTag(DDTags.RESOURCE_NAME, "View " + view.getTemplateName())
               .setTag(Tags.COMPONENT, "dropwizard-view")
               .setTag("span.origin.type", obj.getClass().getSimpleName())
-              .setTag(Tags.DD_MEASURED, 1);
+              .setTag(InstrumentationTags.DD_MEASURED, true);
       return activateSpan(span);
     }
 

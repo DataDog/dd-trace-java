@@ -10,7 +10,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -51,7 +51,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
     final Context context = propagate().extract(request.headers(), GETTER);
 
     final AgentSpan span = startSpan("netty.request", context);
-    span.setTag(Tags.DD_MEASURED, 1);
+    span.setTag(InstrumentationTags.DD_MEASURED, true);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, ctx.getChannel());

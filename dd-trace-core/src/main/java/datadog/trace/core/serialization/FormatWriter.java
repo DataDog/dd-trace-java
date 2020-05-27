@@ -137,7 +137,7 @@ public abstract class FormatWriter<DEST> {
     writeMapFooter(destination);
   }
 
-  private byte[] stringToBytes(final String string) {
+  private static byte[] stringToBytes(final String string) {
     // won't reassign key or string in this method
     final byte[] key = StringTables.getKeyBytesUTF8(string);
     return null == key ? string.getBytes(StandardCharsets.UTF_8) : key;

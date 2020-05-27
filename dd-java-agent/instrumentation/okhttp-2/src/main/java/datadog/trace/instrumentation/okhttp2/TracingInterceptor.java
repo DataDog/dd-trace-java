@@ -11,14 +11,14 @@ import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.io.IOException;
 
 public class TracingInterceptor implements Interceptor {
   @Override
   public Response intercept(final Chain chain) throws IOException {
     final AgentSpan span = startSpan("okhttp.request");
-    span.setTag(Tags.DD_MEASURED, 1);
+    span.setTag(InstrumentationTags.DD_MEASURED, true);
 
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);

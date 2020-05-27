@@ -17,10 +17,9 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.HashMap;
 import java.util.Map;
-
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -82,7 +81,7 @@ public final class AkkaHttpClientInstrumentation extends Instrumenter.Default {
       }
 
       final AgentSpan span = startSpan("akka-http.request");
-      span.setTag(Tags.DD_MEASURED, 1);
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
 

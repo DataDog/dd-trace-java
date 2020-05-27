@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RE
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.concurrent.TimeUnit;
@@ -67,7 +68,7 @@ public abstract class KafkaDecorator extends ClientDecorator {
       span.setTag(DDTags.RESOURCE_NAME, "Consume Topic " + topic);
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
-      span.setTag(Tags.DD_MEASURED, 1);
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
       // don't record a duration if the message was sent from an old Kafka client
       if (record.timestampType() != TimestampType.NO_TIMESTAMP_TYPE) {
         final long produceTime = record.timestamp();
@@ -85,7 +86,7 @@ public abstract class KafkaDecorator extends ClientDecorator {
         span.setTag(PARTITION, record.partition());
       }
       span.setTag(DDTags.RESOURCE_NAME, "Produce Topic " + topic);
-      span.setTag(Tags.DD_MEASURED, 1);
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
     }
   }
 }

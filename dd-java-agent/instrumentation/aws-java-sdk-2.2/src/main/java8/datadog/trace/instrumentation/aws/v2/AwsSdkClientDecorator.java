@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.aws.v2;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import software.amazon.awssdk.awscore.AwsResponse;
@@ -52,7 +52,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     span.setTag("aws.agent", COMPONENT_NAME);
     span.setTag("aws.service", awsServiceName);
     span.setTag("aws.operation", awsOperation);
-    span.setTag(Tags.DD_MEASURED, 1);
+    span.setTag(InstrumentationTags.DD_MEASURED, true);
 
     return span;
   }

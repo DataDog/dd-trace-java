@@ -7,7 +7,7 @@ import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHt
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import net.bytebuddy.asm.Advice;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -30,7 +30,7 @@ public class DispatcherHandlerAdvice {
     }
 
     final AgentSpan span = startSpan("DispatcherHandler.handle");
-    span.setTag(Tags.DD_MEASURED, 1);
+    span.setTag(InstrumentationTags.DD_MEASURED, true);
     DECORATE.afterStart(span);
     exchange.getAttributes().put(AdviceUtils.SPAN_ATTRIBUTE, span);
 
