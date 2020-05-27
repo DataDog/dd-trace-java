@@ -54,7 +54,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     super(
         new EventScopeInterceptor(
             scopeEventFactory,
-            TraceProfilingScopeManager.create(
+            TraceProfilingScopeInterceptor.create(
                 methodTraceSampleRate,
                 traceStatsCollector,
                 new ListenerScopeInterceptor(scopeListeners, null))));
