@@ -3,6 +3,7 @@ package datadog.trace.core;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.CommonTagValues;
 import datadog.trace.bootstrap.instrumentation.api.DDComponents;
 import datadog.trace.bootstrap.instrumentation.api.DDSpanNames;
@@ -39,6 +40,7 @@ public class StringTables {
   private static final long[] TAGS_FIRST_CHAR_IS_PRESENT = new long[4];
 
   static {
+    internConstantsUTF8(DDTags.class, UTF8_INTERN_KEYS_TABLE, null);
     internConstantsUTF8(Tags.class, UTF8_INTERN_KEYS_TABLE, null);
     internConstantsUTF8(InstrumentationTags.class, UTF8_INTERN_KEYS_TABLE, null);
     internConstantsUTF8(DDSpanTypes.class, UTF8_INTERN_TAGS_TABLE, TAGS_FIRST_CHAR_IS_PRESENT);
