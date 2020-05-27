@@ -127,8 +127,8 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [:]
     config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [:]
-    config.httpServerErrorStatuses == (500..599).toSet()
-    config.httpClientErrorStatuses == (400..499).toSet()
+    config.httpServerErrorStatuses == toBitSet((500..599))
+    config.httpClientErrorStatuses == toBitSet((400..499))
     config.httpClientSplitByDomain == false
     config.dbClientSplitByInstance == false
     config.splitByTags == [].toSet()
@@ -252,8 +252,8 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
-    config.httpServerErrorStatuses == (122..457).toSet()
-    config.httpClientErrorStatuses == (111..111).toSet()
+    config.httpServerErrorStatuses == toBitSet((122..457))
+    config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
     config.dbClientSplitByInstance == true
     config.splitByTags == ["some.tag1", "some.tag2"].toSet()
@@ -372,8 +372,8 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
-    config.httpServerErrorStatuses == (122..457).toSet()
-    config.httpClientErrorStatuses == (111..111).toSet()
+    config.httpServerErrorStatuses == toBitSet((122..457))
+    config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
     config.dbClientSplitByInstance == true
     config.splitByTags == ["some.tag3", "some.tag2", "some.tag1"].toSet()
@@ -495,8 +495,8 @@ class ConfigTest extends DDSpecification {
     config.serviceMapping == [:]
     config.mergedSpanTags == [:]
     config.headerTags == [:]
-    config.httpServerErrorStatuses == (500..599).toSet()
-    config.httpClientErrorStatuses == (400..499).toSet()
+    config.httpServerErrorStatuses == toBitSet((500..599))
+    config.httpClientErrorStatuses == toBitSet((400..499))
     config.httpClientSplitByDomain == false
     config.dbClientSplitByInstance == false
     config.splitByTags == [].toSet()
@@ -592,8 +592,8 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
-    config.httpServerErrorStatuses == (122..457).toSet()
-    config.httpClientErrorStatuses == (111..111).toSet()
+    config.httpServerErrorStatuses == toBitSet((122..457))
+    config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
     config.dbClientSplitByInstance == true
     config.splitByTags == [].toSet()
@@ -859,10 +859,10 @@ class ConfigTest extends DDSpecification {
 
     then:
     if (expected) {
-      assert config.httpServerErrorStatuses == expected.toSet()
-      assert config.httpClientErrorStatuses == expected.toSet()
-      assert propConfig.httpServerErrorStatuses == expected.toSet()
-      assert propConfig.httpClientErrorStatuses == expected.toSet()
+      assert config.httpServerErrorStatuses == toBitSet(expected)
+      assert config.httpClientErrorStatuses == toBitSet(expected)
+      assert propConfig.httpServerErrorStatuses == toBitSet(expected)
+      assert propConfig.httpClientErrorStatuses == toBitSet(expected)
     } else {
       assert config.httpServerErrorStatuses == Config.DEFAULT_HTTP_SERVER_ERROR_STATUSES
       assert config.httpClientErrorStatuses == Config.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
@@ -1574,5 +1574,13 @@ class ConfigTest extends DDSpecification {
     static ClassThrowsExceptionForValueOfMethod valueOf(String ignored) {
       throw new Throwable()
     }
+  }
+
+  static BitSet toBitSet(Collection<Integer> set) {
+    BitSet bs = new BitSet()
+    for (Integer i : set) {
+      bs.set(i)
+    }
+    return bs
   }
 }

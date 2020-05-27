@@ -124,7 +124,7 @@ public class FinatraInstrumentation extends Instrumenter.Default {
     @Override
     public void onSuccess(final Response response) {
       // Don't use DECORATE.onResponse because this is the controller span
-      if (Config.get().getHttpServerErrorStatuses().contains(DECORATE.status(response))) {
+      if (Config.get().getHttpServerErrorStatuses().get(DECORATE.status(response))) {
         scope.span().setError(true);
       }
 
