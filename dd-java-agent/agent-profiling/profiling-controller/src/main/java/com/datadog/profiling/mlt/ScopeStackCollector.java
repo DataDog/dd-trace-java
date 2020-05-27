@@ -24,6 +24,7 @@ final class ScopeStackCollector {
 
   @Getter
   private final long timestamp;
+
   @Getter
   private final String scopeId;
 
@@ -93,7 +94,8 @@ final class ScopeStackCollector {
       .writeByte(VERSION) // version
       .writeIntRaw(0) // size; offset = 5
       .writeIntRaw(0) // ptr to constant pools; offset = 9
-      .writeLong(timestamp)
+      .writeLong(timestamp) // start timestamp
+      .writeLong(System.nanoTime() - timestamp) // duration
       .writeLong(threadStacktraceCollector.getThreadId());
 
     IntHashSet stringConstants = IntHashSet.newSetWith(0); // always include ptr 0 (thread name)
