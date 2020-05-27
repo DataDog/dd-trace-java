@@ -16,13 +16,11 @@ public class ErrorRule implements TraceProcessor.Rule {
   @Override
   public void processSpan(
       final DDSpan span, final Map<String, Object> tags, final Collection<DDSpan> trace) {
-    final Object value = tags.get(Tags.ERROR);
+    final Object value = span.getAndRemoveTag(Tags.ERROR);
     if (value instanceof Boolean) {
       span.setError((Boolean) value);
     } else if (value != null) {
       span.setError(Boolean.parseBoolean(value.toString()));
     }
-
-    span.removeTag(Tags.ERROR);
   }
 }
