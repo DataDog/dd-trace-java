@@ -83,7 +83,10 @@ final class StackElement {
   @Override
   public int hashCode() {
     if (hash == 0) {
-      int computedHash = Objects.hash(headPtr, subtreePtr, depth);
+      int computedHash = 1;
+      computedHash = computedHash * 31 + headPtr;
+      computedHash = computedHash * 31 + subtreePtr;
+      computedHash = computedHash * 31 + depth;
       hash = computedHash == 0 ? 1 : computedHash;
     }
     return hash;
