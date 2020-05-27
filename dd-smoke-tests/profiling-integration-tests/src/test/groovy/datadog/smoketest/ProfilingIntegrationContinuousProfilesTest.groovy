@@ -30,7 +30,6 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
-    command.add("-Ddd.profiling.continuous.to.periodic.upload.ratio=0") // Disable periodic profiles
     command.addAll((String[]) ["-jar", profilingShadowJar])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
     processBuilder.directory(new File(buildDirectory))
@@ -60,7 +59,7 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
 
     then:
     firstRequest.getRequestUrl().toString() == profilingUrl
-    firstRequest.getHeader("DD-API-KEY") == API_KEY
+    firstRequest.getHeader("DD-API-KEY") == apiKey()
 
     firstRequestParameters.get("recording-name").get(0) == 'dd-profiling'
     firstRequestParameters.get("format").get(0) == "jfr"
@@ -90,7 +89,7 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
 
     then:
     secondRequest.getRequestUrl().toString() == profilingUrl
-    secondRequest.getHeader("DD-API-KEY") == API_KEY
+    secondRequest.getHeader("DD-API-KEY") == apiKey()
 
     secondRequestParameters.get("recording-name").get(0) == 'dd-profiling'
     def secondStartTime = Instant.parse(secondRequestParameters.get("recording-start").get(0))
