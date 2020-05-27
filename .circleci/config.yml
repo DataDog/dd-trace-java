@@ -23,7 +23,7 @@ jobs:
       - restore_cache:
           <<: *cache_keys
 
-      - setup_remote_docker:
+      - setup_remote_docker
 
       - run:
           name: Build Project
