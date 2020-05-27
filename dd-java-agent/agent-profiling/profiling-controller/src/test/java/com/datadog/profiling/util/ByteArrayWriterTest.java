@@ -1,7 +1,8 @@
-package com.datadog.profiling.jfr;
+package com.datadog.profiling.util;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.datadog.profiling.util.ByteArrayWriter;
 import org.junit.jupiter.api.Test;
 
 class ByteArrayWriterTest {

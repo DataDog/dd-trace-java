@@ -1,5 +1,7 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.ByteArrayWriter;
+
 /** A representation of JFR chunk - self contained set of JFR data. */
 public final class Chunk {
   private static final byte[] MAGIC = new byte[] {'F', 'L', 'R', '\0'};

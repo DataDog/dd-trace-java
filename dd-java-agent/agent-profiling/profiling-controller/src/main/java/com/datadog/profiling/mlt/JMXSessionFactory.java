@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class JMXSessionFactory implements SessionFactory {
+
   private final Map<Long, JMXSession> jmxSessions = new ConcurrentHashMap<>();
   private final JMXSampler sampler;
 

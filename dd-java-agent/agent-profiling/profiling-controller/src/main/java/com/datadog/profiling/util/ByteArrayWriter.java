@@ -1,43 +1,48 @@
-package com.datadog.profiling.jfr;
+package com.datadog.profiling.util;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-/** JFR specific binary encoding writer. Data is written to auto-scaled byte-array. */
-final class ByteArrayWriter {
+/** Byte-array writer with default support for LEB128 encoded integers */
+public final class ByteArrayWriter {
   private static final int EXT_BIT = 0x80;
   private static final long COMPRESSED_INT_MASK = -EXT_BIT;
   private byte[] array;
   private int pointer = 0;
 
-  ByteArrayWriter(int size) {
+  public ByteArrayWriter(int size) {
     array = new byte[size];
   }
 
-  ByteArrayWriter writeChar(char data) {
+  public void reset() {
+    Arrays.fill(array, (byte)0);
+    pointer = 0;
+  }
+
+  public ByteArrayWriter writeChar(char data) {
     writeChar(pointer, data);
     return this;
   }
 
-  long writeChar(long offset, char data) {
+  public long writeChar(long offset, char data) {
     return writeByte(offset, (byte) (data & 0xff));
   }
 
-  ByteArrayWriter writeShort(short data) {
+  public ByteArrayWriter writeShort(short data) {
     writeShort(pointer, data);
     return this;
   }
 
-  long writeShort(long offset, short data) {
+  public long writeShort(long offset, short data) {
     return writeLong(offset, data);
   }
 
-  ByteArrayWriter writeInt(int data) {
+  public ByteArrayWriter writeInt(int data) {
     writeInt(pointer, data);
     return this;
   }
 
-  long writeInt(long offset, int data) {
+  public long writeInt(long offset, int data) {
     return writeLong(offset, data);
   }
 
@@ -76,12 +81,12 @@ final class ByteArrayWriter {
     return 9;
   }
 
-  ByteArrayWriter writeLong(long data) {
+  public ByteArrayWriter writeLong(long data) {
     writeLong(pointer, data);
     return this;
   }
 
-  long writeLong(long offset, long data) {
+  public long writeLong(long offset, long data) {
     if ((data & COMPRESSED_INT_MASK) == 0) {
       return writeByte(offset, (byte) (data & 0xff));
     }
@@ -124,39 +129,39 @@ final class ByteArrayWriter {
     return writeByte(offset, (byte) (data >> 7));
   }
 
-  ByteArrayWriter writeFloat(float data) {
+  public ByteArrayWriter writeFloat(float data) {
     writeFloat(pointer, data);
     return this;
   }
 
-  long writeFloat(long offset, float data) {
+  public long writeFloat(long offset, float data) {
     return writeIntRaw(offset, Float.floatToIntBits(data));
   }
 
-  ByteArrayWriter writeDouble(double data) {
+  public ByteArrayWriter writeDouble(double data) {
     writeDouble(pointer, data);
     return this;
   }
 
-  long writeDouble(long offset, double data) {
+  public long writeDouble(long offset, double data) {
     return writeLongRaw(offset, Double.doubleToLongBits(data));
   }
 
-  ByteArrayWriter writeBoolean(boolean data) {
+  public ByteArrayWriter writeBoolean(boolean data) {
     writeBoolean(pointer, data);
     return this;
   }
 
-  long writeBoolean(long offset, boolean data) {
+  public long writeBoolean(long offset, boolean data) {
     return writeByte(offset, data ? (byte) 1 : (byte) 0);
   }
 
-  ByteArrayWriter writeByte(byte data) {
+  public ByteArrayWriter writeByte(byte data) {
     writeByte(pointer, data);
     return this;
   }
 
-  long writeByte(long offset, byte data) {
+  public long writeByte(long offset, byte data) {
     int newOffset = (int) (offset + 1);
     if (newOffset >= array.length) {
       array = Arrays.copyOf(array, newOffset * 2);
@@ -166,12 +171,12 @@ final class ByteArrayWriter {
     return newOffset;
   }
 
-  ByteArrayWriter writeBytes(byte... data) {
+  public ByteArrayWriter writeBytes(byte... data) {
     writeBytes(pointer, data);
     return this;
   }
 
-  long writeBytes(long offset, byte... data) {
+  public long writeBytes(long offset, byte... data) {
     int newOffset = (int) (offset + data.length);
     if (newOffset >= array.length) {
       array = Arrays.copyOf(array, newOffset * 2);
@@ -181,12 +186,12 @@ final class ByteArrayWriter {
     return newOffset;
   }
 
-  ByteArrayWriter writeUTF(String data) {
+  public ByteArrayWriter writeUTF(String data) {
     writeUTF(pointer, data);
     return this;
   }
 
-  long writeUTF(long offset, String data) {
+  public long writeUTF(long offset, String data) {
     if (data == null) {
       return writeByte(offset, (byte) 0); // special NULL encoding
     }
@@ -200,21 +205,21 @@ final class ByteArrayWriter {
     return pos;
   }
 
-  ByteArrayWriter writeShortRaw(short data) {
+  public ByteArrayWriter writeShortRaw(short data) {
     writeShortRaw(pointer, data);
     return this;
   }
 
-  long writeShortRaw(long offset, short data) {
+  public long writeShortRaw(long offset, short data) {
     return writeBytes(offset, (byte) ((data >> 8) & 0xff), (byte) (data & 0xff));
   }
 
-  ByteArrayWriter writeIntRaw(int data) {
+  public ByteArrayWriter writeIntRaw(int data) {
     writeIntRaw(pointer, data);
     return this;
   }
 
-  long writeIntRaw(long offset, int data) {
+  public long writeIntRaw(long offset, int data) {
     return writeBytes(
         offset,
         (byte) ((data >> 24) & 0xff),
@@ -223,12 +228,12 @@ final class ByteArrayWriter {
         (byte) (data & 0xff));
   }
 
-  ByteArrayWriter writeLongRaw(long data) {
+  public ByteArrayWriter writeLongRaw(long data) {
     writeLongRaw(pointer, data);
     return this;
   }
 
-  long writeLongRaw(long offset, long data) {
+  public long writeLongRaw(long offset, long data) {
     return writeBytes(
         offset,
         (byte) ((data >> 56) & 0xff),
@@ -241,12 +246,12 @@ final class ByteArrayWriter {
         (byte) (data & 0xff));
   }
 
-  byte[] toByteArray() {
+  public byte[] toByteArray() {
     return Arrays.copyOf(array, pointer);
   }
 
   /** @return current writer position */
-  int position() {
+  public int position() {
     return pointer;
   }
 
@@ -254,7 +259,7 @@ final class ByteArrayWriter {
    * @return number of bytes written adjusted by the number of bytes necessary to encode the length
    *     itself
    */
-  int length() {
+  public int length() {
     return adjustLength(pointer);
   }
 

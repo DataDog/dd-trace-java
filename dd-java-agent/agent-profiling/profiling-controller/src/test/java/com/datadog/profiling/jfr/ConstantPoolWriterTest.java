@@ -2,6 +2,7 @@ package com.datadog.profiling.jfr;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.datadog.profiling.util.ByteArrayWriter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
