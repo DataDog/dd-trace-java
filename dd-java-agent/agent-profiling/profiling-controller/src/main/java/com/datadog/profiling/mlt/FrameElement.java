@@ -4,8 +4,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 
-import java.util.Objects;
-
 @EqualsAndHashCode
 class FrameElement {
   @EqualsAndHashCode.Exclude

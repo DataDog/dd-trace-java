@@ -1,7 +1,5 @@
 package com.datadog.profiling.mlt;
 
-import lombok.Getter;
-
 import java.util.ArrayDeque;
 import java.util.Deque;
 
@@ -12,7 +10,6 @@ public final class ThreadStackCollector {
 
   private final Deque<ScopeStackCollector> scopeCollectorQueue = new ArrayDeque<>();
 
-  @Getter
   private final long threadId;
 
   public ThreadStackCollector(long threadId, String threadName) {
