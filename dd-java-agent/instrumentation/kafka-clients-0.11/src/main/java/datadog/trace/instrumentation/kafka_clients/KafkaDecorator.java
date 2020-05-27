@@ -13,8 +13,10 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.record.TimestampType;
 
 public abstract class KafkaDecorator extends ClientDecorator {
+
   public static final KafkaDecorator PRODUCER_DECORATE =
       new KafkaDecorator() {
         @Override
@@ -65,9 +67,12 @@ public abstract class KafkaDecorator extends ClientDecorator {
       span.setTag(DDTags.RESOURCE_NAME, "Consume Topic " + topic);
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
-      final long produceTime = record.timestamp();
-      final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
-      span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
+      // don't record a duration if the message was sent from an old Kafka client
+      if (record.timestampType() != TimestampType.NO_TIMESTAMP_TYPE) {
+        final long produceTime = record.timestamp();
+        final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
+        span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
+      }
     }
   }
 
