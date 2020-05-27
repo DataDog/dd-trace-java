@@ -13,6 +13,7 @@ import java.lang.reflect.Modifier;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class StringTables {
 
@@ -34,14 +35,18 @@ public class StringTables {
   // startup
   private static final Map<String, byte[]> UTF8_INTERN_KEYS_TABLE = new HashMap<>(256);
   private static final Map<String, byte[]> UTF8_INTERN_TAGS_TABLE = new HashMap<>(256);
+  private static final int MAX_TAGS_LENGTH;
+  private static final long[] TAGS_FIRST_CHAR_IS_PRESENT = new long[4];
 
   static {
-    internConstantsUTF8(Tags.class, UTF8_INTERN_KEYS_TABLE);
-    internConstantsUTF8(InstrumentationTags.class, UTF8_INTERN_KEYS_TABLE);
-    internConstantsUTF8(DDSpanTypes.class, UTF8_INTERN_TAGS_TABLE);
-    internConstantsUTF8(DDComponents.class, UTF8_INTERN_TAGS_TABLE);
-    internConstantsUTF8(DDSpanNames.class, UTF8_INTERN_TAGS_TABLE);
-    internConstantsUTF8(CommonTagValues.class, UTF8_INTERN_TAGS_TABLE);
+    internConstantsUTF8(Tags.class, UTF8_INTERN_KEYS_TABLE, null);
+    internConstantsUTF8(InstrumentationTags.class, UTF8_INTERN_KEYS_TABLE, null);
+    internConstantsUTF8(DDSpanTypes.class, UTF8_INTERN_TAGS_TABLE, TAGS_FIRST_CHAR_IS_PRESENT);
+    internConstantsUTF8(DDComponents.class, UTF8_INTERN_TAGS_TABLE, TAGS_FIRST_CHAR_IS_PRESENT);
+    internConstantsUTF8(DDSpanNames.class, UTF8_INTERN_TAGS_TABLE, TAGS_FIRST_CHAR_IS_PRESENT);
+    internConstantsUTF8(CommonTagValues.class, UTF8_INTERN_TAGS_TABLE, TAGS_FIRST_CHAR_IS_PRESENT);
+    UTF8_INTERN_TAGS_TABLE.put("", new byte[0]);
+    MAX_TAGS_LENGTH = maxKeyLength(UTF8_INTERN_TAGS_TABLE.keySet());
   }
 
   public static byte[] getKeyBytesUTF8(String value) {
@@ -49,16 +54,17 @@ public class StringTables {
   }
 
   public static byte[] getTagBytesUTF8(String value) {
-    return UTF8_INTERN_TAGS_TABLE.get(value);
+    return tagMaybeInterned(value) ? UTF8_INTERN_TAGS_TABLE.get(value) : null;
   }
 
-  private static void internConstantsUTF8(Class<?> clazz, Map<String, byte[]> map) {
+  private static void internConstantsUTF8(
+      Class<?> clazz, Map<String, byte[]> map, long[] firstByteBitmap) {
     for (Field field : clazz.getDeclaredFields()) {
       if (Modifier.isStatic(field.getModifiers())
           && Modifier.isPublic(field.getModifiers())
           && field.getType() == String.class) {
         try {
-          intern(map, (String) field.get(null), UTF_8);
+          intern(map, (String) field.get(null), UTF_8, firstByteBitmap);
         } catch (IllegalAccessException e) {
           // won't happen
         }
@@ -66,7 +72,35 @@ public class StringTables {
     }
   }
 
-  private static void intern(Map<String, byte[]> table, String value, Charset encoding) {
-    table.put(value, value.getBytes(encoding));
+  private static void intern(
+      Map<String, byte[]> table, String value, Charset encoding, long[] firstByteBitmap) {
+    byte[] bytes = value.getBytes(encoding);
+    if (null != firstByteBitmap && bytes.length > 0) {
+      int bit = bytes[0] & 0xFF;
+      firstByteBitmap[bit >>> 6] |= 1L << bit;
+    }
+    table.put(value, bytes);
+  }
+
+  private static boolean tagMaybeInterned(final String tag) {
+    if (null == tag || tag.length() > MAX_TAGS_LENGTH) {
+      return false;
+    }
+    if (!tag.isEmpty()) {
+      final char first = tag.charAt(0);
+      if (first < 256 // should virtually always be the case
+          && (TAGS_FIRST_CHAR_IS_PRESENT[first >>> 6] & (1L << first)) == 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static int maxKeyLength(final Set<String> keys) {
+    int max = 0;
+    for (String key : keys) {
+      max = Math.max(key.length(), max);
+    }
+    return max;
   }
 }
