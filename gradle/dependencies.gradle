@@ -22,7 +22,7 @@ ext {
     jnr_unixsocket: "0.28",
     commons       : "3.2",
     mockito       : '3.3.3',
-    testcontainers: '1.12.2',
+    testcontainers: '1.14.1',
     jmc           : "8.0.0-SNAPSHOT"
   ]
 
@@ -64,7 +64,10 @@ ext {
       dependencies.create(group: 'org.mockito', name: 'mockito-core', version: versions.mockito),
       dependencies.create(group: 'org.mockito', name: 'mockito-junit-jupiter', version: versions.mockito)
     ],
-    testcontainers: "org.testcontainers:testcontainers:${versions.testcontainers}",
+    testcontainers: [
+      dependencies.create("org.testcontainers:testcontainers:${versions.testcontainers}"),
+      dependencies.create("org.testcontainers:spock:${versions.testcontainers}")
+    ],
     testLogging   : [
       dependencies.create(group: 'ch.qos.logback', name: 'logback-classic', version: versions.logback),
       dependencies.create(group: 'org.slf4j', name: 'log4j-over-slf4j', version: versions.slf4j),
