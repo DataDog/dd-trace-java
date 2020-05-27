@@ -6,6 +6,7 @@ import datadog.trace.core.processor.rule.AnalyticsSampleRateRule;
 import datadog.trace.core.processor.rule.DBStatementRule;
 import datadog.trace.core.processor.rule.ErrorRule;
 import datadog.trace.core.processor.rule.HttpStatusErrorRule;
+import datadog.trace.core.processor.rule.MarkSpanForMetricCalculationRule;
 import datadog.trace.core.processor.rule.ResourceNameRule;
 import datadog.trace.core.processor.rule.SpanTypeRule;
 import datadog.trace.core.processor.rule.Status404Rule;
@@ -29,6 +30,7 @@ public class TraceProcessor {
         new URLAsResourceNameRule(),
         new Status404Rule(),
         new AnalyticsSampleRateRule(),
+        new MarkSpanForMetricCalculationRule(),
       };
 
   private final List<Rule> rules;

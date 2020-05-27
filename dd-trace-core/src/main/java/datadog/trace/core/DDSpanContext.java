@@ -3,7 +3,6 @@ package datadog.trace.core;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.core.decorators.AbstractDecorator;
 import java.math.BigInteger;
 import java.util.Collections;
@@ -343,10 +342,6 @@ public class DDSpanContext implements AgentSpan.Context {
               ex.getMessage());
         }
       }
-    }
-
-    if (tag.equals(InstrumentationTags.DD_MEASURED)) {
-      setMetric(InstrumentationTags.DD_MEASURED, 1);
     }
 
     if (addTag) {
