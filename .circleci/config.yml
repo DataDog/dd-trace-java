@@ -23,8 +23,6 @@ jobs:
       - restore_cache:
           <<: *cache_keys
 
-      - setup_remote_docker
-
       - run:
           name: Build Project
           command: GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M" ./gradlew clean :dd-java-agent:shadowJar compileTestGroovy compileLatestDepTestGroovy compileTestScala compileLatestDepTestScala compileTestJava compileLatestDepTestJava --build-cache --parallel --stacktrace --no-daemon --max-workers=8
@@ -59,6 +57,7 @@ jobs:
       - image: rabbitmq
 
     steps:
+      - setup_remote_docker
       - checkout
 
       - attach_workspace:
