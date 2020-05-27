@@ -96,7 +96,7 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
     public static AgentScope createSpan(final HttpRequest request) {
       final AgentSpan.Context extractedContext = propagate().extract(request, GETTER);
       final AgentSpan span = startSpan("akka-http.request", extractedContext);
-      span.setTag(Tags.DD_MEASURED, "1");
+      span.setTag(Tags.DD_MEASURED, 1);
 
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, request);

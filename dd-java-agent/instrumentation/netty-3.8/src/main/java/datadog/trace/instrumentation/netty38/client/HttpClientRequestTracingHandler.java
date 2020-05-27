@@ -54,7 +54,7 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
     channelTraceContext.setClientParentSpan(activeSpan());
 
     final AgentSpan span = startSpan("netty.client.request");
-    span.setTag(Tags.DD_MEASURED, "1");
+    span.setTag(Tags.DD_MEASURED, 1);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);

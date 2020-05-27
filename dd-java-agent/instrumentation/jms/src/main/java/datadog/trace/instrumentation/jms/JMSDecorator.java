@@ -60,7 +60,7 @@ public abstract class JMSDecorator extends ClientDecorator {
 
   public void onConsume(final AgentSpan span, final Message message) {
     span.setTag(DDTags.RESOURCE_NAME, "Consumed from " + toResourceName(message, null));
-    span.setTag(Tags.DD_MEASURED, "1");
+    span. setTag(Tags.DD_MEASURED, 1);
   }
 
   public void onReceive(final AgentSpan span, final Method method) {
@@ -74,7 +74,7 @@ public abstract class JMSDecorator extends ClientDecorator {
   public void onProduce(
       final AgentSpan span, final Message message, final Destination destination) {
     span.setTag(DDTags.RESOURCE_NAME, "Produced for " + toResourceName(message, destination));
-    span.setTag(Tags.DD_MEASURED, "1");
+    span.setTag(Tags.DD_MEASURED, 1);
   }
 
   private static final String TIBCO_TMP_PREFIX = "$TMP$";

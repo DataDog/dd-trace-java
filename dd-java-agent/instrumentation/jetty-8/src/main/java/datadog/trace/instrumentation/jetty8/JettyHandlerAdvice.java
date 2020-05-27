@@ -34,7 +34,7 @@ public class JettyHandlerAdvice {
     final AgentSpan span =
         startSpan("jetty.request", extractedContext)
             .setTag("span.origin.type", source.getClass().getName())
-            .setTag(Tags.DD_MEASURED, "1");
+            .setTag(Tags.DD_MEASURED, 1);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, req);
     DECORATE.onRequest(span, req);

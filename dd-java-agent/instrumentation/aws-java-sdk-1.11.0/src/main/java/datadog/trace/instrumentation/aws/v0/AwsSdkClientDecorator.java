@@ -43,7 +43,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setTag(
         DDTags.RESOURCE_NAME,
         remapServiceName(awsServiceName) + "." + remapOperationName(awsOperation));
-    span.setTag(Tags.DD_MEASURED, "1");
+    span.setTag(Tags.DD_MEASURED, 1);
 
     if (contextStore != null) {
       final RequestMeta requestMeta = contextStore.get(originalRequest);

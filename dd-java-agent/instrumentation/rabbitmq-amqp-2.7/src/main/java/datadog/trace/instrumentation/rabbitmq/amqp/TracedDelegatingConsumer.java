@@ -73,7 +73,7 @@ public class TracedDelegatingConsumer implements Consumer {
           startSpan("amqp.command", context)
               .setTag("message.size", body == null ? 0 : body.length)
               .setTag("span.origin.type", delegate.getClass().getName())
-              .setTag(Tags.DD_MEASURED, "1");
+              .setTag(Tags.DD_MEASURED, 1);
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);
 

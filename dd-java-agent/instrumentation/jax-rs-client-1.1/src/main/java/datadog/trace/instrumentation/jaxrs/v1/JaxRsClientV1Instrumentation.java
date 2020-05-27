@@ -73,7 +73,7 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Default {
       final boolean isRootClientHandler = null == request.getProperties().get(DD_SPAN_ATTRIBUTE);
       if (isRootClientHandler) {
         final AgentSpan span = startSpan("jax-rs.client.call");
-        span.setTag(Tags.DD_MEASURED, "1");
+        span.setTag(Tags.DD_MEASURED, 1);
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, request);
         request.getProperties().put(DD_SPAN_ATTRIBUTE, span);

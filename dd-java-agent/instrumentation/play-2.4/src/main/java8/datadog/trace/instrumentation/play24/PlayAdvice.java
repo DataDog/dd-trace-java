@@ -29,7 +29,7 @@ public class PlayAdvice {
       // Do not extract the context.
       span = startSpan("play.request");
     }
-    span.setTag(Tags.DD_MEASURED, "1");
+    span.setTag(Tags.DD_MEASURED, 1);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, req);
 

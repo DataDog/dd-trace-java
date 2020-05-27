@@ -33,7 +33,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
     final AgentSpan span =
         startSpan("grpc.client")
             .setTag(DDTags.RESOURCE_NAME, method.getFullMethodName())
-            .setTag(Tags.DD_MEASURED, "1");
+            .setTag(Tags.DD_MEASURED, 1);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       scope.setAsyncPropagation(true);

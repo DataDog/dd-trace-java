@@ -32,7 +32,7 @@ public class WebClientTracingFilter implements ExchangeFilterFunction {
       span = startSpan("http.request");
     }
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
-    span.setTag(Tags.DD_MEASURED, "1");
+    span.setTag(Tags.DD_MEASURED, 1);
     DECORATE.afterStart(span);
 
     try (final AgentScope scope = activateSpan(span)) {

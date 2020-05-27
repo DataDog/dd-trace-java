@@ -35,7 +35,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     final AgentSpan span =
         startSpan("grpc.server", spanContext)
             .setTag(DDTags.RESOURCE_NAME, call.getMethodDescriptor().getFullMethodName())
-            .setTag(Tags.DD_MEASURED, "1");
+            .setTag(Tags.DD_MEASURED, 1);
     DECORATE.afterStart(span);
 
     final AgentScope scope = activateSpan(span);

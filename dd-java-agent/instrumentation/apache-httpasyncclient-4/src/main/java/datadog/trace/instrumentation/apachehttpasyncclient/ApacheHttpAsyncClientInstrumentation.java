@@ -84,7 +84,7 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
 
       final TraceScope parentScope = activeScope();
       final AgentSpan clientSpan = startSpan("http.request");
-      clientSpan.setTag(Tags.DD_MEASURED, "1");
+      clientSpan.setTag(Tags.DD_MEASURED, 1);
       DECORATE.afterStart(clientSpan);
 
       requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);

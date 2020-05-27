@@ -24,7 +24,7 @@ public class TracingInterceptor implements Interceptor {
     }
 
     final AgentSpan span = startSpan("okhttp.request");
-    span.setTag(Tags.DD_MEASURED, "1");
+    span.setTag(Tags.DD_MEASURED, 1);
 
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);

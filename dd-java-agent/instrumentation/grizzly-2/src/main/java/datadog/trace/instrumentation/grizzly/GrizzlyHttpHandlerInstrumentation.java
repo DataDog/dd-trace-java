@@ -74,7 +74,7 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Default {
 
       final Context parentContext = propagate().extract(request, GETTER);
       final AgentSpan span = startSpan(GRIZZLY_REQUEST, parentContext);
-      span.setTag(Tags.DD_MEASURED, "1");
+      span.setTag(Tags.DD_MEASURED, 1);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, request);
       DECORATE.onRequest(span, request);

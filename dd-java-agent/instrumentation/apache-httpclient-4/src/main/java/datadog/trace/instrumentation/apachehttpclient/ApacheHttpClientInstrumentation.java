@@ -155,7 +155,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
   public static class HelperMethods {
     public static AgentScope doMethodEnter(final HttpUriRequest request) {
       final AgentSpan span = startSpan("http.request");
-      span.setTag(Tags.DD_MEASURED, "1");
+      span.setTag(Tags.DD_MEASURED, 1);
       final AgentScope scope = activateSpan(span);
 
       DECORATE.afterStart(span);

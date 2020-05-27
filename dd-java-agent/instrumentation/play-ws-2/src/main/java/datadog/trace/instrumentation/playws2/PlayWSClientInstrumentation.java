@@ -24,7 +24,7 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
         @Advice.Argument(value = 1, readOnly = false) AsyncHandler asyncHandler) {
 
       final AgentSpan span = startSpan("play-ws.request");
-      span.setTag(Tags.DD_MEASURED, "1");
+      span.setTag(Tags.DD_MEASURED, 1);
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);

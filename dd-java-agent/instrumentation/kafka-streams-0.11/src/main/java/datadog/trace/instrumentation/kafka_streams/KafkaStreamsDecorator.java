@@ -41,7 +41,7 @@ public class KafkaStreamsDecorator extends ClientDecorator {
       span.setTag(DDTags.RESOURCE_NAME, "Consume Topic " + topic);
       span.setTag("partition", record.partition());
       span.setTag("offset", record.offset());
-      span.setTag(Tags.DD_MEASURED, "1");
+      span.setTag(Tags.DD_MEASURED, 1);
     }
   }
 }

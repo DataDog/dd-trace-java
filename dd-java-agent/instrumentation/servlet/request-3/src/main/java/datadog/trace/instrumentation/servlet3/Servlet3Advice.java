@@ -48,7 +48,7 @@ public class Servlet3Advice {
     final AgentSpan span =
         startSpan("servlet.request", extractedContext)
             .setTag("span.origin.type", servlet.getClass().getName())
-            .setTag(Tags.DD_MEASURED, "1");
+            .setTag(Tags.DD_MEASURED, 1);
 
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, httpServletRequest);

@@ -30,7 +30,7 @@ public class DispatcherHandlerAdvice {
     }
 
     final AgentSpan span = startSpan("DispatcherHandler.handle");
-    span.setTag(Tags.DD_MEASURED, "1");
+    span.setTag(Tags.DD_MEASURED, 1);
     DECORATE.afterStart(span);
     exchange.getAttributes().put(AdviceUtils.SPAN_ATTRIBUTE, span);
 

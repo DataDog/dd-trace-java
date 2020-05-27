@@ -67,7 +67,7 @@ public abstract class KafkaDecorator extends ClientDecorator {
       span.setTag(DDTags.RESOURCE_NAME, "Consume Topic " + topic);
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
-      span.setTag(Tags.DD_MEASURED, "1");
+      span.setTag(Tags.DD_MEASURED, 1);
       // don't record a duration if the message was sent from an old Kafka client
       if (record.timestampType() != TimestampType.NO_TIMESTAMP_TYPE) {
         final long produceTime = record.timestamp();
@@ -85,7 +85,7 @@ public abstract class KafkaDecorator extends ClientDecorator {
         span.setTag(PARTITION, record.partition());
       }
       span.setTag(DDTags.RESOURCE_NAME, "Produce Topic " + topic);
-      span.setTag(Tags.DD_MEASURED, "1");
+      span.setTag(Tags.DD_MEASURED, 1);
     }
   }
 }
