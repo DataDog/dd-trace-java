@@ -5,6 +5,7 @@ import org.testcontainers.spock.Testcontainers
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.core.async.AsyncRequestBody
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3AsyncClient
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest
@@ -13,10 +14,9 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.model.PutObjectResponse
 import spock.lang.Shared
 
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executor
-import java.util.concurrent.Executors
-import java.util.concurrent.ThreadPoolExecutor
 
 @Testcontainers
 class S3PutObjectTest extends AgentTestRunner {
@@ -33,6 +33,11 @@ class S3PutObjectTest extends AgentTestRunner {
   def setup() {
     s3Client = S3AsyncClient
       .builder()
+      .httpClientBuilder(
+        NettyNioAsyncHttpClient.builder()
+          .maxConcurrency(5)
+          .connectionAcquisitionTimeout(Duration.of(2, ChronoUnit.MINUTES))
+      )
       .endpointOverride(localStack.getEndpointOverride(LocalStackContainer.Service.S3))
       .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(
         localStack.getAccessKey(), localStack.getSecretKey()
@@ -55,8 +60,6 @@ class S3PutObjectTest extends AgentTestRunner {
     out.write(bytes)
     out.close()
 
-    Executor executor = Executors.newFixedThreadPool(5)
-
     List<CompletableFuture<PutObjectResponse>> responses = []
 
     when:
@@ -68,11 +71,6 @@ class S3PutObjectTest extends AgentTestRunner {
     }
     responses.forEach {
       it.get()
-    }
-
-    and:
-    while (((ThreadPoolExecutor) executor).queue.size() != 0) {
-      sleep(10)
     }
 
     and:
