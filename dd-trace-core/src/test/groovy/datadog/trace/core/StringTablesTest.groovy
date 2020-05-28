@@ -23,8 +23,8 @@ class StringTablesTest extends Specification {
       approxSizeBytesIgnoringHashMapOverhead += entry.getKey().length()
       approxSizeBytesIgnoringHashMapOverhead += entry.getValue().length
     }
-    // less than 3KB memory overhead seems reasonable for reducing GBs of allocations
-    expect: approxSizeBytesIgnoringHashMapOverhead < 1024 * 3
+    // less than 4KB memory overhead seems reasonable for reducing GBs of allocations
+    expect: approxSizeBytesIgnoringHashMapOverhead < 1024 * 4
   }
 
   def "naive string tags table strategy interns has low spatial overhead"() {
