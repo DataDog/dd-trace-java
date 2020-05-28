@@ -110,7 +110,8 @@ final class ScopeStackCollector {
     });
     writer.writeIntRaw(CONSTANT_POOLS_OFFSET, writer.position()); // write the constant pools offset
     // write constant pool array
-    writer.writeInt(stringConstants.size());
+    writer.writeInt(stringConstants.size() + 1);
+    writer.writeUTF(threadStacktraceCollector.getThreadName()); // 0th CP entry is the thread name
     stringConstants.forEach(ptr -> {
       writer.writeUTF(stringPool.get(ptr));
     });
