@@ -1,6 +1,6 @@
 package datadog.trace.core
 
-
+import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 
@@ -12,9 +12,9 @@ class SpanFactory {
     def currentThreadName = Thread.currentThread().getName()
     Thread.currentThread().setName(threadName)
     def context = new DDSpanContext(
-      1G,
-      1G,
-      0G,
+      DDId.from(1),
+      DDId.from(1),
+      DDId.ZERO,
       "fakeService",
       "fakeOperation",
       "fakeResource",
@@ -24,7 +24,7 @@ class SpanFactory {
       false,
       "fakeType",
       Collections.emptyMap(),
-      PendingTrace.create(tracer, 1G),
+      PendingTrace.create(tracer, DDId.ONE),
       tracer, [:])
     Thread.currentThread().setName(currentThreadName)
     return DDSpan.create(timestampMicro, context)
@@ -32,9 +32,9 @@ class SpanFactory {
 
   static DDSpan newSpanOf(CoreTracer tracer) {
     def context = new DDSpanContext(
-      1G,
-      1G,
-      0G,
+      DDId.from(1),
+      DDId.from(1),
+      DDId.ZERO,
       "fakeService",
       "fakeOperation",
       "fakeResource",
@@ -44,7 +44,7 @@ class SpanFactory {
       false,
       "fakeType",
       Collections.emptyMap(),
-      PendingTrace.create(tracer, 1G),
+      PendingTrace.create(tracer, DDId.ONE),
       tracer, [:])
     return DDSpan.create(1, context)
   }
@@ -52,8 +52,8 @@ class SpanFactory {
   static DDSpan newSpanOf(PendingTrace trace) {
     def context = new DDSpanContext(
       trace.traceId,
-      1G,
-      0G,
+      DDId.from(1),
+      DDId.ZERO,
       "fakeService",
       "fakeOperation",
       "fakeResource",
@@ -72,9 +72,9 @@ class SpanFactory {
     def writer = new ListWriter()
     def tracer = CoreTracer.builder().writer(writer).build()
     def context = new DDSpanContext(
-      1G,
-      1G,
-      0G,
+      DDId.from(1),
+      DDId.from(1),
+      DDId.ZERO,
       serviceName,
       "fakeOperation",
       "fakeResource",
@@ -84,7 +84,7 @@ class SpanFactory {
       false,
       "fakeType",
       Collections.emptyMap(),
-      PendingTrace.create(tracer, 1G),
+      PendingTrace.create(tracer, DDId.ONE),
       tracer,
       [:])
     context.setTag("env", envName)

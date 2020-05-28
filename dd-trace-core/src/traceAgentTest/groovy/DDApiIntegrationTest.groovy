@@ -4,6 +4,7 @@ import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
 import datadog.trace.common.writer.ddagent.MsgPackStatefulSerializer
 import datadog.trace.core.CoreTracer
+import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
@@ -24,9 +25,9 @@ class DDApiIntegrationTest extends DDSpecification {
   static final WRITER = new ListWriter()
   static final TRACER = CoreTracer.builder().writer(WRITER).build()
   static final CONTEXT = new DDSpanContext(
-    1G,
-    1G,
-    0G,
+    DDId.from(1),
+    DDId.from(1),
+    DDId.ZERO,
     "fakeService",
     "fakeOperation",
     "fakeResource",
@@ -36,7 +37,7 @@ class DDApiIntegrationTest extends DDSpecification {
     false,
     "fakeType",
     [:],
-    new PendingTrace(TRACER, 1G),
+    new PendingTrace(TRACER, DDId.ONE),
     TRACER,
     [:])
 

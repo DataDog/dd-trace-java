@@ -3,6 +3,7 @@ package datadog.trace.core.propagation
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
+import datadog.trace.api.DDId
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.util.test.DDSpecification
@@ -24,9 +25,9 @@ class DatadogHttpInjectorTest extends DDSpecification {
     def tracer = CoreTracer.builder().writer(writer).build()
     final DDSpanContext mockedContext =
       new DDSpanContext(
-        traceId,
-        spanId,
-        0G,
+        DDId.from(traceId),
+        DDId.from(spanId),
+        DDId.ZERO,
         "fakeService",
         "fakeOperation",
         "fakeResource",
@@ -41,7 +42,7 @@ class DatadogHttpInjectorTest extends DDSpecification {
         false,
         "fakeType",
         null,
-        new PendingTrace(tracer, 1G),
+        new PendingTrace(tracer, DDId.ONE),
         tracer,
         [:])
 
@@ -64,10 +65,10 @@ class DatadogHttpInjectorTest extends DDSpecification {
     0 * _
 
     where:
-    traceId          | spanId           | samplingPriority              | origin
-    1G               | 2G               | PrioritySampling.UNSET        | null
-    1G               | 2G               | PrioritySampling.SAMPLER_KEEP | "saipan"
-    TRACE_ID_MAX     | TRACE_ID_MAX - 1 | PrioritySampling.UNSET        | "saipan"
-    TRACE_ID_MAX - 1 | TRACE_ID_MAX     | PrioritySampling.SAMPLER_KEEP | null
+    traceId               | spanId                | samplingPriority              | origin
+    "1"                   | "2"                   | PrioritySampling.UNSET        | null
+    "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | "saipan"
+    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | PrioritySampling.UNSET        | "saipan"
+    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | PrioritySampling.SAMPLER_KEEP | null
   }
 }

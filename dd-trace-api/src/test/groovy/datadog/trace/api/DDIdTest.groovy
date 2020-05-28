@@ -48,7 +48,7 @@ class DDIdTest extends DDSpecification {
     thrown NumberFormatException
 
     where:
-    stringId << [ "-1", "18446744073709551616", "184467440737095516150", "18446744073709551a1", "184467440737095511a" ]
+    stringId << [ null, "", "-1", "18446744073709551616", "18446744073709551625", "184467440737095516150", "18446744073709551a1", "184467440737095511a" ]
   }
 
   def "convert ids from/to hex String"() {
@@ -80,8 +80,18 @@ class DDIdTest extends DDSpecification {
     thrown NumberFormatException
 
     where:
-    hexId << ["-1", "1" + "0" * 16, "f" * 14 + "zf", "f" * 15 + "z" ]
+    hexId << [null, "", "-1", "1" + "0" * 16, "f" * 14 + "zf", "f" * 15 + "z" ]
   }
 
+  def "pump up the coverage"() {
+    when:
+    final ddid = DDId.generate()
 
+    then:
+    !ddid.equals(null)
+    !ddid.equals("foo")
+    ddid != DDId.ZERO
+    ddid.equals(ddid)
+    ddid.hashCode() == (int) (ddid.toLong() ^ (ddid.toLong() >>> 32))
+  }
 }

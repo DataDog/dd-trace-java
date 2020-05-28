@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.util.test.DDSpecification
 
@@ -28,8 +29,8 @@ class B3HttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, MapGetter.INSTANCE)
 
     then:
-    context.traceId == traceId
-    context.spanId == spanId
+    context.traceId == DDId.from("$traceId")
+    context.spanId == DDId.from("$spanId")
     context.baggage == [:]
     context.tags == ["some-tag": "my-interesting-info"]
     context.samplingPriority == expectedSamplingPriority
@@ -63,20 +64,20 @@ class B3HttpExtractorTest extends DDSpecification {
     }
 
     where:
-    traceId                            | spanId             | expectedTraceId      | expectedSpanId
-    "-1"                               | "1"                | null                 | 0G
-    "1"                                | "-1"               | null                 | 0G
-    "0"                                | "1"                | null                 | 0G
-    "00001"                            | "00001"            | 1G                   | 1G
-    "463ac35c9f6413ad"                 | "463ac35c9f6413ad" | 5060571933882717101G | 5060571933882717101G
-    "463ac35c9f6413ad48485a3953bb6124" | "1"                | 5208512171318403364G | 1G
-    "f" * 16                           | "1"                | TRACE_ID_MAX         | 1G
-    "a" * 16 + "f" * 16                | "1"                | TRACE_ID_MAX         | 1G
-    "1" + "f" * 32                     | "1"                | null                 | 1G
-    "0" + "f" * 32                     | "1"                | null                 | 1G
-    "1"                                | "f" * 16           | 1G                   | TRACE_ID_MAX
-    "1"                                | "1" + "f" * 16     | null                 | 0G
-    "1"                                | "000" + "f" * 16   | 1G                   | TRACE_ID_MAX
+    traceId                            | spanId             | expectedTraceId                  | expectedSpanId
+    "-1"                               | "1"                | null                             | null
+    "1"                                | "-1"               | null                             | null
+    "0"                                | "1"                | null                             | null
+    "00001"                            | "00001"            | DDId.ONE                         | DDId.ONE
+    "463ac35c9f6413ad"                 | "463ac35c9f6413ad" | DDId.from("5060571933882717101") | DDId.from("5060571933882717101")
+    "463ac35c9f6413ad48485a3953bb6124" | "1"                | DDId.from("5208512171318403364") | DDId.ONE
+    "f" * 16                           | "1"                | DDId.MAX                         | DDId.ONE
+    "a" * 16 + "f" * 16                | "1"                | DDId.MAX                         | DDId.ONE
+    "1" + "f" * 32                     | "1"                | null                             | null
+    "0" + "f" * 32                     | "1"                | null                             | null
+    "1"                                | "f" * 16           | DDId.ONE                         | DDId.MAX
+    "1"                                | "1" + "f" * 16     | null                             | null
+    "1"                                | "000" + "f" * 16   | DDId.ONE                         | DDId.MAX
   }
 
   def "extract header tags with no propagation"() {

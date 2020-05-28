@@ -1,5 +1,6 @@
 package datadog.trace.agent.test.asserts
 
+import datadog.trace.api.DDId
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.core.DDSpan
@@ -8,7 +9,7 @@ import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 
 class MetricsAssert {
-  private final BigInteger spanParentId
+  private final DDId spanParentId
   private final Map<String, Number> metrics
   private final Set<String> assertedMetrics = new TreeSet<>()
 
