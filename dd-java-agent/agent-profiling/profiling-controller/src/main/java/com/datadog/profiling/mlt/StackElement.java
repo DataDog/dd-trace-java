@@ -2,8 +2,6 @@ package com.datadog.profiling.mlt;
 
 import lombok.NonNull;
 
-import java.util.Objects;
-
 final class StackElement {
   private int hash;
 
@@ -30,7 +28,11 @@ final class StackElement {
     this.depth = 1;
   }
 
-  StackElement(@NonNull FrameElement head, @NonNull StackElement subtree, @NonNull ConstantPool<FrameElement> framePool, @NonNull ConstantPool<StackElement> stackPool) {
+  StackElement(
+      @NonNull FrameElement head,
+      @NonNull StackElement subtree,
+      @NonNull ConstantPool<FrameElement> framePool,
+      @NonNull ConstantPool<StackElement> stackPool) {
     this.framePool = framePool;
     this.stackPool = stackPool;
     this.headPtr = framePool.get(head);
@@ -75,9 +77,7 @@ final class StackElement {
       return false;
     }
     StackElement that = (StackElement) o;
-    return headPtr == that.headPtr &&
-      subtreePtr == that.subtreePtr &&
-      depth == that.depth;
+    return headPtr == that.headPtr && subtreePtr == that.subtreePtr && depth == that.depth;
   }
 
   @Override

@@ -3,8 +3,7 @@ package datadog.trace.profiling;
 /** Factory of profiling session */
 public interface SessionFactory {
   /**
-   * Creates a profiling session for the specified thread. If this is a nested calls, returns the
-   * current started Session
+   * Creates a profiling session for the specified thread.
    *
    * @return an instance of the profiling session
    */
