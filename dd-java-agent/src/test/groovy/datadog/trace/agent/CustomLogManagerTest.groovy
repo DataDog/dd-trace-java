@@ -12,7 +12,7 @@ import spock.lang.Timeout
 class CustomLogManagerTest extends Specification {
 
   private static final String DEFAULT_LOG_LEVEL = "debug"
-  private static final String API_KEY = "some-api-key"
+  private static final String API_KEY = "01234567890abcdef123456789ABCDEF"
 
   // Run all tests using forked jvm because groovy has already set the global log manager
   def "agent services starts up in premain with no custom log manager set"() {
