@@ -2,6 +2,7 @@ package datadog.trace.core.processor
 
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.SpanFactory
 import datadog.trace.core.processor.rule.Status404Rule
@@ -120,5 +121,17 @@ class TraceProcessorTest extends DDSpecification {
     "post" | "/post"  | 400    | "POST /post"
     "GET"  | "/asdf"  | 404    | "404"
     null   | "/error" | 500    | "/error"
+  }
+
+  def "convert _dd.measured to metric"() {
+    setup:
+    span.setTag(InstrumentationTags.DD_MEASURED, true)
+
+    when:
+    processor.onTraceComplete(trace)
+
+    then:
+    span.metrics.get(InstrumentationTags.DD_MEASURED) == 1
+    span.tags.get(InstrumentationTags.DD_MEASURED) == null
   }
 }

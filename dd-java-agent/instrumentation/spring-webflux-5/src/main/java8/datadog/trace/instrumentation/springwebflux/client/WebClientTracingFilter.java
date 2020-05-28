@@ -9,6 +9,7 @@ import static datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHt
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.List;
 import org.springframework.web.reactive.function.client.ClientRequest;
@@ -32,6 +33,7 @@ public class WebClientTracingFilter implements ExchangeFilterFunction {
       span = startSpan("http.request");
     }
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
+    span.setTag(InstrumentationTags.DD_MEASURED, true);
     DECORATE.afterStart(span);
 
     try (final AgentScope scope = activateSpan(span)) {
