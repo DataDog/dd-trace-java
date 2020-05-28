@@ -14,7 +14,12 @@ public final class ScopeManager {
   private final long threadId;
   private final String threadName;
 
-  public ScopeManager(long threadId, String threadName, ConstantPool<String> stringPool, ConstantPool<FrameElement> framePool, ConstantPool<StackElement> stackPool) {
+  public ScopeManager(
+      long threadId,
+      String threadName,
+      ConstantPool<String> stringPool,
+      ConstantPool<FrameElement> framePool,
+      ConstantPool<StackElement> stackPool) {
     this.stringPool = stringPool;
     this.framePool = framePool;
     this.stackPool = stackPool;
@@ -23,7 +28,8 @@ public final class ScopeManager {
   }
 
   public ScopeStackCollector startScope(String scopeId) {
-    ScopeStackCollector scopeStackCollector = new ScopeStackCollector(scopeId, this, System.nanoTime(), stringPool, framePool, stackPool);
+    ScopeStackCollector scopeStackCollector =
+        new ScopeStackCollector(scopeId, this, System.nanoTime(), stringPool, framePool, stackPool);
     scopeCollectorQueue.addLast(scopeStackCollector);
     current = scopeStackCollector; // published (volatile) as current
     return scopeStackCollector;

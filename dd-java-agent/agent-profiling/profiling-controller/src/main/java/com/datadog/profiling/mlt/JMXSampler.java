@@ -14,17 +14,13 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 class JMXSampler {
-  private final StackTraceSink sink;
   private final ThreadScopeMapper threadScopeMapper;
   private final ThreadStackProvider provider;
   private final ScheduledExecutorService executor =
       Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory("dd-profiling-sampler"));
-  private long samplingCount;
   private AtomicReference<long[]> threadIds = new AtomicReference<>();
 
-
   public JMXSampler(StackTraceSink sink, ThreadScopeMapper threadScopeMapper) {
-    this.sink = sink;
     this.threadScopeMapper = threadScopeMapper;
     provider = ThreadStackAccess.getCurrentThreadStackProvider();
     if (provider instanceof NoneThreadStackProvider) {
@@ -36,8 +32,6 @@ class JMXSampler {
 
   public void shutdown() {
     executor.shutdown();
-    byte[] buffer = sink.flush();
-    log.info("Flushing remaining {} bytes", buffer.length);
   }
 
   /**
@@ -96,15 +90,5 @@ class JMXSampler {
       ScopeStackCollector scopeStackCollector = scopeManager.getCurrentScope();
       scopeStackCollector.collect(threadInfo.getStackTrace());
     }
-    /*
-    // TODO handle ids
-    sink.write(null, threadInfos);
-    samplingCount++;
-    // TODO flushing time as parameter
-    if (samplingCount % 100 == 0) {
-      byte[] buffer = sink.flush();
-      log.info("flushing {} bytes", buffer.length);
-    }
-     */
   }
 }

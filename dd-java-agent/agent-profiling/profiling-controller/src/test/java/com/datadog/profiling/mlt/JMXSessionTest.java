@@ -25,24 +25,6 @@ public class JMXSessionTest {
   }
 
   @Test
-  public void createNestedSession() throws InterruptedException {
-    ThreadStackAccess.enableJmx();
-    Object lock = new Object();
-    AtomicBoolean asserted = new AtomicBoolean();
-    JMXSessionFactory sessionFactory =
-        new JMXSessionFactory(new AssertStackTraceSink(asserted, lock));
-    try (Session session = sessionFactory.createSession("id", Thread.currentThread())) {
-      try (Session session2 = sessionFactory.createSession("id", Thread.currentThread())) {
-        Assert.assertSame(session, session2);
-        synchronized (lock) {
-          lock.wait(2000);
-        }
-      }
-    }
-    Assert.assertTrue(asserted.get());
-  }
-
-  @Test
   public void createJFRSession() throws InterruptedException {
     ThreadStackAccess.enableJmx();
     Object lock = new Object();

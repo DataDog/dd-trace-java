@@ -20,8 +20,6 @@ import lombok.extern.slf4j.Slf4j;
  *   // ... and into another method:
  *   session.close();
  * </pre>
- *
- * Nested calls are allowed but only outer calls will be effective
  */
 @Slf4j
 public class Profiler {
@@ -70,5 +68,10 @@ public class Profiler {
   private static class NoSession implements Session {
     @Override
     public void close() {}
+
+    @Override
+    public byte[] getData() {
+      return null;
+    }
   }
 }

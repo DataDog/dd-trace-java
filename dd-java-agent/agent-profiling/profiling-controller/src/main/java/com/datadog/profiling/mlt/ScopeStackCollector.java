@@ -1,14 +1,14 @@
 package com.datadog.profiling.mlt;
 
 import com.datadog.profiling.util.ByteArrayWriter;
+import java.util.Objects;
+import lombok.Getter;
+import lombok.NonNull;
 import org.eclipse.collections.api.block.procedure.primitive.IntProcedure;
 import org.eclipse.collections.api.iterator.IntIterator;
 import org.eclipse.collections.api.list.primitive.MutableIntList;
 import org.eclipse.collections.impl.factory.primitive.IntLists;
 import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet;
-import java.util.Objects;
-import lombok.Getter;
-import lombok.NonNull;
 
 final class ScopeStackCollector {
   private static final int CONSTANT_POOLS_OFFSET = 9;
@@ -21,15 +21,19 @@ final class ScopeStackCollector {
   private final ConstantPool<String> stringPool;
   private final ScopeManager threadStacktraceCollector;
 
-  @Getter
-  private final long timestamp;
+  @Getter private final long timestamp;
 
-  @Getter
-  private final String scopeId;
+  @Getter private final String scopeId;
 
   private final MutableIntList stacks = IntLists.mutable.empty();
 
-  ScopeStackCollector(@NonNull String scopeId, ScopeManager threadStacktraceCollector, long timestamp, ConstantPool<String> stringPool, ConstantPool<FrameElement> framePool, ConstantPool<StackElement> stackPool) {
+  ScopeStackCollector(
+      @NonNull String scopeId,
+      ScopeManager threadStacktraceCollector,
+      long timestamp,
+      ConstantPool<String> stringPool,
+      ConstantPool<FrameElement> framePool,
+      ConstantPool<StackElement> stackPool) {
     this.scopeId = scopeId;
     this.framePool = framePool;
     this.stackPool = stackPool;
@@ -44,7 +48,14 @@ final class ScopeStackCollector {
     }
     StackElement subtree = null;
     for (StackTraceElement element : stackTrace) {
-      subtree = newTree(new FrameElement(element.getClassName(), element.getMethodName(), element.getLineNumber(), stringPool), subtree);
+      subtree =
+          newTree(
+              new FrameElement(
+                  element.getClassName(),
+                  element.getMethodName(),
+                  element.getLineNumber(),
+                  stringPool),
+              subtree);
     }
     int stackptr = stackPool.get(subtree);
     addCompressedStackptr(stackptr);
@@ -87,50 +98,59 @@ final class ScopeStackCollector {
   }
 
   byte[] serialize() {
-    ByteArrayWriter writer = new ByteArrayWriter(16384); // conservatively pre-allocate 16k byte array
+    ByteArrayWriter writer =
+        new ByteArrayWriter(16384); // conservatively pre-allocate 16k byte array
     writer
-      .writeBytes(MAGIC) // MAGIC
-      .writeByte(VERSION) // version
-      .writeIntRaw(0) // size; offset = 5
-      .writeIntRaw(0) // ptr to constant pools; offset = 9
-      .writeLong(timestamp) // start timestamp
-      .writeLong(System.nanoTime() - timestamp) // duration
-      .writeLong(threadStacktraceCollector.getThreadId());
+        .writeBytes(MAGIC) // MAGIC
+        .writeByte(VERSION) // version
+        .writeIntRaw(0) // size; offset = 5
+        .writeIntRaw(0) // ptr to constant pools; offset = 9
+        .writeLong(timestamp) // start timestamp
+        .writeLong(System.nanoTime() - timestamp) // duration
+        .writeLong(threadStacktraceCollector.getThreadId());
 
     IntHashSet stringConstants = IntHashSet.newSetWith(0); // always include ptr 0 (thread name)
     IntHashSet frameConstants = IntHashSet.newSetWith();
     IntHashSet stackConstants = IntHashSet.newSetWith();
     // write out the stack trace sequence and collect the constant pool usage
-    stacks.forEach(ptr -> {
-      writer.writeInt(ptr);
-      if (ptr >= 0) {
-        collectStackPtrUsage(ptr, stringConstants, frameConstants, stackConstants);
-      }
-    });
+    stacks.forEach(
+        ptr -> {
+          writer.writeInt(ptr);
+          if (ptr >= 0) {
+            collectStackPtrUsage(ptr, stringConstants, frameConstants, stackConstants);
+          }
+        });
     writer.writeIntRaw(CONSTANT_POOLS_OFFSET, writer.position()); // write the constant pools offset
     // write constant pool array
     writer.writeInt(stringConstants.size() + 1);
     writer.writeUTF(threadStacktraceCollector.getThreadName()); // 0th CP entry is the thread name
-    stringConstants.forEach(ptr -> {
-      writer.writeUTF(stringPool.get(ptr));
-    });
+    stringConstants.forEach(
+        ptr -> {
+          writer.writeUTF(stringPool.get(ptr));
+        });
     // write frame pool array
     writer.writeInt(frameConstants.size());
-    frameConstants.forEach(ptr -> {
-      FrameElement frame = framePool.get(ptr);
-      writer.writeInt(frame.getOwnerPtr()).writeInt(frame.getMethodPtr()).writeInt(frame.getLine());
-    });
+    frameConstants.forEach(
+        ptr -> {
+          FrameElement frame = framePool.get(ptr);
+          writer
+              .writeInt(frame.getOwnerPtr())
+              .writeInt(frame.getMethodPtr())
+              .writeInt(frame.getLine());
+        });
     // write stack pool array
     writer.writeInt(stackConstants.size());
-    stackConstants.forEach(ptr -> {
-      StackElement stack = stackPool.get(ptr);
-      writer.writeInt(stack.getHeadPtr()).writeInt(stack.getSubtreePtr());
-    });
+    stackConstants.forEach(
+        ptr -> {
+          StackElement stack = stackPool.get(ptr);
+          writer.writeInt(stack.getHeadPtr()).writeInt(stack.getSubtreePtr());
+        });
     writer.writeInt(CHUNK_SIZE_OFFSET, writer.position()); // write the chunk size
     return writer.toByteArray();
   }
 
-  private void collectStackPtrUsage(int ptr, IntHashSet stringConstants, IntHashSet frameConstants, IntHashSet stackConstants) {
+  private void collectStackPtrUsage(
+      int ptr, IntHashSet stringConstants, IntHashSet frameConstants, IntHashSet stackConstants) {
     if (ptr > -1) {
       StackElement stack = stackPool.get(ptr);
       stackConstants.add(ptr);
@@ -139,7 +159,8 @@ final class ScopeStackCollector {
     }
   }
 
-  private void collectFramePtrUsage(int ptr, IntHashSet stringConstants, IntHashSet frameConstants) {
+  private void collectFramePtrUsage(
+      int ptr, IntHashSet stringConstants, IntHashSet frameConstants) {
     if (ptr > -1) {
       FrameElement frame = framePool.get(ptr);
       frameConstants.add(ptr);
@@ -149,7 +170,9 @@ final class ScopeStackCollector {
   }
 
   private StackElement newTree(FrameElement frame, StackElement subtree) {
-    return subtree == null ? new StackElement(frame, framePool) : new StackElement(frame, subtree, framePool, stackPool);
+    return subtree == null
+        ? new StackElement(frame, framePool)
+        : new StackElement(frame, subtree, framePool, stackPool);
   }
 
   private void iterateStacks(IntProcedure procedure) {
