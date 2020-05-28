@@ -4,21 +4,24 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 public final class ThreadStackCollector {
-  private final ConstantPool<FrameElement> framePool = new ConstantPool<>();
-  private final ConstantPool<StackElement> stackPool = new ConstantPool<>();
-  private final ConstantPool<String> stringPool = new ConstantPool<>();
+  private final ConstantPool<FrameElement> framePool;
+  private final ConstantPool<StackElement> stackPool;
+  private final ConstantPool<String> stringPool;
 
   private final Deque<ScopeStackCollector> scopeCollectorQueue = new ArrayDeque<>();
 
   private final long threadId;
 
-  public ThreadStackCollector(long threadId, String threadName) {
+  public ThreadStackCollector(long threadId, String threadName, ConstantPool<String> stringPool, ConstantPool<FrameElement> framePool, ConstantPool<StackElement> stackPool) {
+    this.stringPool = stringPool;
+    this.framePool = framePool;
+    this.stackPool = stackPool;
     this.threadId = threadId;
     this.stringPool.get(threadName); // insert threadName constant at index 0 in the constant pool
   }
 
   public ScopeStackCollector startScope(String scopeId) {
-    ScopeStackCollector scopeStackCollector = new ScopeStackCollector(scopeId, this, System.nanoTime(), framePool, stackPool, stringPool);
+    ScopeStackCollector scopeStackCollector = new ScopeStackCollector(scopeId, this, System.nanoTime(), stringPool, framePool, stackPool);
     scopeCollectorQueue.addLast(scopeStackCollector);
     return scopeStackCollector;
   }

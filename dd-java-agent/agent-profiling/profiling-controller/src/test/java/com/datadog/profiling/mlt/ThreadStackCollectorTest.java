@@ -1,5 +1,6 @@
 package com.datadog.profiling.mlt;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.management.ManagementFactory;
@@ -11,6 +12,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 class ThreadStackCollectorTest {
+  private StackCollector global;
+
+  @BeforeEach
+  public void setup() throws Exception {
+    global = new StackCollector();
+  }
 
   @Test
   void sample() throws Exception {
@@ -19,9 +26,9 @@ class ThreadStackCollectorTest {
     long[] tids = threadMXBean.getAllThreadIds();
     for (long tid : tids) {
       ThreadInfo threadInfo = threadMXBean.getThreadInfo(tid);
-      samplerMap.put(tid, new ThreadStackCollector(tid, threadInfo.getThreadName()).startScope("scope"));
+      samplerMap.put(tid, global.forThread(tid, threadInfo.getThreadName()).startScope("scope"));
     }
-    for (int i = 0; i < 10000; i++) {
+    for (int i = 0; i < 1000000; i++) {
       for (ThreadInfo ti : ManagementFactory.getThreadMXBean().dumpAllThreads(false, false)) {
         ScopeStackCollector sampler = samplerMap.get(ti.getThreadId());
         if (sampler != null) {
