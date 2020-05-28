@@ -13,11 +13,11 @@ public class MarkSpanForMetricCalculationRule implements TraceProcessor.Rule {
   }
 
   @Override
-  public void processSpan(DDSpan span, Map<String, Object> tags, Collection<DDSpan> trace) {
-    final Object val = tags.get(InstrumentationTags.DD_MEASURED);
+  public void processSpan(
+      final DDSpan span, final Map<String, Object> tags, final Collection<DDSpan> trace) {
+    final Object val = span.getAndRemoveTag(InstrumentationTags.DD_MEASURED);
     if (val instanceof Boolean && (Boolean) val) {
       span.context().setMetric(InstrumentationTags.DD_MEASURED, 1);
-      span.removeTag(InstrumentationTags.DD_MEASURED);
     }
   }
 }
