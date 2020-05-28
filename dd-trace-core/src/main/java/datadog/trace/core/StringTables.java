@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.DDComponents;
 import datadog.trace.bootstrap.instrumentation.api.DDSpanNames;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.common.sampling.RateByServiceSampler;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.nio.charset.Charset;
@@ -41,6 +42,7 @@ public class StringTables {
   private static final long[] TAGS_FIRST_CHAR_IS_PRESENT = new long[4];
 
   static {
+    internConstantsUTF8(DDSpanContext.class, UTF8_INTERN_KEYS_TABLE, null);
     internConstantsUTF8(DDTags.class, UTF8_INTERN_KEYS_TABLE, null);
     internConstantsUTF8(Tags.class, UTF8_INTERN_KEYS_TABLE, null);
     internConstantsUTF8(InstrumentationTags.class, UTF8_INTERN_KEYS_TABLE, null);
@@ -50,6 +52,7 @@ public class StringTables {
     internConstantsUTF8(CommonTagValues.class, UTF8_INTERN_TAGS_TABLE, TAGS_FIRST_CHAR_IS_PRESENT);
     intern(
         UTF8_INTERN_TAGS_TABLE, Config.get().getServiceName(), UTF_8, TAGS_FIRST_CHAR_IS_PRESENT);
+    intern(UTF8_INTERN_KEYS_TABLE, RateByServiceSampler.SAMPLING_AGENT_RATE, UTF_8, null);
     UTF8_INTERN_TAGS_TABLE.put("", new byte[0]);
     MAX_TAGS_LENGTH = maxKeyLength(UTF8_INTERN_TAGS_TABLE.keySet());
   }

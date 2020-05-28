@@ -557,6 +557,9 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
         }
         defaultTags()
       }
+      metrics {
+        defaultMetrics()
+      }
     }
   }
 
@@ -594,6 +597,9 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 //          "$DDTags.HTTP_FRAGMENT" endpoint.fragment
 //        }
         defaultTags(true)
+      }
+      metrics {
+        defaultMetrics()
       }
     }
   }
