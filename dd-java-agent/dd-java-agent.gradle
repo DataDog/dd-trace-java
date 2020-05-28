@@ -1,5 +1,7 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 plugins {
   id "com.github.johnrengelman.shadow" version "5.2.0"
 }
@@ -45,7 +47,22 @@ ext.generalShadowJarConfig = {
 }
 
 def includeShadowJar(shadowJarTask, jarname) {
+  def opentracingFound = new AtomicBoolean()
   project.processResources {
+    doFirst {
+      eachFile {
+        // We seem unlikely to use this name somewhere else.
+        if (it.path.contains("opentracing") && it.name.contains("Format\$Builtin")) {
+          opentracingFound.set(true)
+        }
+      }
+    }
+    doLast {
+      if (opentracingFound.get()) {
+        throw new GradleException("OpenTracing direct dependency found!")
+      }
+    }
+
     from(zipTree(shadowJarTask.archiveFile)) {
       into jarname + '.isolated'
       rename '(^.*)\\.class$', '$1.classdata'
@@ -102,6 +119,7 @@ dependencies {
 
   testCompile deps.testLogging
   testCompile deps.guava
+  testCompile group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 
   // Includes for the top level shadow jar
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
