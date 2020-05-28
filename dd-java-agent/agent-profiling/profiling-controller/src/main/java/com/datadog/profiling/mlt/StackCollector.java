@@ -8,7 +8,7 @@ import java.util.function.Function;
 public final class StackCollector {
   private final ConstantPool<FrameElement> framePool = new ConstantPool<>();
   private final ConstantPool<StackElement> stackPool = new ConstantPool<>();
-  private final ConstantPool<String> stringPool = new ConstantPool<>();
+  private final ConstantPool<String> stringPool = new ConstantPool<>(1); // CP entry 0 will be reserved for thread name
 
   private final ConcurrentMap<Long, ThreadStackCollector> collectorMap = new ConcurrentHashMap<>();
 

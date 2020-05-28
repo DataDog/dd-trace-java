@@ -11,13 +11,14 @@ public final class ThreadStackCollector {
   private final Deque<ScopeStackCollector> scopeCollectorQueue = new ArrayDeque<>();
 
   private final long threadId;
+  private final String threadName;
 
   public ThreadStackCollector(long threadId, String threadName, ConstantPool<String> stringPool, ConstantPool<FrameElement> framePool, ConstantPool<StackElement> stackPool) {
     this.stringPool = stringPool;
     this.framePool = framePool;
     this.stackPool = stackPool;
     this.threadId = threadId;
-    this.stringPool.get(threadName); // insert threadName constant at index 0 in the constant pool
+    this.threadName = threadName;
   }
 
   public ScopeStackCollector startScope(String scopeId) {
@@ -42,6 +43,6 @@ public final class ThreadStackCollector {
   }
 
   String getThreadName() {
-    return stringPool.get(0);
+    return threadName;
   }
 }
