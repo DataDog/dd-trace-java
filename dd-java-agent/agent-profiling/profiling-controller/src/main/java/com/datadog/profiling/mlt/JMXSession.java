@@ -10,16 +10,19 @@ public class JMXSession implements Session {
   private final String id;
   private final long threadId;
   private final Consumer<JMXSession> cleanup;
+  private final ScopeStackCollector scopeStackCollector;
   private final AtomicInteger refCount = new AtomicInteger();
 
-  public JMXSession(String id, long threadId, Consumer<JMXSession> cleanup) {
+  public JMXSession(String id, long threadId, ScopeStackCollector scopeStackCollector, Consumer<JMXSession> cleanup) {
     this.id = id;
     this.threadId = threadId;
+    this.scopeStackCollector = scopeStackCollector;
     this.cleanup = cleanup;
   }
 
   @Override
   public void close() {
+    scopeStackCollector.end();
     cleanup.accept(this);
   }
 

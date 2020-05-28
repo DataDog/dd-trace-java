@@ -10,17 +10,22 @@ import lombok.extern.slf4j.Slf4j;
 public class JMXSessionFactory implements SessionFactory {
 
   private final Map<Long, JMXSession> jmxSessions = new ConcurrentHashMap<>();
+  private final ThreadScopeMapper threadScopeMapper = new ThreadScopeMapper();
   private final JMXSampler sampler;
 
+
   public JMXSessionFactory(StackTraceSink sink) {
-    this.sampler = new JMXSampler(sink);
+    this.sampler = new JMXSampler(sink, threadScopeMapper);
   }
 
   @Override
   public Session createSession(String id, Thread thread) {
     long threadId = thread.getId();
+    ScopeManager scopeManager = threadScopeMapper.forThread(threadId);
+    ScopeStackCollector scopeStackCollector = scopeManager.startScope(id);
+
     JMXSession session =
-        jmxSessions.computeIfAbsent(threadId, key -> createNewSession(id, threadId));
+        jmxSessions.computeIfAbsent(threadId, key -> createNewSession(id, threadId, scopeStackCollector));
     session.activate();
     return session;
   }
@@ -33,9 +38,9 @@ public class JMXSessionFactory implements SessionFactory {
   // This method is invoked under the assumption that we are using a ConcurrentHashMap
   // and the method Map#computeIfAbsent is therefore atomic for the update of the value
   // inside the map
-  private JMXSession createNewSession(String id, long threadId) {
+  private JMXSession createNewSession(String id, long threadId, ScopeStackCollector scopeStackCollector) {
     sampler.addThreadId(threadId);
-    return new JMXSession(id, threadId, this::cleanup);
+    return new JMXSession(id, threadId, scopeStackCollector, this::cleanup);
   }
 
   private void cleanup(JMXSession session) {
