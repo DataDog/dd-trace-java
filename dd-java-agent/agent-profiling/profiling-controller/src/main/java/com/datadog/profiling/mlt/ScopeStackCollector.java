@@ -30,7 +30,7 @@ final class ScopeStackCollector {
 
   private final MutableIntList stacks = IntLists.mutable.empty();
 
-  ScopeStackCollector(@NonNull String scopeId, ThreadStackCollector threadStacktraceCollector, long timestamp, ConstantPool<FrameElement> framePool, ConstantPool<StackElement> stackPool, ConstantPool<String> stringPool) {
+  ScopeStackCollector(@NonNull String scopeId, ThreadStackCollector threadStacktraceCollector, long timestamp, ConstantPool<String> stringPool, ConstantPool<FrameElement> framePool, ConstantPool<StackElement> stackPool) {
     this.scopeId = scopeId;
     this.framePool = framePool;
     this.stackPool = stackPool;
