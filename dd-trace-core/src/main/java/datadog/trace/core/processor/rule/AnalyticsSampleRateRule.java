@@ -16,7 +16,7 @@ public class AnalyticsSampleRateRule implements TraceProcessor.Rule {
   @Override
   public void processSpan(
       final DDSpan span, final Map<String, Object> tags, final Collection<DDSpan> trace) {
-    final Object sampleRateValue = tags.get(DDTags.ANALYTICS_SAMPLE_RATE);
+    final Object sampleRateValue = span.getAndRemoveTag(DDTags.ANALYTICS_SAMPLE_RATE);
     if (sampleRateValue instanceof Number) {
       span.context().setMetric(DDTags.ANALYTICS_SAMPLE_RATE, (Number) sampleRateValue);
     } else if (sampleRateValue instanceof String) {
@@ -27,7 +27,5 @@ public class AnalyticsSampleRateRule implements TraceProcessor.Rule {
         // ignore
       }
     }
-
-    span.removeTag(DDTags.ANALYTICS_SAMPLE_RATE);
   }
 }

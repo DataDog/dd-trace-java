@@ -16,11 +16,9 @@ public class SpanTypeRule implements TraceProcessor.Rule {
   @Override
   public void processSpan(
       final DDSpan span, final Map<String, Object> tags, final Collection<DDSpan> trace) {
-    final Object type = tags.get(DDTags.SPAN_TYPE);
+    final Object type = span.getAndRemoveTag(DDTags.SPAN_TYPE);
     if (type != null) {
       span.setSpanType(type.toString());
     }
-
-    span.removeTag(DDTags.SPAN_TYPE);
   }
 }

@@ -19,20 +19,16 @@ public class DBStatementRule implements TraceProcessor.Rule {
   @Override
   public void processSpan(
       final DDSpan span, final Map<String, Object> tags, final Collection<DDSpan> trace) {
-    final Object dbStatementValue = tags.get(Tags.DB_STATEMENT);
-
-    if (dbStatementValue instanceof String) {
-      // Special case: Mongo
-      // Skip the decorators
-      if (tags.containsKey(Tags.COMPONENT) && "java-mongo".equals(tags.get(Tags.COMPONENT))) {
-        return;
-      }
-      final String statement = (String) dbStatementValue;
-      if (!statement.isEmpty()) {
-        span.setResourceName(statement);
+    // Special case: Mongo
+    // Skip the decorators
+    if (!"java-mongo".equals(tags.get(Tags.COMPONENT))) {
+      final Object dbStatementValue = span.getAndRemoveTag(Tags.DB_STATEMENT);
+      if (dbStatementValue instanceof String) {
+        final String statement = (String) dbStatementValue;
+        if (!statement.isEmpty()) {
+          span.setResourceName(statement);
+        }
       }
     }
-
-    span.removeTag(Tags.DB_STATEMENT);
   }
 }
