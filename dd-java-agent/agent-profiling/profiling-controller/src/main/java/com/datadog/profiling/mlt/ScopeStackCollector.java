@@ -1,15 +1,14 @@
 package com.datadog.profiling.mlt;
 
 import com.datadog.profiling.util.ByteArrayWriter;
-import lombok.Getter;
-import lombok.NonNull;
 import org.eclipse.collections.api.block.procedure.primitive.IntProcedure;
 import org.eclipse.collections.api.iterator.IntIterator;
 import org.eclipse.collections.api.list.primitive.MutableIntList;
 import org.eclipse.collections.impl.factory.primitive.IntLists;
 import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet;
-
 import java.util.Objects;
+import lombok.Getter;
+import lombok.NonNull;
 
 final class ScopeStackCollector {
   private static final int CONSTANT_POOLS_OFFSET = 9;
@@ -20,7 +19,7 @@ final class ScopeStackCollector {
   private final ConstantPool<FrameElement> framePool;
   private final ConstantPool<StackElement> stackPool;
   private final ConstantPool<String> stringPool;
-  private final ThreadStackCollector threadStacktraceCollector;
+  private final ScopeManager threadStacktraceCollector;
 
   @Getter
   private final long timestamp;
@@ -30,7 +29,7 @@ final class ScopeStackCollector {
 
   private final MutableIntList stacks = IntLists.mutable.empty();
 
-  ScopeStackCollector(@NonNull String scopeId, ThreadStackCollector threadStacktraceCollector, long timestamp, ConstantPool<String> stringPool, ConstantPool<FrameElement> framePool, ConstantPool<StackElement> stackPool) {
+  ScopeStackCollector(@NonNull String scopeId, ScopeManager threadStacktraceCollector, long timestamp, ConstantPool<String> stringPool, ConstantPool<FrameElement> framePool, ConstantPool<StackElement> stackPool) {
     this.scopeId = scopeId;
     this.framePool = framePool;
     this.stackPool = stackPool;
@@ -39,7 +38,7 @@ final class ScopeStackCollector {
     this.timestamp = timestamp;
   }
 
-  public void sample(StackTraceElement[] stackTrace) {
+  public void collect(StackTraceElement[] stackTrace) {
     if (stackTrace.length == 0) {
       return;
     }

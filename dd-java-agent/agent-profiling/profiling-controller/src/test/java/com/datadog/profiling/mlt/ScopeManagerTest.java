@@ -11,12 +11,12 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-class ThreadStackCollectorTest {
-  private StackCollector global;
+class ScopeManagerTest {
+  private ThreadScopeMapper global;
 
   @BeforeEach
   public void setup() throws Exception {
-    global = new StackCollector();
+    global = new ThreadScopeMapper();
   }
 
   @Test
@@ -32,7 +32,7 @@ class ThreadStackCollectorTest {
       for (ThreadInfo ti : ManagementFactory.getThreadMXBean().dumpAllThreads(false, false)) {
         ScopeStackCollector sampler = samplerMap.get(ti.getThreadId());
         if (sampler != null) {
-          sampler.sample(ti.getStackTrace());
+          sampler.collect(ti.getStackTrace());
         }
       }
       Thread.sleep(1);
