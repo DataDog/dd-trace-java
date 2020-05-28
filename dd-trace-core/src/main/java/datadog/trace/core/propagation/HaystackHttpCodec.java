@@ -1,12 +1,11 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
-import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 
+import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
-import java.math.BigInteger;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -61,8 +60,8 @@ public class HaystackHttpCodec {
       try {
         Map<String, String> baggage = Collections.emptyMap();
         Map<String, String> tags = Collections.emptyMap();
-        BigInteger traceId = BigInteger.ZERO;
-        BigInteger spanId = BigInteger.ZERO;
+        DDId traceId = DDId.ZERO;
+        DDId spanId = DDId.ZERO;
         final int samplingPriority = PrioritySampling.SAMPLER_KEEP;
         final String origin = null; // Always null
 
@@ -75,9 +74,9 @@ public class HaystackHttpCodec {
           }
 
           if (TRACE_ID_KEY.equalsIgnoreCase(key)) {
-            traceId = validateUInt64BitsID(value, 10);
+            traceId = DDId.from(value);
           } else if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
-            spanId = validateUInt64BitsID(value, 10);
+            spanId = DDId.from(value);
           } else if (key.startsWith(OT_BAGGAGE_PREFIX.toLowerCase())) {
             if (baggage.isEmpty()) {
               baggage = new HashMap<>();
@@ -93,7 +92,7 @@ public class HaystackHttpCodec {
           }
         }
 
-        if (!BigInteger.ZERO.equals(traceId)) {
+        if (!DDId.ZERO.equals(traceId)) {
           final ExtractedContext context =
               new ExtractedContext(traceId, spanId, samplingPriority, origin, baggage, tags);
           context.lockSamplingPriority();

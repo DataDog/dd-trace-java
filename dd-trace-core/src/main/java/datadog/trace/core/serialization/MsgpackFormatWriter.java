@@ -1,5 +1,6 @@
 package datadog.trace.core.serialization;
 
+import datadog.trace.api.DDId;
 import datadog.trace.core.StringTables;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -91,7 +92,17 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   }
 
   @Override
-  public void writeBigInteger(
+  public void writeId(byte[] key, DDId id, MessagePacker destination) throws IOException {
+    // This can be removed when msgpack supports packUnsignedLong
+    long l = id.toLong();
+    if (l >= 0) {
+      writeLong(key, l, destination);
+    } else {
+      writeBigInteger(key, id.toBigInteger(), destination);
+    }
+  }
+
+  private void writeBigInteger(
       final byte[] key, final BigInteger value, final MessagePacker destination)
       throws IOException {
     writeKey(key, destination);

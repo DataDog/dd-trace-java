@@ -2,6 +2,7 @@ package datadog.trace.core;
 
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.common.exec.CommonTaskExecutor.Task;
+import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.core.util.Clock;
@@ -9,7 +10,6 @@ import java.io.Closeable;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements AgentTrace {
 
-  static PendingTrace create(final CoreTracer tracer, final BigInteger traceId) {
+  static PendingTrace create(final CoreTracer tracer, final DDId traceId) {
     final PendingTrace pendingTrace = new PendingTrace(tracer, traceId);
     pendingTrace.addPendingTrace();
     return pendingTrace;
@@ -35,7 +35,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   private static final AtomicReference<SpanCleaner> SPAN_CLEANER = new AtomicReference<>();
 
   private final CoreTracer tracer;
-  private final BigInteger traceId;
+  private final DDId traceId;
 
   // TODO: consider moving these time fields into DDTracer to ensure that traces have precise
   // relative time
@@ -79,7 +79,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   /** Ensure a trace is never written multiple times */
   private final AtomicBoolean isWritten = new AtomicBoolean(false);
 
-  private PendingTrace(final CoreTracer tracer, final BigInteger traceId) {
+  private PendingTrace(final CoreTracer tracer, final DDId traceId) {
     this.tracer = tracer;
     this.traceId = traceId;
 

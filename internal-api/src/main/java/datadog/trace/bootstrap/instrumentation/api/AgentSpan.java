@@ -1,11 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.DDId;
 import datadog.trace.api.interceptor.MutableSpan;
-import java.math.BigInteger;
 
 public interface AgentSpan extends MutableSpan {
 
-  BigInteger getTraceId();
+  DDId getTraceId();
 
   @Override
   AgentSpan setTag(String key, boolean value);

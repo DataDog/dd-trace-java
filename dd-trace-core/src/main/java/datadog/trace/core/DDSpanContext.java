@@ -1,10 +1,10 @@
 package datadog.trace.core;
 
+import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.decorators.AbstractDecorator;
-import java.math.BigInteger;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -40,9 +40,9 @@ public class DDSpanContext implements AgentSpan.Context {
   private final Map<String, String> baggageItems;
 
   // Not Shared with other span contexts
-  private final BigInteger traceId;
-  private final BigInteger spanId;
-  private final BigInteger parentId;
+  private final DDId traceId;
+  private final DDId spanId;
+  private final DDId parentId;
 
   /** Tags are associated to the current span, they will not propagate to the children span */
   private final Map<String, Object> tags = new ConcurrentHashMap<>();
@@ -76,9 +76,9 @@ public class DDSpanContext implements AgentSpan.Context {
   private final Map<String, String> serviceNameMappings;
 
   public DDSpanContext(
-      final BigInteger traceId,
-      final BigInteger spanId,
-      final BigInteger parentId,
+      final DDId traceId,
+      final DDId spanId,
+      final DDId parentId,
       final String serviceName,
       final String operationName,
       final String resourceName,
@@ -133,15 +133,15 @@ public class DDSpanContext implements AgentSpan.Context {
     this.tags.put(DDTags.THREAD_ID, threadId);
   }
 
-  public BigInteger getTraceId() {
+  public DDId getTraceId() {
     return traceId;
   }
 
-  public BigInteger getParentId() {
+  public DDId getParentId() {
     return parentId;
   }
 
-  public BigInteger getSpanId() {
+  public DDId getSpanId() {
     return spanId;
   }
 
