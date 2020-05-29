@@ -1,6 +1,7 @@
 package com.datadog.profiling.mlt;
 
 import lombok.NonNull;
+import lombok.ToString;
 
 final class StackElement {
   private int hash;
@@ -18,6 +19,14 @@ final class StackElement {
     this.headPtr = -1;
     this.subtreePtr = -1;
     this.depth = 0;
+  }
+
+  StackElement(int headPtr, int subtreePtr, @NonNull ConstantPool<FrameElement> framePool, @NonNull ConstantPool<StackElement> stackPool) {
+    this.framePool = framePool;
+    this.stackPool = stackPool;
+    this.headPtr = headPtr;
+    this.subtreePtr = subtreePtr;
+    this.depth = subtreePtr != -1 ? 1 + stackPool.get(subtreePtr).depth : 1;
   }
 
   StackElement(@NonNull FrameElement frame, @NonNull ConstantPool<FrameElement> framePool) {
@@ -90,5 +99,14 @@ final class StackElement {
       hash = computedHash == 0 ? 1 : computedHash;
     }
     return hash;
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder(framePool.get(headPtr).toString());
+    if (subtreePtr != -1) {
+      sb.append(", ").append(stackPool.get(subtreePtr));
+    }
+    return sb.toString();
   }
 }

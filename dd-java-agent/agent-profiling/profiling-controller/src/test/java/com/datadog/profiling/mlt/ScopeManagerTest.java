@@ -1,5 +1,6 @@
 package com.datadog.profiling.mlt;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -9,7 +10,11 @@ import java.lang.management.ThreadMXBean;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class ScopeManagerTest {
   private ThreadScopeMapper global;
@@ -22,30 +27,161 @@ class ScopeManagerTest {
   @Test
   void sample() throws Exception {
     ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
-    Map<Long, ScopeStackCollector> samplerMap = new HashMap<>();
-    long[] tids = threadMXBean.getAllThreadIds();
-    for (long tid : tids) {
-      ThreadInfo threadInfo = threadMXBean.getThreadInfo(tid);
-      samplerMap.put(tid, global.forThread(tid, threadInfo.getThreadName()).startScope("scope"));
-    }
-    for (int i = 0; i < 1000000; i++) {
-      for (ThreadInfo ti : ManagementFactory.getThreadMXBean().dumpAllThreads(false, false)) {
-        ScopeStackCollector sampler = samplerMap.get(ti.getThreadId());
-        if (sampler != null) {
-          sampler.collect(ti.getStackTrace());
+
+    Thread workerThread = new Thread(() -> {
+      try {
+        while (true) {
+          mainEntry();
         }
+      } catch (InterruptedException ignored) {
+
       }
-      Thread.sleep(1);
+    });
+    workerThread.setDaemon(true);
+    workerThread.start();
+
+    ScopeManager scopeManager = global.forThread(workerThread);
+
+    ScopeStackCollector sampler = scopeManager.startScope("main");
+    for (int i = 0; i < 1000; i++) {
+      ThreadInfo ti = threadMXBean.getThreadInfo(workerThread.getId(), 2048);
+      sampler.collect(ti.getStackTrace());
+      Thread.sleep(ThreadLocalRandom.current().nextInt(20) + 2);
     }
-    byte[] allData = new byte[0];
-    for (long tid : tids) {
-      byte[] data = samplerMap.get(tid).end();
-      int pos = allData.length;
-      allData = Arrays.copyOf(allData, allData.length + data.length);
-      System.arraycopy(data, 0, allData, pos, data.length);
-//      samplerMap.get(tid).printStacktraces();
+    byte[] data = sampler.end();
+
+    System.out.println("===> data len: " + data.length);
+    System.out.println(Base64.getEncoder().encodeToString(data));
+
+    List<MLTChunk> chunks = new MLTReader().readMLT(data);
+    assertFalse(chunks.isEmpty());
+  }
+
+  private void mainEntry() throws InterruptedException {
+    int dispatch = ThreadLocalRandom.current().nextInt(4);
+    switch(dispatch) {
+      case 1: entry1(0);
+      case 2: entry2(0);
+      case 3: entry3(0);
     }
-    System.out.println("===> data len: " + allData.length);
-    System.out.println(Base64.getEncoder().encodeToString(allData));
+  }
+
+  private void entry7(int level) throws InterruptedException {
+    if (level > 2048) {
+      return;
+    }
+    Thread.sleep(7);
+    int dispatch = ThreadLocalRandom.current().nextInt(8);
+    switch(dispatch) {
+      case 1: entry1(level + 1); break;
+      case 2: entry2(level + 1); break;
+      case 3: entry3(level + 1); break;
+      case 4: entry4(level + 1); break;
+      case 5: entry5(level + 1); break;
+      case 6: entry6(level + 1); break;
+      case 7: entry7(level + 1); break;
+    }
+  }
+
+  private void entry6(int level) throws InterruptedException {
+    if (level > 2048) {
+      return;
+    }
+    Thread.sleep(6);
+    int dispatch = ThreadLocalRandom.current().nextInt(8);
+    switch(dispatch) {
+      case 1: entry1(level + 1); break;
+      case 2: entry2(level + 1); break;
+      case 3: entry3(level + 1); break;
+      case 4: entry4(level + 1); break;
+      case 5: entry5(level + 1); break;
+      case 6: entry6(level + 1); break;
+      case 7: entry7(level + 1); break;
+    }
+  }
+
+  private void entry5(int level) throws InterruptedException {
+    if (level > 2048) {
+      return;
+    }
+    Thread.sleep(5);
+    int dispatch = ThreadLocalRandom.current().nextInt(8);
+    switch(dispatch) {
+      case 1: entry1(level + 1); break;
+      case 2: entry2(level + 1); break;
+      case 3: entry3(level + 1); break;
+      case 4: entry4(level + 1); break;
+      case 5: entry5(level + 1); break;
+      case 6: entry6(level + 1); break;
+      case 7: entry7(level + 1); break;
+    }
+  }
+
+  private void entry4(int level) throws InterruptedException {
+    if (level > 2048) {
+      return;
+    }
+    Thread.sleep(4);
+    int dispatch = ThreadLocalRandom.current().nextInt(8);
+    switch(dispatch) {
+      case 1: entry1(level + 1); break;
+      case 2: entry2(level + 1); break;
+      case 3: entry3(level + 1); break;
+      case 4: entry4(level + 1); break;
+      case 5: entry5(level + 1); break;
+      case 6: entry6(level + 1); break;
+      case 7: entry7(level + 1); break;
+    }
+  }
+
+  private void entry3(int level) throws InterruptedException {
+    if (level > 2048) {
+      return;
+    }
+    Thread.sleep(3);
+    int dispatch = ThreadLocalRandom.current().nextInt(8);
+    switch(dispatch) {
+      case 1: entry1(level + 1); break;
+      case 2: entry2(level + 1); break;
+      case 3: entry3(level + 1); break;
+      case 4: entry4(level + 1); break;
+      case 5: entry5(level + 1); break;
+      case 6: entry6(level + 1); break;
+      case 7: entry7(level + 1); break;
+    }
+  }
+
+  private void entry2(int level) throws InterruptedException {
+    if (level > 2048) {
+      return;
+    }
+    Thread.sleep(2);
+    int dispatch = ThreadLocalRandom.current().nextInt(8);
+    switch(dispatch) {
+      case 1: entry1(level + 1); break;
+      case 2: entry2(level + 1); break;
+      case 3: entry3(level + 1); break;
+      case 4: entry4(level + 1); break;
+      case 5: entry5(level + 1); break;
+      case 6: entry6(level + 1); break;
+      case 7: entry7(level + 1); break;
+    }
+  }
+
+  private void entry1(int level) throws InterruptedException {
+    if (level > 2048) {
+      return;
+    }
+    Thread.sleep(1);
+    int dispatch = ThreadLocalRandom.current().nextInt(8);
+    switch(dispatch) {
+      case 1: entry1(level + 1); break;
+      case 2: entry2(level + 1); break;
+      case 3: entry3(level + 1); break;
+      case 4: entry4(level + 1); break;
+      case 5: entry5(level + 1); break;
+      case 6: entry6(level + 1); break;
+      case 7: entry7(level + 1); break;
+    }
   }
 }

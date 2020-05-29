@@ -9,8 +9,9 @@ public class JMXSamplerTest {
   @Test
   public void sampler() throws InterruptedException {
     ThreadStackAccess.enableJmx();
+    ThreadScopeMapper mapper = new ThreadScopeMapper();
     StackTraceSink sink = new JFRStackTraceSink();
-    JMXSampler sampler = new JMXSampler(sink);
+    JMXSampler sampler = new JMXSampler(sink, mapper);
     sampler.addThreadId(Thread.currentThread().getId());
     sampler.addThreadId(1);
     Thread.sleep(100);
@@ -25,8 +26,9 @@ public class JMXSamplerTest {
   @Test
   public void emptySampler() throws InterruptedException {
     ThreadStackAccess.enableJmx();
+    ThreadScopeMapper mapper = new ThreadScopeMapper();
     StackTraceSink sink = new JFRStackTraceSink();
-    JMXSampler sampler = new JMXSampler(sink);
+    JMXSampler sampler = new JMXSampler(sink, mapper);
     Thread.sleep(100);
     sampler.shutdown();
     byte[] buffer = sink.flush();

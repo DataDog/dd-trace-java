@@ -15,6 +15,13 @@ class FrameElement {
   @Getter
   private final int line;
 
+  FrameElement(int ownerPtr, int methodPtr, int line, @NonNull ConstantPool<String> stringPool) {
+    this.stringPool = stringPool;
+    this.ownerPtr = ownerPtr;
+    this.methodPtr = methodPtr;
+    this.line = line;
+  }
+
   FrameElement(@NonNull String owner, @NonNull String method, int line, @NonNull ConstantPool<String> stringPool) {
     this.stringPool = stringPool;
     this.ownerPtr = stringPool.get(owner);

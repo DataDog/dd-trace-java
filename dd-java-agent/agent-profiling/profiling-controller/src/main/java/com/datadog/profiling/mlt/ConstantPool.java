@@ -9,7 +9,7 @@ public final class ConstantPool<T> {
   private final MutableObjectIntMap<T> indexMap = ObjectIntMaps.mutable.ofInitialCapacity(128);
   private final MutableIntObjectMap<T> reverseIndexMap = IntObjectMaps.mutable.ofInitialCapacity(128);
 
-  private final int offset;
+  private int offset;
 
   public ConstantPool() {
     this(0);
@@ -30,6 +30,15 @@ public final class ConstantPool<T> {
     int idx = indexMap.getIfAbsentPut(constant, indexMap.size() + offset);
     reverseIndexMap.put(idx, constant);
     return idx;
+  }
+
+  public void insert(T constant, int ptr) {
+    if (constant == null && ptr != -1) {
+      throw new IllegalArgumentException();
+    }
+    indexMap.put(constant, ptr);
+    reverseIndexMap.put(ptr, constant);
+    offset = Math.max(offset, ptr + 1);
   }
 
   public int size() {

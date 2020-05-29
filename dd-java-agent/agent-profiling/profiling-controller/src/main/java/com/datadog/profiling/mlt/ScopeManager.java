@@ -47,7 +47,7 @@ public final class ScopeManager {
     while (scopeStackCollector != null && !target.equals(scopeStackCollector)) {
       scopeCollectorQueue.removeLast();
     }
-    current = scopeCollectorQueue.getLast(); // previous scope published (volatile)
+    current = scopeCollectorQueue.isEmpty() ? null : scopeCollectorQueue.getLast(); // previous scope published (volatile)
     if (scopeStackCollector == null) {
       // TODO warning
     }

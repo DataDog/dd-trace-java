@@ -34,7 +34,7 @@ public final class ByteArrayWriter {
   }
 
   public long writeShort(long offset, short data) {
-    return writeLong(offset, data);
+    return writeLong(offset, data & 0x000000000000ffffL);
   }
 
   public ByteArrayWriter writeInt(int data) {
@@ -43,7 +43,7 @@ public final class ByteArrayWriter {
   }
 
   public long writeInt(long offset, int data) {
-    return writeLong(offset, data);
+    return writeLong(offset, data & 0x00000000ffffffffL);
   }
 
   static int getPackedIntLen(long data) {

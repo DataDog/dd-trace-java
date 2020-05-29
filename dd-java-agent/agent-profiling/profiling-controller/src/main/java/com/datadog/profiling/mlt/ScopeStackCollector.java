@@ -1,6 +1,8 @@
 package com.datadog.profiling.mlt;
 
 import com.datadog.profiling.util.ByteArrayWriter;
+
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.NonNull;
@@ -47,7 +49,8 @@ final class ScopeStackCollector {
       return;
     }
     StackElement subtree = null;
-    for (StackTraceElement element : stackTrace) {
+    for (int i = stackTrace.length - 1; i >= 0; i --) {
+      StackTraceElement element = stackTrace[i];
       subtree =
           newTree(
               new FrameElement(
@@ -65,13 +68,14 @@ final class ScopeStackCollector {
     if (!stacks.isEmpty()) {
       int topItem = stacks.removeAtIndex(stacks.size() - 1);
       if (!stacks.isEmpty()) {
-        if (topItem < 0) { // topItem is the repetition counter
-          if (stacks.getLast() == stackptr && topItem > Integer.MIN_VALUE + 2) {
+        if ((topItem & 0x80000000) == 0x80000000) { // topItem is the repetition counter
+          int counter = (topItem & 0x7fffffff);
+          if (stacks.getLast() == stackptr && counter < Integer.MAX_VALUE - 2) {
             /*
              * If inserting a consequent occurrence of the same stack trace and the repetition counter is not
              * overflowing just update the repetition counter.
              */
-            stacks.add(topItem - 1);
+            stacks.add((counter + 1) | 0x80000000);
             return;
           }
           /*
@@ -86,9 +90,10 @@ final class ScopeStackCollector {
       if (stackptr == topItem) {
         stacks.add(topItem); // re-insert the topItem
         // inserting a consequent occurrence of the same stack trace
-        stacks.add(-1); // insert repetition counter
+        stacks.add(1 | 0x80000000); // insert repetition counter
         return;
       }
+      stacks.add(topItem);
     }
     stacks.add(stackptr);
   }
@@ -109,43 +114,68 @@ final class ScopeStackCollector {
         .writeLong(System.nanoTime() - timestamp) // duration
         .writeLong(threadStacktraceCollector.getThreadId());
 
-    IntHashSet stringConstants = IntHashSet.newSetWith(0); // always include ptr 0 (thread name)
+    IntHashSet stringConstants = IntHashSet.newSetWith();
     IntHashSet frameConstants = IntHashSet.newSetWith();
     IntHashSet stackConstants = IntHashSet.newSetWith();
     // write out the stack trace sequence and collect the constant pool usage
+    writer.writeInt(stacks.size());
     stacks.forEach(
-        ptr -> {
-          writer.writeInt(ptr);
-          if (ptr >= 0) {
-            collectStackPtrUsage(ptr, stringConstants, frameConstants, stackConstants);
+        val -> {
+          writer.writeInt(val);
+          if ((val & 0x80000000) == 0) {
+            collectStackPtrUsage(val, stringConstants, frameConstants, stackConstants);
           }
         });
     writer.writeIntRaw(CONSTANT_POOLS_OFFSET, writer.position()); // write the constant pools offset
     // write constant pool array
     writer.writeInt(stringConstants.size() + 1);
-    writer.writeUTF(threadStacktraceCollector.getThreadName()); // 0th CP entry is the thread name
+    byte[] threadNameUtf = threadStacktraceCollector.getThreadName().getBytes(StandardCharsets.UTF_8);
+    writer.writeInt(0).writeInt(threadNameUtf.length).writeBytes(threadNameUtf); // 0th CP entry is the thread name
     stringConstants.forEach(
         ptr -> {
-          writer.writeUTF(stringPool.get(ptr));
+          writer.writeInt(ptr);
+          byte[] utfData = stringPool.get(ptr).getBytes(StandardCharsets.UTF_8);
+          writer.writeInt(utfData.length).writeBytes(utfData);
         });
     // write frame pool array
     writer.writeInt(frameConstants.size());
     frameConstants.forEach(
         ptr -> {
           FrameElement frame = framePool.get(ptr);
+          writer.writeInt(ptr);
           writer
               .writeInt(frame.getOwnerPtr())
               .writeInt(frame.getMethodPtr())
-              .writeInt(frame.getLine());
+              .writeIntRaw(frame.getLine());
         });
     // write stack pool array
     writer.writeInt(stackConstants.size());
     stackConstants.forEach(
         ptr -> {
+          writer.writeInt(ptr);
           StackElement stack = stackPool.get(ptr);
-          writer.writeInt(stack.getHeadPtr()).writeInt(stack.getSubtreePtr());
+          int cutoff = 8192;
+          int depth = stack.getDepth();
+          if (depth > cutoff) {
+            writer
+              .writeByte((byte)1) // write type
+              .writeInt(cutoff); // number of frames
+            for (int i = 0; i < cutoff - 1; i++) {
+              writer.writeInt(stack.getHeadPtr());
+              stack = stackPool.get(stack.getSubtreePtr());
+            }
+            writer.writeInt(stack.getHeadPtr()).writeInt(stack.getSubtreePtr());
+          } else {
+            writer
+              .writeByte((byte)0) // write type
+              .writeInt(depth); // number of elements
+            for (int i = 0; i < depth; i++) {
+              writer.writeInt(stack.getHeadPtr());
+              stack = stackPool.get(stack.getSubtreePtr());
+            }
+          }
         });
-    writer.writeInt(CHUNK_SIZE_OFFSET, writer.position()); // write the chunk size
+    writer.writeIntRaw(CHUNK_SIZE_OFFSET, writer.position()); // write the chunk size
     return writer.toByteArray();
   }
 
