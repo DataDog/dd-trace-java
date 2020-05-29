@@ -1,6 +1,7 @@
 stages:
   - ci-image
   - build
+  - test
   - deploy
 
 variables:
@@ -39,7 +40,39 @@ build:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
 
-copy_to_s3:
+"Test Java 8":
+  <<: *gradle_build
+  stage: test
+  script:
+    - GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M" ./gradlew test --build-cache --parallel --stacktrace --no-daemon --max-workers=6
+  after_script:
+    - ./circleci/collect_results.sh
+  artifacts:
+    reports:
+      junit: results/TEST-*.xml
+
+"Agent Integration Tests":
+  <<: *gradle_build
+  stage: test
+  script:
+    - ./gradlew traceAgentTest --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+  after_script:
+    - ./circleci/collect_results.sh
+  artifacts:
+    reports:
+      junit: results/TEST-*.xml
+
+"Check":
+  <<: *gradle_build
+  stage: test
+  script:
+    - GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M" ./gradlew check -PskipTests --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+  after_script:
+    - ./circleci/collect_reports.sh
+  artifacts:
+    paths: [reports]
+
+"Copy to S3":
   <<: *common
   stage: deploy
   image: $REGISTRY/ci/dd-trace-java:latest
@@ -53,7 +86,7 @@ copy_to_s3:
     - export AWS_SECRET_ACCESS_KEY_REL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.secret_sec_key_id --with-decryption --query "Parameter.Value" --out text)
     - python -u .gitlab/copy_artifact_s3.py
 
-deploy_to_bintray:
+"Deploy to Bintray":
   <<: *gradle_build
   stage: deploy
   rules:
