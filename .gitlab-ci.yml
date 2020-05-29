@@ -51,17 +51,6 @@ build:
     reports:
       junit: results/TEST-*.xml
 
-"Agent Integration Tests":
-  <<: *gradle_build
-  stage: test
-  script:
-    - ./gradlew traceAgentTest --build-cache --parallel --stacktrace --no-daemon --max-workers=8
-  after_script:
-    - .circleci/collect_results.sh
-  artifacts:
-    reports:
-      junit: results/TEST-*.xml
-
 "Check":
   <<: *gradle_build
   stage: test

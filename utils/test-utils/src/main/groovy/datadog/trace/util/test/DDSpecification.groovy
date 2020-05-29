@@ -25,16 +25,16 @@ abstract class DDSpecification extends Specification {
 
 
   // CircleCI will provide us with a container running along side our build.
-  // When building locally or in Gitlab, however, we need to take matters into our own hands
+  // When building locally however, we need to take matters into our own hands
   // and we use 'testcontainers' for this.
   static boolean shouldUseTestContainers() {
-    return "true" != System.getenv("CI") || System.getenv("GITLAB_CI") != null
+    return "true" != System.getenv("CI")
   }
 
   // Do not run tests locally on Java7 since testcontainers are not compatible with Java7
   // It is fine to run on non-Gitlab CIs because they provide rabbitmq externally, not through testcontainers
   static boolean containerTestCompatible() {
-    return Jvm.current.java8Compatible || ("true" == System.getenv("CI") && System.getenv("GITLAB_CI") == null)
+    return (Jvm.current.java8Compatible || "true" == System.getenv("CI")) && System.getenv("GITLAB_CI") == null
   }
 
   static void makeConfigInstanceModifiable() {
