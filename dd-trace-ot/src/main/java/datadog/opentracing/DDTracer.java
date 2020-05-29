@@ -46,11 +46,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   private ScopeManager scopeManager;
 
   public static class DDTracerBuilder {
-    public DDTracerBuilder() {
-      // Apply the default values from config.
-      config(Config.get());
-    }
-
     public DDTracerBuilder withProperties(final Properties properties) {
       return config(Config.get(properties));
     }
