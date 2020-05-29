@@ -1,5 +1,6 @@
 package datadog.trace.agent.test.asserts
 
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
@@ -30,6 +31,7 @@ class MetricsAssert {
   def defaultMetrics() {
     assertedMetrics.add(RateByServiceSampler.SAMPLING_AGENT_RATE)
     assertedMetrics.add(DDSpanContext.PRIORITY_SAMPLING_KEY)
+    assertedMetrics.add(InstrumentationTags.DD_MEASURED)
   }
 
   def methodMissing(String name, args) {
