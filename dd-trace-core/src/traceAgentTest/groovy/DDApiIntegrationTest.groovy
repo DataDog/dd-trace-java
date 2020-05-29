@@ -98,10 +98,8 @@ class DDApiIntegrationTest extends DDSpecification {
   }
 
   def cleanupSpec() {
-    if (agentContainer) {
-      agentContainer.stop()
-    }
-    process.destroy()
+    agentContainer?.stop()
+    process?.destroy()
   }
 
   def setup() {
