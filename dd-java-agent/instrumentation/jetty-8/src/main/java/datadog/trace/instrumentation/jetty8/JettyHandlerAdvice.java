@@ -12,6 +12,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.servlet.http.HttpServletRequest;
@@ -33,7 +34,8 @@ public class JettyHandlerAdvice {
 
     final AgentSpan span =
         startSpan("jetty.request", extractedContext)
-            .setTag("span.origin.type", source.getClass().getName());
+            .setTag("span.origin.type", source.getClass().getName())
+            .setTag(InstrumentationTags.DD_MEASURED, true);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, req);
     DECORATE.onRequest(span, req);

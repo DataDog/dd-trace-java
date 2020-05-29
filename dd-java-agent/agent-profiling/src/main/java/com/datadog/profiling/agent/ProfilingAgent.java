@@ -12,13 +12,18 @@ import datadog.trace.api.Config;
 import datadog.trace.profiling.Profiler;
 import java.lang.ref.WeakReference;
 import java.time.Duration;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
 /** Profiling agent implementation */
 @Slf4j
 public class ProfilingAgent {
 
-  private static volatile ProfilingSystem PROFILER;
+  private static final Predicate<String> API_KEY_REGEX =
+      Pattern.compile("^[0-9a-fA-F]{32}$").asPredicate();
+
+  private static volatile ProfilingSystem profiler;
 
   /**
    * Main entry point into profiling Note: this must be reentrant because we may want to start
@@ -26,7 +31,7 @@ public class ProfilingAgent {
    */
   public static synchronized void run(final boolean isStartingFirst)
       throws IllegalArgumentException {
-    if (PROFILER == null) {
+    if (profiler == null) {
       final Config config = Config.get();
       if (isStartingFirst && !config.isProfilingStartForceFirst()) {
         log.debug("Profiling: not starting first");
@@ -38,7 +43,13 @@ public class ProfilingAgent {
         return;
       }
       if (config.getApiKey() == null) {
-        log.info("Profiling: no API key, profiling disabled");
+        log.info("Profiling: no API key. Profiling is disabled.");
+        return;
+      }
+      if (!API_KEY_REGEX.test(config.getApiKey())) {
+        log.info(
+            "Profiling: API key doesn't match expected format, expected to get a 32 character hex string. Profiling is disabled. {} ",
+            config.getApiKey());
         return;
       }
 
@@ -55,7 +66,7 @@ public class ProfilingAgent {
         // this in the future
         final Duration startupDelayRandomRange = uploadPeriod;
 
-        PROFILER =
+        profiler =
             new ProfilingSystem(
                 controller,
                 uploader::upload,
@@ -63,7 +74,7 @@ public class ProfilingAgent {
                 startupDelayRandomRange,
                 uploadPeriod,
                 config.isProfilingStartForceFirst());
-        PROFILER.start();
+        profiler.start();
         log.info("Profiling has started!");
 
         try {
@@ -73,7 +84,7 @@ public class ProfilingAgent {
           This means that if/when we implement functionality to manually shutdown profiler we would
           need to not forget to add code that removes this shutdown hook from JVM.
            */
-          Runtime.getRuntime().addShutdownHook(new ShutdownHook(PROFILER, uploader));
+          Runtime.getRuntime().addShutdownHook(new ShutdownHook(profiler, uploader));
         } catch (final IllegalStateException ex) {
           // The JVM is already shutting down.
         }

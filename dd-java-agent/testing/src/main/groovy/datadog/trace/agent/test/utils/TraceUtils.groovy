@@ -69,6 +69,9 @@ class TraceUtils {
         }
         defaultTags()
       }
+      metrics {
+        defaultMetrics()
+      }
     }
   }
 }

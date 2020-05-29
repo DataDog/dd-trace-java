@@ -10,6 +10,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import io.grpc.ForwardingServerCall;
 import io.grpc.ForwardingServerCallListener;
 import io.grpc.Metadata;
@@ -33,7 +34,8 @@ public class TracingServerInterceptor implements ServerInterceptor {
     final Context spanContext = propagate().extract(headers, GETTER);
     final AgentSpan span =
         startSpan("grpc.server", spanContext)
-            .setTag(DDTags.RESOURCE_NAME, call.getMethodDescriptor().getFullMethodName());
+            .setTag(DDTags.RESOURCE_NAME, call.getMethodDescriptor().getFullMethodName())
+            .setTag(InstrumentationTags.DD_MEASURED, true);
     DECORATE.afterStart(span);
 
     final AgentScope scope = activateSpan(span);

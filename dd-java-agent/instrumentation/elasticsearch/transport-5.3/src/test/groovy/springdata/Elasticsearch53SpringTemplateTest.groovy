@@ -1,6 +1,6 @@
 package springdata
 
-import com.anotherchrisberry.spock.extensions.retry.RetryOnFailure
+
 import com.google.common.collect.ImmutableSet
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.PortUtils
@@ -21,6 +21,7 @@ import org.springframework.data.elasticsearch.core.ResultsExtractor
 import org.springframework.data.elasticsearch.core.query.IndexQueryBuilder
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder
+import spock.lang.Retry
 import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicLong
@@ -28,7 +29,7 @@ import java.util.concurrent.atomic.AtomicLong
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING
 
-@RetryOnFailure(times = 3, delaySeconds = 1)
+@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
   public static final long TIMEOUT = 10000; // 10 seconds
 

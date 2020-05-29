@@ -19,6 +19,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -154,6 +155,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
   public static class HelperMethods {
     public static AgentScope doMethodEnter(final HttpUriRequest request) {
       final AgentSpan span = startSpan("http.request");
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
       final AgentScope scope = activateSpan(span);
 
       DECORATE.afterStart(span);

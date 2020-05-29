@@ -122,7 +122,7 @@ public abstract class FormatWriter<DEST> {
   public void writeDDSpan(final DDSpan span, final DEST destination) throws IOException {
     // Some of the tests rely on the specific ordering here.
     writeMapHeader(12, destination); // must match count below.
-    /* 1  */ writeString(SERVICE, span.getServiceName(), destination);
+    /* 1  */ writeTag(SERVICE, span.getServiceName(), destination);
     /* 2  */ writeString(NAME, span.getOperationName(), destination);
     /* 3  */ writeString(RESOURCE, span.getResourceName(), destination);
     /* 4  */ writeBigInteger(TRACE_ID, span.getTraceId(), destination);
@@ -137,7 +137,7 @@ public abstract class FormatWriter<DEST> {
     writeMapFooter(destination);
   }
 
-  private byte[] stringToBytes(final String string) {
+  private static byte[] stringToBytes(final String string) {
     // won't reassign key or string in this method
     final byte[] key = StringTables.getKeyBytesUTF8(string);
     return null == key ? string.getBytes(StandardCharsets.UTF_8) : key;
