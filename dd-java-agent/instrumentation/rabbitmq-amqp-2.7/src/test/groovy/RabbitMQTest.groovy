@@ -27,9 +27,8 @@ import java.time.Duration
 import java.util.concurrent.Phaser
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-// Do not run tests locally on Java7 since testcontainers are not compatible with Java7
-// It is fine to run on CI because CI provides rabbitmq externally, not through testcontainers
-@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+
+@Requires({ containerTestCompatible() })
 class RabbitMQTest extends AgentTestRunner {
 
   /*
@@ -49,12 +48,7 @@ class RabbitMQTest extends AgentTestRunner {
 
   def setupSpec() {
 
-    /*
-      CI will provide us with rabbitmq container running along side our build.
-      When building locally, however, we need to take matters into our own hands
-      and we use 'testcontainers' for this.
-     */
-    if ("true" != System.getenv("CI")) {
+    if (shouldUseTestContainers()) {
       rabbbitMQContainer = new GenericContainer('rabbitmq:latest')
         .withExposedPorts(defaultRabbitMQPort)
         .withStartupTimeout(Duration.ofSeconds(120))

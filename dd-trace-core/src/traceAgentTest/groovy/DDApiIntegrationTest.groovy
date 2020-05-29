@@ -18,9 +18,7 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-// Do not run tests locally on Java7 since testcontainers are not compatible with Java7
-// It is fine to run on CI because CI provides agent externally, not through testcontainers
-@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+@Requires({ containerTestCompatible() })
 class DDApiIntegrationTest extends DDSpecification {
   static final WRITER = new ListWriter()
   static final TRACER = CoreTracer.builder().writer(WRITER).build()
@@ -73,12 +71,7 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def setupSpec() {
 
-    /*
-      CI will provide us with agent container running along side our build.
-      When building locally, however, we need to take matters into our own hands
-      and we use 'testcontainers' for this.
-     */
-    if ("true" != System.getenv("CI")) {
+    if (shouldUseTestContainers()) {
       agentContainer = new GenericContainer("datadog/docker-dd-agent:latest")
         .withEnv(["DD_APM_ENABLED": "true",
                   "DD_BIND_HOST"  : "0.0.0.0",

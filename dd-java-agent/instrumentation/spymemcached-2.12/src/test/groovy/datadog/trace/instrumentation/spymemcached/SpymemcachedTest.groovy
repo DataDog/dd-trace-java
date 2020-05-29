@@ -30,9 +30,7 @@ import static CompletionListener.SERVICE_NAME
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static net.spy.memcached.ConnectionFactoryBuilder.Protocol.BINARY
 
-// Do not run tests locally on Java7 since testcontainers are not compatible with Java7
-// It is fine to run on CI because CI provides memcached externally, not through testcontainers
-@Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
+@Requires({ containerTestCompatible() })
 class SpymemcachedTest extends AgentTestRunner {
 
   @Shared
@@ -56,13 +54,7 @@ class SpymemcachedTest extends AgentTestRunner {
   InetSocketAddress memcachedAddress = new InetSocketAddress("127.0.0.1", defaultMemcachedPort)
 
   def setupSpec() {
-
-    /*
-      CI will provide us with memcached container running along side our build.
-      When building locally, however, we need to take matters into our own hands
-      and we use 'testcontainers' for this.
-     */
-    if ("true" != System.getenv("CI")) {
+    if (shouldUseTestContainers()) {
       memcachedContainer = new GenericContainer('memcached:latest')
         .withExposedPorts(defaultMemcachedPort)
         .withStartupTimeout(Duration.ofSeconds(120))
