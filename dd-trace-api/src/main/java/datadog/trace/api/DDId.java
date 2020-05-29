@@ -16,7 +16,7 @@ public class DDId {
       new DDId(-1, "18446744073709551615", "ffffffffffffffff"); // All bits set
 
   // Convenience constant used from tests
-  public static final DDId ONE = DDId.from(1);
+  private static final DDId ONE = DDId.from(1);
 
   /**
    * Generate a new unsigned 64 bit id.
@@ -24,11 +24,13 @@ public class DDId {
    * @return DDId
    */
   public static DDId generate() {
-    // TODO should we use the top bit as well here?
     // It is **extremely** unlikely to generate the value "0" but we still need to handle that
     // case
     long id;
     do {
+      // TODO the ids are positive here by design to avoid materialization of a BigInteger,
+      //      and that can be changed to nextLong(Long.MIN_VALUE, Long.MAX_VALUE), when
+      //      msgpack supports packUnsignedLong
       id = ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
     } while (id == 0);
     return DDId.from(id);
@@ -79,10 +81,8 @@ public class DDId {
 
   private final long id;
   private String str; // cache for string representation
+  // TODO this should be removed if we don't use hex strings for ids in `ScopeEvent`
   private String hex; // cache for hex string representation
-  // TODO This is only here since msgpack doesn't support packUnsignedLong
-  //      so we need to write out "negative" longs as a BigInteger
-  private BigInteger big;
 
   private DDId(long id, String str, String hex) {
     this.id = id;
@@ -130,17 +130,17 @@ public class DDId {
         }
         // Now do the first part and the last character
         long first = 0;
+        int ok = 0;
         for (int i = 0; i < len - 1; i++) {
           char c = s.charAt(i);
           int d = Character.digit(c, 10);
-          if (d < 0) {
-            throw new NumberFormatException("Illegal character '" + c + "' in " + s);
-          }
+          ok |= d;
           first = first * 10 + d;
         }
         int last = Character.digit(s.charAt(len - 1), 10);
-        if (last < 0) {
-          throw new NumberFormatException("Bad digit at end of " + s);
+        ok |= last;
+        if (ok < 0) {
+          throw new NumberFormatException("Illegal character in " + s);
         }
         if (first > MAX_FIRST_PART) {
           throw numberFormatOutOfRange(s);
@@ -169,13 +169,15 @@ public class DDId {
         throw numberFormatOutOfRange(s);
       }
       long result = 0;
+      int ok = 0;
       for (int i = 0; i < len; i++) {
         char c = s.charAt(i);
         int d = Character.digit(c, 16);
-        if (d < 0) {
-          throw new NumberFormatException("Illegal character '" + c + "' in " + s);
-        }
+        ok |= d;
         result = result << 4 | d;
+      }
+      if (ok < 0) {
+        throw new NumberFormatException("Illegal character in " + s);
       }
       return result;
     } else {
@@ -197,12 +199,10 @@ public class DDId {
   private static BigInteger toUnsignedBigInteger(long l) {
     if (l >= 0L) return BigInteger.valueOf(l);
 
-    int high = (int) (l >>> 32);
-    int low = (int) l;
+    long high = l >>> 32;
+    long low = l & 0xffffffffL;
 
-    return (BigInteger.valueOf(((long) high) & 0xffffffffL))
-        .shiftLeft(32)
-        .add(BigInteger.valueOf(((long) low) & 0xffffffffL));
+    return BigInteger.valueOf(high).shiftLeft(32).add(BigInteger.valueOf(low));
   }
 
   @Override
@@ -215,12 +215,21 @@ public class DDId {
 
   @Override
   public int hashCode() {
-    return (int) this.id;
+    long id = this.id;
+    return (int) (id ^ (id >>> 32));
   }
 
+  /**
+   * Returns the decimal string representation of the unsigned 64 bit id. The {@code String} will be
+   * cached.
+   *
+   * @return decimal string
+   */
   @Override
   public String toString() {
     String s = this.str;
+    // This race condition is intentional and benign.
+    // The worst that can happen is that an identical value is produced and written into the field.
     if (s == null) {
       this.str = s = toUnsignedString(this.id);
     }
@@ -228,12 +237,15 @@ public class DDId {
   }
 
   /**
-   * Returns the no zero padded hex representation, in lower case, of the unsigned 64 bit id.
+   * Returns the no zero padded hex representation, in lower case, of the unsigned 64 bit id. The
+   * hex {@code String} will be cached.
    *
    * @return non zero padded hex String
    */
   public String toHexString() {
     String h = this.hex;
+    // This race condition is intentional and benign.
+    // The worst that can happen is that an identical value is produced and written into the field.
     if (hex == null) {
       this.hex = h = Long.toHexString(this.id);
     }
@@ -241,17 +253,15 @@ public class DDId {
   }
 
   /**
-   * Returns a {@code BigInteger} representation of the 64 bit id. TODO Can be removed if msgpack
-   * supports packUnsignedLong
+   * Returns a {@code BigInteger} representation of the 64 bit id. The {@code BigInteger} will not
+   * be cached.
    *
-   * @return BigInteger representation of the 64 it id.
+   * <p>TODO Can be removed if msgpack supports packUnsignedLong
+   *
+   * @return BigInteger representation of the 64 bit id.
    */
   public BigInteger toBigInteger() {
-    BigInteger b = this.big;
-    if (b == null) {
-      this.big = b = toUnsignedBigInteger(this.id);
-    }
-    return b;
+    return toUnsignedBigInteger(this.id);
   }
 
   /**
