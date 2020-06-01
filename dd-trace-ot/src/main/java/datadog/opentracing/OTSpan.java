@@ -1,7 +1,7 @@
 package datadog.opentracing;
 
 import datadog.trace.api.interceptor.MutableSpan;
-import datadog.trace.core.DDSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.tag.Tag;
@@ -13,11 +13,11 @@ import java.util.Objects;
  * interact with non-ot parts of our API.
  */
 class OTSpan implements Span, MutableSpan {
-  private final DDSpan delegate;
+  private final AgentSpan delegate;
   private final TypeConverter converter;
   private final LogHandler logHandler;
 
-  OTSpan(final DDSpan delegate, final TypeConverter converter, final LogHandler logHandler) {
+  OTSpan(final AgentSpan delegate, final TypeConverter converter, final LogHandler logHandler) {
     this.delegate = delegate;
     this.converter = converter;
     this.logHandler = logHandler;
@@ -183,7 +183,7 @@ class OTSpan implements Span, MutableSpan {
     delegate.finish(finishMicros);
   }
 
-  public DDSpan getDelegate() {
+  public AgentSpan getDelegate() {
     return delegate;
   }
 

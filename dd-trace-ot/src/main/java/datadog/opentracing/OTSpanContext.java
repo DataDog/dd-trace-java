@@ -1,14 +1,14 @@
 package datadog.opentracing;
 
-import datadog.trace.core.DDSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.opentracing.SpanContext;
 import java.util.Map;
 import java.util.Objects;
 
-class OTGenericContext implements SpanContext {
-  private final DDSpanContext delegate;
+class OTSpanContext implements SpanContext {
+  private final AgentSpan.Context delegate;
 
-  OTGenericContext(final DDSpanContext delegate) {
+  OTSpanContext(final AgentSpan.Context delegate) {
     this.delegate = delegate;
   }
 
@@ -27,7 +27,7 @@ class OTGenericContext implements SpanContext {
     return delegate.baggageItems();
   }
 
-  DDSpanContext getDelegate() {
+  AgentSpan.Context getDelegate() {
     return delegate;
   }
 
@@ -39,7 +39,7 @@ class OTGenericContext implements SpanContext {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    final OTGenericContext that = (OTGenericContext) o;
+    final OTSpanContext that = (OTSpanContext) o;
     return delegate.equals(that.delegate);
   }
 

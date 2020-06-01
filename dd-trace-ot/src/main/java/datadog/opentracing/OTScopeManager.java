@@ -2,8 +2,8 @@ package datadog.opentracing;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
-import datadog.trace.core.CoreTracer;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
@@ -12,10 +12,10 @@ import java.util.Objects;
 /** One of the two possible scope managers. See CustomScopeManagerWrapper */
 class OTScopeManager implements ScopeManager {
   private final TypeConverter converter;
-  private final CoreTracer coreTracer;
+  private final AgentTracer.TracerAPI tracer;
 
-  OTScopeManager(final CoreTracer coreTracer, final TypeConverter converter) {
-    this.coreTracer = coreTracer;
+  OTScopeManager(final AgentTracer.TracerAPI tracer, final TypeConverter converter) {
+    this.tracer = tracer;
     this.converter = converter;
   }
 
@@ -27,7 +27,7 @@ class OTScopeManager implements ScopeManager {
   @Override
   public Scope activate(final Span span, final boolean finishSpanOnClose) {
     final AgentSpan agentSpan = converter.toAgentSpan(span);
-    final AgentScope agentScope = coreTracer.activateSpan(agentSpan);
+    final AgentScope agentScope = tracer.activateSpan(agentSpan);
 
     return converter.toScope(agentScope, finishSpanOnClose);
   }
@@ -36,12 +36,12 @@ class OTScopeManager implements ScopeManager {
   @Override
   public Scope active() {
     // WARNING... Making an assumption about finishSpanOnClose
-    return converter.toScope(coreTracer.activeScope(), false);
+    return converter.toScope(tracer.activeScope(), false);
   }
 
   @Override
   public Span activeSpan() {
-    return converter.toSpan(coreTracer.activeSpan());
+    return converter.toSpan(tracer.activeSpan());
   }
 
   static class OTScope implements Scope {

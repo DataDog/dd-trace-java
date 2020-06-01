@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -27,8 +28,19 @@ public class TagContext implements AgentSpan.Context {
     return tags;
   }
 
+  @Override
   public Iterable<Map.Entry<String, String>> baggageItems() {
     return Collections.emptyList();
+  }
+
+  @Override
+  public DDId getTraceId() {
+    return DDId.ZERO;
+  }
+
+  @Override
+  public DDId getSpanId() {
+    return DDId.ZERO;
   }
 
   @Override

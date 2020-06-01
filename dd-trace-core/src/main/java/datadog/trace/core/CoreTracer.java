@@ -7,6 +7,7 @@ import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.sampling.PrioritySampler;
@@ -24,8 +25,6 @@ import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
-import datadog.trace.core.scopemanager.DDScopeManager;
-import java.io.Closeable;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -49,8 +48,7 @@ import lombok.extern.slf4j.Slf4j;
  * reporting, and propagating traces
  */
 @Slf4j
-public class CoreTracer
-    implements Closeable, datadog.trace.api.Tracer, AgentTracer.TracerAPI, AgentPropagation {
+public class CoreTracer implements AgentTracer.TracerAPI {
   // UINT64 max value
   public static final BigInteger TRACE_ID_MAX =
       BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
@@ -63,7 +61,7 @@ public class CoreTracer
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
   final Sampler sampler;
   /** Scope manager is in charge of managing the scopes from which spans are created */
-  final DDScopeManager scopeManager;
+  final AgentScopeManager scopeManager;
 
   /** A set of tags that are added only to the application's root span */
   private final Map<String, String> localRootSpanTags;
@@ -142,7 +140,7 @@ public class CoreTracer
       final Sampler sampler,
       final HttpCodec.Injector injector,
       final HttpCodec.Extractor extractor,
-      final DDScopeManager scopeManager,
+      final AgentScopeManager scopeManager,
       final Map<String, String> localRootSpanTags,
       final Map<String, String> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
@@ -252,6 +250,7 @@ public class CoreTracer
     }
   }
 
+  @Override
   public CoreSpanBuilder buildSpan(final String operationName) {
     return new CoreSpanBuilder(operationName);
   }
@@ -312,6 +311,7 @@ public class CoreTracer
     inject(span.context(), carrier, setter);
   }
 
+  @Override
   public <C> void inject(final AgentSpan.Context context, final C carrier, final Setter<C> setter) {
     if (!(context instanceof DDSpanContext)) {
       return;
@@ -325,9 +325,8 @@ public class CoreTracer
     injector.inject(ddSpanContext, carrier, setter);
   }
 
-  // FIXME: [API] the interface has this return a AgentSpan.Context
   @Override
-  public <C> TagContext extract(final C carrier, final Getter<C> getter) {
+  public <C> AgentSpan.Context extract(final C carrier, final Getter<C> getter) {
     return extractor.extract(carrier, getter);
   }
 
@@ -450,7 +449,7 @@ public class CoreTracer
   }
 
   /** Spans are built using this builder */
-  public class CoreSpanBuilder {
+  public class CoreSpanBuilder implements AgentTracer.SpanBuilder {
     private final String operationName;
 
     // Builder attributes
@@ -467,6 +466,7 @@ public class CoreTracer
       this.operationName = operationName;
     }
 
+    @Override
     public CoreSpanBuilder ignoreActiveSpan() {
       ignoreScope = true;
       return this;
@@ -476,48 +476,58 @@ public class CoreTracer
       return DDSpan.create(timestampMicro, buildSpanContext());
     }
 
+    @Override
     public AgentSpan start() {
       final AgentSpan span = buildSpan();
       return span;
     }
 
+    @Override
     public CoreSpanBuilder withTag(final String tag, final Number number) {
       return withTag(tag, (Object) number);
     }
 
+    @Override
     public CoreSpanBuilder withTag(final String tag, final String string) {
       return withTag(tag, (Object) string);
     }
 
+    @Override
     public CoreSpanBuilder withTag(final String tag, final boolean bool) {
       return withTag(tag, (Object) bool);
     }
 
+    @Override
     public CoreSpanBuilder withStartTimestamp(final long timestampMicroseconds) {
       timestampMicro = timestampMicroseconds;
       return this;
     }
 
+    @Override
     public CoreSpanBuilder withServiceName(final String serviceName) {
       this.serviceName = serviceName;
       return this;
     }
 
+    @Override
     public CoreSpanBuilder withResourceName(final String resourceName) {
       this.resourceName = resourceName;
       return this;
     }
 
+    @Override
     public CoreSpanBuilder withErrorFlag() {
       errorFlag = true;
       return this;
     }
 
+    @Override
     public CoreSpanBuilder withSpanType(final String spanType) {
       this.spanType = spanType;
       return this;
     }
 
+    @Override
     public CoreSpanBuilder asChildOf(final AgentSpan.Context spanContext) {
       parent = spanContext;
       return this;
@@ -528,6 +538,7 @@ public class CoreTracer
       return this;
     }
 
+    @Override
     public CoreSpanBuilder withTag(final String tag, final Object value) {
       if (value == null || (value instanceof String && ((String) value).isEmpty())) {
         tags.remove(tag);

@@ -16,7 +16,7 @@ class DDTracerAPITest extends DDSpecification {
 
     when:
     def tracerOT = new DDTracer(DEFAULT_SERVICE_NAME, writer, sampler)
-    def tracer = tracerOT.coreTracer
+    def tracer = tracerOT.tracer
 
     then:
     tracer.serviceName == DEFAULT_SERVICE_NAME

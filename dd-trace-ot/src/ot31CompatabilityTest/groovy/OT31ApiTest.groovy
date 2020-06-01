@@ -88,7 +88,7 @@ class OT31ApiTest extends DDSpecification {
     then:
     extract.toTraceId() == context.toTraceId()
     extract.toSpanId() == context.toSpanId()
-    extract.extractedContext.samplingPriority == context.delegate.samplingPriority
+    extract.delegate.samplingPriority == context.delegate.samplingPriority
   }
 
   static class TextMapAdapter implements TextMap {

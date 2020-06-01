@@ -4,15 +4,14 @@ import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.core.CoreTracer;
-import datadog.trace.core.CoreTracer.CoreSpanBuilder;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
-import datadog.trace.core.propagation.TagContext;
 import io.opentracing.References;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
@@ -38,7 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   private final TypeConverter converter;
-  private final CoreTracer coreTracer;
+  private final AgentTracer.TracerAPI tracer;
 
   // FIXME [API] There's an unfortunate cycle between OTScopeManager and CoreTracer where they
   // each depend on each other so scopeManager can't be final
@@ -177,10 +176,10 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
 
   // Should only be used internally by TracerInstaller
   @Deprecated
-  public DDTracer(final CoreTracer coreTracer) {
-    this.coreTracer = coreTracer;
+  public DDTracer(final AgentTracer.TracerAPI tracer) {
+    this.tracer = tracer;
     converter = new TypeConverter(new DefaultLogHandler());
-    scopeManager = new OTScopeManager(coreTracer, converter);
+    scopeManager = new OTScopeManager(tracer, converter);
   }
 
   @Builder
@@ -259,13 +258,13 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
       builder = builder.partialFlushMinSpans(partialFlushMinSpans);
     }
 
-    coreTracer = builder.build();
+    tracer = builder.build();
 
     // FIXME [API] There's an unfortunate cycle between OTScopeManager and CoreTracer where they
     // depend on each other so CoreTracer
     // Perhaps api can change so that CoreTracer doesn't need to implement scope methods directly
     if (scopeManager == null) {
-      this.scopeManager = new OTScopeManager(coreTracer, converter);
+      this.scopeManager = new OTScopeManager(tracer, converter);
     }
   }
 
@@ -278,22 +277,22 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
 
   @Override
   public String getTraceId() {
-    return coreTracer.getTraceId();
+    return tracer.getTraceId();
   }
 
   @Override
   public String getSpanId() {
-    return coreTracer.getSpanId();
+    return tracer.getSpanId();
   }
 
   @Override
   public boolean addTraceInterceptor(final TraceInterceptor traceInterceptor) {
-    return coreTracer.addTraceInterceptor(traceInterceptor);
+    return tracer.addTraceInterceptor(traceInterceptor);
   }
 
   @Override
   public void addScopeListener(final ScopeListener listener) {
-    coreTracer.addScopeListener(listener);
+    tracer.addScopeListener(listener);
   }
 
   @Override
@@ -321,7 +320,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     if (carrier instanceof TextMapInject) {
       final AgentSpan.Context context = converter.toContext(spanContext);
 
-      coreTracer.inject(context, (TextMapInject) carrier, TextMapInjectSetter.INSTANCE);
+      tracer.inject(context, (TextMapInject) carrier, TextMapInjectSetter.INSTANCE);
     } else {
       log.debug("Unsupported format for propagation - {}", format.getClass().getName());
     }
@@ -330,8 +329,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   @Override
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMapExtract) {
-      final TagContext tagContext =
-          coreTracer.extract(
+      final AgentSpan.Context tagContext =
+          tracer.extract(
               (TextMapExtract) carrier, new TextMapExtractGetter((TextMapExtract) carrier));
 
       return converter.toSpanContext(tagContext);
@@ -343,7 +342,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
 
   @Override
   public void close() {
-    coreTracer.close();
+    tracer.close();
   }
 
   private static class TextMapInjectSetter implements AgentPropagation.Setter<TextMapInject> {
@@ -378,10 +377,10 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   }
 
   public class DDSpanBuilder implements SpanBuilder {
-    private final CoreSpanBuilder delegate;
+    private final AgentTracer.SpanBuilder delegate;
 
     public DDSpanBuilder(final String operationName) {
-      delegate = coreTracer.buildSpan(operationName);
+      delegate = tracer.buildSpan(operationName);
     }
 
     @Override

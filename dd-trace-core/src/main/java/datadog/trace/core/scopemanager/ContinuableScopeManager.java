@@ -1,6 +1,7 @@
 package datadog.trace.core.scopemanager;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -24,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class ContinuableScopeManager extends ScopeInterceptor.DelegatingInterceptor
-    implements DDScopeManager {
+    implements AgentScopeManager {
   static final ThreadLocal<ContinuableScope> tlsScope = new ThreadLocal<>();
 
   private final List<ScopeListener> scopeListeners;
