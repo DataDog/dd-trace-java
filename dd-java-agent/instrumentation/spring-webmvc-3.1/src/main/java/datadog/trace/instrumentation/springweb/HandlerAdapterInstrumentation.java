@@ -19,6 +19,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
@@ -82,6 +83,7 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Default {
       // Now create a span for handler/controller execution.
 
       final AgentSpan span = startSpan("spring.handler");
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
       DECORATE.afterStart(span);
       DECORATE.onHandle(span, handler);
 
