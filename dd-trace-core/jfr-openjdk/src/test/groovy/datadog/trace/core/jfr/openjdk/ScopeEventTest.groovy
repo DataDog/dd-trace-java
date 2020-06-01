@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
+import datadog.trace.api.DDId
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.util.ThreadCpuTimeAccess
@@ -21,7 +22,6 @@ import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
 @Requires({ jvm.java11Compatible })
 class ScopeEventTest extends DDSpecification {
 
-  private static final int IDS_RADIX = 16
   private static final Duration SLEEP_DURATION = Duration.ofSeconds(1)
 
   def writer = new ListWriter()
@@ -29,9 +29,9 @@ class ScopeEventTest extends DDSpecification {
 
   def parentContext =
     new DDSpanContext(
-      123,
-      432,
-      222,
+      DDId.from(123),
+      DDId.from(432),
+      DDId.from(222),
       "fakeService",
       "fakeOperation",
       "fakeResource",
@@ -41,7 +41,7 @@ class ScopeEventTest extends DDSpecification {
       false,
       "fakeType",
       null,
-      new PendingTrace(tracer, 123),
+      new PendingTrace(tracer, DDId.from(123)),
       tracer,
       [:])
   def builder = tracer.buildSpan("test operation")
@@ -70,9 +70,9 @@ class ScopeEventTest extends DDSpecification {
     def event = events[0]
     event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
-    event.getString("traceId") == span.context().traceId.toString(IDS_RADIX)
-    event.getString("spanId") == span.context().spanId.toString(IDS_RADIX)
-    event.getString("parentId") == span.context().parentId.toString(IDS_RADIX)
+    event.getString("traceId") == span.context().traceId.toHexString()
+    event.getString("spanId") == span.context().spanId.toHexString()
+    event.getString("parentId") == span.context().parentId.toHexString()
     event.getString("serviceName") == "test service"
     event.getString("resourceName") == "test resource"
     event.getString("operationName") == "test operation"
@@ -103,9 +103,9 @@ class ScopeEventTest extends DDSpecification {
     def event = events[0]
     event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
-    event.getString("traceId") == span.context().traceId.toString(IDS_RADIX)
-    event.getString("spanId") == span.context().spanId.toString(IDS_RADIX)
-    event.getString("parentId") == span.context().parentId.toString(IDS_RADIX)
+    event.getString("traceId") == span.context().traceId.toHexString()
+    event.getString("spanId") == span.context().spanId.toHexString()
+    event.getString("parentId") == span.context().parentId.toHexString()
     event.getString("serviceName") == "test service"
     event.getString("resourceName") == "test resource"
     event.getString("operationName") == "test operation"
@@ -136,9 +136,9 @@ class ScopeEventTest extends DDSpecification {
     def event = events[0]
     event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
-    event.getString("traceId") == span.context().traceId.toString(IDS_RADIX)
-    event.getString("spanId") == span.context().spanId.toString(IDS_RADIX)
-    event.getString("parentId") == span.context().parentId.toString(IDS_RADIX)
+    event.getString("traceId") == span.context().traceId.toHexString()
+    event.getString("spanId") == span.context().spanId.toHexString()
+    event.getString("parentId") == span.context().parentId.toHexString()
     event.getString("serviceName") == "test service"
     event.getString("resourceName") == "test resource"
     event.getString("operationName") == "test operation"
@@ -168,9 +168,9 @@ class ScopeEventTest extends DDSpecification {
     def event = events[0]
     event.eventType.name == "datadog.Scope"
     event.duration >= SLEEP_DURATION
-    event.getString("traceId") == span.context().traceId.toString(IDS_RADIX)
-    event.getString("spanId") == span.context().spanId.toString(IDS_RADIX)
-    event.getString("parentId") == span.context().parentId.toString(IDS_RADIX)
+    event.getString("traceId") == span.context().traceId.toHexString()
+    event.getString("spanId") == span.context().spanId.toHexString()
+    event.getString("parentId") == span.context().parentId.toHexString()
     event.getString("serviceName") == "test service"
     event.getString("resourceName") == "test resource"
     event.getString("operationName") == "test operation"

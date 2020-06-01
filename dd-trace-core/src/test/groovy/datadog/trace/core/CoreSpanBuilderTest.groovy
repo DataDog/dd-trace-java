@@ -1,6 +1,7 @@
 package datadog.trace.core
 
 import datadog.trace.api.Config
+import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -148,15 +149,15 @@ class CoreSpanBuilderTest extends DDSpecification {
 
   def "should link to parent span"() {
     setup:
-    final BigInteger spanId = 1G
-    final BigInteger expectedParentId = spanId
+    final DDId spanId = DDId.ONE
+    final DDId expectedParentId = spanId
 
     final DDSpanContext mockedContext = Mock()
     1 * mockedContext.getTraceId() >> spanId
     1 * mockedContext.getSpanId() >> spanId
     _ * mockedContext.getServiceName() >> "foo"
     1 * mockedContext.getBaggageItems() >> [:]
-    1 * mockedContext.getTrace() >> PendingTrace.create(tracer, 1G)
+    1 * mockedContext.getTrace() >> PendingTrace.create(tracer, DDId.ONE)
 
     final String expectedName = "fakeName"
 
@@ -179,7 +180,7 @@ class CoreSpanBuilderTest extends DDSpecification {
     final AgentScope parent = tracer.activateSpan(noopParent ?
       AgentTracer.NoopAgentSpan.INSTANCE : tracer.buildSpan("parent").start())
 
-    final BigInteger expectedParentId = noopParent ? 0G : parent.span().context().getSpanId()
+    final DDId expectedParentId = noopParent ? DDId.ZERO : parent.span().context().getSpanId()
 
     final String expectedName = "fakeName"
 
@@ -303,8 +304,8 @@ class CoreSpanBuilderTest extends DDSpecification {
 
     where:
     extractedContext                                                                                                | _
-    new ExtractedContext(1G, 2G, 0, null, [:], [:])                                                                 | _
-    new ExtractedContext(3G, 4G, 1, "some-origin", ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"]) | _
+    new ExtractedContext(DDId.ONE, DDId.from(2), 0, null, [:], [:])                                                                     | _
+    new ExtractedContext(DDId.from(3), DDId.from(4), 1, "some-origin", ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"]) | _
   }
 
   def "TagContext should populate default span details"() {
@@ -313,8 +314,8 @@ class CoreSpanBuilderTest extends DDSpecification {
     final DDSpan span = tracer.buildSpan("op name").asChildOf(tagContext).start()
 
     expect:
-    span.traceId != 0G
-    span.parentId == 0G
+    span.traceId != DDId.ZERO
+    span.parentId == DDId.ZERO
     span.samplingPriority == null
     span.context().origin == tagContext.origin
     span.context().baggageItems == [:]

@@ -1,12 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.DDId;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.context.TraceScope;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
-import java.math.BigInteger;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -147,8 +147,8 @@ public class AgentTracer {
     public static final NoopAgentSpan INSTANCE = new NoopAgentSpan();
 
     @Override
-    public BigInteger getTraceId() {
-      return BigInteger.ZERO;
+    public DDId getTraceId() {
+      return DDId.ZERO;
     }
 
     @Override

@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDId;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -39,7 +40,6 @@ import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.ThreadLocalRandom;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 
@@ -537,17 +537,6 @@ public class CoreTracer
       return this;
     }
 
-    private BigInteger generateNewId() {
-      // It is **extremely** unlikely to generate the value "0" but we still need to handle that
-      // case
-      BigInteger value;
-      do {
-        value = new StringCachingBigInteger(63, ThreadLocalRandom.current());
-      } while (value.signum() == 0);
-
-      return value;
-    }
-
     /**
      * Build the SpanContext, if the actual span has a parent, the following attributes must be
      * propagated: - ServiceName - Baggage - Trace (a list of all spans related) - SpanType
@@ -555,9 +544,9 @@ public class CoreTracer
      * @return the context
      */
     private DDSpanContext buildSpanContext() {
-      final BigInteger traceId;
-      final BigInteger spanId = generateNewId();
-      final BigInteger parentSpanId;
+      final DDId traceId;
+      final DDId spanId = DDId.generate();
+      final DDId parentSpanId;
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
       final int samplingPriority;
@@ -601,8 +590,8 @@ public class CoreTracer
           baggage = extractedContext.getBaggage();
         } else {
           // Start a new trace
-          traceId = generateNewId();
-          parentSpanId = BigInteger.ZERO;
+          traceId = DDId.generate();
+          parentSpanId = DDId.ZERO;
           samplingPriority = PrioritySampling.UNSET;
           baggage = null;
         }

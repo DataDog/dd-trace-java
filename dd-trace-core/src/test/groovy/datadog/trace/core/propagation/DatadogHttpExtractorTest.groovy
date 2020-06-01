@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.util.test.DDSpecification
 
@@ -17,8 +18,8 @@ class DatadogHttpExtractorTest extends DDSpecification {
   def "extract http headers"() {
     setup:
     def headers = [
-      (TRACE_ID_KEY.toUpperCase())            : traceId.toString(),
-      (SPAN_ID_KEY.toUpperCase())             : spanId.toString(),
+      (TRACE_ID_KEY.toUpperCase())            : traceId,
+      (SPAN_ID_KEY.toUpperCase())             : spanId,
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k1"): "v1",
       (OT_BAGGAGE_PREFIX.toUpperCase() + "k2"): "v2",
       SOME_HEADER                             : "my-interesting-info",
@@ -36,19 +37,19 @@ class DatadogHttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, MapGetter.INSTANCE)
 
     then:
-    context.traceId == new BigInteger(traceId)
-    context.spanId == new BigInteger(spanId)
+    context.traceId == DDId.from(traceId)
+    context.spanId == DDId.from(spanId)
     context.baggage == ["k1": "v1", "k2": "v2"]
     context.tags == ["some-tag": "my-interesting-info"]
     context.samplingPriority == samplingPriority
     context.origin == origin
 
     where:
-    traceId                       | spanId                        | samplingPriority              | origin
-    "1"                           | "2"                           | PrioritySampling.UNSET        | null
-    "2"                           | "3"                           | PrioritySampling.SAMPLER_KEEP | "saipan"
-    TRACE_ID_MAX.toString()       | (TRACE_ID_MAX - 1).toString() | PrioritySampling.UNSET        | "saipan"
-    (TRACE_ID_MAX - 1).toString() | TRACE_ID_MAX.toString()       | PrioritySampling.SAMPLER_KEEP | "saipan"
+    traceId               | spanId                | samplingPriority              | origin
+    "1"                   | "2"                   | PrioritySampling.UNSET        | null
+    "2"                   | "3"                   | PrioritySampling.SAMPLER_KEEP | "saipan"
+    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | PrioritySampling.UNSET        | "saipan"
+    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | PrioritySampling.SAMPLER_KEEP | "saipan"
   }
 
   def "extract header tags with no propagation"() {
@@ -144,17 +145,14 @@ class DatadogHttpExtractorTest extends DDSpecification {
     }
 
     where:
-    gtTraceId             | gSpanId               | expectedTraceId | expectedSpanId
-    "-1"                  | "1"                   | null            | 0G
-    "1"                   | "-1"                  | null            | 0G
-    "0"                   | "1"                   | null            | 0G
-    "1"                   | "0"                   | 1G              | 0G
-    "$TRACE_ID_MAX"       | "1"                   | TRACE_ID_MAX    | 1G
-    "${TRACE_ID_MAX + 1}" | "1"                   | null            | 1G
-    "1"                   | "$TRACE_ID_MAX"       | 1G              | TRACE_ID_MAX
-    "1"                   | "${TRACE_ID_MAX + 1}" | null            | 0G
-
-    traceId = gtTraceId.toString()
-    spanId = gSpanId.toString()
+    traceId               | spanId                | expectedTraceId | expectedSpanId
+    "-1"                  | "1"                   | null            | null
+    "1"                   | "-1"                  | null            | null
+    "0"                   | "1"                   | null            | null
+    "1"                   | "0"                   | DDId.ONE        | DDId.ZERO
+    "$TRACE_ID_MAX"       | "1"                   | DDId.MAX        | DDId.ONE
+    "${TRACE_ID_MAX + 1}" | "1"                   | null            | null
+    "1"                   | "$TRACE_ID_MAX"       | DDId.ONE        | DDId.MAX
+    "1"                   | "${TRACE_ID_MAX + 1}" | null            | null
   }
 }

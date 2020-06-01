@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -8,7 +9,6 @@ import datadog.trace.core.util.Clock;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.ref.WeakReference;
-import java.math.BigInteger;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -118,7 +118,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
    * @return true if root, false otherwise
    */
   public final boolean isRootSpan() {
-    return BigInteger.ZERO.equals(context.getParentId());
+    return DDId.ZERO.equals(context.getParentId());
   }
 
   @Override
@@ -290,15 +290,15 @@ public class DDSpan implements MutableSpan, AgentSpan {
   }
 
   @Override
-  public BigInteger getTraceId() {
+  public DDId getTraceId() {
     return context.getTraceId();
   }
 
-  public BigInteger getSpanId() {
+  public DDId getSpanId() {
     return context.getSpanId();
   }
 
-  public BigInteger getParentId() {
+  public DDId getParentId() {
     return context.getParentId();
   }
 

@@ -1,6 +1,7 @@
 package datadog.trace.core
 
 import datadog.trace.api.Config
+import datadog.trace.api.DDId
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.util.gc.GCUtils
 import datadog.trace.util.test.DDSpecification
@@ -17,7 +18,7 @@ class PendingTraceTest extends DDSpecification {
   def writer = new ListWriter()
   def tracer = CoreTracer.builder().writer(writer).build()
 
-  BigInteger traceId = BigInteger.valueOf(System.identityHashCode(this))
+  DDId traceId = DDId.from(System.identityHashCode(this))
 
   @Subject
   PendingTrace trace = PendingTrace.create(tracer, traceId)
@@ -172,7 +173,7 @@ class PendingTraceTest extends DDSpecification {
 
   def "register span to wrong trace fails"() {
     setup:
-    def otherTrace = PendingTrace.create(tracer, traceId - 10)
+    def otherTrace = PendingTrace.create(tracer, DDId.from(traceId.toLong() - 10))
     otherTrace.registerSpan(new DDSpan(0, rootSpan.context()))
 
     expect:
@@ -183,7 +184,7 @@ class PendingTraceTest extends DDSpecification {
 
   def "add span to wrong trace fails"() {
     setup:
-    def otherTrace = PendingTrace.create(tracer, traceId - 10)
+    def otherTrace = PendingTrace.create(tracer, DDId.from(traceId.toLong() - 10))
     rootSpan.finish()
     otherTrace.addSpan(rootSpan)
 
