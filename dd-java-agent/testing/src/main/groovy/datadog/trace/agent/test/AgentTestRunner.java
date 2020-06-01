@@ -281,6 +281,7 @@ public abstract class AgentTestRunner extends DDSpecification {
         for (final AgentTestRunner testRunner : activeTests) {
           if (testRunner.onInstrumentationError(typeName, classLoader, module, loaded, throwable)) {
             INSTRUMENTATION_ERROR_COUNT.incrementAndGet();
+            throwable.printStackTrace();
             break;
           }
         }
