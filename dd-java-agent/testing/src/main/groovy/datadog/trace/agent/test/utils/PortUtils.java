@@ -3,24 +3,36 @@ package datadog.trace.agent.test.utils;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.BitSet;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import lombok.SneakyThrows;
 
 public class PortUtils {
+  private static final long TIMEOUT = TimeUnit.SECONDS.toNanos(1);
+  private static final BitSet USED_PORTS = new BitSet();
 
   public static int UNUSABLE_PORT = 61;
 
   /** Open up a random, reusable port. */
+  @SneakyThrows
   public static int randomOpenPort() {
-    final ServerSocket socket;
-    try {
-      socket = new ServerSocket(0);
-      socket.setReuseAddress(true);
-      socket.close();
-      return socket.getLocalPort();
-    } catch (final IOException ioe) {
-      ioe.printStackTrace();
-      return -1;
+    final long startTime = System.nanoTime();
+    int port = 0;
+    while (port <= 0 || USED_PORTS.get(port)) {
+      if (startTime + TIMEOUT < System.nanoTime()) {
+        throw new TimeoutException("Timeout while getting randomOpenPort");
+      }
+      try {
+        final ServerSocket socket = new ServerSocket(0);
+        socket.setReuseAddress(true);
+        socket.close();
+        port = socket.getLocalPort();
+      } catch (final IOException ioe) {
+      }
     }
+    USED_PORTS.set(port);
+    return port;
   }
 
   private static boolean isPortOpen(final int port) {
