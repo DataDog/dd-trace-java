@@ -357,3 +357,7 @@ acceptedBreaks:
       old: "method void datadog.trace.core.serialization.FormatWriter<DEST>::writeBigInteger(byte[],\
         \ java.math.BigInteger, DEST) throws java.io.IOException"
       justification: "internal api"
+    - code: "java.method.visibilityReduced"
+      old: "method void datadog.opentracing.DDTracer.DDTracerBuilder::<init>()"
+      new: "method void datadog.opentracing.DDTracer.DDTracerBuilder::<init>()"
+      justification: "Builder constructor was never meant to be public"
