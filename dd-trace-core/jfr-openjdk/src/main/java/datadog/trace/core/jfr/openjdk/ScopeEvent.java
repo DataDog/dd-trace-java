@@ -23,7 +23,7 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
   private final transient DDSpanContext spanContext;
 
   @Label("Trace Id")
-  private String traceId;
+  private long traceId;
 
   @Label("Thread CPU Time")
   @Timespan
@@ -49,7 +49,7 @@ public final class ScopeEvent extends Event implements DDScopeEvent {
       if (cpuTime > 0) {
         cpuTime = ThreadCpuTimeAccess.getCurrentThreadCpuTime() - cpuTime;
       }
-      traceId = spanContext.getTraceId().toHexString();
+      traceId = spanContext.getTraceId().toLong();
       commit();
     }
   }
