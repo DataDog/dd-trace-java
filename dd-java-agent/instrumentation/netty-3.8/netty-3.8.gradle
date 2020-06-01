@@ -4,7 +4,7 @@ ext {
   maxJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {

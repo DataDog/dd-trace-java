@@ -6,8 +6,8 @@ plugins {
 
 description = 'dd-java-agent'
 
-apply from: "${rootDir}/gradle/java.gradle"
-apply from: "${rootDir}/gradle/publish.gradle"
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/publish.gradle"
 
 configurations {
   shadowInclude

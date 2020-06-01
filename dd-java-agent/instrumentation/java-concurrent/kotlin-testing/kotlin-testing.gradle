@@ -1,5 +1,5 @@
-apply from: "${rootDir}/gradle/java.gradle"
-apply from: "${rootDir}/gradle/test-with-kotlin.gradle"
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
 dependencies {
   testCompile project(':dd-trace-api')

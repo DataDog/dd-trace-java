@@ -18,7 +18,7 @@ muzzle {
   }
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'org.elasticsearch.client', name: 'transport', version: '5.0.0'

@@ -1,4 +1,4 @@
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 minimumBranchCoverage = 0.6
 excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
