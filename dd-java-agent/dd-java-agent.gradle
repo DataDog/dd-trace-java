@@ -97,7 +97,6 @@ modifyPom {
 dependencies {
   testCompile project(':dd-java-agent:agent-bootstrap')
   testCompile project(':dd-trace-api')
-  testCompile project(':dd-trace-ot')
   testCompile project(':dd-trace-core')
   testCompile project(':utils:test-utils')
 
@@ -106,7 +105,6 @@ dependencies {
 
   // Includes for the top level shadow jar
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
-  shadowInclude deps.opentracing
 
   // Includes for the shared internal shadow jar
   sharedShadowInclude deps.shared

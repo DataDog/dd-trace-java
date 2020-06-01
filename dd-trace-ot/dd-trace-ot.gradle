@@ -36,7 +36,10 @@ dependencies {
   compile project(':dd-trace-api')
   compile project(':dd-trace-core')
 
-  compile deps.opentracing
+  // OpenTracing
+  compile group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  compile group: 'io.opentracing', name: 'opentracing-noop', version: '0.32.0'
+  compile group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
   compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
   compile deps.slf4j

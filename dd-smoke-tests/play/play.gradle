@@ -50,7 +50,7 @@ dependencies {
   play "com.typesafe.play:filters-helpers_$scalaVersion:$playVersion"
 
   play project(':dd-trace-api')
-  play deps.opentracing
+  play group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
 
   testCompile project(':dd-smoke-tests')
 }
