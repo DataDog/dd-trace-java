@@ -61,13 +61,12 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     firstRequest.getRequestUrl().toString() == profilingUrl
     firstRequest.getHeader("DD-API-KEY") == apiKey()
 
-    firstRequestParameters.get("recording-name").get(0) == 'dd-profiling'
     firstRequestParameters.get("format").get(0) == "jfr"
     firstRequestParameters.get("type").get(0) == "jfr-continuous"
     firstRequestParameters.get("runtime").get(0) == "jvm"
 
-    def firstStartTime = Instant.parse(firstRequestParameters.get("recording-start").get(0))
-    def firstEndTime = Instant.parse(firstRequestParameters.get("recording-end").get(0))
+    def firstStartTime = Instant.parse(firstRequestParameters.get("profile-start").get(0))
+    def firstEndTime = Instant.parse(firstRequestParameters.get("profile-end").get(0))
     firstStartTime != null
     firstEndTime != null
     def duration = firstEndTime.toEpochMilli() - firstStartTime.toEpochMilli()
@@ -91,8 +90,7 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractSmokeTest {
     secondRequest.getRequestUrl().toString() == profilingUrl
     secondRequest.getHeader("DD-API-KEY") == apiKey()
 
-    secondRequestParameters.get("recording-name").get(0) == 'dd-profiling'
-    def secondStartTime = Instant.parse(secondRequestParameters.get("recording-start").get(0))
+    def secondStartTime = Instant.parse(secondRequestParameters.get("profile-start").get(0))
     def period = secondStartTime.toEpochMilli() - firstStartTime.toEpochMilli()
     period > TimeUnit.SECONDS.toMillis(PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS - 2)
     period < TimeUnit.SECONDS.toMillis(PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS + 2)
