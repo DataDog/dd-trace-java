@@ -10,13 +10,14 @@ import lombok.SneakyThrows;
 
 public class PortUtils {
   private static final long TIMEOUT = TimeUnit.SECONDS.toNanos(1);
+  // Access guarded by randomOpenPort method synchronization.
   private static final BitSet USED_PORTS = new BitSet();
 
   public static int UNUSABLE_PORT = 61;
 
   /** Open up a random, reusable port. */
   @SneakyThrows
-  public static int randomOpenPort() {
+  public static synchronized int randomOpenPort() {
     final long startTime = System.nanoTime();
     int port = 0;
     while (port <= 0 || USED_PORTS.get(port)) {
