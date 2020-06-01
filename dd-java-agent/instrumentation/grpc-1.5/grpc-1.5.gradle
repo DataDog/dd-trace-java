@@ -15,7 +15,7 @@ buildscript {
   }
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'idea'
 apply plugin: 'com.google.protobuf'
 

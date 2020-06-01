@@ -9,7 +9,7 @@ muzzle {
   // https://mvnrepository.com/artifact/com.sun.grizzly/grizzly-http
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 apply plugin: 'org.unbroken-dome.test-sets'
 
