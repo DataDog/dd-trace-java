@@ -1,6 +1,6 @@
 package com.datadog.profiling.jfr;
 
-import com.datadog.profiling.util.ByteArrayWriter;
+import com.datadog.profiling.util.LEB128ByteArrayWriter;
 
 /** A representation of JFR chunk - self contained set of JFR data. */
 public final class Chunk {
@@ -13,7 +13,7 @@ public final class Chunk {
   private static final long METADATA_OFFSET_OFFSET = 24;
   private static final long DURATION_NANOS_OFFSET = 40;
 
-  private final ByteArrayWriter writer = new ByteArrayWriter(65536);
+  private final LEB128ByteArrayWriter writer = new LEB128ByteArrayWriter(65536);
   private final ConstantPools constantPools;
   private final Metadata metadata;
   private final long startTicks;
@@ -40,7 +40,7 @@ public final class Chunk {
       throw new IllegalArgumentException();
     }
 
-    ByteArrayWriter eventWriter = new ByteArrayWriter(32767);
+    LEB128ByteArrayWriter eventWriter = new LEB128ByteArrayWriter(32767);
     eventWriter.writeLong(event.getType().getId());
     for (TypedFieldValue fieldValue : event.getFieldValues()) {
       writeTypedValue(eventWriter, fieldValue.getValue());
@@ -70,7 +70,7 @@ public final class Chunk {
   private void writeCheckPoint() {
     writer.writeLongRaw(CONSTANT_OFFSET_OFFSET, writer.position());
 
-    ByteArrayWriter cpWriter = new ByteArrayWriter(4096);
+    LEB128ByteArrayWriter cpWriter = new LEB128ByteArrayWriter(4096);
 
     cpWriter
         .writeLong(1L) // checkpoint event ID
@@ -110,7 +110,7 @@ public final class Chunk {
     metadata.writeMetaEvent(writer, startTicks, duration);
   }
 
-  void writeTypedValue(ByteArrayWriter writer, TypedValue value) {
+  void writeTypedValue(LEB128ByteArrayWriter writer, TypedValue value) {
     if (value == null) {
       throw new IllegalArgumentException();
     }
@@ -127,7 +127,7 @@ public final class Chunk {
     }
   }
 
-  private void writeFields(ByteArrayWriter writer, TypedValue value) {
+  private void writeFields(LEB128ByteArrayWriter writer, TypedValue value) {
     for (TypedFieldValue fieldValue : value.getFieldValues()) {
       if (fieldValue.getField().isArray()) {
         writer.writeInt(fieldValue.getValues().length); // array size
@@ -140,7 +140,7 @@ public final class Chunk {
     }
   }
 
-  private void writeBuiltinType(ByteArrayWriter writer, TypedValue typedValue) {
+  private void writeBuiltinType(LEB128ByteArrayWriter writer, TypedValue typedValue) {
     Type type = typedValue.getType();
     Object value = typedValue.getValue();
     Types.Builtin builtin = Types.Builtin.ofType(type);
@@ -164,7 +164,7 @@ public final class Chunk {
             if (idx > Long.MIN_VALUE) {
               writer.writeByte((byte) 2).writeLong(idx);
             } else {
-              writer.writeUTF((String) value);
+              writer.writeCompactUTF((String) value);
             }
           }
           break;

@@ -1,11 +1,15 @@
 package com.datadog.profiling.mlt;
 
+import com.datadog.profiling.mlt.io.ConstantPool;
+import com.datadog.profiling.mlt.io.FrameElement;
+import com.datadog.profiling.mlt.io.FrameStack;
+import com.datadog.profiling.mlt.io.IMLTChunk;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
 public final class ScopeManager {
   private final ConstantPool<FrameElement> framePool;
-  private final ConstantPool<StackElement> stackPool;
+  private final ConstantPool<FrameStack> stackPool;
   private final ConstantPool<String> stringPool;
   private volatile ScopeStackCollector current;
 
@@ -19,7 +23,7 @@ public final class ScopeManager {
       String threadName,
       ConstantPool<String> stringPool,
       ConstantPool<FrameElement> framePool,
-      ConstantPool<StackElement> stackPool) {
+      ConstantPool<FrameStack> stackPool) {
     this.stringPool = stringPool;
     this.framePool = framePool;
     this.stackPool = stackPool;
@@ -42,16 +46,19 @@ public final class ScopeManager {
     return current;
   }
 
-  byte[] endScope(ScopeStackCollector target) {
+  IMLTChunk endScope(ScopeStackCollector target) {
     ScopeStackCollector scopeStackCollector = scopeCollectorQueue.removeLast();
     while (scopeStackCollector != null && !target.equals(scopeStackCollector)) {
       scopeCollectorQueue.removeLast();
     }
-    current = scopeCollectorQueue.isEmpty() ? null : scopeCollectorQueue.getLast(); // previous scope published (volatile)
+    current =
+        scopeCollectorQueue.isEmpty()
+            ? null
+            : scopeCollectorQueue.getLast(); // previous scope published (volatile)
     if (scopeStackCollector == null) {
       // TODO warning
     }
-    return target.serialize();
+    return target;
   }
 
   long getThreadId() {

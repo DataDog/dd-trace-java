@@ -1,5 +1,6 @@
 package com.datadog.profiling.jfr;
 
+import com.datadog.profiling.util.LEB128ByteArrayWriter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -8,8 +9,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
-
-import com.datadog.profiling.util.ByteArrayWriter;
 import lombok.NonNull;
 
 /** JFR type repository class. */
@@ -221,8 +220,8 @@ final class Metadata {
     return stringTable.get(value);
   }
 
-  void writeMetaEvent(ByteArrayWriter writer, long startTs, long duration) {
-    ByteArrayWriter metaWriter = new ByteArrayWriter(4096);
+  void writeMetaEvent(LEB128ByteArrayWriter writer, long startTs, long duration) {
+    LEB128ByteArrayWriter metaWriter = new LEB128ByteArrayWriter(4096);
     writeHeader(startTs, duration, metaWriter);
 
     writeStringConstants(metaWriter);
@@ -232,21 +231,21 @@ final class Metadata {
     writeMetaEventSize(metaWriter, writer);
   }
 
-  private void writeMetaEventSize(ByteArrayWriter metaWriter, ByteArrayWriter writer) {
+  private void writeMetaEventSize(LEB128ByteArrayWriter metaWriter, LEB128ByteArrayWriter writer) {
     int len = metaWriter.length();
     writer
         .writeInt(len) // write the meta event size
         .writeBytes(metaWriter.toByteArray());
   }
 
-  private void writeRegion(ByteArrayWriter metaWriter) {
+  private void writeRegion(LEB128ByteArrayWriter metaWriter) {
     metaWriter
         .writeInt(stringIndex(REGION_KEY))
         .writeInt(0) // 0 attributes
         .writeInt(0); // 0 elements
   }
 
-  private void writeTypes(ByteArrayWriter metaWriter) {
+  private void writeTypes(LEB128ByteArrayWriter metaWriter) {
     metaWriter
         .writeInt(stringIndex(ROOT_KEY))
         .writeInt(0) // 0 attributes
@@ -259,13 +258,13 @@ final class Metadata {
     }
   }
 
-  private void writeStringConstants(ByteArrayWriter metaWriter) {
+  private void writeStringConstants(LEB128ByteArrayWriter metaWriter) {
     for (String text : reverseStringTable.values()) {
-      metaWriter.writeUTF(text);
+      metaWriter.writeCompactUTF(text);
     }
   }
 
-  private void writeHeader(long startTs, long duration, ByteArrayWriter metaWriter) {
+  private void writeHeader(long startTs, long duration, LEB128ByteArrayWriter metaWriter) {
     metaWriter
         .writeLong(0L) // metadata event id
         .writeLong(startTs)
@@ -274,7 +273,7 @@ final class Metadata {
         .writeInt(stringTable.size());
   }
 
-  private void writeType(ByteArrayWriter writer, Type type) {
+  private void writeType(LEB128ByteArrayWriter writer, Type type) {
     int attributes = 2;
     if (type.getSupertype() != null) {
       attributes++;
@@ -300,19 +299,19 @@ final class Metadata {
     writeTypeAnnotations(writer, type);
   }
 
-  private void writeTypeFields(ByteArrayWriter writer, Type type) {
+  private void writeTypeFields(LEB128ByteArrayWriter writer, Type type) {
     for (TypedField field : type.getFields()) {
       writeField(writer, field);
     }
   }
 
-  private void writeTypeAnnotations(ByteArrayWriter writer, Type type) {
+  private void writeTypeAnnotations(LEB128ByteArrayWriter writer, Type type) {
     for (Annotation annotation : type.getAnnotations()) {
       writeAnnotation(writer, annotation);
     }
   }
 
-  private void writeField(ByteArrayWriter writer, TypedField field) {
+  private void writeField(LEB128ByteArrayWriter writer, TypedField field) {
     writer.writeInt(stringIndex(FIELD_KEY));
     int attrCount = 2;
 
@@ -340,14 +339,14 @@ final class Metadata {
     writeFieldAnnotations(writer, field);
   }
 
-  private void writeFieldAnnotations(ByteArrayWriter writer, TypedField field) {
+  private void writeFieldAnnotations(LEB128ByteArrayWriter writer, TypedField field) {
     writer.writeInt(field.getAnnotations().size()); // annotations are the only sub-elements
     for (Annotation annotation : field.getAnnotations()) {
       writeAnnotation(writer, annotation);
     }
   }
 
-  private void writeAnnotation(ByteArrayWriter writer, Annotation annotation) {
+  private void writeAnnotation(LEB128ByteArrayWriter writer, Annotation annotation) {
     writer.writeInt(stringIndex(ANNOTATION_KEY));
 
     writer

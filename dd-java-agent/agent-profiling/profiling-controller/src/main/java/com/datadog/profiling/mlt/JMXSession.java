@@ -10,7 +10,6 @@ public class JMXSession implements Session {
   private final long threadId;
   private final Consumer<JMXSession> cleanup;
   private final ScopeStackCollector scopeStackCollector;
-  byte[] data;
 
   public JMXSession(
       String id,
@@ -24,12 +23,9 @@ public class JMXSession implements Session {
   }
 
   @Override
-  public void close() {
-    data = scopeStackCollector.end();
+  public byte[] close() {
+    byte[] data = scopeStackCollector.end().serialize();
     cleanup.accept(this);
-  }
-
-  public byte[] getData() {
     return data;
   }
 

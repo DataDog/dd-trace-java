@@ -11,12 +11,11 @@ excludedClassesCoverage += [
   'com.datadog.profiling.controller.ProfilingSystem.StartRecording',
   'com.datadog.profiling.controller.ProfilingSystem.StopRecording',
   'com.datadog.profiling.jfr.ResolvableJFRType',
-  // TODO: JMXSampler is not complete yet - skip the coverage test until it is final
+  'com.datadog.profiling.mlt.SamplerContext.SamplerContextBuilder', // lombok generated builder
+  // TODO: following classes are not complete yet - skip the coverage test until it is final
   'com.datadog.profiling.mlt.JMXSampler',
-
-  // FIXME: added to fix the build:
-  'com.datadog.profiling.util.NonZeroHashCode',
-  'com.datadog.profiling.mlt.SamplerContext.SamplerContextBuilder',
+  'com.datadog.profiling.mlt.ScopeManager',
+  'com.datadog.profiling.mlt.ScopeStackCollector'
 ]
 
 dependencies {
@@ -32,6 +31,7 @@ dependencies {
   testCompile deps.mockito
   testCompile deps.jmc
   testCompile group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
+  testCompile group: 'nl.jqno.equalsverifier', name: 'equalsverifier', version: '3.3'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8

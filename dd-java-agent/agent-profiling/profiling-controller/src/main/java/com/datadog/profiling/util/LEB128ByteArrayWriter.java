@@ -4,31 +4,31 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 /** Byte-array writer with default support for LEB128 encoded integers */
-public final class ByteArrayWriter {
+public final class LEB128ByteArrayWriter {
   private static final int EXT_BIT = 0x80;
   private static final long COMPRESSED_INT_MASK = -EXT_BIT;
   private byte[] array;
   private int pointer = 0;
 
-  public ByteArrayWriter(int size) {
+  public LEB128ByteArrayWriter(int size) {
     array = new byte[size];
   }
 
   public void reset() {
-    Arrays.fill(array, (byte)0);
+    Arrays.fill(array, (byte) 0);
     pointer = 0;
   }
 
-  public ByteArrayWriter writeChar(char data) {
+  public LEB128ByteArrayWriter writeChar(char data) {
     writeChar(pointer, data);
     return this;
   }
 
   public long writeChar(long offset, char data) {
-    return writeByte(offset, (byte) (data & 0xff));
+    return writeLong(offset, data & 0x000000000000ffffL);
   }
 
-  public ByteArrayWriter writeShort(short data) {
+  public LEB128ByteArrayWriter writeShort(short data) {
     writeShort(pointer, data);
     return this;
   }
@@ -37,7 +37,7 @@ public final class ByteArrayWriter {
     return writeLong(offset, data & 0x000000000000ffffL);
   }
 
-  public ByteArrayWriter writeInt(int data) {
+  public LEB128ByteArrayWriter writeInt(int data) {
     writeInt(pointer, data);
     return this;
   }
@@ -81,7 +81,7 @@ public final class ByteArrayWriter {
     return 9;
   }
 
-  public ByteArrayWriter writeLong(long data) {
+  public LEB128ByteArrayWriter writeLong(long data) {
     writeLong(pointer, data);
     return this;
   }
@@ -129,7 +129,7 @@ public final class ByteArrayWriter {
     return writeByte(offset, (byte) (data >> 7));
   }
 
-  public ByteArrayWriter writeFloat(float data) {
+  public LEB128ByteArrayWriter writeFloat(float data) {
     writeFloat(pointer, data);
     return this;
   }
@@ -138,7 +138,7 @@ public final class ByteArrayWriter {
     return writeIntRaw(offset, Float.floatToIntBits(data));
   }
 
-  public ByteArrayWriter writeDouble(double data) {
+  public LEB128ByteArrayWriter writeDouble(double data) {
     writeDouble(pointer, data);
     return this;
   }
@@ -147,7 +147,7 @@ public final class ByteArrayWriter {
     return writeLongRaw(offset, Double.doubleToLongBits(data));
   }
 
-  public ByteArrayWriter writeBoolean(boolean data) {
+  public LEB128ByteArrayWriter writeBoolean(boolean data) {
     writeBoolean(pointer, data);
     return this;
   }
@@ -156,7 +156,7 @@ public final class ByteArrayWriter {
     return writeByte(offset, data ? (byte) 1 : (byte) 0);
   }
 
-  public ByteArrayWriter writeByte(byte data) {
+  public LEB128ByteArrayWriter writeByte(byte data) {
     writeByte(pointer, data);
     return this;
   }
@@ -171,7 +171,7 @@ public final class ByteArrayWriter {
     return newOffset;
   }
 
-  public ByteArrayWriter writeBytes(byte... data) {
+  public LEB128ByteArrayWriter writeBytes(byte... data) {
     writeBytes(pointer, data);
     return this;
   }
@@ -186,12 +186,23 @@ public final class ByteArrayWriter {
     return newOffset;
   }
 
-  public ByteArrayWriter writeUTF(String data) {
+  public LEB128ByteArrayWriter writeUTF(String data) {
     writeUTF(pointer, data);
     return this;
   }
 
   public long writeUTF(long offset, String data) {
+    byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
+    long pos = writeInt(offset, bytes.length);
+    return writeBytes(pos, bytes);
+  }
+
+  public LEB128ByteArrayWriter writeCompactUTF(String data) {
+    writeCompactUTF(pointer, data);
+    return this;
+  }
+
+  public long writeCompactUTF(long offset, String data) {
     if (data == null) {
       return writeByte(offset, (byte) 0); // special NULL encoding
     }
@@ -205,7 +216,7 @@ public final class ByteArrayWriter {
     return pos;
   }
 
-  public ByteArrayWriter writeShortRaw(short data) {
+  public LEB128ByteArrayWriter writeShortRaw(short data) {
     writeShortRaw(pointer, data);
     return this;
   }
@@ -214,7 +225,7 @@ public final class ByteArrayWriter {
     return writeBytes(offset, (byte) ((data >> 8) & 0xff), (byte) (data & 0xff));
   }
 
-  public ByteArrayWriter writeIntRaw(int data) {
+  public LEB128ByteArrayWriter writeIntRaw(int data) {
     writeIntRaw(pointer, data);
     return this;
   }
@@ -228,7 +239,7 @@ public final class ByteArrayWriter {
         (byte) (data & 0xff));
   }
 
-  public ByteArrayWriter writeLongRaw(long data) {
+  public LEB128ByteArrayWriter writeLongRaw(long data) {
     writeLongRaw(pointer, data);
     return this;
   }

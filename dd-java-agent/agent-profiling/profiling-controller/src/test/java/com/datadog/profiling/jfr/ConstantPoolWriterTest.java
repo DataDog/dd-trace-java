@@ -2,14 +2,14 @@ package com.datadog.profiling.jfr;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.datadog.profiling.util.ByteArrayWriter;
+import com.datadog.profiling.util.LEB128ByteArrayWriter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class ConstantPoolWriterTest {
   private ConstantPools constantPools;
   private Types types;
-  private ByteArrayWriter writer;
+  private LEB128ByteArrayWriter writer;
   private Type customType;
   private ConstantPool instance;
 
@@ -19,7 +19,7 @@ class ConstantPoolWriterTest {
     Metadata metadata = new Metadata(constantPools);
     types = new Types(metadata);
 
-    writer = new ByteArrayWriter(4096);
+    writer = new LEB128ByteArrayWriter(4096);
 
     customType =
         types.getOrAdd(

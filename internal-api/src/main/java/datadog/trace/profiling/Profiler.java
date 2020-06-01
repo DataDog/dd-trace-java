@@ -67,10 +67,7 @@ public class Profiler {
 
   private static class NoSession implements Session {
     @Override
-    public void close() {}
-
-    @Override
-    public byte[] getData() {
+    public byte[] close() {
       return null;
     }
   }

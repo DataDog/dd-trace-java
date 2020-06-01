@@ -12,15 +12,16 @@ public class JMXSessionFactory implements SessionFactory {
   private final ThreadScopeMapper threadScopeMapper = new ThreadScopeMapper();
   private final JMXSampler sampler;
 
-  public JMXSessionFactory(StackTraceSink sink) {
-    this.sampler = new JMXSampler(sink, threadScopeMapper);
+  public JMXSessionFactory() {
+    this.sampler = new JMXSampler(threadScopeMapper);
   }
 
   @Override
   public Session createSession(String id, Thread thread) {
-    long threadId = thread.getId();
-    ScopeManager scopeManager = threadScopeMapper.forThread(threadId);
+    ScopeManager scopeManager = threadScopeMapper.forThread(thread);
     ScopeStackCollector scopeStackCollector = scopeManager.startScope(id);
+
+    long threadId = thread.getId();
     JMXSession session = createNewSession(id, threadId, scopeStackCollector);
     jmxSessions.put(threadId, session);
     return session;

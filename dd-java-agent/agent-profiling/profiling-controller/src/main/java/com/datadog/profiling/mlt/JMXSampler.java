@@ -18,9 +18,9 @@ class JMXSampler {
   private final ThreadStackProvider provider;
   private final ScheduledExecutorService executor =
       Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory("dd-profiling-sampler"));
-  private AtomicReference<long[]> threadIds = new AtomicReference<>();
+  private final AtomicReference<long[]> threadIds = new AtomicReference<>();
 
-  public JMXSampler(StackTraceSink sink, ThreadScopeMapper threadScopeMapper) {
+  public JMXSampler(ThreadScopeMapper threadScopeMapper) {
     this.threadScopeMapper = threadScopeMapper;
     provider = ThreadStackAccess.getCurrentThreadStackProvider();
     if (provider instanceof NoneThreadStackProvider) {
@@ -67,7 +67,9 @@ class JMXSampler {
       }
       int idx = 0;
       int size = prev.length;
-      while (idx < size && prev[idx] != threadId) idx++;
+      while (idx < size && prev[idx] != threadId) {
+        idx++;
+      }
       if (idx >= size) {
         // not found
         return;

@@ -1,15 +1,15 @@
-package com.datadog.profiling.mlt;
+package com.datadog.profiling.util;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-public final class ByteArrayReader {
+public final class LEB128ByteArrayReader {
   private static final int EXT_BIT = 0x80;
   private static final long COMPRESSED_INT_MASK = 0x7f;
   private final byte[] array;
   private int pointer = 0;
 
-  public ByteArrayReader(byte[] data) {
+  public LEB128ByteArrayReader(byte[] data) {
     array = Arrays.copyOf(data, data.length);
   }
 
@@ -30,16 +30,16 @@ public final class ByteArrayReader {
     return current;
   }
 
-  public char readChar(char data) {
-    return (char)(readByte() & 0xff);
+  public char readChar() {
+    return (char) (readLong() & 0xffff);
   }
 
   public short readShort() {
-    return (short)(readLong() & 0xffff);
+    return (short) (readLong() & 0xffff);
   }
 
   public int readInt() {
-    return (int)(readLong() & 0xffffffff);
+    return (int) (readLong() & 0xffffffff);
   }
 
   public long readLong() {
@@ -93,7 +93,7 @@ public final class ByteArrayReader {
     for (int i = 0; i < 2; i++) {
       data = (data << 8 | (readByte() & 0xff));
     }
-    return (short)data;
+    return (short) data;
   }
 
   public int readIntRaw() {
@@ -117,11 +117,8 @@ public final class ByteArrayReader {
     return pointer;
   }
 
-  /**
-   * @return number of bytes written adjusted by the number of bytes necessary to encode the length
-   *     itself
-   */
-  public int length() {
+  /** @return number of bytes in the input set */
+  public int size() {
     return array.length;
   }
 }

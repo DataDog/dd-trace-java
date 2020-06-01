@@ -1,7 +1,6 @@
 package com.datadog.profiling.jfr;
 
-import com.datadog.profiling.util.ByteArrayWriter;
-
+import com.datadog.profiling.util.LEB128ByteArrayWriter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -50,7 +49,7 @@ final class ConstantPool {
     return reverseMap.get(index);
   }
 
-  void writeTo(ByteArrayWriter writer) {
+  void writeTo(LEB128ByteArrayWriter writer) {
     writer.writeLong(type.getId()); // CP type ID
     writer.writeInt(constantMap.size()); // number of constants
     reverseMap.forEach(
@@ -60,7 +59,7 @@ final class ConstantPool {
         });
   }
 
-  void writeValueType(ByteArrayWriter writer, TypedValue typedValue, boolean useCp) {
+  void writeValueType(LEB128ByteArrayWriter writer, TypedValue typedValue, boolean useCp) {
     if (typedValue == null) {
       throw new NullPointerException();
     }
@@ -89,7 +88,7 @@ final class ConstantPool {
     }
   }
 
-  void writeBuiltinType(ByteArrayWriter writer, TypedValue typedValue, boolean useCp) {
+  void writeBuiltinType(LEB128ByteArrayWriter writer, TypedValue typedValue, boolean useCp) {
     if (typedValue == null) {
       throw new NullPointerException();
     }
@@ -123,7 +122,7 @@ final class ConstantPool {
                   .writeLong(typedValue.getCPIndex());
             }
           } else {
-            writer.writeUTF((String) value);
+            writer.writeCompactUTF((String) value);
           }
           break;
         }

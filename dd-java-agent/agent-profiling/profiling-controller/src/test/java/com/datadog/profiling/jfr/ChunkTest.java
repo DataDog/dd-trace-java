@@ -2,11 +2,10 @@ package com.datadog.profiling.jfr;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.datadog.profiling.util.LEB128ByteArrayWriter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import com.datadog.profiling.util.ByteArrayWriter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -19,11 +18,11 @@ class ChunkTest {
   private Types types;
   private ConstantPools constantPools;
   private Metadata metadata;
-  private ByteArrayWriter writer;
+  private LEB128ByteArrayWriter writer;
 
   @BeforeEach
   void setup() {
-    writer = new ByteArrayWriter(4096);
+    writer = new LEB128ByteArrayWriter(4096);
     constantPools = new ConstantPools();
     metadata = new Metadata(constantPools);
     types = new Types(metadata);
