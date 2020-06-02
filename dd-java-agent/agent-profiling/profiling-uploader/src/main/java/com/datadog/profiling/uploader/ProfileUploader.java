@@ -60,8 +60,8 @@ public final class ProfileUploader {
   static final String TYPE_PARAM = "type";
   static final String RUNTIME_PARAM = "runtime";
 
-  static final String PROFILE_START_PARAM = "profile-start";
-  static final String PROFILE_END_PARAM = "profile-end";
+  static final String PROFILE_START_PARAM = "recording-start";
+  static final String PROFILE_END_PARAM = "recording-end";
 
   // TODO: We should rename parameter to just `data`
   static final String DATA_PARAM = "chunk-data";

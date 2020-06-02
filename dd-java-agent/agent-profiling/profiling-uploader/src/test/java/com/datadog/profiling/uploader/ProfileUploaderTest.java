@@ -99,8 +99,8 @@ public class ProfileUploaderTest {
           "Stubbed-Test-Version");
 
   private static final int SEQUENCE_NUMBER = 123;
-  private static final int RECORDING_START = 1000;
-  private static final int RECORDING_END = 1100;
+  private static final int PROFILE_START = 1000;
+  private static final int PROFILE_END = 1100;
 
   // TODO: Add a test to verify overall request timeout rather than IO timeout
   private final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
@@ -167,10 +167,10 @@ public class ProfileUploaderTest {
         parameters.get(ProfileUploader.RUNTIME_PARAM));
 
     assertEquals(
-        ImmutableList.of(Instant.ofEpochSecond(RECORDING_START).toString()),
+        ImmutableList.of(Instant.ofEpochSecond(PROFILE_START).toString()),
         parameters.get(ProfileUploader.PROFILE_START_PARAM));
     assertEquals(
-        ImmutableList.of(Instant.ofEpochSecond(RECORDING_END).toString()),
+        ImmutableList.of(Instant.ofEpochSecond(PROFILE_END).toString()),
         parameters.get(ProfileUploader.PROFILE_END_PARAM));
 
     assertEquals(
@@ -423,8 +423,8 @@ public class ProfileUploaderTest {
                     .getContextClassLoader()
                     .getResourceAsStream(recordingResource)));
     when(recordingData.getName()).thenReturn(RECODING_NAME_PREFIX + SEQUENCE_NUMBER);
-    when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(RECORDING_START));
-    when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(RECORDING_END));
+    when(recordingData.getStart()).thenReturn(Instant.ofEpochSecond(PROFILE_START));
+    when(recordingData.getEnd()).thenReturn(Instant.ofEpochSecond(PROFILE_END));
     return recordingData;
   }
 
