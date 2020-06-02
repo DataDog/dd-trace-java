@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.phantom;
 import com.outworkers.phantom.ResultSet;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.runtime.AbstractFunction1;
@@ -22,10 +23,10 @@ public class FutureCompletionListener extends AbstractFunction1<Try<ResultSet>, 
 
   @Override
   public Object apply(final Try<ResultSet> resultSetTry) {
+    final AgentScope scope = activateSpan(agentSpan);
     try {
-      final AgentScope scope = activateSpan(agentSpan);
       final ResultSet resultSet = resultSetTry.get();   // TODO: Optimize the potential throw
-      System.out.println("Call completed successfully");
+      log.debug("Call completed successfully");
       if (resultSet != null) {
         String keyspace = resultSet.getExecutionInfo().getStatement().getKeyspace();
         if (keyspace != null) {
@@ -37,9 +38,9 @@ public class FutureCompletionListener extends AbstractFunction1<Try<ResultSet>, 
       System.out.println("Call completed with error");
       DECORATE.onError(agentSpan, t);
     } finally {
-      System.out.println("");
+      System.out.println("doing finish and close");
       agentSpan.finish();
-      activeScope().close();
+      scope.close();
     }
     return null;
   }

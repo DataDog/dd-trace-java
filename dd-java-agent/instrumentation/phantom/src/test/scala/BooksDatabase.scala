@@ -4,16 +4,21 @@ import com.outworkers.phantom.Table
 import com.outworkers.phantom.connectors.{CassandraConnection, ContactPoint}
 import com.outworkers.phantom.database.{Database, DatabaseProvider}
 import com.outworkers.phantom.dsl._
+import datadog.trace.api.Trace
 case class Book(
                id: UUID,
                title: String,
-               author: String
+               author: String,
+               status: String,
+               inventory: Int
                )
 
 abstract class Books extends Table[Books, Book] {
   object id extends UUIDColumn with PartitionKey
   object title extends StringColumn
   object author extends StringColumn
+  object status extends StringColumn
+  object inventory extends IntColumn
 }
 
 class BooksDatabase(override val connector: CassandraConnection) extends Database[BooksDatabase](connector) {

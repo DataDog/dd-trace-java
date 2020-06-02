@@ -1,3 +1,4 @@
+import akka.actor.ActorSystem
 import com.datastax.driver.core.Cluster
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -5,7 +6,11 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext$
 import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.duration.Duration
 import spock.lang.Shared
 
 
@@ -20,6 +25,10 @@ class PhantomInstrumentationTest extends AgentTestRunner {
   int port = 9142
   @Shared
   BooksOps booksOps
+  @Shared
+  TestOps testOps
+  @Shared
+  ActorSystem testSystem = ActorSystem.apply("phantom-instrumentation-test")
 
   def setupSpec() {
     /*
@@ -43,17 +52,50 @@ class PhantomInstrumentationTest extends AgentTestRunner {
     BooksDatabaseUtils$.MODULE$.create()
 
     booksOps = new BooksOps(EmbeddedBooksDatabase$.MODULE$)
+    testOps = new TestOps(booksOps)
 
     System.out.println("Started embedded cassandra")
   }
 
   def cleanupSpec() {
     EmbeddedCassandraServerHelper.cleanEmbeddedCassandra()
+    testSystem.terminate()
   }
 
   @Shared
-  def insertBook = { id, ec -> booksOps.insertBook((UUID) id, (ExecutionContextExecutor) ec)}
-  def "test future"() {
+  def insertBook = { id, ec -> testOps.insertBookAndWait((UUID) id, (ExecutionContextExecutor) ec)}
+
+  @Shared
+  ExecutionContext globalEc = ExecutionContext$.MODULE$.global()
+
+  def "test multi operation for expression"() {
+    setup:
+
+    Book testBook = Book.apply(id, "Code Complete", "McConnell", "OutOfStock", 0)
+    runUnderTrace("parent") {
+      Await.result(testOps.multiOperationExpression(testBook, generalEc, phantomEc), Duration.create(5, "seconds"))
+
+      blockUntilChildSpansFinished(1)
+    }
+
+    expect:
+    assertTraces(1) {
+      trace(0, 7) {
+        basicSpan(it, 0, "parent")
+//        phantomSpan(it, 1, cql, null, it.span(0), null)
+//        cassandraSpan(it, 2, cql, null, false, it.span(1))
+      }
+    }
+
+    where:
+    id                      | phantomEc                  | generalEc
+    UUID.randomUUID()       | globalEc                   | testSystem.dispatcher
+    UUID.randomUUID()       | testSystem.dispatcher      | testSystem.dispatcher
+    UUID.randomUUID()       | globalEc                   | globalEc
+    UUID.randomUUID()       | testSystem.dispatcher      | globalEc
+  }
+
+  def "test insertBook future"() {
     setup:
     runUnderTrace("parent") {
       cmd(id, ec)

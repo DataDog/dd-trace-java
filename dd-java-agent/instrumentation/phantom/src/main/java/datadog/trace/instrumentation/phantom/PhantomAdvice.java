@@ -5,7 +5,6 @@ import com.outworkers.phantom.ResultSet;
 import com.outworkers.phantom.ops.QueryContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import scala.concurrent.ExecutionContextExecutor;
@@ -20,17 +19,17 @@ public class PhantomAdvice {
   public static AgentScope enter(@Advice.This final QueryContext.RootQueryOps rootQueryOps,
                                  @Advice.Argument(value = 0) final Session session,
                                  @Advice.Argument(value = 1) final ExecutionContextExecutor ctx ) {
-    System.out.println("onMethodEnter: query = " + rootQueryOps.query().queryString());
-
-    return startSpanWithScope(rootQueryOps);
+    System.out.println("Calling with context " + ctx.toString());
+    final AgentScope scope = startSpanWithScope(rootQueryOps);
+    scope.setAsyncPropagation(true);
+    return scope;
   }
 
   public static AgentScope startSpanWithScope(final QueryContext.RootQueryOps queryOps) {
     final AgentSpan span = startSpan("phantom.future");
     DECORATE.afterStart(span);
-//    DECORATE.onConnection(span, ???);
-    DECORATE.onStatement(span, queryOps.query().queryString());
-    System.out.println("activating span " + span);
+    //DECORATE.onStatement(span, queryOps.query().queryString());
+    //log.debug("activating span " + span);
     return activateSpan(span);
   }
 
@@ -39,7 +38,7 @@ public class PhantomAdvice {
     @Advice.Argument(value = 1) final ExecutionContextExecutor ctx,
     @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Future<ResultSet> resultSetFuture,
     @Advice.Enter final AgentScope agentScope) {
-    System.out.println("onMethodExit " + agentScope.toString());
+    //log.debug("onMethodExit " + agentScope.toString());
     if (agentScope == null || resultSetFuture == null) {
       return;
     }
