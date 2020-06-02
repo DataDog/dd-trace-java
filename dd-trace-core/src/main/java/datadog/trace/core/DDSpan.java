@@ -100,6 +100,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
     }
   }
 
+  @Override
   public final void finish(final long stoptimeMicros) {
     finishAndAddToTrace(TimeUnit.MICROSECONDS.toNanos(stoptimeMicros - startTimeMicro));
   }
@@ -198,7 +199,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
     return this;
   }
 
-  // FIXME [API] this is not on AgentSpan or MutableSpan
+  @Override
   public DDSpan setTag(final String tag, final Object value) {
     context.setTag(tag, value);
     return this;
@@ -219,10 +220,12 @@ public class DDSpan implements MutableSpan, AgentSpan {
     return context;
   }
 
+  @Override
   public final String getBaggageItem(final String key) {
     return context.getBaggageItem(key);
   }
 
+  @Override
   public final DDSpan setBaggageItem(final String key, final String value) {
     context.setBaggageItem(key, value);
     return this;

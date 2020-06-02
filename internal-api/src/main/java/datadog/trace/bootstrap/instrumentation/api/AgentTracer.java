@@ -2,8 +2,10 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.interceptor.MutableSpan;
+import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -61,8 +63,14 @@ public class AgentTracer {
 
   private static final AtomicReference<TracerAPI> provider = new AtomicReference<>(DEFAULT);
 
+  public static boolean isRegistered() {
+    return provider.get() != DEFAULT;
+  }
+
   public static void registerIfAbsent(final TracerAPI trace) {
-    provider.compareAndSet(DEFAULT, trace);
+    if (trace != null && trace != DEFAULT) {
+      provider.compareAndSet(DEFAULT, trace);
+    }
   }
 
   public static TracerAPI get() {
@@ -72,7 +80,7 @@ public class AgentTracer {
   // Not intended to be constructed.
   private AgentTracer() {}
 
-  public interface TracerAPI {
+  public interface TracerAPI extends datadog.trace.api.Tracer, AgentPropagation {
     AgentSpan startSpan(String spanName);
 
     AgentSpan startSpan(String spanName, long startTimeMicros);
@@ -90,6 +98,36 @@ public class AgentTracer {
     AgentPropagation propagate();
 
     AgentSpan noopSpan();
+
+    SpanBuilder buildSpan(String spanName);
+
+    void close();
+  }
+
+  public interface SpanBuilder {
+    AgentSpan start();
+
+    SpanBuilder asChildOf(Context toContext);
+
+    SpanBuilder ignoreActiveSpan();
+
+    SpanBuilder withTag(String key, String value);
+
+    SpanBuilder withTag(String key, boolean value);
+
+    SpanBuilder withTag(String key, Number value);
+
+    SpanBuilder withTag(String tag, Object value);
+
+    SpanBuilder withStartTimestamp(long microseconds);
+
+    SpanBuilder withServiceName(String serviceName);
+
+    SpanBuilder withResourceName(String resourceName);
+
+    SpanBuilder withErrorFlag();
+
+    SpanBuilder withSpanType(String spanType);
   }
 
   static class NoopTracerAPI implements TracerAPI {
@@ -141,6 +179,48 @@ public class AgentTracer {
     public AgentSpan noopSpan() {
       return NoopAgentSpan.INSTANCE;
     }
+
+    @Override
+    public SpanBuilder buildSpan(final String spanName) {
+      return null;
+    }
+
+    @Override
+    public void close() {}
+
+    @Override
+    public String getTraceId() {
+      return null;
+    }
+
+    @Override
+    public String getSpanId() {
+      return null;
+    }
+
+    @Override
+    public boolean addTraceInterceptor(final TraceInterceptor traceInterceptor) {
+      return false;
+    }
+
+    @Override
+    public void addScopeListener(final ScopeListener listener) {}
+
+    @Override
+    public TraceScope.Continuation capture() {
+      return null;
+    }
+
+    @Override
+    public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {}
+
+    @Override
+    public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
+
+    @Override
+    public <C> Context extract(final C carrier, final Getter<C> getter) {
+      return null;
+    }
   }
 
   public static class NoopAgentSpan implements AgentSpan {
@@ -178,6 +258,11 @@ public class AgentTracer {
 
     @Override
     public AgentSpan setTag(final String key, final double value) {
+      return this;
+    }
+
+    @Override
+    public AgentSpan setTag(final String key, final Object value) {
       return this;
     }
 
@@ -289,7 +374,20 @@ public class AgentTracer {
     }
 
     @Override
+    public String getBaggageItem(final String key) {
+      return null;
+    }
+
+    @Override
+    public AgentSpan setBaggageItem(final String key, final String value) {
+      return this;
+    }
+
+    @Override
     public void finish() {}
+
+    @Override
+    public void finish(final long finishMicros) {}
 
     @Override
     public String getSpanName() {
@@ -342,6 +440,9 @@ public class AgentTracer {
     public <C> void inject(final AgentSpan span, final C carrier, final Setter<C> setter) {}
 
     @Override
+    public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
+
+    @Override
     public <C> Context extract(final C carrier, final Getter<C> getter) {
       return NoopContext.INSTANCE;
     }
@@ -376,8 +477,23 @@ public class AgentTracer {
     public static final NoopContext INSTANCE = new NoopContext();
 
     @Override
+    public DDId getTraceId() {
+      return DDId.ZERO;
+    }
+
+    @Override
+    public DDId getSpanId() {
+      return DDId.ZERO;
+    }
+
+    @Override
     public AgentTrace getTrace() {
       return NoopAgentTrace.INSTANCE;
+    }
+
+    @Override
+    public Iterable<Map.Entry<String, String>> baggageItems() {
+      return Collections.emptyList();
     }
   }
 

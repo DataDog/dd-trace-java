@@ -37,10 +37,12 @@ public class ExtractedContext extends TagContext {
     samplingPriorityLocked.set(true);
   }
 
+  @Override
   public DDId getTraceId() {
     return traceId;
   }
 
+  @Override
   public DDId getSpanId() {
     return spanId;
   }

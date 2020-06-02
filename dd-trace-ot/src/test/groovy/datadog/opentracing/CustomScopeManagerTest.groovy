@@ -72,7 +72,7 @@ class CustomScopeManagerTest extends DDSpecification {
 
   def "interactions from core"() {
     given:
-    CoreTracer coreTracer = tracer.coreTracer
+    CoreTracer coreTracer = tracer.tracer
 
     when:
     Span testSpan = tracer.buildSpan("someOperation")
@@ -156,7 +156,7 @@ class CustomScopeManagerTest extends DDSpecification {
 
   def "TraceScope interactions from CoreTracer side"() {
     given:
-    CoreTracer coreTracer = tracer.coreTracer
+    CoreTracer coreTracer = tracer.tracer
 
     when:
     scopeManager.returnTraceScopes = true

@@ -133,6 +133,7 @@ public class DDSpanContext implements AgentSpan.Context {
     this.tags.put(DDTags.THREAD_ID, threadId);
   }
 
+  @Override
   public DDId getTraceId() {
     return traceId;
   }
@@ -141,6 +142,7 @@ public class DDSpanContext implements AgentSpan.Context {
     return parentId;
   }
 
+  @Override
   public DDId getSpanId() {
     return spanId;
   }
@@ -287,10 +289,12 @@ public class DDSpanContext implements AgentSpan.Context {
     return baggageItems;
   }
 
+  @Override
   public Iterable<Map.Entry<String, String>> baggageItems() {
     return baggageItems.entrySet();
   }
 
+  @Override
   public PendingTrace getTrace() {
     return trace;
   }
