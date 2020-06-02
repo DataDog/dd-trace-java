@@ -8,6 +8,10 @@ import lombok.EqualsAndHashCode;
 import lombok.Generated;
 import lombok.ToString;
 
+/**
+ * A simple, DTO-like {@linkplain IMLTChunk} implementation. Used by {@linkplain MLTReader} to
+ * represent the loaded chunk.
+ */
 @Data
 public final class MLTChunk implements IMLTChunk {
   private final byte version;
@@ -18,22 +22,22 @@ public final class MLTChunk implements IMLTChunk {
   private final String threadName;
   @ToString.Exclude @EqualsAndHashCode.Exclude private final ConstantPool<String> stringPool;
   @ToString.Exclude @EqualsAndHashCode.Exclude private final ConstantPool<FrameElement> framePool;
-  @ToString.Exclude @EqualsAndHashCode.Exclude private final ConstantPool<FrameStack> stackPool;
+  @ToString.Exclude @EqualsAndHashCode.Exclude private final ConstantPool<FrameSequence> stackPool;
 
-  private final List<FrameStack> stacks;
+  private final List<FrameSequence> stacks;
 
   @ToString.Exclude @EqualsAndHashCode.Exclude private final MLTWriter writer = new MLTWriter();
 
   @Generated // disable jacoco check; the method is trivial
   @Override
-  public Stream<FrameStack> stacks() {
+  public Stream<FrameSequence> frameSequences() {
     return stacks.stream();
   }
 
   // disable jacoco check; the method is trivial
   @Override
-  public IntStream stackPtrs() {
-    return IMLTChunk.compressStackPtrs(stacks.stream().mapToInt(FrameStack::getPtr));
+  public IntStream frameSequenceCpIndexes() {
+    return IMLTChunk.compressStackPtrs(stacks.stream().mapToInt(FrameSequence::getCpIndex));
   }
 
   // disable jacoco check; the method is trivial

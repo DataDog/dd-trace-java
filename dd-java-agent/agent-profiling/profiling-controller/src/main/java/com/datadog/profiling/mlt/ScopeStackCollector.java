@@ -2,10 +2,11 @@ package com.datadog.profiling.mlt;
 
 import com.datadog.profiling.mlt.io.ConstantPool;
 import com.datadog.profiling.mlt.io.FrameElement;
-import com.datadog.profiling.mlt.io.FrameStack;
+import com.datadog.profiling.mlt.io.FrameSequence;
 import com.datadog.profiling.mlt.io.IMLTChunk;
 import com.datadog.profiling.mlt.io.MLTWriter;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.Getter;
@@ -17,11 +18,12 @@ final class ScopeStackCollector implements IMLTChunk {
   private static final byte VERSION = (byte) 0;
 
   @Getter private final ConstantPool<FrameElement> framePool;
-  @Getter private final ConstantPool<FrameStack> stackPool;
+  @Getter private final ConstantPool<FrameSequence> stackPool;
   @Getter private final ConstantPool<String> stringPool;
   private final ScopeManager threadStacktraceCollector;
 
   @Getter private final long startTime;
+  private final long startTimeNs;
 
   @Getter private final String scopeId;
 
@@ -32,23 +34,25 @@ final class ScopeStackCollector implements IMLTChunk {
   ScopeStackCollector(
       @NonNull String scopeId,
       ScopeManager threadStacktraceCollector,
-      long startTime,
+      long startTimeNs,
+      long startTimeEpoch,
       ConstantPool<String> stringPool,
       ConstantPool<FrameElement> framePool,
-      ConstantPool<FrameStack> stackPool) {
+      ConstantPool<FrameSequence> stackPool) {
     this.scopeId = scopeId;
     this.framePool = framePool;
     this.stackPool = stackPool;
     this.stringPool = stringPool;
     this.threadStacktraceCollector = threadStacktraceCollector;
-    this.startTime = startTime;
+    this.startTime = startTimeEpoch;
+    this.startTimeNs = startTimeNs;
   }
 
   public void collect(StackTraceElement[] stackTrace) {
     if (stackTrace.length == 0) {
       return;
     }
-    FrameStack subtree = null;
+    FrameSequence subtree = null;
     for (int i = stackTrace.length - 1; i >= 0; i--) {
       StackTraceElement element = stackTrace[i];
       subtree =
@@ -60,8 +64,13 @@ final class ScopeStackCollector implements IMLTChunk {
                   stringPool),
               subtree);
     }
-    int stackptr = stackPool.get(subtree);
+    int stackptr = stackPool.getOrInsert(subtree);
     addCompressedStackptr(stackptr);
+  }
+
+  @Override
+  public long getDuration() {
+    return TimeUnit.MILLISECONDS.convert(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
   }
 
   @Override
@@ -80,13 +89,13 @@ final class ScopeStackCollector implements IMLTChunk {
   }
 
   @Override
-  public Stream<FrameStack> stacks() {
+  public Stream<FrameSequence> frameSequences() {
     // stack pointer stream is internally compressed - needs to be decompressed first
-    return IMLTChunk.decompressStackPtrs(stackPtrs()).mapToObj(stackPool::get);
+    return IMLTChunk.decompressStackPtrs(frameSequenceCpIndexes()).mapToObj(stackPool::get);
   }
 
   @Override
-  public IntStream stackPtrs() {
+  public IntStream frameSequenceCpIndexes() {
     return stacks.primitiveStream();
   }
 
@@ -133,8 +142,8 @@ final class ScopeStackCollector implements IMLTChunk {
     return threadStacktraceCollector.endScope(this);
   }
 
-  private FrameStack newTree(FrameElement frame, FrameStack subtree) {
-    return new FrameStack(frame, subtree, framePool, stackPool);
+  private FrameSequence newTree(FrameElement frame, FrameSequence subtree) {
+    return new FrameSequence(frame, subtree, framePool, stackPool);
   }
 
   @Override

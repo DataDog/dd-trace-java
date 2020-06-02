@@ -35,8 +35,8 @@ class FrameElementTest {
     String owner = "owner";
     String method = "method";
     int line = 1;
-    int ownerPtr = stringPool.get(owner);
-    int methodPtr = stringPool.get(method);
+    int ownerPtr = stringPool.getOrInsert(owner);
+    int methodPtr = stringPool.getOrInsert(method);
 
     FrameElement instance = new FrameElement(ownerPtr, methodPtr, line, stringPool);
     assertEquals(owner, instance.getOwner());

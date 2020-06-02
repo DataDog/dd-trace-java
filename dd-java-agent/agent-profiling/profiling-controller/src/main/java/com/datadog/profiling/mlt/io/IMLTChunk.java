@@ -1,35 +1,61 @@
 package com.datadog.profiling.mlt.io;
 
-import static com.datadog.profiling.mlt.io.Constants.EVENT_REPEAT_FLAG;
-import static com.datadog.profiling.mlt.io.Constants.EVENT_REPEAT_MASK;
+import static com.datadog.profiling.mlt.io.MLTConstants.EVENT_REPEAT_FLAG;
+import static com.datadog.profiling.mlt.io.MLTConstants.EVENT_REPEAT_MASK;
 
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+/** MLT chunk type interface */
 public interface IMLTChunk {
+  /** @return chunk format version */
   byte getVersion();
 
+  /** @return chunk start time in epoch (milliseconds since Jan 1, 1970) */
   long getStartTime();
 
+  /** @return chunk duration in milliseconds */
+  long getDuration();
+
+  /** @return associated thread ID */
   long getThreadId();
 
+  /** @return associated thread name */
   String getThreadName();
 
-  Stream<FrameStack> stacks();
+  /** @return the contained {@linkplain FrameSequence}s as an object stream */
+  Stream<FrameSequence> frameSequences();
 
-  IntStream stackPtrs();
+  /** @return the contained {@linkplain FrameSequence}s as their CP index int stream */
+  IntStream frameSequenceCpIndexes();
 
+  /** @return the associated {@linkplain String} {@linkplain ConstantPool} */
   ConstantPool<String> getStringPool();
 
+  /** @return the associated {@linkplain FrameElement} {@linkplain ConstantPool} */
   ConstantPool<FrameElement> getFramePool();
 
-  ConstantPool<FrameStack> getStackPool();
+  /** @return the associated {@linkplain FrameSequence} {@linkplain ConstantPool} */
+  ConstantPool<FrameSequence> getStackPool();
 
+  /**
+   * Write out the contents of the chunk in the MLT binary format
+   *
+   * @return the contents of the chunk in the MLT binary format
+   */
   byte[] serialize();
 
-  static IntStream decompressStackPtrs(IntStream ptrs) {
+  /**
+   * A helper method to expand the compressed version of the {@linkplain FrameSequence} CP index
+   * stream. The compressed CP index stream will replace each N subsequent occurrences of the same
+   * CP index I with the tuple of (I, N-1)
+   *
+   * @param cpIndexes the {@linkplain FrameSequence} CP index stream
+   * @return decompressed {@linkplain FrameSequence} CP index stream
+   */
+  static IntStream decompressStackPtrs(IntStream cpIndexes) {
     int[] lastFramePtr = new int[] {-1};
-    return ptrs.flatMap(
+    return cpIndexes.flatMap(
         ptr -> {
           if ((ptr & EVENT_REPEAT_FLAG) == EVENT_REPEAT_FLAG) {
             return IntStream.range(0, (ptr & EVENT_REPEAT_MASK)).map(it -> lastFramePtr[0]);
@@ -39,9 +65,17 @@ public interface IMLTChunk {
         });
   }
 
-  static IntStream compressStackPtrs(IntStream ptrs) {
+  /**
+   * A helper method to compress the {@linkplain FrameSequence} CP index stream. The compressed CP
+   * index stream will replace each N subsequent occurrences of the same CP index I with the tuple
+   * of (I, N-1)
+   *
+   * @param cpIndexes the {@linkplain FrameSequence} CP index stream
+   * @return compressed {@linkplain FrameSequence} CP index stream
+   */
+  static IntStream compressStackPtrs(IntStream cpIndexes) {
     int[] context = new int[] {-1, 0};
-    return IntStream.concat(ptrs, IntStream.of(Integer.MIN_VALUE))
+    return IntStream.concat(cpIndexes, IntStream.of(Integer.MIN_VALUE))
         .flatMap(
             ptr -> {
               if (ptr == Integer.MIN_VALUE) {

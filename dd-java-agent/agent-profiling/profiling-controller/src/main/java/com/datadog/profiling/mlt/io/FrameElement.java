@@ -5,6 +5,7 @@ import lombok.Generated;
 import lombok.Getter;
 import lombok.NonNull;
 
+/** A single stack frame element representation */
 @EqualsAndHashCode
 public final class FrameElement {
   @EqualsAndHashCode.Exclude private final ConstantPool<String> stringPool;
@@ -27,23 +28,43 @@ public final class FrameElement {
       int line,
       @NonNull ConstantPool<String> stringPool) {
     this.stringPool = stringPool;
-    this.ownerPtr = stringPool.get(owner);
-    this.methodPtr = stringPool.get(method);
+    this.ownerPtr = stringPool.getOrInsert(owner);
+    this.methodPtr = stringPool.getOrInsert(method);
     this.line = line;
   }
 
-  String getOwner() {
+  /**
+   * Owner type
+   *
+   * @return the owner type (aka class) string
+   */
+  public String getOwner() {
     return stringPool.get(ownerPtr);
   }
 
-  String getMethod() {
+  /**
+   * Frame method with full signature
+   *
+   * @return method name string with full signature
+   */
+  public String getMethod() {
     return stringPool.get(methodPtr);
   }
 
+  /**
+   * Owner type name constant pool index
+   *
+   * @return the owner type name constant pool index
+   */
   int getOwnerPtr() {
     return ownerPtr;
   }
 
+  /**
+   * Method name string constant pool index
+   *
+   * @return the method name string constant pool index
+   */
   int getMethodPtr() {
     return methodPtr;
   }

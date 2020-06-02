@@ -2,14 +2,14 @@ package com.datadog.profiling.mlt;
 
 import com.datadog.profiling.mlt.io.ConstantPool;
 import com.datadog.profiling.mlt.io.FrameElement;
-import com.datadog.profiling.mlt.io.FrameStack;
+import com.datadog.profiling.mlt.io.FrameSequence;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 
 public final class ThreadScopeMapper {
   private final ConstantPool<FrameElement> framePool = new ConstantPool<>();
-  private final ConstantPool<FrameStack> stackPool = new ConstantPool<>();
+  private final ConstantPool<FrameSequence> stackPool = new ConstantPool<>();
   private final ConstantPool<String> stringPool =
       new ConstantPool<>(1); // CP entry 0 will be reserved for thread name
 

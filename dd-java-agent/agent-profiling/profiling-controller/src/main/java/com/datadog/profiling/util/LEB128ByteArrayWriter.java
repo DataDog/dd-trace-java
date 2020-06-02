@@ -3,7 +3,7 @@ package com.datadog.profiling.util;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-/** Byte-array writer with default support for LEB128 encoded integers */
+/** Byte-array writer with default support for LEB128 encoded integer types */
 public final class LEB128ByteArrayWriter {
   private static final int EXT_BIT = 0x80;
   private static final long COMPRESSED_INT_MASK = -EXT_BIT;

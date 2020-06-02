@@ -6,7 +6,14 @@ import java.util.stream.Stream;
 import lombok.Generated;
 import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet;
 
+/** The MLT binary format writer */
 public final class MLTWriter {
+  /**
+   * Write a single chunk to its binary format
+   *
+   * @param chunk the chunk
+   * @return chunk in its MLT binary format
+   */
   public byte[] writeChunk(IMLTChunk chunk) {
     LEB128ByteArrayWriter writer =
         new LEB128ByteArrayWriter(16384); // conservatively pre-allocate 16k byte array
@@ -14,6 +21,12 @@ public final class MLTWriter {
     return writer.toByteArray();
   }
 
+  /**
+   * Write multiple chunks into one blob
+   *
+   * @param chunks the chunk sequence
+   * @return the MLT binary format representation of the given chunks sequence
+   */
   @Generated // trivial delegating implementation; exclude from jacoco
   public byte[] writeChunks(Stream<IMLTChunk> chunks) {
     LEB128ByteArrayWriter writer = new LEB128ByteArrayWriter(65536); // 64k buffer
@@ -23,12 +36,12 @@ public final class MLTWriter {
 
   private void writeChunk(IMLTChunk chunk, LEB128ByteArrayWriter writer) {
     writer
-        .writeBytes(Constants.MAGIC) // MAGIC
+        .writeBytes(MLTConstants.MAGIC) // MAGIC
         .writeByte(chunk.getVersion()) // version
         .writeIntRaw(0) // size; offset = 5
         .writeIntRaw(0) // ptr to constant pools; offset = 9
         .writeLong(chunk.getStartTime()) // start timestamp
-        .writeLong(System.nanoTime() - chunk.getStartTime()) // duration
+        .writeLong(chunk.getDuration()) // duration
         .writeLong(chunk.getThreadId());
 
     IntHashSet stringConstants = IntHashSet.newSetWith();
@@ -43,7 +56,7 @@ public final class MLTWriter {
     LEB128ByteArrayWriter stackEventWriter = new LEB128ByteArrayWriter(8192);
     int[] eventCount = new int[1];
     chunk
-        .stackPtrs()
+        .frameSequenceCpIndexes()
         .forEach(
             val -> {
               eventCount[0]++;
@@ -62,11 +75,11 @@ public final class MLTWriter {
     writer.writeBytes(stackEventWriter.toByteArray());
 
     writer.writeIntRaw(
-        Constants.CONSTANT_POOLS_OFFSET, writer.position()); // write the constant pools offset
+        MLTConstants.CONSTANT_POOLS_OFFSET, writer.position()); // write the constant pools offset
     writeStringPool(chunk, writer, stringConstants);
     writeFramePool(chunk, writer, frameConstants);
     writeStackPool(chunk, writer, stackConstants);
-    writer.writeIntRaw(Constants.CHUNK_SIZE_OFFSET, writer.position()); // write the chunk size
+    writer.writeIntRaw(MLTConstants.CHUNK_SIZE_OFFSET, writer.position()); // write the chunk size
   }
 
   private void writeStackPool(
@@ -76,25 +89,25 @@ public final class MLTWriter {
     stackConstants.forEach(
         ptr -> {
           writer.writeInt(ptr);
-          FrameStack stack = chunk.getStackPool().get(ptr);
+          FrameSequence stack = chunk.getStackPool().get(ptr);
           int cutoff = 5;
-          int depth = stack.depth();
+          int depth = stack.length();
           if (depth > cutoff) {
             writer
                 .writeByte((byte) 1) // write type
                 .writeInt(cutoff); // number of frames
             for (int i = 0; i < cutoff - 1; i++) {
-              writer.writeInt(stack.getHeadPtr());
-              stack = chunk.getStackPool().get(stack.getSubtreePtr());
+              writer.writeInt(stack.getHeadCpIndex());
+              stack = chunk.getStackPool().get(stack.getSubsequenceCpIndex());
             }
-            writer.writeInt(stack.getHeadPtr()).writeInt(stack.getSubtreePtr());
+            writer.writeInt(stack.getHeadCpIndex()).writeInt(stack.getSubsequenceCpIndex());
           } else {
             writer
                 .writeByte((byte) 0) // write type
                 .writeInt(depth); // number of elements
             for (int i = 0; i < depth; i++) {
-              writer.writeInt(stack.getHeadPtr());
-              stack = chunk.getStackPool().get(stack.getSubtreePtr());
+              writer.writeInt(stack.getHeadCpIndex());
+              stack = chunk.getStackPool().get(stack.getSubsequenceCpIndex());
             }
           }
         });
@@ -138,13 +151,13 @@ public final class MLTWriter {
       IntHashSet frameConstants,
       IntHashSet stackConstants,
       ConstantPool<FrameElement> framePool,
-      ConstantPool<FrameStack> stackPool) {
+      ConstantPool<FrameSequence> stackPool) {
     if (ptr > -1) {
-      FrameStack stack = stackPool.get(ptr);
+      FrameSequence stack = stackPool.get(ptr);
       stackConstants.add(ptr);
-      collectFramePtrUsage(stack.getHeadPtr(), stringConstants, frameConstants, framePool);
+      collectFramePtrUsage(stack.getHeadCpIndex(), stringConstants, frameConstants, framePool);
       collectStackPtrUsage(
-          stack.getSubtreePtr(),
+          stack.getSubsequenceCpIndex(),
           stringConstants,
           frameConstants,
           stackConstants,

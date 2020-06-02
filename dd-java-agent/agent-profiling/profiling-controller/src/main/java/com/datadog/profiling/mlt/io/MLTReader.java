@@ -1,14 +1,20 @@
 package com.datadog.profiling.mlt.io;
 
-import static com.datadog.profiling.mlt.io.Constants.MAGIC;
+import static com.datadog.profiling.mlt.io.MLTConstants.MAGIC;
 
 import com.datadog.profiling.util.LEB128ByteArrayReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/** The MLT binary format reader */
 public final class MLTReader {
-
+  /**
+   * Read all subsequent MLT chunks from the given data
+   *
+   * @param data the MLT binary format data
+   * @return the list of all chunks contained in the input data in order of appearance
+   */
   public List<MLTChunk> readMLTChunks(byte[] data) {
     LEB128ByteArrayReader r = new LEB128ByteArrayReader(data);
     List<MLTChunk> chunks = new ArrayList<>();
@@ -36,11 +42,11 @@ public final class MLTReader {
         r.getAndSetPos(cpOffset + chunkBase); // save the position and jump to constant pools
     ConstantPool<String> stringPool = readStringConstantPool(r);
     ConstantPool<FrameElement> framePool = readFrameConstantPool(r, stringPool);
-    ConstantPool<FrameStack> stackPool = readStackConstantPool(r, framePool);
+    ConstantPool<FrameSequence> stackPool = readStackConstantPool(r, framePool);
 
     // save the chunk end position and restore the event sequence position
     int endpos = r.getAndSetPos(eventStart);
-    List<FrameStack> stackElements = readStackEvents(r, stackPool);
+    List<FrameSequence> stackElements = readStackEvents(r, stackPool);
 
     MLTChunk chunk =
         new MLTChunk(
@@ -58,20 +64,20 @@ public final class MLTReader {
     return chunk;
   }
 
-  private List<FrameStack> readStackEvents(
-      LEB128ByteArrayReader r, ConstantPool<FrameStack> stackPool) {
+  private List<FrameSequence> readStackEvents(
+      LEB128ByteArrayReader r, ConstantPool<FrameSequence> stackPool) {
     int eventCount = r.readInt();
     int ptr = 0;
-    FrameStack lastElement = null;
-    List<FrameStack> stackElements = new ArrayList<>(eventCount);
+    FrameSequence lastElement = null;
+    List<FrameSequence> stackElements = new ArrayList<>(eventCount);
     for (int i = 0; i < eventCount; i++) {
       int cnt = 1;
       ptr = r.readInt();
-      if ((ptr & Constants.EVENT_REPEAT_FLAG) == Constants.EVENT_REPEAT_FLAG) {
+      if ((ptr & MLTConstants.EVENT_REPEAT_FLAG) == MLTConstants.EVENT_REPEAT_FLAG) {
         if (lastElement == null) {
           throw new IllegalStateException();
         }
-        cnt = (ptr & Constants.EVENT_REPEAT_MASK);
+        cnt = (ptr & MLTConstants.EVENT_REPEAT_MASK);
       } else {
         lastElement = stackPool.get(ptr);
       }
@@ -82,10 +88,10 @@ public final class MLTReader {
     return stackElements;
   }
 
-  private ConstantPool<FrameStack> readStackConstantPool(
+  private ConstantPool<FrameSequence> readStackConstantPool(
       LEB128ByteArrayReader r, ConstantPool<FrameElement> framePool) {
     int cpSize;
-    ConstantPool<FrameStack> stackPool = new ConstantPool<>();
+    ConstantPool<FrameSequence> stackPool = new ConstantPool<>();
     cpSize = r.readInt();
     for (int i = 0; i < cpSize; i++) {
       int ptr = r.readInt();
@@ -106,7 +112,7 @@ public final class MLTReader {
         }
         subtreePtr = r.readInt();
       }
-      stackPool.insert(ptr, new FrameStack(ptr, framePtrs, subtreePtr, framePool, stackPool));
+      stackPool.insert(ptr, new FrameSequence(ptr, framePtrs, subtreePtr, framePool, stackPool));
     }
     return stackPool;
   }

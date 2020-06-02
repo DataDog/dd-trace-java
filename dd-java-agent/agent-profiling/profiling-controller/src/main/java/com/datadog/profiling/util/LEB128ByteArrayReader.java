@@ -3,6 +3,7 @@ package com.datadog.profiling.util;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+/** Byte-array writer with default support for LEB128 encoded integer types */
 public final class LEB128ByteArrayReader {
   private static final int EXT_BIT = 0x80;
   private static final long COMPRESSED_INT_MASK = 0x7f;
@@ -13,14 +14,26 @@ public final class LEB128ByteArrayReader {
     array = Arrays.copyOf(data, data.length);
   }
 
+  /** Reset the reader - set the reading position back to 0 */
   public void reset() {
     pointer = 0;
   }
 
+  /**
+   * Check whether there is more data to read
+   *
+   * @return {@literal true} if there is more data to read
+   */
   public boolean hasMore() {
     return pointer < array.length;
   }
 
+  /**
+   * Get the current position and set the new one
+   *
+   * @param pos the new position
+   * @return the previous position
+   */
   public int getAndSetPos(int pos) {
     if (pos > array.length) {
       throw new ArrayIndexOutOfBoundsException();

@@ -30,7 +30,7 @@ class ConstantPoolTest {
   @Test
   void getByValueFromEmpty() {
     String value = "test";
-    int ptr = instance.get(value);
+    int ptr = instance.getOrInsert(value);
     assertNotEquals(-1, ptr);
     assertEquals(value, instance.get(ptr));
   }
@@ -41,7 +41,7 @@ class ConstantPoolTest {
     String value = "test";
     instance.insert(0, value);
     assertEquals(value, instance.get(ptr));
-    assertEquals(ptr, instance.get(value));
+    assertEquals(ptr, instance.getOrInsert(value));
   }
 
   @Test
@@ -61,9 +61,9 @@ class ConstantPoolTest {
     assertEquals(0, instance.size());
     instance.insert(0, value1);
     assertEquals(1, instance.size());
-    instance.get(value1);
+    instance.getOrInsert(value1);
     assertEquals(1, instance.size());
-    instance.get(value2);
+    instance.getOrInsert(value2);
     assertEquals(2, instance.size());
   }
 }

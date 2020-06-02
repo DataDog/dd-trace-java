@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.datadog.profiling.mlt.io.FrameElement;
-import com.datadog.profiling.mlt.io.FrameStack;
+import com.datadog.profiling.mlt.io.FrameSequence;
 import com.datadog.profiling.mlt.io.IMLTChunk;
 import com.datadog.profiling.mlt.io.MLTChunk;
 import com.datadog.profiling.mlt.io.MLTReader;
@@ -64,8 +64,8 @@ class ScopeManagerTest {
     assertEquals(collectedChunk.getThreadId(), chunk.getThreadId());
     assertEquals(collectedChunk.getThreadName(), chunk.getThreadName());
 
-    int[] origStackPtrs = collectedChunk.stackPtrs().toArray();
-    int[] restoredFramesPtrs = chunk.stackPtrs().toArray();
+    int[] origStackPtrs = collectedChunk.frameSequenceCpIndexes().toArray();
+    int[] restoredFramesPtrs = chunk.frameSequenceCpIndexes().toArray();
     assertArrayEquals(origStackPtrs, restoredFramesPtrs);
 
     /*
@@ -73,9 +73,9 @@ class ScopeManagerTest {
      * the referenced subtree is a subject to change while serializing the collected data.
      */
     FrameElement[] origFrames =
-        collectedChunk.stacks().flatMap(FrameStack::frames).toArray(FrameElement[]::new);
+        collectedChunk.frameSequences().flatMap(FrameSequence::frames).toArray(FrameElement[]::new);
     FrameElement[] restoredFrames =
-        chunk.stacks().flatMap(FrameStack::frames).toArray(FrameElement[]::new);
+        chunk.frameSequences().flatMap(FrameSequence::frames).toArray(FrameElement[]::new);
     assertArrayEquals(origFrames, restoredFrames);
   }
 
