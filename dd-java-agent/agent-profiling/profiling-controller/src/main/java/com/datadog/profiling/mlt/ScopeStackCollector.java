@@ -9,10 +9,12 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntList;
 import lombok.Getter;
 import lombok.NonNull;
-import org.eclipse.collections.api.list.primitive.MutableIntList;
-import org.eclipse.collections.impl.factory.primitive.IntLists;
 
 final class ScopeStackCollector implements IMLTChunk {
   private static final byte VERSION = (byte) 0;
@@ -27,7 +29,7 @@ final class ScopeStackCollector implements IMLTChunk {
 
   @Getter private final String scopeId;
 
-  private final MutableIntList stacks = IntLists.mutable.empty();
+  private final IntList stacks = new IntArrayList();
 
   private final MLTWriter chunkWriter = new MLTWriter();
 
@@ -96,7 +98,9 @@ final class ScopeStackCollector implements IMLTChunk {
 
   @Override
   public IntStream frameSequenceCpIndexes() {
-    return stacks.primitiveStream();
+    int limit = stacks.size();
+    IntIterator iterator = stacks.iterator();
+    return IntStream.generate(iterator::nextInt).limit(limit);
   }
 
   @Override
@@ -106,11 +110,11 @@ final class ScopeStackCollector implements IMLTChunk {
 
   void addCompressedStackptr(int stackptr) {
     if (!stacks.isEmpty()) {
-      int topItem = stacks.removeAtIndex(stacks.size() - 1);
+      int topItem = stacks.removeInt(stacks.size() - 1);
       if (!stacks.isEmpty()) {
         if ((topItem & 0x80000000) == 0x80000000) { // topItem is the repetition counter
           int counter = (topItem & 0x7fffffff);
-          if (stacks.getLast() == stackptr && counter < Integer.MAX_VALUE - 2) {
+          if (stacks.getInt(stacks.size() - 1) == stackptr && counter < Integer.MAX_VALUE - 2) {
             /*
              * If inserting a consequent occurrence of the same stack trace and the repetition counter is not
              * overflowing just update the repetition counter.

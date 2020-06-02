@@ -1,3 +1,7 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
 apply from: "${rootDir}/gradle/java.gradle"
 
 // We have some general logging paths that are hard to test
@@ -23,8 +27,7 @@ dependencies {
   compile project(':dd-trace-api')
   compile project(':internal-api')
   compile project(':dd-trace-core')
-  compile group: 'org.eclipse.collections', name: 'eclipse-collections', version: '10.2.0'
-  compile group: 'org.eclipse.collections', name: 'eclipse-collections-api', version: '10.2.0'
+  compile 'it.unimi.dsi:fastutil:8.2.1'
 
   testCompile deps.junit5
   testCompile deps.guava
@@ -36,3 +39,13 @@ dependencies {
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
+
+shadowJar {
+  configurations = [project.configurations.compile]
+  archiveClassifier.set('')
+
+  dependencies {
+    include(dependency('it.unimi.dsi:fastutil:8.2.1'))
+  }
+  minimize()
+}

@@ -1,19 +1,18 @@
 package com.datadog.profiling.mlt.io;
 
-import org.eclipse.collections.api.map.primitive.MutableIntObjectMap;
-import org.eclipse.collections.api.map.primitive.MutableObjectIntMap;
-import org.eclipse.collections.impl.factory.primitive.IntObjectMaps;
-import org.eclipse.collections.impl.factory.primitive.ObjectIntMaps;
+import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
 
 /**
  * A generic constant pool implementation.
  *
- * @param <T> cosntant type
+ * @param <T> constant type
  */
 public final class ConstantPool<T> {
-  private final MutableObjectIntMap<T> indexMap = ObjectIntMaps.mutable.ofInitialCapacity(128);
-  private final MutableIntObjectMap<T> reverseIndexMap =
-      IntObjectMaps.mutable.ofInitialCapacity(128);
+  private final Object2IntMap<T> indexMap = new Object2IntArrayMap<>(128);
+  private final Int2ObjectMap<T> reverseIndexMap = new Int2ObjectArrayMap<>(128);
 
   private int offset;
 
@@ -50,7 +49,7 @@ public final class ConstantPool<T> {
     if (constant == null) {
       return -1;
     }
-    int idx = indexMap.getIfAbsentPut(constant, indexMap.size() + offset);
+    int idx = indexMap.computeIntIfAbsent(constant, k -> indexMap.size() + offset);
     reverseIndexMap.put(idx, constant);
     return idx;
   }

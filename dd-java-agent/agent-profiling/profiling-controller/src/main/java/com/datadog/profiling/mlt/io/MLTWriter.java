@@ -2,9 +2,12 @@ package com.datadog.profiling.mlt.io;
 
 import com.datadog.profiling.util.LEB128ByteArrayWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.function.IntConsumer;
 import java.util.stream.Stream;
+
+import it.unimi.dsi.fastutil.ints.IntArraySet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import lombok.Generated;
-import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet;
 
 /** The MLT binary format writer */
 public final class MLTWriter {
@@ -44,9 +47,9 @@ public final class MLTWriter {
         .writeLong(chunk.getDuration()) // duration
         .writeLong(chunk.getThreadId());
 
-    IntHashSet stringConstants = IntHashSet.newSetWith();
-    IntHashSet frameConstants = IntHashSet.newSetWith();
-    IntHashSet stackConstants = IntHashSet.newSetWith();
+    IntSet stringConstants = new IntArraySet();
+    IntSet frameConstants = new IntArraySet();
+    IntSet stackConstants = new IntArraySet();
 
     /*
      * Write out the stack trace sequence and collect the constant pool usage.
@@ -83,11 +86,11 @@ public final class MLTWriter {
   }
 
   private void writeStackPool(
-      IMLTChunk chunk, LEB128ByteArrayWriter writer, IntHashSet stackConstants) {
+      IMLTChunk chunk, LEB128ByteArrayWriter writer, IntSet stackConstants) {
     // write stack pool array
     writer.writeInt(stackConstants.size());
-    stackConstants.forEach(
-        ptr -> {
+    stackConstants.iterator().forEachRemaining((IntConsumer)
+      ptr -> {
           writer.writeInt(ptr);
           FrameSequence stack = chunk.getStackPool().get(ptr);
           int cutoff = 5;
@@ -114,10 +117,10 @@ public final class MLTWriter {
   }
 
   private void writeFramePool(
-      IMLTChunk chunk, LEB128ByteArrayWriter writer, IntHashSet frameConstants) {
+      IMLTChunk chunk, LEB128ByteArrayWriter writer, IntSet frameConstants) {
     // write frame pool array
     writer.writeInt(frameConstants.size());
-    frameConstants.forEach(
+    frameConstants.iterator().forEachRemaining((IntConsumer)
         ptr -> {
           FrameElement frame = chunk.getFramePool().get(ptr);
           writer.writeInt(ptr);
@@ -129,7 +132,7 @@ public final class MLTWriter {
   }
 
   private void writeStringPool(
-      IMLTChunk chunk, LEB128ByteArrayWriter writer, IntHashSet stringConstants) {
+      IMLTChunk chunk, LEB128ByteArrayWriter writer, IntSet stringConstants) {
     // write constant pool array
     writer.writeInt(stringConstants.size() + 1);
     byte[] threadNameUtf = chunk.getThreadName().getBytes(StandardCharsets.UTF_8);
@@ -137,7 +140,7 @@ public final class MLTWriter {
         .writeInt(0)
         .writeInt(threadNameUtf.length)
         .writeBytes(threadNameUtf); // 0th CP entry is the thread name
-    stringConstants.forEach(
+    stringConstants.iterator().forEachRemaining((IntConsumer)
         ptr -> {
           writer.writeInt(ptr);
           byte[] utfData = chunk.getStringPool().get(ptr).getBytes(StandardCharsets.UTF_8);
@@ -147,9 +150,9 @@ public final class MLTWriter {
 
   private void collectStackPtrUsage(
       int ptr,
-      IntHashSet stringConstants,
-      IntHashSet frameConstants,
-      IntHashSet stackConstants,
+      IntSet stringConstants,
+      IntSet frameConstants,
+      IntSet stackConstants,
       ConstantPool<FrameElement> framePool,
       ConstantPool<FrameSequence> stackPool) {
     if (ptr > -1) {
@@ -168,8 +171,8 @@ public final class MLTWriter {
 
   private void collectFramePtrUsage(
       int ptr,
-      IntHashSet stringConstants,
-      IntHashSet frameConstants,
+      IntSet stringConstants,
+      IntSet frameConstants,
       ConstantPool<FrameElement> framePool) {
     FrameElement frame = framePool.get(ptr);
     frameConstants.add(ptr);
