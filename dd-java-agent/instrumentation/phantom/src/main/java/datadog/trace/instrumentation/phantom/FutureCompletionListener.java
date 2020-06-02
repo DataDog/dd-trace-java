@@ -35,12 +35,13 @@ public class FutureCompletionListener extends AbstractFunction1<Try<ResultSet>, 
       }
       DECORATE.beforeFinish(agentSpan);
     } catch (final Throwable t) {
-      System.out.println("Call completed with error");
+      log.debug("Call completed with error");
       DECORATE.onError(agentSpan, t);
     } finally {
-      System.out.println("doing finish and close");
-      agentSpan.finish();
+      log.debug("doing finish and close");
+      scope.setAsyncPropagation(false);
       scope.close();
+      agentSpan.finish();
     }
     return null;
   }

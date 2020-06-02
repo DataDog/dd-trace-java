@@ -11,13 +11,19 @@ class TestOps(booksOps: BooksOps) {
     Await.result(booksOps.insertBook(book, ecc), 5.seconds)
   }
 
-  def multiOperationExpression(book: Book, generalExecutionContext: ExecutionContext, phantomExecutor: ExecutionContextExecutor): Future[Unit] = {
+  def multiOperationExpression(book: Book, generalExecutionContext: ExecutionContext, phantomExecutor: ExecutionContextExecutor): Future[Boolean] = {
     implicit val ec = generalExecutionContext
     val ops = for {
       rs1 <- booksOps.insertBook(book, phantomExecutor)
-      rs2 <- booksOps.setBookStatus(book.id, "Done", phantomExecutor)
-      rs3 <- booksOps.setInventory(book.id, 100, phantomExecutor)
-    } yield {}
+      rs2 <- {
+        rs1.wasApplied()
+        booksOps.setBookStatus(book.id, "In stock", phantomExecutor)
+      }
+      rs3 <- {
+        rs2.wasApplied()
+        booksOps.setInventory(book.id, 100, phantomExecutor)
+      }
+    } yield {rs3.wasApplied()}
     ops
   }
 

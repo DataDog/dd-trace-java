@@ -10,6 +10,7 @@ import datadog.trace.core.jfr.DDScopeEventFactory;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -68,6 +69,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
   private Scope handleSpan(final Continuation continuation, final AgentSpan span) {
     final ContinuableScope scope = new ContinuableScope(continuation, delegate.handleSpan(span));
+    log.debug(String.format("Changing scope from %s to %s", tlsScope.get(), scope));
     tlsScope.set(scope);
     scope.afterActivated();
     return scope;
@@ -115,7 +117,6 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       if (referenceCount.decrementAndGet() > 0) {
         return;
       }
-
       if (tlsScope.get() != this) {
         log.debug("Tried to close {} scope when {} is on top. Ignoring!", this, tlsScope.get());
         return;

@@ -28,7 +28,7 @@ public class PhantomAdvice {
   public static AgentScope startSpanWithScope(final QueryContext.RootQueryOps queryOps) {
     final AgentSpan span = startSpan("phantom.future");
     DECORATE.afterStart(span);
-    //DECORATE.onStatement(span, queryOps.query().queryString());
+    DECORATE.onStatement(span, queryOps.query().queryString());
     //log.debug("activating span " + span);
     return activateSpan(span);
   }

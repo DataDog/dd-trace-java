@@ -21,7 +21,7 @@ dependencies {
 //  annotationProcessor deps.autoservice
   //compile project(':dd-java-agent:instrumentation:hibernate')
   testCompile project(':dd-java-agent:instrumentation:java-concurrent')
-  testCompile project(':dd-java-agent:instrumentation:datastax-cassandra-3')
+//  testCompile project(':dd-java-agent:instrumentation:datastax-cassandra-3')
   testCompile project(':dd-java-agent:instrumentation:phantom')
   testCompile project(':dd-java-agent:instrumentation:akka-http-10.0')
   testCompile group: 'com.outworkers', name: 'phantom-dsl_2.11', version: '2.59.0'
