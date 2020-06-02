@@ -50,19 +50,18 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-/** The class for uploading recordings to the backend. */
+/** The class for uploading profiles to the backend. */
 @Slf4j
-public final class RecordingUploader {
+public final class ProfileUploader {
 
   private static final MediaType OCTET_STREAM = MediaType.parse("application/octet-stream");
 
-  static final String RECORDING_NAME_PARAM = "recording-name";
   static final String FORMAT_PARAM = "format";
   static final String TYPE_PARAM = "type";
   static final String RUNTIME_PARAM = "runtime";
 
-  static final String RECORDING_START_PARAM = "recording-start";
-  static final String RECORDING_END_PARAM = "recording-end";
+  static final String PROFILE_START_PARAM = "recording-start";
+  static final String PROFILE_END_PARAM = "recording-end";
 
   // TODO: We should rename parameter to just `data`
   static final String DATA_PARAM = "chunk-data";
@@ -77,21 +76,21 @@ public final class RecordingUploader {
   static final int MAX_RUNNING_REQUESTS = 10;
   static final int MAX_ENQUEUED_REQUESTS = 20;
 
-  static final String RECORDING_FORMAT = "jfr";
-  static final String RECORDING_TYPE_PREFIX = "jfr-";
-  static final String RECORDING_RUNTIME = "jvm";
+  static final String PROFILE_FORMAT = "jfr";
+  static final String PROFILE_TYPE_PREFIX = "jfr-";
+  static final String PROFILE_RUNTIME = "jvm";
 
   static final int TERMINATION_TIMEOUT = 5;
 
   private static final Headers DATA_HEADERS =
       Headers.of(
-          "Content-Disposition", "form-data; name=\"" + DATA_PARAM + "\"; filename=\"recording\"");
+          "Content-Disposition", "form-data; name=\"" + DATA_PARAM + "\"; filename=\"profile\"");
 
   private static final Callback RESPONSE_CALLBACK =
       new Callback() {
         @Override
         public void onFailure(final Call call, final IOException e) {
-          log.error("Failed to upload recording", e);
+          log.warn("Failed to upload profile", e);
         }
 
         @Override
@@ -99,8 +98,8 @@ public final class RecordingUploader {
           if (response.isSuccessful()) {
             log.debug("Upload done");
           } else {
-            log.error(
-                "Failed to upload recording: unexpected response code {} {}",
+            log.warn(
+                "Failed to upload profile: unexpected response code {} {}",
                 response.message(),
                 response.code());
           }
@@ -120,7 +119,7 @@ public final class RecordingUploader {
   private final Compression compression;
   private final Deque<Integer> requestSizeHistory;
 
-  public RecordingUploader(final Config config) {
+  public ProfileUploader(final Config config) {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
 
@@ -205,15 +204,15 @@ public final class RecordingUploader {
       if (canEnqueueMoreRequests()) {
         makeUploadRequest(type, data);
       } else {
-        log.error("Cannot upload data: too many enqueued requests!");
+        log.warn("Cannot upload profile data: too many enqueued requests!");
       }
     } catch (final IllegalStateException | IOException e) {
-      log.error("Problem uploading recording!", e);
+      log.warn("Problem uploading profile!", e);
     } finally {
       try {
         data.getStream().close();
       } catch (final IllegalStateException | IOException e) {
-        log.error("Problem closing recording stream", e);
+        log.warn("Problem closing profile stream", e);
       }
       data.release();
     }
@@ -226,7 +225,7 @@ public final class RecordingUploader {
     } catch (final InterruptedException e) {
       // Note: this should only happen in main thread right before exiting, so eating up interrupted
       // state should be fine.
-      log.error("Wait for executor shutdown interrupted");
+      log.warn("Wait for executor shutdown interrupted");
     }
 
     client.connectionPool().evictAll();
@@ -239,7 +238,6 @@ public final class RecordingUploader {
   }
 
   private Compression getCompression(final CompressionType type) {
-    log.debug("Uploader compression type={}", type);
     final StreamUtils.BytesConsumer<RequestBody> consumer =
         (bytes, offset, length) -> RequestBody.create(OCTET_STREAM, bytes, offset, length);
     final Compression compression;
@@ -278,7 +276,7 @@ public final class RecordingUploader {
     final RequestBody body = compression.compress(data.getStream(), expectedRequestSize);
     if (log.isDebugEnabled()) {
       log.debug(
-          "Uploading recording {} [{}] (Size={}/{} bytes)",
+          "Uploading profile {} [{}] (Size={}/{} bytes)",
           data.getName(),
           type,
           body.contentLength(),
@@ -291,13 +289,12 @@ public final class RecordingUploader {
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart(RECORDING_NAME_PARAM, data.getName())
-            .addFormDataPart(FORMAT_PARAM, RECORDING_FORMAT)
-            .addFormDataPart(TYPE_PARAM, RECORDING_TYPE_PREFIX + type.getName())
-            .addFormDataPart(RUNTIME_PARAM, RECORDING_RUNTIME)
+            .addFormDataPart(FORMAT_PARAM, PROFILE_FORMAT)
+            .addFormDataPart(TYPE_PARAM, PROFILE_TYPE_PREFIX + type.getName())
+            .addFormDataPart(RUNTIME_PARAM, PROFILE_RUNTIME)
             // Note that toString is well defined for instants - ISO-8601
-            .addFormDataPart(RECORDING_START_PARAM, data.getStart().toString())
-            .addFormDataPart(RECORDING_END_PARAM, data.getEnd().toString());
+            .addFormDataPart(PROFILE_START_PARAM, data.getStart().toString())
+            .addFormDataPart(PROFILE_END_PARAM, data.getEnd().toString());
     for (final String tag : tags) {
       bodyBuilder.addFormDataPart(TAGS_PARAM, tag);
     }
