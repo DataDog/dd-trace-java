@@ -33,7 +33,7 @@ tasks.withType(Upload).matching { it.name != "install" }.configureEach {
 def isRoot = project.rootProject == project
 if (!isRoot) {
   apply from: "$rootDir/gradle/version.gradle"
-  apply from: "${rootDir}/gradle/pom.gradle"
+  apply from: "$rootDir/gradle/pom.gradle"
 
   configurations {
     configurations {

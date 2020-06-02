@@ -4,7 +4,7 @@ muzzle {
   }
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 task "rmic", dependsOn: testClasses {
   def clazz = 'rmi.app.ServerLegacy'

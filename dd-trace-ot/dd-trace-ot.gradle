@@ -6,8 +6,8 @@ plugins {
 
 description = 'dd-trace-ot'
 
-apply from: "${rootDir}/gradle/java.gradle"
-apply from: "${rootDir}/gradle/publish.gradle"
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/publish.gradle"
 
 // TODO raise these when equals() and hashCode() are excluded
 minimumBranchCoverage = 0.5
