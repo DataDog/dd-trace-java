@@ -5,14 +5,13 @@ import com.datadog.profiling.mlt.io.FrameElement;
 import com.datadog.profiling.mlt.io.FrameSequence;
 import com.datadog.profiling.mlt.io.IMLTChunk;
 import com.datadog.profiling.mlt.io.MLTWriter;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntList;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntIterator;
-import it.unimi.dsi.fastutil.ints.IntList;
 import lombok.Getter;
 import lombok.NonNull;
 
