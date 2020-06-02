@@ -14,10 +14,8 @@ minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.5
 
 excludedClassesCoverage += [
-  // These are all equals() and hashCode()
-  "datadog.opentracing.OTTagContext",
-  "datadog.opentracing.OTExtractedContext",
-  "datadog.opentracing.OTGenericContext",
+  // This is mainly equals() and hashCode()
+  "datadog.opentracing.OTSpanContext",
   // The builder is generated
   "datadog.opentracing.DDTracer.DDTracerBuilder"
 ]
