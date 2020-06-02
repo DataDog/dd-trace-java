@@ -61,7 +61,7 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
       // more about routes here:
       // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md
       final Option<HandlerDef> defOption =
-          request.attrs().get(Router.Attrs.HANDLER_DEF.underlying());
+          request.attrs().get(Router.Attrs.HANDLER_DEF.asScala());
       if (!defOption.isEmpty()) {
         final String path = defOption.get().path();
         span.setTag(DDTags.RESOURCE_NAME, request.method() + " " + path);
