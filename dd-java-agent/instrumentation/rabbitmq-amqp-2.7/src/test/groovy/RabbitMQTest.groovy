@@ -7,11 +7,12 @@ import com.rabbitmq.client.Consumer
 import com.rabbitmq.client.DefaultConsumer
 import com.rabbitmq.client.Envelope
 import com.rabbitmq.client.GetResponse
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import org.springframework.amqp.core.AmqpAdmin
 import org.springframework.amqp.core.AmqpTemplate
 import org.springframework.amqp.core.Queue
@@ -26,7 +27,6 @@ import java.time.Duration
 import java.util.concurrent.Phaser
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-
 // Do not run tests locally on Java7 since testcontainers are not compatible with Java7
 // It is fine to run on CI because CI provides rabbitmq externally, not through testcontainers
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
@@ -90,9 +90,7 @@ class RabbitMQTest extends AgentTestRunner {
       channel.exchangeDeclare(exchangeName, "direct", false)
       String queueName = channel.queueDeclare().getQueue()
       channel.queueBind(queueName, exchangeName, routingKey)
-
       channel.basicPublish(exchangeName, routingKey, null, "Hello, world!".getBytes())
-
       return channel.basicGet(queueName, true)
     }
 
@@ -127,9 +125,7 @@ class RabbitMQTest extends AgentTestRunner {
   def "test rabbit publish/get default exchange"() {
     setup:
     String queueName = channel.queueDeclare().getQueue()
-
     channel.basicPublish("", queueName, null, "Hello, world!".getBytes())
-
     GetResponse response = channel.basicGet(queueName, true)
 
     expect:
@@ -153,8 +149,8 @@ class RabbitMQTest extends AgentTestRunner {
     setup:
     channel.exchangeDeclare(exchangeName, "direct", false)
     String queueName = (messageCount % 2 == 0) ?
-      channel.queueDeclare().getQueue() :
-      channel.queueDeclare("some-queue", false, true, true, null).getQueue()
+    channel.queueDeclare().getQueue() :
+    channel.queueDeclare("some-queue", false, true, true, null).getQueue()
     channel.queueBind(queueName, exchangeName, "")
 
     def phaser = new Phaser()
@@ -174,7 +170,13 @@ class RabbitMQTest extends AgentTestRunner {
 
     (1..messageCount).each {
       TEST_WRITER.waitForTraces(2 + (it * 2))
-      channel.basicPublish(exchangeName, "", null, "msg $it".getBytes())
+      if (setTimestamp) {
+        channel.basicPublish(exchangeName, "",
+          new AMQP.BasicProperties.Builder().timestamp(new Date()).build(),
+          "msg $it".getBytes())
+      } else {
+        channel.basicPublish(exchangeName, "", null, "msg $it".getBytes())
+      }
       TEST_WRITER.waitForTraces(3 + (it * 2))
       phaser.arriveAndAwaitAdvance()
     }
@@ -201,7 +203,7 @@ class RabbitMQTest extends AgentTestRunner {
           rabbitSpan(it, "basic.publish $exchangeName -> <all>")
         }
         trace(3 + (it * 2), 1) {
-          rabbitSpan(it, resource, true, publishSpan)
+          rabbitSpan(it, resource, true, publishSpan, null, null, setTimestamp)
         }
       }
     }
@@ -209,8 +211,15 @@ class RabbitMQTest extends AgentTestRunner {
     deliveries == (1..messageCount).collect { "msg $it" }
 
     where:
-    exchangeName = "some-exchange"
-    messageCount << (1..4)
+    exchangeName     | messageCount | setTimestamp
+    "some-exchange"  | 1            | false
+    "some-exchange"  | 2            | false
+    "some-exchange"  | 3            | false
+    "some-exchange"  | 4            | false
+    "some-exchange"  | 1            | true
+    "some-exchange"  | 2            | true
+    "some-exchange"  | 3            | true
+    "some-exchange"  | 4            | true
   }
 
   def "test rabbit consume error"() {
@@ -329,9 +338,10 @@ class RabbitMQTest extends AgentTestRunner {
     Boolean distributedRootSpan = false,
     DDSpan parentSpan = null,
     Throwable exception = null,
-    String errorMsg = null
+    String errorMsg = null,
+    Boolean expectTimestamp = false
   ) {
-    rabbitSpan(trace, 0, resource, distributedRootSpan, parentSpan, exception, errorMsg)
+    rabbitSpan(trace, 0, resource, distributedRootSpan, parentSpan, exception, errorMsg, expectTimestamp)
   }
 
   def rabbitSpan(
@@ -341,7 +351,8 @@ class RabbitMQTest extends AgentTestRunner {
     Boolean distributedRootSpan = false,
     DDSpan parentSpan = null,
     Throwable exception = null,
-    String errorMsg = null
+    String errorMsg = null,
+    Boolean expectTimestamp = false
   ) {
     trace.span(index) {
       serviceName "rabbitmq"
@@ -372,6 +383,9 @@ class RabbitMQTest extends AgentTestRunner {
         "$Tags.PEER_HOSTNAME" { it == null || it instanceof String }
         "$Tags.PEER_HOST_IPV4" { "127.0.0.1" }
         "$Tags.PEER_PORT" { it == null || it instanceof Integer }
+        if (expectTimestamp) {
+          "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it instanceof Long && it >= 0 }
+        }
 
         switch (tag("amqp.command")) {
           case "basic.publish":

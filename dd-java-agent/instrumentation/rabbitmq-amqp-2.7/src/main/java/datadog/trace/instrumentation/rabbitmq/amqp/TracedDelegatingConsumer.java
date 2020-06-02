@@ -3,8 +3,14 @@ package datadog.trace.instrumentation.rabbitmq.amqp;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_COMMAND;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MESSAGE_SIZE;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SPAN_ORIGIN_TYPE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.TextMapExtractAdapter.GETTER;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Consumer;
@@ -13,7 +19,6 @@ import com.rabbitmq.client.ShutdownSignalException;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.io.IOException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -70,12 +75,20 @@ public class TracedDelegatingConsumer implements Consumer {
       final Context context = headers == null ? null : propagate().extract(headers, GETTER);
 
       final AgentSpan span =
-          startSpan("amqp.command", context)
-              .setTag("message.size", body == null ? 0 : body.length)
-              .setTag("span.origin.type", delegate.getClass().getName())
-              .setTag(InstrumentationTags.DD_MEASURED, true);
+          startSpan(AMQP_COMMAND, context)
+              .setTag(MESSAGE_SIZE, body == null ? 0 : body.length)
+              .setTag(SPAN_ORIGIN_TYPE, delegate.getClass().getName())
+              .setTag(DD_MEASURED, true);
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);
+
+      if (properties.getTimestamp() != null) {
+        // this will be set if the sender sets the timestamp,
+        // or if a plugin is installed on the rabbitmq broker
+        long produceTime = properties.getTimestamp().getTime();
+        long consumeTime = NANOSECONDS.toMillis(span.getStartTime());
+        span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
+      }
 
       scope = activateSpan(span);
 
