@@ -93,10 +93,11 @@ public final class MLTReader {
     int cpSize;
     ConstantPool<FrameSequence> stackPool = new ConstantPool<>();
     cpSize = r.readInt();
+    int[] emptyFrames = new int[0];
     for (int i = 0; i < cpSize; i++) {
       int ptr = r.readInt();
       byte type = r.readByte();
-      int[] framePtrs = new int[0];
+      int[] framePtrs = emptyFrames;
       int subtreePtr = -1;
       if (type == 0) {
         int framesLen = r.readInt();
