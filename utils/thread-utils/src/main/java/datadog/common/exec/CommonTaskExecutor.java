@@ -80,6 +80,53 @@ public final class CommonTaskExecutor extends AbstractExecutorService {
     return new UnscheduledFuture(name);
   }
 
+  /**
+   * Run a one-short {@code task} providing it with {@code target}
+   *
+   * <p>Important implementation detail here is that internally we do not hold any strong references
+   * to {@code target} which means it can be GCed even while periodic task is still scheduled.
+   *
+   * <p>If {@code target} is GCed periodic task is canceled.
+   *
+   * <p>This method should be able to execute task in majority of cases. The only reasonable case
+   * when this would fail is when task is being scheduled during JVM shutdown. In this case this
+   * method will return 'fake' future that can still be canceled to avoid confusing callers.
+   *
+   * @param task task to run. Important: must not hold any strong references to target (or anything
+   *     else non static)
+   * @param target target object to pass to task
+   * @param delay initialDelay, see {@link ScheduledExecutorService#schedule(Runnable, long,
+   *     TimeUnit)}
+   * @param unit unit, see {@link ScheduledExecutorService#schedule(Runnable, long, TimeUnit)}
+   * @param name name to use in logs when task cannot be scheduled
+   * @return future that can be canceled
+   */
+  public <T> ScheduledFuture<?> schedule(
+      final Task<T> task,
+      final T target,
+      final long delay,
+      final TimeUnit unit,
+      final String name) {
+    if (CommonTaskExecutor.INSTANCE.isShutdown()) {
+      log.warn("Periodic task scheduler is shutdown. Will not run: {}", name);
+    } else {
+      try {
+        final PeriodicTask<T> periodicTask = new PeriodicTask<>(task, target);
+        final ScheduledFuture<?> future =
+            executorService.schedule(new PeriodicTask<>(task, target), delay, unit);
+        periodicTask.setFuture(future);
+        return future;
+      } catch (final RejectedExecutionException e) {
+        log.warn("One-shot task rejected. Will not run: {}", name);
+      }
+    }
+    /*
+     * Return a 'fake' unscheduled future to allow caller call 'cancel' on it if needed.
+     * We are using 'fake' object instead of null to avoid callers needing to deal with nulls.
+     */
+    return new UnscheduledFuture(name);
+  }
+
   @Override
   public void shutdown() {
     executorService.shutdown();
