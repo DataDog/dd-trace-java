@@ -37,6 +37,11 @@ shadowJar {
     exclude(project(':dd-trace-api'))
     exclude(dependency('org.slf4j::'))
   }
+  /*
+   * This should be safe;
+   * no libraries are using META-INF/services for service bindings so all deps should be discovered
+   */
+  minimize()
 }
 
 jar {
