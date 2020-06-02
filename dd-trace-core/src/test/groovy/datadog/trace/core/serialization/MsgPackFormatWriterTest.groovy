@@ -1,13 +1,12 @@
 package datadog.trace.core.serialization
 
-
+import datadog.trace.util.test.DDSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferOutput
-import spock.lang.Specification
 
 import java.nio.charset.StandardCharsets
 
-class MsgPackFormatWriterTest extends Specification {
+class MsgPackFormatWriterTest extends DDSpecification {
 
   def "serialize strings"() {
     setup:
