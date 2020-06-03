@@ -10,27 +10,38 @@ import java.util.Map;
  * #incrementCallDepth at the beginning of each constructor.
  */
 public class CallDepthThreadLocalMap {
-  private static final ThreadLocal<Map<Object, Integer>> TLS =
-      new ThreadLocal<Map<Object, Integer>>() {
+  private static final ThreadLocal<Map<Object, Depth>> TLS =
+      new ThreadLocal<Map<Object, Depth>>() {
         @Override
-        public Map<Object, Integer> initialValue() {
+        public Map<Object, Depth> initialValue() {
           return new HashMap<>();
         }
       };
 
   public static int incrementCallDepth(final Object k) {
-    final Map<Object, Integer> map = TLS.get();
-    Integer depth = map.get(k);
+    final Map<Object, Depth> map = TLS.get();
+    Depth depth = map.get(k);
     if (depth == null) {
-      depth = 0;
+      map.put(k, new Depth());
+      return 0;
     } else {
-      depth += 1;
+      return depth.increment();
     }
-    map.put(k, depth);
-    return depth;
   }
 
   public static void reset(final Object k) {
     TLS.get().remove(k);
+  }
+
+  private static final class Depth {
+    private int depth;
+
+    private Depth() {
+      this.depth = 0;
+    }
+
+    private int increment() {
+      return this.depth = this.depth + 1;
+    }
   }
 }
