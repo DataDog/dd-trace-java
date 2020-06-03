@@ -21,7 +21,7 @@ public class CallDepthThreadLocalMap {
   }
 
   public static void reset(final Class<?> k) {
-    TLS.get(k).remove();
+    TLS.get(k).get().depth = 0;
   }
 
   private static final class Depth {
