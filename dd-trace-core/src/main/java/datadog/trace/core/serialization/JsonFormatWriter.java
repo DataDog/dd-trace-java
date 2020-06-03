@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 
@@ -53,6 +54,11 @@ public class JsonFormatWriter extends FormatWriter<JsonWriter> {
       throws IOException {
     writeKey(key, destination);
     destination.value(value);
+  }
+
+  @Override
+  public void writeUTF8Bytes(byte[] key, byte[] value, JsonWriter destination) throws IOException {
+    writeString(key, new String(value), destination);
   }
 
   @Override

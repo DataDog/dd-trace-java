@@ -43,6 +43,13 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   }
 
   @Override
+  public void writeUTF8Bytes(byte[] key, byte[] value, MessagePacker destination) throws IOException {
+    writeKey(key, destination);
+    destination.packRawStringHeader(value.length);
+    destination.addPayload(value);
+  }
+
+  @Override
   public void writeTag(final byte[] key, final String value, final MessagePacker destination)
       throws IOException {
     writeKey(key, destination);

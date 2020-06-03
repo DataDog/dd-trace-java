@@ -13,6 +13,8 @@ public class DDComponents {
   public static final String JAX_RS_CLIENT = "jax-rs.client";
   public static final String JAVA_JDBC = "java-jdbc";
   public static final String JAVA_JDBC_CONNECTION = "java-jdbc-connection";
+  public static final String JAVA_JDBC_STATEMENT = "java-jdbc-statement";
+  public static final String JAVA_JDBC_PREPARED_STATEMENT = "java-jdbc-prepared_statement";
   public static final String JETTY_HANDLER = "jetty-handler";
   public static final String JSP_HTTP_SERVLET = "jsp-http-servlet";
   public static final String GOOGLE_HTTP_CLIENT = "google-http-client";

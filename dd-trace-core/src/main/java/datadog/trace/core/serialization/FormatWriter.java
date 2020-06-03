@@ -38,6 +38,9 @@ public abstract class FormatWriter<DEST> {
     writeString(key, value, destination);
   }
 
+  public abstract void writeUTF8Bytes(final byte[] key, final byte[] value, final DEST destination)
+      throws IOException;
+
   public abstract void writeString(final byte[] key, final String value, final DEST destination)
       throws IOException;
 
@@ -111,6 +114,15 @@ public abstract class FormatWriter<DEST> {
     writeMapFooter(destination);
   }
 
+  public void writeResourceName(DDSpan span, DEST destination) throws IOException {
+    byte[] resourceNameUTF8 = span.getResourceNameUTF8();
+    if (null == resourceNameUTF8) {
+      writeUTF8Bytes(RESOURCE, resourceNameUTF8, destination);
+    } else {
+      writeTag(RESOURCE, span.getResourceName(), destination);
+    }
+  }
+
   public void writeTrace(final List<DDSpan> trace, final DEST destination) throws IOException {
     writeListHeader(trace.size(), destination);
     for (final DDSpan span : trace) {
@@ -124,7 +136,7 @@ public abstract class FormatWriter<DEST> {
     writeMapHeader(12, destination); // must match count below.
     /* 1  */ writeTag(SERVICE, span.getServiceName(), destination);
     /* 2  */ writeString(NAME, span.getOperationName(), destination);
-    /* 3  */ writeString(RESOURCE, span.getResourceName(), destination);
+    /* 3  */ writeResourceName(span, destination);
     /* 4  */ writeId(TRACE_ID, span.getTraceId(), destination);
     /* 5  */ writeId(SPAN_ID, span.getSpanId(), destination);
     /* 6  */ writeId(PARENT_ID, span.getParentId(), destination);

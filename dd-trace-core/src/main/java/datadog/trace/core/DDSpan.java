@@ -56,6 +56,9 @@ public class DDSpan implements MutableSpan, AgentSpan {
   /** Implementation detail. Stores the weak reference to this span. Used by TraceCollection. */
   volatile WeakReference<DDSpan> ref;
 
+  /** A resource name which can be set by decorators, may be null. */
+  private byte[] resourceNameUTF8;
+
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
    *
@@ -247,6 +250,20 @@ public class DDSpan implements MutableSpan, AgentSpan {
   public final DDSpan setResourceName(final String resourceName) {
     context.setResourceName(resourceName);
     return this;
+  }
+
+  public final DDSpan setResourceName(final byte[] utf8ResourceName) {
+    this.resourceNameUTF8 = utf8ResourceName;
+    return this;
+  }
+
+  /**
+   * Gets the UTF-8 encoded resource name, if set.
+   *
+   * @return the UTF-8 encoded resource name or null.
+   */
+  public final byte[] getResourceNameUTF8() {
+    return resourceNameUTF8;
   }
 
   /**
