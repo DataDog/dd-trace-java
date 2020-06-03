@@ -12,7 +12,7 @@ apply plugin: 'org.unbroken-dome.test-sets'
 dependencies {
   main_java8CompileOnly group: 'com.outworkers', name: 'phantom-dsl_2.11', version: '2.59.0'
   main_java8CompileOnly group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.0.0'
-
+  main_java8CompileOnly group: 'io.monix', name: 'monix_2.11', version: '3.2.1'
   compile project(':dd-trace-api')
   compile project(':dd-java-agent:agent-tooling')
 
@@ -21,7 +21,7 @@ dependencies {
 //  annotationProcessor deps.autoservice
   //compile project(':dd-java-agent:instrumentation:hibernate')
   testCompile project(':dd-java-agent:instrumentation:java-concurrent')
-//  testCompile project(':dd-java-agent:instrumentation:datastax-cassandra-3')
+  testCompile project(':dd-java-agent:instrumentation:datastax-cassandra-3')
   testCompile project(':dd-java-agent:instrumentation:phantom')
   testCompile project(':dd-java-agent:instrumentation:akka-http-10.0')
   testCompile group: 'com.outworkers', name: 'phantom-dsl_2.11', version: '2.59.0'
@@ -31,6 +31,7 @@ dependencies {
   testCompile group: 'io.monix', name: 'monix_2.11', version: '3.2.1'
   testCompile deps.scala
   testCompile group: 'org.scala-lang', name: 'scala-reflect', version: '2.11.12'
+  testCompile 'org.scala-lang.modules:scala-java8-compat_2.11:0.9.1'
   testCompile group: 'org.cassandraunit', name: 'cassandra-unit', version: '3.11.2.0'
 }
 

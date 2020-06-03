@@ -72,13 +72,13 @@ class PhantomInstrumentationTest extends AgentTestRunner {
     setup:
     final Book testBook = Book.apply(id, "Code Complete", "McConnell", "OutOfStock", 0)
     runUnderTrace("parent") {
-      Await.result(testOps.multiOperationExpression(testBook, generalEc, phantomEc), Duration.create(5, "seconds"))
+      Await.result(testOps.multiOperationExpressionPlain(testBook, generalEc, phantomEc), Duration.create(5, "seconds"))
     }
-    Thread.sleep(1000)
+
 
     expect:
     assertTraces(1) {
-      trace(0, 7) {
+      trace(0, 4) {
         basicSpan(it, 0, "parent")
 //        phantomSpan(it, 1, cql, null, it.span(0), null)
 //        cassandraSpan(it, 2, cql, null, false, it.span(1))
@@ -87,7 +87,7 @@ class PhantomInstrumentationTest extends AgentTestRunner {
 
     where:
     id                      | phantomEc                  | generalEc
-    UUID.randomUUID()       | globalEc                   | testSystem.dispatcher
+    UUID.randomUUID()       | globalEc                   | globalEc
 //    UUID.randomUUID()       | testSystem.dispatcher      | testSystem.dispatcher
 //    UUID.randomUUID()       | globalEc                   | globalEc
 //    UUID.randomUUID()       | testSystem.dispatcher      | globalEc
