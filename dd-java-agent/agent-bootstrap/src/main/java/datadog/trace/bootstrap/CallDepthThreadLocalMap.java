@@ -1,8 +1,5 @@
 package datadog.trace.bootstrap;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Utility to track nested instrumentation.
  *
@@ -10,27 +7,21 @@ import java.util.Map;
  * #incrementCallDepth at the beginning of each constructor.
  */
 public class CallDepthThreadLocalMap {
-  private static final ThreadLocal<Map<Object, Depth>> TLS =
-      new ThreadLocal<Map<Object, Depth>>() {
+
+  private static final ClassValue<ThreadLocalDepth> TLS =
+      new ClassValue<ThreadLocalDepth>() {
         @Override
-        public Map<Object, Depth> initialValue() {
-          return new HashMap<>();
+        protected ThreadLocalDepth computeValue(Class<?> type) {
+          return new ThreadLocalDepth();
         }
       };
 
-  public static int incrementCallDepth(final Object k) {
-    final Map<Object, Depth> map = TLS.get();
-    Depth depth = map.get(k);
-    if (depth == null) {
-      map.put(k, new Depth());
-      return 0;
-    } else {
-      return depth.increment();
-    }
+  public static int incrementCallDepth(final Class<?> k) {
+    return TLS.get(k).get().increment();
   }
 
-  public static void reset(final Object k) {
-    TLS.get().remove(k);
+  public static void reset(final Class<?> k) {
+    TLS.get(k).remove();
   }
 
   private static final class Depth {
@@ -41,7 +32,14 @@ public class CallDepthThreadLocalMap {
     }
 
     private int increment() {
-      return this.depth = this.depth + 1;
+      return this.depth++;
+    }
+  }
+
+  private static final class ThreadLocalDepth extends ThreadLocal<Depth> {
+    @Override
+    protected Depth initialValue() {
+      return new Depth();
     }
   }
 }
