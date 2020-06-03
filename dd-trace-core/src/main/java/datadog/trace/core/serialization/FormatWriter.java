@@ -116,7 +116,7 @@ public abstract class FormatWriter<DEST> {
 
   public void writeResourceName(DDSpan span, DEST destination) throws IOException {
     byte[] resourceNameUTF8 = span.getResourceNameUTF8();
-    if (null == resourceNameUTF8) {
+    if (null != resourceNameUTF8) {
       writeUTF8Bytes(RESOURCE, resourceNameUTF8, destination);
     } else {
       writeTag(RESOURCE, span.getResourceName(), destination);

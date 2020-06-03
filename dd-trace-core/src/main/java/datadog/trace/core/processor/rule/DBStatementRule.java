@@ -6,7 +6,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Sets;
-import datadog.trace.bootstrap.instrumentation.api.DDComponents;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
@@ -23,7 +22,7 @@ import java.util.concurrent.ExecutionException;
 public class DBStatementRule implements TraceProcessor.Rule {
 
   private static final Set<String> RESOURCE_NAME_CACHING_COMPONENTS =
-    Sets.newHashSet(JAVA_JDBC_PREPARED_STATEMENT);
+      Sets.newHashSet(JAVA_JDBC_PREPARED_STATEMENT);
 
   private final LoadingCache<String, byte[]> preparedStatementCache =
       CacheBuilder.newBuilder()
