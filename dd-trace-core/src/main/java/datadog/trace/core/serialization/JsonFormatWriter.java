@@ -104,7 +104,10 @@ public class JsonFormatWriter extends FormatWriter<JsonWriter> {
     if (l >= 0) {
       writeLong(key, l, destination);
     } else {
-      writeBigInteger(key, id.toBigInteger(), destination);
+      long high = l >>> 32;
+      long low = l & 0xffffffffL;
+      writeBigInteger(
+          key, BigInteger.valueOf(high).shiftLeft(32).add(BigInteger.valueOf(low)), destination);
     }
   }
 
