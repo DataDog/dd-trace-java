@@ -1,3 +1,7 @@
+plugins {
+  id "com.github.johnrengelman.shadow"
+}
+
 apply from: "${rootDir}/gradle/java.gradle"
 
 // We have some general logging paths that are hard to test
@@ -11,12 +15,11 @@ excludedClassesCoverage += [
   'com.datadog.profiling.controller.ProfilingSystem.StartRecording',
   'com.datadog.profiling.controller.ProfilingSystem.StopRecording',
   'com.datadog.profiling.jfr.ResolvableJFRType',
-  // TODO: JMXSampler is not complete yet - skip the coverage test until it is final
+  'com.datadog.profiling.mlt.SamplerContext.SamplerContextBuilder', // lombok generated builder
+  // TODO: following classes are not complete yet - skip the coverage test until it is final
   'com.datadog.profiling.mlt.JMXSampler',
-
-  // FIXME: added to fix the build:
-  'com.datadog.profiling.util.NonZeroHashCode',
-  'com.datadog.profiling.mlt.SamplerContext.SamplerContextBuilder',
+  'com.datadog.profiling.mlt.ScopeManager',
+  'com.datadog.profiling.mlt.ScopeStackCollector'
 ]
 
 dependencies {
@@ -24,13 +27,25 @@ dependencies {
   compile project(':dd-trace-api')
   compile project(':internal-api')
   compile project(':dd-trace-core')
+  compile 'it.unimi.dsi:fastutil:8.2.1'
 
   testCompile deps.junit5
   testCompile deps.guava
   testCompile deps.mockito
   testCompile deps.jmc
   testCompile group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
+  testCompile group: 'nl.jqno.equalsverifier', name: 'equalsverifier', version: '3.3'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
+
+shadowJar {
+  configurations = [project.configurations.compile]
+  archiveClassifier.set('')
+
+  dependencies {
+    include(dependency('it.unimi.dsi:fastutil:8.2.1'))
+  }
+  minimize()
+}

@@ -14,15 +14,14 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 class JMXSampler {
-  private final StackTraceSink sink;
+  private final ThreadScopeMapper threadScopeMapper;
   private final ThreadStackProvider provider;
   private final ScheduledExecutorService executor =
       Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory("dd-profiling-sampler"));
-  private long samplingCount;
-  private AtomicReference<long[]> threadIds = new AtomicReference<>();
+  private final AtomicReference<long[]> threadIds = new AtomicReference<>();
 
-  public JMXSampler(StackTraceSink sink) {
-    this.sink = sink;
+  public JMXSampler(ThreadScopeMapper threadScopeMapper) {
+    this.threadScopeMapper = threadScopeMapper;
     provider = ThreadStackAccess.getCurrentThreadStackProvider();
     if (provider instanceof NoneThreadStackProvider) {
       log.warn("ThreadStack provider is no op. It will not provide thread stacks.");
@@ -33,8 +32,6 @@ class JMXSampler {
 
   public void shutdown() {
     executor.shutdown();
-    byte[] buffer = sink.flush();
-    log.info("Flushing remaining {} bytes", buffer.length);
   }
 
   /**
@@ -70,7 +67,9 @@ class JMXSampler {
       }
       int idx = 0;
       int size = prev.length;
-      while (idx < size && prev[idx] != threadId) idx++;
+      while (idx < size && prev[idx] != threadId) {
+        idx++;
+      }
       if (idx >= size) {
         // not found
         return;
@@ -87,13 +86,11 @@ class JMXSampler {
       return;
     }
     ThreadInfo[] threadInfos = provider.getThreadInfo(tmpArray);
-    // TODO handle ids
-    sink.write(null, threadInfos);
-    samplingCount++;
-    // TODO flushing time as parameter
-    if (samplingCount % 100 == 0) {
-      byte[] buffer = sink.flush();
-      log.info("flushing {} bytes", buffer.length);
+    // dispatch to Scopes
+    for (ThreadInfo threadInfo : threadInfos) {
+      ScopeManager scopeManager = threadScopeMapper.forThread(threadInfo.getThreadId());
+      ScopeStackCollector scopeStackCollector = scopeManager.getCurrentScope();
+      scopeStackCollector.collect(threadInfo.getStackTrace());
     }
   }
 }

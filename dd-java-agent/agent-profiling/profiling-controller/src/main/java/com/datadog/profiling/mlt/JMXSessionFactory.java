@@ -9,18 +9,21 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class JMXSessionFactory implements SessionFactory {
   private final Map<Long, JMXSession> jmxSessions = new ConcurrentHashMap<>();
+  private final ThreadScopeMapper threadScopeMapper = new ThreadScopeMapper();
   private final JMXSampler sampler;
 
-  public JMXSessionFactory(StackTraceSink sink) {
-    this.sampler = new JMXSampler(sink);
+  public JMXSessionFactory() {
+    this.sampler = new JMXSampler(threadScopeMapper);
   }
 
   @Override
   public Session createSession(String id, Thread thread) {
+    ScopeManager scopeManager = threadScopeMapper.forThread(thread);
+    ScopeStackCollector scopeStackCollector = scopeManager.startScope(id);
+
     long threadId = thread.getId();
-    JMXSession session =
-        jmxSessions.computeIfAbsent(threadId, key -> createNewSession(id, threadId));
-    session.activate();
+    JMXSession session = createNewSession(id, threadId, scopeStackCollector);
+    jmxSessions.put(threadId, session);
     return session;
   }
 
@@ -32,9 +35,10 @@ public class JMXSessionFactory implements SessionFactory {
   // This method is invoked under the assumption that we are using a ConcurrentHashMap
   // and the method Map#computeIfAbsent is therefore atomic for the update of the value
   // inside the map
-  private JMXSession createNewSession(String id, long threadId) {
+  private JMXSession createNewSession(
+      String id, long threadId, ScopeStackCollector scopeStackCollector) {
     sampler.addThreadId(threadId);
-    return new JMXSession(id, threadId, this::cleanup);
+    return new JMXSession(id, threadId, scopeStackCollector, this::cleanup);
   }
 
   private void cleanup(JMXSession session) {
@@ -45,11 +49,7 @@ public class JMXSessionFactory implements SessionFactory {
   // and the method Map#computeIfPresent is therefore atomic for the update of the value
   // inside the map
   private JMXSession closeSession(Long key, JMXSession jmxSession) {
-    int current = jmxSession.deactivate();
-    if (current == 0) {
-      sampler.removeThread(jmxSession.getThreadId());
-      return null;
-    }
-    return jmxSession;
+    sampler.removeThread(jmxSession.getThreadId());
+    return null;
   }
 }
