@@ -80,7 +80,7 @@ public final class AkkaHttpClientInstrumentation extends Instrumenter.Default {
         return null;
       }
 
-      final AgentSpan span = startSpan("akka-http.request");
+      final AgentSpan span = startSpan("akka-http.client.request");
       span.setTag(InstrumentationTags.DD_MEASURED, true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
