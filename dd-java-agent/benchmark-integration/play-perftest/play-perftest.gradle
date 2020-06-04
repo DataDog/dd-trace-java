@@ -22,7 +22,8 @@ dependencies {
 
   play project(':dd-trace-api')
   play project(':dd-java-agent:benchmark-integration')
-  play deps.opentracing
+  play group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  play group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 }
 
 repositories {

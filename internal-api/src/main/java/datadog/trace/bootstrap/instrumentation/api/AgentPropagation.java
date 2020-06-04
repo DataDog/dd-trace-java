@@ -8,6 +8,8 @@ public interface AgentPropagation {
 
   <C> void inject(AgentSpan span, C carrier, Setter<C> setter);
 
+  <C> void inject(AgentSpan.Context context, C carrier, Setter<C> setter);
+
   interface Setter<C> {
     void set(C carrier, String key, String value);
   }

@@ -6,7 +6,7 @@ import com.datadog.profiling.controller.ControllerFactory;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.mlt.JMXSessionFactory;
-import com.datadog.profiling.uploader.RecordingUploader;
+import com.datadog.profiling.uploader.ProfileUploader;
 import datadog.trace.api.Config;
 import datadog.trace.profiling.Profiler;
 import java.lang.ref.WeakReference;
@@ -56,7 +56,7 @@ public class ProfilingAgent {
 
       try {
         final Controller controller = ControllerFactory.createController(config);
-        final RecordingUploader uploader = new RecordingUploader(config);
+        final ProfileUploader uploader = new ProfileUploader(config);
 
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());
         final Duration uploadPeriod = Duration.ofSeconds(config.getProfilingUploadPeriod());
@@ -100,9 +100,9 @@ public class ProfilingAgent {
   private static class ShutdownHook extends Thread {
 
     private final WeakReference<ProfilingSystem> profilerRef;
-    private final WeakReference<RecordingUploader> uploaderRef;
+    private final WeakReference<ProfileUploader> uploaderRef;
 
-    private ShutdownHook(final ProfilingSystem profiler, final RecordingUploader uploader) {
+    private ShutdownHook(final ProfilingSystem profiler, final ProfileUploader uploader) {
       profilerRef = new WeakReference<>(profiler);
       uploaderRef = new WeakReference<>(uploader);
     }
@@ -114,7 +114,7 @@ public class ProfilingAgent {
         profiler.shutdown();
       }
 
-      final RecordingUploader uploader = uploaderRef.get();
+      final ProfileUploader uploader = uploaderRef.get();
       if (uploader != null) {
         uploader.shutdown();
       }

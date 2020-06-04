@@ -2,7 +2,7 @@ plugins {
   id "com.github.johnrengelman.shadow"
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 // We have some general logging paths that are hard to test
 minimumInstructionCoverage = 0.8

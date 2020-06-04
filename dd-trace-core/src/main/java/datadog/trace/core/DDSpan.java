@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -8,7 +9,6 @@ import datadog.trace.core.util.Clock;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.ref.WeakReference;
-import java.math.BigInteger;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -100,6 +100,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
     }
   }
 
+  @Override
   public final void finish(final long stoptimeMicros) {
     finishAndAddToTrace(TimeUnit.MICROSECONDS.toNanos(stoptimeMicros - startTimeMicro));
   }
@@ -118,7 +119,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
    * @return true if root, false otherwise
    */
   public final boolean isRootSpan() {
-    return BigInteger.ZERO.equals(context.getParentId());
+    return DDId.ZERO.equals(context.getParentId());
   }
 
   @Override
@@ -198,7 +199,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
     return this;
   }
 
-  // FIXME [API] this is not on AgentSpan or MutableSpan
+  @Override
   public DDSpan setTag(final String tag, final Object value) {
     context.setTag(tag, value);
     return this;
@@ -219,10 +220,12 @@ public class DDSpan implements MutableSpan, AgentSpan {
     return context;
   }
 
+  @Override
   public final String getBaggageItem(final String key) {
     return context.getBaggageItem(key);
   }
 
+  @Override
   public final DDSpan setBaggageItem(final String key, final String value) {
     context.setBaggageItem(key, value);
     return this;
@@ -290,17 +293,17 @@ public class DDSpan implements MutableSpan, AgentSpan {
   }
 
   @Override
-  public BigInteger getTraceId() {
+  public DDId getTraceId() {
     return context.getTraceId();
   }
 
   @Override
-  public BigInteger getSpanId() {
+  public DDId getSpanId() {
     return context.getSpanId();
   }
 
   @Override
-  public BigInteger getParentId() {
+  public DDId getParentId() {
     return context.getParentId();
   }
 

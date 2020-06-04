@@ -6,18 +6,16 @@ plugins {
 
 description = 'dd-trace-ot'
 
-apply from: "${rootDir}/gradle/java.gradle"
-apply from: "${rootDir}/gradle/publish.gradle"
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/publish.gradle"
 
 // TODO raise these when equals() and hashCode() are excluded
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.5
 
 excludedClassesCoverage += [
-  // These are all equals() and hashCode()
-  "datadog.opentracing.OTTagContext",
-  "datadog.opentracing.OTExtractedContext",
-  "datadog.opentracing.OTGenericContext",
+  // This is mainly equals() and hashCode()
+  "datadog.opentracing.OTSpanContext",
   // The builder is generated
   "datadog.opentracing.DDTracer.DDTracerBuilder"
 ]
@@ -36,7 +34,10 @@ dependencies {
   compile project(':dd-trace-api')
   compile project(':dd-trace-core')
 
-  compile deps.opentracing
+  // OpenTracing
+  compile group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  compile group: 'io.opentracing', name: 'opentracing-noop', version: '0.32.0'
+  compile group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
   compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
   compile deps.slf4j

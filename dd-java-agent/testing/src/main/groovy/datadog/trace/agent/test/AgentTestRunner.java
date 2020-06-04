@@ -4,9 +4,9 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import com.google.common.collect.Sets;
 import datadog.trace.agent.test.asserts.ListWriterAssert;
-import datadog.trace.agent.test.utils.GlobalTracerUtils;
 import datadog.trace.agent.tooling.AgentInstaller;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.agent.tooling.bytebuddy.matcher.AdditionalLibraryIgnoresMatcher;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
@@ -103,7 +103,7 @@ public abstract class AgentTestRunner extends DDSpecification {
           }
         };
     TEST_TRACER = CoreTracer.builder().writer(TEST_WRITER).build();
-    GlobalTracerUtils.registerOrReplaceGlobalTracer((CoreTracer) TEST_TRACER);
+    TracerInstaller.installGlobalTracer((CoreTracer) TEST_TRACER);
   }
 
   protected static TracerAPI getTestTracer() {

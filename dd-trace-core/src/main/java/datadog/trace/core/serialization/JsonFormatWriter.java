@@ -5,6 +5,7 @@ import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.trace.api.DDId;
 import datadog.trace.core.DDSpan;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -97,7 +98,20 @@ public class JsonFormatWriter extends FormatWriter<JsonWriter> {
   }
 
   @Override
-  public void writeBigInteger(
+  public void writeId(byte[] key, DDId id, JsonWriter destination) throws IOException {
+    // This is to keep the id output compatible with the BigInteger id for tests
+    long l = id.toLong();
+    if (l >= 0) {
+      writeLong(key, l, destination);
+    } else {
+      long high = l >>> 32;
+      long low = l & 0xffffffffL;
+      writeBigInteger(
+          key, BigInteger.valueOf(high).shiftLeft(32).add(BigInteger.valueOf(low)), destination);
+    }
+  }
+
+  private void writeBigInteger(
       final byte[] key, final BigInteger value, final JsonWriter destination) throws IOException {
     writeKey(key, destination);
     destination.value(value);

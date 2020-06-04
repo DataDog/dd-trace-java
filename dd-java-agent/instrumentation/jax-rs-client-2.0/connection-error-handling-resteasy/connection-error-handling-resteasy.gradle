@@ -6,7 +6,7 @@ muzzle {
   }
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'org.jboss.resteasy', name: 'resteasy-client', version: '3.0.0.Final'

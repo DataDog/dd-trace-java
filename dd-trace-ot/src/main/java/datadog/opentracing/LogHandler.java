@@ -1,6 +1,6 @@
 package datadog.opentracing;
 
-import datadog.trace.core.DDSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 
 public interface LogHandler {
@@ -12,7 +12,7 @@ public interface LogHandler {
    *     boolean values; some may also support arbitrary Objects.
    * @param span from which the call was made
    */
-  void log(Map<String, ?> fields, DDSpan span);
+  void log(Map<String, ?> fields, AgentSpan span);
 
   /**
    * Handles the log implementation in the Span.
@@ -22,7 +22,7 @@ public interface LogHandler {
    * @param fields key:value log fields. Tracer implementations should support String, numeric, and
    * @param span from which the call was made
    */
-  void log(long timestampMicroseconds, Map<String, ?> fields, DDSpan span);
+  void log(long timestampMicroseconds, Map<String, ?> fields, AgentSpan span);
 
   /**
    * Handles the log implementation in the Span..
@@ -30,7 +30,7 @@ public interface LogHandler {
    * @param event the event value; often a stable identifier for a moment in the Span lifecycle
    * @param span from which the call was made
    */
-  void log(String event, DDSpan span);
+  void log(String event, AgentSpan span);
 
   /**
    * Handles the log implementation in the Span.
@@ -40,5 +40,5 @@ public interface LogHandler {
    * @param event the event value; often a stable identifier for a moment in the Span lifecycle
    * @param span from which the call was made
    */
-  void log(long timestampMicroseconds, String event, DDSpan span);
+  void log(long timestampMicroseconds, String event, AgentSpan span);
 }

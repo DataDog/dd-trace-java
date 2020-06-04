@@ -1,12 +1,11 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
-import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 
+import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
-import java.math.BigInteger;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,8 +38,8 @@ class B3HttpCodec {
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       try {
-        setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString(HEX_RADIX).toLowerCase());
-        setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toString(HEX_RADIX).toLowerCase());
+        setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toHexString().toLowerCase());
+        setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toHexString().toLowerCase());
 
         if (context.lockSamplingPriority()) {
           setter.set(
@@ -77,8 +76,8 @@ class B3HttpCodec {
     public <C> TagContext extract(final C carrier, final AgentPropagation.Getter<C> getter) {
       try {
         Map<String, String> tags = Collections.emptyMap();
-        BigInteger traceId = BigInteger.ZERO;
-        BigInteger spanId = BigInteger.ZERO;
+        DDId traceId = DDId.ZERO;
+        DDId spanId = DDId.ZERO;
         int samplingPriority = PrioritySampling.UNSET;
 
         for (final String uncasedKey : getter.keys(carrier)) {
@@ -94,16 +93,16 @@ class B3HttpCodec {
             final int length = value.length();
             if (length > 32) {
               log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, value);
-              traceId = BigInteger.ZERO;
+              traceId = DDId.ZERO;
               continue;
             } else if (length > 16) {
               trimmedValue = value.substring(length - 16);
             } else {
               trimmedValue = value;
             }
-            traceId = validateUInt64BitsID(trimmedValue, HEX_RADIX);
+            traceId = DDId.fromHex(trimmedValue);
           } else if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
-            spanId = validateUInt64BitsID(value, HEX_RADIX);
+            spanId = DDId.fromHex(value);
           } else if (SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
             samplingPriority = convertSamplingPriority(value);
           }
@@ -116,7 +115,7 @@ class B3HttpCodec {
           }
         }
 
-        if (!BigInteger.ZERO.equals(traceId)) {
+        if (!DDId.ZERO.equals(traceId)) {
           final ExtractedContext context =
               new ExtractedContext(
                   traceId,

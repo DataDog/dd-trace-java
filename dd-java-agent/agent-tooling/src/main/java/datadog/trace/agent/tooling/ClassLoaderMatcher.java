@@ -1,8 +1,8 @@
 package datadog.trace.agent.tooling;
 
+import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.bootstrap.WeakCache;
-import io.opentracing.util.GlobalTracer;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -86,7 +86,7 @@ public final class ClassLoaderMatcher {
      */
     private static boolean delegatesToBootstrap(final ClassLoader loader) {
       boolean delegates = true;
-      if (!loadsExpectedClass(loader, GlobalTracer.class)) {
+      if (!loadsExpectedClass(loader, Tracer.class)) {
         log.debug("loader {} failed to delegate bootstrap opentracing class", loader);
         delegates = false;
       }

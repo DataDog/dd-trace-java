@@ -8,7 +8,6 @@ import datadog.trace.core.interceptor.TraceStatsCollector;
 import datadog.trace.profiling.Profiler;
 import datadog.trace.profiling.Session;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.concurrent.TimeUnit;
 import org.HdrHistogram.Histogram;
 
@@ -57,18 +56,23 @@ public abstract class TraceProfilingScopeInterceptor
     private static final BigDecimal TRACE_ID_MAX_AS_BIG_DECIMAL =
         new BigDecimal(CoreTracer.TRACE_ID_MAX);
 
-    private final BigInteger cutoff;
+    private final long cutoff;
 
     private Percentage(final double percent, final ScopeInterceptor delegate) {
       super(delegate);
       assert 0 <= percent && percent <= 1;
-      cutoff = new BigDecimal(percent).multiply(TRACE_ID_MAX_AS_BIG_DECIMAL).toBigInteger();
+      cutoff = new BigDecimal(percent).multiply(TRACE_ID_MAX_AS_BIG_DECIMAL).longValue();
     }
 
     @Override
     boolean shouldProfile(final AgentSpan span) {
       // Do we want to apply rate limiting?
-      return span.getTraceId().compareTo(cutoff) <= 0;
+      return compareUnsigned(span.getTraceId().toLong(), cutoff) <= 0;
+    }
+
+    // When we drop support for 1.7, we can use Long.compareUnsigned directly.
+    public static int compareUnsigned(final long x, final long y) {
+      return Long.compare(x + Long.MIN_VALUE, y + Long.MIN_VALUE);
     }
   }
 

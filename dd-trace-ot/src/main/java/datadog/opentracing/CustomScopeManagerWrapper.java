@@ -1,9 +1,9 @@
 package datadog.opentracing;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
-import datadog.trace.core.scopemanager.DDScopeManager;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
@@ -24,7 +24,7 @@ import java.util.Objects;
  *
  * <p>DDTracer.scopeManager = passed in scopemanager
  */
-class CustomScopeManagerWrapper implements DDScopeManager {
+class CustomScopeManagerWrapper implements AgentScopeManager {
   private final ScopeManager delegate;
   private final TypeConverter converter;
 

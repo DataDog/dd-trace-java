@@ -1,10 +1,10 @@
 plugins {
   id "com.github.johnrengelman.shadow"
 }
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  compile('com.datadoghq:jmxfetch:0.36.1') {
+  compile('com.datadoghq:jmxfetch:0.36.2') {
     exclude group: 'org.apache.logging.log4j', module: 'log4j-slf4j-impl'
     exclude group: 'org.apache.logging.log4j', module: 'log4j-core'
     exclude group: 'org.slf4j', module: 'slf4j-api'

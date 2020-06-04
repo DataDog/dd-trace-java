@@ -1,5 +1,6 @@
 package datadog.trace.core.scopemanager
 
+import datadog.trace.api.DDId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.core.interceptor.TraceStatsCollector
 import datadog.trace.profiling.Profiler
@@ -76,11 +77,13 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     0 * _
 
     where:
-    rate | traceId      | isProfiling
+    rate | tid          | isProfiling
     0.0  | 1g           | false
     0.5  | TRACE_ID_MAX | false
     0.5  | 1g           | true
     1.0  | 1g           | true
+
+    traceId = DDId.from(tid.longValue())
   }
 
   def "validate Heuristical scope lifecycle with no histogram"() {
@@ -138,7 +141,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     1 * statsCollector.getTraceStats(span) >> traceStats
     1 * statsCollector.getOverallStats() >> overall
     if (isProfiling) {
-      1 * span.getTraceId() >> 5g
+      1 * span.getTraceId() >> DDId.from(5)
       1 * factory.createSession("5", _) >> session
     }
     0 * _
@@ -158,7 +161,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     then: "nested interaction is permitted"
     if (isProfiling) {
       1 * delegate.handleSpan(_) >> delegateScope
-      1 * span.getTraceId() >> 5g
+      1 * span.getTraceId() >> DDId.from(5)
       1 * factory.createSession("5", _) >> session
       0 * _
     }
@@ -216,7 +219,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     _ * span.getLocalRootSpan() >> span
     _ * statsCollector.getTraceStats(span) >> traceStats
     _ * statsCollector.getOverallStats() >> overall
-    _ * span.getTraceId() >> 5g
+    _ * span.getTraceId() >> DDId.from(5)
     _ * factory.createSession("5", _) >> session
     _ * delegateScope.close()
     _ * session.close()

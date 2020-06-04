@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import groovy.json.JsonSlurper
@@ -11,7 +10,9 @@ import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestClientBuilder
 import org.elasticsearch.common.io.FileSystemUtils
 import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.common.transport.TransportAddress
 import org.elasticsearch.env.Environment
+import org.elasticsearch.http.HttpServerTransport
 import org.elasticsearch.node.Node
 import org.elasticsearch.node.internal.InternalSettingsPreparer
 import org.elasticsearch.transport.Netty3Plugin
@@ -23,20 +24,18 @@ import static org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING
 @Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch5RestClientTest extends AgentTestRunner {
   @Shared
-  int httpPort
-  @Shared
-  int tcpPort
+  TransportAddress httpTransportAddress
   @Shared
   Node testNode
   @Shared
   File esWorkingDir
+  @Shared
+  String clusterName = UUID.randomUUID().toString()
 
   @Shared
   static RestClient client
 
   def setupSpec() {
-    httpPort = PortUtils.randomOpenPort()
-    tcpPort = PortUtils.randomOpenPort()
 
     esWorkingDir = File.createTempDir("test-es-working-dir-", "")
     esWorkingDir.deleteOnExit()
@@ -44,16 +43,15 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
 
     def settings = Settings.builder()
       .put("path.home", esWorkingDir.path)
-      .put("http.port", httpPort)
-      .put("transport.tcp.port", tcpPort)
       .put("transport.type", "netty3")
       .put("http.type", "netty3")
-      .put(CLUSTER_NAME_SETTING.getKey(), "test-cluster")
+      .put(CLUSTER_NAME_SETTING.getKey(), clusterName)
       .build()
     testNode = new Node(new Environment(InternalSettingsPreparer.prepareSettings(settings)), [Netty3Plugin])
     testNode.start()
+    httpTransportAddress = testNode.injector().getInstance(HttpServerTransport).boundAddress().publishAddress()
 
-    client = RestClient.builder(new HttpHost("localhost", httpPort))
+    client = RestClient.builder(new HttpHost(httpTransportAddress.address, httpTransportAddress.port))
       .setMaxRetryTimeoutMillis(Integer.MAX_VALUE)
       .setRequestConfigCallback(new RestClientBuilder.RequestConfigCallback() {
         @Override
@@ -93,8 +91,8 @@ class Elasticsearch5RestClientTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "elasticsearch-java"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.PEER_HOSTNAME" "localhost"
-            "$Tags.PEER_PORT" httpPort
+            "$Tags.PEER_HOSTNAME" httpTransportAddress.address
+            "$Tags.PEER_PORT" httpTransportAddress.port
             "$Tags.HTTP_URL" "_cluster/health"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.DB_TYPE" "elasticsearch"

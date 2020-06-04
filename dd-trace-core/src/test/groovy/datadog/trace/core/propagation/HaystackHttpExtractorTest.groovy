@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.util.test.DDSpecification
 
@@ -26,19 +27,19 @@ class HaystackHttpExtractorTest extends DDSpecification {
     final ExtractedContext context = extractor.extract(headers, MapGetter.INSTANCE)
 
     then:
-    context.traceId == new BigInteger(traceId)
-    context.spanId == new BigInteger(spanId)
+    context.traceId == DDId.from(traceId)
+    context.spanId == DDId.from(spanId)
     context.baggage == ["k1": "v1", "k2": "v2"]
     context.tags == ["some-tag": "my-interesting-info"]
     context.samplingPriority == samplingPriority
     context.origin == origin
 
     where:
-    traceId                       | spanId                        | samplingPriority              | origin
-    "1"                           | "2"                           | PrioritySampling.SAMPLER_KEEP | null
-    "2"                           | "3"                           | PrioritySampling.SAMPLER_KEEP | null
-    TRACE_ID_MAX.toString()       | (TRACE_ID_MAX - 1).toString() | PrioritySampling.SAMPLER_KEEP | null
-    (TRACE_ID_MAX - 1).toString() | TRACE_ID_MAX.toString()       | PrioritySampling.SAMPLER_KEEP | null
+    traceId               | spanId                | samplingPriority              | origin
+    "1"                   | "2"                   | PrioritySampling.SAMPLER_KEEP | null
+    "2"                   | "3"                   | PrioritySampling.SAMPLER_KEEP | null
+    "$TRACE_ID_MAX"       | "${TRACE_ID_MAX - 1}" | PrioritySampling.SAMPLER_KEEP | null
+    "${TRACE_ID_MAX - 1}" | "$TRACE_ID_MAX"       | PrioritySampling.SAMPLER_KEEP | null
   }
 
   def "extract header tags with no propagation"() {
@@ -131,17 +132,14 @@ class HaystackHttpExtractorTest extends DDSpecification {
     }
 
     where:
-    gtTraceId             | gSpanId               | expectedTraceId | expectedSpanId
-    "-1"                  | "1"                   | null            | 0G
-    "1"                   | "-1"                  | null            | 0G
-    "0"                   | "1"                   | null            | 0G
-    "1"                   | "0"                   | 1G              | 0G
-    "$TRACE_ID_MAX"       | "1"                   | TRACE_ID_MAX    | 1G
-    "${TRACE_ID_MAX + 1}" | "1"                   | null            | 1G
-    "1"                   | "$TRACE_ID_MAX"       | 1G              | TRACE_ID_MAX
-    "1"                   | "${TRACE_ID_MAX + 1}" | null            | 0G
-
-    traceId = gtTraceId.toString()
-    spanId = gSpanId.toString()
+    traceId               | spanId                | expectedTraceId             | expectedSpanId
+    "-1"                  | "1"                   | null                        | null
+    "1"                   | "-1"                  | null                        | null
+    "0"                   | "1"                   | null                        | null
+    "1"                   | "0"                   | DDId.ONE                    | DDId.ZERO
+    "$TRACE_ID_MAX"       | "1"                   | DDId.from("$TRACE_ID_MAX")  | DDId.ONE
+    "${TRACE_ID_MAX + 1}" | "1"                   | null                        | null
+    "1"                   | "$TRACE_ID_MAX"       | DDId.ONE                    | DDId.from("$TRACE_ID_MAX")
+    "1"                   | "${TRACE_ID_MAX + 1}" | null                        | null
   }
 }

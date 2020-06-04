@@ -1,13 +1,15 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 plugins {
   id "com.github.johnrengelman.shadow" version "5.2.0"
 }
 
 description = 'dd-java-agent'
 
-apply from: "${rootDir}/gradle/java.gradle"
-apply from: "${rootDir}/gradle/publish.gradle"
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/publish.gradle"
 
 configurations {
   shadowInclude
@@ -45,7 +47,22 @@ ext.generalShadowJarConfig = {
 }
 
 def includeShadowJar(shadowJarTask, jarname) {
+  def opentracingFound = new AtomicBoolean()
   project.processResources {
+    doFirst {
+      eachFile {
+        // We seem unlikely to use this name somewhere else.
+        if (it.path.contains("opentracing") && it.name.contains("Format\$Builtin")) {
+          opentracingFound.set(true)
+        }
+      }
+    }
+    doLast {
+      if (opentracingFound.get()) {
+        throw new GradleException("OpenTracing direct dependency found!")
+      }
+    }
+
     from(zipTree(shadowJarTask.archiveFile)) {
       into jarname + '.isolated'
       rename '(^.*)\\.class$', '$1.classdata'
@@ -97,16 +114,15 @@ modifyPom {
 dependencies {
   testCompile project(':dd-java-agent:agent-bootstrap')
   testCompile project(':dd-trace-api')
-  testCompile project(':dd-trace-ot')
   testCompile project(':dd-trace-core')
   testCompile project(':utils:test-utils')
 
   testCompile deps.testLogging
   testCompile deps.guava
+  testCompile group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 
   // Includes for the top level shadow jar
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
-  shadowInclude deps.opentracing
 
   // Includes for the shared internal shadow jar
   sharedShadowInclude deps.shared

@@ -1,15 +1,16 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.trace.api.DDId;
 import datadog.trace.api.interceptor.MutableSpan;
-import java.math.BigInteger;
+import java.util.Map;
 
 public interface AgentSpan extends MutableSpan {
 
-  BigInteger getTraceId();
+  DDId getTraceId();
 
-  BigInteger getSpanId();
+  DDId getSpanId();
 
-  BigInteger getParentId();
+  DDId getParentId();
 
   @Override
   AgentSpan setTag(String key, boolean value);
@@ -22,6 +23,8 @@ public interface AgentSpan extends MutableSpan {
 
   @Override
   AgentSpan setTag(String key, String value);
+
+  AgentSpan setTag(String key, Object value);
 
   @Override
   AgentSpan setError(boolean error);
@@ -37,7 +40,13 @@ public interface AgentSpan extends MutableSpan {
 
   Context context();
 
+  String getBaggageItem(String key);
+
+  AgentSpan setBaggageItem(String key, String value);
+
   void finish();
+
+  void finish(long finishMicros);
 
   String getSpanName();
 
@@ -46,6 +55,12 @@ public interface AgentSpan extends MutableSpan {
   boolean hasResourceName();
 
   interface Context {
+    DDId getTraceId();
+
+    DDId getSpanId();
+
     AgentTrace getTrace();
+
+    Iterable<Map.Entry<String, String>> baggageItems();
   }
 }
