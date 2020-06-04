@@ -56,7 +56,6 @@ class ProfilingIntegrationMLTTest extends AbstractSmokeTest {
     then:
     firstRequest.getRequestUrl().toString() == profilingUrl
 
-    firstRequestParameters.get("profiling-name").get(0) == 'dd-profiling'
     firstRequestParameters.get("format").get(0) == "jfr"
     firstRequestParameters.get("type").get(0) == "jfr-continuous"
     firstRequestParameters.get("runtime").get(0) == "jvm"
