@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import java.math.BigInteger;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -24,13 +23,11 @@ public class DDId {
    * @return DDId
    */
   public static DDId generate() {
-    // It is **extremely** unlikely to generate the value "0" but we still need to handle that
-    // case
+    // It is **extremely** unlikely to generate the value "0" but we still need to handle that case
     long id;
     do {
-      // TODO the ids are positive here by design to avoid materialization of a BigInteger,
-      //      and that can be changed to nextLong(Long.MIN_VALUE, Long.MAX_VALUE), when
-      //      msgpack supports packUnsignedLong
+      // The ids are positive here for historical reasons, and supposed compatibility with
+      // different older Datadog agent versions.
       id = ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
     } while (id == 0);
     return DDId.from(id);
@@ -195,16 +192,6 @@ public class DDId {
     return Long.toString(quot) + rem;
   }
 
-  // TODO Can be removed when msgpack support packUnsignedLong
-  private static BigInteger toUnsignedBigInteger(long l) {
-    if (l >= 0L) return BigInteger.valueOf(l);
-
-    long high = l >>> 32;
-    long low = l & 0xffffffffL;
-
-    return BigInteger.valueOf(high).shiftLeft(32).add(BigInteger.valueOf(low));
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -250,18 +237,6 @@ public class DDId {
       this.hex = h = Long.toHexString(this.id);
     }
     return h;
-  }
-
-  /**
-   * Returns a {@code BigInteger} representation of the 64 bit id. The {@code BigInteger} will not
-   * be cached.
-   *
-   * <p>TODO Can be removed if msgpack supports packUnsignedLong
-   *
-   * @return BigInteger representation of the 64 bit id.
-   */
-  public BigInteger toBigInteger() {
-    return toUnsignedBigInteger(this.id);
   }
 
   /**

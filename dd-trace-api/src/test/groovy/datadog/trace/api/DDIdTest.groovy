@@ -12,7 +12,6 @@ class DDIdTest extends DDSpecification {
     ddid.toLong() == longId
     ddid.toString() == expectedString
     ddid.toHexString() == expectedHex
-    ddid.toBigInteger() == new BigInteger(expectedString, 10)
 
     where:
     longId         | expectedId                | expectedString         | expectedHex

@@ -3,7 +3,6 @@ package datadog.trace.core.serialization;
 import datadog.trace.api.DDId;
 import datadog.trace.core.StringTables;
 import java.io.IOException;
-import java.math.BigInteger;
 import org.msgpack.core.MessagePacker;
 
 public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
@@ -93,24 +92,9 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
 
   @Override
   public void writeId(byte[] key, DDId id, MessagePacker destination) throws IOException {
-    // This can be removed when msgpack supports packUnsignedLong
-    long l = id.toLong();
-    if (l >= 0) {
-      writeLong(key, l, destination);
-    } else {
-      writeBigInteger(key, id.toBigInteger(), destination);
-    }
-  }
-
-  private void writeBigInteger(
-      final byte[] key, final BigInteger value, final MessagePacker destination)
-      throws IOException {
-    writeKey(key, destination);
-    if (value == null) {
-      destination.packNil();
-    } else {
-      destination.packBigInteger(value);
-    }
+    // Since the Datadog agent will decode the long as an unsigned 64 bit integer even
+    // if it's sent as a signed 64 bit integer, we can just use writeLong here
+    writeLong(key, id.toLong(), destination);
   }
 
   private static void writeUTF8Tag(final String value, final MessagePacker destination)
