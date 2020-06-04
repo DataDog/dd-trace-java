@@ -3,9 +3,9 @@ package datadog.trace.core.scopemanager
 import datadog.trace.api.DDId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.core.interceptor.TraceStatsCollector
-import datadog.trace.profiling.Profiler
-import datadog.trace.profiling.Session
-import datadog.trace.profiling.SessionFactory
+import datadog.trace.mlt.MethodLevelTracer
+import datadog.trace.mlt.Session
+import datadog.trace.mlt.SessionFactory
 import datadog.trace.util.test.DDSpecification
 import org.HdrHistogram.Histogram
 
@@ -21,7 +21,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
 
   def setup() {
     assert !TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.get()
-    Profiler.initialize(factory)
+    MethodLevelTracer.initialize(factory)
   }
 
   def cleanup() {

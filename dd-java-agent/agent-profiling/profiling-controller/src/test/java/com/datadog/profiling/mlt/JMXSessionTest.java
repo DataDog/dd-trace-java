@@ -3,7 +3,7 @@ package com.datadog.profiling.mlt;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import datadog.trace.core.util.ThreadStackAccess;
-import datadog.trace.profiling.Session;
+import datadog.trace.mlt.Session;
 import org.junit.jupiter.api.Test;
 
 public class JMXSessionTest {

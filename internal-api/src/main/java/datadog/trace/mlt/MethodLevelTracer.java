@@ -1,14 +1,14 @@
-package datadog.trace.profiling;
+package datadog.trace.mlt;
 
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Entry point of the Profiling API to allow trigger sampling profiling on demand
+ * Entry point of the method-level tracing API to allow trigger sampling profiling on demand
  *
  * <p>Example of usage:
  *
  * <pre>
- *   try (Session session = Profiler.startProfiling(traceId)) {
+ *   try (Session session = MethodLevelTracer.startProfiling(traceId)) {
  *     // ...
  *   }
  * </pre>
@@ -16,13 +16,13 @@ import lombok.extern.slf4j.Slf4j;
  * or
  *
  * <pre>
- *   Session session = Profiler.startProfiling(traceId)
+ *   Session session = MethodLevelTracer.startProfiling(traceId)
  *   // ... and into another method:
  *   session.close();
  * </pre>
  */
 @Slf4j
-public class Profiler {
+public class MethodLevelTracer {
   private static volatile SessionFactory factory;
   private static final Session NO_SESSION = new NoSession();
 
@@ -50,7 +50,7 @@ public class Profiler {
   }
 
   /**
-   * Initializes the Profiler API with an implementation through SessionFactory
+   * Initializes the method-level tracing API with an implementation through SessionFactory
    *
    * @param sessionFactory
    */

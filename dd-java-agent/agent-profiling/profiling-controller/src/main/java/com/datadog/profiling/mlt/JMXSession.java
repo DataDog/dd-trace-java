@@ -1,6 +1,6 @@
 package com.datadog.profiling.mlt;
 
-import datadog.trace.profiling.Session;
+import datadog.trace.mlt.Session;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 

@@ -1,7 +1,7 @@
 package com.datadog.profiling.mlt;
 
-import datadog.trace.profiling.Session;
-import datadog.trace.profiling.SessionFactory;
+import datadog.trace.mlt.Session;
+import datadog.trace.mlt.SessionFactory;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
