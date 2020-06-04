@@ -50,7 +50,7 @@ class AkkaHttpClientInstrumentationTest extends HttpClientTest {
 
   @Override
   String expectedOperationName() {
-    return "akka-http.request"
+    return "akka-http.client.request"
   }
 
   @Override
@@ -76,8 +76,8 @@ class AkkaHttpClientInstrumentationTest extends HttpClientTest {
         span(0) {
           parent()
           serviceName "unnamed-java-app"
-          operationName "akka-http.request"
-          resourceName "akka-http.request"
+          operationName "akka-http.client.request"
+          resourceName "akka-http.client.request"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
           tags {
