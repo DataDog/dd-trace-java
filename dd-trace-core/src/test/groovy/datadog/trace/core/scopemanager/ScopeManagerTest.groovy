@@ -9,6 +9,7 @@ import datadog.trace.context.ScopeListener
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.util.test.DDSpecification
+import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Subject
 import spock.lang.Timeout
@@ -27,7 +28,9 @@ class ScopeManagerTest extends DDSpecification {
   CountDownLatch latch
   @Shared
   ListWriter writer
+
   @Shared
+  @AutoCleanup
   CoreTracer tracer
 
   @Shared
@@ -74,7 +77,7 @@ class ScopeManagerTest extends DDSpecification {
 
     expect:
     scopeManager.active() == null
-    writer.empty
+    writer.isEmpty()
   }
 
   def "threadlocal is active"() {
@@ -86,14 +89,14 @@ class ScopeManagerTest extends DDSpecification {
     !spanFinished(scope.span())
     scopeManager.active() == scope
     scope instanceof ScopeInterceptor.Scope
-    writer.empty
+    writer.isEmpty()
 
     when:
     scope.close()
 
     then:
     !spanFinished(scope.span())
-    writer == []
+    writer.isEmpty()
     scopeManager.active() == null
 
     when:
@@ -101,7 +104,9 @@ class ScopeManagerTest extends DDSpecification {
 
     then:
     spanFinished(scope.span())
-    writer == [[scope.span()]]
+    writer.size() == 1
+    writer[0].size() == 1
+    writer[0][0] == scope.span()
     scopeManager.active() == null
   }
 
@@ -124,7 +129,7 @@ class ScopeManagerTest extends DDSpecification {
     scopeManager.active() == parentScope
     noopChild || !spanFinished(childScope.span())
     !spanFinished(parentScope.span())
-    writer == []
+    writer.isEmpty()
 
     where:
     noopChild | _
@@ -217,7 +222,7 @@ class ScopeManagerTest extends DDSpecification {
     continuation != null
     ref.get() == null
     !spanFinished(span)
-    writer == []
+    writer.isEmpty()
   }
 
   @Timeout(value = 60, unit = SECONDS)
@@ -233,7 +238,7 @@ class ScopeManagerTest extends DDSpecification {
     expect:
     scopeManager.active() == null
     spanFinished(span)
-    writer == []
+    writer.isEmpty()
 
     when:
     if (forceGC) {
@@ -249,7 +254,7 @@ class ScopeManagerTest extends DDSpecification {
     }
 
     then:
-    forceGC ? true : writer == [[span]]
+    forceGC || (writer.size() == 1 && writer[0].size() == 1 && writer[0][0] == span)
 
     where:
     autoClose | forceGC
@@ -284,7 +289,7 @@ class ScopeManagerTest extends DDSpecification {
     scopeManager.active() == null
     !spanFinished(childSpan)
     spanFinished(parentSpan)
-    writer == []
+    writer.isEmpty()
 
     when:
     def newScope = continuation.activate()
@@ -298,7 +303,7 @@ class ScopeManagerTest extends DDSpecification {
     newScope.span() == childSpan
     !spanFinished(childSpan)
     spanFinished(parentSpan)
-    writer == []
+    writer.isEmpty()
 
     when:
     newScope.close()
@@ -309,7 +314,10 @@ class ScopeManagerTest extends DDSpecification {
     scopeManager.active() == null
     spanFinished(childSpan)
     spanFinished(parentSpan)
-    writer == [[childSpan, parentSpan]]
+    writer.size() == 1
+    writer[0].size() == 2
+    writer[0][0] == childSpan
+    writer[0][1] == parentSpan
   }
 
   def "continuation allows adding spans even after other spans were completed"() {
@@ -328,7 +336,7 @@ class ScopeManagerTest extends DDSpecification {
     newScope != scope
     scopeManager.active() == newScope
     spanFinished(span)
-    writer == []
+    writer.isEmpty()
 
     when:
     def childSpan = tracer.buildSpan("child").start()
@@ -341,7 +349,10 @@ class ScopeManagerTest extends DDSpecification {
     scopeManager.active() == null
     spanFinished(childSpan)
     childSpan.context().parentId == span.context().spanId
-    writer == [[childSpan, span]]
+    writer.size() == 1
+    writer[0].size() == 2
+    writer[0][0] == childSpan
+    writer[0][1] == span
   }
 
   def "DDScope put in threadLocal after continuation activation"() {
