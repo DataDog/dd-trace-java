@@ -13,6 +13,8 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
   private static final Set<? extends Object> NOT_FOUND =
       new HashSet<>(Arrays.asList(Integer.valueOf(404), "404"));
 
+  private static final BitSlicedBYG PROTOCOL_SEARCH = new BitSlicedBYG("://");
+
   private final ThreadLocal<StringBuilder> resourceNameBuilder =
       new ThreadLocal<StringBuilder>() {
         @Override
@@ -56,8 +58,8 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
         resourceName.append('/');
       } else {
         // skip the protocol info if present
-        int start = url.indexOf("://");
-        final boolean hasProtocol = start >= 0;
+        int start = protocolPosition(url);
+        boolean hasProtocol = start >= 0;
         start += hasProtocol ? 3 : 1;
         if (hasProtocol) { // then we need to terminate when an ? or # is found
           start = url.indexOf('/', start);
@@ -80,7 +82,7 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
     boolean first = true;
     boolean last = false;
     int end = 0;
-    for (int i = start; i < url.length(); i = end) {
+    for (int i = start; i < url.length() && !last; i = end) {
       if (url.charAt(i) == '/' || first) {
         resourceName.append('/');
         ++i;
@@ -113,5 +115,52 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
         first = false;
       }
     }
+  }
+
+  private static class BitSlicedBYG {
+    private final int[] high;
+    private final int[] low;
+    private final int termination;
+
+    BitSlicedBYG(String term) {
+      if (term.length() > 32) {
+        throw new IllegalArgumentException("term must be shorter than 32 characters");
+      }
+      this.high = new int[16];
+      this.low = new int[16];
+      int termination = 1;
+      for (char c : term.toCharArray()) {
+        if (c >= 256) {
+          throw new IllegalStateException("term must be latin 1");
+        }
+        low[c & 0xF] |= termination;
+        high[(c >>> 4) & 0xF] |= termination;
+        termination <<= 1;
+      }
+      this.termination = 1 << (term.length() - 1);
+    }
+
+    public int find(String text, int from, int to) {
+      int state = 0;
+      to = Math.min(to, text.length());
+      for (int i = from; i < to; ++i) {
+        char c = text.charAt(i);
+        if (c >= 256) { // oops, not latin 1 input
+          state = 0;
+        } else {
+          int highMask = high[(c >>> 4) & 0xF];
+          int lowMask = low[c & 0xF];
+          state = ((state << 1) | 1) & highMask & lowMask;
+          if ((state & termination) == termination) {
+            return i - Long.numberOfTrailingZeros(termination);
+          }
+        }
+      }
+      return -1;
+    }
+  }
+
+  private static int protocolPosition(String url) {
+    return PROTOCOL_SEARCH.find(url, 0, 16);
   }
 }

@@ -1,8 +1,6 @@
 package datadog.trace.core.processor
 
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.common.writer.ListWriter
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.SpanFactory
 import datadog.trace.core.processor.rule.URLAsResourceNameRule
 import datadog.trace.util.test.DDSpecification
@@ -10,15 +8,12 @@ import spock.lang.Subject
 
 class URLAsResourceNameRuleTest extends DDSpecification {
 
-  def writer = new ListWriter()
-  //def tracer = CoreTracer.builder().writer(writer).build()
-
   @Subject
   def decorator = new URLAsResourceNameRule()
 
   def "pulls path from url #input"() {
     when:
-    def path = decorator.rawPathFromUrlString(input)
+    def path = decorator.extractResourceNameFromURL(null, input)
 
     then:
     path == expected
@@ -52,7 +47,7 @@ class URLAsResourceNameRuleTest extends DDSpecification {
 
   def "should replace all digits"() {
     when:
-    def norm = decorator.normalizePath(input)
+    def norm = decorator.extractResourceNameFromURL(null, input)
 
     then:
     norm == output
@@ -85,7 +80,7 @@ class URLAsResourceNameRuleTest extends DDSpecification {
 
   def "should leave other segments alone"() {
     when:
-    def norm = decorator.normalizePath(input)
+    def norm = decorator.extractResourceNameFromURL(null, input)
 
     then:
     norm == input
