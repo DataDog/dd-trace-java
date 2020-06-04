@@ -122,13 +122,13 @@ public final class ProfileUploader {
   public ProfileUploader(final Config config) {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
-
+    log.debug("Started ProfileUploader with target url {}", url);
     /*
     FIXME: currently `Config` class cannot get access to some pieces of information we need here:
     * PID (see PidHelper for details),
     * Profiler version
     Since Config returns unmodifiable map we have to do copy here.
-    Ideally we should improve this logic and avoid copy, but performace impact is very limtied
+    Ideally we should improve this logic and avoid copy, but performance impact is very limited
     since we are doing this once on startup only.
     */
     final Map<String, String> tagsMap = new HashMap<>(config.getMergedProfilingTags());
@@ -139,7 +139,7 @@ public final class ProfileUploader {
     }
     tags = tagsToList(tagsMap);
 
-    // This is the same thing OkHttp Dispatcher is doing except thread naming and deamonization
+    // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
     okHttpExecutorService =
         new ThreadPoolExecutor(
             0,
@@ -301,16 +301,17 @@ public final class ProfileUploader {
     bodyBuilder.addPart(DATA_HEADERS, body);
     final RequestBody requestBody = bodyBuilder.build();
 
-    final Request request =
+    final Request.Builder requestBuilder =
         new Request.Builder()
             .url(url)
-            .addHeader(HEADER_DD_API_KEY, apiKey)
             // Note: this header is used to disable tracing of profiling requests
             .addHeader(DATADOG_META_LANG, JAVA_LANG)
-            .post(requestBody)
-            .build();
+            .post(requestBody);
+    if (apiKey != null) {
+      requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
+    }
 
-    client.newCall(request).enqueue(RESPONSE_CALLBACK);
+    client.newCall(requestBuilder.build()).enqueue(RESPONSE_CALLBACK);
   }
 
   private int getExpectedRequestSize() {

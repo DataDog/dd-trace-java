@@ -193,6 +193,19 @@ public class ProfileUploaderTest {
   }
 
   @Test
+  public void testRequestWithNoAPIKey() throws IOException, InterruptedException {
+    when(config.getApiKey()).thenReturn(null);
+
+    uploader = new ProfileUploader(config);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+
+    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(request);
+    assertNull(request.getHeader("DD-API-KEY"));
+  }
+
+  @Test
   public void testRequestWithProxy() throws IOException, InterruptedException {
     final String backendHost = "intake.profiling.datadoghq.com:1234";
     final String backendUrl = "http://intake.profiling.datadoghq.com:1234" + URL_PATH;

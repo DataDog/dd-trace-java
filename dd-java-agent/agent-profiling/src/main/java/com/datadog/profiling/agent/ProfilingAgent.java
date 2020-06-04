@@ -40,10 +40,9 @@ public class ProfilingAgent {
         return;
       }
       if (config.getApiKey() == null) {
-        log.info("Profiling: no API key. Profiling is disabled.");
-        return;
-      }
-      if (!API_KEY_REGEX.test(config.getApiKey())) {
+        log.info(
+            "Profiling: no API key configured. An API key is not required for profiling when sending data to the local datadog-agent.");
+      } else if (!API_KEY_REGEX.test(config.getApiKey())) {
         log.info(
             "Profiling: API key doesn't match expected format, expected to get a 32 character hex string. Profiling is disabled. {} ",
             config.getApiKey());

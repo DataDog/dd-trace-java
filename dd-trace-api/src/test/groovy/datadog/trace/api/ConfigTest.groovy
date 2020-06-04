@@ -1232,7 +1232,20 @@ class ConfigTest extends DDSpecification {
     config.profilingProxyPassword == "test-secret-proxy-password"
   }
 
-  def "custom datadog site"() {
+  def "custom datadog site with API key"() {
+    setup:
+    def prop = new Properties()
+    prop.setProperty(SITE, "some.new.site")
+    prop.setProperty(API_KEY, "feedbeef")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.getFinalProfilingUrl() == "https://intake.profile.some.new.site/v1/input"
+  }
+
+  def "custom datadog site without API key"() {
     setup:
     def prop = new Properties()
     prop.setProperty(SITE, "some.new.site")
@@ -1241,7 +1254,7 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.getFinalProfilingUrl() == "https://intake.profile.some.new.site/v1/input"
+    config.getFinalProfilingUrl() == "http://" + config.getAgentHost() + ":" + config.getAgentPort() + "/profiling/v1/input"
   }
 
 
