@@ -1,9 +1,9 @@
 package datadog.trace.core.scopemanager;
 
-import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.RateLimiter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.interceptor.TraceStatsCollector;
 import datadog.trace.mlt.MethodLevelTracer;
@@ -133,16 +133,6 @@ public abstract class TraceProfilingScopeInterceptor
   }
 
   private static class TraceProfilingScope extends DelegatingScope {
-    private static final String SAMPLING_DATA_TAG_PREFIX = "_dd.mlt.";
-
-    // 4n / 3 bytes in -> base64 encoding where "n" is the byte array length
-    // Flipping the equation, you get max bytes for a base64 length.
-    private static final int TAG_LENGTH_LIMIT = 5000;
-    private static final int BYTES_LIMIT_PER_TAG = TAG_LENGTH_LIMIT * 3 / 4;
-
-    // Guava encoder because the built in Base64 was added in JDK8
-    private static final BaseEncoding ENCODER = BaseEncoding.base64();
-
     private final Session session;
 
     private TraceProfilingScope(final AgentSpan span, final Scope delegate) {
@@ -158,24 +148,7 @@ public abstract class TraceProfilingScopeInterceptor
       final byte[] samplingData = session.close();
 
       if (samplingData != null) {
-        encodeSamplingData(samplingData);
-      }
-    }
-
-    private void encodeSamplingData(final byte[] samplingData) {
-      int tagIndex = 0;
-      int dataOffset = 0;
-
-      while (dataOffset < samplingData.length) {
-        final int dataLength = Math.min(samplingData.length - dataOffset, BYTES_LIMIT_PER_TAG);
-
-        final String tag = SAMPLING_DATA_TAG_PREFIX + tagIndex;
-        final String value = ENCODER.encode(samplingData, dataOffset, dataLength);
-
-        span().setTag(tag, value);
-
-        tagIndex++;
-        dataOffset += dataLength;
+        span().setTag(InstrumentationTags.DD_MLT, samplingData);
       }
     }
   }
