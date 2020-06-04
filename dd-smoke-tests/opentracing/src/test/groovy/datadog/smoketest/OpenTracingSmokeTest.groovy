@@ -32,7 +32,7 @@ abstract class OpenTracingSmokeTest extends AbstractSmokeTest {
     conditions.eventually {
       assert traceRequests.poll(REQUEST_TIMEOUT, TimeUnit.SECONDS)?.getHeader("X-Datadog-Trace-Count")?.size() > 0
     }
-    assert serverProcess.waitFor() == 0
+    assert testedProcess.waitFor() == 0
   }
 }
 
