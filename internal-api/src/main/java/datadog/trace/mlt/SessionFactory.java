@@ -1,4 +1,4 @@
-package datadog.trace.profiling;
+package datadog.trace.mlt;
 
 /** Factory of profiling session */
 public interface SessionFactory {

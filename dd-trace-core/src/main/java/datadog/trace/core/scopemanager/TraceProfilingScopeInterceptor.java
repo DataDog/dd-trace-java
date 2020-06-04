@@ -5,8 +5,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.interceptor.TraceStatsCollector;
-import datadog.trace.profiling.Profiler;
-import datadog.trace.profiling.Session;
+import datadog.trace.mlt.MethodLevelTracer;
+import datadog.trace.mlt.Session;
 import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
 import org.HdrHistogram.Histogram;
@@ -138,7 +138,7 @@ public abstract class TraceProfilingScopeInterceptor
     private TraceProfilingScope(final AgentSpan span, final Scope delegate) {
       super(delegate);
       IS_THREAD_PROFILING.set(true);
-      session = Profiler.startProfiling(span.getTraceId().toString());
+      session = MethodLevelTracer.startProfiling(span.getTraceId().toString());
     }
 
     @Override
