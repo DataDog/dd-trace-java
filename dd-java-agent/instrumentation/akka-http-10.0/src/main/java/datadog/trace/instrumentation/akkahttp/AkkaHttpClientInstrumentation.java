@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.akkahttp;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.DDSpanNames.AKKA_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -80,7 +81,7 @@ public final class AkkaHttpClientInstrumentation extends Instrumenter.Default {
         return null;
       }
 
-      final AgentSpan span = startSpan("akka-http.client.request");
+      final AgentSpan span = startSpan(AKKA_CLIENT_REQUEST);
       span.setTag(InstrumentationTags.DD_MEASURED, true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);

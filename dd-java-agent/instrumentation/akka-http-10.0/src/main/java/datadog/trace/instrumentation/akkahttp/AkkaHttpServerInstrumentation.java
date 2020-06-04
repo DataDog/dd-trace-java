@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.DDSpanNames.AKKA_REQUEST;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders.GETTER;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -96,7 +97,7 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
   public static class DatadogWrapperHelper {
     public static AgentScope createSpan(final HttpRequest request) {
       final AgentSpan.Context extractedContext = propagate().extract(request, GETTER);
-      final AgentSpan span = startSpan("akka-http.request", extractedContext);
+      final AgentSpan span = startSpan(AKKA_REQUEST, extractedContext);
       span.setTag(InstrumentationTags.DD_MEASURED, true);
 
       DECORATE.afterStart(span);
