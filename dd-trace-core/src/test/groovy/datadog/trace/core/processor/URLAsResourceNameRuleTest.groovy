@@ -43,6 +43,9 @@ class URLAsResourceNameRuleTest extends DDSpecification {
     "http://[::192.9.5.5]/ipng"                                      | "/ipng"
     "http://[::FFFF:129.144.52.38]:80/index.html"                    | "/index.html"
     "http://[2010:836B:4179::836B:4179]"                             | "/"
+    "file:/some-random-file%abc"                                     | "file:/some-random-file%abc"
+    "file:/some-random-file%abc/user1234"                            | "file:/some-random-file%abc/?"
+    "https://dhajkdha/user1234"                                      | "/?"
   }
 
   def "should replace all digits"() {

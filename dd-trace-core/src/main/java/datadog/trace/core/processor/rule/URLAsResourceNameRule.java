@@ -4,14 +4,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.processor.TraceProcessor;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 
 public class URLAsResourceNameRule implements TraceProcessor.Rule {
-
-  private static final Set<? extends Object> NOT_FOUND =
-      new HashSet<>(Arrays.asList(Integer.valueOf(404), "404"));
 
   private static final BitSlicedBYG PROTOCOL_SEARCH = new BitSlicedBYG("://");
 
@@ -35,7 +29,7 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
       return;
     }
     final Object httpStatus = span.getTag(Tags.HTTP_STATUS);
-    if (NOT_FOUND.contains(httpStatus)) {
+    if (null != httpStatus && (httpStatus.equals(404) || "404".equals(httpStatus))) {
       span.setResourceName("404");
       return;
     }
@@ -83,15 +77,22 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
     boolean last = false;
     int end = 0;
     for (int i = start; i < url.length() && !last; i = end) {
-      if (url.charAt(i) == '/' || first) {
+      if (url.charAt(i) == '/') {
         resourceName.append('/');
         ++i;
+        first = false;
       }
       end = url.indexOf('/', i);
       if (end == -1) {
-        end = Math.max(url.indexOf('?', i), url.indexOf('#', i));
+        if (first) {
+          resourceName.append('/');
+        }
+        end = url.indexOf('?', i);
         if (end == -1) {
-          end = url.length();
+          end = url.indexOf('#', i);
+          if (end == -1) {
+            end = url.length();
+          }
         }
         last = true;
       }
