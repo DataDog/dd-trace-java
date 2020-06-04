@@ -1,8 +1,13 @@
 package datadog.trace.core.serialization;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import datadog.trace.api.DDId;
 import datadog.trace.core.StringTables;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutionException;
 import org.msgpack.core.MessagePacker;
 
 public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
@@ -97,7 +102,21 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
     writeLong(key, id.toLong(), destination);
   }
 
-  private static void writeUTF8Tag(final String value, final MessagePacker destination)
+  // Storing the last used 64 tags
+  // TODO maybe this should be configurable?
+  private final LoadingCache<String, byte[]> tagCache =
+      CacheBuilder.newBuilder()
+          .maximumSize(64)
+          .concurrencyLevel(1)
+          .build(
+              new CacheLoader<String, byte[]>() {
+                @Override
+                public byte[] load(String key) throws Exception {
+                  return key.getBytes(StandardCharsets.UTF_8);
+                }
+              });
+
+  private void writeUTF8Tag(final String value, final MessagePacker destination)
       throws IOException {
     if (null == value) {
       destination.packNil();
@@ -107,7 +126,21 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
         destination.packRawStringHeader(interned.length);
         destination.addPayload(interned);
       } else {
-        destination.packString(value);
+        byte[] bytes = null;
+        if (value.length() > 0) {
+          try {
+            bytes = tagCache.get(value);
+
+          } catch (ExecutionException e) {
+            // Something went wrong. We will write out the string the normal way.
+          }
+        }
+        if (bytes != null) {
+          destination.packRawStringHeader(bytes.length);
+          destination.addPayload(bytes);
+        } else {
+          destination.packString(value);
+        }
       }
     }
   }
