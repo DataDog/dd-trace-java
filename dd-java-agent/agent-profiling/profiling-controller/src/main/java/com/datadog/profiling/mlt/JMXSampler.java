@@ -15,17 +15,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 class JMXSampler {
   private final ThreadScopeMapper threadScopeMapper;
-  private final ThreadStackProvider provider;
   private final ScheduledExecutorService executor =
       Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory("dd-profiling-sampler"));
   private final AtomicReference<long[]> threadIds = new AtomicReference<>();
+  private boolean providerFirstAccess = true;
 
   public JMXSampler(ThreadScopeMapper threadScopeMapper) {
     this.threadScopeMapper = threadScopeMapper;
-    provider = ThreadStackAccess.getCurrentThreadStackProvider();
-    if (provider instanceof NoneThreadStackProvider) {
-      log.warn("ThreadStack provider is no op. It will not provide thread stacks.");
-    }
     // TODO period as parameter
     executor.scheduleAtFixedRate(this::sample, 0, 10, TimeUnit.MILLISECONDS);
   }
@@ -84,6 +80,11 @@ class JMXSampler {
     long[] tmpArray = threadIds.get();
     if (tmpArray == null || tmpArray.length == 0) {
       return;
+    }
+    ThreadStackProvider provider = ThreadStackAccess.getCurrentThreadStackProvider();
+    if (provider instanceof NoneThreadStackProvider && providerFirstAccess) {
+      log.warn("ThreadStack provider is no op. It will not provide thread stacks.");
+      providerFirstAccess = false;
     }
     ThreadInfo[] threadInfos = provider.getThreadInfo(tmpArray);
     // dispatch to Scopes
