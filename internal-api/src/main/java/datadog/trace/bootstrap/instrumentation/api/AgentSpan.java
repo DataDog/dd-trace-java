@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.interceptor.MutableSpan;
+
 import java.util.Map;
 
 public interface AgentSpan extends MutableSpan {

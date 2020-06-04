@@ -1,8 +1,8 @@
-package com.datadog.profiling.mlt;
+package com.datadog.mlt.sampler;
 
-import com.datadog.profiling.mlt.io.ConstantPool;
-import com.datadog.profiling.mlt.io.FrameElement;
-import com.datadog.profiling.mlt.io.FrameSequence;
+import com.datadog.mlt.io.ConstantPool;
+import com.datadog.mlt.io.FrameElement;
+import com.datadog.mlt.io.FrameSequence;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;

@@ -1,4 +1,4 @@
-package com.datadog.profiling.mlt;
+package com.datadog.mlt.sampler;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 

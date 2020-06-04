@@ -30,6 +30,7 @@ include ':dd-java-agent'
 include ':dd-java-agent:agent-bootstrap'
 include ':dd-java-agent:agent-tooling'
 include ':dd-java-agent:agent-jmxfetch'
+include ':dd-java-agent:agent-mlt'
 include ':dd-java-agent:load-generator'
 
 include ':dd-java-agent:agent-profiling'
@@ -42,6 +43,7 @@ include ':dd-java-agent:agent-profiling:profiling-testing'
 include ':dd-java-agent:testing'
 include ':utils:test-utils'
 include ':utils:thread-utils'
+include ':utils:mlt-support'
 
 // smoke tests
 include ':dd-smoke-tests:cli'

@@ -1,14 +1,14 @@
-package com.datadog.profiling.mlt;
+package com.datadog.mlt.sampler;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-import com.datadog.profiling.mlt.io.FrameElement;
-import com.datadog.profiling.mlt.io.FrameSequence;
-import com.datadog.profiling.mlt.io.IMLTChunk;
-import com.datadog.profiling.mlt.io.MLTChunk;
-import com.datadog.profiling.mlt.io.MLTReader;
+import com.datadog.mlt.io.FrameElement;
+import com.datadog.mlt.io.FrameSequence;
+import com.datadog.mlt.io.IMLTChunk;
+import com.datadog.mlt.io.MLTChunk;
+import com.datadog.mlt.io.MLTReader;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;

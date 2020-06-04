@@ -1,4 +1,4 @@
-package com.datadog.profiling.mlt;
+package com.datadog.mlt.sampler;
 
 import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.core.util.NoneThreadStackProvider;

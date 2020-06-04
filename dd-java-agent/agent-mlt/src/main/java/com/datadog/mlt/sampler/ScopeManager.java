@@ -1,9 +1,9 @@
-package com.datadog.profiling.mlt;
+package com.datadog.mlt.sampler;
 
-import com.datadog.profiling.mlt.io.ConstantPool;
-import com.datadog.profiling.mlt.io.FrameElement;
-import com.datadog.profiling.mlt.io.FrameSequence;
-import com.datadog.profiling.mlt.io.IMLTChunk;
+import com.datadog.mlt.io.ConstantPool;
+import com.datadog.mlt.io.FrameElement;
+import com.datadog.mlt.io.FrameSequence;
+import com.datadog.mlt.io.IMLTChunk;
 import java.util.ArrayDeque;
 import java.util.Deque;
 

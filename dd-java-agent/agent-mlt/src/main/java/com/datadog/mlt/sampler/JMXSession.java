@@ -1,4 +1,4 @@
-package com.datadog.profiling.mlt;
+package com.datadog.mlt.sampler;
 
 import datadog.trace.mlt.Session;
 import java.util.function.Consumer;

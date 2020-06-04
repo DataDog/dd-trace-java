@@ -19,7 +19,7 @@ configurations {
 /*
  * 4 shadow jars are created
  * - The main "dd-java-agent" jar that also has the bootstrap project
- * - 2 jars based on projects (jmxfetch, agent tooling)
+ * - 3 jars based on projects (jmxfetch, agent tooling, mlt)
  * - 1 based on the shared dependencies
  * This general config is shared by all of them
  */
@@ -83,6 +83,9 @@ project(':dd-java-agent:agent-jmxfetch').afterEvaluate {
 }
 project(':dd-java-agent:agent-profiling').afterEvaluate {
   includeShadowJar(it.tasks.shadowJar, 'agent-profiling')
+}
+project(':dd-java-agent:agent-mlt').afterEvaluate {
+  includeShadowJar(it.tasks.shadowJar, 'agent-mlt')
 }
 
 task sharedShadowJar(type: ShadowJar) {

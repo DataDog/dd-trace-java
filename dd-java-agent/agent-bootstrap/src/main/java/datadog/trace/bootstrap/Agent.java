@@ -41,6 +41,7 @@ public class Agent {
   private static ClassLoader PARENT_CLASSLOADER = null;
   private static ClassLoader BOOTSTRAP_PROXY = null;
   private static ClassLoader AGENT_CLASSLOADER = null;
+  private static ClassLoader MLT_CLASSLOADER = null;
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
   private static ClassLoader PROFILING_CLASSLOADER = null;
 
@@ -99,6 +100,17 @@ public class Agent {
       registerLogManagerCallback(new StartProfilingAgentCallback(inst, bootstrapURL));
     } else {
       startProfilingAgent(bootstrapURL, false);
+    }
+
+    /*
+     * And yet another block for method-level tracer which is using JMX behind the scenes and
+     * can mess with LogManager.
+     */
+    if (isJavaBefore9() && appUsingCustomLogManager) {
+      log.debug("Custom logger detected. Delaying Method-level Tracer initialization.");
+      registerLogManagerCallback(new InstallMethodLevelTracerCallback(bootstrapURL));
+    } else {
+      installMethodLevelTracer(bootstrapURL);
     }
   }
 
@@ -199,6 +211,22 @@ public class Agent {
     }
   }
 
+  protected static class InstallMethodLevelTracerCallback extends ClassLoadCallBack {
+    InstallMethodLevelTracerCallback(final URL bootstrapURL) {
+      super(bootstrapURL);
+    }
+
+    @Override
+    public String getName() {
+      return "datadog-method-level-tracer";
+    }
+
+    @Override
+    public void execute() {
+      installMethodLevelTracer(bootstrapURL);
+    }
+  }
+
   private static synchronized void createParentClassloader(final URL bootstrapURL) {
     if (PARENT_CLASSLOADER == null) {
       try {
@@ -259,6 +287,27 @@ public class Agent {
       logVersionInfoMethod.invoke(null);
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
+    }
+  }
+
+  private static synchronized void installMethodLevelTracer(URL bootstrapURL) {
+    log.info("Installing Method-level Tracer");
+    try {
+      if (MLT_CLASSLOADER == null) {
+        log.info("Setting up Method-level Tracer ClassLoader");
+        MLT_CLASSLOADER =
+            createDatadogClassLoader("agent-mlt.isolated", bootstrapURL, PARENT_CLASSLOADER);
+      }
+      // install global method-level tracer
+      final Class<?> tracerInstallerClass =
+          MLT_CLASSLOADER.loadClass("datadog.trace.agent.mlt.TracerInstaller");
+      final Method tracerInstallerMethod = tracerInstallerClass.getMethod("install");
+      tracerInstallerMethod.invoke(null);
+    } catch (ClassFormatError ex) {
+      // method-level trace supports JDK 8+ - it is ok to encounter ClassFormatError on JDK 7
+      log.warn("Method-level Tracer requires Java 8 or newer. The tracer will be disabled.");
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while installing the Method-Level Tracer", ex);
     }
   }
 
