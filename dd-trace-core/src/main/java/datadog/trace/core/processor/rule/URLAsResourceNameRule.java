@@ -4,15 +4,22 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.processor.TraceProcessor;
-import java.util.Collection;
-import java.util.Map;
-import java.util.regex.Pattern;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 public class URLAsResourceNameRule implements TraceProcessor.Rule {
 
-  // Matches any path segments with numbers in them. (exception for versioning: "/v1/")
-  public static final Pattern PATH_MIXED_ALPHANUMERICS =
-      Pattern.compile("(?<=/)(?![vV]\\d{1,2}/)(?:[^\\/\\d\\?]*[\\d]+[^\\/\\?]*)");
+  private static final Set<? extends Object> NOT_FOUND =
+      new HashSet<>(Arrays.asList(Integer.valueOf(404), "404"));
+
+  private final ThreadLocal<StringBuilder> resourceNameBuilder =
+      new ThreadLocal<StringBuilder>() {
+        @Override
+        protected StringBuilder initialValue() {
+          return new StringBuilder(100);
+        }
+      };
 
   @Override
   public String[] aliases() {
@@ -20,83 +27,91 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
   }
 
   @Override
-  public void processSpan(
-      final DDSpan span, final Map<String, Object> tags, final Collection<DDSpan> trace) {
+  public void processSpan(final DDSpan span) {
     final DDSpanContext context = span.context();
-    final Object httpStatus = tags.get(Tags.HTTP_STATUS);
-    if (context.isResourceNameSet()
-        || tags.get(Tags.HTTP_URL) == null
-        || (httpStatus != null && (httpStatus.equals(404) || httpStatus.equals("404")))) {
+    if (context.isResourceNameSet()) {
       return;
     }
-
-    final String rawPath = rawPathFromUrlString(tags.get(Tags.HTTP_URL).toString().trim());
-    final String normalizedPath = normalizePath(rawPath);
-    final String resourceName = addMethodIfAvailable(tags, normalizedPath);
-
-    context.setResourceName(resourceName);
+    final Object httpStatus = span.getTag(Tags.HTTP_STATUS);
+    if (NOT_FOUND.contains(httpStatus)) {
+      span.setResourceName("404");
+      return;
+    }
+    final Object url = span.getTag(Tags.HTTP_URL);
+    if (null == url) {
+      return;
+    }
+    context.setResourceName(
+        extractResourceNameFromURL(span.getTag(Tags.HTTP_METHOD), url.toString()));
   }
 
-  private String rawPathFromUrlString(final String url) {
-    // Get the path without host:port
-    // url may already be just the path.
-
-    if (url.isEmpty()) {
-      return "/";
-    }
-
-    final int queryLoc = url.indexOf("?");
-    final int fragmentLoc = url.indexOf("#");
-    final int endLoc;
-    if (queryLoc < 0) {
-      if (fragmentLoc < 0) {
-        endLoc = url.length();
+  private String extractResourceNameFromURL(final Object method, final String url) {
+    StringBuilder resourceName = resourceNameBuilder.get();
+    try {
+      if (method != null) {
+        final String verb = method.toString().toUpperCase().trim();
+        resourceName.append(verb).append(' ');
+      }
+      if (url.isEmpty()) {
+        resourceName.append('/');
       } else {
-        endLoc = fragmentLoc;
+        // skip the protocol info if present
+        int start = url.indexOf("://");
+        final boolean hasProtocol = start >= 0;
+        start += hasProtocol ? 3 : 1;
+        if (hasProtocol) { // then we need to terminate when an ? or # is found
+          start = url.indexOf('/', start);
+          if (start == -1) {
+            resourceName.append('/');
+          } else { // need to scrub out sensitive info
+            cleanResourceName(url, resourceName, start);
+          }
+        } else { // just need to scrub out sensitive looking info
+          cleanResourceName(url, resourceName, start);
+        }
       }
-    } else {
-      if (fragmentLoc < 0) {
-        endLoc = queryLoc;
-      } else {
-        endLoc = Math.min(queryLoc, fragmentLoc);
-      }
-    }
-
-    final int protoLoc = url.indexOf("://");
-    if (protoLoc < 0) {
-      return url.substring(0, endLoc);
-    }
-
-    final int pathLoc = url.indexOf("/", protoLoc + 3);
-    if (pathLoc < 0) {
-      return "/";
-    }
-
-    if (queryLoc < 0) {
-      return url.substring(pathLoc);
-    } else {
-      return url.substring(pathLoc, endLoc);
+      return resourceName.toString();
+    } finally {
+      resourceName.setLength(0);
     }
   }
 
-  // Method to normalise the url string
-  private String normalizePath(final String path) {
-    if (path.isEmpty() || path.equals("/")) {
-      return "/";
-    }
+  private void cleanResourceName(String url, StringBuilder resourceName, int start) {
+    boolean first = true;
+    boolean last = false;
+    int end = 0;
+    for (int i = start; i < url.length(); i = end) {
+      if (url.charAt(i) == '/' || first) {
+        resourceName.append('/');
+        ++i;
+      }
+      end = url.indexOf('/', i);
+      if (end == -1) {
+        end = Math.max(url.indexOf('?', i), url.indexOf('#', i));
+        if (end == -1) {
+          end = url.length();
+        }
+        last = true;
+      }
+      if (i < end) {
+        char c = url.charAt(i);
+        boolean isVersion = !last & (c == 'v' | c == 'V') & (end - i) <= 3;
+        boolean containsNumerics = Character.isDigit(c);
+        boolean isBlank = Character.isWhitespace(c);
+        for (int j = i + 1; j < end && (!containsNumerics || isVersion || isBlank); ++j) {
+          c = url.charAt(j);
+          isVersion &= Character.isDigit(c);
+          containsNumerics |= Character.isDigit(c);
+          isBlank &= Character.isWhitespace(c);
+        }
 
-    return PATH_MIXED_ALPHANUMERICS.matcher(path).replaceAll("?");
-  }
-
-  private String addMethodIfAvailable(final Map<String, Object> meta, String path) {
-    // if the method (GET, POST ...) is present, add it
-    final Object method = meta.get(Tags.HTTP_METHOD);
-    if (method != null) {
-      final String verb = method.toString().toUpperCase().trim();
-      if (!verb.isEmpty()) {
-        path = verb + " " + path;
+        if (containsNumerics && !isVersion) {
+          resourceName.append('?');
+        } else if (!isBlank) {
+          resourceName.append(url, i, end);
+        }
+        first = false;
       }
     }
-    return path;
   }
 }

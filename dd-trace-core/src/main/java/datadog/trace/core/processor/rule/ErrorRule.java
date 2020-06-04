@@ -3,8 +3,6 @@ package datadog.trace.core.processor.rule;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
-import java.util.Collection;
-import java.util.Map;
 
 /** Converts error tag to field */
 public class ErrorRule implements TraceProcessor.Rule {
@@ -14,8 +12,7 @@ public class ErrorRule implements TraceProcessor.Rule {
   }
 
   @Override
-  public void processSpan(
-      final DDSpan span, final Map<String, Object> tags, final Collection<DDSpan> trace) {
+  public void processSpan(final DDSpan span) {
     final Object value = span.getAndRemoveTag(Tags.ERROR);
     if (value instanceof Boolean) {
       span.setError((Boolean) value);

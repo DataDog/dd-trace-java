@@ -5,8 +5,6 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
-import java.util.Collection;
-import java.util.Map;
 
 public class HttpStatusErrorRule implements TraceProcessor.Rule {
   @Override
@@ -15,9 +13,8 @@ public class HttpStatusErrorRule implements TraceProcessor.Rule {
   }
 
   @Override
-  public void processSpan(
-      final DDSpan span, final Map<String, Object> tags, final Collection<DDSpan> trace) {
-    final Object value = tags.get(Tags.HTTP_STATUS);
+  public void processSpan(final DDSpan span) {
+    final Object value = span.getTag(Tags.HTTP_STATUS);
     if (value != null && !span.context().getErrorFlag()) {
       try {
         final int status =

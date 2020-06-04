@@ -11,7 +11,7 @@ import spock.lang.Subject
 class URLAsResourceNameRuleTest extends DDSpecification {
 
   def writer = new ListWriter()
-  def tracer = CoreTracer.builder().writer(writer).build()
+  //def tracer = CoreTracer.builder().writer(writer).build()
 
   @Subject
   def decorator = new URLAsResourceNameRule()
@@ -69,7 +69,7 @@ class URLAsResourceNameRuleTest extends DDSpecification {
 
   def "should replace segments with mixed-characters"() {
     when:
-    def norm = decorator.normalizePath(input)
+    def norm = decorator.extractResourceNameFromURL(null, input)
 
     then:
     norm == output
@@ -111,7 +111,7 @@ class URLAsResourceNameRuleTest extends DDSpecification {
     }
 
     when:
-    decorator.processSpan(span, meta, [span])
+    decorator.processSpan(span)
 
     then:
     span.resourceName == resourceName
@@ -123,7 +123,7 @@ class URLAsResourceNameRuleTest extends DDSpecification {
     "\t"                        | "/"                 | [:]
     "/path"                     | "/path"             | [:]
     "/ABC/a-1/b_2/c.3/d4d/5f/6" | "/ABC/?/?/?/?/?/?"  | [:]
-    "/not-found"                | "fakeOperation"     | [(Tags.HTTP_STATUS): "404"]
+    "/not-found"                | "404"               | [(Tags.HTTP_STATUS): "404"]
     "/with-method"              | "POST /with-method" | [(Tags.HTTP_METHOD): "Post"]
 
     ignore = meta.put(Tags.HTTP_URL, value)
