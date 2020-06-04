@@ -30,6 +30,8 @@ public class ProfilingAgent {
    */
   public static synchronized void run(final boolean isStartingFirst)
       throws IllegalArgumentException {
+    // init the Profiler API for the Tracer, no need to have the profiler enabled for that
+    Profiler.initialize(new JMXSessionFactory());
     if (profiler == null) {
       final Config config = Config.get();
       if (isStartingFirst && !config.isProfilingStartForceFirst()) {
@@ -54,8 +56,6 @@ public class ProfilingAgent {
 
       try {
         final Controller controller = ControllerFactory.createController(config);
-        // init the Profiler API for the Tracer
-        Profiler.initialize(new JMXSessionFactory());
         final RecordingUploader uploader = new RecordingUploader(config);
 
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());
