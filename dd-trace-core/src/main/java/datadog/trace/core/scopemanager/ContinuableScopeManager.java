@@ -69,7 +69,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
   private Scope handleSpan(final Continuation continuation, final AgentSpan span) {
     final ContinuableScope scope = new ContinuableScope(continuation, delegate.handleSpan(span));
-    log.debug(String.format("Changing scope from %s to %s", tlsScope.get(), scope));
+    log.debug(String.format("Changing scope from %s TO====> %s", tlsScope.get(), scope));
     tlsScope.set(scope);
     scope.afterActivated();
     return scope;

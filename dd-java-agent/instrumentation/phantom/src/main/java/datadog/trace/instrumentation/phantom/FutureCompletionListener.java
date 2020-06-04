@@ -23,6 +23,7 @@ public class FutureCompletionListener extends AbstractFunction1<Try<ResultSet>, 
 
   @Override
   public Object apply(final Try<ResultSet> resultSetTry) {
+    log.debug("phantom future completed");
     final AgentScope scope = activateSpan(agentSpan);
     try {
       final ResultSet resultSet = resultSetTry.get();   // TODO: Optimize the potential throw

@@ -20,6 +20,7 @@ dependencies {
 //  compile deps.autoservice
 //  annotationProcessor deps.autoservice
   //compile project(':dd-java-agent:instrumentation:hibernate')
+  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
   testCompile project(':dd-java-agent:instrumentation:java-concurrent')
   testCompile project(':dd-java-agent:instrumentation:datastax-cassandra-3')
   testCompile project(':dd-java-agent:instrumentation:phantom')
