@@ -211,7 +211,7 @@ jobs:
 
   muzzle:
     <<: *defaults
-    parallelism: 4
+    parallelism: 8
     steps:
       - checkout
 
@@ -220,7 +220,7 @@ jobs:
 
       - run:
           name: Gather muzzle tasks
-          command: ./gradlew writeMuzzleTasksToFile --parallel --stacktrace --no-daemon
+          command: SKIP_BUILDSCAN="true" ./gradlew writeMuzzleTasksToFile --stacktrace --no-daemon
       - run:
           name: Verify Muzzle
           command: >-
