@@ -53,7 +53,17 @@ class ProfilingIntegrationMLTTest extends AbstractSmokeTest {
     Multimap<String, Object> firstRequestParameters =
       ProfilingTestUtils.parseProfilingRequestParameters(firstRequest)
 
+
+    def logHasErrors = false
+    new File("${buildDirectory}/reports/testProcess.${this.getClass().getName()}.log").eachLine {
+      if (it.contains("ERROR") || it.contains("WARN")) {
+        println it
+        logHasErrors = true
+      }
+    }
+
     then:
+    !logHasErrors
     firstRequest.getRequestUrl().toString() == profilingUrl
 
     firstRequestParameters.get("format").get(0) == "jfr"
