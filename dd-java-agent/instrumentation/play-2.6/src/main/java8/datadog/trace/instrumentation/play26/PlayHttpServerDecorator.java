@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -12,12 +13,32 @@ import lombok.extern.slf4j.Slf4j;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
 import play.api.routing.HandlerDef;
+import play.libs.typedmap.TypedKey;
 import play.routing.Router;
 import scala.Option;
 
 @Slf4j
 public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Request, Result> {
   public static final PlayHttpServerDecorator DECORATE = new PlayHttpServerDecorator();
+
+  private static final Method typedKeyGetUnderlying;
+
+  static {
+    Method typedKeyGetUnderlyingCheck = null;
+    try {
+      // This method was added in Play 2.6.8
+      typedKeyGetUnderlyingCheck = TypedKey.class.getMethod("asScala");
+    } catch (final NoSuchMethodException ignored) {
+    }
+    // Fallback
+    if (typedKeyGetUnderlyingCheck == null) {
+      try {
+        typedKeyGetUnderlyingCheck = TypedKey.class.getMethod("underlying");
+      } catch (final NoSuchMethodException ignored) {
+      }
+    }
+    typedKeyGetUnderlying = typedKeyGetUnderlyingCheck;
+  }
 
   @Override
   protected String[] instrumentationNames() {
@@ -60,9 +81,19 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
     if (request != null) {
       // more about routes here:
       // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md
-      final Option<HandlerDef> defOption =
-          request.attrs().get(Router.Attrs.HANDLER_DEF.asScala());
-      if (!defOption.isEmpty()) {
+      Option<HandlerDef> defOption = null;
+      if (typedKeyGetUnderlying != null) { // Should always be non-null but just to make sure
+        try {
+          defOption =
+              request
+                  .attrs()
+                  .get(
+                      (play.api.libs.typedmap.TypedKey<HandlerDef>)
+                          typedKeyGetUnderlying.invoke(Router.Attrs.HANDLER_DEF));
+        } catch (final IllegalAccessException | InvocationTargetException ignored) {
+        }
+      }
+      if (defOption != null && !defOption.isEmpty()) {
         final String path = defOption.get().path();
         span.setTag(DDTags.RESOURCE_NAME, request.method() + " " + path);
       }
