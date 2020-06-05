@@ -9,12 +9,10 @@ import datadog.trace.core.processor.rule.HttpStatusErrorRule;
 import datadog.trace.core.processor.rule.MarkSpanForMetricCalculationRule;
 import datadog.trace.core.processor.rule.ResourceNameRule;
 import datadog.trace.core.processor.rule.SpanTypeRule;
-import datadog.trace.core.processor.rule.Status404Rule;
 import datadog.trace.core.processor.rule.URLAsResourceNameRule;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.ArrayList;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class TraceProcessor {
@@ -27,7 +25,6 @@ public class TraceProcessor {
         new ErrorRule(),
         new HttpStatusErrorRule(),
         new URLAsResourceNameRule(),
-        new Status404Rule(),
         new AnalyticsSampleRateRule(),
         new MarkSpanForMetricCalculationRule(),
       };

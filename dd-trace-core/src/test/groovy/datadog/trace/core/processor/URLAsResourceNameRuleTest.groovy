@@ -1,8 +1,6 @@
 package datadog.trace.core.processor
 
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.common.writer.ListWriter
-import datadog.trace.core.CoreTracer
 import datadog.trace.core.SpanFactory
 import datadog.trace.core.processor.rule.URLAsResourceNameRule
 import datadog.trace.util.test.DDSpecification
@@ -10,15 +8,12 @@ import spock.lang.Subject
 
 class URLAsResourceNameRuleTest extends DDSpecification {
 
-  def writer = new ListWriter()
-  def tracer = CoreTracer.builder().writer(writer).build()
-
   @Subject
   def decorator = new URLAsResourceNameRule()
 
   def "pulls path from url #input"() {
     when:
-    def path = decorator.rawPathFromUrlString(input)
+    def path = decorator.extractResourceNameFromURL(null, input)
 
     then:
     path == expected
@@ -48,11 +43,14 @@ class URLAsResourceNameRuleTest extends DDSpecification {
     "http://[::192.9.5.5]/ipng"                                      | "/ipng"
     "http://[::FFFF:129.144.52.38]:80/index.html"                    | "/index.html"
     "http://[2010:836B:4179::836B:4179]"                             | "/"
+    "file:/some-random-file%abc"                                     | "file:/some-random-file%abc"
+    "file:/some-random-file%abc/user1234"                            | "file:/some-random-file%abc/?"
+    "https://dhajkdha/user1234"                                      | "/?"
   }
 
   def "should replace all digits"() {
     when:
-    def norm = decorator.normalizePath(input)
+    def norm = decorator.extractResourceNameFromURL(null, input)
 
     then:
     norm == output
@@ -69,7 +67,7 @@ class URLAsResourceNameRuleTest extends DDSpecification {
 
   def "should replace segments with mixed-characters"() {
     when:
-    def norm = decorator.normalizePath(input)
+    def norm = decorator.extractResourceNameFromURL(null, input)
 
     then:
     norm == output
@@ -85,7 +83,7 @@ class URLAsResourceNameRuleTest extends DDSpecification {
 
   def "should leave other segments alone"() {
     when:
-    def norm = decorator.normalizePath(input)
+    def norm = decorator.extractResourceNameFromURL(null, input)
 
     then:
     norm == input
@@ -111,7 +109,7 @@ class URLAsResourceNameRuleTest extends DDSpecification {
     }
 
     when:
-    decorator.processSpan(span, meta, [span])
+    decorator.processSpan(span)
 
     then:
     span.resourceName == resourceName
@@ -123,7 +121,7 @@ class URLAsResourceNameRuleTest extends DDSpecification {
     "\t"                        | "/"                 | [:]
     "/path"                     | "/path"             | [:]
     "/ABC/a-1/b_2/c.3/d4d/5f/6" | "/ABC/?/?/?/?/?/?"  | [:]
-    "/not-found"                | "fakeOperation"     | [(Tags.HTTP_STATUS): "404"]
+    "/not-found"                | "404"               | [(Tags.HTTP_STATUS): "404"]
     "/with-method"              | "POST /with-method" | [(Tags.HTTP_METHOD): "Post"]
 
     ignore = meta.put(Tags.HTTP_URL, value)
