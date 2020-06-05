@@ -17,7 +17,7 @@ public class MethodLevelTracingDataRule implements TraceProcessor.Rule {
   // Flipping the equation, you get max bytes for a base64 length.
   private static final int BYTES_LIMIT_PER_TAG = TAG_LENGTH_LIMIT * 3 / 4;
 
-  // Guava encoder because the built in Base64 wasn't added in JDK8
+  // Guava encoder because the built-in Base64 encoder wasn't added until JDK8
   private static final BaseEncoding ENCODER = BaseEncoding.base64();
 
   @Override
