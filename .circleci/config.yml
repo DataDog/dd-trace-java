@@ -20,14 +20,11 @@ commands:
       - run:
           name: Checkout merge commit
           command: |
-            set -ex
-            if [[ -n "${CIRCLE_PR_NUMBER}" ]]
-            then
-                FETCH_REFS="${FETCH_REFS}
-                +refs/pull/${CIRCLE_PR_NUMBER}/merge:pr/${CIRCLE_PR_NUMBER}/merge"
-                git fetch -u origin ${FETCH_REFS}
-                git checkout "pr/${CIRCLE_PR_NUMBER}/merge"
-            fi
+            CIRCLE_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
+
+            FETCH_REFS="${FETCH_REFS} +refs/pull/${CIRCLE_PR_NUMBER}/merge:pr/${CIRCLE_PR_NUMBER}/merge"
+            git fetch -u origin ${FETCH_REFS}
+            git checkout "pr/${CIRCLE_PR_NUMBER}/merge"
       - attach_workspace:
           at: .
 
