@@ -31,8 +31,7 @@ class JMXSampler {
   }
 
   /**
-   * Adds a thread id to be sampled by the sampler thread. /!\ There is no verification of multiple
-   * occurrences of this id.
+   * Adds a thread id to be sampled by the sampler thread. if already present do nothing.
    *
    * @param threadId
    */
@@ -48,6 +47,10 @@ class JMXSampler {
     }
     do {
       prev = threadIds.get();
+      // check if already exists
+      for (int i = 0; i < prev.length; i++) {
+        if (prev[i] == threadId) return;
+      }
       tmpArray = Arrays.copyOf(prev, prev.length + 1);
       tmpArray[tmpArray.length - 1] = threadId;
     } while (!threadIds.compareAndSet(prev, tmpArray));
@@ -90,7 +93,13 @@ class JMXSampler {
     // dispatch to Scopes
     for (ThreadInfo threadInfo : threadInfos) {
       ScopeManager scopeManager = threadScopeMapper.forThread(threadInfo.getThreadId());
+      if (scopeManager == null) {
+        continue;
+      }
       ScopeStackCollector scopeStackCollector = scopeManager.getCurrentScope();
+      if (scopeStackCollector == null) {
+        continue;
+      }
       scopeStackCollector.collect(threadInfo.getStackTrace());
     }
   }
