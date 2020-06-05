@@ -6,13 +6,13 @@ import java.util.concurrent.ThreadLocalRandom;
  * Class encapsulating the unsigned 64 bit id used for Trace and Span ids.
  *
  * <p>It contains generation of new ids, parsing, and to string for both decimal and hex
- * representations. The strings are either kept from parsing, or generated on demand and cached.
+ * representations. The decimal string representation is either kept from parsing, or generated on
+ * demand and cached.
  */
 public class DDId {
 
-  public static final DDId ZERO = new DDId(0, "0", "0");
-  public static final DDId MAX =
-      new DDId(-1, "18446744073709551615", "ffffffffffffffff"); // All bits set
+  public static final DDId ZERO = new DDId(0, "0");
+  public static final DDId MAX = new DDId(-1, "18446744073709551615"); // All bits set
 
   // Convenience constant used from tests
   private static final DDId ONE = DDId.from(1);
@@ -42,7 +42,7 @@ public class DDId {
    * @return DDId
    */
   public static DDId from(long id) {
-    return DDId.create(id, null, null);
+    return DDId.create(id, null);
   }
 
   /**
@@ -54,7 +54,7 @@ public class DDId {
    * @throws NumberFormatException
    */
   public static DDId from(String s) throws NumberFormatException {
-    return DDId.create(parseUnsignedLong(s), s, null);
+    return DDId.create(parseUnsignedLong(s), s);
   }
 
   /**
@@ -67,30 +67,21 @@ public class DDId {
    */
   public static DDId fromHex(String s) throws NumberFormatException {
     long id = parseUnsignedLongHex(s);
-    // The hex string should be lower case and non zero padded
-    String hex = s.toLowerCase();
-    int firstNonZero = firstNonZeroCharacter(s);
-    if (firstNonZero > 0) {
-      hex = hex.substring(firstNonZero);
-    }
-    return DDId.create(id, null, hex);
+    return DDId.create(id, null);
   }
 
   private final long id;
   private String str; // cache for string representation
-  // TODO this should be removed if we don't use hex strings for ids in `ScopeEvent`
-  private String hex; // cache for hex string representation
 
-  private DDId(long id, String str, String hex) {
+  private DDId(long id, String str) {
     this.id = id;
     this.str = str;
-    this.hex = hex;
   }
 
-  private static DDId create(long id, String str, String hex) {
+  private static DDId create(long id, String str) {
     if (id == 0) return ZERO;
     if (id == -1) return MAX;
-    return new DDId(id, str, hex);
+    return new DDId(id, str);
   }
 
   private static int firstNonZeroCharacter(String s) {
@@ -225,18 +216,12 @@ public class DDId {
 
   /**
    * Returns the no zero padded hex representation, in lower case, of the unsigned 64 bit id. The
-   * hex {@code String} will be cached.
+   * hex {@code String} will NOT be cached.
    *
    * @return non zero padded hex String
    */
   public String toHexString() {
-    String h = this.hex;
-    // This race condition is intentional and benign.
-    // The worst that can happen is that an identical value is produced and written into the field.
-    if (hex == null) {
-      this.hex = h = Long.toHexString(this.id);
-    }
-    return h;
+    return Long.toHexString(this.id);
   }
 
   /**
