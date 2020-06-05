@@ -11,11 +11,10 @@ import datadog.trace.core.processor.rule.ResourceNameRule;
 import datadog.trace.core.processor.rule.SpanTypeRule;
 import datadog.trace.core.processor.rule.Status404Rule;
 import datadog.trace.core.processor.rule.URLAsResourceNameRule;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 public class TraceProcessor {
@@ -59,22 +58,21 @@ public class TraceProcessor {
   public interface Rule {
     String[] aliases();
 
-    void processSpan(DDSpan span, Map<String, Object> tags, Collection<DDSpan> trace);
+    void processSpan(DDSpan span);
   }
 
   public List<DDSpan> onTraceComplete(final List<DDSpan> trace) {
     for (final DDSpan span : trace) {
-      applyRules(trace, span);
+      applyRules(span);
     }
 
     // TODO: apply DDTracer's TraceInterceptors
     return trace;
   }
 
-  private void applyRules(final Collection<DDSpan> trace, final DDSpan span) {
-    final Map<String, Object> tags = span.getTags();
+  private void applyRules(final DDSpan span) {
     for (final Rule rule : rules) {
-      rule.processSpan(span, tags, trace);
+      rule.processSpan(span);
     }
   }
 }

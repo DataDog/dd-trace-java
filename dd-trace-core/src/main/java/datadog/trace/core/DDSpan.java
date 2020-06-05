@@ -6,6 +6,8 @@ import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.util.Clock;
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.ref.WeakReference;
@@ -13,7 +15,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Represents a period of time. Associated information is stored in the SpanContext.
@@ -213,6 +214,10 @@ public class DDSpan implements MutableSpan, AgentSpan {
 
   public Object getAndRemoveTag(final String tag) {
     return context.getTags().remove(tag);
+  }
+
+  public Object getTag(final String tag) {
+    return context.getTags().get(tag);
   }
 
   @Override

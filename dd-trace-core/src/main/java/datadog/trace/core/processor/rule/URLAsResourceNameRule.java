@@ -4,8 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.processor.TraceProcessor;
-import java.util.Collection;
-import java.util.Map;
+
 import java.util.regex.Pattern;
 
 public class URLAsResourceNameRule implements TraceProcessor.Rule {
@@ -20,19 +19,18 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
   }
 
   @Override
-  public void processSpan(
-      final DDSpan span, final Map<String, Object> tags, final Collection<DDSpan> trace) {
+  public void processSpan(final DDSpan span) {
     final DDSpanContext context = span.context();
-    final Object httpStatus = tags.get(Tags.HTTP_STATUS);
+    final Object httpStatus = span.getTag(Tags.HTTP_STATUS);
     if (context.isResourceNameSet()
-        || tags.get(Tags.HTTP_URL) == null
+        || span.getTag(Tags.HTTP_URL) == null
         || (httpStatus != null && (httpStatus.equals(404) || httpStatus.equals("404")))) {
       return;
     }
 
-    final String rawPath = rawPathFromUrlString(tags.get(Tags.HTTP_URL).toString().trim());
+    final String rawPath = rawPathFromUrlString(span.getTag(Tags.HTTP_URL).toString().trim());
     final String normalizedPath = normalizePath(rawPath);
-    final String resourceName = addMethodIfAvailable(tags, normalizedPath);
+    final String resourceName = addMethodIfAvailable(span.getTag(Tags.HTTP_METHOD), normalizedPath);
 
     context.setResourceName(resourceName);
   }
@@ -88,9 +86,8 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
     return PATH_MIXED_ALPHANUMERICS.matcher(path).replaceAll("?");
   }
 
-  private String addMethodIfAvailable(final Map<String, Object> meta, String path) {
+  private String addMethodIfAvailable(final Object method, String path) {
     // if the method (GET, POST ...) is present, add it
-    final Object method = meta.get(Tags.HTTP_METHOD);
     if (method != null) {
       final String verb = method.toString().toUpperCase().trim();
       if (!verb.isEmpty()) {
