@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.context.TraceScope
 import datadog.trace.core.DDSpan
 import io.opentracing.log.Fields
@@ -212,13 +213,14 @@ class OpenTracing32Test extends AgentTestRunner {
     def adapter = new TextMapAdapter(textMap)
 
     when:
+    context.delegate.samplingPriority = contextPriority
     tracer.inject(context, Format.Builtin.TEXT_MAP, adapter)
 
     then:
     textMap == [
       "x-datadog-trace-id"         : "$context.delegate.traceId",
       "x-datadog-parent-id"        : "$context.delegate.spanId",
-      "x-datadog-sampling-priority": "$context.delegate.samplingPriority",
+      "x-datadog-sampling-priority": propagatedPriority.toString(),
     ]
 
     when:
@@ -228,6 +230,15 @@ class OpenTracing32Test extends AgentTestRunner {
     extract.delegate.traceId == context.delegate.traceId
     extract.delegate.spanId == context.delegate.spanId
     extract.delegate.samplingPriority == context.delegate.samplingPriority
+    extract.delegate.samplingPriority == propagatedPriority
+
+    where:
+    contextPriority               | propagatedPriority
+    PrioritySampling.SAMPLER_DROP | PrioritySampling.SAMPLER_DROP
+    PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP
+    PrioritySampling.UNSET        | PrioritySampling.SAMPLER_KEEP
+    PrioritySampling.USER_KEEP    | PrioritySampling.USER_KEEP
+    PrioritySampling.USER_DROP    | PrioritySampling.USER_DROP
   }
 
   static class TextMapAdapter implements TextMap {
