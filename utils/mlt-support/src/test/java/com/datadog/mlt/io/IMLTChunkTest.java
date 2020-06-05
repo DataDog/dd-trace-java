@@ -1,5 +1,7 @@
 package com.datadog.mlt.io;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
