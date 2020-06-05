@@ -3,6 +3,7 @@ package datadog.trace.core.scopemanager;
 import com.google.common.util.concurrent.RateLimiter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.interceptor.TraceStatsCollector;
 import datadog.trace.mlt.MethodLevelTracer;
@@ -132,7 +133,6 @@ public abstract class TraceProfilingScopeInterceptor
   }
 
   private static class TraceProfilingScope extends DelegatingScope {
-
     private final Session session;
 
     private TraceProfilingScope(final AgentSpan span, final Scope delegate) {
@@ -145,7 +145,11 @@ public abstract class TraceProfilingScopeInterceptor
     public void close() {
       IS_THREAD_PROFILING.set(false);
       delegate.close();
-      session.close();
+      final byte[] samplingData = session.close();
+
+      if (samplingData != null) {
+        span().setTag(InstrumentationTags.DD_MLT, samplingData);
+      }
     }
   }
 }
