@@ -1,4 +1,4 @@
-package com.datadog.profiling.mlt.io;
+package com.datadog.mlt.io;
 
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.jupiter.api.Test;

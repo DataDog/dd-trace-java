@@ -1,4 +1,4 @@
-package com.datadog.profiling.mlt.io;
+package com.datadog.mlt.io;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;

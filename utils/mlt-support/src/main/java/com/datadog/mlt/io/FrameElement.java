@@ -1,4 +1,4 @@
-package com.datadog.profiling.mlt.io;
+package com.datadog.mlt.io;
 
 import lombok.EqualsAndHashCode;
 import lombok.Generated;

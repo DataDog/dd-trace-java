@@ -1,8 +1,5 @@
-package com.datadog.profiling.mlt.io;
+package com.datadog.mlt.io;
 
-import static com.datadog.profiling.mlt.io.MLTConstants.MAGIC;
-
-import com.datadog.profiling.util.LEB128ByteArrayReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -27,7 +24,7 @@ public final class MLTReader {
   private MLTChunk readMLTChunk(LEB128ByteArrayReader r) {
     int chunkBase = r.position();
     byte[] magic = r.readBytes(4);
-    if (!Arrays.equals(MAGIC, magic)) {
+    if (!Arrays.equals(MLTConstants.MAGIC, magic)) {
       throw new IllegalStateException();
     }
 

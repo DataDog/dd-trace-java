@@ -1,7 +1,4 @@
-package com.datadog.profiling.mlt.io;
-
-import static com.datadog.profiling.mlt.io.MLTConstants.EVENT_REPEAT_FLAG;
-import static com.datadog.profiling.mlt.io.MLTConstants.EVENT_REPEAT_MASK;
+package com.datadog.mlt.io;
 
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -57,8 +54,9 @@ public interface IMLTChunk {
     int[] lastFramePtr = new int[] {-1};
     return cpIndexes.flatMap(
         ptr -> {
-          if ((ptr & EVENT_REPEAT_FLAG) == EVENT_REPEAT_FLAG) {
-            return IntStream.range(0, (ptr & EVENT_REPEAT_MASK)).map(it -> lastFramePtr[0]);
+          if ((ptr & MLTConstants.EVENT_REPEAT_FLAG) == MLTConstants.EVENT_REPEAT_FLAG) {
+            return IntStream.range(0, (ptr & MLTConstants.EVENT_REPEAT_MASK))
+                .map(it -> lastFramePtr[0]);
           }
           lastFramePtr[0] = ptr;
           return IntStream.of(ptr);
@@ -81,7 +79,7 @@ public interface IMLTChunk {
               if (ptr == Integer.MIN_VALUE) {
                 // synthetic stop element
                 if (context[1] > 0) {
-                  return IntStream.of(context[1] | EVENT_REPEAT_FLAG);
+                  return IntStream.of(context[1] | MLTConstants.EVENT_REPEAT_FLAG);
                 }
                 return IntStream.empty();
               }
@@ -93,7 +91,7 @@ public interface IMLTChunk {
               if (context[1] > 0) {
                 int repeat = context[1];
                 context[1] = 0;
-                return IntStream.of(repeat | EVENT_REPEAT_FLAG, ptr);
+                return IntStream.of(repeat | MLTConstants.EVENT_REPEAT_FLAG, ptr);
               }
               return IntStream.of(ptr);
             });

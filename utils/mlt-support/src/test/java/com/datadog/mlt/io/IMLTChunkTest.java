@@ -1,6 +1,4 @@
-package com.datadog.profiling.mlt.io;
-
-import static org.junit.jupiter.api.Assertions.*;
+package com.datadog.mlt.io;
 
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;

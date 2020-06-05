@@ -1,4 +1,4 @@
-package com.datadog.profiling.util;
+package com.datadog.mlt.io;
 
 import static org.junit.jupiter.api.Assertions.*;
 

@@ -1,6 +1,5 @@
-package com.datadog.profiling.mlt.io;
+package com.datadog.mlt.io;
 
-import com.datadog.profiling.util.LEB128ByteArrayWriter;
 import it.unimi.dsi.fastutil.ints.IntArraySet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import java.nio.charset.StandardCharsets;

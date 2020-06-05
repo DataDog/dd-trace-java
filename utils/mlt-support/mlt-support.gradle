@@ -1,0 +1,28 @@
+plugins {
+  id "com.github.johnrengelman.shadow" version "5.2.0"
+}
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/publish.gradle"
+
+description = "dd mlt binary format support"
+
+dependencies {
+  compile deps.slf4j
+  compile 'it.unimi.dsi:fastutil:8.2.1'
+
+  testCompile deps.junit5
+  testCompile group: 'nl.jqno.equalsverifier', name: 'equalsverifier', version: '3.3'
+}
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+shadowJar {
+  configurations = [project.configurations.compile]
+  archiveClassifier.set('')
+
+  dependencies {
+    include(dependency('it.unimi.dsi:fastutil:8.2.1'))
+  }
+  minimize()
+}
