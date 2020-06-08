@@ -72,10 +72,11 @@ class PeriodicSchedulingTest extends DDSpecification {
     !CommonTaskExecutor.INSTANCE.isShutdown()
 
     when:
-    CommonTaskExecutor.INSTANCE.scheduleAtFixedRate(task, null, 10, 10, MILLISECONDS, "test")
+    def future = CommonTaskExecutor.INSTANCE.scheduleAtFixedRate(task, null, 10, 10, MILLISECONDS, "test")
     Thread.sleep(11)
 
     then:
+    future.isCancelled()
     callCount.get() == 0
   }
 }
