@@ -4,8 +4,6 @@ import com.google.common.io.BaseEncoding;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
-import java.util.Collection;
-import java.util.Map;
 
 public class MethodLevelTracingDataRule implements TraceProcessor.Rule {
   private static final String TAG_PREFIX = InstrumentationTags.DD_MLT + ".";
@@ -26,8 +24,7 @@ public class MethodLevelTracingDataRule implements TraceProcessor.Rule {
   }
 
   @Override
-  public void processSpan(
-      final DDSpan span, final Map<String, Object> tags, final Collection<DDSpan> trace) {
+  public void processSpan(final DDSpan span) {
     final Object mltDataObject = span.getAndRemoveTag(InstrumentationTags.DD_MLT);
 
     if (mltDataObject instanceof byte[]) {
