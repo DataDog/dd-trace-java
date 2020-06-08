@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.SpanFactory
 import datadog.trace.core.interceptor.TraceStatsCollector
-import datadog.trace.core.processor.rule.Status404Rule
+
 import datadog.trace.core.processor.rule.URLAsResourceNameRule
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Subject
@@ -47,9 +47,8 @@ class TraceProcessorTest extends DDSpecification {
     URLAsResourceNameRule | null
     URLAsResourceNameRule | URLAsResourceNameRule.simpleName.toLowerCase()
     URLAsResourceNameRule | "URLAsResourceName"
-    Status404Rule         | null
-    Status404Rule         | Status404Rule.simpleName.toLowerCase()
-    Status404Rule         | "Status404Decorator"
+    URLAsResourceNameRule | "Status404Rule"
+    URLAsResourceNameRule | "Status404Decorator"
 
     name = alias == null ? rule.simpleName : alias
   }
