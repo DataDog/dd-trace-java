@@ -116,7 +116,8 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     synchronized (span) {
       if (null == span.ref) {
         span.ref = new WeakReference<DDSpan>(span, spanReferenceQueue);
-        weakSpans.add(span.ref);
+        boolean added = weakSpans.add(span.ref);
+        assert added : "span " + span.getSpanId() + " already present";
         final int count = pendingReferenceCount.incrementAndGet();
         if (log.isDebugEnabled()) {
           log.debug("t_id={} -> registered span {}. count = {}", traceId, span, count);
@@ -141,7 +142,8 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
       if (null == span.ref) {
         log.debug("t_id={} -> not registered in trace: {}", traceId, span);
       } else {
-        weakSpans.remove(span.ref);
+        boolean removed = weakSpans.remove(span.ref);
+        assert removed : "span " + span.getSpanId() + " not removed";
         span.ref.clear();
         span.ref = null;
         expireReference();
@@ -185,7 +187,8 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   public void registerContinuation(final AgentScope.Continuation continuation) {
     synchronized (continuation) {
       if (!continuation.isRegistered()) {
-        weakContinuations.add(continuation.register(continuationReferenceQueue));
+        boolean added = weakContinuations.add(continuation.register(continuationReferenceQueue));
+        assert added : "continuation already present";
         final int count = pendingReferenceCount.incrementAndGet();
         if (log.isDebugEnabled()) {
           log.debug(
@@ -218,7 +221,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
         synchronized (this) {
           if (size() > tracer.getPartialFlushMinSpans()) {
             final DDSpan rootSpan = getRootSpan();
-            final List<DDSpan> partialTrace = new ArrayList(size());
+            final List<DDSpan> partialTrace = new ArrayList<>(size());
             final Iterator<DDSpan> it = iterator();
             while (it.hasNext()) {
               final DDSpan span = it.next();
@@ -258,7 +261,8 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     Reference ref;
     int count = 0;
     while ((ref = continuationReferenceQueue.poll()) != null) {
-      weakContinuations.remove(ref);
+      boolean removed = weakContinuations.remove(ref);
+      assert removed : "continuation not removed";
       count++;
       expireReference();
     }
@@ -268,7 +272,8 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
 
     count = 0;
     while ((ref = spanReferenceQueue.poll()) != null) {
-      weakSpans.remove(ref);
+      boolean removed = weakSpans.remove(ref);
+      assert removed : "continuation not removed";
       if (isWritten.compareAndSet(false, true)) {
         removePendingTrace();
         // preserve throughput count.
@@ -302,14 +307,16 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   private void addPendingTrace() {
     final SpanCleaner cleaner = SPAN_CLEANER.get();
     if (cleaner != null) {
-      cleaner.pendingTraces.add(this);
+      boolean added = cleaner.pendingTraces.add(this);
+      assert added : "pending trace already present";
     }
   }
 
   private void removePendingTrace() {
     final SpanCleaner cleaner = SPAN_CLEANER.get();
     if (cleaner != null) {
-      cleaner.pendingTraces.remove(this);
+      boolean removed = cleaner.pendingTraces.remove(this);
+      assert removed : "pending trace not removed";
     }
   }
 
