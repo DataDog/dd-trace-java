@@ -137,6 +137,7 @@ public class Config {
   public static final String PROFILING_TEMPLATE_OVERRIDE_FILE =
       "profiling.jfr-template-override-file";
   public static final String PROFILING_UPLOAD_TIMEOUT = "profiling.upload.timeout";
+  public static final String PROFILING_MAX_RETRY_UPLOAD = "profiling.upload.max.retry";
   public static final String PROFILING_UPLOAD_COMPRESSION = "profiling.upload.compression";
   public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
@@ -199,8 +200,9 @@ public class Config {
   public static final boolean DEFAULT_PROFILING_ENABLED = false;
   public static final int DEFAULT_PROFILING_START_DELAY = 10;
   public static final boolean DEFAULT_PROFILING_START_FORCE_FIRST = false;
-  public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
+  public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // seconds
   public static final int DEFAULT_PROFILING_UPLOAD_TIMEOUT = 30; // seconds
+  public static final int DEFAULT_PROFILING_MAX_RETRY_UPLOAD = 1;
   public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
   public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
   public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT = 10_000;
@@ -325,6 +327,7 @@ public class Config {
   @Getter private final int profilingUploadPeriod;
   @Getter private final String profilingTemplateOverrideFile;
   @Getter private final int profilingUploadTimeout;
+  @Getter private final int profilingMaxRetryUpload;
   @Getter private final String profilingUploadCompression;
   @Getter private final String profilingProxyHost;
   @Getter private final int profilingProxyPort;
@@ -530,6 +533,9 @@ public class Config {
     profilingUploadTimeout =
         getIntegerSettingFromEnvironment(
             PROFILING_UPLOAD_TIMEOUT, DEFAULT_PROFILING_UPLOAD_TIMEOUT);
+    profilingMaxRetryUpload =
+        getIntegerSettingFromEnvironment(
+            PROFILING_MAX_RETRY_UPLOAD, DEFAULT_PROFILING_MAX_RETRY_UPLOAD);
     profilingUploadCompression =
         getSettingFromEnvironment(
             PROFILING_UPLOAD_COMPRESSION, DEFAULT_PROFILING_UPLOAD_COMPRESSION);
@@ -719,6 +725,9 @@ public class Config {
     profilingUploadTimeout =
         getPropertyIntegerValue(
             properties, PROFILING_UPLOAD_TIMEOUT, parent.profilingUploadTimeout);
+    profilingMaxRetryUpload =
+        getPropertyIntegerValue(
+            properties, PROFILING_MAX_RETRY_UPLOAD, parent.profilingMaxRetryUpload);
     profilingUploadCompression =
         properties.getProperty(PROFILING_UPLOAD_COMPRESSION, parent.profilingUploadCompression);
     profilingProxyHost = properties.getProperty(PROFILING_PROXY_HOST, parent.profilingProxyHost);

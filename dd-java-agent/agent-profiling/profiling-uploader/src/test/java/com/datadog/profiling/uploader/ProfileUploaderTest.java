@@ -17,8 +17,10 @@ package com.datadog.profiling.uploader;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -45,6 +47,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -124,12 +127,13 @@ public class ProfileUploaderTest {
     when(config.getApiKey()).thenReturn(API_KEY_VALUE);
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
+    when(config.getProfilingMaxRetryUpload()).thenReturn(0);
 
     uploader = new ProfileUploader(config);
   }
 
   @AfterEach
-  public void tearDown() throws IOException {
+  public void tearDown() {
     uploader.shutdown();
     try {
       server.shutdown();
@@ -263,19 +267,6 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void test500Response() throws IOException, InterruptedException {
-    server.enqueue(new MockResponse().setResponseCode(500));
-
-    final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
-    uploader.upload(RECORDING_TYPE, recording);
-
-    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
-
-    verify(recording.getStream()).close();
-    verify(recording).release();
-  }
-
-  @Test
   public void testConnectionRefused() throws IOException, InterruptedException {
     server.shutdown();
 
@@ -328,7 +319,7 @@ public class ProfileUploaderTest {
   @Test
   public void testEnqueuedRequestsExecuted() throws IOException, InterruptedException {
     // We have to block all parallel requests to make sure queue is kept full
-    for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {
+    for (int i = 0; i < uploader.MaxRunningRequests; i++) {
       server.enqueue(
           new MockResponse()
               .setHeadersDelay(
@@ -338,7 +329,7 @@ public class ProfileUploaderTest {
     }
     server.enqueue(new MockResponse().setResponseCode(200));
 
-    for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {
+    for (int i = 0; i < uploader.MaxRunningRequests; i++) {
       final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
       uploader.upload(RECORDING_TYPE, recording);
     }
@@ -347,7 +338,7 @@ public class ProfileUploaderTest {
     uploader.upload(RECORDING_TYPE, additionalRecording);
 
     // Make sure all expected requests happened
-    for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {
+    for (int i = 0; i < uploader.MaxRunningRequests; i++) {
       assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
     }
 
@@ -358,14 +349,111 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testTooManyRequests() throws IOException, InterruptedException {
+  public void testMaxRetryRequests() throws IOException, InterruptedException {
+    when(config.getProfilingMaxRetryUpload()).thenReturn((2));
+    uploader = new ProfileUploader(config);
+
+    int maxRequestCount =
+        1 + config.getProfilingMaxRetryUpload(); // initial request + retried requests
+
+    for (int i = 0; i < maxRequestCount; i++) {
+      server.enqueue(
+          new MockResponse()
+              .setHeadersDelay(FOREVER_REQUEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+              .setResponseCode(200));
+    }
+
+    final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
+    uploader.upload(RECORDING_TYPE, recording);
+
+    for (int i = 0; i < maxRequestCount; i++) {
+      assertNotNull(
+          server.takeRequest(
+              (long) ProfileUploader.MAX_BACKOFF_TIME_MS + REQUEST_TIMEOUT.toMillis(),
+              TimeUnit.MILLISECONDS));
+    }
+
+    // Ensure that no more than max retry upload requests are made
+    assertNull(
+        server.takeRequest(
+            (long) ProfileUploader.MAX_BACKOFF_TIME_MS + REQUEST_TIMEOUT.toMillis(),
+            TimeUnit.MILLISECONDS));
+
+    assertTrue(uploader.runningRequests.isEmpty());
+    verify(recording.getStream()).close();
+    verify(recording).release();
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = {408, 500}) // 408 : Request timeout
+  public void testRequestRetryOnSpecificHttpError(int httpErrorCode)
+      throws IOException, InterruptedException {
+    when(config.getProfilingMaxRetryUpload()).thenReturn((2));
+    uploader = new ProfileUploader(config);
+
+    server.enqueue(new MockResponse().setResponseCode(httpErrorCode));
+    server.enqueue(new MockResponse().setResponseCode(200));
+
+    final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
+    uploader.upload(RECORDING_TYPE, recording);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    final RecordedRequest retriedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+
+    assertNotNull(recordedRequest);
+    assertNotNull(retriedRequest);
+
+    assertTrue(uploader.runningRequests.isEmpty());
+    verify(recording.getStream()).close();
+    verify(recording).release();
+  }
+
+  @Test
+  public void testFirstRetryRequestSucceeded() throws IOException, InterruptedException {
+    when(config.getProfilingMaxRetryUpload()).thenReturn((2));
+    uploader = new ProfileUploader(config);
+
+    server.enqueue(
+        new MockResponse()
+            // Ensure the first request timeouts
+            .setHeadersDelay(FOREVER_REQUEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+            .setResponseCode(200));
+    server.enqueue(new MockResponse().setResponseCode(200));
+    server.enqueue(new MockResponse().setResponseCode(200));
+
+    final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
+    uploader.upload(RECORDING_TYPE, recording);
+
+    assertNotNull(
+        server.takeRequest(
+            (long) ProfileUploader.MAX_BACKOFF_TIME_MS + REQUEST_TIMEOUT.toMillis(),
+            TimeUnit.MILLISECONDS));
+    assertNotNull(
+        server.takeRequest(
+            (long) ProfileUploader.MAX_BACKOFF_TIME_MS + REQUEST_TIMEOUT.toMillis(),
+            TimeUnit.MILLISECONDS));
+    // No other request sent after the retry request succeeded
+    assertNull(
+        server.takeRequest(
+            (long) ProfileUploader.MAX_BACKOFF_TIME_MS + REQUEST_TIMEOUT.toMillis(),
+            TimeUnit.MILLISECONDS));
+
+    assertTrue(uploader.runningRequests.isEmpty());
+    verify(recording.getStream()).close();
+    verify(recording).release();
+  }
+
+  @Test
+  public void testCancelTooManyRequests() throws IOException, InterruptedException {
     // We need to make sure that initial requests that fill up the queue hang to the duration of the
     // test. So we specify insanely large timeout here.
     when(config.getProfilingUploadTimeout()).thenReturn((int) FOREVER_REQUEST_TIMEOUT.getSeconds());
+    when(config.getProfilingMaxRetryUpload()).thenReturn((2));
     uploader = new ProfileUploader(config);
+    int exceedingRequests = 2;
 
     // We have to block all parallel requests to make sure queue is kept full
-    for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {
+    for (int i = 0; i < uploader.MaxRunningRequests + exceedingRequests; i++) {
       server.enqueue(
           new MockResponse()
               .setHeadersDelay(FOREVER_REQUEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
@@ -373,29 +461,37 @@ public class ProfileUploaderTest {
     }
     server.enqueue(new MockResponse().setResponseCode(200));
 
-    for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {
+    final LinkedList<ProfileUploader.RunningRequest> hangingRequests = new LinkedList<>();
+    final List<RecordingData> recordings = new ArrayList<>();
+    for (int i = 0; i < uploader.MaxRunningRequests; i++) {
       final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
       uploader.upload(RECORDING_TYPE, recording);
+      hangingRequests.add(uploader.runningRequests.peekLast());
+      recordings.add(recording);
     }
 
-    final List<RecordingData> hangingRequests = new ArrayList<>();
-    // We schedule one additional request to check case when request would be rejected immediately
-    // rather than added to the queue.
-    for (int i = 0; i < ProfileUploader.MAX_ENQUEUED_REQUESTS + 1; i++) {
+    // Scheduling more requests cancel those already in the queue
+    for (int i = 0; i < exceedingRequests; i++) {
       final RecordingData recording = mockRecordingData(RECORDING_RESOURCE);
-      hangingRequests.add(recording);
       uploader.upload(RECORDING_TYPE, recording);
+      hangingRequests.add(uploader.runningRequests.peekLast());
+      recordings.add(recording);
+    }
+
+    for (int i = 0; i < exceedingRequests; i++) {
+      assertTrue(hangingRequests.pop().isCanceled());
+    }
+    for (int i = 0; i < uploader.MaxRunningRequests; i++) {
+      assertFalse(hangingRequests.pop().isCanceled());
     }
 
     // Make sure all expected requests happened
-    for (int i = 0; i < ProfileUploader.MAX_RUNNING_REQUESTS; i++) {
+    for (int i = 0; i < uploader.MaxRunningRequests + exceedingRequests; i++) {
       assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
     }
-    // Recordings after RecordingUploader.MAX_RUNNING_REQUESTS will not be executed because number
-    // or parallel requests has been reached.
-    assertNull(server.takeRequest(100, TimeUnit.MILLISECONDS), "No more requests");
 
-    for (final RecordingData recording : hangingRequests) {
+    assertEquals(uploader.MaxRunningRequests, uploader.runningRequests.size());
+    for (final RecordingData recording : recordings) {
       verify(recording.getStream()).close();
       verify(recording).release();
     }

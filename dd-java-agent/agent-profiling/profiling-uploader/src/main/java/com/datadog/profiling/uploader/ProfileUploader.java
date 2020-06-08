@@ -20,19 +20,25 @@ import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.PidHelper;
 import com.datadog.profiling.uploader.util.StreamUtils;
 import com.datadog.profiling.util.ProfilingThreadFactory;
+import com.google.common.annotations.VisibleForTesting;
+import datadog.common.exec.CommonTaskExecutor;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -73,8 +79,11 @@ public final class ProfileUploader {
   static final String JAVA_LANG = "java";
   static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
 
-  static final int MAX_RUNNING_REQUESTS = 10;
-  static final int MAX_ENQUEUED_REQUESTS = 20;
+  static final double MAX_BACKOFF_TIME_MS = 10_000; // milliseconds
+  static final int INFINITE_OKHTTP_REQUESTS = 1000;
+  static final double baseBackoffMs = Duration.ofMillis(50).toMillis();
+  final int MaxRunningRequests;
+  final int MaxRetryUpload;
 
   static final String PROFILE_FORMAT = "jfr";
   static final String PROFILE_TYPE_PREFIX = "jfr-";
@@ -85,27 +94,6 @@ public final class ProfileUploader {
   private static final Headers DATA_HEADERS =
       Headers.of(
           "Content-Disposition", "form-data; name=\"" + DATA_PARAM + "\"; filename=\"profile\"");
-
-  private static final Callback RESPONSE_CALLBACK =
-      new Callback() {
-        @Override
-        public void onFailure(final Call call, final IOException e) {
-          log.warn("Failed to upload profile", e);
-        }
-
-        @Override
-        public void onResponse(final Call call, final Response response) {
-          if (response.isSuccessful()) {
-            log.debug("Upload done");
-          } else {
-            log.warn(
-                "Failed to upload profile: unexpected response code {} {}",
-                response.message(),
-                response.code());
-          }
-          response.close();
-        }
-      };
 
   static final int SEED_EXPECTED_REQUEST_SIZE = 2 * 1024 * 1024; // 2MB;
   static final int REQUEST_SIZE_HISTORY_SIZE = 10;
@@ -118,6 +106,9 @@ public final class ProfileUploader {
   private final List<String> tags;
   private final Compression compression;
   private final Deque<Integer> requestSizeHistory;
+
+  @VisibleForTesting
+  final LinkedList<RunningRequest> runningRequests;
 
   public ProfileUploader(final Config config) {
     url = config.getFinalProfilingUrl();
@@ -139,6 +130,10 @@ public final class ProfileUploader {
     }
     tags = tagsToList(tagsMap);
 
+    MaxRetryUpload = config.getProfilingMaxRetryUpload();
+    MaxRunningRequests = 1 + MaxRetryUpload;
+    runningRequests = new LinkedList<>();
+
     // This is the same thing OkHttp Dispatcher is doing except thread naming and deamonization
     okHttpExecutorService =
         new ThreadPoolExecutor(
@@ -151,7 +146,7 @@ public final class ProfileUploader {
     // Reusing connections causes non daemon threads to be created which causes agent to prevent app
     // from exiting. See https://github.com/square/okhttp/issues/4029 for some details.
     final ConnectionPool connectionPool =
-        new ConnectionPool(MAX_RUNNING_REQUESTS, 1, TimeUnit.SECONDS);
+        new ConnectionPool(INFINITE_OKHTTP_REQUESTS, 1, TimeUnit.SECONDS);
 
     // Use same timeout everywhere for simplicity
     final Duration requestTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
@@ -189,9 +184,9 @@ public final class ProfileUploader {
     }
 
     client = clientBuilder.build();
-    client.dispatcher().setMaxRequests(MAX_RUNNING_REQUESTS);
+    client.dispatcher().setMaxRequests(INFINITE_OKHTTP_REQUESTS);
     // We are mainly talking to the same(ish) host so we need to raise this limit
-    client.dispatcher().setMaxRequestsPerHost(MAX_RUNNING_REQUESTS);
+    client.dispatcher().setMaxRequestsPerHost(INFINITE_OKHTTP_REQUESTS);
 
     compression = getCompression(CompressionType.of(config.getProfilingUploadCompression()));
 
@@ -201,11 +196,8 @@ public final class ProfileUploader {
 
   public void upload(final RecordingType type, final RecordingData data) {
     try {
-      if (canEnqueueMoreRequests()) {
-        makeUploadRequest(type, data);
-      } else {
-        log.warn("Cannot upload profile data: too many enqueued requests!");
-      }
+      ensureNewRequestCanBeEnqueued();
+      makeUploadRequest(type, data);
     } catch (final IllegalStateException | IOException e) {
       log.warn("Problem uploading profile!", e);
     } finally {
@@ -310,7 +302,14 @@ public final class ProfileUploader {
             .post(requestBody)
             .build();
 
-    client.newCall(request).enqueue(RESPONSE_CALLBACK);
+    Call call = client.newCall(request);
+    try {
+      // The caller has made space for this request by calling ensureNewRequestCanBeEnqueued()
+      addRunningRequest(call);
+      call.enqueue(new RetryCallback());
+    } catch (Exception e) {
+      removeRunningRequest(call);
+    }
   }
 
   private int getExpectedRequestSize() {
@@ -335,15 +334,144 @@ public final class ProfileUploader {
     }
   }
 
-  private boolean canEnqueueMoreRequests() {
-    return client.dispatcher().queuedCallsCount() < MAX_ENQUEUED_REQUESTS;
-  }
-
   private List<String> tagsToList(final Map<String, String> tags) {
     return tags.entrySet()
         .stream()
         .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
         .map(e -> e.getKey() + ":" + e.getValue())
         .collect(Collectors.toList());
+  }
+
+  private class RetryCallback implements Callback {
+    private int retryCount = 0;
+
+    private void tryRetryRequest(Call call) {
+      RunningRequest retryRequest;
+      synchronized (runningRequests) {
+        int requestIndex = runningRequests.indexOf(new RunningRequest(call));
+        retryRequest = runningRequests.get(requestIndex);
+      }
+
+      if (retryCount++ >= MaxRetryUpload) {
+        removeRunningRequest(retryRequest.call);
+        log.error("Failed to upload recording after {} retries", retryCount - 1);
+        return;
+      }
+
+      // "EqualJitter" formula from
+      // https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+      int temp = (int) Math.min(MAX_BACKOFF_TIME_MS, Math.pow(baseBackoffMs, retryCount));
+      int backoffMs = temp / 2 + ThreadLocalRandom.current().nextInt(0, temp / 2);
+
+      Instant start = Instant.now();
+      CommonTaskExecutor.INSTANCE.schedule(
+        request -> {
+          if (!request.isCanceled()) {
+            log.warn("Retry upload {} time(s) after waiting for {} ms", retryCount, Duration.between(start, Instant.now()).toMillis());
+
+            Call newCall = client.newCall(request.call.request());
+            request.setCall(newCall);
+            newCall.enqueue(RetryCallback.this);
+          } else {
+            // The request has already been removed from runningRequest queue
+            log.warn("Cancel retry upload after {} retry(ies)", retryCount - 1);
+          }
+        },
+          retryRequest,
+          backoffMs,
+          TimeUnit.MILLISECONDS,
+          "Profile upload retry");
+    }
+
+    @Override
+    public void onFailure(final Call call, final IOException e) {
+      log.error("Failed to upload recording", e);
+      tryRetryRequest(call);
+    }
+
+    @Override
+    public void onResponse(final Call call, final Response response) {
+      if (response.isSuccessful()) {
+        log.debug("Upload done");
+        removeRunningRequest(call);
+      } else if (response.code() == 408 || response.code() == 500) {
+        // HTTP status 408: Request timeout
+        log.error("Failed to upload recording (HTTP status:{})", response.code());
+        tryRetryRequest(call);
+      } else {
+        log.error(
+            "Failed to upload recording: unexpected response code {} {}",
+            response.message(),
+            response.code());
+        removeRunningRequest(call);
+      }
+      response.close();
+    }
+  }
+
+  private void ensureNewRequestCanBeEnqueued() {
+    synchronized (runningRequests) {
+      while (runningRequests.size() >= MaxRunningRequests) {
+        RunningRequest request = runningRequests.pop();
+        log.warn("Cancel data upload: too many enqueued requests!");
+        request.cancel();
+      }
+    }
+  }
+
+  private boolean removeRunningRequest(Call call) {
+    synchronized (runningRequests) {
+      return runningRequests.remove(new RunningRequest(call));
+    }
+  }
+
+  private void addRunningRequest(Call call) {
+    synchronized (runningRequests) {
+      runningRequests.add(new RunningRequest(call));
+    }
+  }
+
+  class RunningRequest {
+    private volatile Call call;
+    private volatile boolean cancel;
+
+    public RunningRequest(Call call) {
+      this.call = call;
+      this.cancel = false;
+    }
+
+    public boolean isCanceled() {
+      return cancel;
+    }
+
+    public void cancel() {
+      this.cancel = true;
+      this.call.cancel();
+    }
+
+    public void setCall(Call call) {
+      this.call = call;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      RunningRequest that = (RunningRequest) o;
+      return call.equals(that.call);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(call);
+    }
+
+    @Override
+    public String toString() {
+      return "RunningRequest{" +
+        "call=" + call +
+        ", cancel=" + cancel +
+        '}';
+    }
   }
 }
