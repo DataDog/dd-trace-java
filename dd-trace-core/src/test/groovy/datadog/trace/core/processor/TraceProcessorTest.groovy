@@ -44,6 +44,8 @@ class TraceProcessorTest extends DDSpecification {
     URLAsResourceNameRule | null
     URLAsResourceNameRule | URLAsResourceNameRule.simpleName.toLowerCase()
     URLAsResourceNameRule | "URLAsResourceName"
+    URLAsResourceNameRule | "Status404Rule"
+    URLAsResourceNameRule | "Status404Decorator"
 
     name = alias == null ? rule.simpleName : alias
   }

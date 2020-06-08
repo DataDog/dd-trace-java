@@ -27,10 +27,12 @@ class URLAsResourceNameRuleTest extends DDSpecification {
     "/search?"                                                       | "/search"
     "/search?id=100&private=true"                                    | "/search"
     "/search?id=100&private=true?"                                   | "/search"
+    "/users/?/:name"                                                 | "/users/?/:name"
     "http://localhost"                                               | "/"
     "http://localhost/"                                              | "/"
     "http://localhost/?asdf"                                         | "/"
     "http://local.host:8080/search"                                  | "/search"
+    "http://local.host:8080/users/:userId"                           | "/users/:userId"
     "https://localhost:443/search?"                                  | "/search"
     "http://local.host:80/search?id=100&private=true"                | "/search"
     "http://localhost:80/search?id=100&private=true?"                | "/search"
@@ -46,6 +48,11 @@ class URLAsResourceNameRuleTest extends DDSpecification {
     "file:/some-random-file%abc"                                     | "file:/some-random-file%abc"
     "file:/some-random-file%abc/user1234"                            | "file:/some-random-file%abc/?"
     "https://dhajkdha/user1234"                                      | "/?"
+    "abc"                                                            | "abc"
+    "   "                                                            | "/"
+    "   /:userId"                                                    | "/:userId"
+    "\t/90"                                                          | "/?"
+    "\t/:userId"                                                     | "/:userId"
   }
 
   def "should replace all digits"() {
