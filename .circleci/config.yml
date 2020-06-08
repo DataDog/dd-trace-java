@@ -13,12 +13,27 @@ cache_keys: &cache_keys
     - dd-trace-java-v1-{{ .Branch }}
     # - dd-trace-java-v1-
 
+commands:
+  setup_code:
+    steps:
+      - checkout
+      - run:
+          name: Checkout merge commit
+          command: |
+            CIRCLE_PR_NUMBER="${CIRCLE_PR_NUMBER:-${CIRCLE_PULL_REQUEST##*/}}"
+
+            FETCH_REFS="${FETCH_REFS} +refs/pull/${CIRCLE_PR_NUMBER}/merge:pr/${CIRCLE_PR_NUMBER}/merge"
+            git fetch -u origin ${FETCH_REFS}
+            git checkout "pr/${CIRCLE_PR_NUMBER}/merge"
+      - attach_workspace:
+          at: .
+
 jobs:
   build:
     <<: *defaults
 
     steps:
-      - checkout
+      - setup_code
 
       - restore_cache:
           <<: *cache_keys
@@ -57,10 +72,7 @@ jobs:
       - image: rabbitmq
 
     steps:
-      - checkout
-
-      - attach_workspace:
-          at: .
+      - setup_code
 
       - restore_cache:
           <<: *cache_keys
@@ -157,10 +169,7 @@ jobs:
           - DD_BIND_HOST=0.0.0.0
           - DD_API_KEY=invalid_key_but_this_is_fine
     steps:
-      - checkout
-
-      - attach_workspace:
-          at: .
+      - setup_code
 
       - restore_cache:
           <<: *cache_keys
@@ -189,10 +198,7 @@ jobs:
     <<: *defaults
 
     steps:
-      - checkout
-
-      - attach_workspace:
-          at: .
+      - setup_code
 
       - restore_cache:
           <<: *cache_keys
@@ -213,7 +219,7 @@ jobs:
     <<: *defaults
     parallelism: 8
     steps:
-      - checkout
+      - setup_code
 
       # We are not running with a cache here because it gets very big and ends up taking more time
       # restoring/saving than the actual increase in time it takes just downloading the artifacts each time.
