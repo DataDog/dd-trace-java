@@ -28,7 +28,7 @@ public class ExceptionSampleEvent extends Event {
   private final boolean firstOccurrence;
 
   public ExceptionSampleEvent(
-      final Exception e, final boolean sampled, final boolean firstOccurrence) {
+      final Throwable e, final boolean sampled, final boolean firstOccurrence) {
     /*
      * TODO: we should have some tests for this class.
      * Unfortunately at the moment this is not easily possible because we cannot build tests with groovy that

@@ -52,7 +52,7 @@ public class ExceptionHistogram {
    * @param exception instance
    * @return {@literal true} if this is the first record of the given exception type; {@literal false} otherwise
    */
-  public boolean record(final Exception exception) {
+  public boolean record(final Throwable exception) {
     if (exception == null) {
       return false;
     }
