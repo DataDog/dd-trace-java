@@ -112,9 +112,7 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
         boolean isBlank = Character.isWhitespace(c);
         // most of the time, will get out of this loop quickly,
         // except when accumulating characters we need to keep
-        for (int j = i + 1;
-             j < segmentEnd && (!containsNumerics || isVersion || isBlank);
-             ++j) {
+        for (int j = i + 1; j < segmentEnd && (!containsNumerics || isVersion || isBlank); ++j) {
           c = url.charAt(j);
           isVersion &= Character.isDigit(c);
           containsNumerics |= Character.isDigit(c);
@@ -136,16 +134,16 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
   }
 
   /**
-   * This class does substring search on latin 1 strings of up to 32 characters,
-   * and will inspect each character at most once in the input.
+   * This class does substring search on latin 1 strings of up to 32 characters, and will inspect
+   * each character at most once in the input.
    *
-   * This class uses the bitap algorithm (https://en.wikipedia.org/wiki/Bitap_algorithm)
-   * but adapted slightly in bit slicing the masks into high and low nibbles,
-   * which reduces spatial overhead by a factor of 8.
+   * <p>This class uses the bitap algorithm (https://en.wikipedia.org/wiki/Bitap_algorithm) but
+   * adapted slightly in bit slicing the masks into high and low nibbles, which reduces spatial
+   * overhead by a factor of 8.
    *
-   * This is only implemented because it's a compact, efficient, and easy to implement
-   * string search algorithm, and the JDK's String.indexOf(String) doesn't allow
-   * specification of a limit. This class allows searching within a range of the string.
+   * <p>This is only implemented because it's a compact, efficient, and easy to implement string
+   * search algorithm, and the JDK's String.indexOf(String) doesn't allow specification of a limit.
+   * This class allows searching within a range of the string.
    */
   private static class BitSlicedBitapSearch {
     private final int[] high;
