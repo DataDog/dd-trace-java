@@ -418,3 +418,11 @@ acceptedBreaks:
       old: "method void datadog.opentracing.DDTracer.DDTracerBuilder::<init>()"
       new: "method void datadog.opentracing.DDTracer.DDTracerBuilder::<init>()"
       justification: "Builder constructor was never meant to be public"
+  "0.54.0":
+    com.datadoghq:dd-trace-ot:
+    - code: "java.class.removed"
+      old: "class datadog.trace.core.processor.rule.Status404Rule"
+      justification: "merged with URLAsResourceNameRule"
+    - code: "java.field.removed"
+      old: "field datadog.trace.core.processor.rule.URLAsResourceNameRule.PATH_MIXED_ALPHANUMERICS"
+      justification: "internal API"
