@@ -11,7 +11,11 @@ cache_keys: &cache_keys
     # Rev the version when the cache gets too big
     - dd-trace-java-v1-{{ .Branch }}-{{ .Revision }}
     - dd-trace-java-v1-{{ .Branch }}
-    # - dd-trace-java-v1-
+
+parameters:
+  gradle_flags:
+    type: string
+    default: "--build-cache --parallel --stacktrace --no-daemon"
 
 commands:
   setup_code:
@@ -43,7 +47,11 @@ jobs:
 
       - run:
           name: Build Project
-          command: GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M" ./gradlew clean :dd-java-agent:shadowJar compileTestGroovy compileLatestDepTestGroovy compileTestScala compileLatestDepTestScala compileTestJava compileLatestDepTestJava --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+          command: >-
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M"
+            ./gradlew clean :dd-java-agent:shadowJar compileTestGroovy compileLatestDepTestGroovy compileTestScala compileLatestDepTestScala compileTestJava compileLatestDepTestJava
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=8
 
       - run:
           name: Collect Libs
@@ -74,6 +82,13 @@ jobs:
         # This is used by rabbitmq instrumentation tests
       - image: rabbitmq
 
+    parameters:
+      testTask:
+        type: string
+      prefixTestTask:
+        default: false
+        type: boolean
+
     steps:
       - setup_code
 
@@ -82,7 +97,11 @@ jobs:
 
       - run:
           name: Run Tests
-          command: GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M" ./gradlew $TEST_TASK --build-cache --parallel --stacktrace --no-daemon --max-workers=6
+          command: >-
+            GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
+            ./gradlew <<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=6
 
       - run:
           name: Collect Reports
@@ -100,70 +119,8 @@ jobs:
       - store_test_results:
           path: ./results
 
-  test_7:
-    <<: *default_test_job
-    environment:
-      - TEST_TASK: testJava7
-
-  test_8:
-    <<: *default_test_job
-    environment:
-      # We are building on Java8, this is our default JVM so no need to set more homes
-      - TEST_TASK: test jacocoTestReport jacocoTestCoverageVerification
-
-  test_latest8:
-    <<: *default_test_job
-    environment:
-      # We are building on Java8, this is our default JVM so no need to set more homes
-      - TEST_TASK: latestDepTest
-
-  test_ibm8:
-    <<: *default_test_job
-    environment:
-      - TEST_TASK: testJavaIBM8
-
-  test_zulu8:
-    <<: *default_test_job
-    environment:
-      - TEST_TASK: testJavaZULU8
-
-  test_11:
-    <<: *default_test_job
-    environment:
-      - TEST_TASK: testJava11
-
-  test_zulu11:
-    <<: *default_test_job
-    environment:
-      - TEST_TASK: testJavaZULU11
-
-  test_12:
-    <<: *default_test_job
-    environment:
-      - TEST_TASK: testJava12
-
-  test_13:
-    <<: *default_test_job
-    environment:
-      - TEST_TASK: testJava13
-
-  test_zulu13:
-    <<: *default_test_job
-    environment:
-      - TEST_TASK: testJavaZULU13
-
-  test_14:
-    <<: *default_test_job
-    environment:
-      - TEST_TASK: testJava14
-
-  test_zulu14:
-    <<: *default_test_job
-    environment:
-      - TEST_TASK: testJavaZULU14
-
   agent_integration_tests:
-    <<: *defaults
+    <<: *default_test_job
     docker:
       - image: *default_container
       - image: datadog/docker-dd-agent
@@ -171,31 +128,6 @@ jobs:
           - DD_APM_ENABLED=true
           - DD_BIND_HOST=0.0.0.0
           - DD_API_KEY=invalid_key_but_this_is_fine
-    steps:
-      - setup_code
-
-      - restore_cache:
-          <<: *cache_keys
-
-      - run:
-          name: Run Trace Agent Tests
-          command: ./gradlew traceAgentTest --build-cache --parallel --stacktrace --no-daemon --max-workers=8
-
-      - run:
-          name: Collect Reports
-          when: on_fail
-          command: .circleci/collect_reports.sh
-
-      - store_artifacts:
-          path: ./reports
-
-      - run:
-          name: Collect Test Results
-          when: always
-          command: .circleci/collect_results.sh
-
-      - store_test_results:
-          path: ./results
 
   check:
     <<: *defaults
@@ -208,7 +140,11 @@ jobs:
 
       - run:
           name: Build Project
-          command: GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M" ./gradlew check -PskipTests --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+          command: >-
+            GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
+            ./gradlew check -PskipTests
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=8
 
       - run:
           name: Collect Reports
@@ -229,16 +165,22 @@ jobs:
 
       - run:
           name: Gather muzzle tasks
-          command: SKIP_BUILDSCAN="true" ./gradlew writeMuzzleTasksToFile --stacktrace --no-daemon
+          command: >-
+            SKIP_BUILDSCAN="true"
+            ./gradlew writeMuzzleTasksToFile
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=8
+
       - run:
           name: Verify Muzzle
           command: >-
             SKIP_BUILDSCAN="true"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4G -Xms64M' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew `circleci tests split workspace/build/muzzleTasks | xargs` --parallel --stacktrace --no-daemon --max-workers=16
+            ./gradlew `circleci tests split workspace/build/muzzleTasks | xargs`
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=16
 
 workflows:
-  version: 2
   build_test_deploy:
     jobs:
       - build:
@@ -246,75 +188,32 @@ workflows:
             tags:
               only: /.*/
 
-      - test_7:
+      - default_test_job:
           requires:
             - build
+          prefixTestTask: true
+          name: test_<< matrix.testTask >>
+          matrix:
+            parameters:
+              testTask: ["7", "IBM8", "ZULU8", "11", "ZULU11", "12", "13", "ZULU13", "14", "ZULU14" ]
           filters:
             tags:
               only: /.*/
-      - test_8:
+
+      - default_test_job:
           requires:
             - build
+          name: test_8
+          testTask: test jacocoTestReport jacocoTestCoverageVerification
           filters:
             tags:
               only: /.*/
-      - test_latest8:
+
+      - default_test_job:
           requires:
             - build
-          filters:
-            tags:
-              only: /.*/
-      - test_ibm8:
-          requires:
-            - build
-          filters:
-            tags:
-              only: /.*/
-      - test_zulu8:
-          requires:
-            - build
-          filters:
-            tags:
-              only: /.*/
-      - test_11:
-          requires:
-            - build
-          filters:
-            tags:
-              only: /.*/
-      - test_zulu11:
-          requires:
-            - build
-          filters:
-            tags:
-              only: /.*/
-      - test_12:
-          requires:
-            - build
-          filters:
-            tags:
-              only: /.*/
-      - test_13:
-          requires:
-            - build
-          filters:
-            tags:
-              only: /.*/
-      - test_zulu13:
-          requires:
-            - build
-          filters:
-            tags:
-              only: /.*/
-      - test_14:
-          requires:
-            - build
-          filters:
-            tags:
-              only: /.*/
-      - test_zulu14:
-          requires:
-            - build
+          name: test_latest8
+          testTask: latestDepTest
           filters:
             tags:
               only: /.*/
@@ -322,6 +221,7 @@ workflows:
       - agent_integration_tests:
           requires:
             - build
+          testTask: traceAgentTest
           filters:
             tags:
               only: /.*/
