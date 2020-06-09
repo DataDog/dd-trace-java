@@ -12,6 +12,11 @@ cache_keys: &cache_keys
     - dd-trace-java-v1-{{ .Branch }}-{{ .Revision }}
     - dd-trace-java-v1-{{ .Branch }}
 
+parameters:
+  gradle_flags:
+    type: string
+    default: "--build-cache --parallel --stacktrace --no-daemon"
+
 commands:
   setup_code:
     steps:
@@ -45,7 +50,8 @@ jobs:
           command: >-
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M"
             ./gradlew clean :dd-java-agent:shadowJar compileTestGroovy compileLatestDepTestGroovy compileTestScala compileLatestDepTestScala compileTestJava compileLatestDepTestJava
-            --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=8
 
       - run:
           name: Collect Libs
@@ -94,7 +100,8 @@ jobs:
           command: >-
             GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
             ./gradlew <<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
-            --build-cache --parallel --stacktrace --no-daemon --max-workers=6
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=6
 
       - run:
           name: Collect Reports
@@ -136,7 +143,8 @@ jobs:
           command: >-
             GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
             ./gradlew check -PskipTests
-            --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=8
 
       - run:
           name: Collect Reports
@@ -160,14 +168,17 @@ jobs:
           command: >-
             SKIP_BUILDSCAN="true"
             ./gradlew writeMuzzleTasksToFile
-             --stacktrace --no-daemon
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=8
+
       - run:
           name: Verify Muzzle
           command: >-
             SKIP_BUILDSCAN="true"
             GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx4G -Xms64M' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
             ./gradlew `circleci tests split workspace/build/muzzleTasks | xargs`
-            --parallel --stacktrace --no-daemon --max-workers=16
+            << pipeline.parameters.gradle_flags >>
+            --max-workers=16
 
 workflows:
   build_test_deploy:
