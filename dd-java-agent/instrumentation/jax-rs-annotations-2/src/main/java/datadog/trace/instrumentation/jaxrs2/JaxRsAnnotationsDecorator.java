@@ -57,9 +57,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     if (isRootScope && !resourceName.isEmpty()) {
       span.setTag(DDTags.RESOURCE_NAME, resourceName);
     } else {
-      span.setTag(
-          DDTags.RESOURCE_NAME,
-          DECORATE.spanNameForClass(target) + (method == null ? "" : "." + method.getName()));
+      span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(target, method));
     }
   }
 

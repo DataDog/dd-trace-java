@@ -79,7 +79,7 @@ class RediscalaClientTest extends AgentTestRunner {
         span(0) {
           serviceName "redis"
           operationName "redis.query"
-          resourceName "redis.api.strings.Set"
+          resourceName "Set"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"
@@ -111,7 +111,7 @@ class RediscalaClientTest extends AgentTestRunner {
         span(0) {
           serviceName "redis"
           operationName "redis.query"
-          resourceName "redis.api.strings.Set"
+          resourceName "Set"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"
@@ -125,7 +125,7 @@ class RediscalaClientTest extends AgentTestRunner {
         span(0) {
           serviceName "redis"
           operationName "redis.query"
-          resourceName "redis.api.strings.Get"
+          resourceName "Get"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"
