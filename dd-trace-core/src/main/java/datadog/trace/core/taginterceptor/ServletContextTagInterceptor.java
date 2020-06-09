@@ -1,13 +1,13 @@
 package datadog.trace.core.taginterceptor;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.core.DDSpanContext;
 
-public class ServletContextTagInterceptor extends AbstractTagInterceptor {
+class ServletContextTagInterceptor extends AbstractTagInterceptor {
 
   public ServletContextTagInterceptor() {
-    super();
-    setMatchingTag("servlet.context");
+    super(InstrumentationTags.SERVLET_CONTEXT);
   }
 
   @Override

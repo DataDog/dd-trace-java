@@ -16,7 +16,7 @@ import datadog.trace.util.test.DDSpecification
 import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
 
-class SpanDecoratorTest extends DDSpecification {
+class TagInterceptorTest extends DDSpecification {
   static {
     ConfigUtils.updateConfig {
       System.setProperty("dd.$Config.SPLIT_BY_TAGS", "sn.tag1,sn.tag2")
@@ -33,22 +33,19 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "adding span personalisation using Decorators"() {
     setup:
-    def decorator = new AbstractTagInterceptor() {
+    def decorator = new AbstractTagInterceptor("foo") {
       boolean shouldSetTag(DDSpanContext context, String tag, Object value) {
-        return super.shouldSetTag(context, tag, value)
+        context.setTag("newFoo", value)
+        return false
       }
     }
-    decorator.setMatchingTag("foo")
-    decorator.setMatchingValue("bar")
-    decorator.setReplacementTag("newFoo")
-    decorator.setReplacementValue("newBar")
-    tracer.addDecorator(decorator)
+    tracer.addTagInterceptor(decorator)
 
     span.setTag("foo", "bar")
 
     expect:
     span.getTags().containsKey("newFoo")
-    span.getTags().get("newFoo") == "newBar"
+    span.getTags().get("newFoo") == "bar"
   }
 
   def "set service name"() {
@@ -159,7 +156,7 @@ class SpanDecoratorTest extends DDSpecification {
       .build()
 
     // equivalent to split-by-tags: tag
-    tracer.addDecorator(new ServiceNameTagInterceptor(tag, true))
+    tracer.addTagInterceptor(new ServiceNameTagInterceptor(tag, true))
 
     return tracer
   }
@@ -246,14 +243,14 @@ class SpanDecoratorTest extends DDSpecification {
     type = DDSpanTypes.HTTP_CLIENT
   }
 
-  def "override operation with DBTypeDecorator"() {
+  def "override operation with DBTypeTagInterceptor"() {
     when:
     span.setTag(Tags.DB_TYPE, type)
 
     then:
     span.getOperationName() == type + ".query"
     span.context().getSpanType() == "sql"
-
+    span.serviceName == type
 
     when:
     span.setTag(Tags.DB_TYPE, "mongo")
@@ -261,6 +258,7 @@ class SpanDecoratorTest extends DDSpecification {
     then:
     span.getOperationName() == "mongo.query"
     span.context().getSpanType() == "mongodb"
+    span.serviceName == "mongo"
 
     where:
     type = "foo"
@@ -349,9 +347,9 @@ class SpanDecoratorTest extends DDSpecification {
     false | _
   }
 
-  def "#attribute decorators apply to builder too"() {
+  def "#attribute interceptors apply to builder too"() {
     setup:
-    def span = tracer.buildSpan("decorator.test").withTag(name, value).start()
+    def span = tracer.buildSpan("interceptor.test").withTag(name, value).start()
     span.finish()
 
     expect:

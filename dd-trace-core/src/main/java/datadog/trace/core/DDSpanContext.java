@@ -333,16 +333,16 @@ public class DDSpanContext implements AgentSpan.Context {
 
     boolean addTag = true;
 
-    // Call decorators
-    final List<AbstractTagInterceptor> decorators = tracer.getSpanContextDecorators(tag);
-    if (decorators != null) {
-      for (final AbstractTagInterceptor decorator : decorators) {
+    // Call interceptors
+    final List<AbstractTagInterceptor> interceptors = tracer.getSpanTagInterceptors(tag);
+    if (interceptors != null) {
+      for (final AbstractTagInterceptor interceptor : interceptors) {
         try {
-          addTag &= decorator.shouldSetTag(this, tag, value);
+          addTag &= interceptor.shouldSetTag(this, tag, value);
         } catch (final Throwable ex) {
           log.debug(
-              "Could not decorate the span decorator={}: {}",
-              decorator.getClass().getSimpleName(),
+              "Could not intercept the span interceptor={}: {}",
+              interceptor.getClass().getSimpleName(),
               ex.getMessage());
         }
       }

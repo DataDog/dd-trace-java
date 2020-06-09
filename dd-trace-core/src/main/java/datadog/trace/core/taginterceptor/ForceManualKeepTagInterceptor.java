@@ -7,11 +7,10 @@ import datadog.trace.core.DDSpanContext;
 /**
  * Tag decorator to replace tag 'manual.keep: true' with the appropriate priority sampling value.
  */
-public class ForceManualKeepTagInterceptor extends AbstractTagInterceptor {
+class ForceManualKeepTagInterceptor extends AbstractTagInterceptor {
 
   public ForceManualKeepTagInterceptor() {
-    super();
-    setMatchingTag(DDTags.MANUAL_KEEP);
+    super(DDTags.MANUAL_KEEP);
   }
 
   @Override

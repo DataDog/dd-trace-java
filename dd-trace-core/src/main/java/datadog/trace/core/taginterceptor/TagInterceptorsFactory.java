@@ -6,14 +6,13 @@ import java.util.Arrays;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
-/** Create DDSpanDecorators */
 @Slf4j
 public class TagInterceptorsFactory {
-  public static List<AbstractTagInterceptor> createBuiltinDecorators() {
+  public static List<AbstractTagInterceptor> createTagInterceptors() {
 
-    final List<AbstractTagInterceptor> decorators = new ArrayList<>();
+    final List<AbstractTagInterceptor> interceptors = new ArrayList<>();
 
-    for (final AbstractTagInterceptor decorator :
+    for (final AbstractTagInterceptor interceptor :
         Arrays.asList(
             new DBTypeTagInterceptor(),
             new ForceManualDropTagInterceptor(),
@@ -23,20 +22,20 @@ public class TagInterceptorsFactory {
             new ServiceNameTagInterceptor("service", false),
             new ServletContextTagInterceptor())) {
 
-      if (Config.get().isRuleEnabled(decorator.getClass().getSimpleName())) {
-        decorators.add(decorator);
+      if (Config.get().isRuleEnabled(interceptor.getClass().getSimpleName())) {
+        interceptors.add(interceptor);
       } else {
-        log.debug("{} disabled", decorator.getClass().getSimpleName());
+        log.debug("{} disabled", interceptor.getClass().getSimpleName());
       }
     }
 
-    // SplitByTags purposely does not check for ServiceNameDecorator being enabled
-    // This allows for ServiceNameDecorator to be disabled above while keeping SplitByTags
+    // SplitByTags purposely does not check for ServiceNameTagInterceptor being enabled
+    // This allows for ServiceNameTagInterceptor to be disabled above while keeping SplitByTags
     // SplitByTags can be disable by removing SplitByTags config
     for (final String splitByTag : Config.get().getSplitByTags()) {
-      decorators.add(new ServiceNameTagInterceptor(splitByTag, true));
+      interceptors.add(new ServiceNameTagInterceptor(splitByTag, true));
     }
 
-    return decorators;
+    return interceptors;
   }
 }

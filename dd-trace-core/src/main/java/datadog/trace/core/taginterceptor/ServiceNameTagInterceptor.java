@@ -3,7 +3,7 @@ package datadog.trace.core.taginterceptor;
 import datadog.trace.api.DDTags;
 import datadog.trace.core.DDSpanContext;
 
-public class ServiceNameTagInterceptor extends AbstractTagInterceptor {
+class ServiceNameTagInterceptor extends AbstractTagInterceptor {
 
   private final boolean setTag;
 
@@ -12,9 +12,8 @@ public class ServiceNameTagInterceptor extends AbstractTagInterceptor {
   }
 
   public ServiceNameTagInterceptor(final String splitByTag, final boolean setTag) {
-    super();
+    super(splitByTag);
     this.setTag = setTag;
-    setMatchingTag(splitByTag);
   }
 
   @Override
