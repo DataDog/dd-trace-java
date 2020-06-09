@@ -1,4 +1,4 @@
-package datadog.trace.core.decorators
+package datadog.trace.core.taginterceptor
 
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Config
@@ -33,7 +33,7 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "adding span personalisation using Decorators"() {
     setup:
-    def decorator = new AbstractDecorator() {
+    def decorator = new AbstractTagInterceptor() {
       boolean shouldSetTag(DDSpanContext context, String tag, Object value) {
         return super.shouldSetTag(context, tag, value)
       }
@@ -159,7 +159,7 @@ class SpanDecoratorTest extends DDSpecification {
       .build()
 
     // equivalent to split-by-tags: tag
-    tracer.addDecorator(new ServiceNameDecorator(tag, true))
+    tracer.addDecorator(new ServiceNameTagInterceptor(tag, true))
 
     return tracer
   }
@@ -418,17 +418,17 @@ class SpanDecoratorTest extends DDSpecification {
     }
 
     where:
-    decorator                                          | enabled
-    ServiceNameDecorator.getSimpleName().toLowerCase() | true
-    ServiceNameDecorator.getSimpleName()               | true
-    ServiceNameDecorator.getSimpleName().toLowerCase() | false
-    ServiceNameDecorator.getSimpleName()               | false
+    decorator                                               | enabled
+    ServiceNameTagInterceptor.getSimpleName().toLowerCase() | true
+    ServiceNameTagInterceptor.getSimpleName()               | true
+    ServiceNameTagInterceptor.getSimpleName().toLowerCase() | false
+    ServiceNameTagInterceptor.getSimpleName()               | false
   }
 
   def "disabling service decorator does not disable split by tags"() {
     setup:
     ConfigUtils.updateConfig {
-      System.setProperty("dd.trace." + ServiceNameDecorator.getSimpleName().toLowerCase() + ".enabled", "false")
+      System.setProperty("dd.trace." + ServiceNameTagInterceptor.getSimpleName().toLowerCase() + ".enabled", "false")
     }
 
     tracer = CoreTracer.builder()
@@ -446,7 +446,7 @@ class SpanDecoratorTest extends DDSpecification {
 
     cleanup:
     ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace." + ServiceNameDecorator.getSimpleName().toLowerCase() + ".enabled")
+      System.clearProperty("dd.trace." + ServiceNameTagInterceptor.getSimpleName().toLowerCase() + ".enabled")
     }
 
     where:

@@ -17,14 +17,14 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
-import datadog.trace.core.decorators.AbstractDecorator;
-import datadog.trace.core.decorators.DDDecoratorsFactory;
 import datadog.trace.core.jfr.DDNoopScopeEventFactory;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
+import datadog.trace.core.taginterceptor.AbstractTagInterceptor;
+import datadog.trace.core.taginterceptor.TagInterceptorsFactory;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -80,7 +80,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Thread shutdownCallback;
 
   /** Span context decorators */
-  private final Map<String, List<AbstractDecorator>> spanContextDecorators =
+  private final Map<String, List<AbstractTagInterceptor>> spanContextDecorators =
       new ConcurrentHashMap<>();
 
   private final SortedSet<TraceInterceptor> interceptors =
@@ -182,8 +182,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     log.info("New instance: {}", this);
 
-    final List<AbstractDecorator> decorators = DDDecoratorsFactory.createBuiltinDecorators();
-    for (final AbstractDecorator decorator : decorators) {
+    final List<AbstractTagInterceptor> decorators =
+        TagInterceptorsFactory.createBuiltinDecorators();
+    for (final AbstractTagInterceptor decorator : decorators) {
       addDecorator(decorator);
     }
 
@@ -211,18 +212,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    *
    * @return the list of span context decorators
    */
-  public List<AbstractDecorator> getSpanContextDecorators(final String tag) {
+  public List<AbstractTagInterceptor> getSpanContextDecorators(final String tag) {
     return spanContextDecorators.get(tag);
   }
 
   /**
-   * Add a new decorator in the list ({@link AbstractDecorator})
+   * Add a new decorator in the list ({@link AbstractTagInterceptor})
    *
    * @param decorator The decorator in the list
    */
-  public void addDecorator(final AbstractDecorator decorator) {
+  public void addDecorator(final AbstractTagInterceptor decorator) {
 
-    List<AbstractDecorator> list = spanContextDecorators.get(decorator.getMatchingTag());
+    List<AbstractTagInterceptor> list = spanContextDecorators.get(decorator.getMatchingTag());
     if (list == null) {
       list = new ArrayList<>();
     }
@@ -655,9 +656,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         boolean addTag = true;
 
         // Call decorators
-        final List<AbstractDecorator> decorators = getSpanContextDecorators(tag.getKey());
+        final List<AbstractTagInterceptor> decorators = getSpanContextDecorators(tag.getKey());
         if (decorators != null) {
-          for (final AbstractDecorator decorator : decorators) {
+          for (final AbstractTagInterceptor decorator : decorators) {
             try {
               addTag &= decorator.shouldSetTag(context, tag.getKey(), tag.getValue());
             } catch (final Throwable ex) {

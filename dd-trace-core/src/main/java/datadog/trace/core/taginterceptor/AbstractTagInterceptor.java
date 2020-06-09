@@ -1,4 +1,4 @@
-package datadog.trace.core.decorators;
+package datadog.trace.core.taginterceptor;
 
 import datadog.trace.core.DDSpanContext;
 
@@ -6,7 +6,7 @@ import datadog.trace.core.DDSpanContext;
  * Span decorators are called when new tags are written and proceed to various remappings and
  * enrichments
  */
-public abstract class AbstractDecorator {
+public abstract class AbstractTagInterceptor {
 
   private String matchingTag;
 
@@ -17,7 +17,7 @@ public abstract class AbstractDecorator {
   private String replacementValue;
 
   public boolean shouldSetTag(final DDSpanContext context, final String tag, final Object value) {
-    if (this.getMatchingValue() == null || this.getMatchingValue().equals(value)) {
+    if (getMatchingValue() == null || getMatchingValue().equals(value)) {
       final String targetTag = getReplacementTag() == null ? tag : getReplacementTag();
       final String targetValue =
           getReplacementValue() == null ? String.valueOf(value) : getReplacementValue();
@@ -34,7 +34,7 @@ public abstract class AbstractDecorator {
   }
 
   public void setMatchingTag(final String tag) {
-    this.matchingTag = tag;
+    matchingTag = tag;
   }
 
   public Object getMatchingValue() {
@@ -42,7 +42,7 @@ public abstract class AbstractDecorator {
   }
 
   public void setMatchingValue(final Object value) {
-    this.matchingValue = value;
+    matchingValue = value;
   }
 
   public String getReplacementTag() {
@@ -50,7 +50,7 @@ public abstract class AbstractDecorator {
   }
 
   public void setReplacementTag(final String targetTag) {
-    this.replacementTag = targetTag;
+    replacementTag = targetTag;
   }
 
   public String getReplacementValue() {
@@ -58,6 +58,6 @@ public abstract class AbstractDecorator {
   }
 
   public void setReplacementValue(final String targetValue) {
-    this.replacementValue = targetValue;
+    replacementValue = targetValue;
   }
 }

@@ -1,4 +1,4 @@
-package datadog.trace.core.decorators;
+package datadog.trace.core.taginterceptor;
 
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
@@ -10,9 +10,9 @@ import datadog.trace.core.DDSpanContext;
  * retrieves some DB meta such as the statement
  */
 @Deprecated // This should be covered by instrumentation decorators now.
-public class DBTypeDecorator extends AbstractDecorator {
+public class DBTypeTagInterceptor extends AbstractTagInterceptor {
 
-  public DBTypeDecorator() {
+  public DBTypeTagInterceptor() {
     super();
     setMatchingTag(Tags.DB_TYPE);
     setReplacementTag(DDTags.SERVICE_NAME);

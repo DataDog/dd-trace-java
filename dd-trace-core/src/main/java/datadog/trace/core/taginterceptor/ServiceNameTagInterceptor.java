@@ -1,17 +1,17 @@
-package datadog.trace.core.decorators;
+package datadog.trace.core.taginterceptor;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.core.DDSpanContext;
 
-public class ServiceNameDecorator extends AbstractDecorator {
+public class ServiceNameTagInterceptor extends AbstractTagInterceptor {
 
   private final boolean setTag;
 
-  public ServiceNameDecorator() {
+  public ServiceNameTagInterceptor() {
     this(DDTags.SERVICE_NAME, false);
   }
 
-  public ServiceNameDecorator(final String splitByTag, final boolean setTag) {
+  public ServiceNameTagInterceptor(final String splitByTag, final boolean setTag) {
     super();
     this.setTag = setTag;
     setMatchingTag(splitByTag);

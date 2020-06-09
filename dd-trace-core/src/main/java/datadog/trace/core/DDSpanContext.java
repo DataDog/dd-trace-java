@@ -4,7 +4,7 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.core.decorators.AbstractDecorator;
+import datadog.trace.core.taginterceptor.AbstractTagInterceptor;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -334,9 +334,9 @@ public class DDSpanContext implements AgentSpan.Context {
     boolean addTag = true;
 
     // Call decorators
-    final List<AbstractDecorator> decorators = tracer.getSpanContextDecorators(tag);
+    final List<AbstractTagInterceptor> decorators = tracer.getSpanContextDecorators(tag);
     if (decorators != null) {
-      for (final AbstractDecorator decorator : decorators) {
+      for (final AbstractTagInterceptor decorator : decorators) {
         try {
           addTag &= decorator.shouldSetTag(this, tag, value);
         } catch (final Throwable ex) {

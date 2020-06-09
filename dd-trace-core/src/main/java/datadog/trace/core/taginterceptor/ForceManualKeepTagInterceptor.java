@@ -1,25 +1,25 @@
-package datadog.trace.core.decorators;
+package datadog.trace.core.taginterceptor;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.DDSpanContext;
 
 /**
- * Tag decorator to replace tag 'manual.drop: true' with the appropriate priority sampling value.
+ * Tag decorator to replace tag 'manual.keep: true' with the appropriate priority sampling value.
  */
-public class ForceManualDropDecorator extends AbstractDecorator {
+public class ForceManualKeepTagInterceptor extends AbstractTagInterceptor {
 
-  public ForceManualDropDecorator() {
+  public ForceManualKeepTagInterceptor() {
     super();
-    setMatchingTag(DDTags.MANUAL_DROP);
+    setMatchingTag(DDTags.MANUAL_KEEP);
   }
 
   @Override
   public boolean shouldSetTag(final DDSpanContext context, final String tag, final Object value) {
     if (value instanceof Boolean && (boolean) value) {
-      context.setSamplingPriority(PrioritySampling.USER_DROP);
+      context.setSamplingPriority(PrioritySampling.USER_KEEP);
     } else if (value instanceof String && Boolean.parseBoolean((String) value)) {
-      context.setSamplingPriority(PrioritySampling.USER_DROP);
+      context.setSamplingPriority(PrioritySampling.USER_KEEP);
     }
     return false;
   }
