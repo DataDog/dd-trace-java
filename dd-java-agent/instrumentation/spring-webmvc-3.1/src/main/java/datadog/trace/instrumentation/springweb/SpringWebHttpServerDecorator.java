@@ -116,7 +116,7 @@ public class SpringWebHttpServerDecorator
       methodName = "<annotation>";
     }
 
-    final String resourceName = DECORATE.spanNameForClass(clazz) + "." + methodName;
+    final String resourceName = DECORATE.spanNameForMethod(clazz, methodName);
     span.setTag(DDTags.RESOURCE_NAME, resourceName);
   }
 

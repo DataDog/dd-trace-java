@@ -12,9 +12,18 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 public abstract class BaseDecorator {
+
+  private static final ClassValue<ClassName> CLASS_NAMES =
+      new ClassValue<ClassName>() {
+        @Override
+        protected ClassName computeValue(Class<?> type) {
+          return new ClassName(getClassName(type));
+        }
+      };
 
   protected final boolean traceAnalyticsEnabled;
   protected final float traceAnalyticsSampleRate;
@@ -110,7 +119,30 @@ public abstract class BaseDecorator {
    * @return
    */
   public String spanNameForMethod(final Method method) {
-    return spanNameForClass(method.getDeclaringClass()) + "." + method.getName();
+    return spanNameForMethod(method.getDeclaringClass(), method);
+  }
+
+  /**
+   * This method is used to generate an acceptable span (operation) name based on a given method
+   * reference. Anonymous classes are named based on their parent.
+   *
+   * @param method the method to get the name from, nullable
+   * @return the span name from the class and method
+   */
+  public String spanNameForMethod(final Class<?> clazz, final Method method) {
+    return spanNameForMethod(clazz, null == method ? null : method.getName());
+  }
+
+  /**
+   * This method is used to generate an acceptable span (operation) name based on a given method
+   * reference. Anonymous classes are named based on their parent.
+   *
+   * @param methodName the name of the method to get the name from, nullable
+   * @return the span name from the class and method
+   */
+  public String spanNameForMethod(final Class<?> clazz, final String methodName) {
+    ClassName cn = CLASS_NAMES.get(clazz);
+    return null == methodName ? cn.getName() : cn.getMethodName(methodName);
   }
 
   /**
@@ -120,17 +152,42 @@ public abstract class BaseDecorator {
    * @param clazz
    * @return
    */
-  public String spanNameForClass(final Class clazz) {
+  public String spanNameForClass(final Class<?> clazz) {
     if (!clazz.isAnonymousClass()) {
       return clazz.getSimpleName();
     }
-    String className = clazz.getName();
-    if (clazz.getPackage() != null) {
-      final String pkgName = clazz.getPackage().getName();
-      if (!pkgName.isEmpty()) {
-        className = clazz.getName().replace(pkgName, "").substring(1);
-      }
+    return CLASS_NAMES.get(clazz).getName();
+  }
+
+  private static class ClassName {
+    private final String name;
+    private final ConcurrentHashMap<String, String> methodNames = new ConcurrentHashMap<>(1);
+
+    private ClassName(String name) {
+      this.name = name;
     }
-    return className;
+
+    public String getName() {
+      return name;
+    }
+
+    public String getMethodName(String name) {
+      String methodName = methodNames.get(name);
+      if (null == methodName) {
+        methodName = this.name + "." + name;
+        methodNames.putIfAbsent(name, methodName);
+      }
+      return methodName;
+    }
+  }
+
+  private static String getClassName(Class<?> clazz) {
+    String name = clazz.getName();
+    int start = name.lastIndexOf('.');
+    if (!clazz.isAnonymousClass()) {
+      int qualifier = name.indexOf('$', start);
+      return name.substring(Math.max(start, qualifier) + 1);
+    }
+    return name.substring(start + 1);
   }
 }
