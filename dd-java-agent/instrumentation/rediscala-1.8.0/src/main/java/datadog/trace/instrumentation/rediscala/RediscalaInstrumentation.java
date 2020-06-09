@@ -47,9 +47,6 @@ public final class RediscalaInstrumentation extends Instrumenter.Default {
   public String[] helperClassNames() {
     return new String[] {
       RediscalaInstrumentation.class.getName() + "$OnCompleteHandler",
-      "datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator",
-      "datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator",
-      "datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator",
       packageName + ".RediscalaClientDecorator",
     };
   }
@@ -71,7 +68,7 @@ public final class RediscalaInstrumentation extends Instrumenter.Default {
     public static AgentScope onEnter(@Advice.Argument(0) final RedisCommand cmd) {
       final AgentSpan span = startSpan("redis.command");
       DECORATE.afterStart(span);
-      DECORATE.onStatement(span, cmd.getClass().getName());
+      DECORATE.onStatement(span, DECORATE.spanNameForClass(cmd.getClass()));
       return activateSpan(span);
     }
 
