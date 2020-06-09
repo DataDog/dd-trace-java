@@ -109,6 +109,7 @@ public class ProfileUploaderTest {
   private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
 
   @Mock private Config config;
+  @Mock private ContainerInfo containerInfo;
 
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;
@@ -190,6 +191,30 @@ public class ProfileUploaderTest {
       uploadedBytes = unLz4(uploadedBytes);
     }
     assertArrayEquals(expectedBytes, uploadedBytes);
+  }
+
+  @Test
+  public void testRequestWithoutContainerID() throws IOException, InterruptedException {
+    uploader = new ProfileUploader(config, null);
+
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+
+    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(request);
+    assertNull(request.getHeader("Datadog-Container-ID"));
+  }
+
+  @Test
+  public void testRequestWithContainerId() throws IOException, InterruptedException {
+    uploader = new ProfileUploader(config, "container-id");
+
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+
+    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(request);
+    assertEquals(request.getHeader("Datadog-Container-ID"), "container-id");
   }
 
   @Test

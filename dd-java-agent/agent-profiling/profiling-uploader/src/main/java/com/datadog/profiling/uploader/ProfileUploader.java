@@ -20,6 +20,7 @@ import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.PidHelper;
 import com.datadog.profiling.uploader.util.StreamUtils;
 import com.datadog.profiling.util.ProfilingThreadFactory;
+import com.google.common.annotations.VisibleForTesting;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.io.InputStream;
@@ -70,6 +71,7 @@ public final class ProfileUploader {
   static final String TAGS_PARAM = "tags[]";
 
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
+  static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
 
   static final String JAVA_LANG = "java";
   static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
@@ -124,13 +126,21 @@ public final class ProfileUploader {
   private final OkHttpClient client;
   private final String apiKey;
   private final String url;
+  private final String containerId;
   private final List<String> tags;
   private final Compression compression;
   private final Deque<Integer> requestSizeHistory;
 
   public ProfileUploader(final Config config) {
+    this(config, ContainerInfo.get().getContainerId());
+  }
+
+  @VisibleForTesting
+  ProfileUploader(final Config config, final String containerId) {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
+    this.containerId = containerId;
+
     log.debug("Started ProfileUploader with target url {}", url);
     /*
     FIXME: currently `Config` class cannot get access to some pieces of information we need here:
@@ -319,7 +329,9 @@ public final class ProfileUploader {
     if (apiKey != null) {
       requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
     }
-
+    if (containerId != null) {
+      requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
+    }
     client.newCall(requestBuilder.build()).enqueue(RESPONSE_CALLBACK);
   }
 
