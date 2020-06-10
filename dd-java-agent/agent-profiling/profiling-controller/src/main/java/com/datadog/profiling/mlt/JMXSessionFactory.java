@@ -21,6 +21,7 @@ public class JMXSessionFactory implements SessionFactory {
     ScopeManager scopeManager = threadScopeMapper.forThread(thread);
     ScopeStackCollector scopeStackCollector = scopeManager.startScope(id);
     long threadId = thread.getId();
+    // need to use ConcurrentHashMap#compute method to insure atomicity of createNewSession call
     return jmxSessions.compute(
       threadId, (key, jmxSession) -> createNewSession(id, threadId, scopeStackCollector));
   }
