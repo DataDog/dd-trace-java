@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 public class DDTags {
+
   public static final String SPAN_TYPE = "span.type";
   public static final String SERVICE_NAME = "service.name";
   public static final String RESOURCE_NAME = "resource.name";
@@ -26,4 +27,13 @@ public class DDTags {
   public static final String MANUAL_DROP = "manual.drop";
 
   public static final String TRACE_START_TIME = "t0";
+
+  /* Tags intended for internal use only. */
+  static final String INTERNAL_HOST_NAME = "_dd.hostname";
+  static final String RUNTIME_ID_TAG = "runtime-id";
+  static final String SERVICE = "service";
+  static final String SERVICE_TAG = SERVICE;
+  static final String HOST_TAG = "host";
+  public static final String LANGUAGE_TAG_KEY = "language";
+  public static final String LANGUAGE_TAG_VALUE = "jvm";
 }

@@ -1,5 +1,64 @@
 package datadog.trace.api;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_STATSD_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_PROXY_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_DELAY;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_FORCE_FIRST;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_COMPRESSION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_PERIOD;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SPLIT_BY_TAGS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
+import static datadog.trace.api.DDTags.HOST_TAG;
+import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
+import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
+import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
+import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
+import static datadog.trace.api.DDTags.SERVICE;
+import static datadog.trace.api.DDTags.SERVICE_TAG;
+
+import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.config.JmxFetchConfig;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.config.TraceInstrumentationConfig;
+import datadog.trace.api.config.TracerConfig;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -40,6 +99,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>System properties are {@link Config#PREFIX}'ed. Environment variables are the same as the
  * system property, but uppercased with '.' -> '_'.
  */
+@Deprecated
 @Slf4j
 @ToString(includeFieldNames = true)
 public class Config {
@@ -48,189 +108,137 @@ public class Config {
   /** Config keys below */
   private static final String PREFIX = "dd.";
 
-  public static final String PROFILING_REMOTE_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
-  public static final String PROFILING_LOCAL_URL_TEMPLATE = "http://%s:%d/profiling/v1/input";
+  public static final String CONFIGURATION_FILE = GeneralConfig.CONFIGURATION_FILE;
+  public static final String API_KEY = GeneralConfig.API_KEY;
+  public static final String API_KEY_FILE = GeneralConfig.API_KEY_FILE;
+  public static final String SITE = GeneralConfig.SITE;
+  public static final String SERVICE_NAME = GeneralConfig.SERVICE_NAME;
+  public static final String TRACE_ENABLED = TraceInstrumentationConfig.TRACE_ENABLED;
+  public static final String INTEGRATIONS_ENABLED = TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
+  public static final String WRITER_TYPE = TracerConfig.WRITER_TYPE;
+  public static final String AGENT_HOST = TracerConfig.AGENT_HOST;
+  public static final String TRACE_AGENT_PORT = TracerConfig.TRACE_AGENT_PORT;
+  public static final String AGENT_PORT_LEGACY = TracerConfig.AGENT_PORT_LEGACY;
+  public static final String AGENT_UNIX_DOMAIN_SOCKET = TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
+  public static final String AGENT_TIMEOUT = TracerConfig.AGENT_TIMEOUT;
+  public static final String PRIORITY_SAMPLING = TracerConfig.PRIORITY_SAMPLING;
 
-  private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
+  @Deprecated
+  public static final String TRACE_RESOLVER_ENABLED = TracerConfig.TRACE_RESOLVER_ENABLED;
 
-  public static final String CONFIGURATION_FILE = "trace.config";
-  public static final String API_KEY = "api-key";
-  public static final String API_KEY_FILE = "api-key-file";
-  public static final String SITE = "site";
-  public static final String SERVICE_NAME = "service.name";
-  public static final String TRACE_ENABLED = "trace.enabled";
-  public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
-  public static final String WRITER_TYPE = "writer.type";
-  public static final String AGENT_HOST = "agent.host";
-  public static final String TRACE_AGENT_PORT = "trace.agent.port";
-  public static final String AGENT_PORT_LEGACY = "agent.port";
-  public static final String AGENT_UNIX_DOMAIN_SOCKET = "trace.agent.unix.domain.socket";
-  public static final String AGENT_TIMEOUT = "trace.agent.timeout";
-  public static final String PRIORITY_SAMPLING = "priority.sampling";
-  public static final String TRACE_RESOLVER_ENABLED = "trace.resolver.enabled";
-  public static final String SERVICE_MAPPING = "service.mapping";
+  public static final String SERVICE_MAPPING = TracerConfig.SERVICE_MAPPING;
 
-  private static final String ENV = "env";
-  private static final String VERSION = "version";
-  public static final String TAGS = "tags";
+  private static final String ENV = GeneralConfig.ENV;
+  private static final String VERSION = GeneralConfig.VERSION;
+  public static final String TAGS = GeneralConfig.TAGS;
   @Deprecated // Use dd.tags instead
-  public static final String GLOBAL_TAGS = "trace.global.tags";
-  public static final String SPAN_TAGS = "trace.span.tags";
-  public static final String JMX_TAGS = "trace.jmx.tags";
-  public static final String TRACE_ANALYTICS_ENABLED = "trace.analytics.enabled";
-  public static final String TRACE_ANNOTATIONS = "trace.annotations";
-  public static final String TRACE_EXECUTORS_ALL = "trace.executors.all";
-  public static final String TRACE_EXECUTORS = "trace.executors";
-  public static final String TRACE_METHODS = "trace.methods";
-  public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
-  public static final String TRACE_SAMPLING_SERVICE_RULES = "trace.sampling.service.rules";
-  public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
-  public static final String TRACE_SAMPLE_RATE = "trace.sample.rate";
-  public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
-  public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
-  public static final String HEADER_TAGS = "trace.header.tags";
-  public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
-  public static final String HTTP_CLIENT_ERROR_STATUSES = "http.client.error.statuses";
-  public static final String HTTP_SERVER_TAG_QUERY_STRING = "http.server.tag.query-string";
-  public static final String HTTP_CLIENT_TAG_QUERY_STRING = "http.client.tag.query-string";
-  public static final String HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN = "trace.http.client.split-by-domain";
-  public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE = "trace.db.client.split-by-instance";
-  public static final String SPLIT_BY_TAGS = "trace.split-by-tags";
-  public static final String SCOPE_DEPTH_LIMIT = "trace.scope.depth.limit";
-  public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
+  public static final String GLOBAL_TAGS = GeneralConfig.GLOBAL_TAGS;
+  public static final String SPAN_TAGS = TracerConfig.SPAN_TAGS;
+  public static final String JMX_TAGS = JmxFetchConfig.JMX_TAGS;
+  public static final String TRACE_ANALYTICS_ENABLED = TracerConfig.TRACE_ANALYTICS_ENABLED;
+  public static final String TRACE_ANNOTATIONS = TraceInstrumentationConfig.TRACE_ANNOTATIONS;
+  public static final String TRACE_EXECUTORS_ALL = TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
+  public static final String TRACE_EXECUTORS = TraceInstrumentationConfig.TRACE_EXECUTORS;
+  public static final String TRACE_METHODS = TraceInstrumentationConfig.TRACE_METHODS;
+  public static final String TRACE_CLASSES_EXCLUDE =
+      TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
+  public static final String TRACE_SAMPLING_SERVICE_RULES =
+      TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
+  public static final String TRACE_SAMPLING_OPERATION_RULES =
+      TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
+  public static final String TRACE_SAMPLE_RATE = TracerConfig.TRACE_SAMPLE_RATE;
+  public static final String TRACE_RATE_LIMIT = TracerConfig.TRACE_RATE_LIMIT;
+  public static final String TRACE_REPORT_HOSTNAME = TracerConfig.TRACE_REPORT_HOSTNAME;
+  public static final String HEADER_TAGS = TracerConfig.HEADER_TAGS;
+  public static final String HTTP_SERVER_ERROR_STATUSES = TracerConfig.HTTP_SERVER_ERROR_STATUSES;
+  public static final String HTTP_CLIENT_ERROR_STATUSES = TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
+  public static final String HTTP_SERVER_TAG_QUERY_STRING =
+      TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
+  public static final String HTTP_CLIENT_TAG_QUERY_STRING =
+      TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
+  public static final String HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN =
+      TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
+  public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE =
+      TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
+  public static final String SPLIT_BY_TAGS = TracerConfig.SPLIT_BY_TAGS;
+  public static final String SCOPE_DEPTH_LIMIT = TracerConfig.SCOPE_DEPTH_LIMIT;
+  public static final String PARTIAL_FLUSH_MIN_SPANS = TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
-      "trace.runtime.context.field.injection";
-  public static final String PROPAGATION_STYLE_EXTRACT = "propagation.style.extract";
-  public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
+      TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
+  public static final String PROPAGATION_STYLE_EXTRACT = TracerConfig.PROPAGATION_STYLE_EXTRACT;
+  public static final String PROPAGATION_STYLE_INJECT = TracerConfig.PROPAGATION_STYLE_INJECT;
 
-  public static final String JMX_FETCH_ENABLED = "jmxfetch.enabled";
-  public static final String JMX_FETCH_CONFIG_DIR = "jmxfetch.config.dir";
-  public static final String JMX_FETCH_CONFIG = "jmxfetch.config";
-  @Deprecated public static final String JMX_FETCH_METRICS_CONFIGS = "jmxfetch.metrics-configs";
-  public static final String JMX_FETCH_CHECK_PERIOD = "jmxfetch.check-period";
-  public static final String JMX_FETCH_REFRESH_BEANS_PERIOD = "jmxfetch.refresh-beans-period";
-  public static final String JMX_FETCH_STATSD_HOST = "jmxfetch.statsd.host";
-  public static final String JMX_FETCH_STATSD_PORT = "jmxfetch.statsd.port";
+  public static final String JMX_FETCH_ENABLED = JmxFetchConfig.JMX_FETCH_ENABLED;
+  public static final String JMX_FETCH_CONFIG_DIR = JmxFetchConfig.JMX_FETCH_CONFIG_DIR;
+  public static final String JMX_FETCH_CONFIG = JmxFetchConfig.JMX_FETCH_CONFIG;
 
-  public static final String HEALTH_METRICS_ENABLED = "trace.health.metrics.enabled";
-  public static final String HEALTH_METRICS_STATSD_HOST = "trace.health.metrics.statsd.host";
-  public static final String HEALTH_METRICS_STATSD_PORT = "trace.health.metrics.statsd.port";
+  @Deprecated
+  public static final String JMX_FETCH_METRICS_CONFIGS = JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS;
 
-  public static final String LOGS_INJECTION_ENABLED = "logs.injection";
+  public static final String JMX_FETCH_CHECK_PERIOD = JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
+  public static final String JMX_FETCH_REFRESH_BEANS_PERIOD =
+      JmxFetchConfig.JMX_FETCH_REFRESH_BEANS_PERIOD;
+  public static final String JMX_FETCH_STATSD_HOST = JmxFetchConfig.JMX_FETCH_STATSD_HOST;
+  public static final String JMX_FETCH_STATSD_PORT = JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 
-  public static final String PROFILING_ENABLED = "profiling.enabled";
+  public static final String HEALTH_METRICS_ENABLED = GeneralConfig.HEALTH_METRICS_ENABLED;
+  public static final String HEALTH_METRICS_STATSD_HOST = GeneralConfig.HEALTH_METRICS_STATSD_HOST;
+  public static final String HEALTH_METRICS_STATSD_PORT = GeneralConfig.HEALTH_METRICS_STATSD_PORT;
+
+  public static final String LOGS_INJECTION_ENABLED =
+      TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
+
+  public static final String PROFILING_ENABLED = ProfilingConfig.PROFILING_ENABLED;
   @Deprecated // Use dd.site instead
-  public static final String PROFILING_URL = "profiling.url";
+  public static final String PROFILING_URL = ProfilingConfig.PROFILING_URL;
   @Deprecated // Use dd.api-key instead
-  public static final String PROFILING_API_KEY_OLD = "profiling.api-key";
+  public static final String PROFILING_API_KEY_OLD = ProfilingConfig.PROFILING_API_KEY_OLD;
   @Deprecated // Use dd.api-key-file instead
-  public static final String PROFILING_API_KEY_FILE_OLD = "profiling.api-key-file";
+  public static final String PROFILING_API_KEY_FILE_OLD =
+      ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
   @Deprecated // Use dd.api-key instead
-  public static final String PROFILING_API_KEY_VERY_OLD = "profiling.apikey";
+  public static final String PROFILING_API_KEY_VERY_OLD =
+      ProfilingConfig.PROFILING_API_KEY_VERY_OLD;
   @Deprecated // Use dd.api-key-file instead
-  public static final String PROFILING_API_KEY_FILE_VERY_OLD = "profiling.apikey.file";
-  public static final String PROFILING_TAGS = "profiling.tags";
-  public static final String PROFILING_START_DELAY = "profiling.start-delay";
+  public static final String PROFILING_API_KEY_FILE_VERY_OLD =
+      ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
+  public static final String PROFILING_TAGS = ProfilingConfig.PROFILING_TAGS;
+  public static final String PROFILING_START_DELAY = ProfilingConfig.PROFILING_START_DELAY;
   // DANGEROUS! May lead on sigsegv on JVMs before 14
   // Not intended for production use
   public static final String PROFILING_START_FORCE_FIRST =
-      "profiling.experimental.start-force-first";
-  public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
+      ProfilingConfig.PROFILING_START_FORCE_FIRST;
+  public static final String PROFILING_UPLOAD_PERIOD = ProfilingConfig.PROFILING_UPLOAD_PERIOD;
   public static final String PROFILING_TEMPLATE_OVERRIDE_FILE =
-      "profiling.jfr-template-override-file";
-  public static final String PROFILING_UPLOAD_TIMEOUT = "profiling.upload.timeout";
-  public static final String PROFILING_UPLOAD_COMPRESSION = "profiling.upload.compression";
-  public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
-  public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
-  public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
-  public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
-  public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT = "profiling.exception.sample.limit";
+      ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
+  public static final String PROFILING_UPLOAD_TIMEOUT = ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
+  public static final String PROFILING_UPLOAD_COMPRESSION =
+      ProfilingConfig.PROFILING_UPLOAD_COMPRESSION;
+  public static final String PROFILING_PROXY_HOST = ProfilingConfig.PROFILING_PROXY_HOST;
+  public static final String PROFILING_PROXY_PORT = ProfilingConfig.PROFILING_PROXY_PORT;
+  public static final String PROFILING_PROXY_USERNAME = ProfilingConfig.PROFILING_PROXY_USERNAME;
+  public static final String PROFILING_PROXY_PASSWORD = ProfilingConfig.PROFILING_PROXY_PASSWORD;
+  public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT =
+      ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
   public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
-      "profiling.exception.histogram.top-items";
+      ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
   public static final String PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE =
-      "profiling.exception.histogram.max-collection-size";
+      ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 
-  public static final String KAFKA_CLIENT_PROPAGATION_ENABLED = "kafka.client.propagation.enabled";
+  public static final String KAFKA_CLIENT_PROPAGATION_ENABLED =
+      TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
 
-  public static final String RUNTIME_ID_TAG = "runtime-id";
-  public static final String SERVICE = "service";
-  public static final String SERVICE_TAG = SERVICE;
-  public static final String HOST_TAG = "host";
-  public static final String LANGUAGE_TAG_KEY = "language";
-  public static final String LANGUAGE_TAG_VALUE = "jvm";
+  private static final String PROFILING_REMOTE_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
+  private static final String PROFILING_LOCAL_URL_TEMPLATE = "http://%s:%d/profiling/v1/input";
 
-  public static final String DEFAULT_SITE = "datadoghq.com";
-  public static final String DEFAULT_SERVICE_NAME = "unnamed-java-app";
-
-  private static final boolean DEFAULT_TRACE_ENABLED = true;
-  public static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
-  public static final String DD_AGENT_WRITER_TYPE = "DDAgentWriter";
-  public static final String LOGGING_WRITER_TYPE = "LoggingWriter";
-  private static final String DEFAULT_AGENT_WRITER_TYPE = DD_AGENT_WRITER_TYPE;
-
-  public static final String DEFAULT_AGENT_HOST = "localhost";
-  public static final int DEFAULT_TRACE_AGENT_PORT = 8126;
-  public static final String DEFAULT_AGENT_UNIX_DOMAIN_SOCKET = null;
-  public static final int DEFAULT_AGENT_TIMEOUT = 10; // timeout in seconds
-
-  private static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
-
-  private static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
-  private static final boolean DEFAULT_TRACE_RESOLVER_ENABLED = true;
-  private static final BitSet DEFAULT_HTTP_SERVER_ERROR_STATUSES =
-      parseIntegerRangeSet("500-599", "default");
-  private static final BitSet DEFAULT_HTTP_CLIENT_ERROR_STATUSES =
-      parseIntegerRangeSet("400-499", "default");
-  private static final boolean DEFAULT_HTTP_SERVER_TAG_QUERY_STRING = false;
-  private static final boolean DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING = false;
-  private static final boolean DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN = false;
-  private static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
-  private static final String DEFAULT_SPLIT_BY_TAGS = "";
-  private static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
-  private static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
-  private static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
-  private static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
-  private static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
-
-  public static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;
-
-  public static final boolean DEFAULT_METRICS_ENABLED = false;
-  // No default constants for metrics statsd support -- falls back to jmxfetch values
-
-  public static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
-
-  public static final boolean DEFAULT_PROFILING_ENABLED = false;
-  public static final int DEFAULT_PROFILING_START_DELAY = 10;
-  public static final boolean DEFAULT_PROFILING_START_FORCE_FIRST = false;
-  public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
-  public static final int DEFAULT_PROFILING_UPLOAD_TIMEOUT = 30; // seconds
-  public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
-  public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
-  public static final int DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT = 10_000;
-  public static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS = 50;
-  public static final int DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE = 10000;
-
-  public static final boolean DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED = true;
-
+  private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
-
-  private static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
-  private static final String DEFAULT_TRACE_ANNOTATIONS = null;
-  private static final boolean DEFAULT_TRACE_EXECUTORS_ALL = false;
-  private static final String DEFAULT_TRACE_EXECUTORS = "";
-  private static final String DEFAULT_TRACE_METHODS = null;
-  public static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
-  public static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
-  public static final double DEFAULT_TRACE_RATE_LIMIT = 100;
 
   public enum PropagationStyle {
     DATADOG,
     B3,
     HAYSTACK
   }
-
-  /** A tag intended for internal use only, hence not added to the public api DDTags class. */
-  private static final String INTERNAL_HOST_NAME = "_dd.hostname";
 
   /** Used for masking sensitive information when doing toString */
   @ToString.Include(name = "apiKey")
@@ -599,7 +607,7 @@ public class Config {
           new HashMap<>(
               getPropertyMapValue(properties, GLOBAL_TAGS, Collections.<String, String>emptyMap()));
       preTags.putAll(getPropertyMapValue(properties, TAGS, parent.tags));
-      this.tags = overwriteKeysFromProperties(preTags, properties, ENV, VERSION);
+      tags = overwriteKeysFromProperties(preTags, properties, ENV, VERSION);
     }
     spanTags = getPropertyMapValue(properties, SPAN_TAGS, parent.spanTags);
     jmxTags = getPropertyMapValue(properties, JMX_TAGS, parent.jmxTags);
@@ -818,7 +826,7 @@ public class Config {
 
   /**
    * Returns the sample rate for the specified instrumentation or {@link
-   * #DEFAULT_ANALYTICS_SAMPLE_RATE} if none specified.
+   * ConfigDefaults#DEFAULT_ANALYTICS_SAMPLE_RATE} if none specified.
    */
   public float getInstrumentationAnalyticsSampleRate(final String... aliases) {
     for (final String alias : aliases) {
@@ -1081,7 +1089,7 @@ public class Config {
   }
 
   private static <T> T getSettingFromEnvironmentWithLog(
-      final String name, Class<T> tClass, final T defaultValue) {
+      final String name, final Class<T> tClass, final T defaultValue) {
     try {
       return valueOf(getSettingFromEnvironment(name, null), tClass, defaultValue);
     } catch (final NumberFormatException e) {
@@ -1164,12 +1172,12 @@ public class Config {
           PUBLIC_LOOKUP
               .findStatic(tClass, "valueOf", MethodType.methodType(tClass, String.class))
               .invoke(value);
-    } catch (NumberFormatException e) {
+    } catch (final NumberFormatException e) {
       throw e;
-    } catch (NoSuchMethodException | IllegalAccessException e) {
+    } catch (final NoSuchMethodException | IllegalAccessException e) {
       log.debug("Can't invoke or access 'valueOf': ", e);
       throw new NumberFormatException(e.toString());
-    } catch (Throwable e) {
+    } catch (final Throwable e) {
       log.debug("Can't parse: ", e);
       throw new NumberFormatException(e.toString());
     }
@@ -1258,7 +1266,7 @@ public class Config {
   }
 
   @NonNull
-  private static BitSet parseIntegerRangeSet(@NonNull String str, final String settingName)
+  static BitSet parseIntegerRangeSet(@NonNull String str, final String settingName)
       throws NumberFormatException {
     str = str.replaceAll("\\s", "");
     if (!str.matches("\\d{3}(?:-\\d{3})?(?:,\\d{3}(?:-\\d{3})?)*")) {
@@ -1468,6 +1476,20 @@ public class Config {
     return INSTANCE;
   }
 
+  /**
+   * This method is deprecated since the method of configuration will be changed in the future. The
+   * properties instance should instead be passed directly into the DDTracer builder:
+   *
+   * <pre>
+   *   DDTracer.builder().withProperties(new Properties()).build()
+   * </pre>
+   *
+   * Config keys for use in Properties instance construction can be found in {@link GeneralConfig}
+   * and {@link TracerConfig}.
+   *
+   * @deprecated
+   */
+  @Deprecated
   public static Config get(final Properties properties) {
     if (properties == null || properties.isEmpty()) {
       return INSTANCE;

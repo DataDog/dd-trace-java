@@ -1,6 +1,7 @@
 package datadog.trace.common.writer;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.AssortedConstants;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.Monitor;
 import datadog.trace.core.DDSpan;
@@ -41,9 +42,9 @@ public interface Writer extends Closeable {
 
       if (config != null) {
         final String configuredType = config.getWriterType();
-        if (Config.DD_AGENT_WRITER_TYPE.equals(configuredType)) {
+        if (AssortedConstants.DD_AGENT_WRITER_TYPE.equals(configuredType)) {
           writer = createAgentWriter(config);
-        } else if (Config.LOGGING_WRITER_TYPE.equals(configuredType)) {
+        } else if (AssortedConstants.LOGGING_WRITER_TYPE.equals(configuredType)) {
           writer = new LoggingWriter();
         } else {
           log.warn(

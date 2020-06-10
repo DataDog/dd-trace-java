@@ -12,17 +12,11 @@ import static datadog.trace.api.Config.API_KEY
 import static datadog.trace.api.Config.API_KEY_FILE
 import static datadog.trace.api.Config.CONFIGURATION_FILE
 import static datadog.trace.api.Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
-import static datadog.trace.api.Config.DEFAULT_JMX_FETCH_STATSD_PORT
-import static datadog.trace.api.Config.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT
-import static datadog.trace.api.Config.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
-import static datadog.trace.api.Config.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
-import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.Config.GLOBAL_TAGS
 import static datadog.trace.api.Config.HEADER_TAGS
 import static datadog.trace.api.Config.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.Config.HEALTH_METRICS_STATSD_HOST
 import static datadog.trace.api.Config.HEALTH_METRICS_STATSD_PORT
-import static datadog.trace.api.Config.HOST_TAG
 import static datadog.trace.api.Config.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.Config.HTTP_SERVER_ERROR_STATUSES
@@ -33,8 +27,6 @@ import static datadog.trace.api.Config.JMX_FETCH_REFRESH_BEANS_PERIOD
 import static datadog.trace.api.Config.JMX_FETCH_STATSD_HOST
 import static datadog.trace.api.Config.JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.Config.JMX_TAGS
-import static datadog.trace.api.Config.LANGUAGE_TAG_KEY
-import static datadog.trace.api.Config.LANGUAGE_TAG_VALUE
 import static datadog.trace.api.Config.PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.api.Config.PRIORITY_SAMPLING
@@ -59,11 +51,8 @@ import static datadog.trace.api.Config.PROFILING_URL
 import static datadog.trace.api.Config.PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.Config.PROPAGATION_STYLE_INJECT
 import static datadog.trace.api.Config.RUNTIME_CONTEXT_FIELD_INJECTION
-import static datadog.trace.api.Config.RUNTIME_ID_TAG
-import static datadog.trace.api.Config.SERVICE
 import static datadog.trace.api.Config.SERVICE_MAPPING
 import static datadog.trace.api.Config.SERVICE_NAME
-import static datadog.trace.api.Config.SERVICE_TAG
 import static datadog.trace.api.Config.SITE
 import static datadog.trace.api.Config.SPAN_TAGS
 import static datadog.trace.api.Config.SPLIT_BY_TAGS
@@ -77,6 +66,21 @@ import static datadog.trace.api.Config.TRACE_SAMPLE_RATE
 import static datadog.trace.api.Config.TRACE_SAMPLING_OPERATION_RULES
 import static datadog.trace.api.Config.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.Config.WRITER_TYPE
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_STATSD_PORT
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_PROXY_PORT
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE
+import static datadog.trace.api.DDTags.HOST_TAG
+import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
+import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
+import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
+import static datadog.trace.api.DDTags.SERVICE
+import static datadog.trace.api.DDTags.SERVICE_TAG
 
 class ConfigTest extends DDSpecification {
   @Rule
@@ -114,7 +118,7 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.apiKey == null
-    config.site == Config.DEFAULT_SITE
+    config.site == DEFAULT_SITE
     config.serviceName == "unnamed-java-app"
     config.traceEnabled == true
     config.writerType == "DDAgentWriter"
@@ -157,7 +161,7 @@ class ConfigTest extends DDSpecification {
     config.profilingTemplateOverrideFile == null
     config.profilingUploadTimeout == 30
     config.profilingProxyHost == null
-    config.profilingProxyPort == Config.DEFAULT_PROFILING_PROXY_PORT
+    config.profilingProxyPort == DEFAULT_PROFILING_PROXY_PORT
     config.profilingProxyUsername == null
     config.profilingProxyPassword == null
     config.profilingExceptionSampleLimit == DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT
@@ -864,10 +868,10 @@ class ConfigTest extends DDSpecification {
       assert propConfig.httpServerErrorStatuses == toBitSet(expected)
       assert propConfig.httpClientErrorStatuses == toBitSet(expected)
     } else {
-      assert config.httpServerErrorStatuses == Config.DEFAULT_HTTP_SERVER_ERROR_STATUSES
-      assert config.httpClientErrorStatuses == Config.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
-      assert propConfig.httpServerErrorStatuses == Config.DEFAULT_HTTP_SERVER_ERROR_STATUSES
-      assert propConfig.httpClientErrorStatuses == Config.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
+      assert config.httpServerErrorStatuses == DEFAULT_HTTP_SERVER_ERROR_STATUSES
+      assert config.httpClientErrorStatuses == DEFAULT_HTTP_CLIENT_ERROR_STATUSES
+      assert propConfig.httpServerErrorStatuses == DEFAULT_HTTP_SERVER_ERROR_STATUSES
+      assert propConfig.httpClientErrorStatuses == DEFAULT_HTTP_CLIENT_ERROR_STATUSES
     }
 
     where:
@@ -1156,13 +1160,13 @@ class ConfigTest extends DDSpecification {
     Config config = Config.get(prop)
 
     then:
-    config.mergedSpanTags == [a: "1", b: "2", c: "3",  (Config.ENV) : "eu-east", (Config.VERSION) : "43"]
-    config.mergedJmxTags == [a: "1", b: "2", d: "4",  (Config.ENV) : "eu-east", (Config.VERSION) : "43",
+    config.mergedSpanTags == [a: "1", b: "2", c: "3", (Config.ENV): "eu-east", (Config.VERSION): "43"]
+    config.mergedJmxTags == [a               : "1", b: "2", d: "4", (Config.ENV): "eu-east", (Config.VERSION): "43",
                              (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
 
-    config.mergedProfilingTags == [a: "1", b: "2", f: "6",  (Config.ENV) : "eu-east", (Config.VERSION) : "43",
-                                   (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(),
+    config.mergedProfilingTags == [a            : "1", b: "2", f: "6", (Config.ENV): "eu-east", (Config.VERSION): "43",
+                                   (HOST_TAG)   : config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(),
                                    (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
@@ -1306,7 +1310,7 @@ class ConfigTest extends DDSpecification {
     Config config = new Config()
 
     then:
-    config.mergedSpanTags == ["version": "1.2.3", "env": "production-us", "other_tag":"test"]
+    config.mergedSpanTags == ["version": "1.2.3", "env": "production-us", "other_tag": "test"]
   }
 
   def "merge env from dd.trace.global.tags and DD_VERSION"() {
@@ -1318,7 +1322,7 @@ class ConfigTest extends DDSpecification {
     Config config = new Config()
 
     then:
-    config.mergedSpanTags == ["version": "1.2.3", "env": "us-barista-test", "other_tag":"test"]
+    config.mergedSpanTags == ["version": "1.2.3", "env": "us-barista-test", "other_tag": "test"]
   }
 
   def "merge version from dd.trace.global.tags and DD_ENV"() {
@@ -1330,7 +1334,7 @@ class ConfigTest extends DDSpecification {
     Config config = new Config()
 
     then:
-    config.mergedSpanTags == ["version": "3.2.1", "env": "us-barista-test", "other_tag":"test"]
+    config.mergedSpanTags == ["version": "3.2.1", "env": "us-barista-test", "other_tag": "test"]
   }
 
   def "merge version from dd.trace.global.tags and DD_SERVICE and DD_ENV"() {
@@ -1344,9 +1348,9 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-env-var"
-    config.mergedSpanTags == [version: "3.2.1", "service.version" : "my-svc-vers", "env": "us-barista-test", other_tag:"test"]
+    config.mergedSpanTags == [version: "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
     config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): 'dd-service-env-var',
-                             version: "3.2.1","service.version" : "my-svc-vers", "env": "us-barista-test", other_tag:"test"]
+                             version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
   }
 
   def "merge env from dd.trace.global.tags and DD_SERVICE and DD_VERSION"() {
@@ -1360,9 +1364,9 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-env-var"
-    config.mergedSpanTags == [version: "3.2.1", "service.version" : "my-svc-vers", "env": "us-barista-test", other_tag:"test"]
+    config.mergedSpanTags == [version: "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
     config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): 'dd-service-env-var',
-                             version: "3.2.1","service.version" : "my-svc-vers", "env": "us-barista-test", other_tag:"test"]
+                             version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
   }
 
   def "set of dd.trace.global.tags.env exclusively by java properties and without DD_ENV"() {
@@ -1392,7 +1396,7 @@ class ConfigTest extends DDSpecification {
     System.getenv(DD_ENV_ENV) == null
     System.getenv(DD_VERSION_ENV) == null
     //actual guard:
-    config.mergedSpanTags == [(Config.VERSION) : "42"]
+    config.mergedSpanTags == [(Config.VERSION): "42"]
   }
 
   def "set of version exclusively by DD_VERSION and without DD_ENV "() {
@@ -1423,14 +1427,14 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == DEFAULT_SERVICE_NAME
-    config.mergedSpanTags == [service:'service-tag-in-dd-trace-global-tags-java-property','service.version' : 'my-svc-vers']
-    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version' : 'my-svc-vers']
+    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+                             'service.version': 'my-svc-vers']
   }
 
   def "DD_SERVICE precedence over 'dd.service.name' java property is set; 'dd.service' overwrites DD_SERVICE"() {
     setup:
-    environmentVariables.set(DD_SERVICE_NAME_ENV,"dd-service-name-env-var")
+    environmentVariables.set(DD_SERVICE_NAME_ENV, "dd-service-name-env-var")
     System.setProperty(PREFIX + SERVICE_NAME, "dd-service-name-java-prop")
     environmentVariables.set("DD_SERVICE", "dd-service-env-var")
     System.setProperty(PREFIX + SERVICE, "dd-service-java-prop")
@@ -1441,14 +1445,14 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-java-prop"
-    config.mergedSpanTags == [service:'service-tag-in-dd-trace-global-tags-java-property','service.version' : 'my-svc-vers']
-    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version' : 'my-svc-vers']
+    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+                             'service.version': 'my-svc-vers']
   }
 
   def "DD_SERVICE precedence over 'DD_SERVICE_NAME' environment var is set"() {
     setup:
-    environmentVariables.set(DD_SERVICE_NAME_ENV,"dd-service-name-env-var")
+    environmentVariables.set(DD_SERVICE_NAME_ENV, "dd-service-name-env-var")
     environmentVariables.set("DD_SERVICE", "dd-service-env-var")
     System.setProperty(PREFIX + GLOBAL_TAGS, "service:service-tag-in-dd-trace-global-tags-java-property,service.version:my-svc-vers")
 
@@ -1457,9 +1461,9 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-env-var"
-    config.mergedSpanTags == [service:'service-tag-in-dd-trace-global-tags-java-property','service.version' : 'my-svc-vers']
-    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version' : 'my-svc-vers']
+    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+                             'service.version': 'my-svc-vers']
   }
 
   def "dd.service overwrites DD_SERVICE"() {
@@ -1473,9 +1477,9 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-java-prop"
-    config.mergedSpanTags == [service:'service-tag-in-dd-trace-global-tags-java-property','service.version' : 'my-svc-vers']
-    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version' : 'my-svc-vers']
+    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+                             'service.version': 'my-svc-vers']
   }
 
   def "set servicenaem by DD_SERVICE"() {
@@ -1489,9 +1493,9 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "dd-service-env-var"
-    config.mergedSpanTags == [service:'service-tag-in-dd-trace-global-tags-java-property','service.version' : 'my-svc-vers']
-    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
-                             'service.version' : 'my-svc-vers']
+    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+                             'service.version': 'my-svc-vers']
   }
 
   // Static methods test:
@@ -1514,26 +1518,26 @@ class ConfigTest extends DDSpecification {
     Config.valueOf(value, tClass, defaultValue) == expected
 
     where:
-    value      | tClass  | defaultValue | expected
-    "42.42"    | Boolean | true         | false
-    "42.42"    | Boolean | null         | false
-    "true"     | Boolean | null         | true
-    "trUe"     | Boolean | null         | true
-    "trUe"     | Boolean | false        | true
-    "tru"      | Boolean | true         | false
-    "truee"    | Boolean | true         | false
-    "true "    | Boolean | true         | false
-    " true"    | Boolean | true         | false
-    " true "   | Boolean | true         | false
-    "   true  "| Boolean | true         | false
-    null       | Float   | 43.3         | 43.3
-    "42.42"    | Float   | 21.21        | 42.42f
-    null       | Double  | 43.3         | 43.3
-    "42.42"    | Double  | 21.21        | 42.42
-    null       | Integer | 13           | 13
-    "44"       | Integer | 21           | 44
-    "45"       | Long    | 21           | 45
-    "46"       | Short   | 21           | 46
+    value       | tClass  | defaultValue | expected
+    "42.42"     | Boolean | true         | false
+    "42.42"     | Boolean | null         | false
+    "true"      | Boolean | null         | true
+    "trUe"      | Boolean | null         | true
+    "trUe"      | Boolean | false        | true
+    "tru"       | Boolean | true         | false
+    "truee"     | Boolean | true         | false
+    "true "     | Boolean | true         | false
+    " true"     | Boolean | true         | false
+    " true "    | Boolean | true         | false
+    "   true  " | Boolean | true         | false
+    null        | Float   | 43.3         | 43.3
+    "42.42"     | Float   | 21.21        | 42.42f
+    null        | Double  | 43.3         | 43.3
+    "42.42"     | Double  | 21.21        | 42.42
+    null        | Integer | 13           | 13
+    "44"        | Integer | 21           | 44
+    "45"        | Long    | 21           | 45
+    "46"        | Short   | 21           | 46
   }
 
   def "valueOf negative test when tClass is null"() {
@@ -1545,11 +1549,11 @@ class ConfigTest extends DDSpecification {
     exception.message == "tClass is marked non-null but is null"
 
     where:
-    value      | tClass  | defaultValue
-    null       | null    | "42"
-    ""         | null    | "43"
-    "      "   | null    | "44"
-    "1"        | null    | "45"
+    value    | tClass | defaultValue
+    null     | null   | "42"
+    ""       | null   | "43"
+    "      " | null   | "44"
+    "1"      | null   | "45"
   }
 
   def "valueOf negative test"() {
@@ -1558,29 +1562,29 @@ class ConfigTest extends DDSpecification {
 
     then:
     def exception = thrown(NumberFormatException)
-    println("cause: " : exception.message)
+    println("cause: ": exception.message)
 
     where:
-    value      | tClass
-    "42.42"    | Number
-    "42.42"    | Byte
-    "42.42"    | Character
-    "42.42"    | Short
-    "42.42"    | Integer
-    "42.42"    | Long
-    "42.42"    | Object
-    "42.42"    | Object[]
-    "42.42"    | boolean[]
-    "42.42"    | boolean
-    "42.42"    | byte
-    "42.42"    | byte
-    "42.42"    | char
-    "42.42"    | short
-    "42.42"    | int
-    "42.42"    | long
-    "42.42"    | double
-    "42.42"    | float
-    "42.42"    | ClassThrowsExceptionForValueOfMethod // will wrapped in NumberFormatException anyway
+    value   | tClass
+    "42.42" | Number
+    "42.42" | Byte
+    "42.42" | Character
+    "42.42" | Short
+    "42.42" | Integer
+    "42.42" | Long
+    "42.42" | Object
+    "42.42" | Object[]
+    "42.42" | boolean[]
+    "42.42" | boolean
+    "42.42" | byte
+    "42.42" | byte
+    "42.42" | char
+    "42.42" | short
+    "42.42" | int
+    "42.42" | long
+    "42.42" | double
+    "42.42" | float
+    "42.42" | ClassThrowsExceptionForValueOfMethod // will wrapped in NumberFormatException anyway
   }
 
   static class ClassThrowsExceptionForValueOfMethod {

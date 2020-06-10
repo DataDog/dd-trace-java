@@ -36,7 +36,7 @@ targetCompatibility = JavaVersion.VERSION_1_8
       // Disable '-processing' because some annotations are not claimed.
       // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
       // Disable '-path' because we do not have some of the paths seem to be missing.
-      options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path', '-Werror'])
+      options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
       options.fork = true
       options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
     }
