@@ -23,7 +23,7 @@ public class JMXSessionFactory implements SessionFactory {
     long threadId = thread.getId();
     // need to use ConcurrentHashMap#compute method to insure atomicity of createNewSession call
     return jmxSessions.compute(
-      threadId, (key, jmxSession) -> createNewSession(id, threadId, scopeStackCollector));
+        threadId, (key, jmxSession) -> createNewSession(id, threadId, scopeStackCollector));
   }
 
   @Override

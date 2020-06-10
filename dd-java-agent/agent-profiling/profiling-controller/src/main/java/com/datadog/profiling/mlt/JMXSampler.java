@@ -49,11 +49,12 @@ class JMXSampler {
       prev = threadIds.get();
       int idx = Arrays.binarySearch(prev, threadId);
       // check if already exists
-      if (idx >= 0)
+      if (idx >= 0) {
         return;
+      }
       idx = -idx - 1;
       tmpArray = Arrays.copyOf(prev, prev.length + 1);
-      System.arraycopy(tmpArray, idx, tmpArray, idx +1, prev.length - idx);
+      System.arraycopy(tmpArray, idx, tmpArray, idx + 1, prev.length - idx);
       tmpArray[idx] = threadId;
     } while (!threadIds.compareAndSet(prev, tmpArray));
   }
