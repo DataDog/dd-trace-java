@@ -47,12 +47,14 @@ class JMXSampler {
     }
     do {
       prev = threadIds.get();
+      int idx = Arrays.binarySearch(prev, threadId);
       // check if already exists
-      for (int i = 0; i < prev.length; i++) {
-        if (prev[i] == threadId) return;
-      }
+      if (idx >= 0)
+        return;
+      idx = -idx - 1;
       tmpArray = Arrays.copyOf(prev, prev.length + 1);
-      tmpArray[tmpArray.length - 1] = threadId;
+      System.arraycopy(tmpArray, idx, tmpArray, idx +1, prev.length - idx);
+      tmpArray[idx] = threadId;
     } while (!threadIds.compareAndSet(prev, tmpArray));
   }
 
