@@ -106,7 +106,7 @@ public class Agent {
      * And yet another block for method-level tracer which is using JMX behind the scenes and
      * can mess with LogManager.
      */
-    if (isJavaBefore9() && appUsingCustomLogManager) {
+    if (appUsingCustomLogManager) {
       log.debug("Custom logger detected. Delaying Method-level Tracer initialization.");
       registerLogManagerCallback(new InstallMethodLevelTracerCallback(bootstrapURL));
     } else {
