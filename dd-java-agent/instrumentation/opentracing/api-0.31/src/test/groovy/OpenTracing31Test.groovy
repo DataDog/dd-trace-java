@@ -1,9 +1,12 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.context.TraceScope
 import datadog.trace.core.DDSpan
+import datadog.trace.core.propagation.ExtractedContext
+import io.opentracing.References
 import io.opentracing.log.Fields
 import io.opentracing.noop.NoopSpan
 import io.opentracing.propagation.Format
@@ -24,6 +27,9 @@ class OpenTracing31Test extends AgentTestRunner {
         .withTag("string", "a")
         .withTag("number", 1)
         .withTag("boolean", true)
+    }
+    if (addReference) {
+      builder.addReference(addReference, tracer.tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(2), 0, null, [:], [:])))
     }
     def result = builder.start()
     if (tagSpan) {
@@ -57,7 +63,11 @@ class OpenTracing31Test extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
-          parent()
+          if ([References.CHILD_OF, References.FOLLOWS_FROM].contains(addReference)) {
+            parentDDId(DDId.from(2))
+          } else {
+            parent()
+          }
           serviceName "unnamed-java-app"
           operationName "some name"
           if (tagSpan) {
@@ -81,7 +91,7 @@ class OpenTracing31Test extends AgentTestRunner {
             if (exception) {
               errorTags(exception.class)
             }
-            defaultTags()
+            defaultTags(addReference != null)
           }
           metrics {
             defaultMetrics()
@@ -91,11 +101,11 @@ class OpenTracing31Test extends AgentTestRunner {
     }
 
     where:
-    method        | tagBuilder | tagSpan | exception
-    "start"       | true       | false   | null
-    "startManual" | true       | true    | new Exception()
-    "startManual" | false      | false   | new Exception()
-    "start"       | false      | true    | null
+    method        | addReference            | tagBuilder | tagSpan | exception
+    "start"       | null                    | true       | false   | null
+    "startManual" | References.CHILD_OF     | true       | true    | new Exception()
+    "startManual" | "bogus"                 | false      | false   | new Exception()
+    "start"       | References.FOLLOWS_FROM | false      | true    | null
   }
 
   def "test startActive"() {
