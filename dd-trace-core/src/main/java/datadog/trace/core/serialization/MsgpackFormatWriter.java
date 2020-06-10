@@ -1,13 +1,10 @@
 package datadog.trace.core.serialization;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import datadog.trace.api.DDId;
 import datadog.trace.core.StringTables;
+import datadog.trace.core.util.LRUCache;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ExecutionException;
 import org.msgpack.core.MessagePacker;
 
 public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
@@ -39,11 +36,7 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   public void writeString(final byte[] key, final String value, MessagePacker destination)
       throws IOException {
     writeKey(key, destination);
-    if (value == null) {
-      destination.packNil();
-    } else {
-      destination.packString(value);
-    }
+    cachedWriteString(value, destination);
   }
 
   @Override
@@ -102,20 +95,6 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
     writeLong(key, id.toLong(), destination);
   }
 
-  // Storing the last used 64 tags
-  // TODO maybe this should be configurable?
-  private final LoadingCache<String, byte[]> tagCache =
-      CacheBuilder.newBuilder()
-          .maximumSize(64)
-          .concurrencyLevel(1)
-          .build(
-              new CacheLoader<String, byte[]>() {
-                @Override
-                public byte[] load(String key) throws Exception {
-                  return key.getBytes(StandardCharsets.UTF_8);
-                }
-              });
-
   private void writeUTF8Tag(final String value, final MessagePacker destination)
       throws IOException {
     if (null == value) {
@@ -126,21 +105,31 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
         destination.packRawStringHeader(interned.length);
         destination.addPayload(interned);
       } else {
-        byte[] bytes = null;
-        if (value.length() > 0) {
-          try {
-            bytes = tagCache.get(value);
+        cachedWriteString(value, destination);
+      }
+    }
+  }
 
-          } catch (ExecutionException e) {
-            // Something went wrong. We will write out the string the normal way.
-          }
+  // Storing the last used 128 entries of max 32 characters for tags
+  // The initial capacity of 256 is to make sure that the underlying HashMap never resizes
+  private final LRUCache<String, byte[]> stringCache = new LRUCache<>(256, 128);
+
+  private void cachedWriteString(final String value, final MessagePacker destination)
+      throws IOException {
+    if (null == value) {
+      destination.packNil();
+    } else {
+      int len = value.length();
+      if (len > 0 && len <= 32) {
+        byte[] bytes = stringCache.get(value);
+        if (bytes == null) {
+          bytes = value.getBytes(StandardCharsets.UTF_8);
+          stringCache.put(value, bytes);
         }
-        if (bytes != null) {
-          destination.packRawStringHeader(bytes.length);
-          destination.addPayload(bytes);
-        } else {
-          destination.packString(value);
-        }
+        destination.packRawStringHeader(bytes.length);
+        destination.addPayload(bytes);
+      } else {
+        destination.packString(value);
       }
     }
   }
