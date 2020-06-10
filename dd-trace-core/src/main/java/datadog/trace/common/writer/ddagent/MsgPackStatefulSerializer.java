@@ -56,7 +56,7 @@ public class MsgPackStatefulSerializer implements StatefulSerializer {
   private int currentSerializedBytes = 0;
 
   public MsgPackStatefulSerializer() {
-    this(DEFAULT_BUFFER_THRESHOLD, DEFAULT_BUFFER_THRESHOLD * 3 / 2); // 1MB
+    this(DEFAULT_BUFFER_THRESHOLD, DEFAULT_BUFFER_THRESHOLD * 2);
   }
 
   public MsgPackStatefulSerializer(int sizeThresholdBytes, int bufferSize) {
