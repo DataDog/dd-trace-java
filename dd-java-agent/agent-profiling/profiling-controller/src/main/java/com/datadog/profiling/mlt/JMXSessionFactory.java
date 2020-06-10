@@ -21,7 +21,8 @@ public class JMXSessionFactory implements SessionFactory {
     ScopeManager scopeManager = threadScopeMapper.forThread(thread);
     ScopeStackCollector scopeStackCollector = scopeManager.startScope(id);
     long threadId = thread.getId();
-    return jmxSessions.put(threadId, createNewSession(id, threadId, scopeStackCollector));
+    return jmxSessions.compute(
+      threadId, (key, jmxSession) -> createNewSession(id, threadId, scopeStackCollector));
   }
 
   @Override
