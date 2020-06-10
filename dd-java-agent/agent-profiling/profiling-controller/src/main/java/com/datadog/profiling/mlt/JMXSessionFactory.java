@@ -20,11 +20,10 @@ public class JMXSessionFactory implements SessionFactory {
   public Session createSession(String id, Thread thread) {
     ScopeManager scopeManager = threadScopeMapper.forThread(thread);
     ScopeStackCollector scopeStackCollector = scopeManager.startScope(id);
-
     long threadId = thread.getId();
-    JMXSession session = createNewSession(id, threadId, scopeStackCollector);
-    jmxSessions.put(threadId, session);
-    return session;
+    // need to use ConcurrentHashMap#compute method to insure atomicity of createNewSession call
+    return jmxSessions.compute(
+        threadId, (key, jmxSession) -> createNewSession(id, threadId, scopeStackCollector));
   }
 
   @Override
