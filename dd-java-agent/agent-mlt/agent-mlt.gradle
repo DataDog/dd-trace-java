@@ -1,6 +1,12 @@
 plugins {
   id "com.github.johnrengelman.shadow"
 }
+
+ext {
+  enableJunitPlatform = true
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
@@ -19,12 +25,11 @@ minimumBranchCoverage = 0.5
 
 excludedClassesCoverage += [
   // MLT trace installer is a simple forwarding shell for MethodLevelTracer.initialize()
-  'datadog.trace.agent.mlt.TracerInstaller'
+  'datadog.trace.agent.mlt.TracerInstaller',
+  'com.datadog.mlt.sampler.JmxThreadStackProvider',
+  'com.datadog.mlt.sampler.NoneThreadStackProvider',
+  'com.datadog.mlt.sampler.ThreadStackProvider'
 ]
-
-tasks.withType(Test).configureEach {
-  useJUnitPlatform()
-}
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
