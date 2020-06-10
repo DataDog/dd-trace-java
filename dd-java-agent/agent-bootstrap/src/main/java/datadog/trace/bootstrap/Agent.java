@@ -56,6 +56,8 @@ public class Agent {
 
     startDatadogAgent(inst, bootstrapURL);
 
+    installMethodLevelTracer(bootstrapURL);
+
     final boolean appUsingCustomLogManager = isAppUsingCustomLogManager();
 
     /*
@@ -100,17 +102,6 @@ public class Agent {
       registerLogManagerCallback(new StartProfilingAgentCallback(inst, bootstrapURL));
     } else {
       startProfilingAgent(bootstrapURL, false);
-    }
-
-    /*
-     * And yet another block for method-level tracer which is using JMX behind the scenes and
-     * can mess with LogManager.
-     */
-    if (appUsingCustomLogManager) {
-      log.debug("Custom logger detected. Delaying Method-level Tracer initialization.");
-      registerLogManagerCallback(new InstallMethodLevelTracerCallback(bootstrapURL));
-    } else {
-      installMethodLevelTracer(bootstrapURL);
     }
   }
 
@@ -335,12 +326,12 @@ public class Agent {
 
   private static void initializeJmxThreadStackProvider() {
     log.info("Initializing JMX ThreadStack provider");
-    if (PROFILING_CLASSLOADER == null) {
-      throw new IllegalStateException("Datadog agent should have been started already");
+    if (MLT_CLASSLOADER == null) {
+      throw new IllegalStateException("Method-level tracer should have been started already");
     }
     try {
       final Class<?> tracerInstallerClass =
-          PROFILING_CLASSLOADER.loadClass("datadog.trace.core.util.ThreadStackAccess");
+          MLT_CLASSLOADER.loadClass("com.datadog.mlt.sampler.ThreadStackAccess");
       final Method enableJmxMethod = tracerInstallerClass.getMethod("enableJmx");
       enableJmxMethod.invoke(null);
     } catch (final Throwable ex) {

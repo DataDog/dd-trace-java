@@ -1,4 +1,4 @@
-package datadog.trace.core.util
+package com.datadog.mlt.sampler
 
 
 import datadog.trace.util.test.DDSpecification

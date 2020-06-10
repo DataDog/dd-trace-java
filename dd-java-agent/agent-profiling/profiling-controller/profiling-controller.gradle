@@ -13,21 +13,12 @@ excludedClassesCoverage += [
   'com.datadog.profiling.controller.ControllerFactory',
   // There are some code paths that is impossible/very-very hard to hit
   'com.datadog.profiling.controller.ProfilingSystem.StartRecording',
-  'com.datadog.profiling.controller.ProfilingSystem.StopRecording',
-  'com.datadog.profiling.jfr.ResolvableJFRType',
-  'com.datadog.profiling.mlt.SamplerContext.SamplerContextBuilder', // lombok generated builder
-  // TODO: following classes are not complete yet - skip the coverage test until it is final
-  'com.datadog.profiling.mlt.JMXSampler',
-  'com.datadog.profiling.mlt.ScopeManager',
-  'com.datadog.profiling.mlt.ScopeStackCollector'
+  'com.datadog.profiling.controller.ProfilingSystem.StopRecording'
 ]
 
 dependencies {
   compile deps.slf4j
   compile project(':dd-trace-api')
-  compile project(':internal-api')
-  compile project(':dd-trace-core')
-  compile 'it.unimi.dsi:fastutil:8.2.1'
 
   testCompile deps.junit5
   testCompile deps.guava
@@ -39,13 +30,3 @@ dependencies {
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
-
-shadowJar {
-  configurations = [project.configurations.compile]
-  archiveClassifier.set('')
-
-  dependencies {
-    include(dependency('it.unimi.dsi:fastutil:8.2.1'))
-  }
-  minimize()
-}

@@ -5,13 +5,25 @@ apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compile deps.slf4j
-  compile project(':dd-trace-core')
   compile project(':internal-api')
   compile project(':utils:mlt-support')
 
+  testCompile project(":dd-java-agent:testing")
   testCompile deps.junit5
   testCompile deps.guava
   testCompile deps.mockito
+}
+
+minimumInstructionCoverage = 0.5
+minimumBranchCoverage = 0.5
+
+excludedClassesCoverage += [
+  // MLT trace installer is a simple forwarding shell for MethodLevelTracer.initialize()
+  'datadog.trace.agent.mlt.TracerInstaller'
+]
+
+tasks.withType(Test).configureEach {
+  useJUnitPlatform()
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8

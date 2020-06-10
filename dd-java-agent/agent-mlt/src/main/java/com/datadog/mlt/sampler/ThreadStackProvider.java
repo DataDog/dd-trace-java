@@ -1,4 +1,4 @@
-package datadog.trace.core.util;
+package com.datadog.mlt.sampler;
 
 import java.lang.management.ThreadInfo;
 

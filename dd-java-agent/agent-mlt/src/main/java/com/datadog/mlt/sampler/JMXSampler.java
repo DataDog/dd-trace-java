@@ -1,9 +1,5 @@
 package com.datadog.mlt.sampler;
 
-import datadog.common.exec.DaemonThreadFactory;
-import datadog.trace.core.util.NoneThreadStackProvider;
-import datadog.trace.core.util.ThreadStackAccess;
-import datadog.trace.core.util.ThreadStackProvider;
 import java.lang.management.ThreadInfo;
 import java.util.Arrays;
 import java.util.concurrent.Executors;
@@ -16,7 +12,13 @@ import lombok.extern.slf4j.Slf4j;
 class JMXSampler {
   private final ThreadScopeMapper threadScopeMapper;
   private final ScheduledExecutorService executor =
-      Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory("dd-profiling-sampler"));
+      Executors.newSingleThreadScheduledExecutor(
+          runnable -> {
+            Thread t = new Thread(runnable, "dd-profiling-sampler");
+            t.setDaemon(true);
+            t.setContextClassLoader(null);
+            return t;
+          });
   private final AtomicReference<long[]> threadIds = new AtomicReference<>();
   private boolean providerFirstAccess = true;
 

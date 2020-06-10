@@ -1,9 +1,9 @@
-package datadog.trace.core.util;
+package com.datadog.mlt.sampler;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ThreadStackAccess {
+public final class ThreadStackAccess {
   private static volatile ThreadStackProvider threadStackProvider = new NoneThreadStackProvider();
 
   /**
@@ -30,7 +30,7 @@ public class ThreadStackAccess {
        */
       threadStackProvider =
           (ThreadStackProvider)
-              Class.forName("datadog.trace.core.util.JmxThreadStackProvider")
+              Class.forName("com.datadog.mlt.sampler.JmxThreadStackProvider")
                   .getField("INSTANCE")
                   .get(null);
     } catch (final ClassNotFoundException | NoSuchFieldException | IllegalAccessException e) {
