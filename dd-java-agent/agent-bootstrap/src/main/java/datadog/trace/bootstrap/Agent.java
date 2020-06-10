@@ -202,22 +202,6 @@ public class Agent {
     }
   }
 
-  protected static class InstallMethodLevelTracerCallback extends ClassLoadCallBack {
-    InstallMethodLevelTracerCallback(final URL bootstrapURL) {
-      super(bootstrapURL);
-    }
-
-    @Override
-    public String getName() {
-      return "datadog-method-level-tracer";
-    }
-
-    @Override
-    public void execute() {
-      installMethodLevelTracer(bootstrapURL);
-    }
-  }
-
   private static synchronized void createParentClassloader(final URL bootstrapURL) {
     if (PARENT_CLASSLOADER == null) {
       try {
