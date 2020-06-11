@@ -44,7 +44,8 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
     return new String[] {
       packageName + ".KafkaDecorator",
       packageName + ".TextMapInjectAdapter",
-      KafkaProducerInstrumentation.class.getName() + "$ProducerCallback"
+      KafkaProducerInstrumentation.class.getName() + "$ProducerCallback",
+      "datadog.trace.core.util.Clock",
     };
   }
 

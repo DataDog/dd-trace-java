@@ -5,6 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OF
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
@@ -12,7 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
-import java.util.concurrent.TimeUnit;
+import datadog.trace.core.util.Clock;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.TimestampType;
@@ -65,22 +67,34 @@ public class KafkaDecorator extends ClientDecorator {
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
       span.setTag(InstrumentationTags.DD_MEASURED, true);
-      long spanStartTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
-      if (endToEndDurationsEnabled) {
-        String traceStartTime = span.getBaggageItem(DDTags.TRACE_START_TIME);
-        if (null != traceStartTime) {
-          // not being defensive here because we own the lifecycle of this value
-          span.setTag(
-              RECORD_END_TO_END_DURATION_MS,
-              Math.max(0L, spanStartTime - Long.parseLong(traceStartTime)));
-        }
-      }
       // TODO - do we really need both? This mechanism already adds a lot of... baggage.
       // check to not record a duration if the message was sent from an old Kafka client
       if (record.timestampType() != TimestampType.NO_TIMESTAMP_TYPE) {
+        long consumeTime = NANOSECONDS.toMillis(span.getStartTime());
         final long produceTime = record.timestamp();
-        span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, spanStartTime - produceTime));
+        span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
       }
+    }
+  }
+
+  public void finishConsumerSpan(final AgentSpan span) {
+    if (endToEndDurationsEnabled) {
+      long now = Clock.currentMicroTime();
+      String traceStartTime = span.getBaggageItem(DDTags.TRACE_START_TIME);
+      if (null != traceStartTime) {
+        // we want to use the span end time, so need its duration, which is set
+        // on finish, but don't want to risk modifying the span after
+        // finishing it, in case it gets published, causing possible
+        // (functional) race conditions with the trace processing rules.
+        // getting the current time is a reasonable compromise.
+        // not being defensive here because we own the lifecycle of this value
+        span.setTag(
+            RECORD_END_TO_END_DURATION_MS,
+            Math.max(0L, MICROSECONDS.toMillis(now) - Long.parseLong(traceStartTime)));
+      }
+      span.finish(now);
+    } else {
+      span.finish();
     }
   }
 

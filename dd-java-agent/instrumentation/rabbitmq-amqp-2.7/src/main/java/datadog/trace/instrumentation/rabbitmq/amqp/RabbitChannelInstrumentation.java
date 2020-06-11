@@ -73,6 +73,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       packageName + ".TextMapInjectAdapter",
       packageName + ".TextMapExtractAdapter",
       packageName + ".TracedDelegatingConsumer",
+      "datadog.trace.core.util.Clock"
     };
   }
 

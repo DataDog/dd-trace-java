@@ -40,6 +40,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Default {
       packageName + ".TracingIterable",
       packageName + ".TracingIterator",
       packageName + ".TracingList",
+      "datadog.trace.core.util.Clock"
     };
   }
 
