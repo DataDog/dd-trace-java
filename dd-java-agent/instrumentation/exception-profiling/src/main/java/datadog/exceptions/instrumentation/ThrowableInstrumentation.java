@@ -46,7 +46,8 @@ public final class ThrowableInstrumentation extends Instrumenter.Default {
           "com.datadog.profiling.exceptions.ExceptionHistogram$Pair",
           "com.datadog.profiling.exceptions.ExceptionProfiling",
           "com.datadog.profiling.exceptions.ExceptionSampleEvent",
-          "com.datadog.profiling.exceptions.ExceptionSampler"
+          "com.datadog.profiling.exceptions.ExceptionSampler",
+          "datadog.exceptions.instrumentation.ThrowableInstanceAdviceHelper"
         }
         : new String[0];
   }
