@@ -22,8 +22,10 @@ class ProfilingIntegrationBogusApiKeyTest extends AbstractProfilingIntegrationTe
 
     when:
     RecordedRequest request = profilingServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS)
+    checkLog()
 
     then:
+    !logHasErrors
     // No request expected since profiling was disabled due to bogus api key
     request == null
   }

@@ -1,10 +1,14 @@
 package datadog.smoketest
 
 import okhttp3.mockwebserver.MockWebServer
+import spock.lang.Shared
 
 abstract class AbstractProfilingIntegrationTest extends AbstractSmokeTest {
   // can not be @Shared since the same instance will be reused for all specs and this is not supported by MockWebServer
   protected static MockWebServer profilingServer
+
+  @Shared
+  def logHasErrors
 
   @Override
   ProcessBuilder createProcessBuilder() {
@@ -38,5 +42,19 @@ abstract class AbstractProfilingIntegrationTest extends AbstractSmokeTest {
 
   def getExitDelay() {
     return -1
+  }
+
+  def checkLog(Closure checker) {
+    new File("${buildDirectory}/reports/testProcess.${this.getClass().getName()}.log").eachLine {
+      if (it.contains("ERROR") || it.contains("WARN") || it.contains("ASSERTION FAILED")) {
+        println it
+        logHasErrors = true
+      }
+      checker(it)
+    }
+  }
+
+  def checkLog() {
+    checkLog {}
   }
 }
