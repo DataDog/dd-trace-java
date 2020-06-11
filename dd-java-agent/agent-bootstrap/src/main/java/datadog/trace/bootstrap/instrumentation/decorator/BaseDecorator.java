@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -10,8 +12,6 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
@@ -25,17 +25,22 @@ public abstract class BaseDecorator {
         }
       };
 
+  protected final boolean endToEndDurationsEnabled;
   protected final boolean traceAnalyticsEnabled;
   protected final float traceAnalyticsSampleRate;
 
   protected BaseDecorator() {
     final Config config = Config.get();
     final String[] instrumentationNames = instrumentationNames();
-    traceAnalyticsEnabled =
+    this.traceAnalyticsEnabled =
         instrumentationNames.length > 0
             && config.isTraceAnalyticsIntegrationEnabled(
-                new TreeSet<>(Arrays.asList(instrumentationNames)), traceAnalyticsDefault());
-    traceAnalyticsSampleRate = config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
+                traceAnalyticsDefault(), instrumentationNames);
+    this.traceAnalyticsSampleRate =
+        config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
+    this.endToEndDurationsEnabled =
+        instrumentationNames.length > 0
+            && config.isEndToEndDurationEnabled(endToEndDurationsDefault(), instrumentationNames);
   }
 
   protected abstract String[] instrumentationNames();
@@ -48,6 +53,10 @@ public abstract class BaseDecorator {
     return false;
   }
 
+  protected boolean endToEndDurationsDefault() {
+    return false;
+  }
+
   public AgentSpan afterStart(final AgentSpan span) {
     assert span != null;
     if (spanType() != null) {
@@ -56,6 +65,12 @@ public abstract class BaseDecorator {
     span.setTag(Tags.COMPONENT, component());
     if (traceAnalyticsEnabled) {
       span.setTag(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate);
+    }
+    if (endToEndDurationsEnabled) {
+      if (null == span.getBaggageItem(DDTags.TRACE_START_TIME)) {
+        span.setBaggageItem(
+            DDTags.TRACE_START_TIME, Long.toString(MICROSECONDS.toMillis(span.getStartTime())));
+      }
     }
     return span;
   }
