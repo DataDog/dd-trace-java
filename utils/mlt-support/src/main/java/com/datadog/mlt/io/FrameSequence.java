@@ -17,6 +17,7 @@ public final class FrameSequence {
 
   private final int[] frameCpIndexes;
   private final int subsequenceCpIndex;
+  private int length;
 
   @Generated // do not force unit tests for lombok generated null checks
   FrameSequence(
@@ -34,6 +35,7 @@ public final class FrameSequence {
     this.stackPool = stackPool;
     this.frameCpIndexes = Arrays.copyOf(frameCpIndexes, frameCpIndexes.length);
     this.subsequenceCpIndex = subsequenceCpIndex;
+    // this.length may not be computed here because the constant pools may not yet be filled up
   }
 
   @Generated // do not force unit tests for lombok generated null checks
@@ -46,6 +48,7 @@ public final class FrameSequence {
     this.stackPool = stackPool;
     this.frameCpIndexes = new int[] {framePool.getOrInsert(head)};
     this.subsequenceCpIndex = stackPool.getOrInsert(subsequence);
+    this.length = 1 + (subsequence != null ? subsequence.length : 0);
   }
 
   /**
@@ -58,14 +61,16 @@ public final class FrameSequence {
   }
 
   public int length() {
-    if (isEmpty()) {
-      return 0;
+    if (length == -1) {
+      /*
+       * the length could not be computed in the constructor - calculate it here and cache the
+       * result
+       */
+      length =
+          frameCpIndexes.length
+              + (subsequenceCpIndex != -1 ? stackPool.get(subsequenceCpIndex).length() : 0);
     }
-    if (isLeaf()) {
-      return frameCpIndexes.length;
-    }
-
-    return frameCpIndexes.length + stackPool.get(subsequenceCpIndex).length();
+    return length;
   }
 
   int getCpIndex() {
