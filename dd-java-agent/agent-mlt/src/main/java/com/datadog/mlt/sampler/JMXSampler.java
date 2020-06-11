@@ -96,7 +96,10 @@ class JMXSampler {
     }
     ThreadInfo[] threadInfos = provider.getThreadInfo(tmpArray);
     if (threadInfos.length > 0 && log.isDebugEnabled()) {
-      log.debug("Collecting stacktraces for {} {}", threadInfos.length, threadInfos.length == 1 ? "thread" : "threads");
+      log.debug(
+          "Collecting stacktraces for {} {}",
+          threadInfos.length,
+          threadInfos.length == 1 ? "thread" : "threads");
     }
     // dispatch to Scopes
     for (ThreadInfo threadInfo : threadInfos) {
