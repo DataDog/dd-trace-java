@@ -8,7 +8,22 @@ import datadog.trace.api.Config;
  */
 public final class ExceptionProfiling {
 
-  private static final ExceptionProfiling INSTANCE = new ExceptionProfiling(Config.get());
+  private static ExceptionProfiling instance;
+
+  static {
+    /*
+    We have to initialize this asynchronously to avoid in infinite recursion when loading of ExceptionProfiling causes
+    exceptions being thrown which hits intrumentation and forces ExceptionProfiling loading again
+     */
+    final Thread thread =
+        new Thread(
+            () -> {
+              instance = new ExceptionProfiling(Config.get());
+            },
+            "Exception sampler initialization");
+    thread.setDaemon(true);
+    thread.start();
+  }
 
   /**
    * Get a pre-configured shared instance.
@@ -16,7 +31,7 @@ public final class ExceptionProfiling {
    * @return the shared instance
    */
   public static ExceptionProfiling getInstance() {
-    return ExceptionProfiling.INSTANCE;
+    return ExceptionProfiling.instance;
   }
 
   private final ExceptionHistogram histogram;
