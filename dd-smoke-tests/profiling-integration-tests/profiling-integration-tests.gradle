@@ -22,7 +22,6 @@ jar {
 
 dependencies {
   compile project(':dd-trace-api')
-  compile group: 'org.lz4', name: 'lz4-java', version: '1.7.1'
 
   testCompile project(':dd-smoke-tests')
   testCompile project(':dd-java-agent:agent-profiling:profiling-testing')
@@ -33,10 +32,4 @@ tasks.withType(Test).configureEach {
   dependsOn shadowJar
 
   jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archivePath}"
-}
-
-shadowJar {
-  dependencies {
-    include(dependency('org.slf4j::'))
-  }
 }
