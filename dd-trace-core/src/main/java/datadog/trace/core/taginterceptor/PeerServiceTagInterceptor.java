@@ -1,12 +1,11 @@
-package datadog.trace.core.decorators;
+package datadog.trace.core.taginterceptor;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpanContext;
 
-public class PeerServiceDecorator extends AbstractDecorator {
-  public PeerServiceDecorator() {
-    super();
-    this.setMatchingTag(Tags.PEER_SERVICE);
+class PeerServiceTagInterceptor extends AbstractTagInterceptor {
+  public PeerServiceTagInterceptor() {
+    super(Tags.PEER_SERVICE);
   }
 
   @Override
