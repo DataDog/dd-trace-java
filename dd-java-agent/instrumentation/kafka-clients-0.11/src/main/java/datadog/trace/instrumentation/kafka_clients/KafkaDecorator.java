@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.kafka_clients;
 import static datadog.trace.bootstrap.instrumentation.api.DDComponents.JAVA_KAFKA;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 
 import datadog.trace.api.DDSpanTypes;
@@ -64,11 +65,21 @@ public class KafkaDecorator extends ClientDecorator {
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
       span.setTag(InstrumentationTags.DD_MEASURED, true);
-      // don't record a duration if the message was sent from an old Kafka client
+      long spanStartTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
+      if (endToEndDurationsEnabled) {
+        String traceStartTime = span.getBaggageItem(DDTags.TRACE_START_TIME);
+        if (null != traceStartTime) {
+          // not being defensive here because we own the lifecycle of this value
+          span.setTag(
+              RECORD_END_TO_END_DURATION_MS,
+              Math.max(0L, spanStartTime - Long.parseLong(traceStartTime)));
+        }
+      }
+      // TODO - do we really need both? This mechanism already adds a lot of... baggage.
+      // check to not record a duration if the message was sent from an old Kafka client
       if (record.timestampType() != TimestampType.NO_TIMESTAMP_TYPE) {
         final long produceTime = record.timestamp();
-        final long consumeTime = TimeUnit.NANOSECONDS.toMillis(span.getStartTime());
-        span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
+        span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, spanStartTime - produceTime));
       }
     }
   }
