@@ -1,13 +1,10 @@
 package datadog.trace.core.serialization;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import datadog.trace.api.DDId;
 import datadog.trace.core.StringTables;
+import datadog.trace.core.util.LRUCache;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ExecutionException;
 import org.msgpack.core.MessagePacker;
 
 public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
@@ -39,11 +36,7 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   public void writeString(final byte[] key, final String value, MessagePacker destination)
       throws IOException {
     writeKey(key, destination);
-    if (value == null) {
-      destination.packNil();
-    } else {
-      destination.packString(value);
-    }
+    cachedWriteString(value, destination);
   }
 
   @Override
@@ -102,19 +95,16 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
     writeLong(key, id.toLong(), destination);
   }
 
-  // Storing the last used 64 tags
-  // TODO maybe this should be configurable?
-  private final LoadingCache<String, byte[]> tagCache =
-      CacheBuilder.newBuilder()
-          .maximumSize(64)
-          .concurrencyLevel(1)
-          .build(
-              new CacheLoader<String, byte[]>() {
-                @Override
-                public byte[] load(String key) throws Exception {
-                  return key.getBytes(StandardCharsets.UTF_8);
-                }
-              });
+  @Override
+  public void writeNumberAsString(byte[] key, Number value, MessagePacker destination)
+      throws IOException {
+    writeKey(key, destination);
+    if (value instanceof Long || value instanceof Integer) {
+      writeLongAsString(value.longValue(), destination);
+    } else {
+      cachedWriteString(String.valueOf(value), destination);
+    }
+  }
 
   private void writeUTF8Tag(final String value, final MessagePacker destination)
       throws IOException {
@@ -126,22 +116,110 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
         destination.packRawStringHeader(interned.length);
         destination.addPayload(interned);
       } else {
-        byte[] bytes = null;
-        if (value.length() > 0) {
-          try {
-            bytes = tagCache.get(value);
-
-          } catch (ExecutionException e) {
-            // Something went wrong. We will write out the string the normal way.
-          }
-        }
-        if (bytes != null) {
-          destination.packRawStringHeader(bytes.length);
-          destination.addPayload(bytes);
-        } else {
-          destination.packString(value);
-        }
+        cachedWriteString(value, destination);
       }
     }
+  }
+
+  // Storing the last used 128 entries of max 32 characters for tags
+  // The initial capacity of 256 is to make sure that the underlying HashMap never resizes
+  private final LRUCache<String, byte[]> stringCache = new LRUCache<>(256, 128);
+
+  private void cachedWriteString(final String value, final MessagePacker destination)
+      throws IOException {
+    if (null == value) {
+      destination.packNil();
+    } else {
+      int len = value.length();
+      if (len > 0 && len <= 32) {
+        byte[] bytes = stringCache.get(value);
+        if (bytes == null) {
+          bytes = value.getBytes(StandardCharsets.UTF_8);
+          stringCache.put(value, bytes);
+        }
+        destination.packRawStringHeader(bytes.length);
+        destination.addPayload(bytes);
+      } else {
+        destination.packString(value);
+      }
+    }
+  }
+
+  private static final byte[] DIGIT_TENS = {
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '1', '1', '1', '1', '1', '1', '1', '1', '1', '1',
+    '2', '2', '2', '2', '2', '2', '2', '2', '2', '2',
+    '3', '3', '3', '3', '3', '3', '3', '3', '3', '3',
+    '4', '4', '4', '4', '4', '4', '4', '4', '4', '4',
+    '5', '5', '5', '5', '5', '5', '5', '5', '5', '5',
+    '6', '6', '6', '6', '6', '6', '6', '6', '6', '6',
+    '7', '7', '7', '7', '7', '7', '7', '7', '7', '7',
+    '8', '8', '8', '8', '8', '8', '8', '8', '8', '8',
+    '9', '9', '9', '9', '9', '9', '9', '9', '9', '9',
+  };
+
+  private static final byte[] DIGIT_ONES = {
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+  };
+
+  private final byte[] numberByteArray = new byte[20]; // this is max long digits and sign
+
+  private void writeLongAsString(final long value, final MessagePacker destination)
+      throws IOException {
+    int pos = 20; // start from the end
+    long l = value;
+    boolean negative = (l < 0);
+    if (!negative) {
+      l = -l; // do the conversion on negative values to not overflow Long.MIN_VALUE
+    }
+
+    int r;
+    // convert 2 digits per iteration with longs until quotient fits into an int
+    long lq;
+    while (l <= Integer.MIN_VALUE) {
+      lq = l / 100;
+      r = (int) ((lq * 100) - l);
+      l = lq;
+      numberByteArray[--pos] = DIGIT_ONES[r];
+      numberByteArray[--pos] = DIGIT_TENS[r];
+    }
+
+    // convert 2 digits per iteration with ints
+    int iq;
+    int i = (int) l;
+    while (i <= -100) {
+      iq = i / 100;
+      r = (iq * 100) - i;
+      i = iq;
+      numberByteArray[--pos] = DIGIT_ONES[r];
+      numberByteArray[--pos] = DIGIT_TENS[r];
+    }
+
+    // now there are at most two digits left
+    iq = i / 10;
+    r = (iq * 10) - i;
+    numberByteArray[--pos] = (byte) ('0' + r);
+
+    // if there is something left it is the remaining digit
+    if (iq < 0) {
+      numberByteArray[--pos] = (byte) ('0' - iq);
+    }
+
+    if (negative) {
+      numberByteArray[--pos] = (byte) '-';
+    }
+
+    int len = 20 - pos;
+    destination.packRawStringHeader(len);
+    destination.addPayload(numberByteArray, pos, len);
   }
 }

@@ -35,11 +35,11 @@ public class MsgPackStatefulSerializer implements StatefulSerializer {
   private static final int TRACE_HISTORY_SIZE = 16;
   private static final int INITIAL_TRACE_SIZE_ESTIMATE = 8 * 1024; // 8KB
 
-  // limiting the size this optimisation applies to decreases the likelihood
-  // that the MessagePacker will allocate a byte[] during UTF-8 encoding,
-  // and restricts the optimisation to very small strings which may scalarise
+  // disabling this optimization to make sure that the MessagePacker will not allocate
+  // a byte[] during UTF-8 encoding, since the cachedWriteString method in
+  // MsgPackFormatWriter is doing that for small strings
   private static final MessagePack.PackerConfig MESSAGE_PACKER_CONFIG =
-      MessagePack.DEFAULT_PACKER_CONFIG.withSmallStringOptimizationThreshold(16);
+      MessagePack.DEFAULT_PACKER_CONFIG.withSmallStringOptimizationThreshold(0);
 
   // reusing this within the context of each thread is handy because it
   // caches an Encoder
