@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_COMMAND;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MESSAGE_SIZE;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SPAN_ORIGIN_TYPE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
@@ -16,6 +17,7 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.ShutdownSignalException;
+import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -31,10 +33,13 @@ import lombok.extern.slf4j.Slf4j;
 public class TracedDelegatingConsumer implements Consumer {
   private final String queue;
   private final Consumer delegate;
+  private final boolean traceStartTimeEnabled;
 
-  public TracedDelegatingConsumer(final String queue, final Consumer delegate) {
+  public TracedDelegatingConsumer(
+      final String queue, final Consumer delegate, boolean traceStartTimeEnabled) {
     this.queue = queue;
     this.delegate = delegate;
+    this.traceStartTimeEnabled = traceStartTimeEnabled;
   }
 
   @Override
@@ -81,13 +86,23 @@ public class TracedDelegatingConsumer implements Consumer {
               .setTag(DD_MEASURED, true);
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);
+      final long spanStartTime = NANOSECONDS.toMillis(span.getStartTime());
+      if (traceStartTimeEnabled) {
+        String traceStartTime = span.getBaggageItem(DDTags.TRACE_START_TIME);
+        if (null != traceStartTime) {
+          // not being defensive here because we own the lifecycle of this value
+          span.setTag(
+              RECORD_END_TO_END_DURATION_MS,
+              Math.max(0L, spanStartTime - Long.parseLong(traceStartTime)));
+        }
+      }
 
+      // TODO - do we still need both?
       if (properties.getTimestamp() != null) {
         // this will be set if the sender sets the timestamp,
         // or if a plugin is installed on the rabbitmq broker
         long produceTime = properties.getTimestamp().getTime();
-        long consumeTime = NANOSECONDS.toMillis(span.getStartTime());
-        span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, consumeTime - produceTime));
+        span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, spanStartTime - produceTime));
       }
 
       scope = activateSpan(span);

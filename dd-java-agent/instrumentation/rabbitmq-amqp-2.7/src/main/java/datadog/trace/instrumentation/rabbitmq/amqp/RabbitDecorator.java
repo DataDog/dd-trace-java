@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AM
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_ROUTING_KEY;
 
 import com.rabbitmq.client.Command;
+import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
@@ -16,8 +17,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 
 public class RabbitDecorator extends ClientDecorator {
 
-  public static final RabbitDecorator DECORATE = new RabbitDecorator(Tags.SPAN_KIND_CLIENT,
-    DDSpanTypes.MESSAGE_CLIENT);
+  public static final RabbitDecorator DECORATE =
+      new RabbitDecorator(Tags.SPAN_KIND_CLIENT, DDSpanTypes.MESSAGE_CLIENT);
 
   public static final RabbitDecorator PRODUCER_DECORATE =
       new RabbitDecorator(Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
@@ -104,5 +105,9 @@ public class RabbitDecorator extends ClientDecorator {
       span.setTag(DDTags.RESOURCE_NAME, name);
     }
     span.setTag(AMQP_COMMAND, name);
+  }
+
+  public TracedDelegatingConsumer wrapConsumer(String queue, Consumer consumer) {
+    return new TracedDelegatingConsumer(queue, consumer, endToEndDurationsEnabled);
   }
 }

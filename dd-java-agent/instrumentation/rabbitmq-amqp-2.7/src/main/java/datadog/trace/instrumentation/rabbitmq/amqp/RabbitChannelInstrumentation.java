@@ -273,7 +273,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
         @Advice.Argument(value = 6, readOnly = false) Consumer consumer) {
       // We have to save off the queue name here because it isn't available to the consumer later.
       if (consumer != null && !(consumer instanceof TracedDelegatingConsumer)) {
-        consumer = new TracedDelegatingConsumer(queue, consumer);
+        consumer = DECORATE.wrapConsumer(queue, consumer);
       }
     }
   }
