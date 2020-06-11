@@ -54,16 +54,20 @@ class ProfilingIntegrationMLTTest extends AbstractSmokeTest {
       ProfilingTestUtils.parseProfilingRequestParameters(firstRequest)
 
 
+    def logHasSamplerEntries = false
     def logHasErrors = false
     new File("${buildDirectory}/reports/testProcess.${this.getClass().getName()}.log").eachLine {
       if (it.contains("ERROR") || it.contains("WARN")) {
         println it
         logHasErrors = true
+      } else if (it.contains("JMXSampler") && it.contains("Collecting stacktraces")) {
+        logHasSamplerEntries = true
       }
     }
 
     then:
     !logHasErrors
+    logHasSamplerEntries
     firstRequest.getRequestUrl().toString() == profilingUrl
 
     firstRequestParameters.get("format").get(0) == "jfr"
