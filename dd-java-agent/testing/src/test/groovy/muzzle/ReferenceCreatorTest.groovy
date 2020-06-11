@@ -4,6 +4,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.tooling.muzzle.Reference
 import datadog.trace.agent.tooling.muzzle.ReferenceCreator
 
+import static muzzle.TestClasses.InstanceofAdvice
 import static muzzle.TestClasses.LdcAdvice
 import static muzzle.TestClasses.MethodBodyAdvice
 
@@ -62,6 +63,14 @@ class ReferenceCreatorTest extends AgentTestRunner {
   def "ldc creates references"() {
     setup:
     Map<String, Reference> references = ReferenceCreator.createReferencesFrom(LdcAdvice.getName(), this.getClass().getClassLoader())
+
+    expect:
+    references.get('muzzle.TestClasses$MethodBodyAdvice$A') != null
+  }
+
+  def "instanceof creates references"() {
+    setup:
+    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(InstanceofAdvice.getName(), this.getClass().getClassLoader())
 
     expect:
     references.get('muzzle.TestClasses$MethodBodyAdvice$A') != null

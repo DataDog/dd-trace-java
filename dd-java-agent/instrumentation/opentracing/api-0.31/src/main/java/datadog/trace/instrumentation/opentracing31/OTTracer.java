@@ -2,8 +2,6 @@ package datadog.trace.instrumentation.opentracing31;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.instrumentation.opentracing.DefaultLogHandler;
 import io.opentracing.References;
 import io.opentracing.Scope;
@@ -98,12 +96,6 @@ public class OTTracer implements Tracer {
       }
 
       final AgentSpan.Context context = converter.toContext(referencedContext);
-      if (!(context instanceof ExtractedContext) && !(context instanceof DDSpanContext)) {
-        log.debug(
-            "Expected to have a DDSpanContext or ExtractedContext but got "
-                + context.getClass().getName());
-        return this;
-      }
 
       if (References.CHILD_OF.equals(referenceType)
           || References.FOLLOWS_FROM.equals(referenceType)) {
