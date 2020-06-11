@@ -4,7 +4,7 @@ import com.datadog.profiling.exceptions.ExceptionProfiling;
 import com.datadog.profiling.exceptions.ExceptionSampleEvent;
 import net.bytebuddy.asm.Advice;
 
-public class ExceptionAdvice {
+public class ThrowableInstanceAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void onExit(@Advice.This final Throwable t) {
     /*

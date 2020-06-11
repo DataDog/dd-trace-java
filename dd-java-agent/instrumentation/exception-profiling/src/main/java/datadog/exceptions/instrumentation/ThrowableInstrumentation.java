@@ -15,11 +15,11 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 /** Provides instrumentation of {@linkplain Throwable} constructor. <br> */
 @AutoService(Instrumenter.class)
-public final class ExceptionInstrumentation extends Instrumenter.Default {
+public final class ThrowableInstrumentation extends Instrumenter.Default {
   private final boolean hasJfr;
 
-  public ExceptionInstrumentation() {
-    super("exceptions");
+  public ThrowableInstrumentation() {
+    super("throwables");
     /* Check only for the open-sources JFR implementation.
      * If it is ever needed to support also the closed sourced JDK 8 version the check should be
      * enhanced.
@@ -62,7 +62,7 @@ public final class ExceptionInstrumentation extends Instrumenter.Default {
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     if (hasJfr) {
-      return Collections.singletonMap(isConstructor(), packageName + ".ExceptionAdvice");
+      return Collections.singletonMap(isConstructor(), packageName + ".ThrowableInstanceAdvice");
     }
     return Collections.emptyMap();
   }
