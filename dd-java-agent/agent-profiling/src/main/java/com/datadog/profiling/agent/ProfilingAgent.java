@@ -5,10 +5,8 @@ import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerFactory;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
-import com.datadog.profiling.mlt.JMXSessionFactory;
 import com.datadog.profiling.uploader.ProfileUploader;
 import datadog.trace.api.Config;
-import datadog.trace.mlt.MethodLevelTracer;
 import java.lang.ref.WeakReference;
 import java.time.Duration;
 import java.util.function.Predicate;
@@ -30,8 +28,6 @@ public class ProfilingAgent {
    */
   public static synchronized void run(final boolean isStartingFirst)
       throws IllegalArgumentException {
-    // init the Profiler API for the Tracer, no need to have the profiler enabled for that
-    MethodLevelTracer.initialize(new JMXSessionFactory());
     if (profiler == null) {
       final Config config = Config.get();
       if (isStartingFirst && !config.isProfilingStartForceFirst()) {
@@ -118,8 +114,6 @@ public class ProfilingAgent {
       if (uploader != null) {
         uploader.shutdown();
       }
-
-      MethodLevelTracer.shutdown();
     }
   }
 }

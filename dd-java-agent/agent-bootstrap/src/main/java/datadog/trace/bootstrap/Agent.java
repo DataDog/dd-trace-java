@@ -41,6 +41,7 @@ public class Agent {
   private static ClassLoader PARENT_CLASSLOADER = null;
   private static ClassLoader BOOTSTRAP_PROXY = null;
   private static ClassLoader AGENT_CLASSLOADER = null;
+  private static ClassLoader MLT_CLASSLOADER = null;
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
   private static ClassLoader PROFILING_CLASSLOADER = null;
 
@@ -54,6 +55,8 @@ public class Agent {
     startProfilingAgent(bootstrapURL, true);
 
     startDatadogAgent(inst, bootstrapURL);
+
+    installMethodLevelTracer(bootstrapURL);
 
     final boolean appUsingCustomLogManager = isAppUsingCustomLogManager();
 
@@ -262,6 +265,27 @@ public class Agent {
     }
   }
 
+  private static synchronized void installMethodLevelTracer(URL bootstrapURL) {
+    log.info("Installing Method-level Tracer");
+    try {
+      if (MLT_CLASSLOADER == null) {
+        log.info("Setting up Method-level Tracer ClassLoader");
+        MLT_CLASSLOADER =
+            createDatadogClassLoader("agent-mlt.isolated", bootstrapURL, PARENT_CLASSLOADER);
+      }
+      // install global method-level tracer
+      final Class<?> tracerInstallerClass =
+          MLT_CLASSLOADER.loadClass("datadog.trace.agent.mlt.TracerInstaller");
+      final Method tracerInstallerMethod = tracerInstallerClass.getMethod("install");
+      tracerInstallerMethod.invoke(null);
+    } catch (ClassFormatError ex) {
+      // method-level trace supports JDK 8+ - it is ok to encounter ClassFormatError on JDK 7
+      log.warn("Method-level Tracer requires Java 8 or newer. The tracer will be disabled.");
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while installing the Method-Level Tracer", ex);
+    }
+  }
+
   private static synchronized void startJmx(final URL bootstrapURL) {
     startJmxFetch(bootstrapURL);
     initializeJmxThreadCpuTimeProvider();
@@ -286,12 +310,12 @@ public class Agent {
 
   private static void initializeJmxThreadStackProvider() {
     log.info("Initializing JMX ThreadStack provider");
-    if (PROFILING_CLASSLOADER == null) {
-      throw new IllegalStateException("Datadog agent should have been started already");
+    if (MLT_CLASSLOADER == null) {
+      throw new IllegalStateException("Method-level tracer should have been started already");
     }
     try {
       final Class<?> tracerInstallerClass =
-          PROFILING_CLASSLOADER.loadClass("datadog.trace.core.util.ThreadStackAccess");
+          MLT_CLASSLOADER.loadClass("com.datadog.mlt.sampler.ThreadStackAccess");
       final Method enableJmxMethod = tracerInstallerClass.getMethod("enableJmx");
       enableJmxMethod.invoke(null);
     } catch (final Throwable ex) {
