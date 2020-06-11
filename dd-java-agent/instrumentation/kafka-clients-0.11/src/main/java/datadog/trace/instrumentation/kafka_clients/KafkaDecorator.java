@@ -16,33 +16,26 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.TimestampType;
 
-public abstract class KafkaDecorator extends ClientDecorator {
+public class KafkaDecorator extends ClientDecorator {
+
+  private final String spanKind;
+  private final String spanType;
 
   public static final KafkaDecorator PRODUCER_DECORATE =
-      new KafkaDecorator() {
-        @Override
-        protected String spanKind() {
-          return Tags.SPAN_KIND_PRODUCER;
-        }
-
-        @Override
-        protected String spanType() {
-          return DDSpanTypes.MESSAGE_PRODUCER;
-        }
-      };
+      new KafkaDecorator(Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
 
   public static final KafkaDecorator CONSUMER_DECORATE =
-      new KafkaDecorator() {
-        @Override
-        protected String spanKind() {
-          return Tags.SPAN_KIND_CONSUMER;
-        }
+      new KafkaDecorator(Tags.SPAN_KIND_CONSUMER, DDSpanTypes.MESSAGE_CONSUMER);
 
-        @Override
-        protected String spanType() {
-          return DDSpanTypes.MESSAGE_CONSUMER;
-        }
-      };
+  protected KafkaDecorator(String spanKind, String spanType) {
+    this.spanKind = spanKind;
+    this.spanType = spanType;
+  }
+
+  @Override
+  protected String spanType() {
+    return spanType;
+  }
 
   @Override
   protected String[] instrumentationNames() {
@@ -60,7 +53,9 @@ public abstract class KafkaDecorator extends ClientDecorator {
   }
 
   @Override
-  protected abstract String spanKind();
+  protected String spanKind() {
+    return spanKind;
+  }
 
   public void onConsume(final AgentSpan span, final ConsumerRecord record) {
     if (record != null) {
