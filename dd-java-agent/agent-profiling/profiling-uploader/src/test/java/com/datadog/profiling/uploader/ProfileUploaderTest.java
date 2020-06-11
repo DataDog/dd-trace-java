@@ -193,6 +193,48 @@ public class ProfileUploaderTest {
   }
 
   @Test
+  public void testRequestWithNoAPIKey() throws IOException, InterruptedException {
+    when(config.getApiKey()).thenReturn(null);
+
+    uploader = new ProfileUploader(config);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+
+    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(request);
+    assertNull(request.getHeader("DD-API-KEY"));
+  }
+
+  @Test
+  public void test404WithoutAPIKey() throws IOException, InterruptedException {
+    // test added to get the coverage checks to pass since we log conditionally in this case
+    when(config.getApiKey()).thenReturn(null);
+
+    uploader = new ProfileUploader(config);
+    server.enqueue(new MockResponse().setResponseCode(404));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+
+    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(request);
+    assertNull(request.getHeader("DD-API-KEY"));
+    // it would be nice if the test asserted the log line was written out, but it's not essential
+  }
+
+  @Test
+  public void test404WithAPIKey() throws IOException, InterruptedException {
+    // test added to get the coverage checks to pass since we log conditionally in this case
+    when(config.getApiKey()).thenReturn(API_KEY_VALUE);
+
+    uploader = new ProfileUploader(config);
+    server.enqueue(new MockResponse().setResponseCode(404));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+
+    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(request);
+    assertEquals(request.getHeader("DD-API-KEY"), API_KEY_VALUE);
+  }
+
+  @Test
   public void testRequestWithProxy() throws IOException, InterruptedException {
     final String backendHost = "intake.profiling.datadoghq.com:1234";
     final String backendUrl = "http://intake.profiling.datadoghq.com:1234" + URL_PATH;

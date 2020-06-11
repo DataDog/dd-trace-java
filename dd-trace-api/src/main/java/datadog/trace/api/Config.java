@@ -48,7 +48,8 @@ public class Config {
   /** Config keys below */
   private static final String PREFIX = "dd.";
 
-  public static final String PROFILING_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
+  public static final String PROFILING_REMOTE_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
+  public static final String PROFILING_LOCAL_URL_TEMPLATE = "http://%s:%d/profiling/v1/input";
 
   private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
 
@@ -848,10 +849,15 @@ public class Config {
   }
 
   public String getFinalProfilingUrl() {
-    if (profilingUrl == null) {
-      return String.format(PROFILING_URL_TEMPLATE, site);
-    } else {
+    if (profilingUrl != null) {
+      // when profilingUrl is set we use it regardless of apiKey
       return profilingUrl;
+    } else if (apiKey != null) {
+      // when profilingUrl is not set and apiKey is set we send directly to our intake
+      return String.format(PROFILING_REMOTE_URL_TEMPLATE, site);
+    } else {
+      // when profilingUrl and apiKey are not set we send to the dd trace agent running locally
+      return String.format(PROFILING_LOCAL_URL_TEMPLATE, agentHost, agentPort);
     }
   }
 
