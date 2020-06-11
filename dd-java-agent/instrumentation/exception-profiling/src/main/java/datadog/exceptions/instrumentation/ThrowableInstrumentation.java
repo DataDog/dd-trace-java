@@ -13,18 +13,13 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/**
- * Provides instrumentation of {@linkplain Exception} constructor. <br>
- * {@linkplain Exception}, as opposed to {@linkplain Throwable} was deliberately chosen such that we
- * don't instrument {@linkplain Error} class/subclasses since they are tracked by a native JFR event
- * already.
- */
+/** Provides instrumentation of {@linkplain Throwable} constructor. <br> */
 @AutoService(Instrumenter.class)
-public final class ExceptionInstrumentation extends Instrumenter.Default {
+public final class ThrowableInstrumentation extends Instrumenter.Default {
   private final boolean hasJfr;
 
-  public ExceptionInstrumentation() {
-    super("exceptions");
+  public ThrowableInstrumentation() {
+    super("throwables");
     /* Check only for the open-sources JFR implementation.
      * If it is ever needed to support also the closed sourced JDK 8 version the check should be
      * enhanced.
@@ -59,8 +54,7 @@ public final class ExceptionInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     if (hasJfr) {
-      // match only java.lang.Exception since java.lang.Error is tracked by another JFR event
-      return is(Exception.class);
+      return is(Throwable.class);
     }
     return none();
   }
@@ -68,7 +62,7 @@ public final class ExceptionInstrumentation extends Instrumenter.Default {
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     if (hasJfr) {
-      return Collections.singletonMap(isConstructor(), packageName + ".ExceptionAdvice");
+      return Collections.singletonMap(isConstructor(), packageName + ".ThrowableInstanceAdvice");
     }
     return Collections.emptyMap();
   }
