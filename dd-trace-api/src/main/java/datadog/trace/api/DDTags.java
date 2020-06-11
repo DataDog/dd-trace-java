@@ -24,4 +24,6 @@ public class DDTags {
   public static final String MANUAL_KEEP = "manual.keep";
   /** Manually force tracer to be drop the trace */
   public static final String MANUAL_DROP = "manual.drop";
+
+  public static final String TRACE_START_TIME = "t0";
 }

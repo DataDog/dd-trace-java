@@ -6,42 +6,33 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AM
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_ROUTING_KEY;
 
 import com.rabbitmq.client.Command;
+import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.DDComponents;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 
 public class RabbitDecorator extends ClientDecorator {
 
-  public static final RabbitDecorator DECORATE = new RabbitDecorator();
+  public static final RabbitDecorator DECORATE =
+      new RabbitDecorator(Tags.SPAN_KIND_CLIENT, DDSpanTypes.MESSAGE_CLIENT);
 
   public static final RabbitDecorator PRODUCER_DECORATE =
-      new RabbitDecorator() {
-        @Override
-        protected String spanKind() {
-          return Tags.SPAN_KIND_PRODUCER;
-        }
-
-        @Override
-        protected String spanType() {
-          return DDSpanTypes.MESSAGE_PRODUCER;
-        }
-      };
+      new RabbitDecorator(Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
 
   public static final RabbitDecorator CONSUMER_DECORATE =
-      new RabbitDecorator() {
-        @Override
-        protected String spanKind() {
-          return Tags.SPAN_KIND_CONSUMER;
-        }
+      new RabbitDecorator(Tags.SPAN_KIND_CONSUMER, DDSpanTypes.MESSAGE_CONSUMER);
 
-        @Override
-        protected String spanType() {
-          return DDSpanTypes.MESSAGE_CONSUMER;
-        }
-      };
+  private final String spanKind;
+  private final String spanType;
+
+  public RabbitDecorator(String spanKind, String spanType) {
+    this.spanKind = spanKind;
+    this.spanType = spanType;
+  }
 
   @Override
   protected String[] instrumentationNames() {
@@ -55,17 +46,17 @@ public class RabbitDecorator extends ClientDecorator {
 
   @Override
   protected String component() {
-    return "rabbitmq-amqp";
+    return DDComponents.RABBITMQ_AMQP;
   }
 
   @Override
   protected String spanKind() {
-    return Tags.SPAN_KIND_CLIENT;
+    return spanKind;
   }
 
   @Override
   protected String spanType() {
-    return DDSpanTypes.MESSAGE_CLIENT;
+    return spanType;
   }
 
   public void onPublish(final AgentSpan span, final String exchange, final String routingKey) {
@@ -114,5 +105,9 @@ public class RabbitDecorator extends ClientDecorator {
       span.setTag(DDTags.RESOURCE_NAME, name);
     }
     span.setTag(AMQP_COMMAND, name);
+  }
+
+  public TracedDelegatingConsumer wrapConsumer(String queue, Consumer consumer) {
+    return new TracedDelegatingConsumer(queue, consumer, endToEndDurationsEnabled);
   }
 }

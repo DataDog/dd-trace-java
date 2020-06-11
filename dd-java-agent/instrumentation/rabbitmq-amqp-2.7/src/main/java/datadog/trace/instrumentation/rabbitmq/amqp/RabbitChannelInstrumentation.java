@@ -70,11 +70,10 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".RabbitDecorator",
-      packageName + ".RabbitDecorator$1",
-      packageName + ".RabbitDecorator$2",
       packageName + ".TextMapInjectAdapter",
       packageName + ".TextMapExtractAdapter",
       packageName + ".TracedDelegatingConsumer",
+      "datadog.trace.core.util.Clock"
     };
   }
 
@@ -275,7 +274,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
         @Advice.Argument(value = 6, readOnly = false) Consumer consumer) {
       // We have to save off the queue name here because it isn't available to the consumer later.
       if (consumer != null && !(consumer instanceof TracedDelegatingConsumer)) {
-        consumer = new TracedDelegatingConsumer(queue, consumer);
+        consumer = DECORATE.wrapConsumer(queue, consumer);
       }
     }
   }

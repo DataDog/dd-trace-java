@@ -32,6 +32,10 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
 class RabbitMQTest extends AgentTestRunner {
 
+  static {
+    System.setProperty("dd.amqp.e2e.duration.enabled", "true")
+  }
+
   /*
     Note: type here has to stay undefined, otherwise tests will fail in CI in Java 7 because
     'testcontainers' are built for Java 8 and Java 7 cannot load this class.
@@ -42,6 +46,8 @@ class RabbitMQTest extends AgentTestRunner {
   def defaultRabbitMQPort = 5672
   @Shared
   InetSocketAddress rabbitmqAddress = new InetSocketAddress("127.0.0.1", defaultRabbitMQPort)
+  @Shared
+  boolean expectE2EDuration = Boolean.valueOf(System.getProperty("dd.amqp.e2e.duration.enabled"))
 
   ConnectionFactory factory = new ConnectionFactory(host: rabbitmqAddress.hostName, port: rabbitmqAddress.port)
   Connection conn = factory.newConnection()
@@ -203,7 +209,9 @@ class RabbitMQTest extends AgentTestRunner {
           rabbitSpan(it, "basic.publish $exchangeName -> <all>")
         }
         trace(3 + (it * 2), 1) {
-          rabbitSpan(it, resource, true, publishSpan, null, null, setTimestamp)
+          // TODO - test with and without feature enabled once Config is easier to control
+          rabbitSpan(it, resource, true, publishSpan,
+            null, null, setTimestamp, expectE2EDuration)
         }
       }
     }
@@ -269,7 +277,9 @@ class RabbitMQTest extends AgentTestRunner {
         rabbitSpan(it, "basic.publish $exchangeName -> <all>")
       }
       trace(5, 1) {
-        rabbitSpan(it, "basic.deliver <generated>", true, publishSpan, error, error.message)
+        // TODO - test with and without feature enabled once Config is easier to control
+        rabbitSpan(it, "basic.deliver <generated>", true, publishSpan, error,
+          error.message, false, expectE2EDuration)
       }
     }
 
@@ -339,9 +349,10 @@ class RabbitMQTest extends AgentTestRunner {
     DDSpan parentSpan = null,
     Throwable exception = null,
     String errorMsg = null,
-    Boolean expectTimestamp = false
+    Boolean expectTimestamp = false,
+    Boolean expectE2eDuration = false
   ) {
-    rabbitSpan(trace, 0, resource, distributedRootSpan, parentSpan, exception, errorMsg, expectTimestamp)
+    rabbitSpan(trace, 0, resource, distributedRootSpan, parentSpan, exception, errorMsg, expectTimestamp, expectE2eDuration)
   }
 
   def rabbitSpan(
@@ -352,7 +363,8 @@ class RabbitMQTest extends AgentTestRunner {
     DDSpan parentSpan = null,
     Throwable exception = null,
     String errorMsg = null,
-    Boolean expectTimestamp = false
+    Boolean expectTimestamp = false,
+    Boolean expectE2eDuration = false
   ) {
     trace.span(index) {
       serviceName "rabbitmq"
@@ -385,6 +397,9 @@ class RabbitMQTest extends AgentTestRunner {
         "$Tags.PEER_PORT" { it == null || it instanceof Integer }
         if (expectTimestamp) {
           "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it instanceof Long && it >= 0 }
+        }
+        if (expectE2eDuration) {
+          "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
         }
 
         switch (tag("amqp.command")) {

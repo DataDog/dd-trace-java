@@ -925,9 +925,19 @@ public class Config {
     return anyEnabled;
   }
 
+  public boolean isEndToEndDurationEnabled(
+      final boolean defaultEnabled, final String... integrationNames) {
+    return isEnabled(integrationNames, ".e2e.duration.enabled", defaultEnabled);
+  }
+
   public boolean isTraceAnalyticsIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
     return traceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled);
+  }
+
+  public boolean isTraceAnalyticsIntegrationEnabled(
+      final boolean defaultEnabled, final String... integrationNames) {
+    return isEnabled(integrationNames, ".analytics.enabled", defaultEnabled);
   }
 
   /**
@@ -945,6 +955,23 @@ public class Config {
     for (final String name : integrationNames) {
       final boolean configEnabled =
           getBooleanSettingFromEnvironment(name + ".analytics.enabled", defaultEnabled);
+      if (defaultEnabled) {
+        anyEnabled &= configEnabled;
+      } else {
+        anyEnabled |= configEnabled;
+      }
+    }
+    return anyEnabled;
+  }
+
+  private static boolean isEnabled(
+      final String[] integrationNames, final String settingSuffix, final boolean defaultEnabled) {
+    // If default is enabled, we want to enable individually,
+    // if default is disabled, we want to disable individually.
+    boolean anyEnabled = defaultEnabled;
+    for (final String name : integrationNames) {
+      final boolean configEnabled =
+          getBooleanSettingFromEnvironment(name + settingSuffix, defaultEnabled);
       if (defaultEnabled) {
         anyEnabled &= configEnabled;
       } else {
