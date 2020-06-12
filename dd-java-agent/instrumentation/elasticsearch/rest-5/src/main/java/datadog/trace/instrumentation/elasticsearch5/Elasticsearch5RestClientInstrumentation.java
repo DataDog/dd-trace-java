@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.elasticsearch5;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NamedOneOfMatcher.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.elasticsearch.ElasticsearchRestClientDecorator.DECORATE;
@@ -44,7 +45,7 @@ public class Elasticsearch5RestClientInstrumentation extends Instrumenter.Defaul
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
         isMethod()
-            .and(named("performRequestAsync").or(named("performRequestAsyncNoCatch")))
+            .and(namedOneOf("performRequestAsync", "performRequestAsyncNoCatch"))
             .and(takesArguments(7))
             .and(takesArgument(0, named("java.lang.String"))) // method
             .and(takesArgument(1, named("java.lang.String"))) // endpoint

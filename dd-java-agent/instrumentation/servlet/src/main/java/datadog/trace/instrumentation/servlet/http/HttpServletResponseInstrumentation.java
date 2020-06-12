@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet.http;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NamedOneOfMatcher.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -52,7 +53,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(named("sendError").or(named("sendRedirect")), SendAdvice.class.getName());
+    return singletonMap(namedOneOf("sendError", "sendRedirect"), SendAdvice.class.getName());
   }
 
   @Override
