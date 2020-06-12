@@ -1,4 +1,4 @@
-package com.datadog.profiling.uploader;
+package datadog.common.container;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -15,14 +15,13 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Parses container information from /proc/self/cgroup.
- *
- * <p>Copied from dd-trace-core/src/main/java/datadog/trace/core/ContainerInfo.java
+ * Parses container information from /proc/self/cgroup. Implementation based largely on
+ * Qard/container-info
  */
 @Getter
 @Setter
 @Slf4j
-class ContainerInfo {
+public class ContainerInfo {
   private static final Path CGROUP_DEFAULT_PROCFILE = Paths.get("/proc/self/cgroup");
   private static final String UUID_REGEX =
       "[0-9a-f]{8}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{12}";

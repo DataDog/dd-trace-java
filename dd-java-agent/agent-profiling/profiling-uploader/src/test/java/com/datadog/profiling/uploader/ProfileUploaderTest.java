@@ -109,7 +109,6 @@ public class ProfileUploaderTest {
   private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
 
   @Mock private Config config;
-  @Mock private ContainerInfo containerInfo;
 
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;

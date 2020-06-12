@@ -21,6 +21,7 @@ import com.datadog.profiling.uploader.util.PidHelper;
 import com.datadog.profiling.uploader.util.StreamUtils;
 import com.datadog.profiling.util.ProfilingThreadFactory;
 import com.google.common.annotations.VisibleForTesting;
+import datadog.common.container.ContainerInfo;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.io.InputStream;

@@ -8,7 +8,7 @@ class ContainerInfoTest extends DDSpecification {
   @Unroll
   def "CGroupInfo is parsed from individual lines"() {
     when:
-    ContainerInfo.CGroupInfo cGroupInfo = ContainerInfo.parseLine(line)
+    datadog.common.container.ContainerInfo.CGroupInfo cGroupInfo = datadog.common.container.ContainerInfo.parseLine(line)
 
     then:
     cGroupInfo.getId() == id
@@ -83,7 +83,7 @@ class ContainerInfoTest extends DDSpecification {
   @Unroll
   def "Container info parsed from file content"() {
     when:
-    ContainerInfo containerInfo = ContainerInfo.parse(content)
+    datadog.common.container.ContainerInfo containerInfo = datadog.common.container.ContainerInfo.parse(content)
 
     then:
     containerInfo.getContainerId() == containerId
