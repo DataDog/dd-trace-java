@@ -171,7 +171,6 @@ class ContainerInfoTest extends DDSpecification {
     f.write("This is not valid")
     Path p = Paths.get(f.path)
     ContainerInfo.fromProcFile(p)
-    f.deleteOnExit()
 
     then:
     thrown(ParseException)

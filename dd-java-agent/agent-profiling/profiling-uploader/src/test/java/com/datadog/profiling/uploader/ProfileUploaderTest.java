@@ -193,18 +193,6 @@ public class ProfileUploaderTest {
   }
 
   @Test
-  public void testRequestWithoutContainerID() throws IOException, InterruptedException {
-    uploader = new ProfileUploader(config, null);
-
-    server.enqueue(new MockResponse().setResponseCode(200));
-    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
-
-    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
-    assertNotNull(request);
-    assertNull(request.getHeader(ProfileUploader.HEADER_DD_CONTAINER_ID));
-  }
-
-  @Test
   public void testRequestWithContainerId() throws IOException, InterruptedException {
     uploader = new ProfileUploader(config, "container-id");
 
