@@ -152,7 +152,7 @@ public class ProfileUploaderTest {
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(url, recordedRequest.getRequestUrl());
 
-    assertEquals(API_KEY_VALUE, recordedRequest.getHeader("DD-API-KEY"));
+    assertEquals(API_KEY_VALUE, recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
 
     final Multimap<String, Object> parameters =
         ProfilingTestUtils.parseProfilingRequestParameters(recordedRequest);
@@ -201,7 +201,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(request);
-    assertNull(request.getHeader("Datadog-Container-ID"));
+    assertNull(request.getHeader(ProfileUploader.HEADER_DD_CONTAINER_ID));
   }
 
   @Test
@@ -213,7 +213,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(request);
-    assertEquals(request.getHeader("Datadog-Container-ID"), "container-id");
+    assertEquals(request.getHeader(ProfileUploader.HEADER_DD_CONTAINER_ID), "container-id");
   }
 
   @Test
@@ -226,7 +226,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(request);
-    assertNull(request.getHeader("DD-API-KEY"));
+    assertNull(request.getHeader(ProfileUploader.HEADER_DD_API_KEY));
   }
 
   @Test
@@ -240,7 +240,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(request);
-    assertNull(request.getHeader("DD-API-KEY"));
+    assertNull(request.getHeader(ProfileUploader.HEADER_DD_API_KEY));
     // it would be nice if the test asserted the log line was written out, but it's not essential
   }
 
@@ -255,7 +255,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
     assertNotNull(request);
-    assertEquals(request.getHeader("DD-API-KEY"), API_KEY_VALUE);
+    assertEquals(request.getHeader(ProfileUploader.HEADER_DD_API_KEY), API_KEY_VALUE);
   }
 
   @Test
@@ -278,7 +278,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedFirstRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(server.url(""), recordedFirstRequest.getRequestUrl());
-    assertEquals(API_KEY_VALUE, recordedFirstRequest.getHeader("DD-API-KEY"));
+    assertEquals(API_KEY_VALUE, recordedFirstRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
     assertNull(recordedFirstRequest.getHeader("Proxy-Authorization"));
     assertEquals(backendHost, recordedFirstRequest.getHeader("Host"));
     assertEquals(
@@ -286,7 +286,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedSecondRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(server.url(""), recordedSecondRequest.getRequestUrl());
-    assertEquals(API_KEY_VALUE, recordedSecondRequest.getHeader("DD-API-KEY"));
+    assertEquals(API_KEY_VALUE, recordedSecondRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
     assertEquals(
         Credentials.basic("username", "password"),
         recordedSecondRequest.getHeader("Proxy-Authorization"));
