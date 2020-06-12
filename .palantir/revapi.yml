@@ -2,9 +2,6 @@ acceptedBreaks:
   "0.48.0":
     com.datadoghq:dd-trace-ot:
     - code: "java.class.removed"
-      old: "class datadog.opentracing.ContainerInfo"
-      justification: "Non-api class moved to core"
-    - code: "java.class.removed"
       old: "class datadog.opentracing.DDSpan"
       justification: "Non-api class moved to core"
     - code: "java.class.removed"

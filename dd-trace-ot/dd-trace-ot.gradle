@@ -87,6 +87,7 @@ shadowJar {
     include(project(':dd-trace-core'))
     include(project(':internal-api'))
     include(project(':utils:thread-utils'))
+    include(project(':utils:container-utils'))
   }
 }
 
