@@ -4,7 +4,7 @@ import static datadog.trace.api.Config.parseIntegerRangeSet;
 
 import java.util.BitSet;
 
-public class ConfigDefaults {
+public final class ConfigDefaults {
 
   /* These fields are made public because they're referenced elsewhere internally.  They're not intended as public API. */
   public static final String DEFAULT_AGENT_HOST = "localhost";
@@ -66,4 +66,6 @@ public class ConfigDefaults {
   static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
   static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
   static final double DEFAULT_TRACE_RATE_LIMIT = 100;
+
+  private ConfigDefaults() {}
 }
