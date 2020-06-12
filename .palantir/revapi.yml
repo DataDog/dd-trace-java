@@ -421,6 +421,9 @@ acceptedBreaks:
   "0.54.0":
     com.datadoghq:dd-trace-ot:
     - code: "java.class.removed"
+      old: "class datadog.trace.core.ContainerInfo"
+      justification: "ContainerInfo was moved to a shared module"
+    - code: "java.class.removed"
       old: "class datadog.trace.core.decorators.AbstractDecorator"
       justification: "rename legacy decorator to tag interceptor"
     - code: "java.class.removed"
