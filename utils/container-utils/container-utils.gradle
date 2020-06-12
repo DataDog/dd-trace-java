@@ -1,0 +1,7 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compile deps.slf4j
+
+  testCompile project(':utils:test-utils')
+}
