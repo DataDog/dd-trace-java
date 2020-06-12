@@ -35,7 +35,7 @@ public class InternalJarURLHandler extends URLStreamHandler {
           if (!entry.isDirectory() && entry.getName().startsWith(filePrefix)) {
             String name = entry.getName();
             // remove data suffix
-            int end = name.endsWith("data") ? name.length() - 4 : name.length();
+            int end = name.endsWith(".classdata") ? name.length() - 4 : name.length();
             filenameToEntry.put(name.substring(internalJarFileName.length(), end), entry);
           }
         }
