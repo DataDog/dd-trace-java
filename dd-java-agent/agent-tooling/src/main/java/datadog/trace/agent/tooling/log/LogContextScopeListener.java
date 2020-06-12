@@ -60,16 +60,20 @@ public class LogContextScopeListener implements ScopeListener {
     putMethod.invoke(null, Tags.DD_SERVICE, Config.get().getServiceName());
     {
       final Map<String, String> mergedSpanTags = Config.get().getMergedSpanTags();
-      if (mergedSpanTags != null && mergedSpanTags.containsKey("version")) {
-        putMethod.invoke(null, Tags.DD_VERSION, mergedSpanTags.get("version"));
-      } else {
-        putMethod.invoke(null, Tags.DD_VERSION, "");
+      String version = "";
+      String env = "";
+      if (mergedSpanTags != null) {
+        version = mergedSpanTags.get("version");
+        if (version == null) {
+          version = "";
+        }
+        env = mergedSpanTags.get("env");
+        if (env == null) {
+          env = "";
+        }
       }
-      if (mergedSpanTags != null && mergedSpanTags.containsKey("env")) {
-        putMethod.invoke(null, Tags.DD_ENV, mergedSpanTags.get("env"));
-      } else {
-        putMethod.invoke(null, Tags.DD_ENV, "");
-      }
+      putMethod.invoke(null, Tags.DD_VERSION, version);
+      putMethod.invoke(null, Tags.DD_ENV, env);
     }
   }
 }
