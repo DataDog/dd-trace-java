@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.twilio;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NamedOneOfMatcher.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.DECORATE;
@@ -74,14 +75,9 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Default {
 
     return singletonMap(
         isMethod()
+            .and(namedOneOf("createAsync", "deleteAsync", "readAsync", "fetchAsync", "updateAsync"))
             .and(isPublic())
             .and(not(isAbstract()))
-            .and(
-                named("createAsync")
-                    .or(named("deleteAsync"))
-                    .or(named("readAsync"))
-                    .or(named("fetchAsync"))
-                    .or(named("updateAsync")))
             .and(returns(named("com.google.common.util.concurrent.ListenableFuture"))),
         TwilioAsyncInstrumentation.class.getName() + "$TwilioClientAsyncAdvice");
   }

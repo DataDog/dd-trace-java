@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet2;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NamedOneOfMatcher.namedOneOf;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
@@ -44,7 +45,7 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.De
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
     transformers.put(
-        named("sendError").or(named("setStatus")), packageName + ".Servlet2ResponseStatusAdvice");
+        namedOneOf("sendError", "setStatus"), packageName + ".Servlet2ResponseStatusAdvice");
     transformers.put(named("sendRedirect"), packageName + ".Servlet2ResponseRedirectAdvice");
     return transformers;
   }

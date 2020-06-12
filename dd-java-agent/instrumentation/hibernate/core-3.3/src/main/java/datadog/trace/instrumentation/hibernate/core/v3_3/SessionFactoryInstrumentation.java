@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.hibernate.core.v3_3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NamedOneOfMatcher.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.hibernate.HibernateDecorator.DECORATOR;
 import static java.util.Collections.singletonMap;
@@ -46,12 +47,11 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
         isMethod()
-            .and(named("openSession").or(named("openStatelessSession")))
+            .and(namedOneOf("openSession", "openStatelessSession"))
             .and(takesArguments(0))
             .and(
                 returns(
-                    named("org.hibernate.Session")
-                        .or(named("org.hibernate.StatelessSession"))
+                    namedOneOf("org.hibernate.Session", "org.hibernate.StatelessSession")
                         .or(hasInterface(named("org.hibernate.Session"))))),
         SessionFactoryInstrumentation.class.getName() + "$SessionFactoryAdvice");
   }

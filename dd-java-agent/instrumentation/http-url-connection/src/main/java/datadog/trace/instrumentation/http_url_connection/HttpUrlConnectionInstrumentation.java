@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.http_url_connection;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NamedOneOfMatcher.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -62,9 +63,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Default {
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        isMethod()
-            .and(isPublic())
-            .and(named("connect").or(named("getOutputStream")).or(named("getInputStream"))),
+        isMethod().and(isPublic()).and(namedOneOf("connect", "getOutputStream", "getInputStream")),
         HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlConnectionAdvice");
   }
 
