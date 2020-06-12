@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.log.LogContextScopeListener;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
 import java.util.Map;
@@ -75,12 +76,13 @@ public class MDCInjectionInstrumentation extends Instrumenter.Default {
 
   public static class MDCAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void mdcClassInitialized(@Advice.Origin final Class mdcClass) {
+    public static void mdcClassInitialized(@Advice.Origin final Class<?> mdcClass) {
       try {
         final Method putMethod = mdcClass.getMethod("put", String.class, String.class);
         final Method removeMethod = mdcClass.getMethod("remove", String.class);
         GlobalTracer.get().addScopeListener(new LogContextScopeListener(putMethod, removeMethod));
-      } catch (final NoSuchMethodException e) {
+        LogContextScopeListener.addDDTagsToMDC(putMethod);
+      } catch (final NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
         org.slf4j.LoggerFactory.getLogger(mdcClass).debug("Failed to add MDC span listener", e);
       }
     }

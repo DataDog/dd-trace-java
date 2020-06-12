@@ -2,12 +2,16 @@ package datadog.trace.agent.test.log.injection
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.ConfigUtils
+import datadog.trace.api.Config
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import java.util.concurrent.atomic.AtomicReference
 
+import static datadog.trace.api.Config.GLOBAL_TAGS
+import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
@@ -30,6 +34,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
   static {
     ConfigUtils.updateConfig {
       System.setProperty("dd.logs.injection", "true")
+      System.setProperty(PREFIX + GLOBAL_TAGS, "env:test,version:0.1")
     }
   }
 
@@ -43,6 +48,9 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
     get(CorrelationIdentifier.getSpanIdKey()) == CorrelationIdentifier.getSpanId()
     get("foo") == "bar"
+    get(Tags.DD_SERVICE) == Config.DEFAULT_SERVICE_NAME
+    get(Tags.DD_VERSION) == "0.1"
+    get(Tags.DD_ENV) == "test"
 
     when:
     AgentSpan childSpan = startSpan("child")
@@ -52,6 +60,9 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
     get(CorrelationIdentifier.getSpanIdKey()) == CorrelationIdentifier.getSpanId()
     get("foo") == "bar"
+    get(Tags.DD_SERVICE) == Config.DEFAULT_SERVICE_NAME
+    get(Tags.DD_VERSION) == "0.1"
+    get(Tags.DD_ENV) == "test"
 
     when:
     childScope.close()
@@ -61,6 +72,9 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
     get(CorrelationIdentifier.getSpanIdKey()) == CorrelationIdentifier.getSpanId()
     get("foo") == "bar"
+    get(Tags.DD_SERVICE) == Config.DEFAULT_SERVICE_NAME
+    get(Tags.DD_VERSION) == "0.1"
+    get(Tags.DD_ENV) == "test"
 
     when:
     rootScope.close()
@@ -70,13 +84,12 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     get(CorrelationIdentifier.getTraceIdKey()) == null
     get(CorrelationIdentifier.getSpanIdKey()) == null
     get("foo") == "bar"
+    get(Tags.DD_SERVICE) == Config.DEFAULT_SERVICE_NAME
+    get(Tags.DD_VERSION) == "0.1"
+    get(Tags.DD_ENV) == "test"
   }
 
   def "Log context is scoped by thread"() {
-    setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.logs.injection", "true")
-    }
     AtomicReference<String> thread1TraceId = new AtomicReference<>()
     AtomicReference<String> thread2TraceId = new AtomicReference<>()
 
@@ -117,9 +130,20 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     thread1TraceId.get() == null
     thread2TraceId.get() != null
     thread2TraceId.get() != mainThreadTraceId
+    get(Tags.DD_SERVICE) == Config.DEFAULT_SERVICE_NAME
+    get(Tags.DD_VERSION) == "0.1"
+    get(Tags.DD_ENV) == "test"
 
     cleanup:
     mainScope?.close()
     mainSpan?.finish()
+  }
+
+  def "always log service, version, env"() {
+    expect:
+    get(Tags.DD_SERVICE) == Config.DEFAULT_SERVICE_NAME
+    get(Tags.DD_VERSION) == "0.1"
+    get(Tags.DD_ENV) == "test"
+
   }
 }

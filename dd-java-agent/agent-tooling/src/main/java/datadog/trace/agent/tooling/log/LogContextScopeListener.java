@@ -2,9 +2,13 @@ package datadog.trace.agent.tooling.log;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.context.ScopeListener;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -48,6 +52,24 @@ public class LogContextScopeListener implements ScopeListener {
       removeMethod.invoke(null, CorrelationIdentifier.getSpanIdKey());
     } catch (final Exception e) {
       log.debug("Exception removing log context context", e);
+    }
+  }
+
+  public static void addDDTagsToMDC(final Method putMethod)
+      throws InvocationTargetException, IllegalAccessException {
+    putMethod.invoke(null, Tags.DD_SERVICE, Config.get().getServiceName());
+    {
+      final Map<String, String> mergedSpanTags = Config.get().getMergedSpanTags();
+      if (mergedSpanTags != null && mergedSpanTags.containsKey("version")) {
+        putMethod.invoke(null, Tags.DD_VERSION, mergedSpanTags.get("version"));
+      } else {
+        putMethod.invoke(null, Tags.DD_VERSION, "");
+      }
+      if (mergedSpanTags != null && mergedSpanTags.containsKey("env")) {
+        putMethod.invoke(null, Tags.DD_ENV, mergedSpanTags.get("env"));
+      } else {
+        putMethod.invoke(null, Tags.DD_ENV, "");
+      }
     }
   }
 }
