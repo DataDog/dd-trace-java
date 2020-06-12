@@ -28,9 +28,9 @@ public class DDTags {
 
   public static final String TRACE_START_TIME = "t0";
 
-  /* Tags intended for internal use only. */
+  /* Tags below are for internal use only. */
   static final String INTERNAL_HOST_NAME = "_dd.hostname";
-  static final String RUNTIME_ID_TAG = "runtime-id";
+  public static final String RUNTIME_ID_TAG = "runtime-id";
   static final String SERVICE = "service";
   static final String SERVICE_TAG = SERVICE;
   static final String HOST_TAG = "host";
