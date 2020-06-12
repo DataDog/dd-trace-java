@@ -24,6 +24,7 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
+import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED
 
 class KafkaClientTest extends AgentTestRunner {
   static {
@@ -122,7 +123,7 @@ class KafkaClientTest extends AgentTestRunner {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
-            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" {it >= 0 }
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
             if (expectE2EDuration) {
               "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
@@ -287,10 +288,10 @@ class KafkaClientTest extends AgentTestRunner {
     container?.stop()
 
     where:
-    value                                                           | expected
-    "false"                                                         | false
-    "true"                                                          | true
-    String.valueOf(Config.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED) | true
+    value                                                    | expected
+    "false"                                                  | false
+    "true"                                                   | true
+    String.valueOf(DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED) | true
 
   }
 

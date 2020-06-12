@@ -1,17 +1,17 @@
 package datadog.trace.api.sampling
 
-import datadog.trace.core.DDSpan
-import datadog.trace.core.SpanFactory
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.sampling.RuleBasedSampler
 import datadog.trace.common.sampling.Sampler
+import datadog.trace.core.DDSpan
+import datadog.trace.core.SpanFactory
 import datadog.trace.util.test.DDSpecification
 
-import static datadog.trace.api.Config.TRACE_RATE_LIMIT
-import static datadog.trace.api.Config.TRACE_SAMPLE_RATE
-import static datadog.trace.api.Config.TRACE_SAMPLING_OPERATION_RULES
-import static datadog.trace.api.Config.TRACE_SAMPLING_SERVICE_RULES
+import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_OPERATION_RULES
+import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 

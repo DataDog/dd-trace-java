@@ -11,7 +11,6 @@ import static datadog.trace.api.Config.AGENT_UNIX_DOMAIN_SOCKET
 import static datadog.trace.api.Config.API_KEY
 import static datadog.trace.api.Config.API_KEY_FILE
 import static datadog.trace.api.Config.CONFIGURATION_FILE
-import static datadog.trace.api.Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.Config.GLOBAL_TAGS
 import static datadog.trace.api.Config.HEADER_TAGS
 import static datadog.trace.api.Config.HEALTH_METRICS_ENABLED
@@ -81,6 +80,7 @@ import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 class ConfigTest extends DDSpecification {
   @Rule

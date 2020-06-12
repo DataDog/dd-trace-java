@@ -1,12 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 
-import datadog.trace.api.Config
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 
 class HttpServerDecoratorTest extends ServerDecoratorTest {
 
@@ -41,7 +41,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    withConfigOverride(Config.HTTP_SERVER_TAG_QUERY_STRING, "$tagQueryString") {
+    withConfigOverride(HTTP_SERVER_TAG_QUERY_STRING, "$tagQueryString") {
       decorator.onRequest(span, req)
     }
 

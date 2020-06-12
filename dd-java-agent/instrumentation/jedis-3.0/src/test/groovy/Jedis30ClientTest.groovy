@@ -1,11 +1,13 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.PortUtils
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import redis.clients.jedis.Jedis
 import redis.embedded.RedisServer
 import spock.lang.Shared
+
+import static datadog.trace.api.Config.PREFIX
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 class Jedis30ClientTest extends AgentTestRunner {
 
@@ -27,14 +29,14 @@ class Jedis30ClientTest extends AgentTestRunner {
     redisServer.start()
 
     // This setting should have no effect since decorator returns null for the instance.
-    System.setProperty(Config.PREFIX + Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
+    System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
   }
 
   def cleanupSpec() {
     redisServer.stop()
     jedis.close()
 
-    System.clearProperty(Config.PREFIX + Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE)
+    System.clearProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE)
   }
 
   def setup() {
