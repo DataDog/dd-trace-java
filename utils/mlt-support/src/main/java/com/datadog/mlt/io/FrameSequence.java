@@ -17,7 +17,7 @@ public final class FrameSequence {
 
   private final int[] frameCpIndexes;
   private final int subsequenceCpIndex;
-  private int length;
+  private int length = -1;
 
   @Generated // do not force unit tests for lombok generated null checks
   FrameSequence(
