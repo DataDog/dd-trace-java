@@ -8,6 +8,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.F
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.G
 import datadog.trace.util.test.DDSpecification
 import net.bytebuddy.description.type.TypeDescription
+import net.bytebuddy.description.type.TypeList
 import net.bytebuddy.jar.asm.Opcodes
 import spock.lang.Shared
 
@@ -46,6 +47,8 @@ class HasInterfaceMatcherTest extends DDSpecification {
     def type = Mock(TypeDescription)
     def typeGeneric = Mock(TypeDescription.Generic)
     def matcher = implementsInterface(named(Object.name))
+    def interfaces = Mock(TypeList.Generic)
+    def it = new ThrowOnFirstElement()
 
     when:
     def result = matcher.matches(type)
@@ -58,7 +61,8 @@ class HasInterfaceMatcherTest extends DDSpecification {
     1 * type.asGenericType() >> typeGeneric
     1 * typeGeneric.asErasure() >> { throw new Exception("asErasure exception") }
     1 * typeGeneric.getTypeName() >> "typeGeneric-name"
-    1 * type.getInterfaces() >> { throw new Exception("getInterfaces exception") }
+    1 * type.getInterfaces() >> interfaces
+    1 * interfaces.iterator() >> it
     1 * type.getSuperClass() >> { throw new Exception("getSuperClass exception") }
     2 * type.getTypeName() >> "type-name"
     0 * _

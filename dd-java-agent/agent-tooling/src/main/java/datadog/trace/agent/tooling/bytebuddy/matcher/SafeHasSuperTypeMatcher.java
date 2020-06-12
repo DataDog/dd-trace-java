@@ -3,10 +3,8 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeTypeDefinitionName;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeErasureMatcher.safeAsErasure;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.type.TypeDefinition;
@@ -52,7 +50,7 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
 
   @Override
   public boolean matches(final T target) {
-    final Set<TypeDescription> checkedInterfaces = new HashSet<>();
+    final Set<TypeDescription> checkedInterfaces = new HashSet<>(8);
     // We do not use foreach loop and iterator interface here because we need to catch exceptions
     // in {@code getSuperClass} calls
     TypeDefinition typeDefinition = target;
@@ -89,30 +87,8 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
     return false;
   }
 
-  /**
-   * TypeDefinition#getInterfaces() produces an interator which may throw an exception during
-   * iteration if an interface is absent from the classpath.
-   *
-   * <p>This method exists to allow getting interfaces even if the lookup on one fails.
-   */
-  private List<TypeDefinition> safeGetInterfaces(final TypeDefinition typeDefinition) {
-    final List<TypeDefinition> interfaceTypes = new ArrayList<>();
-    try {
-      final Iterator<TypeDescription.Generic> interfaceIter =
-          typeDefinition.getInterfaces().iterator();
-      while (interfaceIter.hasNext()) {
-        interfaceTypes.add(interfaceIter.next());
-      }
-    } catch (final Exception e) {
-      if (log.isDebugEnabled()) {
-        log.debug(
-            "{} trying to get interfaces for target {}: {}",
-            e.getClass().getSimpleName(),
-            safeTypeDefinitionName(typeDefinition),
-            e.getMessage());
-      }
-    }
-    return interfaceTypes;
+  private Iterable<TypeDefinition> safeGetInterfaces(final TypeDefinition typeDefinition) {
+    return new SafeInterfaceIterator(typeDefinition);
   }
 
   static TypeDefinition safeGetSuperClass(final TypeDefinition typeDefinition) {
@@ -151,5 +127,68 @@ class SafeHasSuperTypeMatcher<T extends TypeDescription>
   @Override
   public int hashCode() {
     return 17 * 31 + matcher.hashCode();
+  }
+
+  /**
+   * TypeDefinition#getInterfaces() produces an iterator which may throw an exception during
+   * iteration if an interface is absent from the classpath.
+   *
+   * <p>The caller MUST call hasNext() before calling next().
+   *
+   * <p>This wrapper exists to allow getting interfaces even if the lookup on one fails.
+   */
+  private static class SafeInterfaceIterator
+      implements Iterator<TypeDefinition>, Iterable<TypeDefinition> {
+    private final TypeDefinition typeDefinition;
+    private final Iterator<TypeDescription.Generic> it;
+    private TypeDefinition next;
+
+    private SafeInterfaceIterator(TypeDefinition typeDefinition) {
+      this.typeDefinition = typeDefinition;
+      Iterator<TypeDescription.Generic> it = null;
+      try {
+        it = typeDefinition.getInterfaces().iterator();
+      } catch (Exception e) {
+        logException(typeDefinition, e);
+      }
+      this.it = it;
+    }
+
+    @Override
+    public boolean hasNext() {
+      if (null != it && it.hasNext()) {
+        try {
+          this.next = it.next();
+          return true;
+        } catch (Exception e) {
+          logException(typeDefinition, e);
+          return false;
+        }
+      }
+      return false;
+    }
+
+    @Override
+    public TypeDefinition next() {
+      return next;
+    }
+
+    @Override
+    public void remove() {}
+
+    @Override
+    public Iterator<TypeDefinition> iterator() {
+      return this;
+    }
+
+    private void logException(TypeDefinition typeDefinition, Exception e) {
+      if (log.isDebugEnabled()) {
+        log.debug(
+            "{} trying to get interfaces for target {}: {}",
+            e.getClass().getSimpleName(),
+            safeTypeDefinitionName(typeDefinition),
+            e.getMessage());
+      }
+    }
   }
 }
