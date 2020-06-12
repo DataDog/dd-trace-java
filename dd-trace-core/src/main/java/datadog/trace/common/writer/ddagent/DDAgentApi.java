@@ -12,10 +12,12 @@ import datadog.trace.core.DDTraceCoreInfo;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.ConnectionSpec;
 import okhttp3.Dispatcher;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -185,6 +187,9 @@ public class DDAgentApi {
         .connectTimeout(HTTP_TIMEOUT, TimeUnit.SECONDS)
         .writeTimeout(HTTP_TIMEOUT, TimeUnit.SECONDS)
         .readTimeout(HTTP_TIMEOUT, TimeUnit.SECONDS)
+
+        // We only use http to talk to the agent
+        .connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT))
 
         // We don't do async so this shouldn't matter, but just to be safe...
         .dispatcher(new Dispatcher(CommonTaskExecutor.INSTANCE))
