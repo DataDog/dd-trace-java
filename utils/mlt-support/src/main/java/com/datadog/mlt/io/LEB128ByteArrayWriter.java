@@ -40,6 +40,9 @@ final class LEB128ByteArrayWriter extends AbstractLEB128Writer {
 
   @Override
   public long writeBytes(long offset, byte... data) {
+    if (data == null) {
+      return offset;
+    }
     int newOffset = (int) (offset + data.length);
     if (newOffset >= array.length) {
       array = Arrays.copyOf(array, newOffset * 2);

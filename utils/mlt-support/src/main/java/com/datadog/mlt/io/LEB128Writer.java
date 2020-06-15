@@ -171,10 +171,8 @@ public interface LEB128Writer {
   long writeBytes(long offset, byte... data);
 
   /**
-   * Write {@linkplain String} in special encoding. The string will translate to (byte)0 for
-   * {@literal null} value, (byte)1 for empty string and (byte)3 for the sequence of bytes
-   * representing UTF8 encoded string. The sequence starts with LEB128 encoded int for the length of
-   * the sequence followed by the sequence bytes.
+   * Write {@linkplain String} as a sequence of bytes representing UTF8 encoded string. The sequence
+   * starts with LEB128 encoded int for the length of the sequence followed by the sequence bytes.
    *
    * @param data the data
    * @return the writer instance for chaining
@@ -182,10 +180,19 @@ public interface LEB128Writer {
   LEB128Writer writeUTF(String data);
 
   /**
-   * Write {@linkplain String} in special encoding at the given offset. The string will translate to
-   * (byte)0 for {@literal null} value, (byte)1 for empty string and (byte)3 for the sequence of
-   * bytes representing UTF8 encoded string. The sequence starts with LEB128 encoded int for the
-   * length of the sequence followed by the sequence bytes.
+   * Write {@linkplain String} byte array data as a sequence of bytes representing UTF8 encoded
+   * string. The sequence starts with LEB128 encoded int for the length of the sequence followed by
+   * the sequence bytes.
+   *
+   * @param utf8Data the byte array representation of an UTF8 string
+   * @return the writer instance for chaining
+   */
+  LEB128Writer writeUTF(byte[] utf8Data);
+
+  /**
+   * Write {@linkplain String} as a sequence of bytes representing UTF8 encoded string at the given
+   * offset. The sequence starts with LEB128 encoded int for the length of the sequence followed by
+   * the sequence bytes.
    *
    * @param offset the offset from which to start writing the data
    * @param data the data
@@ -194,8 +201,42 @@ public interface LEB128Writer {
   long writeUTF(long offset, String data);
 
   /**
-   * Write {@linkplain String} as a sequence of bytes representing UTF8 encoded string. The sequence
-   * starts with LEB128 encoded int for the length of the sequence followed by the sequence bytes.
+   * Write {@linkplain String} byte array data at the given offset. The sequence starts with LEB128
+   * encoded int for the length of the sequence followed by the sequence bytes.
+   *
+   * @param offset the offset from which to start writing the data
+   * @param utf8Data the byte array representation of an UTF8 string
+   * @return the writer position after the data has been written
+   */
+  long writeUTF(long offset, byte[] utf8Data);
+
+  /**
+   * Write {@linkplain String} byte array data in special encoding. The string will translate to
+   * (byte)0 for {@literal null} value, (byte)1 for empty string and (byte)3 for the sequence of
+   * bytes representing UTF8 encoded string. The sequence starts with LEB128 encoded int for the
+   * length of the sequence followed by the sequence bytes.
+   *
+   * @param utf8Data the byte array representation of an UTF8 string
+   * @return the writer instance for chaining
+   */
+  LEB128Writer writeCompactUTF(byte[] utf8Data);
+
+  /**
+   * Write {@linkplain String} as a sequence of bytes representing UTF8 encoded string at the given
+   * offset. The sequence starts with LEB128 encoded int for the length of the sequence followed by
+   * the sequence bytes.
+   *
+   * @param offset the offset from which to start writing the data
+   * @param utf8Data the byte array representation of an UTF8 string
+   * @return the writer position after the data has been written
+   */
+  long writeCompactUTF(long offset, byte[] utf8Data);
+
+  /**
+   * Write {@linkplain String} in special encoding. The string will translate to (byte)0 for
+   * {@literal null} value, (byte)1 for empty string and (byte)3 for the sequence of bytes
+   * representing UTF8 encoded string. The sequence starts with LEB128 encoded int for the length of
+   * the sequence followed by the sequence bytes.
    *
    * @param data the data
    * @return the writer instance for chaining
@@ -203,9 +244,10 @@ public interface LEB128Writer {
   LEB128Writer writeCompactUTF(String data);
 
   /**
-   * Write {@linkplain String} as a sequence of bytes representing UTF8 encoded string at the given
-   * offset. The sequence starts with LEB128 encoded int for the length of the sequence followed by
-   * the sequence bytes.
+   * Write {@linkplain String} byte array data in special encoding at the given offset. The string
+   * will translate to (byte)0 for {@literal null} value, (byte)1 for empty string and (byte)3 for
+   * the sequence of bytes representing UTF8 encoded string. The sequence starts with LEB128 encoded
+   * int for the length of the sequence followed by the sequence bytes.
    *
    * @param offset the offset from which to start writing the data
    * @param data the data

@@ -33,7 +33,7 @@ class LEB128ByteArrayReaderTest {
     assertTrue(writer.length() > 0);
     assertTrue(writer.length() >= writer.position());
 
-    LEB128ByteArrayReader reader = new LEB128ByteArrayReader(writer.toByteArray());
+    LEB128ByteArrayReader reader = new LEB128ByteArrayReader(writer.export());
     assertEquals(b, reader.readByte());
     assertEquals(c, reader.readChar());
     assertEquals(s, reader.readShort());

@@ -2,7 +2,9 @@ package com.datadog.mlt.io;
 
 import it.unimi.dsi.fastutil.ints.IntArraySet;
 import it.unimi.dsi.fastutil.ints.IntSet;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 /** The MLT binary format writer */
@@ -13,6 +15,7 @@ public final class MLTWriter {
   private final LEB128Writer chunkWriter = LEB128Writer.getInstance(CHUNK_WRITER_CAPACITY);
   private final LEB128Writer frameStackDataWriter =
       LEB128Writer.getInstance(FRAME_STACK_WRITER_CAPACITY);
+
   /**
    * Write a single chunk to its binary format
    *
@@ -21,9 +24,14 @@ public final class MLTWriter {
    */
   public byte[] writeChunk(IMLTChunk chunk) {
     writeChunk(chunk, chunkWriter);
-    byte[] data = chunkWriter.toByteArray();
+    byte[] data = chunkWriter.export();
     chunkWriter.reset();
     return data;
+  }
+
+  public void writeChunk(IMLTChunk chunk, Consumer<ByteBuffer> dataConsumer) {
+    writeChunk(chunk, chunkWriter);
+    chunkWriter.export(dataConsumer);
   }
 
   private void writeChunk(IMLTChunk chunk, LEB128Writer writer) {
@@ -64,7 +72,7 @@ public final class MLTWriter {
               }
             });
     writer.writeInt(eventCount[0]);
-    writer.writeBytes(stackEventWriter.toByteArray());
+    writer.writeBytes(stackEventWriter.export());
 
     writer.writeIntRaw(
         MLTConstants.CONSTANT_POOLS_OFFSET, writer.position()); // write the constant pools offset

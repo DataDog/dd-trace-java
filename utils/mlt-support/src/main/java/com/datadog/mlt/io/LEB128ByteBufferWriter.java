@@ -8,7 +8,7 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
   private ByteBuffer buffer;
 
   LEB128ByteBufferWriter(int initialCapacity) {
-    this.buffer = ByteBuffer.allocateDirect(initialCapacity);
+    this.buffer = allocateBuffer(initialCapacity);
   }
 
   @Override
@@ -126,10 +126,14 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
           this.getClass().getName(),
           buffer.capacity(),
           newCapacity);
-      ByteBuffer newBuffer = ByteBuffer.allocateDirect(newCapacity);
+      ByteBuffer newBuffer = allocateBuffer(newCapacity);
       buffer.flip();
       newBuffer.put(buffer);
       buffer = newBuffer;
     }
+  }
+
+  private static ByteBuffer allocateBuffer(int capacity) {
+    return ByteBuffer.allocateDirect(capacity);
   }
 }
