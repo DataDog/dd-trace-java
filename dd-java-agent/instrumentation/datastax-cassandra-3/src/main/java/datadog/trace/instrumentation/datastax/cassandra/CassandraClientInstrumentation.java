@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.datastax.cassandra;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ModifierMatchers.isPrivate;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 

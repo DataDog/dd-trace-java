@@ -1,9 +1,12 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ModifierMatchers.ModifierConstraint.ABSTRACT;
+
 import java.util.EnumSet;
 import net.bytebuddy.description.ModifierReviewable;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.matcher.ElementMatchers;
 
 public class ModifierMatchers {
 
@@ -39,6 +42,38 @@ public class ModifierMatchers {
     }
   }
 
+  private static final ElementMatcher.Junction<?> IS_PUBLIC = ElementMatchers.isPublic();
+  private static final ElementMatcher.Junction<?> IS_PRIVATE = ElementMatchers.isPrivate();
+  private static final ElementMatcher.Junction<?> IS_PROTECTED = ElementMatchers.isProtected();
+  private static final ElementMatcher.Junction<?> IS_STATIC = ElementMatchers.isStatic();
+  private static final ElementMatcher.Junction<?> IS_NONABSTRACT =
+      new ForbiddenModifierMatcher<>(ABSTRACT.modifier);
+
+  @SuppressWarnings("unchecked")
+  public static <T extends ModifierReviewable> ElementMatcher.Junction<T> isPublic() {
+    return (ElementMatcher.Junction<T>) IS_PUBLIC;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T extends ModifierReviewable> ElementMatcher.Junction<T> isProtected() {
+    return (ElementMatcher.Junction<T>) IS_PROTECTED;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T extends ModifierReviewable> ElementMatcher.Junction<T> isPrivate() {
+    return (ElementMatcher.Junction<T>) IS_PRIVATE;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T extends ModifierReviewable> ElementMatcher.Junction<T> isStatic() {
+    return (ElementMatcher.Junction<T>) IS_STATIC;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T extends ModifierReviewable> ElementMatcher.Junction<T> nonAbstract() {
+    return (ElementMatcher.Junction<T>) IS_NONABSTRACT;
+  }
+
   /**
    * Checks that an element satisfies at least one of the positive modifier constraints and violates
    * none of the negative modifier constraints.
@@ -71,6 +106,21 @@ public class ModifierMatchers {
     public boolean matches(T target) {
       int modifiers = target.getModifiers();
       return ((modifiers & permitted) != 0) & ((modifiers & forbidden) == 0);
+    }
+  }
+
+  private static class ForbiddenModifierMatcher<T extends ModifierReviewable>
+      extends ElementMatcher.Junction.AbstractBase<T> {
+
+    private final int modifiers;
+
+    private ForbiddenModifierMatcher(int modifiers) {
+      this.modifiers = modifiers;
+    }
+
+    @Override
+    public boolean matches(T target) {
+      return (modifiers & target.getModifiers()) == 0;
     }
   }
 }

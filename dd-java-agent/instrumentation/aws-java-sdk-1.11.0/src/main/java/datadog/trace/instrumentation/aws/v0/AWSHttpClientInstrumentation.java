@@ -1,12 +1,11 @@
 package datadog.trace.instrumentation.aws.v0;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ModifierMatchers.nonAbstract;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.DECORATE;
 import static datadog.trace.instrumentation.aws.v0.RequestMeta.SCOPE_CONTEXT_KEY;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.Request;
@@ -49,7 +48,7 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Default {
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        isMethod().and(not(isAbstract())).and(named("doExecute")),
+        isMethod().and(nonAbstract()).and(named("doExecute")),
         AWSHttpClientInstrumentation.class.getName() + "$HttpClientAdvice");
   }
 
@@ -88,7 +87,7 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Default {
     @Override
     public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
       return singletonMap(
-          isMethod().and(not(isAbstract())).and(named("doExecute")),
+          isMethod().and(nonAbstract()).and(named("doExecute")),
           RequestExecutorInstrumentation.class.getName() + "$RequestExecutorAdvice");
     }
 

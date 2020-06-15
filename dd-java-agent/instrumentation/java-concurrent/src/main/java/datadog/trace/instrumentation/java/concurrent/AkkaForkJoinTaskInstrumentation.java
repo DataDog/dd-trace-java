@@ -2,10 +2,9 @@ package datadog.trace.instrumentation.java.concurrent;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ModifierMatchers.nonAbstract;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import akka.dispatch.forkjoin.ForkJoinPool;
@@ -66,7 +65,7 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        named("exec").and(takesArguments(0)).and(not(isAbstract())),
+        named("exec").and(takesArguments(0)).and(nonAbstract()),
         AkkaForkJoinTaskInstrumentation.class.getName() + "$ForkJoinTaskAdvice");
   }
 

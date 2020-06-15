@@ -2,15 +2,14 @@ package datadog.trace.instrumentation.apachehttpclient;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ModifierMatchers.nonAbstract;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient.HttpHeadersInjectAdapter.SETTER;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -76,7 +75,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
     transformers.put(
         isMethod()
             .and(named("execute"))
-            .and(not(isAbstract()))
+            .and(nonAbstract())
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest"))),
         ApacheHttpClientInstrumentation.class.getName() + "$UriRequestAdvice");
@@ -84,7 +83,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
     transformers.put(
         isMethod()
             .and(named("execute"))
-            .and(not(isAbstract()))
+            .and(nonAbstract())
             .and(takesArguments(2))
             .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest")))
             .and(takesArgument(1, named("org.apache.http.protocol.HttpContext"))),
@@ -93,7 +92,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
     transformers.put(
         isMethod()
             .and(named("execute"))
-            .and(not(isAbstract()))
+            .and(nonAbstract())
             .and(takesArguments(2))
             .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest")))
             .and(takesArgument(1, named("org.apache.http.client.ResponseHandler"))),
@@ -102,7 +101,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
     transformers.put(
         isMethod()
             .and(named("execute"))
-            .and(not(isAbstract()))
+            .and(nonAbstract())
             .and(takesArguments(3))
             .and(takesArgument(0, named("org.apache.http.client.methods.HttpUriRequest")))
             .and(takesArgument(1, named("org.apache.http.client.ResponseHandler")))
@@ -112,7 +111,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
     transformers.put(
         isMethod()
             .and(named("execute"))
-            .and(not(isAbstract()))
+            .and(nonAbstract())
             .and(takesArguments(2))
             .and(takesArgument(0, named("org.apache.http.HttpHost")))
             .and(takesArgument(1, named("org.apache.http.HttpRequest"))),
@@ -121,7 +120,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
     transformers.put(
         isMethod()
             .and(named("execute"))
-            .and(not(isAbstract()))
+            .and(nonAbstract())
             .and(takesArguments(3))
             .and(takesArgument(0, named("org.apache.http.HttpHost")))
             .and(takesArgument(1, named("org.apache.http.HttpRequest")))
@@ -131,7 +130,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
     transformers.put(
         isMethod()
             .and(named("execute"))
-            .and(not(isAbstract()))
+            .and(nonAbstract())
             .and(takesArguments(3))
             .and(takesArgument(0, named("org.apache.http.HttpHost")))
             .and(takesArgument(1, named("org.apache.http.HttpRequest")))
@@ -141,7 +140,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
     transformers.put(
         isMethod()
             .and(named("execute"))
-            .and(not(isAbstract()))
+            .and(nonAbstract())
             .and(takesArguments(4))
             .and(takesArgument(0, named("org.apache.http.HttpHost")))
             .and(takesArgument(1, named("org.apache.http.HttpRequest")))
