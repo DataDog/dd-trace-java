@@ -64,7 +64,7 @@ def includeShadowJar(shadowJarTask, jarname) {
     }
 
     from(zipTree(shadowJarTask.archiveFile)) {
-      into jarname + '.isolated'
+      into jarname
       rename '(^.*)\\.class$', '$1.classdata'
       // Rename LICENSE file since it clashes with license dir on non-case sensitive FSs (i.e. Mac)
       rename '^LICENSE$', 'LICENSE.renamed'
@@ -76,13 +76,13 @@ def includeShadowJar(shadowJarTask, jarname) {
 }
 
 project(':dd-java-agent:instrumentation').afterEvaluate {
-  includeShadowJar(it.tasks.shadowJar, 'agent-tooling-and-instrumentation')
+  includeShadowJar(it.tasks.shadowJar, 'inst')
 }
 project(':dd-java-agent:agent-jmxfetch').afterEvaluate {
-  includeShadowJar(it.tasks.shadowJar, 'agent-jmxfetch')
+  includeShadowJar(it.tasks.shadowJar, 'metrics')
 }
 project(':dd-java-agent:agent-profiling').afterEvaluate {
-  includeShadowJar(it.tasks.shadowJar, 'agent-profiling')
+  includeShadowJar(it.tasks.shadowJar, 'profiling')
 }
 
 task sharedShadowJar(type: ShadowJar) {
