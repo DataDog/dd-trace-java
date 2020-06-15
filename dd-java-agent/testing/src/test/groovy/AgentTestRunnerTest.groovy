@@ -13,7 +13,7 @@ import java.lang.reflect.Field
 import java.util.concurrent.TimeoutException
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.Config.TRACE_CLASSES_EXCLUDE
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE
 
 class AgentTestRunnerTest extends AgentTestRunner {
   private static final ClassLoader BOOTSTRAP_CLASSLOADER = null

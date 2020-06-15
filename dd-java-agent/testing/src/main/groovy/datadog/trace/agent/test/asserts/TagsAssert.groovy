@@ -1,9 +1,10 @@
 package datadog.trace.agent.test.asserts
 
-import datadog.trace.api.DDId
-import datadog.trace.core.DDSpan
 import datadog.trace.api.Config
+import datadog.trace.api.DDId
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 
@@ -36,8 +37,8 @@ class TagsAssert {
   def defaultTags(boolean distributedRootSpan = false) {
     assertedTags.add("thread.name")
     assertedTags.add("thread.id")
-    assertedTags.add(Config.RUNTIME_ID_TAG)
-    assertedTags.add(Config.LANGUAGE_TAG_KEY)
+    assertedTags.add(DDTags.RUNTIME_ID_TAG)
+    assertedTags.add(DDTags.LANGUAGE_TAG_KEY)
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null
@@ -46,16 +47,16 @@ class TagsAssert {
 
     boolean isRoot = (DDId.ZERO == spanParentId)
     if (isRoot || distributedRootSpan) {
-      assert tags[Config.RUNTIME_ID_TAG] == Config.get().runtimeId
+      assert tags[DDTags.RUNTIME_ID_TAG] == Config.get().runtimeId
     } else {
-      assert tags[Config.RUNTIME_ID_TAG] == null
+      assert tags[DDTags.RUNTIME_ID_TAG] == null
     }
 
     boolean isServer = (tags[Tags.SPAN_KIND] == Tags.SPAN_KIND_SERVER)
     if (isRoot || distributedRootSpan || isServer) {
-      assert tags[Config.LANGUAGE_TAG_KEY] == Config.LANGUAGE_TAG_VALUE
+      assert tags[DDTags.LANGUAGE_TAG_KEY] == DDTags.LANGUAGE_TAG_VALUE
     } else {
-      assert tags[Config.LANGUAGE_TAG_KEY] == null
+      assert tags[DDTags.LANGUAGE_TAG_KEY] == null
     }
   }
 

@@ -2,7 +2,6 @@ package datadog.trace.core
 
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
-import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.writer.ListWriter
@@ -10,6 +9,11 @@ import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.propagation.TagContext
 import datadog.trace.util.test.DDSpecification
 
+import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
+import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
+import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
+import static datadog.trace.api.DDTags.THREAD_ID
+import static datadog.trace.api.DDTags.THREAD_NAME
 import static datadog.trace.core.DDSpanContext.ORIGIN_KEY
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
@@ -56,10 +60,10 @@ class CoreSpanBuilderTest extends DDSpecification {
 
     then:
     span.getTags() == [
-      (DDTags.THREAD_NAME)     : Thread.currentThread().getName(),
-      (DDTags.THREAD_ID)       : Thread.currentThread().getId(),
-      (Config.RUNTIME_ID_TAG)  : config.getRuntimeId(),
-      (Config.LANGUAGE_TAG_KEY): Config.LANGUAGE_TAG_VALUE,
+      (THREAD_NAME)     : Thread.currentThread().getName(),
+      (THREAD_ID)       : Thread.currentThread().getId(),
+      (RUNTIME_ID_TAG)  : config.getRuntimeId(),
+      (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
     ]
 
     when:
@@ -86,8 +90,8 @@ class CoreSpanBuilderTest extends DDSpecification {
     context.getServiceName() == expectedService
     context.getSpanType() == expectedType
 
-    context.tags[DDTags.THREAD_NAME] == Thread.currentThread().getName()
-    context.tags[DDTags.THREAD_ID] == Thread.currentThread().getId()
+    context.tags[THREAD_NAME] == Thread.currentThread().getName()
+    context.tags[THREAD_ID] == Thread.currentThread().getId()
   }
 
   def "setting #name should remove"() {
@@ -298,12 +302,12 @@ class CoreSpanBuilderTest extends DDSpecification {
     span.samplingPriority == extractedContext.samplingPriority
     span.context().origin == extractedContext.origin
     span.context().baggageItems == extractedContext.baggage
-    span.context().@tags == extractedContext.tags + [(Config.RUNTIME_ID_TAG)  : config.getRuntimeId(),
-                                                     (Config.LANGUAGE_TAG_KEY): Config.LANGUAGE_TAG_VALUE,
-                                                     (DDTags.THREAD_NAME)     : thread.name, (DDTags.THREAD_ID): thread.id]
+    span.context().@tags == extractedContext.tags + [(RUNTIME_ID_TAG)  : config.getRuntimeId(),
+                                                     (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
+                                                     (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
 
     where:
-    extractedContext                                                                                                | _
+    extractedContext                                                                                                                    | _
     new ExtractedContext(DDId.ONE, DDId.from(2), 0, null, [:], [:])                                                                     | _
     new ExtractedContext(DDId.from(3), DDId.from(4), 1, "some-origin", ["asdf": "qwer"], [(ORIGIN_KEY): "some-origin", "zxcv": "1234"]) | _
   }
@@ -319,9 +323,9 @@ class CoreSpanBuilderTest extends DDSpecification {
     span.samplingPriority == null
     span.context().origin == tagContext.origin
     span.context().baggageItems == [:]
-    span.context().@tags == tagContext.tags + [(Config.RUNTIME_ID_TAG)  : config.getRuntimeId(),
-                                               (Config.LANGUAGE_TAG_KEY): Config.LANGUAGE_TAG_VALUE,
-                                               (DDTags.THREAD_NAME)     : thread.name, (DDTags.THREAD_ID): thread.id]
+    span.context().@tags == tagContext.tags + [(RUNTIME_ID_TAG)  : config.getRuntimeId(),
+                                               (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
+                                               (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
 
     where:
     tagContext                                                                   | _
@@ -338,10 +342,10 @@ class CoreSpanBuilderTest extends DDSpecification {
 
     expect:
     span.tags == tags + [
-      (DDTags.THREAD_NAME)     : Thread.currentThread().getName(),
-      (DDTags.THREAD_ID)       : Thread.currentThread().getId(),
-      (Config.RUNTIME_ID_TAG)  : config.getRuntimeId(),
-      (Config.LANGUAGE_TAG_KEY): Config.LANGUAGE_TAG_VALUE,
+      (THREAD_NAME)     : Thread.currentThread().getName(),
+      (THREAD_ID)       : Thread.currentThread().getId(),
+      (RUNTIME_ID_TAG)  : config.getRuntimeId(),
+      (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
     ]
 
     cleanup:

@@ -2,13 +2,13 @@ package datadog.trace.core.jfr.openjdk
 
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Config
+import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
-import datadog.trace.api.DDId
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.util.ThreadCpuTimeAccess
@@ -17,7 +17,7 @@ import spock.lang.Requires
 
 import java.time.Duration
 
-import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 
 @Requires({ jvm.java11Compatible })
 class ScopeEventTest extends DDSpecification {

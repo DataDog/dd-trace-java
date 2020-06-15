@@ -1,6 +1,7 @@
 package datadog.opentracing;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -180,7 +181,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   @Builder
   // These field names must be stable to ensure the builder api is stable.
   private DDTracer(
-      final Config config,
+      @Deprecated final Config config,
       final String serviceName,
       final Writer writer,
       final Sampler sampler,
@@ -200,8 +201,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
       converter = new TypeConverter(new DefaultLogHandler());
     }
 
-    // Each of these are only overriden if set
-    // Otherwise, the values retrieved from config will be overriden with null
+    // Each of these are only overridden if set
+    // Otherwise, the values retrieved from config will be overridden with null
     CoreTracer.CoreTracerBuilder builder = CoreTracer.builder();
 
     if (config != null) {
@@ -266,7 +267,7 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
   private static Map<String, String> customRuntimeTags(
       final String runtimeId, final Map<String, String> applicationRootSpanTags) {
     final Map<String, String> runtimeTags = new HashMap<>(applicationRootSpanTags);
-    runtimeTags.put(Config.RUNTIME_ID_TAG, runtimeId);
+    runtimeTags.put(DDTags.RUNTIME_ID_TAG, runtimeId);
     return Collections.unmodifiableMap(runtimeTags);
   }
 

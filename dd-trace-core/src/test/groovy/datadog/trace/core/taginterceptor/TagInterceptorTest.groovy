@@ -1,7 +1,6 @@
 package datadog.trace.core.taginterceptor
 
 import datadog.trace.agent.test.utils.ConfigUtils
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
@@ -13,19 +12,20 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.SpanFactory
 import datadog.trace.util.test.DDSpecification
 
-import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
+import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 
 class TagInterceptorTest extends DDSpecification {
   static {
     ConfigUtils.updateConfig {
-      System.setProperty("dd.$Config.SPLIT_BY_TAGS", "sn.tag1,sn.tag2")
+      System.setProperty("dd.$SPLIT_BY_TAGS", "sn.tag1,sn.tag2")
     }
   }
 
   def cleanupSpec() {
     ConfigUtils.updateConfig {
-      System.clearProperty("dd.$Config.SPLIT_BY_TAGS")
+      System.clearProperty("dd.$SPLIT_BY_TAGS")
     }
   }
   def tracer = CoreTracer.builder().writer(new LoggingWriter()).build()

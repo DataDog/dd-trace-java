@@ -1,9 +1,9 @@
 package datadog.trace.common.writer;
 
-import static datadog.trace.api.Config.DEFAULT_AGENT_HOST;
-import static datadog.trace.api.Config.DEFAULT_AGENT_TIMEOUT;
-import static datadog.trace.api.Config.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
-import static datadog.trace.api.Config.DEFAULT_TRACE_AGENT_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 
 import com.lmax.disruptor.EventFactory;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
@@ -73,7 +73,7 @@ public class DDAgentWriter implements Writer {
 
   @Deprecated
   public DDAgentWriter(final DDAgentApi api, final Monitor monitor) {
-    StatefulSerializer serializer = new MsgPackStatefulSerializer();
+    final StatefulSerializer serializer = new MsgPackStatefulSerializer();
     this.api = api;
     this.monitor = monitor;
     dispatchingDisruptor =
@@ -110,9 +110,9 @@ public class DDAgentWriter implements Writer {
     }
     final StatefulSerializer s = null == serializer ? new MsgPackStatefulSerializer() : serializer;
     this.monitor = monitor;
-    this.dispatchingDisruptor =
+    dispatchingDisruptor =
         new DispatchingDisruptor(OUTSTANDING_REQUESTS, toEventFactory(s), api, monitor, this);
-    this.traceProcessingDisruptor =
+    traceProcessingDisruptor =
         new TraceProcessingDisruptor(
             traceBufferSize,
             dispatchingDisruptor,
@@ -197,7 +197,7 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public void close() {
-    boolean flushed = flush();
+    final boolean flushed = flush();
     closed = true;
     try {
       traceProcessingDisruptor.close();
@@ -230,7 +230,7 @@ public class DDAgentWriter implements Writer {
   private static final class SerializerBackedEventFactory implements EventFactory<TraceBuffer> {
     private final StatefulSerializer serializer;
 
-    private SerializerBackedEventFactory(StatefulSerializer serializer) {
+    private SerializerBackedEventFactory(final StatefulSerializer serializer) {
       this.serializer = serializer;
     }
 
