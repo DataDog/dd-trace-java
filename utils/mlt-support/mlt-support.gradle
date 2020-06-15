@@ -32,7 +32,9 @@ excludedClassesCoverage += [
   // MLTReader and MLTWriter are exercised in mlt-agent project tests
   'com.datadog.mlt.io.MLTWriter',
   'com.datadog.mlt.io.MLTReader',
-  'com.datadog.mlt.io.MLTConstants'
+  'com.datadog.mlt.io.MLTConstants',
+  'com.datadog.mlt.io.LEB128ByteArrayWriter',
+  'com.datadog.mlt.io.LEB128WriterFactory'
 ]
 
 sourceCompatibility = JavaVersion.VERSION_1_8
