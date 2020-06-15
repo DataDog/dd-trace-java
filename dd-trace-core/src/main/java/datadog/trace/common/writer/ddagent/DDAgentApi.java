@@ -38,7 +38,6 @@ public class DDAgentApi {
   private static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
   private static final String X_DATADOG_TRACE_COUNT = "X-Datadog-Trace-Count";
 
-  private static final int HTTP_TIMEOUT = 1; // 1 second for conenct/read/write operations
   private static final String TRACES_ENDPOINT_V3 = "v0.3/traces";
   private static final String TRACES_ENDPOINT_V4 = "v0.4/traces";
   private static final long MILLISECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toMillis(5);
@@ -60,13 +59,19 @@ public class DDAgentApi {
   private final String host;
   private final int port;
   private final String unixDomainSocketPath;
+  private final long timeoutMillis;
   private OkHttpClient httpClient;
   private HttpUrl tracesUrl;
 
-  public DDAgentApi(final String host, final int port, final String unixDomainSocketPath) {
+  public DDAgentApi(
+      final String host,
+      final int port,
+      final String unixDomainSocketPath,
+      final long timeoutMillis) {
     this.host = host;
     this.port = port;
     this.unixDomainSocketPath = unixDomainSocketPath;
+    this.timeoutMillis = timeoutMillis;
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -161,9 +166,12 @@ public class DDAgentApi {
   private static final byte[] EMPTY_LIST = new byte[] {FIXARRAY_PREFIX};
 
   private static boolean endpointAvailable(
-      final HttpUrl url, final String unixDomainSocketPath, final boolean retry) {
+      final HttpUrl url,
+      final String unixDomainSocketPath,
+      final long timeoutMillis,
+      final boolean retry) {
     try {
-      final OkHttpClient client = buildHttpClient(unixDomainSocketPath);
+      final OkHttpClient client = buildHttpClient(unixDomainSocketPath, timeoutMillis);
       final RequestBody body = RequestBody.create(MSGPACK, EMPTY_LIST);
       final Request request = prepareRequest(url).put(body).build();
 
@@ -172,21 +180,22 @@ public class DDAgentApi {
       }
     } catch (final IOException e) {
       if (retry) {
-        return endpointAvailable(url, unixDomainSocketPath, false);
+        return endpointAvailable(url, unixDomainSocketPath, timeoutMillis, false);
       }
     }
     return false;
   }
 
-  private static OkHttpClient buildHttpClient(final String unixDomainSocketPath) {
+  private static OkHttpClient buildHttpClient(
+      final String unixDomainSocketPath, final long timeoutMillis) {
     OkHttpClient.Builder builder = new OkHttpClient.Builder();
     if (unixDomainSocketPath != null) {
       builder = builder.socketFactory(new UnixDomainSocketFactory(new File(unixDomainSocketPath)));
     }
     return builder
-        .connectTimeout(HTTP_TIMEOUT, TimeUnit.SECONDS)
-        .writeTimeout(HTTP_TIMEOUT, TimeUnit.SECONDS)
-        .readTimeout(HTTP_TIMEOUT, TimeUnit.SECONDS)
+        .connectTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
+        .writeTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
+        .readTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
 
         // We only use http to talk to the agent
         .connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT))
@@ -223,16 +232,16 @@ public class DDAgentApi {
     }
   }
 
-  private synchronized void detectEndpointAndBuildClient() {
+  void detectEndpointAndBuildClient() {
     if (httpClient == null) {
       final HttpUrl v4Url = getUrl(host, port, TRACES_ENDPOINT_V4);
-      if (endpointAvailable(v4Url, unixDomainSocketPath, true)) {
+      if (endpointAvailable(v4Url, unixDomainSocketPath, timeoutMillis, true)) {
         tracesUrl = v4Url;
       } else {
         log.debug("API v0.4 endpoints not available. Downgrading to v0.3");
         tracesUrl = getUrl(host, port, TRACES_ENDPOINT_V3);
       }
-      httpClient = buildHttpClient(unixDomainSocketPath);
+      httpClient = buildHttpClient(unixDomainSocketPath, timeoutMillis);
     }
   }
 

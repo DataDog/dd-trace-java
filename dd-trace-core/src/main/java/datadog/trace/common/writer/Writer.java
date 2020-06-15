@@ -7,6 +7,7 @@ import datadog.trace.core.DDSpan;
 import java.io.Closeable;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 /** A writer is responsible to send collected spans to some place */
@@ -72,7 +73,10 @@ public interface Writer extends Closeable {
 
     private static DDAgentApi createApi(final Config config) {
       return new DDAgentApi(
-          config.getAgentHost(), config.getAgentPort(), config.getAgentUnixDomainSocket());
+          config.getAgentHost(),
+          config.getAgentPort(),
+          config.getAgentUnixDomainSocket(),
+          TimeUnit.SECONDS.toMillis(config.getAgentTimeout()));
     }
 
     private static Monitor createMonitor(final Config config) {

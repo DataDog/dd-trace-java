@@ -49,7 +49,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
     def request = prepareTraces([])
     expect:
     def response = client.sendSerializedTraces(request)
@@ -74,7 +74,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
     def request = prepareTraces([])
     expect:
     def response = client.sendSerializedTraces(request)
@@ -95,7 +95,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
     def request = prepareTraces(traces)
 
     expect:
@@ -171,7 +171,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
     client.addResponseListener(responseListener)
     def request = prepareTraces([[], [], []])
 
@@ -198,7 +198,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", v3Agent.address.port, null)
+    def client = new DDAgentApi("localhost", v3Agent.address.port, null, 1000)
     def request = prepareTraces([])
     expect:
     client.sendSerializedTraces(request).success()
@@ -225,7 +225,7 @@ class DDAgentApiTest extends DDSpecification {
       }
     }
     def port = badPort ? 999 : agent.address.port
-    def client = new DDAgentApi("localhost", port, null)
+    def client = new DDAgentApi("localhost", port, null, 1000)
     def request = prepareTraces([])
     def result = client.sendSerializedTraces(request)
 
@@ -257,7 +257,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
     def request = prepareTraces(traces)
     when:
     def success = client.sendSerializedTraces(request).success()
