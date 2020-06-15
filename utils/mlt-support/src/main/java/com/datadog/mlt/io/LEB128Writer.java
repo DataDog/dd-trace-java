@@ -318,15 +318,18 @@ public interface LEB128Writer {
     final byte[][] dataRef = new byte[1][];
     export(
         buffer -> {
-          int len = buffer.position();
-          dataRef[0] = new byte[len];
           if (buffer.hasArray()) {
-            System.arraycopy(buffer.array(), buffer.arrayOffset(), dataRef[0], 0, len);
+            int len = buffer.remaining();
+            dataRef[0] = new byte[len];
+            System.arraycopy(buffer.array(), buffer.arrayOffset() + buffer.position(), dataRef[0], 0, len);
             buffer.position(buffer.limit());
           } else {
+            int limit = buffer.limit();
             buffer.flip();
+            int len = buffer.remaining();
+            dataRef[0] = new byte[len];
             buffer.get(dataRef[0]);
-            buffer.limit(buffer.capacity());
+            buffer.limit(limit);
           }
         });
     return dataRef[0];
