@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.twilio;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NamedOneOfMatcher.namedOneOf;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.DECORATE;
@@ -46,11 +46,12 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<? super net.bytebuddy.description.type.TypeDescription> typeMatcher() {
     return extendsClass(
-        named("com.twilio.base.Creator")
-            .or(named("com.twilio.base.Deleter"))
-            .or(named("com.twilio.base.Fetcher"))
-            .or(named("com.twilio.base.Reader"))
-            .or(named("com.twilio.base.Updater")));
+        namedOneOf(
+            "com.twilio.base.Creator",
+            "com.twilio.base.Deleter",
+            "com.twilio.base.Fetcher",
+            "com.twilio.base.Reader",
+            "com.twilio.base.Updater"));
   }
 
   /** Return the helper classes which will be available for use in instrumentation. */

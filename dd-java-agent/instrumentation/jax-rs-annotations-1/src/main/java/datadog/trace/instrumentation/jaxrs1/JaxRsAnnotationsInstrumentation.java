@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jaxrs1;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasSuperMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -66,13 +67,14 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Default 
             .and(
                 hasSuperMethod(
                     isAnnotatedWith(
-                        named("javax.ws.rs.Path")
-                            .or(named("javax.ws.rs.DELETE"))
-                            .or(named("javax.ws.rs.GET"))
-                            .or(named("javax.ws.rs.HEAD"))
-                            .or(named("javax.ws.rs.OPTIONS"))
-                            .or(named("javax.ws.rs.POST"))
-                            .or(named("javax.ws.rs.PUT"))))),
+                        namedOneOf(
+                            "javax.ws.rs.Path",
+                            "javax.ws.rs.DELETE",
+                            "javax.ws.rs.GET",
+                            "javax.ws.rs.HEAD",
+                            "javax.ws.rs.OPTIONS",
+                            "javax.ws.rs.POST",
+                            "javax.ws.rs.PUT")))),
         JaxRsAnnotationsInstrumentation.class.getName() + "$JaxRsAnnotationsAdvice");
   }
 

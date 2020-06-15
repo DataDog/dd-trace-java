@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet.dispatcher;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -62,8 +63,7 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        named("forward")
-            .or(named("include"))
+        namedOneOf("forward", "include")
             .and(takesArguments(2))
             .and(takesArgument(0, named("javax.servlet.ServletRequest")))
             .and(takesArgument(1, named("javax.servlet.ServletResponse")))
