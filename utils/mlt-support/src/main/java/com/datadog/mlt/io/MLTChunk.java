@@ -1,6 +1,8 @@
 package com.datadog.mlt.io;
 
+import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.Data;
@@ -44,5 +46,10 @@ public final class MLTChunk implements IMLTChunk {
   @Override
   public byte[] serialize() {
     return writer.writeChunk(this);
+  }
+
+  @Override
+  public void serialize(Consumer<ByteBuffer> consumer) {
+    writer.writeChunk(this, consumer);
   }
 }

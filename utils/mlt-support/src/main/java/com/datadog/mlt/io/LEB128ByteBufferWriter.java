@@ -1,6 +1,7 @@
 package com.datadog.mlt.io;
 
 import java.nio.ByteBuffer;
+import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -101,11 +102,8 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
   }
 
   @Override
-  public byte[] toByteArray() {
-    buffer.flip();
-    byte[] data = new byte[buffer.remaining()];
-    buffer.get(data, 0, data.length);
-    return data;
+  public void export(Consumer<ByteBuffer> consumer) {
+    consumer.accept(buffer);
   }
 
   @Override

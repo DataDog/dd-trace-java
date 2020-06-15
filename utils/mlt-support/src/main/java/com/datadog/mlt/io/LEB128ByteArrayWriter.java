@@ -1,6 +1,8 @@
 package com.datadog.mlt.io;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.function.Consumer;
 
 /** Byte-array writer with default support for LEB128 encoded integer types */
 final class LEB128ByteArrayWriter extends AbstractLEB128Writer {
@@ -82,8 +84,8 @@ final class LEB128ByteArrayWriter extends AbstractLEB128Writer {
   }
 
   @Override
-  public byte[] toByteArray() {
-    return Arrays.copyOf(array, pointer);
+  public void export(Consumer<ByteBuffer> consumer) {
+    consumer.accept(ByteBuffer.wrap(array, 0, pointer));
   }
 
   @Override

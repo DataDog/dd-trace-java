@@ -1,5 +1,8 @@
 package com.datadog.mlt.io;
 
+import java.nio.ByteBuffer;
+import java.util.function.Consumer;
+
 public interface LEB128Writer {
   int EXT_BIT = 0x80;
   long COMPRESSED_INT_MASK = -EXT_BIT;
@@ -311,7 +314,30 @@ public interface LEB128Writer {
    *
    * @return byte array containing the written data
    */
-  byte[] toByteArray();
+  default byte[] export() {
+    final byte[][] dataRef = new byte[1][];
+    export(
+        buffer -> {
+          int len = buffer.position();
+          dataRef[0] = new byte[len];
+          if (buffer.hasArray()) {
+            System.arraycopy(buffer.array(), buffer.arrayOffset(), dataRef[0], 0, len);
+            buffer.position(buffer.limit());
+          } else {
+            buffer.flip();
+            buffer.get(dataRef[0]);
+            buffer.limit(buffer.capacity());
+          }
+        });
+    return dataRef[0];
+  }
+
+  /**
+   * Transfer the written data as a {@linkplain ByteBuffer}
+   *
+   * @param consumer a {@linkplain ByteBuffer} callback
+   */
+  void export(Consumer<ByteBuffer> consumer);
 
   /** @return current writer position */
   int position();
