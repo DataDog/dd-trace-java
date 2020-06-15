@@ -2,13 +2,14 @@ package datadog.trace.instrumentation.servlet.http;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ModifierMatchers.ModifierConstraint.PROTECTED;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ModifierMatchers.ModifierConstraint.PUBLIC;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ModifierMatchers.permitPositiveDenyNegativeModifiers;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.servlet.http.HttpServletDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.isProtected;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -19,6 +20,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
+import java.util.EnumSet;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -65,7 +67,7 @@ public final class HttpServletInstrumentation extends Instrumenter.Default {
             .or(nameStartsWith("do")) // doGet, doPost, etc
             .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
             .and(takesArgument(1, named("javax.servlet.http.HttpServletResponse")))
-            .and(isProtected().or(isPublic())),
+            .and(permitPositiveDenyNegativeModifiers(EnumSet.of(PROTECTED, PUBLIC))),
         getClass().getName() + "$HttpServletAdvice");
   }
 

@@ -1,11 +1,12 @@
 package datadog.trace.instrumentation.classloading;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ModifierMatchers.ModifierConstraint.NON_STATIC;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ModifierMatchers.ModifierConstraint.PROTECTED;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ModifierMatchers.ModifierConstraint.PUBLIC;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ModifierMatchers.permitPositiveDenyNegativeModifiers;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isProtected;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -15,6 +16,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Constants;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import java.util.EnumSet;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -64,8 +66,7 @@ public final class ClassloadingInstrumentation extends Instrumenter.Default {
                         takesArguments(2)
                             .and(takesArgument(0, named("java.lang.String")))
                             .and(takesArgument(1, named("boolean")))))
-            .and(isPublic().or(isProtected()))
-            .and(not(isStatic())),
+            .and(permitPositiveDenyNegativeModifiers(EnumSet.of(PUBLIC, PROTECTED, NON_STATIC))),
         ClassloadingInstrumentation.class.getName() + "$LoadClassAdvice");
   }
 
