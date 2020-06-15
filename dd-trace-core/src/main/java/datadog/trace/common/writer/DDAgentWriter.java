@@ -1,6 +1,7 @@
 package datadog.trace.common.writer;
 
 import static datadog.trace.api.Config.DEFAULT_AGENT_HOST;
+import static datadog.trace.api.Config.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.Config.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.Config.DEFAULT_TRACE_AGENT_PORT;
 
@@ -53,6 +54,7 @@ public class DDAgentWriter implements Writer {
     String agentHost = DEFAULT_AGENT_HOST;
     int traceAgentPort = DEFAULT_TRACE_AGENT_PORT;
     String unixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
+    long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
     int traceBufferSize = DISRUPTOR_BUFFER_SIZE;
     Monitor monitor = new Monitor.Noop();
     int flushFrequencySeconds = 1;
@@ -62,7 +64,10 @@ public class DDAgentWriter implements Writer {
   public DDAgentWriter() {
     this(
         new DDAgentApi(
-            DEFAULT_AGENT_HOST, DEFAULT_TRACE_AGENT_PORT, DEFAULT_AGENT_UNIX_DOMAIN_SOCKET),
+            DEFAULT_AGENT_HOST,
+            DEFAULT_TRACE_AGENT_PORT,
+            DEFAULT_AGENT_UNIX_DOMAIN_SOCKET,
+            TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT)),
         new Monitor.Noop());
   }
 
@@ -93,6 +98,7 @@ public class DDAgentWriter implements Writer {
       final String agentHost,
       final int traceAgentPort,
       final String unixDomainSocket,
+      final long timeoutMillis,
       final int traceBufferSize,
       final Monitor monitor,
       final int flushFrequencySeconds,
@@ -100,7 +106,7 @@ public class DDAgentWriter implements Writer {
     if (agentApi != null) {
       api = agentApi;
     } else {
-      api = new DDAgentApi(agentHost, traceAgentPort, unixDomainSocket);
+      api = new DDAgentApi(agentHost, traceAgentPort, unixDomainSocket, timeoutMillis);
     }
     final StatefulSerializer s = null == serializer ? new MsgPackStatefulSerializer() : serializer;
     this.monitor = monitor;
