@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.http_url_connection;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NamedOneOfMatcher.namedOneOf;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;

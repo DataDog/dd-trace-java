@@ -13,7 +13,7 @@ import net.bytebuddy.dynamic.ClassFileLocator
 import org.slf4j.LoggerFactory
 import spock.lang.Shared
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NamedOneOfMatcher.namedOneOf
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf
 import static net.bytebuddy.matcher.ElementMatchers.isMethod
 import static net.bytebuddy.matcher.ElementMatchers.named
 

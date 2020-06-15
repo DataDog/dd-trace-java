@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.elasticsearch5;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NamedOneOfMatcher.namedOneOf;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.elasticsearch.ElasticsearchRestClientDecorator.DECORATE;

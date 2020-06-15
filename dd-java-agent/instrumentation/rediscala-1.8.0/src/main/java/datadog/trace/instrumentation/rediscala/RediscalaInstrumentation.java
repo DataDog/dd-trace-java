@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.rediscala;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -37,10 +38,12 @@ public final class RediscalaInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return safeHasSuperType(named("redis.ActorRequest"))
-        .or(safeHasSuperType(named("redis.Request")))
-        .or(safeHasSuperType(named("redis.BufferedRequest")))
-        .or(safeHasSuperType(named("redis.RoundRobinPoolRequest")));
+    return safeHasSuperType(
+        namedOneOf(
+            "redis.ActorRequest",
+            "redis.Request",
+            "redis.BufferedRequest",
+            "redis.RoundRobinPoolRequest"));
   }
 
   @Override

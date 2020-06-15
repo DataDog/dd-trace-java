@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.hibernate.core.v3_3;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NamedOneOfMatcher.namedOneOf;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.hibernate.HibernateDecorator.DECORATOR;
 import static java.util.Collections.singletonMap;
