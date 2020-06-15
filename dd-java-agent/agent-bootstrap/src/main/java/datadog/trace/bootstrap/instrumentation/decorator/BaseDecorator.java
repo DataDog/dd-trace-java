@@ -168,10 +168,8 @@ public abstract class BaseDecorator {
    * @return
    */
   public String spanNameForClass(final Class<?> clazz) {
-    if (!clazz.isAnonymousClass()) {
-      return clazz.getSimpleName();
-    }
-    return CLASS_NAMES.get(clazz).getName();
+    String simpleName = clazz.getSimpleName();
+    return simpleName.isEmpty() ? CLASS_NAMES.get(clazz).getName() : simpleName;
   }
 
   private static class ClassName {
@@ -197,12 +195,12 @@ public abstract class BaseDecorator {
   }
 
   private static String getClassName(Class<?> clazz) {
-    String name = clazz.getName();
-    int start = name.lastIndexOf('.');
-    if (!clazz.isAnonymousClass()) {
-      int qualifier = name.indexOf('$', start);
-      return name.substring(Math.max(start, qualifier) + 1);
+    String simpleName = clazz.getSimpleName();
+    if (simpleName.isEmpty()) {
+      String name = clazz.getName();
+      int start = name.lastIndexOf('.');
+      return name.substring(start + 1);
     }
-    return name.substring(start + 1);
+    return simpleName;
   }
 }
