@@ -72,7 +72,7 @@ ext {
       dependencies.create(group: 'org.openjdk.jmc', name: 'flightrecorder', version: versions.jmc)
     ],
 
-    // Shared between agent tooling and instrumentation and JMXFetch
+    // Shared between agent tooling, instrumentation, JMXFetch, and profiling
     shared        : [
       dependencies.create(group: 'com.squareup.okhttp3', name: 'okhttp', version: versions.okhttp),
       dependencies.create(group: 'com.datadoghq', name: 'java-dogstatsd-client', version: versions.dogstatsd),
