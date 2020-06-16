@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 class LEB128ByteArrayReaderTest {
   @Test
   void sanity() {
-    LEB128ByteArrayWriter writer = new LEB128ByteArrayWriter(2048);
+    LEB128Writer writer = LEB128Writer.getInstance(2048);
     byte b = Byte.MAX_VALUE - 1;
     char c = Character.MAX_VALUE - 1;
     short s = Short.MAX_VALUE - 1;
@@ -33,7 +33,7 @@ class LEB128ByteArrayReaderTest {
     assertTrue(writer.length() > 0);
     assertTrue(writer.length() >= writer.position());
 
-    LEB128ByteArrayReader reader = new LEB128ByteArrayReader(writer.toByteArray());
+    LEB128ByteArrayReader reader = new LEB128ByteArrayReader(writer.export());
     assertEquals(b, reader.readByte());
     assertEquals(c, reader.readChar());
     assertEquals(s, reader.readShort());

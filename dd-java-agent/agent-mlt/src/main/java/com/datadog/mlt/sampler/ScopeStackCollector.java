@@ -8,8 +8,10 @@ import com.datadog.mlt.io.MLTWriter;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntList;
+import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.Getter;
@@ -105,6 +107,11 @@ final class ScopeStackCollector implements IMLTChunk {
   @Override
   public byte[] serialize() {
     return chunkWriter.writeChunk(this);
+  }
+
+  @Override
+  public void serialize(Consumer<ByteBuffer> consumer) {
+    chunkWriter.writeChunk(this, consumer);
   }
 
   void addCompressedStackptr(int stackptr) {

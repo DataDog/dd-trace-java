@@ -1,5 +1,7 @@
 package com.datadog.mlt.io;
 
+import java.nio.ByteBuffer;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -41,6 +43,13 @@ public interface IMLTChunk {
    * @return the contents of the chunk in the MLT binary format
    */
   byte[] serialize();
+
+  /**
+   * Write out the contents of the chunk in the MLT binary format
+   *
+   * @param consumer a {@linkplain ByteBuffer} based callback to export the contents
+   */
+  void serialize(Consumer<ByteBuffer> consumer);
 
   /**
    * A helper method to expand the compressed version of the {@linkplain FrameSequence} CP index

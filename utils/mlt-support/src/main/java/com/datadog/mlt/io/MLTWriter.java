@@ -2,13 +2,20 @@ package com.datadog.mlt.io;
 
 import it.unimi.dsi.fastutil.ints.IntArraySet;
 import it.unimi.dsi.fastutil.ints.IntSet;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
-import java.util.stream.Stream;
-import lombok.Generated;
 
 /** The MLT binary format writer */
 public final class MLTWriter {
+  private static final int CHUNK_WRITER_CAPACITY = 512 * 1024; // initial 512kB for chunk writer
+  private static final int FRAME_STACK_WRITER_CAPACITY =
+      256 * 1024; // initial 256kB for frame stack writer
+  private final LEB128Writer chunkWriter = LEB128Writer.getInstance(CHUNK_WRITER_CAPACITY);
+  private final LEB128Writer frameStackDataWriter =
+      LEB128Writer.getInstance(FRAME_STACK_WRITER_CAPACITY);
+
   /**
    * Write a single chunk to its binary format
    *
@@ -16,26 +23,18 @@ public final class MLTWriter {
    * @return chunk in its MLT binary format
    */
   public byte[] writeChunk(IMLTChunk chunk) {
-    LEB128ByteArrayWriter writer =
-        new LEB128ByteArrayWriter(16384); // conservatively pre-allocate 16k byte array
-    writeChunk(chunk, writer);
-    return writer.toByteArray();
+    writeChunk(chunk, chunkWriter);
+    byte[] data = chunkWriter.export();
+    chunkWriter.reset();
+    return data;
   }
 
-  /**
-   * Write multiple chunks into one blob
-   *
-   * @param chunks the chunk sequence
-   * @return the MLT binary format representation of the given chunks sequence
-   */
-  @Generated // trivial delegating implementation; exclude from jacoco
-  public byte[] writeChunks(Stream<IMLTChunk> chunks) {
-    LEB128ByteArrayWriter writer = new LEB128ByteArrayWriter(65536); // 64k buffer
-    chunks.forEach(chunk -> writeChunk(chunk, writer));
-    return writer.toByteArray();
+  public void writeChunk(IMLTChunk chunk, Consumer<ByteBuffer> dataConsumer) {
+    writeChunk(chunk, chunkWriter);
+    chunkWriter.export(dataConsumer);
   }
 
-  private void writeChunk(IMLTChunk chunk, LEB128ByteArrayWriter writer) {
+  private void writeChunk(IMLTChunk chunk, LEB128Writer writer) {
     writer
         .writeBytes(MLTConstants.MAGIC) // MAGIC
         .writeByte(chunk.getVersion()) // version
@@ -52,9 +51,9 @@ public final class MLTWriter {
     /*
      * Write out the stack trace sequence and collect the constant pool usage.
      * In order collect the data and count it in one pass the intermediary result is written to a separate
-     * byte array.
+     * writer.
      */
-    LEB128ByteArrayWriter stackEventWriter = new LEB128ByteArrayWriter(8192);
+    LEB128Writer stackEventWriter = frameStackDataWriter;
     int[] eventCount = new int[1];
     chunk
         .frameSequenceCpIndexes()
@@ -73,7 +72,7 @@ public final class MLTWriter {
               }
             });
     writer.writeInt(eventCount[0]);
-    writer.writeBytes(stackEventWriter.toByteArray());
+    writer.writeBytes(stackEventWriter.export());
 
     writer.writeIntRaw(
         MLTConstants.CONSTANT_POOLS_OFFSET, writer.position()); // write the constant pools offset
@@ -83,8 +82,7 @@ public final class MLTWriter {
     writer.writeIntRaw(MLTConstants.CHUNK_SIZE_OFFSET, writer.position()); // write the chunk size
   }
 
-  private void writeStackPool(
-      IMLTChunk chunk, LEB128ByteArrayWriter writer, IntSet stackConstants) {
+  private void writeStackPool(IMLTChunk chunk, LEB128Writer writer, IntSet stackConstants) {
     // write stack pool array
     writer.writeInt(stackConstants.size());
     stackConstants
@@ -117,8 +115,7 @@ public final class MLTWriter {
                 });
   }
 
-  private void writeFramePool(
-      IMLTChunk chunk, LEB128ByteArrayWriter writer, IntSet frameConstants) {
+  private void writeFramePool(IMLTChunk chunk, LEB128Writer writer, IntSet frameConstants) {
     // write frame pool array
     writer.writeInt(frameConstants.size());
     frameConstants
@@ -135,8 +132,7 @@ public final class MLTWriter {
                 });
   }
 
-  private void writeStringPool(
-      IMLTChunk chunk, LEB128ByteArrayWriter writer, IntSet stringConstants) {
+  private void writeStringPool(IMLTChunk chunk, LEB128Writer writer, IntSet stringConstants) {
     // write constant pool array
     writer.writeInt(stringConstants.size() + 1);
     byte[] threadNameUtf = chunk.getThreadName().getBytes(StandardCharsets.UTF_8);
