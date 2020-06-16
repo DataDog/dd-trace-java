@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -50,6 +51,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 import net.jpountz.lz4.LZ4FrameInputStream;
+import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.HttpUrl;
 import okhttp3.mockwebserver.MockResponse;
@@ -152,7 +154,7 @@ public class ProfileUploaderTest {
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(url, recordedRequest.getRequestUrl());
 
-    assertEquals(API_KEY_VALUE, recordedRequest.getHeader("DD-API-KEY"));
+    assertEquals(API_KEY_VALUE, recordedRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
 
     final Multimap<String, Object> parameters =
         ProfilingTestUtils.parseProfilingRequestParameters(recordedRequest);
@@ -193,6 +195,60 @@ public class ProfileUploaderTest {
   }
 
   @Test
+  public void testRequestWithContainerId() throws IOException, InterruptedException {
+    uploader = new ProfileUploader(config, "container-id");
+
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+
+    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(request);
+    assertEquals(request.getHeader(ProfileUploader.HEADER_DD_CONTAINER_ID), "container-id");
+  }
+
+  @Test
+  public void testRequestWithNoAPIKey() throws IOException, InterruptedException {
+    when(config.getApiKey()).thenReturn(null);
+
+    uploader = new ProfileUploader(config);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+
+    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(request);
+    assertNull(request.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+  }
+
+  @Test
+  public void test404WithoutAPIKey() throws IOException, InterruptedException {
+    // test added to get the coverage checks to pass since we log conditionally in this case
+    when(config.getApiKey()).thenReturn(null);
+
+    uploader = new ProfileUploader(config);
+    server.enqueue(new MockResponse().setResponseCode(404));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+
+    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(request);
+    assertNull(request.getHeader(ProfileUploader.HEADER_DD_API_KEY));
+    // it would be nice if the test asserted the log line was written out, but it's not essential
+  }
+
+  @Test
+  public void test404WithAPIKey() throws IOException, InterruptedException {
+    // test added to get the coverage checks to pass since we log conditionally in this case
+    when(config.getApiKey()).thenReturn(API_KEY_VALUE);
+
+    uploader = new ProfileUploader(config);
+    server.enqueue(new MockResponse().setResponseCode(404));
+    uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
+
+    final RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+    assertNotNull(request);
+    assertEquals(request.getHeader(ProfileUploader.HEADER_DD_API_KEY), API_KEY_VALUE);
+  }
+
+  @Test
   public void testRequestWithProxy() throws IOException, InterruptedException {
     final String backendHost = "intake.profiling.datadoghq.com:1234";
     final String backendUrl = "http://intake.profiling.datadoghq.com:1234" + URL_PATH;
@@ -212,7 +268,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedFirstRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(server.url(""), recordedFirstRequest.getRequestUrl());
-    assertEquals(API_KEY_VALUE, recordedFirstRequest.getHeader("DD-API-KEY"));
+    assertEquals(API_KEY_VALUE, recordedFirstRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
     assertNull(recordedFirstRequest.getHeader("Proxy-Authorization"));
     assertEquals(backendHost, recordedFirstRequest.getHeader("Host"));
     assertEquals(
@@ -220,7 +276,7 @@ public class ProfileUploaderTest {
 
     final RecordedRequest recordedSecondRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(server.url(""), recordedSecondRequest.getRequestUrl());
-    assertEquals(API_KEY_VALUE, recordedSecondRequest.getHeader("DD-API-KEY"));
+    assertEquals(API_KEY_VALUE, recordedSecondRequest.getHeader(ProfileUploader.HEADER_DD_API_KEY));
     assertEquals(
         Credentials.basic("username", "password"),
         recordedSecondRequest.getHeader("Proxy-Authorization"));
@@ -249,6 +305,29 @@ public class ProfileUploaderTest {
     final RecordedRequest recordedSecondRequest = server.takeRequest(5, TimeUnit.SECONDS);
     assertEquals(
         Credentials.basic("username", ""), recordedSecondRequest.getHeader("Proxy-Authorization"));
+  }
+
+  @Test
+  void testOkHttpClientForcesCleartextConnspecWhenNotUsingTLS() {
+    when(config.getFinalProfilingUrl()).thenReturn("http://example.com");
+
+    uploader = new ProfileUploader(config);
+
+    List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
+    assertEquals(connectionSpecs.size(), 1);
+    assertTrue(connectionSpecs.contains(ConnectionSpec.CLEARTEXT));
+  }
+
+  @Test
+  void testOkHttpClientUsesDefaultConnspecsOverTLS() {
+    when(config.getFinalProfilingUrl()).thenReturn("https://example.com");
+
+    uploader = new ProfileUploader(config);
+
+    List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
+    assertEquals(connectionSpecs.size(), 2);
+    assertTrue(connectionSpecs.contains(ConnectionSpec.MODERN_TLS));
+    assertTrue(connectionSpecs.contains(ConnectionSpec.CLEARTEXT));
   }
 
   @Test

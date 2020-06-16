@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -10,23 +12,35 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
-import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 public abstract class BaseDecorator {
 
+  private static final ClassValue<ClassName> CLASS_NAMES =
+      new ClassValue<ClassName>() {
+        @Override
+        protected ClassName computeValue(Class<?> type) {
+          return new ClassName(getClassName(type));
+        }
+      };
+
+  protected final boolean endToEndDurationsEnabled;
   protected final boolean traceAnalyticsEnabled;
   protected final float traceAnalyticsSampleRate;
 
   protected BaseDecorator() {
     final Config config = Config.get();
     final String[] instrumentationNames = instrumentationNames();
-    traceAnalyticsEnabled =
+    this.traceAnalyticsEnabled =
         instrumentationNames.length > 0
             && config.isTraceAnalyticsIntegrationEnabled(
-                new TreeSet<>(Arrays.asList(instrumentationNames)), traceAnalyticsDefault());
-    traceAnalyticsSampleRate = config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
+                traceAnalyticsDefault(), instrumentationNames);
+    this.traceAnalyticsSampleRate =
+        config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
+    this.endToEndDurationsEnabled =
+        instrumentationNames.length > 0
+            && config.isEndToEndDurationEnabled(endToEndDurationsDefault(), instrumentationNames);
   }
 
   protected abstract String[] instrumentationNames();
@@ -39,6 +53,10 @@ public abstract class BaseDecorator {
     return false;
   }
 
+  protected boolean endToEndDurationsDefault() {
+    return false;
+  }
+
   public AgentSpan afterStart(final AgentSpan span) {
     assert span != null;
     if (spanType() != null) {
@@ -47,6 +65,12 @@ public abstract class BaseDecorator {
     span.setTag(Tags.COMPONENT, component());
     if (traceAnalyticsEnabled) {
       span.setTag(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate);
+    }
+    if (endToEndDurationsEnabled) {
+      if (null == span.getBaggageItem(DDTags.TRACE_START_TIME)) {
+        span.setBaggageItem(
+            DDTags.TRACE_START_TIME, Long.toString(MICROSECONDS.toMillis(span.getStartTime())));
+      }
     }
     return span;
   }
@@ -110,7 +134,30 @@ public abstract class BaseDecorator {
    * @return
    */
   public String spanNameForMethod(final Method method) {
-    return spanNameForClass(method.getDeclaringClass()) + "." + method.getName();
+    return spanNameForMethod(method.getDeclaringClass(), method);
+  }
+
+  /**
+   * This method is used to generate an acceptable span (operation) name based on a given method
+   * reference. Anonymous classes are named based on their parent.
+   *
+   * @param method the method to get the name from, nullable
+   * @return the span name from the class and method
+   */
+  public String spanNameForMethod(final Class<?> clazz, final Method method) {
+    return spanNameForMethod(clazz, null == method ? null : method.getName());
+  }
+
+  /**
+   * This method is used to generate an acceptable span (operation) name based on a given method
+   * reference. Anonymous classes are named based on their parent.
+   *
+   * @param methodName the name of the method to get the name from, nullable
+   * @return the span name from the class and method
+   */
+  public String spanNameForMethod(final Class<?> clazz, final String methodName) {
+    ClassName cn = CLASS_NAMES.get(clazz);
+    return null == methodName ? cn.getName() : cn.getMethodName(methodName);
   }
 
   /**
@@ -120,17 +167,40 @@ public abstract class BaseDecorator {
    * @param clazz
    * @return
    */
-  public String spanNameForClass(final Class clazz) {
-    if (!clazz.isAnonymousClass()) {
-      return clazz.getSimpleName();
+  public String spanNameForClass(final Class<?> clazz) {
+    String simpleName = clazz.getSimpleName();
+    return simpleName.isEmpty() ? CLASS_NAMES.get(clazz).getName() : simpleName;
+  }
+
+  private static class ClassName {
+    private final String name;
+    private final ConcurrentHashMap<String, String> methodNames = new ConcurrentHashMap<>(1);
+
+    private ClassName(String name) {
+      this.name = name;
     }
-    String className = clazz.getName();
-    if (clazz.getPackage() != null) {
-      final String pkgName = clazz.getPackage().getName();
-      if (!pkgName.isEmpty()) {
-        className = clazz.getName().replace(pkgName, "").substring(1);
+
+    public String getName() {
+      return name;
+    }
+
+    public String getMethodName(String name) {
+      String methodName = methodNames.get(name);
+      if (null == methodName) {
+        methodName = this.name + "." + name;
+        methodNames.putIfAbsent(name, methodName);
       }
+      return methodName;
     }
-    return className;
+  }
+
+  private static String getClassName(Class<?> clazz) {
+    String simpleName = clazz.getSimpleName();
+    if (simpleName.isEmpty()) {
+      String name = clazz.getName();
+      int start = name.lastIndexOf('.');
+      return name.substring(start + 1);
+    }
+    return simpleName;
   }
 }

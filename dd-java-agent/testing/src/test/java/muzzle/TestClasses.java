@@ -7,8 +7,8 @@ public class TestClasses {
   public static class MethodBodyAdvice {
     @Advice.OnMethodEnter
     public static void methodBodyAdvice() {
-      A a = new A();
-      SomeInterface inter = new SomeImplementation();
+      final A a = new A();
+      final SomeInterface inter = new SomeImplementation();
       inter.someMethod();
       a.b.aMethod("foo");
       a.b.aMethodWithPrimitives(false);
@@ -20,18 +20,18 @@ public class TestClasses {
     public static class A {
       public B b = new B();
       protected Object protectedField = null;
-      private Object privateField = null;
+      private final Object privateField = null;
       public static B staticB = new B();
     }
 
     public static class B {
-      public String aMethod(String s) {
+      public String aMethod(final String s) {
         return s;
       }
 
-      public void aMethodWithPrimitives(boolean b) {}
+      public void aMethodWithPrimitives(final boolean b) {}
 
-      public Object[] aMethodWithArrays(String[] s) {
+      public Object[] aMethodWithArrays(final String[] s) {
         return s;
       }
 
@@ -44,7 +44,7 @@ public class TestClasses {
 
     public static class B2 extends B {
       public void stuff() {
-        B b = new B();
+        final B b = new B();
         b.protectedMethod();
       }
     }
@@ -72,6 +72,12 @@ public class TestClasses {
   public static class LdcAdvice {
     public static void ldcMethod() {
       MethodBodyAdvice.A.class.getName();
+    }
+  }
+
+  public static class InstanceofAdvice {
+    public static boolean instanceofMethod(final Object a) {
+      return a instanceof MethodBodyAdvice.A;
     }
   }
 }

@@ -1,4 +1,4 @@
-package datadog.trace.core.decorators;
+package datadog.trace.core.taginterceptor;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -7,11 +7,10 @@ import datadog.trace.core.DDSpanContext;
 /**
  * Tag decorator to replace tag 'manual.drop: true' with the appropriate priority sampling value.
  */
-public class ForceManualDropDecorator extends AbstractDecorator {
+class ForceManualDropTagInterceptor extends AbstractTagInterceptor {
 
-  public ForceManualDropDecorator() {
-    super();
-    setMatchingTag(DDTags.MANUAL_DROP);
+  public ForceManualDropTagInterceptor() {
+    super(DDTags.MANUAL_DROP);
   }
 
   @Override

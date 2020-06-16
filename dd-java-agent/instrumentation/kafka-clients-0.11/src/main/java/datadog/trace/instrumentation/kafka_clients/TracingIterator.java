@@ -36,9 +36,7 @@ public class TracingIterator implements Iterator<ConsumerRecord> {
   @Override
   public boolean hasNext() {
     if (currentScope != null) {
-      currentScope.close();
-      currentScope.span().finish();
-      currentScope = null;
+      finish();
     }
     return delegateIterator.hasNext();
   }
@@ -47,9 +45,7 @@ public class TracingIterator implements Iterator<ConsumerRecord> {
   public ConsumerRecord next() {
     if (currentScope != null) {
       // in case they didn't call hasNext()...
-      currentScope.close();
-      currentScope.span().finish();
-      currentScope = null;
+      finish();
     }
 
     final ConsumerRecord next = delegateIterator.next();
@@ -67,6 +63,12 @@ public class TracingIterator implements Iterator<ConsumerRecord> {
       log.debug("Error during decoration", e);
     }
     return next;
+  }
+
+  private void finish() {
+    currentScope.close();
+    decorator.finishConsumerSpan(currentScope.span());
+    currentScope = null;
   }
 
   @Override

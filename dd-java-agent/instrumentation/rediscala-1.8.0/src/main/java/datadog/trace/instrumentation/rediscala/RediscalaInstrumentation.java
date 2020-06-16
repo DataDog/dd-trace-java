@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.rediscala;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -37,19 +38,18 @@ public final class RediscalaInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return safeHasSuperType(named("redis.ActorRequest"))
-        .or(safeHasSuperType(named("redis.Request")))
-        .or(safeHasSuperType(named("redis.BufferedRequest")))
-        .or(safeHasSuperType(named("redis.RoundRobinPoolRequest")));
+    return safeHasSuperType(
+        namedOneOf(
+            "redis.ActorRequest",
+            "redis.Request",
+            "redis.BufferedRequest",
+            "redis.RoundRobinPoolRequest"));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
       RediscalaInstrumentation.class.getName() + "$OnCompleteHandler",
-      "datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator",
-      "datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator",
-      "datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator",
       packageName + ".RediscalaClientDecorator",
     };
   }
@@ -71,7 +71,7 @@ public final class RediscalaInstrumentation extends Instrumenter.Default {
     public static AgentScope onEnter(@Advice.Argument(0) final RedisCommand cmd) {
       final AgentSpan span = startSpan("redis.command");
       DECORATE.afterStart(span);
-      DECORATE.onStatement(span, cmd.getClass().getName());
+      DECORATE.onStatement(span, DECORATE.spanNameForClass(cmd.getClass()));
       return activateSpan(span);
     }
 

@@ -1,17 +1,17 @@
 import com.datastax.driver.core.Cluster
 import com.datastax.driver.core.Session
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 class CassandraClientTest extends AgentTestRunner {
 
@@ -46,7 +46,7 @@ class CassandraClientTest extends AgentTestRunner {
     setup:
     Session session = cluster.connect(keyspace)
 
-    withConfigOverride(Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
+    withConfigOverride(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
       session.execute(statement)
     }
 
@@ -78,7 +78,7 @@ class CassandraClientTest extends AgentTestRunner {
     setup:
     Session session = cluster.connect(keyspace)
     runUnderTrace("parent") {
-      withConfigOverride(Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
+      withConfigOverride(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
         session.executeAsync(statement)
       }
       blockUntilChildSpansFinished(1)

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.hibernate.core.v4_0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.instrumentation.hibernate.HibernateDecorator.DECORATOR;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -37,12 +38,7 @@ public class QueryInstrumentation extends AbstractHibernateInstrumentation {
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        isMethod()
-            .and(
-                named("list")
-                    .or(named("executeUpdate"))
-                    .or(named("uniqueResult"))
-                    .or(named("scroll"))),
+        isMethod().and(namedOneOf("list", "executeUpdate", "uniqueResult", "scroll")),
         QueryInstrumentation.class.getName() + "$QueryMethodAdvice");
   }
 

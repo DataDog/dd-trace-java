@@ -1,6 +1,7 @@
 package datadog.trace.common.writer;
 
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.Monitor;
 import datadog.trace.core.DDSpan;
@@ -8,6 +9,7 @@ import datadog.trace.core.interceptor.TraceStatsCollector;
 import java.io.Closeable;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 /** A writer is responsible to send collected spans to some place */
@@ -43,9 +45,9 @@ public interface Writer extends Closeable {
 
       if (config != null) {
         final String configuredType = config.getWriterType();
-        if (Config.DD_AGENT_WRITER_TYPE.equals(configuredType)) {
+        if (WriterConstants.DD_AGENT_WRITER_TYPE.equals(configuredType)) {
           writer = createAgentWriter(config);
-        } else if (Config.LOGGING_WRITER_TYPE.equals(configuredType)) {
+        } else if (WriterConstants.LOGGING_WRITER_TYPE.equals(configuredType)) {
           writer = new LoggingWriter();
         } else {
           log.warn(
@@ -75,7 +77,10 @@ public interface Writer extends Closeable {
 
     private static DDAgentApi createApi(final Config config) {
       return new DDAgentApi(
-          config.getAgentHost(), config.getAgentPort(), config.getAgentUnixDomainSocket());
+          config.getAgentHost(),
+          config.getAgentPort(),
+          config.getAgentUnixDomainSocket(),
+          TimeUnit.SECONDS.toMillis(config.getAgentTimeout()));
     }
 
     private static Monitor createMonitor(final Config config) {

@@ -112,10 +112,10 @@ class DDApiIntegrationTest extends DDSpecification {
   }
 
   def setup() {
-    api = new DDAgentApi(agentContainerHost, agentContainerPort, null)
+    api = new DDAgentApi(agentContainerHost, agentContainerPort, null, 5000)
     api.addResponseListener(responseListener)
 
-    unixDomainSocketApi = new DDAgentApi(SOMEHOST, SOMEPORT, socketPath.toString())
+    unixDomainSocketApi = new DDAgentApi(SOMEHOST, SOMEPORT, socketPath.toString(), 5000)
     unixDomainSocketApi.addResponseListener(responseListener)
   }
 

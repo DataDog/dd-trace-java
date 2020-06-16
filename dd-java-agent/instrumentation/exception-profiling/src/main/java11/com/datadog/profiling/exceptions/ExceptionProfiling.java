@@ -31,13 +31,13 @@ public final class ExceptionProfiling {
     this.histogram = histogram;
   }
 
-  public ExceptionSampleEvent process(final Exception e) {
+  public ExceptionSampleEvent process(final Throwable t) {
     // always record the exception in histogram
-    final boolean firstHit = histogram.record(e);
+    final boolean firstHit = histogram.record(t);
 
     final boolean sampled = sampler.sample();
     if (firstHit || sampled) {
-      return new ExceptionSampleEvent(e, sampled, firstHit);
+      return new ExceptionSampleEvent(t, sampled, firstHit);
     }
     return null;
   }

@@ -62,6 +62,9 @@ public abstract class FormatWriter<DEST> {
   public abstract void writeId(final byte[] key, DDId id, final DEST destination)
       throws IOException;
 
+  public abstract void writeNumberAsString(
+      final byte[] key, final Number value, final DEST destination) throws IOException;
+
   public void writeNumber(final byte[] key, final Number value, final DEST destination)
       throws IOException {
     if (value instanceof Double) {
@@ -102,10 +105,14 @@ public abstract class FormatWriter<DEST> {
       }
     }
     for (Map.Entry<String, Object> entry : tags.entrySet()) {
-      if (entry.getValue() instanceof String) {
-        writeTag(stringToBytes(entry.getKey()), (String) entry.getValue(), destination);
+      byte[] key = stringToBytes(entry.getKey());
+      Object value = entry.getValue();
+      if (value instanceof String) {
+        writeTag(key, (String) value, destination);
+      } else if (value instanceof Number) {
+        writeNumberAsString(key, (Number) value, destination);
       } else {
-        writeString(stringToBytes(entry.getKey()), String.valueOf(entry.getValue()), destination);
+        writeString(key, String.valueOf(entry.getValue()), destination);
       }
     }
     writeMapFooter(destination);

@@ -1,7 +1,6 @@
-package datadog.trace.core.decorators
+package datadog.trace.core.taginterceptor
 
 import datadog.trace.agent.test.utils.ConfigUtils
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
@@ -13,19 +12,20 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.SpanFactory
 import datadog.trace.util.test.DDSpecification
 
-import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
+import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 
-class SpanDecoratorTest extends DDSpecification {
+class TagInterceptorTest extends DDSpecification {
   static {
     ConfigUtils.updateConfig {
-      System.setProperty("dd.$Config.SPLIT_BY_TAGS", "sn.tag1,sn.tag2")
+      System.setProperty("dd.$SPLIT_BY_TAGS", "sn.tag1,sn.tag2")
     }
   }
 
   def cleanupSpec() {
     ConfigUtils.updateConfig {
-      System.clearProperty("dd.$Config.SPLIT_BY_TAGS")
+      System.clearProperty("dd.$SPLIT_BY_TAGS")
     }
   }
   def tracer = CoreTracer.builder().writer(new LoggingWriter()).build()
@@ -33,22 +33,19 @@ class SpanDecoratorTest extends DDSpecification {
 
   def "adding span personalisation using Decorators"() {
     setup:
-    def decorator = new AbstractDecorator() {
+    def decorator = new AbstractTagInterceptor("foo") {
       boolean shouldSetTag(DDSpanContext context, String tag, Object value) {
-        return super.shouldSetTag(context, tag, value)
+        context.setTag("newFoo", value)
+        return false
       }
     }
-    decorator.setMatchingTag("foo")
-    decorator.setMatchingValue("bar")
-    decorator.setReplacementTag("newFoo")
-    decorator.setReplacementValue("newBar")
-    tracer.addDecorator(decorator)
+    tracer.addTagInterceptor(decorator)
 
     span.setTag("foo", "bar")
 
     expect:
     span.getTags().containsKey("newFoo")
-    span.getTags().get("newFoo") == "newBar"
+    span.getTags().get("newFoo") == "bar"
   }
 
   def "set service name"() {
@@ -159,7 +156,7 @@ class SpanDecoratorTest extends DDSpecification {
       .build()
 
     // equivalent to split-by-tags: tag
-    tracer.addDecorator(new ServiceNameDecorator(tag, true))
+    tracer.addTagInterceptor(new ServiceNameTagInterceptor(tag, true))
 
     return tracer
   }
@@ -246,14 +243,14 @@ class SpanDecoratorTest extends DDSpecification {
     type = DDSpanTypes.HTTP_CLIENT
   }
 
-  def "override operation with DBTypeDecorator"() {
+  def "override operation with DBTypeTagInterceptor"() {
     when:
     span.setTag(Tags.DB_TYPE, type)
 
     then:
     span.getOperationName() == type + ".query"
     span.context().getSpanType() == "sql"
-
+    span.serviceName == type
 
     when:
     span.setTag(Tags.DB_TYPE, "mongo")
@@ -261,6 +258,7 @@ class SpanDecoratorTest extends DDSpecification {
     then:
     span.getOperationName() == "mongo.query"
     span.context().getSpanType() == "mongodb"
+    span.serviceName == "mongo"
 
     where:
     type = "foo"
@@ -349,9 +347,9 @@ class SpanDecoratorTest extends DDSpecification {
     false | _
   }
 
-  def "#attribute decorators apply to builder too"() {
+  def "#attribute interceptors apply to builder too"() {
     setup:
-    def span = tracer.buildSpan("decorator.test").withTag(name, value).start()
+    def span = tracer.buildSpan("interceptor.test").withTag(name, value).start()
     span.finish()
 
     expect:
@@ -418,17 +416,17 @@ class SpanDecoratorTest extends DDSpecification {
     }
 
     where:
-    decorator                                          | enabled
-    ServiceNameDecorator.getSimpleName().toLowerCase() | true
-    ServiceNameDecorator.getSimpleName()               | true
-    ServiceNameDecorator.getSimpleName().toLowerCase() | false
-    ServiceNameDecorator.getSimpleName()               | false
+    decorator                                               | enabled
+    ServiceNameTagInterceptor.getSimpleName().toLowerCase() | true
+    ServiceNameTagInterceptor.getSimpleName()               | true
+    ServiceNameTagInterceptor.getSimpleName().toLowerCase() | false
+    ServiceNameTagInterceptor.getSimpleName()               | false
   }
 
   def "disabling service decorator does not disable split by tags"() {
     setup:
     ConfigUtils.updateConfig {
-      System.setProperty("dd.trace." + ServiceNameDecorator.getSimpleName().toLowerCase() + ".enabled", "false")
+      System.setProperty("dd.trace." + ServiceNameTagInterceptor.getSimpleName().toLowerCase() + ".enabled", "false")
     }
 
     tracer = CoreTracer.builder()
@@ -446,7 +444,7 @@ class SpanDecoratorTest extends DDSpecification {
 
     cleanup:
     ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace." + ServiceNameDecorator.getSimpleName().toLowerCase() + ".enabled")
+      System.clearProperty("dd.trace." + ServiceNameTagInterceptor.getSimpleName().toLowerCase() + ".enabled")
     }
 
     where:

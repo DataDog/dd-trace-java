@@ -20,6 +20,8 @@ import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.PidHelper;
 import com.datadog.profiling.uploader.util.StreamUtils;
 import com.datadog.profiling.util.ProfilingThreadFactory;
+import com.google.common.annotations.VisibleForTesting;
+import datadog.common.container.ContainerInfo;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,6 +29,7 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -40,9 +43,11 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.ConnectionPool;
+import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.Dispatcher;
 import okhttp3.Headers;
+import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
@@ -69,6 +74,7 @@ public final class ProfileUploader {
   static final String TAGS_PARAM = "tags[]";
 
   static final String HEADER_DD_API_KEY = "DD-API-KEY";
+  static final String HEADER_DD_CONTAINER_ID = "Datadog-Container-ID";
 
   static final String JAVA_LANG = "java";
   static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
@@ -90,7 +96,8 @@ public final class ProfileUploader {
       new Callback() {
         @Override
         public void onFailure(final Call call, final IOException e) {
-          log.warn("Failed to upload profile", e);
+          HttpUrl url = call.request().url();
+          log.warn("Failed to upload profile to {}", url, e);
         }
 
         @Override
@@ -98,6 +105,13 @@ public final class ProfileUploader {
           if (response.isSuccessful()) {
             log.debug("Upload done");
           } else {
+            String apiKey = call.request().header(HEADER_DD_API_KEY);
+            if (response.code() == 404 && apiKey == null) {
+              // if no API key and not found error we assume we're sending to the agent
+              log.warn(
+                  "Datadog Agent is not accepting profiles. Agent-based profiling deployments require Datadog Agent >= 7.20");
+            }
+
             log.warn(
                 "Failed to upload profile: unexpected response code {} {}",
                 response.message(),
@@ -115,20 +129,28 @@ public final class ProfileUploader {
   private final OkHttpClient client;
   private final String apiKey;
   private final String url;
+  private final String containerId;
   private final List<String> tags;
   private final Compression compression;
   private final Deque<Integer> requestSizeHistory;
 
   public ProfileUploader(final Config config) {
+    this(config, ContainerInfo.get().getContainerId());
+  }
+
+  @VisibleForTesting
+  ProfileUploader(final Config config, final String containerId) {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
+    this.containerId = containerId;
 
+    log.debug("Started ProfileUploader with target url {}", url);
     /*
     FIXME: currently `Config` class cannot get access to some pieces of information we need here:
     * PID (see PidHelper for details),
     * Profiler version
     Since Config returns unmodifiable map we have to do copy here.
-    Ideally we should improve this logic and avoid copy, but performace impact is very limtied
+    Ideally we should improve this logic and avoid copy, but performance impact is very limited
     since we are doing this once on startup only.
     */
     final Map<String, String> tagsMap = new HashMap<>(config.getMergedProfilingTags());
@@ -139,7 +161,7 @@ public final class ProfileUploader {
     }
     tags = tagsToList(tagsMap);
 
-    // This is the same thing OkHttp Dispatcher is doing except thread naming and deamonization
+    // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
     okHttpExecutorService =
         new ThreadPoolExecutor(
             0,
@@ -163,6 +185,12 @@ public final class ProfileUploader {
             .callTimeout(requestTimeout)
             .dispatcher(new Dispatcher(okHttpExecutorService))
             .connectionPool(connectionPool);
+
+    if (config.getFinalProfilingUrl().startsWith("http://")) {
+      // force clear text when using http to avoid failures for JVMs without TLS
+      // see: https://github.com/DataDog/dd-trace-java/pull/1582
+      clientBuilder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
+    }
 
     if (config.getProfilingProxyHost() != null) {
       final Proxy proxy =
@@ -229,6 +257,11 @@ public final class ProfileUploader {
     }
 
     client.connectionPool().evictAll();
+  }
+
+  @VisibleForTesting
+  OkHttpClient getClient() {
+    return client;
   }
 
   @FunctionalInterface
@@ -301,16 +334,19 @@ public final class ProfileUploader {
     bodyBuilder.addPart(DATA_HEADERS, body);
     final RequestBody requestBody = bodyBuilder.build();
 
-    final Request request =
+    final Request.Builder requestBuilder =
         new Request.Builder()
             .url(url)
-            .addHeader(HEADER_DD_API_KEY, apiKey)
             // Note: this header is used to disable tracing of profiling requests
             .addHeader(DATADOG_META_LANG, JAVA_LANG)
-            .post(requestBody)
-            .build();
-
-    client.newCall(request).enqueue(RESPONSE_CALLBACK);
+            .post(requestBody);
+    if (apiKey != null) {
+      requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
+    }
+    if (containerId != null) {
+      requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
+    }
+    client.newCall(requestBuilder.build()).enqueue(RESPONSE_CALLBACK);
   }
 
   private int getExpectedRequestSize() {

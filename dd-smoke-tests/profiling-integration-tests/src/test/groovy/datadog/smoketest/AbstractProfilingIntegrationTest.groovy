@@ -1,6 +1,7 @@
 package datadog.smoketest
 
 import okhttp3.mockwebserver.MockWebServer
+import spock.lang.Shared
 
 abstract class AbstractProfilingIntegrationTest extends AbstractSmokeTest {
   // can not be @Shared since the same instance will be reused for all specs and this is not supported by MockWebServer

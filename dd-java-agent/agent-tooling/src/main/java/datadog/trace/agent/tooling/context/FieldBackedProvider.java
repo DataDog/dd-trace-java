@@ -99,6 +99,7 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
 
   private final Instrumenter.Default instrumenter;
   private final ByteBuddy byteBuddy;
+  private final Map<String, String> contextStore;
 
   /** fields-accessor-interface-name -> fields-accessor-interface-dynamic-type */
   private final Map<String, DynamicType.Unloaded<?>> fieldAccessorInterfaces;
@@ -112,8 +113,10 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
 
   private final boolean fieldInjectionEnabled;
 
-  public FieldBackedProvider(final Instrumenter.Default instrumenter) {
+  public FieldBackedProvider(
+      final Instrumenter.Default instrumenter, Map<String, String> contextStore) {
     this.instrumenter = instrumenter;
+    this.contextStore = contextStore;
     byteBuddy = new ByteBuddy();
     fieldAccessorInterfaces = generateFieldAccessorInterfaces();
     fieldAccessorInterfacesInjector = bootstrapHelperInjector(fieldAccessorInterfaces.values());
@@ -126,7 +129,7 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
   @Override
   public AgentBuilder.Identified.Extendable instrumentationTransformer(
       AgentBuilder.Identified.Extendable builder) {
-    if (!instrumenter.contextStore().isEmpty()) {
+    if (!contextStore.isEmpty()) {
       /*
        * Install transformer that rewrites accesses to context store with specialized bytecode that
        * invokes appropriate storage implementation.
@@ -227,12 +230,12 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
                               "Incorrect Context Api Usage detected. Cannot find map holder class for %s context %s. Was that class defined in contextStore for instrumentation %s?",
                               keyClassName, contextClassName, instrumenter.getClass().getName()));
                     }
-                    if (!contextClassName.equals(instrumenter.contextStore().get(keyClassName))) {
+                    if (!contextClassName.equals(contextStore.get(keyClassName))) {
                       throw new IllegalStateException(
                           String.format(
                               "Incorrect Context Api Usage detected. Incorrect context class %s, expected %s for instrumentation %s",
                               contextClassName,
-                              instrumenter.contextStore().get(keyClassName),
+                              contextStore.get(keyClassName),
                               instrumenter.getClass().getName()));
                     }
                     // stack: contextClass | keyClass
@@ -364,7 +367,7 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
       AgentBuilder.Identified.Extendable builder) {
 
     if (fieldInjectionEnabled) {
-      for (final Map.Entry<String, String> entry : instrumenter.contextStore().entrySet()) {
+      for (final Map.Entry<String, String> entry : contextStore.entrySet()) {
         /*
          * For each context store defined in a current instrumentation we create an agent builder
          * that injects necessary fields.
@@ -603,8 +606,8 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
 
   private Map<String, DynamicType.Unloaded<?>> generateContextStoreImplementationClasses() {
     final Map<String, DynamicType.Unloaded<?>> contextStoreImplementations =
-        new HashMap<>(instrumenter.contextStore().size());
-    for (final Map.Entry<String, String> entry : instrumenter.contextStore().entrySet()) {
+        new HashMap<>(contextStore.size());
+    for (final Map.Entry<String, String> entry : contextStore.entrySet()) {
       final DynamicType.Unloaded<?> type =
           makeContextStoreImplementationClass(entry.getKey(), entry.getValue());
       contextStoreImplementations.put(type.getTypeDescription().getName(), type);
@@ -969,8 +972,8 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
 
   private Map<String, DynamicType.Unloaded<?>> generateFieldAccessorInterfaces() {
     final Map<String, DynamicType.Unloaded<?>> fieldAccessorInterfaces =
-        new HashMap<>(instrumenter.contextStore().size());
-    for (final Map.Entry<String, String> entry : instrumenter.contextStore().entrySet()) {
+        new HashMap<>(contextStore.size());
+    for (final Map.Entry<String, String> entry : contextStore.entrySet()) {
       final DynamicType.Unloaded<?> type =
           makeFieldAccessorInterface(entry.getKey(), entry.getValue());
       fieldAccessorInterfaces.put(type.getTypeDescription().getName(), type);

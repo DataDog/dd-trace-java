@@ -56,7 +56,10 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractProfilingIntegr
     Multimap<String, Object> secondRequestParameters =
       ProfilingTestUtils.parseProfilingRequestParameters(secondRequest)
 
+    checkLog()
+
     then:
+    !logHasErrors
     secondRequest.getRequestUrl().toString() == profilingUrl
     secondRequest.getHeader("DD-API-KEY") == apiKey()
 

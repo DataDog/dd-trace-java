@@ -19,13 +19,13 @@ import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Timeout
 
-import static datadog.trace.api.Config.HEADER_TAGS
-import static datadog.trace.api.Config.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.Config.PREFIX
-import static datadog.trace.api.Config.PRIORITY_SAMPLING
-import static datadog.trace.api.Config.SERVICE_MAPPING
-import static datadog.trace.api.Config.SPAN_TAGS
-import static datadog.trace.api.Config.WRITER_TYPE
+import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
+import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
+import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
+import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING
+import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
+import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
 
 @Timeout(10)
 class CoreTracerTest extends DDSpecification {
@@ -45,7 +45,7 @@ class CoreTracerTest extends DDSpecification {
     tracer.writer instanceof DDAgentWriter
     tracer.writer.monitor instanceof Monitor.Noop
 
-    !tracer.spanContextDecorators.isEmpty()
+    !tracer.spanTagInterceptors.isEmpty()
 
     tracer.injector instanceof HttpCodec.CompoundInjector
     tracer.extractor instanceof HttpCodec.CompoundExtractor

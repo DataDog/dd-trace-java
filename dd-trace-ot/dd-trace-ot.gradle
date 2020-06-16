@@ -80,13 +80,20 @@ jar {
   archiveClassifier = 'unbundled'
 }
 
+def bundledProjects = [
+  ':dd-trace-core',
+  ':internal-api',
+  ':utils:thread-utils',
+  ':utils:container-utils'
+]
+
 shadowJar {
   archiveClassifier = ''
 
   dependencies {
-    include(project(':dd-trace-core'))
-    include(project(':internal-api'))
-    include(project(':utils:thread-utils'))
+    bundledProjects.forEach {
+      include(project(it))
+    }
   }
 }
 
@@ -94,12 +101,14 @@ modifyPom {
   // We're bundling the internal dependencies.  So we need to add the transitive dependencies
   // of those projects. Directly adding to the XML is the only way to prevent the shadowJar plugin
   // from removing them
+  def bundledProjectNames = bundledProjects.collect { it.substring(it.lastIndexOf(":") + 1) }
   withXml({ XmlProvider provider ->
     Node dependencies = provider.asNode().dependencies[0]
-    def addedDependencies = ['thread-utils', 'internal-api', 'slf4j-api', 'dd-trace-api']
-    [project(':dd-trace-core'), project(':utils:thread-utils'), project(':internal-api')].forEach {
+    def addedDependencies = project.configurations.getByName("compile").dependencies.collect { it.name }
+    addedDependencies.addAll(bundledProjectNames)
+    bundledProjects.forEach {
       bundledProject ->
-        bundledProject.configurations.getByName("compile").dependencies.forEach {
+        project(bundledProject).configurations.getByName("compile").dependencies.forEach {
           transitiveDependency ->
             if (!addedDependencies.contains(transitiveDependency.name)) {
               def dependency = dependencies.appendNode("dependency")
@@ -113,7 +122,7 @@ modifyPom {
     }
   })
 
-  dependencies.removeAll { ['thread-utils', 'internal-api', 'dd-trace-core'].contains(it.artifactId) }
+  dependencies.removeAll { bundledProjectNames.contains(it.artifactId) }
 }
 
 jmh {

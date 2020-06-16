@@ -13,7 +13,7 @@ public class ScopeEventFactory implements DDScopeEventFactory {
   private final EventType eventType;
 
   public ScopeEventFactory() throws ClassNotFoundException {
-    BlackList.checkBlackList();
+    ExcludedVersions.checkVersionExclusion();
     // Note: Loading ScopeEvent when ScopeEventFactory is loaded is important because it also loads
     // JFR classes - which may not be present on some JVMs
     eventType = EventType.getEventType(ScopeEvent.class);

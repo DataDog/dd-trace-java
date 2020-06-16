@@ -34,6 +34,16 @@ abstract class AbstractSmokeTest extends Specification {
   @Shared
   protected BlockingQueue<TestHttpServer.HandlerApi.RequestApi> traceRequests = new LinkedBlockingQueue<>()
 
+  /**
+   * Will be initialized after calling {@linkplain AbstractSomeTest#checkLog} and hold {@literal true}
+   * if there are any ERROR or WARN lines in the test application log.
+   */
+  @Shared
+  def logHasErrors
+
+  @Shared
+  def logFilePath = "${buildDirectory}/reports/testProcess.${this.getClass().getName()}.log"
+
   @Shared
   @AutoCleanup
   protected TestHttpServer server = httpServer {
@@ -106,6 +116,27 @@ abstract class AbstractSmokeTest extends Specification {
 
   def stopServer() {
     // do nothing; 'server' is autocleanup
+  }
+
+  /**
+   * Check the test application log and set {@linkplain AbstractSmokeTest#logHasErrors} variable
+   * @param checker custom closure to run on each log line
+   */
+  def checkLog(Closure checker) {
+    new File(logFilePath).eachLine {
+      if (it.contains("ERROR") || it.contains("ASSERTION FAILED")) {
+        println it
+        logHasErrors = true
+      }
+      checker(it)
+    }
+    if (logHasErrors) {
+      println "Test application log is containing errors. See full run logs in ${logFilePath}"
+    }
+  }
+
+  def checkLog() {
+    checkLog {}
   }
 
   abstract ProcessBuilder createProcessBuilder()

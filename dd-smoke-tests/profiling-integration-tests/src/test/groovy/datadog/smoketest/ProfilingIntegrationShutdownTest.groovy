@@ -26,7 +26,10 @@ class ProfilingIntegrationShutdownTest extends AbstractProfilingIntegrationTest 
     when:
     RecordedRequest request = profilingServer.takeRequest(REQUEST_WAIT_TIMEOUT, TimeUnit.SECONDS)
 
+    checkLog()
+
     then:
+    !logHasErrors
     request.bodySize > 0
 
     then:

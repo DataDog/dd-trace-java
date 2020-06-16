@@ -1,8 +1,9 @@
 package datadog.trace.common.writer;
 
-import static datadog.trace.api.Config.DEFAULT_AGENT_HOST;
-import static datadog.trace.api.Config.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
-import static datadog.trace.api.Config.DEFAULT_TRACE_AGENT_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 
 import com.lmax.disruptor.EventFactory;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
@@ -55,6 +56,7 @@ public class DDAgentWriter implements Writer {
     String agentHost = DEFAULT_AGENT_HOST;
     int traceAgentPort = DEFAULT_TRACE_AGENT_PORT;
     String unixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
+    long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
     int traceBufferSize = DISRUPTOR_BUFFER_SIZE;
     Monitor monitor = new Monitor.Noop();
     int flushFrequencySeconds = 1;
@@ -64,13 +66,16 @@ public class DDAgentWriter implements Writer {
   public DDAgentWriter() {
     this(
         new DDAgentApi(
-            DEFAULT_AGENT_HOST, DEFAULT_TRACE_AGENT_PORT, DEFAULT_AGENT_UNIX_DOMAIN_SOCKET),
+            DEFAULT_AGENT_HOST,
+            DEFAULT_TRACE_AGENT_PORT,
+            DEFAULT_AGENT_UNIX_DOMAIN_SOCKET,
+            TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT)),
         new Monitor.Noop());
   }
 
   @Deprecated
   public DDAgentWriter(final DDAgentApi api, final Monitor monitor) {
-    StatefulSerializer serializer = new MsgPackStatefulSerializer();
+    final StatefulSerializer serializer = new MsgPackStatefulSerializer();
     this.api = api;
     this.monitor = monitor;
     dispatchingDisruptor =
@@ -96,6 +101,7 @@ public class DDAgentWriter implements Writer {
       final String agentHost,
       final int traceAgentPort,
       final String unixDomainSocket,
+      final long timeoutMillis,
       final int traceBufferSize,
       final Monitor monitor,
       final int flushFrequencySeconds,
@@ -103,13 +109,13 @@ public class DDAgentWriter implements Writer {
     if (agentApi != null) {
       api = agentApi;
     } else {
-      api = new DDAgentApi(agentHost, traceAgentPort, unixDomainSocket);
+      api = new DDAgentApi(agentHost, traceAgentPort, unixDomainSocket, timeoutMillis);
     }
     final StatefulSerializer s = null == serializer ? new MsgPackStatefulSerializer() : serializer;
     this.monitor = monitor;
-    this.dispatchingDisruptor =
+    dispatchingDisruptor =
         new DispatchingDisruptor(OUTSTANDING_REQUESTS, toEventFactory(s), api, monitor, this);
-    this.traceProcessingDisruptor =
+    traceProcessingDisruptor =
         new TraceProcessingDisruptor(
             traceBufferSize,
             dispatchingDisruptor,
@@ -200,7 +206,7 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public void close() {
-    boolean flushed = flush();
+    final boolean flushed = flush();
     closed = true;
     try {
       traceProcessingDisruptor.close();
@@ -233,7 +239,7 @@ public class DDAgentWriter implements Writer {
   private static final class SerializerBackedEventFactory implements EventFactory<TraceBuffer> {
     private final StatefulSerializer serializer;
 
-    private SerializerBackedEventFactory(StatefulSerializer serializer) {
+    private SerializerBackedEventFactory(final StatefulSerializer serializer) {
       this.serializer = serializer;
     }
 

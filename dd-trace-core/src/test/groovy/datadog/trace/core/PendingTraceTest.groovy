@@ -11,7 +11,7 @@ import spock.lang.Timeout
 import java.lang.ref.WeakReference
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.api.Config.PARTIAL_FLUSH_MIN_SPANS
+import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS
 
 class PendingTraceTest extends DDSpecification {
 

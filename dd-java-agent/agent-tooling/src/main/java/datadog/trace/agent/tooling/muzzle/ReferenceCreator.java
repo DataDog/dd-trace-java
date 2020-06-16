@@ -365,6 +365,16 @@ public class ReferenceCreator extends ClassVisitor {
     }
 
     @Override
+    public void visitTypeInsn(final int opcode, final String type) {
+      addReference(
+          new Reference.Builder(type)
+              .withSource(refSourceClassName, currentLineNumber)
+              .withFlag(computeMinimumClassAccess(refSourceType, Type.getObjectType(type)))
+              .build());
+      super.visitTypeInsn(opcode, type);
+    }
+
+    @Override
     public void visitLdcInsn(final Object value) {
       if (value instanceof Type) {
         final Type type = underlyingType((Type) value);

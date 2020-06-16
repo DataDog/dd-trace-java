@@ -1,11 +1,10 @@
 import akka.actor.ActorSystem
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.PortUtils
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import redis.ByteStringSerializerLowPriority
 import redis.ByteStringDeserializerDefault
+import redis.ByteStringSerializerLowPriority
 import redis.RedisClient
 import redis.RedisDispatcher
 import redis.embedded.RedisServer
@@ -13,6 +12,9 @@ import scala.Option
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import spock.lang.Shared
+
+import static datadog.trace.api.Config.PREFIX
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 class RediscalaClientTest extends AgentTestRunner {
 
@@ -48,13 +50,13 @@ class RediscalaClientTest extends AgentTestRunner {
     redisServer.start()
 
     // This setting should have no effect since decorator returns null for the instance.
-    System.setProperty(Config.PREFIX + Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
+    System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
   }
 
   def cleanupSpec() {
     redisServer.stop()
     system?.terminate()
-    System.clearProperty(Config.PREFIX + Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE)
+    System.clearProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE)
   }
 
   def setup() {
@@ -79,7 +81,7 @@ class RediscalaClientTest extends AgentTestRunner {
         span(0) {
           serviceName "redis"
           operationName "redis.query"
-          resourceName "redis.api.strings.Set"
+          resourceName "Set"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"
@@ -111,7 +113,7 @@ class RediscalaClientTest extends AgentTestRunner {
         span(0) {
           serviceName "redis"
           operationName "redis.query"
-          resourceName "redis.api.strings.Set"
+          resourceName "Set"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"
@@ -125,7 +127,7 @@ class RediscalaClientTest extends AgentTestRunner {
         span(0) {
           serviceName "redis"
           operationName "redis.query"
-          resourceName "redis.api.strings.Get"
+          resourceName "Get"
           spanType DDSpanTypes.REDIS
           tags {
             "$Tags.COMPONENT" "redis-command"

@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.classloading;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
@@ -41,9 +42,10 @@ public final class ClassloadingInstrumentation extends Instrumenter.Default {
   public ElementMatcher<TypeDescription> typeMatcher() {
     // just an optimization to exclude common class loaders that are known to delegate to the
     // bootstrap loader (or happen to _be_ the bootstrap loader)
-    return not(named("java.lang.ClassLoader"))
-        .and(not(named("com.ibm.oti.vm.BootstrapClassLoader")))
-        .and(not(named("datadog.trace.bootstrap.AgentClassLoader")))
+    return namedNoneOf(
+            "java.lang.ClassLoader",
+            "com.ibm.oti.vm.BootstrapClassLoader",
+            "datadog.trace.bootstrap.AgentClassLoader")
         .and(extendsClass(named("java.lang.ClassLoader")));
   }
 

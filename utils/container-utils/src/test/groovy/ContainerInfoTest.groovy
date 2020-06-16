@@ -1,7 +1,12 @@
 package datadog.trace.core
 
+import datadog.common.container.ContainerInfo
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Unroll
+
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.text.ParseException
 
 class ContainerInfoTest extends DDSpecification {
 
@@ -143,5 +148,46 @@ class ContainerInfoTest extends DDSpecification {
 3:blkio:/ecs/55091c13-b8cf-4801-b527-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da
 2:memory:/ecs/55091c13-b8cf-4801-b527-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da
 1:name=systemd:/ecs/55091c13-b8cf-4801-b527-f4601742204d/432624d2150b349fe35ba397284dea788c2bf66b885d14dfc1569b01890ca7da"""
+  }
+
+  def "ContainerInfo from empty file is empty"() {
+    when:
+    File f = File.createTempFile("container-info-test-", "-empty-file")
+    f.deleteOnExit()
+    Path p = Paths.get(f.path)
+    ContainerInfo containerInfo = ContainerInfo.fromProcFile(p)
+
+
+    then:
+    containerInfo.getContainerId() == null
+    containerInfo.getPodId() == null
+    containerInfo.getCGroups().size() == 0
+  }
+
+  def "ContainerInfo throws java.text.ParseException when given malformed procfile"() {
+    when:
+    File f = File.createTempFile("container-info-test-", "-malformed-file")
+    f.deleteOnExit()
+    f.write("This is not valid")
+    Path p = Paths.get(f.path)
+    ContainerInfo.fromProcFile(p)
+
+    then:
+    thrown(ParseException)
+  }
+
+  def "ContainerInfo tolerates missing container id and pod id in procfile"() {
+    when:
+    File f = File.createTempFile("container-info-test-", "-missing-container-id")
+    f.deleteOnExit()
+    f.write("1:cpuset:fake-path")
+    Path p = Paths.get(f.path)
+    ContainerInfo containerInfo = ContainerInfo.fromProcFile(p)
+    f.deleteOnExit()
+
+    then:
+    containerInfo.getContainerId() == null
+    containerInfo.getPodId() == null
+    containerInfo.getCGroups().size() == 1
   }
 }

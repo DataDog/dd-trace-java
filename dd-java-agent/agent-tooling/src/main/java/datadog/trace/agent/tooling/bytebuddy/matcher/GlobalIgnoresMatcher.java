@@ -90,7 +90,8 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
     }
 
     if (name.startsWith("java.")) {
-      if (name.equals("java.lang.Exception")) {
+      // allow exception profiling instrumentation
+      if (name.equals("java.lang.Throwable")) {
         return false;
       }
       if (name.equals("java.net.URL") || name.equals("java.net.HttpURLConnection")) {

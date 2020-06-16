@@ -5,17 +5,19 @@ import static org.msgpack.core.MessagePack.Code.FIXARRAY_PREFIX;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
+import datadog.common.container.ContainerInfo;
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory;
-import datadog.trace.core.ContainerInfo;
 import datadog.trace.core.DDTraceCoreInfo;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.ConnectionSpec;
 import okhttp3.Dispatcher;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
@@ -36,14 +38,19 @@ public class DDAgentApi {
   private static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
   private static final String X_DATADOG_TRACE_COUNT = "X-Datadog-Trace-Count";
 
-  private static final int HTTP_TIMEOUT = 1; // 1 second for conenct/read/write operations
   private static final String TRACES_ENDPOINT_V3 = "v0.3/traces";
   private static final String TRACES_ENDPOINT_V4 = "v0.4/traces";
-  private static final long MILLISECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toMillis(5);
+  private static final long NANOSECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toNanos(5);
+  private static final String WILL_NOT_LOG_FOR_MESSAGE = "(Will not log errors for 5 minutes)";
 
   private final List<DDAgentResponseListener> responseListeners = new ArrayList<>();
 
-  private volatile long nextAllowedLogTime = 0;
+  private long previousErrorLogNanos = System.nanoTime() - NANOSECONDS_BETWEEN_ERROR_LOG;
+  private boolean logNextSuccess = false;
+  private long totalTraces = 0;
+  private long receivedTraces = 0;
+  private long sentTraces = 0;
+  private long failedTraces = 0;
 
   private static final JsonAdapter<Map<String, Map<String, Number>>> RESPONSE_ADAPTER =
       new Moshi.Builder()
@@ -58,13 +65,19 @@ public class DDAgentApi {
   private final String host;
   private final int port;
   private final String unixDomainSocketPath;
+  private final long timeoutMillis;
   private OkHttpClient httpClient;
   private HttpUrl tracesUrl;
 
-  public DDAgentApi(final String host, final int port, final String unixDomainSocketPath) {
+  public DDAgentApi(
+      final String host,
+      final int port,
+      final String unixDomainSocketPath,
+      final long timeoutMillis) {
     this.host = host;
     this.port = port;
     this.unixDomainSocketPath = unixDomainSocketPath;
+    this.timeoutMillis = timeoutMillis;
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -84,36 +97,17 @@ public class DDAgentApi {
               .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(traces.representativeCount()))
               .put(new MsgPackRequestBody(traces))
               .build();
+      this.totalTraces += traces.representativeCount();
+      this.receivedTraces += traces.traceCount();
       try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
         if (response.code() != 200) {
-          if (log.isDebugEnabled()) {
-            log.debug(
-                "Error while sending {} of {} traces to the DD agent. Status: {}, Response: {}, Body: {}",
-                traces.traceCount(),
-                traces.representativeCount(),
-                response.code(),
-                response.message(),
-                response.body().string());
-          } else if (nextAllowedLogTime < System.currentTimeMillis()) {
-            nextAllowedLogTime = System.currentTimeMillis() + MILLISECONDS_BETWEEN_ERROR_LOG;
-            log.warn(
-                "Error while sending {} of {} traces to the DD agent. Status: {} {} (going silent for {} minutes)",
-                traces.traceCount(),
-                traces.representativeCount(),
-                response.code(),
-                response.message(),
-                TimeUnit.MILLISECONDS.toMinutes(MILLISECONDS_BETWEEN_ERROR_LOG));
-          }
+          countAndLogFailedSend(traces, response, null);
           return Response.failed(response.code());
         }
-        if (log.isDebugEnabled()) {
-          log.debug(
-              "Successfully sent {} of {} traces to the DD agent.",
-              traces.traceCount(),
-              traces.representativeCount());
-        }
-        final String responseString = response.body().string().trim();
+        countAndLogSuccessfulSend(traces);
+        String responseString = null;
         try {
+          responseString = response.body().string().trim();
           if (!"".equals(responseString) && !"OK".equalsIgnoreCase(responseString)) {
             final Map<String, Map<String, Number>> parsedResponse =
                 RESPONSE_ADAPTER.fromJson(responseString);
@@ -124,44 +118,121 @@ public class DDAgentApi {
           }
           return Response.success(response.code());
         } catch (final IOException e) {
-          log.debug("Failed to parse DD agent response: " + responseString, e);
+          log.debug("Failed to parse DD agent response: {}", responseString, e);
           return Response.success(response.code(), e);
         }
       }
     } catch (final IOException e) {
-      if (log.isDebugEnabled()) {
-        log.debug(
-            "Error while sending "
-                + traces.traceCount()
-                + " of "
-                + traces.representativeCount()
-                + " (size="
-                + (traces.sizeInBytes() / 1024)
-                + "KB)"
-                + " traces to the DD agent.",
-            e);
-      } else if (nextAllowedLogTime < System.currentTimeMillis()) {
-        nextAllowedLogTime = System.currentTimeMillis() + MILLISECONDS_BETWEEN_ERROR_LOG;
-        log.warn(
-            "Error while sending {} of {} (size={}KB, bufferId={}) traces to the DD agent. {}: {} (going silent for {} minutes)",
-            traces.traceCount(),
-            traces.representativeCount(),
-            (traces.sizeInBytes() / 1024),
-            ((MsgPackStatefulSerializer.MsgPackTraceBuffer) traces).id,
-            e.getClass().getName(),
-            e.getMessage(),
-            TimeUnit.MILLISECONDS.toMinutes(MILLISECONDS_BETWEEN_ERROR_LOG));
-      }
+      countAndLogFailedSend(traces, null, e);
       return Response.failed(e);
     }
+  }
+
+  private void countAndLogSuccessfulSend(final TraceBuffer traces) {
+    // count the successful traces
+    this.sentTraces += traces.traceCount();
+
+    if (log.isDebugEnabled()) {
+      log.debug(createSendLogMessage(traces, "Success"));
+    } else if (this.logNextSuccess) {
+      this.logNextSuccess = false;
+      if (log.isInfoEnabled()) {
+        log.info(createSendLogMessage(traces, "Success"));
+      }
+    }
+  }
+
+  private void countAndLogFailedSend(
+      final TraceBuffer traces, final okhttp3.Response response, final IOException outer) {
+    // count the failed traces
+    this.failedTraces += traces.traceCount();
+
+    // these are used to catch and log if there is a failure in debug logging the response body
+    IOException exception = outer;
+    boolean hasLogged = false;
+
+    if (log.isDebugEnabled()) {
+      String sendErrorString = createSendLogMessage(traces, "Error");
+      if (response != null) {
+        try {
+          log.debug(
+              "{} Status: {}, Response: {}, Body: {}",
+              sendErrorString,
+              response.code(),
+              response.message(),
+              response.body().string().trim());
+          hasLogged = true;
+        } catch (IOException inner) {
+          exception = inner;
+        }
+      } else if (exception != null) {
+        log.debug(sendErrorString, exception);
+        hasLogged = true;
+      } else {
+        log.debug(sendErrorString);
+        hasLogged = true;
+      }
+    }
+    if (!hasLogged && log.isWarnEnabled()) {
+      long now = System.nanoTime();
+      if (now - this.previousErrorLogNanos >= NANOSECONDS_BETWEEN_ERROR_LOG) {
+        this.previousErrorLogNanos = now;
+        this.logNextSuccess = true;
+        String sendErrorString = createSendLogMessage(traces, "Error");
+        if (response != null) {
+          log.warn(
+              "{} Status: {} {} {}",
+              sendErrorString,
+              response.code(),
+              response.message(),
+              WILL_NOT_LOG_FOR_MESSAGE);
+        } else if (exception != null) {
+          log.warn(
+              "{} {}: {} {}",
+              sendErrorString,
+              exception.getClass().getName(),
+              exception.getMessage(),
+              WILL_NOT_LOG_FOR_MESSAGE);
+        } else {
+          log.warn("{} {}", sendErrorString, WILL_NOT_LOG_FOR_MESSAGE);
+        }
+      }
+    }
+  }
+
+  private String createSendLogMessage(final TraceBuffer traces, String prefix) {
+    int size = traces.sizeInBytes();
+    String sizeString =
+        size > 1024 ? String.valueOf(size / 1024) + "KB" : String.valueOf(size) + "B";
+    return prefix
+        + " while sending "
+        + traces.traceCount()
+        + " of "
+        + traces.representativeCount()
+        + " (size="
+        + sizeString
+        + ")"
+        + " traces to the DD agent."
+        + " Total: "
+        + this.totalTraces
+        + ", Received: "
+        + this.receivedTraces
+        + ", Sent: "
+        + this.sentTraces
+        + ", Failed: "
+        + this.failedTraces
+        + ".";
   }
 
   private static final byte[] EMPTY_LIST = new byte[] {FIXARRAY_PREFIX};
 
   private static boolean endpointAvailable(
-      final HttpUrl url, final String unixDomainSocketPath, final boolean retry) {
+      final HttpUrl url,
+      final String unixDomainSocketPath,
+      final long timeoutMillis,
+      final boolean retry) {
     try {
-      final OkHttpClient client = buildHttpClient(unixDomainSocketPath);
+      final OkHttpClient client = buildHttpClient(unixDomainSocketPath, timeoutMillis);
       final RequestBody body = RequestBody.create(MSGPACK, EMPTY_LIST);
       final Request request = prepareRequest(url).put(body).build();
 
@@ -170,21 +241,25 @@ public class DDAgentApi {
       }
     } catch (final IOException e) {
       if (retry) {
-        return endpointAvailable(url, unixDomainSocketPath, false);
+        return endpointAvailable(url, unixDomainSocketPath, timeoutMillis, false);
       }
     }
     return false;
   }
 
-  private static OkHttpClient buildHttpClient(final String unixDomainSocketPath) {
+  private static OkHttpClient buildHttpClient(
+      final String unixDomainSocketPath, final long timeoutMillis) {
     OkHttpClient.Builder builder = new OkHttpClient.Builder();
     if (unixDomainSocketPath != null) {
       builder = builder.socketFactory(new UnixDomainSocketFactory(new File(unixDomainSocketPath)));
     }
     return builder
-        .connectTimeout(HTTP_TIMEOUT, TimeUnit.SECONDS)
-        .writeTimeout(HTTP_TIMEOUT, TimeUnit.SECONDS)
-        .readTimeout(HTTP_TIMEOUT, TimeUnit.SECONDS)
+        .connectTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
+        .writeTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
+        .readTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
+
+        // We only use http to talk to the agent
+        .connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT))
 
         // We don't do async so this shouldn't matter, but just to be safe...
         .dispatcher(new Dispatcher(CommonTaskExecutor.INSTANCE))
@@ -218,16 +293,16 @@ public class DDAgentApi {
     }
   }
 
-  private synchronized void detectEndpointAndBuildClient() {
+  void detectEndpointAndBuildClient() {
     if (httpClient == null) {
       final HttpUrl v4Url = getUrl(host, port, TRACES_ENDPOINT_V4);
-      if (endpointAvailable(v4Url, unixDomainSocketPath, true)) {
+      if (endpointAvailable(v4Url, unixDomainSocketPath, timeoutMillis, true)) {
         tracesUrl = v4Url;
       } else {
         log.debug("API v0.4 endpoints not available. Downgrading to v0.3");
         tracesUrl = getUrl(host, port, TRACES_ENDPOINT_V3);
       }
-      httpClient = buildHttpClient(unixDomainSocketPath);
+      httpClient = buildHttpClient(unixDomainSocketPath, timeoutMillis);
     }
   }
 

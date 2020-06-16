@@ -11,7 +11,7 @@ import datadog.trace.util.test.DDSpecification
 
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.api.Config.DEFAULT_SERVICE_NAME
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 
 class DDSpanTest extends DDSpecification {
 
