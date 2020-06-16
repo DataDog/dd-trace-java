@@ -29,6 +29,7 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -42,6 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.ConnectionPool;
+import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.Dispatcher;
 import okhttp3.Headers;
@@ -184,6 +186,12 @@ public final class ProfileUploader {
             .dispatcher(new Dispatcher(okHttpExecutorService))
             .connectionPool(connectionPool);
 
+    if (config.getFinalProfilingUrl().startsWith("http://")) {
+      // force clear text when using http to avoid failures for JVMs without TLS
+      // see: https://github.com/DataDog/dd-trace-java/pull/1582
+      clientBuilder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
+    }
+
     if (config.getProfilingProxyHost() != null) {
       final Proxy proxy =
           new Proxy(
@@ -249,6 +257,11 @@ public final class ProfileUploader {
     }
 
     client.connectionPool().evictAll();
+  }
+
+  @VisibleForTesting
+  OkHttpClient getClient() {
+    return client;
   }
 
   @FunctionalInterface
