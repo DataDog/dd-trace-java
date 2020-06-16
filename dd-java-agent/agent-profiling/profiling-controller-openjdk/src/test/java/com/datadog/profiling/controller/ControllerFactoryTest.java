@@ -1,6 +1,8 @@
 package com.datadog.profiling.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
 import org.junit.jupiter.api.Test;
@@ -20,9 +22,21 @@ public class ControllerFactoryTest {
    * tests with java11 that is guaranteed to have JFR.
    */
   @Test
-  public void testCreateController() throws UnsupportedEnvironmentException {
+  public void testCreateController()
+      throws UnsupportedEnvironmentException, ConfigurationException {
     assertEquals(
         "com.datadog.profiling.controller.openjdk.OpenJdkController",
         ControllerFactory.createController(config).getClass().getName());
+  }
+
+  @Test
+  public void testConfigurationException() {
+    when(config.getProfilingTemplateOverrideFile())
+        .thenReturn("some-path-that-is-not-supposed-to-exist!!!");
+    assertThrows(
+        ConfigurationException.class,
+        () -> {
+          ControllerFactory.createController(config);
+        });
   }
 }

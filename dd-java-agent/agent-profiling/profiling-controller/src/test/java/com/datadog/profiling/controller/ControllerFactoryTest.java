@@ -20,7 +20,7 @@ public class ControllerFactoryTest {
   @Test
   @EnabledOnJre({JAVA_8})
   public void testCreateControllerJava8() {
-    UnsupportedEnvironmentException unsupportedEnvironmentException =
+    final UnsupportedEnvironmentException unsupportedEnvironmentException =
         assertThrows(
             UnsupportedEnvironmentException.class,
             () -> {
