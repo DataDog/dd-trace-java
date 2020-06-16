@@ -228,7 +228,7 @@ public class Agent {
     if (AGENT_CLASSLOADER == null) {
       try {
         final ClassLoader agentClassLoader =
-            createDatadogClassLoader("inst", bootstrapURL, PARENT_CLASSLOADER);
+            createDelegateClassLoader("inst", bootstrapURL, PARENT_CLASSLOADER);
 
         final Class<?> agentInstallerClass =
             agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
@@ -287,7 +287,7 @@ public class Agent {
       final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
       try {
         final ClassLoader jmxFetchClassLoader =
-            createDatadogClassLoader("metrics", bootstrapURL, PARENT_CLASSLOADER);
+            createDelegateClassLoader("metrics", bootstrapURL, PARENT_CLASSLOADER);
         Thread.currentThread().setContextClassLoader(jmxFetchClassLoader);
         final Class<?> jmxFetchAgentClass =
             jmxFetchClassLoader.loadClass("datadog.trace.agent.jmxfetch.JMXFetch");
@@ -308,7 +308,7 @@ public class Agent {
     try {
       if (PROFILING_CLASSLOADER == null) {
         PROFILING_CLASSLOADER =
-            createDatadogClassLoader("profiling", bootstrapURL, PARENT_CLASSLOADER);
+            createDelegateClassLoader("profiling", bootstrapURL, PARENT_CLASSLOADER);
       }
       Thread.currentThread().setContextClassLoader(PROFILING_CLASSLOADER);
       final Class<?> profilingAgentClass =
@@ -365,6 +365,22 @@ public class Agent {
             URL.class, String.class, ClassLoader.class, ClassLoader.class);
     return (ClassLoader)
         constructor.newInstance(bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent);
+  }
+
+  private static ClassLoader createDelegateClassLoader(
+      final String innerJarFilename, final URL bootstrapURL, final ClassLoader parent)
+      throws Exception {
+    final Class<?> loaderClass =
+        ClassLoader.getSystemClassLoader()
+            .loadClass("datadog.trace.bootstrap.DatadogClassLoader$DelegateClassLoader");
+    final Constructor constructor =
+        loaderClass.getDeclaredConstructor(
+            URL.class, String.class, ClassLoader.class, ClassLoader.class, ClassLoader.class);
+    ClassLoader classLoader =
+        (ClassLoader)
+            constructor.newInstance(
+                bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent, PARENT_CLASSLOADER);
+    return classLoader;
   }
 
   private static ClassLoader getPlatformClassLoader()
