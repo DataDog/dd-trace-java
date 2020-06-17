@@ -12,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.Getter;
@@ -132,7 +133,11 @@ final class ScopeStackCollector implements IMLTChunk {
 
   @Override
   public byte[] serialize() {
-    return chunkWriter.writeChunk(this);
+    byte[] data = chunkWriter.writeChunk(this);
+    if (data.length > 15000) {
+      log.info("Chunk serialized to {} bytes", data.length);
+    }
+    return data;
   }
 
   @Override
@@ -174,8 +179,8 @@ final class ScopeStackCollector implements IMLTChunk {
     stacks.add(stackptr);
   }
 
-  public IMLTChunk end() {
-    return threadStacktraceCollector.endScope(this);
+  public <T> T end(Function<IMLTChunk, T> onEnd) {
+    return onEnd.apply(threadStacktraceCollector.endScope(this));
   }
 
   private FrameSequence newTree(FrameElement frame, FrameSequence subtree) {
