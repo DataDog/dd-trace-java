@@ -25,7 +25,7 @@ class AbstractLEB128WriterTest {
     // that moment
     for (int i = 1; i > 0; i = i * 2) {
       int estimatedLength = i + AbstractLEB128Writer.getPackedIntLen(i);
-      assertTrue(estimatedLength <= LEB128ByteArrayWriter.adjustLength(i));
+      assertTrue(estimatedLength <= AbstractLEB128Writer.adjustLength(i));
     }
   }
 }
