@@ -85,7 +85,7 @@ project(':dd-java-agent:agent-profiling').afterEvaluate {
   includeShadowJar(it.tasks.shadowJar, 'profiling')
 }
 project(':dd-java-agent:agent-mlt').afterEvaluate {
-  includeShadowJar(it.tasks.shadowJar, 'agent-mlt')
+  includeShadowJar(it.tasks.shadowJar, 'mlt')
 }
 
 task sharedShadowJar(type: ShadowJar) {
