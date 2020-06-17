@@ -24,11 +24,11 @@ public final class FrameElement {
       int line,
       @NonNull ConstantPool<String> stringPool,
       @NonNull ConstantPool<FrameElement> framePool) {
-    this.cpIndex = ptr;
     this.stringPool = stringPool;
     this.ownerPtr = ownerPtr;
     this.methodPtr = methodPtr;
     this.line = line;
+    this.cpIndex = ptr != -1 ? ptr : framePool.getOrInsert(this); // escaping `this` but probably ok - class is final
   }
 
   public FrameElement(

@@ -8,15 +8,17 @@ import org.junit.jupiter.api.Test;
 
 class FrameElementTest {
   private ConstantPool<String> stringPool;
+  private ConstantPool<FrameElement> framePool;
 
   @BeforeEach
   void setUp() {
     stringPool = new ConstantPool<>();
+    framePool = new ConstantPool<>();
   }
 
   @Test
   void instanceNullStringPool() {
-    assertThrows(NullPointerException.class, () -> new FrameElement("owner", "method", 1, null));
+    assertThrows(NullPointerException.class, () -> new FrameElement("owner", "method", 1, null, framePool));
   }
 
   @Test
@@ -24,7 +26,7 @@ class FrameElementTest {
     String owner = "owner";
     String method = "method";
     int line = 1;
-    FrameElement instance = new FrameElement(owner, method, line, stringPool);
+    FrameElement instance = new FrameElement(owner, method, line, stringPool, framePool);
     assertEquals(owner, instance.getOwner());
     assertEquals(method, instance.getMethod());
     assertEquals(line, instance.getLine());
@@ -38,7 +40,7 @@ class FrameElementTest {
     int ownerPtr = stringPool.getOrInsert(owner);
     int methodPtr = stringPool.getOrInsert(method);
 
-    FrameElement instance = new FrameElement(ownerPtr, methodPtr, line, stringPool);
+    FrameElement instance = new FrameElement(-1, ownerPtr, methodPtr, line, stringPool, framePool);
     assertEquals(owner, instance.getOwner());
     assertEquals(method, instance.getMethod());
     assertEquals(line, instance.getLine());
@@ -46,6 +48,6 @@ class FrameElementTest {
 
   @Test
   public void equalsContract() {
-    EqualsVerifier.forClass(FrameElement.class).withIgnoredFields("stringPool").verify();
+    EqualsVerifier.forClass(FrameElement.class).withIgnoredFields("stringPool", "cpIndex").verify();
   }
 }

@@ -28,7 +28,7 @@ class FrameSequenceTest {
 
   @Test
   void testSingleFrameInstanceFromElements() {
-    FrameElement frame = new FrameElement("owner", "method", 1, stringPool);
+    FrameElement frame = new FrameElement("owner", "method", 1, stringPool, framePool);
     FrameSequence instance = new FrameSequence(frame, null, framePool, stackPool);
     assertNotNull(instance);
     assertEquals(1, instance.length());
@@ -42,7 +42,7 @@ class FrameSequenceTest {
 
   @Test
   void testWithSubtreeInstanceFromElements() {
-    FrameElement frame = new FrameElement("owner", "method", 1, stringPool);
+    FrameElement frame = new FrameElement("owner", "method", 1, stringPool, framePool);
     FrameSequence subtree = new FrameSequence(frame, null, framePool, stackPool);
     FrameSequence instance = new FrameSequence(frame, subtree, framePool, stackPool);
     assertNotNull(instance);
@@ -66,7 +66,7 @@ class FrameSequenceTest {
   @Test
   void testSingleFrameInstanceFromPtrs() {
     int stackPtr = 0;
-    FrameElement frame = new FrameElement("owner", "method", 1, stringPool);
+    FrameElement frame = new FrameElement("owner", "method", 1, stringPool, framePool);
     int framePtr = framePool.getOrInsert(frame);
     FrameSequence instance =
         new FrameSequence(stackPtr, new int[] {framePtr}, -1, framePool, stackPool);
@@ -84,7 +84,7 @@ class FrameSequenceTest {
   void testWithSubtreeInstanceFromPtrs() {
     int stackSubtreePtr = 0;
     int stackPtr = 1;
-    FrameElement frame = new FrameElement("owner", "method", 1, stringPool);
+    FrameElement frame = new FrameElement("owner", "method", 1, stringPool, framePool);
     int framePtr = framePool.getOrInsert(frame);
     FrameSequence subtree =
         new FrameSequence(stackSubtreePtr, new int[] {framePtr}, -1, framePool, stackPool);
