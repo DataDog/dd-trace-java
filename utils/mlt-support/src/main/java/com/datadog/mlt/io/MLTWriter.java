@@ -92,24 +92,32 @@ public final class MLTWriter {
                 ptr -> {
                   writer.writeInt(ptr);
                   FrameSequence stack = chunk.getStackPool().get(ptr);
-                  int cutoff = 5;
-                  int depth = stack.length();
-                  if (depth > cutoff) {
-                    writer
-                        .writeByte((byte) 1) // write type
-                        .writeInt(cutoff); // number of frames
-                    for (int i = 0; i < cutoff - 1; i++) {
-                      writer.writeInt(stack.getHeadCpIndex());
-                      stack = chunk.getStackPool().get(stack.getSubsequenceCpIndex());
-                    }
-                    writer.writeInt(stack.getHeadCpIndex()).writeInt(stack.getSubsequenceCpIndex());
+                  if (stack.getSubsequenceCpIndex() == -1) {
+                    writer.writeByte((byte) 2);
+                    writer.writeInt(stack.length());
+                    stack.frames().map(FrameElement::getCpIndex).forEachOrdered(writer::writeInt);
                   } else {
-                    writer
-                        .writeByte((byte) 0) // write type
-                        .writeInt(depth); // number of elements
-                    for (int i = 0; i < depth; i++) {
-                      writer.writeInt(stack.getHeadCpIndex());
-                      stack = chunk.getStackPool().get(stack.getSubsequenceCpIndex());
+                    int cutoff = 5;
+                    int depth = stack.length();
+                    if (depth > cutoff) {
+                      writer
+                          .writeByte((byte) 1) // write type
+                          .writeInt(cutoff); // number of frames
+                      for (int i = 0; i < cutoff - 1; i++) {
+                        writer.writeInt(stack.getHeadCpIndex());
+                        stack = chunk.getStackPool().get(stack.getSubsequenceCpIndex());
+                      }
+                      writer
+                          .writeInt(stack.getHeadCpIndex())
+                          .writeInt(stack.getSubsequenceCpIndex());
+                    } else {
+                      writer
+                          .writeByte((byte) 0) // write type
+                          .writeInt(depth); // number of elements
+                      for (int i = 0; i < depth; i++) {
+                        writer.writeInt(stack.getHeadCpIndex());
+                        stack = chunk.getStackPool().get(stack.getSubsequenceCpIndex());
+                      }
                     }
                   }
                 });
@@ -161,14 +169,19 @@ public final class MLTWriter {
     if (ptr > -1) {
       FrameSequence stack = stackPool.get(ptr);
       stackConstants.add(ptr);
-      collectFramePtrUsage(stack.getHeadCpIndex(), stringConstants, frameConstants, framePool);
-      collectStackPtrUsage(
-          stack.getSubsequenceCpIndex(),
-          stringConstants,
-          frameConstants,
-          stackConstants,
-          framePool,
-          stackPool);
+      int[] framePtrs = stack.getFrameCpIndexes();
+      for (int framePtr : framePtrs) {
+        collectFramePtrUsage(framePtr, stringConstants, frameConstants, framePool);
+      }
+      if (stack.getSubsequenceCpIndex() != -1) {
+        collectStackPtrUsage(
+            stack.getSubsequenceCpIndex(),
+            stringConstants,
+            frameConstants,
+            stackConstants,
+            framePool,
+            stackPool);
+      }
     }
   }
 

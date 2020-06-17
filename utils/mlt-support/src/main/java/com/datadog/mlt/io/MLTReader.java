@@ -109,6 +109,13 @@ public final class MLTReader {
           framePtrs[j] = r.readInt();
         }
         subtreePtr = r.readInt();
+      } else if (type == 2) {
+        int len = r.readInt();
+        framePtrs = new int[len];
+        for (int j = 0; j < framePtrs.length; j++) {
+          framePtrs[j] = r.readInt();
+        }
+        subtreePtr = -1;
       }
       stackPool.insert(ptr, new FrameSequence(ptr, framePtrs, subtreePtr, framePool, stackPool));
     }
@@ -126,7 +133,8 @@ public final class MLTReader {
       int methodPtr = r.readInt();
       int line = r.readIntRaw();
 
-      framePool.insert(ptr, new FrameElement(ownerPtr, methodPtr, line, stringPool));
+      framePool.insert(
+          ptr, new FrameElement(ptr, ownerPtr, methodPtr, line, stringPool, framePool));
     }
     return framePool;
   }

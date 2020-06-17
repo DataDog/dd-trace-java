@@ -16,8 +16,17 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 final class ScopeStackCollector implements IMLTChunk {
+  /*
+   * TODO seems like subtree compression is worse than plain full-tree deduplication
+   *  when the subtree compression is finally removed this flag should go as well + subtree support in FrameSequence
+   */
+  private static final boolean USE_SUBTREE_COMPRESSION =
+      Boolean.getBoolean("mlt.subtree_compression");
+
   private static final byte VERSION = (byte) 0;
 
   @Getter private final ConstantPool<FrameElement> framePool;
@@ -55,20 +64,37 @@ final class ScopeStackCollector implements IMLTChunk {
     if (stackTrace.length == 0) {
       return;
     }
-    FrameSequence subtree = null;
-    for (int i = stackTrace.length - 1; i >= 0; i--) {
-      StackTraceElement element = stackTrace[i];
-      subtree =
-          newTree(
-              new FrameElement(
-                  element.getClassName(),
-                  element.getMethodName(),
-                  element.getLineNumber(),
-                  stringPool),
-              subtree);
+    FrameSequence tree = null;
+    if (USE_SUBTREE_COMPRESSION) {
+      for (int i = stackTrace.length - 1; i >= 0; i--) {
+        StackTraceElement element = stackTrace[i];
+        tree =
+            newTree(
+                new FrameElement(
+                    element.getClassName(),
+                    element.getMethodName(),
+                    element.getLineNumber(),
+                    stringPool,
+                    framePool),
+                tree);
+      }
+    } else {
+      int[] framePtrs = new int[stackTrace.length];
+      for (int i = 0; i < stackTrace.length; i++) {
+        StackTraceElement element = stackTrace[i];
+        framePtrs[i] =
+            framePool.getOrInsert(
+                new FrameElement(
+                    element.getClassName(),
+                    element.getMethodName(),
+                    element.getLineNumber(),
+                    stringPool,
+                    framePool));
+      }
+      tree = new FrameSequence(framePtrs, framePool, stackPool);
     }
-    int stackptr = stackPool.getOrInsert(subtree);
-    addCompressedStackptr(stackptr);
+
+    addCompressedStackptr(tree.getCpIndex());
   }
 
   @Override
