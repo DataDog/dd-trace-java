@@ -11,7 +11,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RE
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SPAN_ORIGIN_TYPE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.TextMapExtractAdapter.GETTER;
-import static java.util.concurrent.TimeUnit.MICROSECONDS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import com.rabbitmq.client.AMQP;
@@ -22,7 +22,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.core.util.Clock;
 import java.io.IOException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -119,15 +118,15 @@ public class TracedDelegatingConsumer implements Consumer {
           scope.close();
           AgentSpan span = scope.span();
           if (traceStartTimeEnabled) {
-            long now = Clock.currentMicroTime();
+            long now = System.currentTimeMillis();
             String traceStartTime = span.getBaggageItem(DDTags.TRACE_START_TIME);
             if (null != traceStartTime) {
               // not being defensive here because we own the lifecycle of this value
               span.setTag(
                   RECORD_END_TO_END_DURATION_MS,
-                  Math.max(0L, MICROSECONDS.toMillis(now) - Long.parseLong(traceStartTime)));
+                  Math.max(0L, now - Long.parseLong(traceStartTime)));
             }
-            span.finish(now);
+            span.finish(MILLISECONDS.toMicros(now));
           } else {
             span.finish();
           }
