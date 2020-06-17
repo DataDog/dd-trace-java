@@ -22,7 +22,7 @@ public class DatadogClassLoader extends URLClassLoader {
   // adds a jar to the bootstrap class lookup, but not to the resource lookup.
   // As a workaround, we keep a reference to the bootstrap jar
   // to use only for resource lookups.
-  protected final ClassLoader bootstrapProxy;
+  private final ClassLoader bootstrapProxy;
   private final String classLoaderName;
 
   private String lastPackage = null;
@@ -78,7 +78,8 @@ public class DatadogClassLoader extends URLClassLoader {
     // intentionally not thread-safe: the worst case scenario is excess allocation/lookups
     String packageName = lastPackage;
     if (null == packageName || !className.startsWith(packageName)) {
-      packageName = className.substring(0, className.lastIndexOf('.'));
+      int end = className.lastIndexOf('.');
+      packageName = end == -1 ? "" : className.substring(0, end);
       this.lastPackage = packageName;
     }
     return packageName;

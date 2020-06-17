@@ -52,9 +52,12 @@ public class InternalJarURLHandler extends URLStreamHandler {
             String fileName = name.substring(internalJarFileName.length(), end);
             filenameToEntry.put(fileName, entry);
             if (fileName.endsWith(".class") && !fileName.startsWith(currentDir)) {
-              currentDir = fileName.substring(1, fileName.lastIndexOf('/'));
-              String currentPackage = currentDir.replace('/', '.');
-              packages.add(currentPackage);
+              int fileNameStart = fileName.lastIndexOf('/');
+              if (fileNameStart != -1) {
+                currentDir = fileName.substring(1, fileNameStart);
+                String currentPackage = currentDir.replace('/', '.');
+                packages.add(currentPackage);
+              }
             }
           }
         }
