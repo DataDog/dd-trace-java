@@ -1,9 +1,9 @@
 package com.datadog.mlt.io;
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.objects.Object2IntArrayMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 /**
  * A generic constant pool implementation.
@@ -11,8 +11,8 @@ import it.unimi.dsi.fastutil.objects.Object2IntMap;
  * @param <T> constant type
  */
 public final class ConstantPool<T> {
-  private final Object2IntMap<T> indexMap = new Object2IntArrayMap<>(128);
-  private final Int2ObjectMap<T> reverseIndexMap = new Int2ObjectArrayMap<>(128);
+  private final Object2IntMap<T> indexMap = new Object2IntOpenHashMap<>(128);
+  private final Int2ObjectMap<T> reverseIndexMap = new Int2ObjectOpenHashMap<>(128);
 
   private int offset;
 

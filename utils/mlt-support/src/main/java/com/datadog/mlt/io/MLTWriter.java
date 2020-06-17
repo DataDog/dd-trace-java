@@ -1,6 +1,6 @@
 package com.datadog.mlt.io;
 
-import it.unimi.dsi.fastutil.ints.IntArraySet;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -39,9 +39,9 @@ public final class MLTWriter {
         .writeLong(chunk.getDuration()) // duration
         .writeLong(chunk.getThreadId());
 
-    IntSet stringConstants = new IntArraySet();
-    IntSet frameConstants = new IntArraySet();
-    IntSet stackConstants = new IntArraySet();
+    IntSet stringConstants = new IntOpenHashSet();
+    IntSet frameConstants = new IntOpenHashSet();
+    IntSet stackConstants = new IntOpenHashSet();
 
     int[] eventCount = new int[1];
     chunk
