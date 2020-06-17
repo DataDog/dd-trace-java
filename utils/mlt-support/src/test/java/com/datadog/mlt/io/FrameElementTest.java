@@ -18,7 +18,8 @@ class FrameElementTest {
 
   @Test
   void instanceNullStringPool() {
-    assertThrows(NullPointerException.class, () -> new FrameElement("owner", "method", 1, null, framePool));
+    assertThrows(
+        NullPointerException.class, () -> new FrameElement("owner", "method", 1, null, framePool));
   }
 
   @Test

@@ -28,7 +28,10 @@ public final class FrameElement {
     this.ownerPtr = ownerPtr;
     this.methodPtr = methodPtr;
     this.line = line;
-    this.cpIndex = ptr != -1 ? ptr : framePool.getOrInsert(this); // escaping `this` but probably ok - class is final
+    this.cpIndex =
+        ptr != -1
+            ? ptr
+            : framePool.getOrInsert(this); // escaping `this` but probably ok - class is final
   }
 
   public FrameElement(
