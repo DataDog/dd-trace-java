@@ -7,9 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.log.LogContextScopeListener;
+import datadog.trace.agent.tooling.log.ThreadLocalWithDDTagsInitValue;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
-import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -43,19 +44,30 @@ public class ThreadContextInstrumentation extends Instrumenter.Default {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {LogContextScopeListener.class.getName()};
+    return new String[] {
+      LogContextScopeListener.class.getName(), ThreadLocalWithDDTagsInitValue.class.getName(),
+    };
   }
 
   public static class ThreadContextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void mdcClassInitialized(@Advice.Origin final Class<?> threadClass) {
+    public static void mdcClassInitialized(@Advice.Origin final Class<?> threadContextClass) {
+      // @Advice.FieldValue("contextMap") Object contextMap
       try {
-        final Method putMethod = threadClass.getMethod("put", String.class, String.class);
-        final Method removeMethod = threadClass.getMethod("remove", String.class);
+        final Method putMethod = threadContextClass.getMethod("put", String.class, String.class);
+        final Method removeMethod = threadContextClass.getMethod("remove", String.class);
         GlobalTracer.get().addScopeListener(new LogContextScopeListener(putMethod, removeMethod));
-        LogContextScopeListener.addDDTagsToMDC(putMethod);
-      } catch (final NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-        org.slf4j.LoggerFactory.getLogger(threadClass)
+
+        final Field contextMapField = threadContextClass.getDeclaredField("contextMap");
+        contextMapField.setAccessible(true);
+        Object contextMap = contextMapField.get(null);
+
+        final Field localMapField = contextMap.getClass().getDeclaredField("localMap");
+        localMapField.setAccessible(true);
+        localMapField.set(contextMap, new ThreadLocalWithDDTagsInitValue());
+
+      } catch (final NoSuchMethodException | NoSuchFieldException | IllegalAccessException e) {
+        org.slf4j.LoggerFactory.getLogger(threadContextClass)
             .debug("Failed to add log4j ThreadContext span listener", e);
       }
     }

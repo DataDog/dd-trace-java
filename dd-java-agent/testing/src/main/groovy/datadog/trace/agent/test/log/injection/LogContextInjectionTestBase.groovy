@@ -2,7 +2,6 @@ package datadog.trace.agent.test.log.injection
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.ConfigUtils
-import datadog.trace.api.Config
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -10,8 +9,9 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import java.util.concurrent.atomic.AtomicReference
 
-import static datadog.trace.api.Config.GLOBAL_TAGS
+import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.Config.PREFIX
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
@@ -20,6 +20,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
  * satisfy in order to support log injection.
  */
 abstract class LogContextInjectionTestBase extends AgentTestRunner {
+  private static final TEST_ENV = "test"
+  private static final TEST_VERSION = "0.1"
 
   /**
    * Set in the framework-specific context the given value at the given key
@@ -34,7 +36,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
   static {
     ConfigUtils.updateConfig {
       System.setProperty("dd.logs.injection", "true")
-      System.setProperty(PREFIX + GLOBAL_TAGS, "env:test,version:0.1")
+      System.setProperty(PREFIX + TAGS, "env:${TEST_ENV},version:${TEST_VERSION}")
     }
   }
 
@@ -48,9 +50,9 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
     get(CorrelationIdentifier.getSpanIdKey()) == CorrelationIdentifier.getSpanId()
     get("foo") == "bar"
-    get(Tags.DD_SERVICE) == Config.DEFAULT_SERVICE_NAME
-    get(Tags.DD_VERSION) == "0.1"
-    get(Tags.DD_ENV) == "test"
+    get(Tags.DD_SERVICE) == DEFAULT_SERVICE_NAME
+    get(Tags.DD_VERSION) == TEST_VERSION
+    get(Tags.DD_ENV) == TEST_ENV
 
     when:
     AgentSpan childSpan = startSpan("child")
@@ -60,9 +62,9 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
     get(CorrelationIdentifier.getSpanIdKey()) == CorrelationIdentifier.getSpanId()
     get("foo") == "bar"
-    get(Tags.DD_SERVICE) == Config.DEFAULT_SERVICE_NAME
-    get(Tags.DD_VERSION) == "0.1"
-    get(Tags.DD_ENV) == "test"
+    get(Tags.DD_SERVICE) == DEFAULT_SERVICE_NAME
+    get(Tags.DD_VERSION) == TEST_VERSION
+    get(Tags.DD_ENV) == TEST_ENV
 
     when:
     childScope.close()
@@ -72,9 +74,9 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
     get(CorrelationIdentifier.getSpanIdKey()) == CorrelationIdentifier.getSpanId()
     get("foo") == "bar"
-    get(Tags.DD_SERVICE) == Config.DEFAULT_SERVICE_NAME
-    get(Tags.DD_VERSION) == "0.1"
-    get(Tags.DD_ENV) == "test"
+    get(Tags.DD_SERVICE) == DEFAULT_SERVICE_NAME
+    get(Tags.DD_VERSION) == TEST_VERSION
+    get(Tags.DD_ENV) == TEST_ENV
 
     when:
     rootScope.close()
@@ -84,26 +86,40 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     get(CorrelationIdentifier.getTraceIdKey()) == null
     get(CorrelationIdentifier.getSpanIdKey()) == null
     get("foo") == "bar"
-    get(Tags.DD_SERVICE) == Config.DEFAULT_SERVICE_NAME
-    get(Tags.DD_VERSION) == "0.1"
-    get(Tags.DD_ENV) == "test"
+    get(Tags.DD_SERVICE) == DEFAULT_SERVICE_NAME
+    get(Tags.DD_VERSION) == TEST_VERSION
+    get(Tags.DD_ENV) == TEST_ENV
   }
 
   def "Log context is scoped by thread"() {
     AtomicReference<String> thread1TraceId = new AtomicReference<>()
     AtomicReference<String> thread2TraceId = new AtomicReference<>()
+    def t1VersionBeg
+    def t1VersionEnd
+    def t2VersionBeg
+    def t2VersionEnd
+    def t1EnvBeg
+    def t1EnvEnd
+    def t2EnvBeg
+    def t2EnvEnd
 
     final Thread thread1 = new Thread() {
       @Override
       void run() {
+        t1VersionBeg = get(Tags.DD_VERSION)
+        t1EnvBeg = get(Tags.DD_ENV)
         // no trace in scope
         thread1TraceId.set(get(CorrelationIdentifier.getTraceIdKey()))
+        t1VersionEnd = get(Tags.DD_VERSION)
+        t1EnvEnd = get(Tags.DD_ENV)
       }
     }
 
     final Thread thread2 = new Thread() {
       @Override
       void run() {
+        t2VersionBeg = get(Tags.DD_VERSION)
+        t2EnvBeg = get(Tags.DD_ENV)
         // other trace in scope
         final AgentSpan thread2Span = startSpan("root2")
         final AgentScope thread2Scope = activateSpan(thread2Span)
@@ -113,6 +129,8 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
           thread2Scope.close()
           thread2Span.finish()
         }
+        t2VersionEnd = get(Tags.DD_VERSION)
+        t2EnvEnd = get(Tags.DD_ENV)
       }
     }
     final AgentSpan mainSpan = startSpan("root")
@@ -130,9 +148,17 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     thread1TraceId.get() == null
     thread2TraceId.get() != null
     thread2TraceId.get() != mainThreadTraceId
-    get(Tags.DD_SERVICE) == Config.DEFAULT_SERVICE_NAME
-    get(Tags.DD_VERSION) == "0.1"
-    get(Tags.DD_ENV) == "test"
+    get(Tags.DD_SERVICE) == DEFAULT_SERVICE_NAME
+    get(Tags.DD_VERSION) == TEST_VERSION
+    get(Tags.DD_ENV) == TEST_ENV
+    t1VersionBeg == TEST_VERSION
+    t1VersionEnd == TEST_VERSION
+    t2VersionBeg == TEST_VERSION
+    t2VersionEnd == TEST_VERSION
+    t1EnvBeg == TEST_ENV
+    t1EnvEnd == TEST_ENV
+    t2EnvBeg == TEST_ENV
+    t2EnvEnd == TEST_ENV
 
     cleanup:
     mainScope?.close()
@@ -140,10 +166,35 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
   }
 
   def "always log service, version, env"() {
-    expect:
-    get(Tags.DD_SERVICE) == Config.DEFAULT_SERVICE_NAME
-    get(Tags.DD_VERSION) == "0.1"
-    get(Tags.DD_ENV) == "test"
+    def mainThreadVersion = get(Tags.DD_VERSION)
+    def t1VersionBeg
+    def t1VersionEnd
+    def t1EnvBeg
+    def t1EnvEnd
 
+    final Thread thread1 = new Thread() {
+      @Override
+      void run() {
+        t1VersionBeg = get(Tags.DD_VERSION)
+        t1EnvBeg = get(Tags.DD_ENV)
+
+        println("something: " + this)
+
+        t1VersionEnd = get(Tags.DD_VERSION)
+        t1EnvEnd = get(Tags.DD_ENV)
+      }
+    }
+    thread1.start()
+    thread1.join()
+
+    expect:
+    mainThreadVersion == get(Tags.DD_VERSION)
+    get(Tags.DD_SERVICE) == DEFAULT_SERVICE_NAME
+    get(Tags.DD_VERSION) == TEST_VERSION
+    get(Tags.DD_ENV) == TEST_ENV
+    t1VersionBeg == TEST_VERSION
+    t1VersionEnd == TEST_VERSION
+    t1EnvBeg == TEST_ENV
+    t1EnvEnd == TEST_ENV
   }
 }
