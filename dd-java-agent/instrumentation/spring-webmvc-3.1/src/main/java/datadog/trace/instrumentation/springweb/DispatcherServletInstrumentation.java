@@ -84,10 +84,12 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Default
     public static void afterRefresh(
         @Advice.Argument(0) final ApplicationContext springCtx,
         @Advice.FieldValue("handlerMappings") final List<HandlerMapping> handlerMappings) {
-      final HandlerMappingResourceNameFilter filter =
-          springCtx.getBean(HandlerMappingResourceNameFilter.class);
-      if (handlerMappings != null && filter != null) {
-        filter.setHandlerMappings(handlerMappings);
+      if (springCtx.containsBean("ddDispatcherFilter")) {
+        final HandlerMappingResourceNameFilter filter =
+            springCtx.getBean(HandlerMappingResourceNameFilter.class);
+        if (handlerMappings != null && filter != null) {
+          filter.setHandlerMappings(handlerMappings);
+        }
       }
     }
   }
