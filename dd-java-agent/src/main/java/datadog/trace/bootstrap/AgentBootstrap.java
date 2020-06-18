@@ -40,7 +40,7 @@ import java.util.regex.Pattern;
  *   <li>Do dot touch any logging facilities here so we can configure them later
  * </ul>
  */
-public class AgentBootstrap {
+public final class AgentBootstrap {
   private static final Class<?> thisClass = MethodHandles.lookup().lookupClass();
 
   public static void premain(final String agentArgs, final Instrumentation inst) {

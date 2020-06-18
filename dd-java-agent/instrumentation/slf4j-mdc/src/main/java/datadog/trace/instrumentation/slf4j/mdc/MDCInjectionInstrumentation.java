@@ -7,8 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.log.LogContextScopeListener;
+import datadog.trace.agent.tooling.log.ThreadLocalWithDDTagsInitValue;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
 import java.util.Map;
@@ -18,6 +20,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.BooleanMatcher;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
+import org.slf4j.spi.MDCAdapter;
 
 @AutoService(Instrumenter.class)
 public class MDCInjectionInstrumentation extends Instrumenter.Default {
@@ -70,17 +73,28 @@ public class MDCInjectionInstrumentation extends Instrumenter.Default {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {LogContextScopeListener.class.getName()};
+    return new String[] {
+      LogContextScopeListener.class.getName(), ThreadLocalWithDDTagsInitValue.class.getName(),
+    };
   }
 
   public static class MDCAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void mdcClassInitialized(@Advice.Origin final Class mdcClass) {
+    public static void mdcClassInitialized(@Advice.Origin final Class<?> mdcClass) {
       try {
         final Method putMethod = mdcClass.getMethod("put", String.class, String.class);
         final Method removeMethod = mdcClass.getMethod("remove", String.class);
         GlobalTracer.get().addScopeListener(new LogContextScopeListener(putMethod, removeMethod));
-      } catch (final NoSuchMethodException e) {
+
+        final Field mdcAdapterField = mdcClass.getDeclaredField("mdcAdapter");
+        mdcAdapterField.setAccessible(true);
+        final MDCAdapter mdcAdapterInstance = (MDCAdapter) mdcAdapterField.get(null);
+        final Field copyOnThreadLocalField =
+            mdcAdapterInstance.getClass().getDeclaredField("copyOnThreadLocal");
+        copyOnThreadLocalField.setAccessible(true);
+        copyOnThreadLocalField.set(mdcAdapterInstance, new ThreadLocalWithDDTagsInitValue());
+
+      } catch (final NoSuchMethodException | IllegalAccessException | NoSuchFieldException e) {
         org.slf4j.LoggerFactory.getLogger(mdcClass).debug("Failed to add MDC span listener", e);
       }
     }
