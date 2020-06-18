@@ -28,6 +28,7 @@ public final class Constants {
     "datadog.trace.common",
     "datadog.trace.agent",
     "datadog.trace.instrumentation",
+    "dd.tr.a", // shaded
     // guava
     "com.google.auto",
     "com.google.common",
@@ -36,6 +37,7 @@ public final class Constants {
     "com.blogspot.mydailyjava.weaklockfree",
     // bytebuddy
     "net.bytebuddy",
+    "bb", // shaded
     // msgpack
     "org.msgpack",
     // disruptor
