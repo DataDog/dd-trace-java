@@ -79,8 +79,12 @@ public class DatadogClassLoader extends URLClassLoader {
     String packageName = lastPackage;
     if (null == packageName || !className.startsWith(packageName)) {
       int end = className.lastIndexOf('.');
-      packageName = end == -1 ? "" : className.substring(0, end);
-      this.lastPackage = packageName;
+      if (end != -1) {
+        packageName = className.substring(0, end);
+        this.lastPackage = packageName;
+      } else {
+        packageName = "";
+      }
     }
     return packageName;
   }
