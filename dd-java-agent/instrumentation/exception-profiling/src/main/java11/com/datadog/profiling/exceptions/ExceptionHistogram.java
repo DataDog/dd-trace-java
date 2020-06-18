@@ -56,7 +56,7 @@ public class ExceptionHistogram {
     if (exception == null) {
       return false;
     }
-    return record(exception.getClass().getCanonicalName());
+    return record(exception.getClass().getName());
   }
 
   private boolean record(String typeName) {
