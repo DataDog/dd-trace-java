@@ -49,7 +49,10 @@ public final class MLTWriter {
         .forEach(
             val -> {
               eventCount[0]++;
-              if ((val & 0x80000000) == 0) {
+              /*
+               * Checking for compression flag - `(topItem & 0x80000000) == 0`, simplified as `topItem >= 0`
+               */
+              if (val >= 0) {
                 collectStackPtrUsage(
                     val,
                     stringConstants,

@@ -133,11 +133,7 @@ final class ScopeStackCollector implements IMLTChunk {
 
   @Override
   public byte[] serialize() {
-    byte[] data = chunkWriter.writeChunk(this);
-    if (data.length > 15000) {
-      log.info("Chunk serialized to {} bytes", data.length);
-    }
-    return data;
+    return chunkWriter.writeChunk(this);
   }
 
   @Override
@@ -149,7 +145,9 @@ final class ScopeStackCollector implements IMLTChunk {
     if (!stacks.isEmpty()) {
       int topItem = stacks.removeInt(stacks.size() - 1);
       if (!stacks.isEmpty()) {
-        if ((topItem & 0x80000000) == 0x80000000) { // topItem is the repetition counter
+        // checking for compression flag - `(topItem & 0x80000000) == 0x80000000`, simplified as
+        // `topItem < 0`
+        if (topItem < 0) { // topItem is the repetition counter
           int counter = (topItem & 0x7fffffff);
           if (stacks.getInt(stacks.size() - 1) == stackptr && counter < Integer.MAX_VALUE - 2) {
             /*
