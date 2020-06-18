@@ -50,30 +50,30 @@ class DDAgentWriterTest extends DDSpecification {
     phaser.register()
   }
 
-  def "test connect early to agent"() {
-    setup:
-    // the call to the api is asynchronous so we need to work around it
-    def buildClientWasCalled = new BlockingVariable(1) // 1 second
-    DDAgentApi apiMock = Mock()
-    apiMock.detectEndpointAndBuildClient() >> {
-      buildClientWasCalled.set(true)
-    }
-    def writer = DDAgentWriter.builder()
-      .agentApi(apiMock)
-      .traceBufferSize(1)
-      .flushFrequencySeconds(120)
-      .serializer(serializer)
-      .build()
-
-    when:
-    writer.start()
-
-    then:
-    buildClientWasCalled.get()
-
-    cleanup:
-    writer.close()
-  }
+//  def "test connect early to agent"() {
+//    setup:
+//    // the call to the api is asynchronous so we need to work around it
+//    def buildClientWasCalled = new BlockingVariable(1) // 1 second
+//    DDAgentApi apiMock = Mock()
+//    apiMock.detectEndpointAndBuildClient() >> {
+//      buildClientWasCalled.set(true)
+//    }
+//    def writer = DDAgentWriter.builder()
+//      .agentApi(apiMock)
+//      .traceBufferSize(1)
+//      .flushFrequencySeconds(120)
+//      .serializer(serializer)
+//      .build()
+//
+//    when:
+//    writer.start()
+//
+//    then:
+//    buildClientWasCalled.get()
+//
+//    cleanup:
+//    writer.close()
+//  }
 
   def "test happy path"() {
     setup:

@@ -29,13 +29,16 @@ public class DispatchingDisruptor implements AutoCloseable {
         DisruptorUtils.create(
             eventFactory,
             disruptorSize,
-            DaemonThreadFactory.TRACE_WRITER.withInitializer(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    writer.getApi().detectEndpointAndBuildClient();
-                  }
-                }),
+            // Don't check the endpoint eagerly
+            DaemonThreadFactory.TRACE_WRITER,
+            //            // so could this be the thing that triggers the IBM failure
+            //            DaemonThreadFactory.TRACE_WRITER.withInitializer(
+            //                new Runnable() {
+            //                  @Override
+            //                  public void run() {
+            //                    writer.getApi().detectEndpointAndBuildClient();
+            //                  }
+            //                }),
             ProducerType.SINGLE,
             // block (and use no resources) until there's a batch of data to dispatch
             new BlockingWaitStrategy());
