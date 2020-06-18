@@ -1,5 +1,6 @@
 package com.datadog.mlt.sampler;
 
+import com.datadog.mlt.io.IMLTChunk;
 import datadog.trace.mlt.Session;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +25,7 @@ public class JMXSession implements Session {
 
   @Override
   public byte[] close() {
-    byte[] data = scopeStackCollector.end().serialize();
+    byte[] data = scopeStackCollector.end(IMLTChunk::serialize);
     cleanup.accept(this);
     return data;
   }

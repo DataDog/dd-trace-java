@@ -35,7 +35,20 @@ public final class FrameSequence {
     this.stackPool = stackPool;
     this.frameCpIndexes = Arrays.copyOf(frameCpIndexes, frameCpIndexes.length);
     this.subsequenceCpIndex = subsequenceCpIndex;
-    // this.length may not be computed here because the constant pools may not yet be filled up
+    /*
+     * If the sequence points to a subsequence `this.length` may not be computed here because the constant pools may not yet be filled up
+     */
+    if (subsequenceCpIndex == -1) {
+      this.length = frameCpIndexes.length;
+    }
+  }
+
+  @Generated // do not force unit tests for lombok generated null checks
+  public FrameSequence(
+      @NonNull int[] frameCpIndexes,
+      @NonNull ConstantPool<FrameElement> framePool,
+      @NonNull ConstantPool<FrameSequence> stackPool) {
+    this(-1, frameCpIndexes, -1, framePool, stackPool);
   }
 
   @Generated // do not force unit tests for lombok generated null checks
@@ -73,7 +86,7 @@ public final class FrameSequence {
     return length;
   }
 
-  int getCpIndex() {
+  public int getCpIndex() {
     if (cpIndex == -1) {
       cpIndex = stackPool.getOrInsert(this);
     }
@@ -82,6 +95,10 @@ public final class FrameSequence {
 
   int getHeadCpIndex() {
     return frameCpIndexes.length > 0 ? frameCpIndexes[0] : -1;
+  }
+
+  int[] getFrameCpIndexes() {
+    return frameCpIndexes;
   }
 
   int getSubsequenceCpIndex() {
@@ -105,7 +122,9 @@ public final class FrameSequence {
       return frameStream;
     }
 
-    return IntStream.concat(frameStream, stackPool.get(subsequenceCpIndex).frameCpIndexes());
+    return subsequenceCpIndex != -1
+        ? IntStream.concat(frameStream, stackPool.get(subsequenceCpIndex).frameCpIndexes())
+        : frameStream;
   }
 
   @Generated // exclude from jacoco; EqualsVerifier gets confused with the cached hash value and can

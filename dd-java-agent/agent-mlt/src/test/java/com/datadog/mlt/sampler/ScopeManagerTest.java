@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.datadog.mlt.io.FrameElement;
 import com.datadog.mlt.io.FrameSequence;
-import com.datadog.mlt.io.IMLTChunk;
 import com.datadog.mlt.io.MLTChunk;
 import com.datadog.mlt.io.MLTReader;
 import java.lang.management.ManagementFactory;
@@ -51,32 +50,37 @@ class ScopeManagerTest {
       sampler.collect(ti.getStackTrace());
       Thread.sleep(ThreadLocalRandom.current().nextInt(20) + 2);
     }
-    IMLTChunk collectedChunk = sampler.end();
+    sampler.end(
+        collectedChunk -> {
+          byte[] serializedChunk = collectedChunk.serialize();
+          List<MLTChunk> chunks = new MLTReader().readMLTChunks(serializedChunk);
+          assertFalse(chunks.isEmpty());
+          assertEquals(1, chunks.size());
 
-    byte[] serializedChunk = collectedChunk.serialize();
-    List<MLTChunk> chunks = new MLTReader().readMLTChunks(serializedChunk);
-    assertFalse(chunks.isEmpty());
-    assertEquals(1, chunks.size());
+          MLTChunk chunk = chunks.get(0);
+          assertEquals(collectedChunk.getVersion(), chunk.getVersion());
+          assertEquals(collectedChunk.getStartTime(), chunk.getStartTime());
+          assertEquals(collectedChunk.getThreadId(), chunk.getThreadId());
+          assertEquals(collectedChunk.getThreadName(), chunk.getThreadName());
 
-    MLTChunk chunk = chunks.get(0);
-    assertEquals(collectedChunk.getVersion(), chunk.getVersion());
-    assertEquals(collectedChunk.getStartTime(), chunk.getStartTime());
-    assertEquals(collectedChunk.getThreadId(), chunk.getThreadId());
-    assertEquals(collectedChunk.getThreadName(), chunk.getThreadName());
+          int[] origStackPtrs = collectedChunk.frameSequenceCpIndexes().toArray();
+          int[] restoredFramesPtrs = chunk.frameSequenceCpIndexes().toArray();
+          assertArrayEquals(origStackPtrs, restoredFramesPtrs);
 
-    int[] origStackPtrs = collectedChunk.frameSequenceCpIndexes().toArray();
-    int[] restoredFramesPtrs = chunk.frameSequenceCpIndexes().toArray();
-    assertArrayEquals(origStackPtrs, restoredFramesPtrs);
-
-    /*
-     * Can't compare the framestack instances directly since the distribution between the captured frames and
-     * the referenced subtree is a subject to change while serializing the collected data.
-     */
-    FrameElement[] origFrames =
-        collectedChunk.frameSequences().flatMap(FrameSequence::frames).toArray(FrameElement[]::new);
-    FrameElement[] restoredFrames =
-        chunk.frameSequences().flatMap(FrameSequence::frames).toArray(FrameElement[]::new);
-    assertArrayEquals(origFrames, restoredFrames);
+          /*
+           * Can't compare the framestack instances directly since the distribution between the captured frames and
+           * the referenced subtree is a subject to change while serializing the collected data.
+           */
+          FrameElement[] origFrames =
+              collectedChunk
+                  .frameSequences()
+                  .flatMap(FrameSequence::frames)
+                  .toArray(FrameElement[]::new);
+          FrameElement[] restoredFrames =
+              chunk.frameSequences().flatMap(FrameSequence::frames).toArray(FrameElement[]::new);
+          assertArrayEquals(origFrames, restoredFrames);
+          return null;
+        });
   }
 
   private void mainEntry() throws InterruptedException {

@@ -1,6 +1,6 @@
 package com.datadog.mlt.io;
 
-import it.unimi.dsi.fastutil.ints.IntArraySet;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -9,13 +9,6 @@ import java.util.function.IntConsumer;
 
 /** The MLT binary format writer */
 public final class MLTWriter {
-  private static final int CHUNK_WRITER_CAPACITY = 512 * 1024; // initial 512kB for chunk writer
-  private static final int FRAME_STACK_WRITER_CAPACITY =
-      256 * 1024; // initial 256kB for frame stack writer
-  private final LEB128Writer chunkWriter = LEB128Writer.getInstance(CHUNK_WRITER_CAPACITY);
-  private final LEB128Writer frameStackDataWriter =
-      LEB128Writer.getInstance(FRAME_STACK_WRITER_CAPACITY);
-
   /**
    * Write a single chunk to its binary format
    *
@@ -23,6 +16,7 @@ public final class MLTWriter {
    * @return chunk in its MLT binary format
    */
   public byte[] writeChunk(IMLTChunk chunk) {
+    LEB128Writer chunkWriter = LEB128Writer.getInstance();
     writeChunk(chunk, chunkWriter);
     byte[] data = chunkWriter.export();
     chunkWriter.reset();
@@ -30,6 +24,7 @@ public final class MLTWriter {
   }
 
   public void writeChunk(IMLTChunk chunk, Consumer<ByteBuffer> dataConsumer) {
+    LEB128Writer chunkWriter = LEB128Writer.getInstance();
     writeChunk(chunk, chunkWriter);
     chunkWriter.export(dataConsumer);
   }
@@ -44,24 +39,20 @@ public final class MLTWriter {
         .writeLong(chunk.getDuration()) // duration
         .writeLong(chunk.getThreadId());
 
-    IntSet stringConstants = new IntArraySet();
-    IntSet frameConstants = new IntArraySet();
-    IntSet stackConstants = new IntArraySet();
+    IntSet stringConstants = new IntOpenHashSet();
+    IntSet frameConstants = new IntOpenHashSet();
+    IntSet stackConstants = new IntOpenHashSet();
 
-    /*
-     * Write out the stack trace sequence and collect the constant pool usage.
-     * In order collect the data and count it in one pass the intermediary result is written to a separate
-     * writer.
-     */
-    LEB128Writer stackEventWriter = frameStackDataWriter;
     int[] eventCount = new int[1];
     chunk
         .frameSequenceCpIndexes()
         .forEach(
             val -> {
               eventCount[0]++;
-              stackEventWriter.writeInt(val);
-              if ((val & 0x80000000) == 0) {
+              /*
+               * Checking for compression flag - `(topItem & 0x80000000) == 0`, simplified as `topItem >= 0`
+               */
+              if (val >= 0) {
                 collectStackPtrUsage(
                     val,
                     stringConstants,
@@ -72,7 +63,7 @@ public final class MLTWriter {
               }
             });
     writer.writeInt(eventCount[0]);
-    writer.writeBytes(stackEventWriter.export());
+    chunk.frameSequenceCpIndexes().forEach(writer::writeInt);
 
     writer.writeIntRaw(
         MLTConstants.CONSTANT_POOLS_OFFSET, writer.position()); // write the constant pools offset
@@ -92,24 +83,32 @@ public final class MLTWriter {
                 ptr -> {
                   writer.writeInt(ptr);
                   FrameSequence stack = chunk.getStackPool().get(ptr);
-                  int cutoff = 5;
-                  int depth = stack.length();
-                  if (depth > cutoff) {
-                    writer
-                        .writeByte((byte) 1) // write type
-                        .writeInt(cutoff); // number of frames
-                    for (int i = 0; i < cutoff - 1; i++) {
-                      writer.writeInt(stack.getHeadCpIndex());
-                      stack = chunk.getStackPool().get(stack.getSubsequenceCpIndex());
-                    }
-                    writer.writeInt(stack.getHeadCpIndex()).writeInt(stack.getSubsequenceCpIndex());
+                  if (stack.getSubsequenceCpIndex() == -1) {
+                    writer.writeByte((byte) 2);
+                    writer.writeInt(stack.length());
+                    stack.frames().map(FrameElement::getCpIndex).forEachOrdered(writer::writeInt);
                   } else {
-                    writer
-                        .writeByte((byte) 0) // write type
-                        .writeInt(depth); // number of elements
-                    for (int i = 0; i < depth; i++) {
-                      writer.writeInt(stack.getHeadCpIndex());
-                      stack = chunk.getStackPool().get(stack.getSubsequenceCpIndex());
+                    int cutoff = 5;
+                    int depth = stack.length();
+                    if (depth > cutoff) {
+                      writer
+                          .writeByte((byte) 1) // write type
+                          .writeInt(cutoff); // number of frames
+                      for (int i = 0; i < cutoff - 1; i++) {
+                        writer.writeInt(stack.getHeadCpIndex());
+                        stack = chunk.getStackPool().get(stack.getSubsequenceCpIndex());
+                      }
+                      writer
+                          .writeInt(stack.getHeadCpIndex())
+                          .writeInt(stack.getSubsequenceCpIndex());
+                    } else {
+                      writer
+                          .writeByte((byte) 0) // write type
+                          .writeInt(depth); // number of elements
+                      for (int i = 0; i < depth; i++) {
+                        writer.writeInt(stack.getHeadCpIndex());
+                        stack = chunk.getStackPool().get(stack.getSubsequenceCpIndex());
+                      }
                     }
                   }
                 });
@@ -161,14 +160,19 @@ public final class MLTWriter {
     if (ptr > -1) {
       FrameSequence stack = stackPool.get(ptr);
       stackConstants.add(ptr);
-      collectFramePtrUsage(stack.getHeadCpIndex(), stringConstants, frameConstants, framePool);
-      collectStackPtrUsage(
-          stack.getSubsequenceCpIndex(),
-          stringConstants,
-          frameConstants,
-          stackConstants,
-          framePool,
-          stackPool);
+      int[] framePtrs = stack.getFrameCpIndexes();
+      for (int framePtr : framePtrs) {
+        collectFramePtrUsage(framePtr, stringConstants, frameConstants, framePool);
+      }
+      if (stack.getSubsequenceCpIndex() != -1) {
+        collectStackPtrUsage(
+            stack.getSubsequenceCpIndex(),
+            stringConstants,
+            frameConstants,
+            stackConstants,
+            framePool,
+            stackPool);
+      }
     }
   }
 

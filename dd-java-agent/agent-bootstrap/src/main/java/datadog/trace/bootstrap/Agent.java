@@ -269,8 +269,7 @@ public class Agent {
     try {
       if (MLT_CLASSLOADER == null) {
         log.info("Setting up Method-level Tracer ClassLoader");
-        MLT_CLASSLOADER =
-            createDatadogClassLoader("agent-mlt.isolated", bootstrapURL, PARENT_CLASSLOADER);
+        MLT_CLASSLOADER = createDatadogClassLoader("mlt", bootstrapURL, PARENT_CLASSLOADER);
       }
       // install global method-level tracer
       final Class<?> tracerInstallerClass =

@@ -15,22 +15,36 @@ public final class FrameElement {
 
   @Getter private final int line;
 
-  FrameElement(int ownerPtr, int methodPtr, int line, @NonNull ConstantPool<String> stringPool) {
+  @EqualsAndHashCode.Exclude private final int cpIndex;
+
+  FrameElement(
+      int ptr,
+      int ownerPtr,
+      int methodPtr,
+      int line,
+      @NonNull ConstantPool<String> stringPool,
+      @NonNull ConstantPool<FrameElement> framePool) {
     this.stringPool = stringPool;
     this.ownerPtr = ownerPtr;
     this.methodPtr = methodPtr;
     this.line = line;
+    this.cpIndex =
+        ptr != -1
+            ? ptr
+            : framePool.getOrInsert(this); // escaping `this` but probably ok - class is final
   }
 
   public FrameElement(
       @NonNull String owner,
       @NonNull String method,
       int line,
-      @NonNull ConstantPool<String> stringPool) {
+      @NonNull ConstantPool<String> stringPool,
+      @NonNull ConstantPool<FrameElement> framePool) {
     this.stringPool = stringPool;
     this.ownerPtr = stringPool.getOrInsert(owner);
     this.methodPtr = stringPool.getOrInsert(method);
     this.line = line;
+    this.cpIndex = framePool.getOrInsert(this); // escaping `this` but probably ok - class is final
   }
 
   /**
@@ -67,6 +81,10 @@ public final class FrameElement {
    */
   int getMethodPtr() {
     return methodPtr;
+  }
+
+  int getCpIndex() {
+    return cpIndex;
   }
 
   @Generated

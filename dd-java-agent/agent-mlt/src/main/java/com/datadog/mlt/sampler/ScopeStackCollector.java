@@ -12,12 +12,22 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 final class ScopeStackCollector implements IMLTChunk {
+  /*
+   * TODO seems like subtree compression is worse than plain full-tree deduplication
+   *  when the subtree compression is finally removed this flag should go as well + subtree support in FrameSequence
+   */
+  private static final boolean USE_SUBTREE_COMPRESSION =
+      Boolean.getBoolean("mlt.subtree_compression");
+
   private static final byte VERSION = (byte) 0;
 
   @Getter private final ConstantPool<FrameElement> framePool;
@@ -55,20 +65,37 @@ final class ScopeStackCollector implements IMLTChunk {
     if (stackTrace.length == 0) {
       return;
     }
-    FrameSequence subtree = null;
-    for (int i = stackTrace.length - 1; i >= 0; i--) {
-      StackTraceElement element = stackTrace[i];
-      subtree =
-          newTree(
-              new FrameElement(
-                  element.getClassName(),
-                  element.getMethodName(),
-                  element.getLineNumber(),
-                  stringPool),
-              subtree);
+    FrameSequence tree = null;
+    if (USE_SUBTREE_COMPRESSION) {
+      for (int i = stackTrace.length - 1; i >= 0; i--) {
+        StackTraceElement element = stackTrace[i];
+        tree =
+            newTree(
+                new FrameElement(
+                    element.getClassName(),
+                    element.getMethodName(),
+                    element.getLineNumber(),
+                    stringPool,
+                    framePool),
+                tree);
+      }
+    } else {
+      int[] framePtrs = new int[stackTrace.length];
+      for (int i = 0; i < stackTrace.length; i++) {
+        StackTraceElement element = stackTrace[i];
+        framePtrs[i] =
+            framePool.getOrInsert(
+                new FrameElement(
+                    element.getClassName(),
+                    element.getMethodName(),
+                    element.getLineNumber(),
+                    stringPool,
+                    framePool));
+      }
+      tree = new FrameSequence(framePtrs, framePool, stackPool);
     }
-    int stackptr = stackPool.getOrInsert(subtree);
-    addCompressedStackptr(stackptr);
+
+    addCompressedStackptr(tree.getCpIndex());
   }
 
   @Override
@@ -118,7 +145,9 @@ final class ScopeStackCollector implements IMLTChunk {
     if (!stacks.isEmpty()) {
       int topItem = stacks.removeInt(stacks.size() - 1);
       if (!stacks.isEmpty()) {
-        if ((topItem & 0x80000000) == 0x80000000) { // topItem is the repetition counter
+        // checking for compression flag - `(topItem & 0x80000000) == 0x80000000`, simplified as
+        // `topItem < 0`
+        if (topItem < 0) { // topItem is the repetition counter
           int counter = (topItem & 0x7fffffff);
           if (stacks.getInt(stacks.size() - 1) == stackptr && counter < Integer.MAX_VALUE - 2) {
             /*
@@ -148,8 +177,8 @@ final class ScopeStackCollector implements IMLTChunk {
     stacks.add(stackptr);
   }
 
-  public IMLTChunk end() {
-    return threadStacktraceCollector.endScope(this);
+  public <T> T end(Function<IMLTChunk, T> onEnd) {
+    return onEnd.apply(threadStacktraceCollector.endScope(this));
   }
 
   private FrameSequence newTree(FrameElement frame, FrameSequence subtree) {

@@ -8,13 +8,12 @@ public interface LEB128Writer {
   long COMPRESSED_INT_MASK = -EXT_BIT;
 
   /**
-   * Get a default {@linkplain LEB128Writer} instance with the given initial capacity
+   * Get a default {@linkplain LEB128Writer} instance
    *
-   * @param initialCapacity the initial capacity of the writer's internal buffer
    * @return a new instance of {@linkplain LEB128Writer}
    */
-  static LEB128Writer getInstance(int initialCapacity) {
-    return LEB128WriterFactory.getWriter(initialCapacity);
+  static LEB128Writer getInstance() {
+    return new LEB128ByteBufferWriter();
   }
 
   /** Reset the writer. Discard any collected data and set position to 0. */
@@ -318,20 +317,19 @@ public interface LEB128Writer {
     final byte[][] dataRef = new byte[1][];
     export(
         buffer -> {
+          int limit = buffer.limit();
+          buffer.flip();
+          int len = buffer.remaining();
           if (buffer.hasArray()) {
-            int len = buffer.remaining();
             dataRef[0] = new byte[len];
             System.arraycopy(
                 buffer.array(), buffer.arrayOffset() + buffer.position(), dataRef[0], 0, len);
             buffer.position(buffer.limit());
           } else {
-            int limit = buffer.limit();
-            buffer.flip();
-            int len = buffer.remaining();
             dataRef[0] = new byte[len];
             buffer.get(dataRef[0]);
-            buffer.limit(limit);
           }
+          buffer.limit(limit);
         });
     return dataRef[0];
   }
