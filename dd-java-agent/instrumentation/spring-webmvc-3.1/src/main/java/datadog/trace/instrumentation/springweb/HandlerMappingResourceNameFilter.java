@@ -10,6 +10,7 @@ import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExecutionChain;
@@ -65,5 +66,13 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
   public int getOrder() {
     // Run after all HIGHEST_PRECEDENCE items
     return Ordered.HIGHEST_PRECEDENCE + 1;
+  }
+
+  public static class BeanDefinition extends GenericBeanDefinition {
+    public BeanDefinition() {
+      setScope(SCOPE_SINGLETON);
+      setBeanClass(HandlerMappingResourceNameFilter.class);
+      setBeanClassName(HandlerMappingResourceNameFilter.class.getName());
+    }
   }
 }

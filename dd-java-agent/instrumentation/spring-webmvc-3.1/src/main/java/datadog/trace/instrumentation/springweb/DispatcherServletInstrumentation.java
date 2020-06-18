@@ -86,7 +86,7 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Default
         @Advice.FieldValue("handlerMappings") final List<HandlerMapping> handlerMappings) {
       if (springCtx.containsBean("ddDispatcherFilter")) {
         final HandlerMappingResourceNameFilter filter =
-            springCtx.getBean(HandlerMappingResourceNameFilter.class);
+            (HandlerMappingResourceNameFilter) springCtx.getBean("ddDispatcherFilter");
         if (handlerMappings != null && filter != null) {
           filter.setHandlerMappings(handlerMappings);
         }

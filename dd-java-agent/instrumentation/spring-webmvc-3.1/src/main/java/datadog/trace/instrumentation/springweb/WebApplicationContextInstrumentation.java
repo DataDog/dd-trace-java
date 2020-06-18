@@ -16,6 +16,7 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 
 @AutoService(Instrumenter.class)
 public class WebApplicationContextInstrumentation extends Instrumenter.Default {
@@ -43,6 +44,7 @@ public class WebApplicationContextInstrumentation extends Instrumenter.Default {
       packageName + ".SpringWebHttpServerDecorator",
       packageName + ".SpringWebHttpServerDecorator$1",
       packageName + ".HandlerMappingResourceNameFilter",
+      packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
     };
   }
 
@@ -64,8 +66,12 @@ public class WebApplicationContextInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(0) final ConfigurableListableBeanFactory beanFactory) {
-      if (!beanFactory.containsBean("ddDispatcherFilter")) {
-        beanFactory.registerSingleton("ddDispatcherFilter", new HandlerMappingResourceNameFilter());
+      if (beanFactory instanceof BeanDefinitionRegistry
+          && !beanFactory.containsBean("ddDispatcherFilter")) {
+
+        ((BeanDefinitionRegistry) beanFactory)
+            .registerBeanDefinition(
+                "ddDispatcherFilter", new HandlerMappingResourceNameFilter.BeanDefinition());
       }
     }
   }
