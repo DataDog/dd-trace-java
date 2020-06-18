@@ -37,6 +37,8 @@ public final class ClassLoaderMatcher {
     /* Cache of classloader-instance -> (true|false). True = skip instrumentation. False = safe to instrument. */
     private static final String DATADOG_CLASSLOADER_NAME =
         "datadog.trace.bootstrap.DatadogClassLoader";
+    private static final String DATADOG_DELEGATE_CLASSLOADER_NAME =
+        "datadog.trace.bootstrap.DatadogClassLoader$DelegateClassLoader";
     private static final WeakCache<ClassLoader, Boolean> skipCache = AgentTooling.newWeakCache();
 
     private SkipClassLoaderMatcher() {}
@@ -73,6 +75,7 @@ public final class ClassLoaderMatcher {
         case "org.apache.cxf.common.util.ASMHelper$TypeHelperClassLoader":
         case "sun.misc.Launcher$ExtClassLoader":
         case DATADOG_CLASSLOADER_NAME:
+        case DATADOG_DELEGATE_CLASSLOADER_NAME:
           return true;
       }
       return false;
