@@ -25,7 +25,7 @@ class JMXSampler {
   public JMXSampler(ThreadScopeMapper threadScopeMapper) {
     this.threadScopeMapper = threadScopeMapper;
     // TODO period as parameter
-    long samplerPeriod = Long.parseLong(System.getProperty("mlt.sampler.ms", "10"));
+    long samplerPeriod = Long.getLong("mlt.sampler.ms", 10);
     executor.scheduleAtFixedRate(this::sample, 0, samplerPeriod, TimeUnit.MILLISECONDS);
   }
 
