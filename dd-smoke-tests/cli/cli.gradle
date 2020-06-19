@@ -6,9 +6,7 @@ description = 'Command Line Application Smoke Tests.'
 
 jar {
   manifest {
-    attributes(
-      'Main-Class': 'datadog.smoketest.cli.CliApplication'
-    )
+    attributes('Main-Class': 'datadog.smoketest.cli.CliApplication')
   }
 }
 

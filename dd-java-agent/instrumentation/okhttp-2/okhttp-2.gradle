@@ -1,7 +1,7 @@
 /*
-Note: The Interceptor class for OkHttp was not introduced until 2.2+, so we need to make sure the
-instrumentation is not loaded unless the dependency is 2.2+.
-*/
+ Note: The Interceptor class for OkHttp was not introduced until 2.2+, so we need to make sure the
+ instrumentation is not loaded unless the dependency is 2.2+.
+ */
 muzzle {
   pass {
     group = "com.squareup.okhttp"

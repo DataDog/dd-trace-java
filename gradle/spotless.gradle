@@ -4,4 +4,9 @@ spotless {
   java {
     googleJavaFormat()
   }
+  groovyGradle {
+    // same as groovy, but for .gradle (defaults to '*.gradle')
+    target '*.gradle'
+    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
+  }
 }

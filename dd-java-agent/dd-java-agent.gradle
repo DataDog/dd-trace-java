@@ -97,12 +97,12 @@ shadowJar generalShadowJarConfig >> {
 
   manifest {
     attributes(
-      "Main-Class": "datadog.trace.bootstrap.AgentBootstrap",
-      "Agent-Class": "datadog.trace.bootstrap.AgentBootstrap",
-      "Premain-Class": "datadog.trace.bootstrap.AgentBootstrap",
-      "Can-Redefine-Classes": true,
-      "Can-Retransform-Classes": true,
-    )
+        "Main-Class": "datadog.trace.bootstrap.AgentBootstrap",
+        "Agent-Class": "datadog.trace.bootstrap.AgentBootstrap",
+        "Premain-Class": "datadog.trace.bootstrap.AgentBootstrap",
+        "Can-Redefine-Classes": true,
+        "Can-Retransform-Classes": true,
+        )
   }
 }
 
