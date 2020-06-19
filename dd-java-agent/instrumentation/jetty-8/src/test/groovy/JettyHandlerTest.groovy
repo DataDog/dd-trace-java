@@ -27,6 +27,10 @@ class JettyHandlerTest extends HttpServerTest<Server> {
     System.setProperty("dd.integration.jetty.enabled", "true")
   }
 
+  def cleanupSpec() {
+    System.clearProperty("dd.integration.jetty.enabled")
+  }
+
   static errorHandler = new ErrorHandler() {
     @Override
     protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {

@@ -24,6 +24,10 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     System.setProperty("dd.integration.grizzly.enabled", "true")
   }
 
+  def cleanupSpec() {
+    System.clearProperty("dd.integration.grizzly.enabled")
+  }
+
   @Override
   HttpServer startServer(int port) {
     ResourceConfig rc = new ResourceConfig()

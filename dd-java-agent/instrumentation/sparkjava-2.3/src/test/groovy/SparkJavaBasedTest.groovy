@@ -15,6 +15,12 @@ class SparkJavaBasedTest extends AgentTestRunner {
     System.setProperty("dd.integration.sparkjava.enabled", "true")
   }
 
+  def cleanupSpec() {
+    System.clearProperty("dd.integration.jetty.enabled")
+    System.clearProperty("dd.integration.sparkjava.enabled")
+    Spark.stop()
+  }
+
   @Shared
   int port
 
@@ -23,10 +29,6 @@ class SparkJavaBasedTest extends AgentTestRunner {
   def setupSpec() {
     port = PortUtils.randomOpenPort()
     TestSparkJavaApplication.initSpark(port)
-  }
-
-  def cleanupSpec() {
-    Spark.stop()
   }
 
   def "generates spans"() {

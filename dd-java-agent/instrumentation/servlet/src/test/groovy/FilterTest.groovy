@@ -15,6 +15,10 @@ class FilterTest extends AgentTestRunner {
     System.setProperty("dd.integration.servlet-filter.enabled", "true")
   }
 
+  def cleanupSpec() {
+    System.clearProperty("dd.integration.servlet-filter.enabled")
+  }
+
   def "test doFilter no-parent"() {
     when:
     filter.doFilter(null, null, null)

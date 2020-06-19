@@ -1,5 +1,3 @@
-
-
 import com.ning.http.client.AsyncCompletionHandler
 import com.ning.http.client.AsyncHttpClient
 import com.ning.http.client.Request
@@ -15,6 +13,10 @@ class GrizzlyAsyncHttpClientTest extends HttpClientTest {
 
   static {
     System.setProperty("dd.integration.grizzly-client.enabled", "true")
+  }
+
+  def cleanupSpec() {
+    System.clearProperty("dd.integration.grizzly-client.enabled")
   }
 
   @AutoCleanup

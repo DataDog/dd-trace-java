@@ -157,6 +157,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
           }
       }
     }
+    System.clearProperty("dd.integration.jdbc-datasource.enabled")
   }
 
   @Unroll

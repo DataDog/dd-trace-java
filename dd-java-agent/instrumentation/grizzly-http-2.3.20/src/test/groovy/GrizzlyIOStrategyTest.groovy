@@ -12,6 +12,10 @@ abstract class GrizzlyIOStrategyTest extends GrizzlyTest {
     System.setProperty("dd.integration.grizzly-http.enabled", "true")
   }
 
+  def cleanupSpec() {
+    System.clearProperty("dd.integration.grizzly-http.enabled")
+  }
+
   @Override
   HttpServer startServer(int port) {
     ResourceConfig rc = new ResourceConfig()

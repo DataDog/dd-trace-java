@@ -26,6 +26,10 @@ class GlassFishServerTest extends HttpServerTest<GlassFish> {
 //    System.setProperty("dd.integration.grizzly.enabled", "true")
 //  }
 
+  def cleanupSpec() {
+    System.clearProperty("dd.integration.grizzly.enabled")
+  }
+
   @Override
   URI buildAddress() {
     return new URI("http://localhost:$port/$context/")
