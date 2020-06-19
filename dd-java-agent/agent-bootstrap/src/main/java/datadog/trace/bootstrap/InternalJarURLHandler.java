@@ -107,7 +107,6 @@ public class InternalJarURLHandler extends URLStreamHandler {
         // matter
         this.cache = new WeakReference<>(pair);
       } else {
-        log.debug("{} not found in {}", filename, name);
         throw notFound;
       }
     } else {
