@@ -376,8 +376,7 @@ public final class ProfileUploader {
   }
 
   private List<String> tagsToList(final Map<String, String> tags) {
-    return tags.entrySet()
-        .stream()
+    return tags.entrySet().stream()
         .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
         .map(e -> e.getKey() + ":" + e.getValue())
         .collect(Collectors.toList());
