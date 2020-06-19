@@ -67,12 +67,6 @@ class JettyHandlerTest extends HttpServerTest<Server> {
   }
 
   @Override
-  boolean testNotFound() {
-    // resource name is set to "GET JettyHandlerTest$TestHandler"
-    false
-  }
-
-  @Override
   boolean testExceptionBody() {
     false
   }
@@ -126,7 +120,7 @@ class JettyHandlerTest extends HttpServerTest<Server> {
     trace.span(index) {
       serviceName expectedServiceName()
       operationName expectedOperationName()
-      resourceName endpoint.status == 404 ? "404" : "$method $handlerName"
+      resourceName endpoint.resource(method, address, testPathParam())
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint.errored
       if (parentID != null) {
