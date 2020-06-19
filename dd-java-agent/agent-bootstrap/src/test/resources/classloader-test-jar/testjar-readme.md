@@ -1,7 +1,7 @@
 Jar file has a structure similar to the agent jar:
 
 ```bash
- jar -tf testjar      
+ jar -tf testjar
 META-INF/
 META-INF/MANIFEST.MF
 parent/

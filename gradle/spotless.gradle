@@ -9,4 +9,14 @@ spotless {
     target '*.gradle'
     greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
   }
+
+  format 'misc', {
+    target '**/.gitignore', '**/*.md', '**/*.sh'
+    indentWithSpaces()
+    trimTrailingWhitespace()
+    endWithNewline()
+  }
 }
+
+task formatCode(dependsOn: ['spotlessApply'])
+check.dependsOn 'spotlessApply'
