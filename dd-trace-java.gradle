@@ -9,9 +9,7 @@ plugins {
   id 'org.unbroken-dome.test-sets' version '3.0.1'
   id 'com.github.ben-manes.versions' version '0.27.0'
 
-  // Not applying google java format by default because it gets confused by stray java build
-  // files in 'workspace' build directory in CI
-  id 'com.github.sherter.google-java-format' version '0.8' apply false
+  id 'com.diffplug.gradle.spotless' version '4.3.0'
   id 'com.dorongold.task-tree' version '1.5'
   id 'pl.allegro.tech.build.axion-release' version '1.10.3'
 }
