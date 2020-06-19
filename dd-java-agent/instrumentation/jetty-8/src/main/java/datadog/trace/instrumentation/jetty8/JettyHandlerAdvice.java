@@ -39,8 +39,6 @@ public class JettyHandlerAdvice {
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, req);
     DECORATE.onRequest(span, req);
-    final String resourceName = req.getMethod() + " " + source.getClass().getName();
-    span.setTag(DDTags.RESOURCE_NAME, resourceName);
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
