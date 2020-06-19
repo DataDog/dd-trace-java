@@ -9,6 +9,20 @@ spotless {
     target '*.gradle'
     greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
   }
+  kotlinGradle {
+    // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
+    target '*.gradle.kts'
+    ktfmt()
+    ktlint().userData(['indent_size': '2', 'continuation_indent_size': '2'])
+  }
+
+  scala {
+    scalafmt()
+  }
+  kotlin {
+//    ktfmt()
+    ktlint().userData(['indent_size': '2', 'continuation_indent_size': '2'])
+  }
 
   format 'misc', {
     target '**/.gitignore', '**/*.md', '**/*.sh'
