@@ -18,7 +18,7 @@ public class OtelTracer implements Tracer {
   private final AgentTracer.TracerAPI tracer;
   private final TypeConverter converter;
 
-  public OtelTracer(
+  OtelTracer(
       final String tracerName, final AgentTracer.TracerAPI tracer, final TypeConverter converter) {
     this.tracerName = tracerName;
     this.tracer = tracer;

@@ -9,6 +9,8 @@ public class OtelTracerProvider implements TracerProvider {
 
   private final TypeConverter converter = new TypeConverter();
 
+  private OtelTracerProvider() {}
+
   @Override
   public Tracer get(final String instrumentationName) {
     return get(instrumentationName, null);
@@ -16,6 +18,7 @@ public class OtelTracerProvider implements TracerProvider {
 
   @Override
   public Tracer get(final String instrumentationName, final String instrumentationVersion) {
+    // TODO: cache return value.
     return new OtelTracer(instrumentationName, AgentTracer.get(), converter);
   }
 }

@@ -12,14 +12,10 @@ public class TypeConverter {
   // TODO maybe add caching to reduce new objects being created
 
   public AgentSpan toAgentSpan(final Span span) {
-    if (span == null) {
-      return null;
-    } else if (span instanceof OtelSpan) {
+    if (span instanceof OtelSpan) {
       return ((OtelSpan) span).getDelegate();
-    } else {
-      // NOOP Span, otherwise arbitrary spans aren't supported.
-      return AgentTracer.NoopAgentSpan.INSTANCE;
     }
+    return null == span ? null : AgentTracer.NoopAgentSpan.INSTANCE;
   }
 
   public Span toSpan(final AgentSpan agentSpan) {
@@ -44,12 +40,9 @@ public class TypeConverter {
   }
 
   public AgentSpan.Context toContext(final SpanContext spanContext) {
-    if (spanContext == null) {
-      return null;
-    } else if (spanContext instanceof OtelSpanContext) {
+    if (spanContext instanceof OtelSpanContext) {
       return ((OtelSpanContext) spanContext).getDelegate();
-    } else {
-      return AgentTracer.NoopContext.INSTANCE;
     }
+    return null == spanContext ? null : AgentTracer.NoopContext.INSTANCE;
   }
 }

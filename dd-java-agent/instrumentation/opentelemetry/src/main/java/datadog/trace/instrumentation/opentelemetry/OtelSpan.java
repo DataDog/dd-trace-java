@@ -16,7 +16,7 @@ public class OtelSpan implements Span, MutableSpan {
   private final AgentSpan delegate;
   private final TypeConverter converter;
 
-  public OtelSpan(final AgentSpan agentSpan, final TypeConverter typeConverter) {
+  OtelSpan(final AgentSpan agentSpan, final TypeConverter typeConverter) {
     delegate = agentSpan;
     converter = typeConverter;
   }

@@ -7,7 +7,7 @@ import io.opentelemetry.context.Scope;
 public class OtelScope implements Scope, TraceScope {
   private final AgentScope delegate;
 
-  public OtelScope(final AgentScope delegate) {
+  OtelScope(final AgentScope delegate) {
     this.delegate = delegate;
   }
 

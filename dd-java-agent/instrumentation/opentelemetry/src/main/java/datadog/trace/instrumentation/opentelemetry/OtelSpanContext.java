@@ -11,7 +11,7 @@ public class OtelSpanContext extends SpanContext {
   private static final TraceFlags FLAGS = TraceFlags.builder().setIsSampled(true).build();
   private final AgentSpan.Context delegate;
 
-  public OtelSpanContext(final AgentSpan.Context delegate) {
+  OtelSpanContext(final AgentSpan.Context delegate) {
     this.delegate = delegate;
   }
 

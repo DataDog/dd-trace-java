@@ -15,6 +15,8 @@ import java.util.List;
 public class OtelContextPropagators implements ContextPropagators {
   public static final OtelContextPropagators INSTANCE = new OtelContextPropagators();
 
+  private OtelContextPropagators() {}
+
   @Override
   public HttpTextFormat getHttpTextFormat() {
     return OtelHttpTextFormat.INSTANCE;
