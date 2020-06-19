@@ -73,6 +73,23 @@ class DatadogClassLoaderTest extends Specification {
     c.getClassLoader() == parent
   }
 
+
+  def "test delegate class load to bootstrap"() {
+    given:
+    assumeFalse(System.getProperty("java.version").contains("1.7"))
+    DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy =
+      new DatadogClassLoader.BootstrapClassLoaderProxy()
+    DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
+    DatadogClassLoader.DelegateClassLoader child = new DatadogClassLoader.DelegateClassLoader(testJarLocation,
+      "child", bootstrapProxy, null, parent)
+
+    when:
+    Class<?> v = child.loadClass("java.lang.Void")
+
+    then:
+    v.getClassLoader() == null
+  }
+
   def "test class load managed by child"() {
     given:
     assumeFalse(System.getProperty("java.version").contains("1.7"))

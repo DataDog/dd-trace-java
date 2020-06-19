@@ -12,9 +12,7 @@ import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.security.Permission;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -27,9 +25,16 @@ public class InternalJarURLHandler extends URLStreamHandler {
 
   private final String name;
   private final FileNotInInternalJar notFound;
-  private final Map<String, JarEntry> filenameToEntry = new HashMap<>();
   private final Set<String> packages = new HashSet<>();
   private final JarFile bootstrapJarFile;
+
+  private static final ThreadLocal<StringBuilder> JAR_ENTRY_QUERY =
+      new ThreadLocal<StringBuilder>() {
+        @Override
+        protected StringBuilder initialValue() {
+          return new StringBuilder(128);
+        }
+      };
 
   private WeakReference<Pair<String, JarEntry>> cache = NULL;
 
@@ -38,24 +43,22 @@ public class InternalJarURLHandler extends URLStreamHandler {
     this.notFound = new FileNotInInternalJar(internalJarFileName);
     final String filePrefix = internalJarFileName + "/";
     JarFile jarFile = null;
-    String currentDir = "$";
     try {
       if (bootstrapJarLocation != null) {
         jarFile = new JarFile(new File(bootstrapJarLocation.toURI()), false);
         final Enumeration<JarEntry> entries = jarFile.entries();
         while (entries.hasMoreElements()) {
           final JarEntry entry = entries.nextElement();
-          if (!entry.isDirectory() && entry.getName().startsWith(filePrefix)) {
-            String name = entry.getName();
-            // remove data suffix
-            int end = name.endsWith(".classdata") ? name.length() - 4 : name.length();
-            String fileName = name.substring(internalJarFileName.length(), end);
-            filenameToEntry.put(fileName, entry);
-            if (fileName.endsWith(".class") && !fileName.startsWith(currentDir)) {
-              int fileNameStart = fileName.lastIndexOf('/');
-              if (fileNameStart != -1) {
-                currentDir = fileName.substring(1, fileNameStart);
-                String currentPackage = currentDir.replace('/', '.');
+          String name = entry.getName();
+          if (name.startsWith(filePrefix)) {
+            if (entry.isDirectory()) {
+              int prefix = filePrefix.length();
+              if (name.contains("META-INF/services/")) {
+                prefix += "META-INF/services/".length();
+              }
+              if (name.length() > prefix) {
+                String dir = name.substring(prefix, name.length() - 1);
+                String currentPackage = dir.replace('/', '.');
                 packages.add(currentPackage);
               }
             }
@@ -66,7 +69,7 @@ public class InternalJarURLHandler extends URLStreamHandler {
       log.error("Unable to read internal jar", e);
     }
 
-    if (filenameToEntry.isEmpty()) {
+    if (packages.isEmpty()) {
       log.warn("No internal jar entries found");
     }
     this.bootstrapJarFile = jarFile;
@@ -90,7 +93,14 @@ public class InternalJarURLHandler extends URLStreamHandler {
     // and the key will be a new object each time.
     Pair<String, JarEntry> pair = cache.get();
     if (null == pair || !filename.equals(pair.getLeft())) {
-      final JarEntry entry = filenameToEntry.get(filename);
+      StringBuilder sb = JAR_ENTRY_QUERY.get();
+      sb.append(this.name).append(filename);
+      if (filename.endsWith(".class")) {
+        sb.append("data");
+      }
+      String classFileName = sb.toString();
+      sb.setLength(0);
+      JarEntry entry = bootstrapJarFile.getJarEntry(classFileName);
       if (null != entry) {
         pair = Pair.of(filename, entry);
         // this mechanism intentionally does not ensure visibility of this write, because it doesn't
