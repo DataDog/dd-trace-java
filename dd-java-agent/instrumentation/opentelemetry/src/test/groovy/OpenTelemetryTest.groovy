@@ -25,7 +25,7 @@ class OpenTelemetryTest extends AgentTestRunner {
   def tracer = OpenTelemetry.tracerProvider.get("test-inst")
   def httpPropagator = OpenTelemetry.getPropagators().httpTextFormat
 
-  def "test span"() {
+  def "test span tags"() {
     setup:
     def builder = tracer.spanBuilder("some name")
     if (tagBuilder) {
@@ -34,9 +34,6 @@ class OpenTelemetryTest extends AgentTestRunner {
         .setAttribute("number", 1)
         .setAttribute("boolean", true)
     }
-    if (addLink) {
-      builder.setParent(tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(2), 0, null, [:], [:])))
-    }
     def result = builder.startSpan()
     if (tagSpan) {
       result.setAttribute(DDTags.RESOURCE_NAME, "other resource")
@@ -44,14 +41,67 @@ class OpenTelemetryTest extends AgentTestRunner {
       result.setAttribute("number", 2)
       result.setAttribute("boolean", false)
     }
-    if (exception) {
-      result.setStatus(Status.UNKNOWN)
-      result.setAttribute(DDTags.ERROR_MSG, (String) exception.message)
-      result.setAttribute(DDTags.ERROR_TYPE, (String) exception.class.name)
-      final StringWriter errorString = new StringWriter()
-      exception.printStackTrace(new PrintWriter(errorString))
-      result.setAttribute(DDTags.ERROR_STACK, errorString.toString())
+
+    expect:
+    result instanceof MutableSpan
+    (result as MutableSpan).localRootSpan == result.delegate
+    tracer.currentSpan == null
+
+    when:
+    result.end()
+
+    then:
+    assertTraces(1) {
+      trace(0, 1) {
+        span(0) {
+          parent()
+          serviceName "unnamed-java-app"
+          operationName "test-inst"
+          if (tagSpan) {
+            resourceName "other resource"
+          } else if (tagBuilder) {
+            resourceName "some resource"
+          } else {
+            resourceName "some name"
+          }
+          errored false
+          tags {
+            if (tagSpan) {
+              "string" "b"
+              "number" 2
+              "boolean" false
+            } else if (tagBuilder) {
+              "string" "a"
+              "number" 1
+              "boolean" true
+            }
+            defaultTags()
+          }
+          metrics {
+            defaultMetrics()
+          }
+        }
+      }
     }
+
+    where:
+    tagBuilder | tagSpan
+    true       | false
+    true       | true
+    false      | false
+    false      | true
+  }
+
+  def "test span exception"() {
+    setup:
+    def builder = tracer.spanBuilder("some name")
+    def result = builder.startSpan()
+    result.setStatus(Status.UNKNOWN)
+    result.setAttribute(DDTags.ERROR_MSG, (String) exception.message)
+    result.setAttribute(DDTags.ERROR_TYPE, (String) exception.class.name)
+    final StringWriter errorString = new StringWriter()
+    exception.printStackTrace(new PrintWriter(errorString))
+    result.setAttribute(DDTags.ERROR_STACK, errorString.toString())
 
     expect:
     result instanceof MutableSpan
@@ -66,35 +116,14 @@ class OpenTelemetryTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
-          if (addLink) {
-            parentDDId(DDId.from(2))
-          } else {
-            parent()
-          }
+          parent()
           serviceName "unnamed-java-app"
           operationName "test-inst"
-          if (tagSpan) {
-            resourceName "other resource"
-          } else if (tagBuilder) {
-            resourceName "some resource"
-          } else {
-            resourceName "some name"
-          }
-          errored exception != null
+          resourceName "some name"
+          errored true
           tags {
-            if (tagSpan) {
-              "string" "b"
-              "number" 2
-              "boolean" false
-            } else if (tagBuilder) {
-              "string" "a"
-              "number" 1
-              "boolean" true
-            }
-            if (exception) {
-              errorTags(exception.class)
-            }
-            defaultTags(addLink)
+            errorTags(exception.class)
+            defaultTags()
           }
           metrics {
             defaultMetrics()
@@ -104,11 +133,58 @@ class OpenTelemetryTest extends AgentTestRunner {
     }
 
     where:
-    addLink | tagBuilder | tagSpan | exception
-    false   | true       | false   | null
-    true    | true       | true    | new Exception()
-    false   | false      | false   | new Exception()
-    true    | false      | true    | null
+    exception = new Exception()
+  }
+
+  def "test span links"() {
+    setup:
+    def builder = tracer.spanBuilder("some name")
+    if (parentId) {
+      builder.setParent(tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(parentId), 0, null, [:], [:])))
+    }
+    if (linkId) {
+      builder.addLink(tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(linkId), 0, null, [:], [:])))
+    }
+    def result = builder.startSpan()
+
+    expect:
+    result instanceof MutableSpan
+    (result as MutableSpan).localRootSpan == result.delegate
+    tracer.currentSpan == null
+
+    when:
+    result.end()
+
+    then:
+    assertTraces(1) {
+      trace(0, 1) {
+        span(0) {
+          if (expectedId) {
+            traceDDId(DDId.ONE)
+            parentDDId(DDId.from(expectedId))
+          } else {
+            parent()
+          }
+          serviceName "unnamed-java-app"
+          operationName "test-inst"
+          resourceName "some name"
+          errored false
+          tags {
+            defaultTags(expectedId != null)
+          }
+          metrics {
+            defaultMetrics()
+          }
+        }
+      }
+    }
+
+    where:
+    parentId | linkId | expectedId
+    null     | null   | null
+    2        | null   | 2
+    null     | 3      | 3
+    2        | 3      | 2
   }
 
   def "test scope"() {
