@@ -22,10 +22,7 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
 
   static {
     System.setProperty("dd.integration.grizzly.enabled", "true")
-  }
-
-  def cleanupSpec() {
-    System.clearProperty("dd.integration.grizzly.enabled")
+    // This is needed by various subclass tests, so we can't clear it.
   }
 
   @Override
