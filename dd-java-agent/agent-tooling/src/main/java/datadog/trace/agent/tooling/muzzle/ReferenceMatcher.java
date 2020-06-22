@@ -63,11 +63,9 @@ public final class ReferenceMatcher {
 
   private boolean doesMatch(final ClassLoader loader) {
     for (final Reference reference : references) {
-      // Don't reference check JDK classes
       // Don't reference-check helper classes.
       // They will be injected by the instrumentation's HelperInjector.
-      if (!reference.getClassName().startsWith("java.")
-          && !helperClassNames.contains(reference.getClassName())) {
+      if (!helperClassNames.contains(reference.getClassName())) {
         if (!checkMatch(reference, loader).isEmpty()) {
           return false;
         }
@@ -93,8 +91,7 @@ public final class ReferenceMatcher {
     for (final Reference reference : references) {
       // Don't reference-check helper classes.
       // They will be injected by the instrumentation's HelperInjector.
-      if (!reference.getClassName().startsWith("java.")
-          && !helperClassNames.contains(reference.getClassName())) {
+      if (!helperClassNames.contains(reference.getClassName())) {
         mismatches = lazyAddAll(mismatches, checkMatch(reference, loader));
       }
     }
