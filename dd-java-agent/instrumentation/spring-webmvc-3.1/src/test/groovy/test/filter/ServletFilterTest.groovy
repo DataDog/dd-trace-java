@@ -91,7 +91,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
           tags {
             "$Tags.COMPONENT" "spring-webmvc"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "view.type" RedirectView.name
+            "view.type" RedirectView.simpleName
             defaultTags()
           }
         }
