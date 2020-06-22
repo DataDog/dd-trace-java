@@ -24,10 +24,6 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
     System.setProperty("dd.integration.grizzly-filterchain.enabled", "true")
   }
 
-  def cleanupSpec() {
-    System.clearProperty("dd.integration.grizzly-filterchain.enabled")
-  }
-
   @Override
   HttpServer startServer(int port) {
     ResourceConfig rc = new ResourceConfig()

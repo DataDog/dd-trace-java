@@ -17,10 +17,6 @@ class OpenTelemetryTest extends AgentTestRunner {
     System.setProperty("dd.integration.opentelemetry-beta.enabled", "true")
   }
 
-  def cleanupSpec() {
-    System.clearProperty("dd.integration.opentelemetry-beta.enabled")
-  }
-
   @Subject
   def tracer = OpenTelemetry.tracerProvider.get("test-inst")
   def httpPropagator = OpenTelemetry.getPropagators().httpTextFormat

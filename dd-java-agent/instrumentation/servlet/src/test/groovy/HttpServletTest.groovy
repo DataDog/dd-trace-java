@@ -12,10 +12,6 @@ class HttpServletTest extends AgentTestRunner {
     System.setProperty("dd.integration.servlet-service.enabled", "true")
   }
 
-  def cleanupSpec() {
-    System.clearProperty("dd.integration.servlet-service.enabled")
-  }
-
   def req = Mock(HttpServletRequest) {
     getMethod() >> "GET"
     getProtocol() >> "TEST"
