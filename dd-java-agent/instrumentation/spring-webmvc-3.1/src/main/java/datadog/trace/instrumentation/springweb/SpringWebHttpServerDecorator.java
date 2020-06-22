@@ -19,14 +19,17 @@ import org.springframework.web.servlet.mvc.Controller;
 @Slf4j
 public class SpringWebHttpServerDecorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
-  public static final SpringWebHttpServerDecorator DECORATE = new SpringWebHttpServerDecorator();
+
+  private final String component;
+
+  public static final SpringWebHttpServerDecorator DECORATE =
+      new SpringWebHttpServerDecorator("spring-web-controller");
   public static final SpringWebHttpServerDecorator DECORATE_RENDER =
-      new SpringWebHttpServerDecorator() {
-        @Override
-        protected String component() {
-          return "spring-webmvc";
-        }
-      };
+      new SpringWebHttpServerDecorator("spring-webmvc");
+
+  public SpringWebHttpServerDecorator(String component) {
+    this.component = component;
+  }
 
   @Override
   protected String[] instrumentationNames() {
@@ -35,7 +38,7 @@ public class SpringWebHttpServerDecorator
 
   @Override
   protected String component() {
-    return "spring-web-controller";
+    return component;
   }
 
   @Override
@@ -127,7 +130,7 @@ public class SpringWebHttpServerDecorator
       span.setTag(DDTags.RESOURCE_NAME, viewName);
     }
     if (mv.getView() != null) {
-      span.setTag("view.type", mv.getView().getClass().getName());
+      span.setTag("view.type", spanNameForClass(mv.getView().getClass()));
     }
     return span;
   }
