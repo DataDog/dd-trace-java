@@ -26,6 +26,7 @@ spotless {
 
   format 'misc', {
     target '**/.gitignore', '**/*.md', '**/*.sh'
+    targetExclude 'integrations-core/**' // Exclude git submodule from evaluation.
     indentWithSpaces()
     trimTrailingWhitespace()
     endWithNewline()
