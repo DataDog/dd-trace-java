@@ -14,36 +14,29 @@ import javax.jms.TemporaryQueue;
 import javax.jms.TemporaryTopic;
 import javax.jms.Topic;
 
-public abstract class JMSDecorator extends ClientDecorator {
-  public static final JMSDecorator PRODUCER_DECORATE =
-      new JMSDecorator() {
-        @Override
-        protected String spanKind() {
-          return Tags.SPAN_KIND_PRODUCER;
-        }
+public final class JMSDecorator extends ClientDecorator {
 
-        @Override
-        protected String spanType() {
-          return DDSpanTypes.MESSAGE_PRODUCER;
-        }
-      };
+  private final String spanKind;
+  private final String spanType;
+  public static final JMSDecorator PRODUCER_DECORATE =
+      new JMSDecorator(Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
 
   public static final JMSDecorator CONSUMER_DECORATE =
-      new JMSDecorator() {
-        @Override
-        protected String spanKind() {
-          return Tags.SPAN_KIND_CONSUMER;
-        }
+      new JMSDecorator(Tags.SPAN_KIND_CONSUMER, DDSpanTypes.MESSAGE_CONSUMER);
 
-        @Override
-        protected String spanType() {
-          return DDSpanTypes.MESSAGE_CONSUMER;
-        }
-      };
+  public JMSDecorator(String spanKind, String spanType) {
+    this.spanKind = spanKind;
+    this.spanType = spanType;
+  }
 
   @Override
   protected String[] instrumentationNames() {
     return new String[] {"jms", "jms-1", "jms-2"};
+  }
+
+  @Override
+  protected String spanType() {
+    return spanType;
   }
 
   @Override
@@ -57,7 +50,9 @@ public abstract class JMSDecorator extends ClientDecorator {
   }
 
   @Override
-  protected abstract String spanKind();
+  protected String spanKind() {
+    return spanKind;
+  }
 
   public void onConsume(final AgentSpan span, final Message message) {
     span.setTag(DDTags.RESOURCE_NAME, "Consumed from " + toResourceName(message, null));
