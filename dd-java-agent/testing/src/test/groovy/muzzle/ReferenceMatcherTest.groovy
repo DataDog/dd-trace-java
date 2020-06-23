@@ -92,9 +92,13 @@ class ReferenceMatcherTest extends AgentTestRunner {
       builder = builder.withFlag(refFlag)
     }
     Reference ref = builder.build()
+    List<Reference.Mismatch> mismatches = new ArrayList<>()
 
-    expect:
-    getMismatchClassSet(ReferenceMatcher.checkMatch(ref, this.getClass().getClassLoader())) == new HashSet<Object>(expectedMismatches)
+    when:
+    ReferenceMatcher.checkMatch(ref, this.getClass().getClassLoader(), mismatches)
+
+    then:
+    getMismatchClassSet(mismatches) == expectedMismatches.toSet()
 
     where:
     referenceName                | referenceFlags  | classToCheck       | expectedMismatches
@@ -108,9 +112,14 @@ class ReferenceMatcherTest extends AgentTestRunner {
     Reference reference = new Reference.Builder(classToCheck.getName())
       .withMethod(new Source[0], methodFlags as Reference.Flag[], methodName, methodType.getReturnType(), methodType.getArgumentTypes())
       .build()
+    List<Reference.Mismatch> mismatches = new ArrayList<>()
 
-    expect:
-    getMismatchClassSet(ReferenceMatcher.checkMatch(reference, this.getClass().getClassLoader())) == new HashSet<Object>(expectedMismatches)
+
+    when:
+    ReferenceMatcher.checkMatch(reference, this.getClass().getClassLoader(), mismatches)
+
+    then:
+    getMismatchClassSet(mismatches) == expectedMismatches.toSet()
 
     where:
     methodName      | methodDesc                               | methodFlags           | classToCheck                   | expectedMismatches | methodTestDesc
@@ -128,9 +137,13 @@ class ReferenceMatcherTest extends AgentTestRunner {
     Reference reference = new Reference.Builder(classToCheck.getName())
       .withField(new Source[0], fieldFlags as Reference.Flag[], fieldName, Type.getType(fieldType))
       .build()
+    List<Reference.Mismatch> mismatches = new ArrayList<>()
 
-    expect:
-    getMismatchClassSet(ReferenceMatcher.checkMatch(reference, this.getClass().getClassLoader())) == new HashSet<Object>(expectedMismatches)
+    when:
+    ReferenceMatcher.checkMatch(reference, this.getClass().getClassLoader(), mismatches)
+
+    then:
+    getMismatchClassSet(mismatches) == expectedMismatches.toSet()
 
     where:
     fieldName        | fieldType                                        | fieldFlags                    | classToCheck        | expectedMismatches | fieldTestDesc

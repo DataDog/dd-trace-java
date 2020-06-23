@@ -7,11 +7,13 @@ import datadog.trace.agent.tooling.Utils;
 import datadog.trace.agent.tooling.muzzle.Reference.Mismatch;
 import datadog.trace.agent.tooling.muzzle.Reference.Source;
 import datadog.trace.bootstrap.WeakCache;
+import datadog.trace.bootstrap.instrumentation.api.Pair;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
@@ -62,11 +64,12 @@ public final class ReferenceMatcher {
   }
 
   private boolean doesMatch(final ClassLoader loader) {
+    final List<Mismatch> mismatches = new ArrayList<>();
     for (final Reference reference : references) {
       // Don't reference-check helper classes.
       // They will be injected by the instrumentation's HelperInjector.
       if (!helperClassNames.contains(reference.getClassName())) {
-        if (!checkMatch(reference, loader).isEmpty()) {
+        if (!checkMatch(reference, loader, mismatches)) {
           return false;
         }
       }
@@ -85,14 +88,12 @@ public final class ReferenceMatcher {
     if (loader == BOOTSTRAP_LOADER) {
       loader = Utils.getBootstrapProxy();
     }
-
-    List<Mismatch> mismatches = Collections.emptyList();
-
+    List<Mismatch> mismatches = new ArrayList<>();
     for (final Reference reference : references) {
       // Don't reference-check helper classes.
       // They will be injected by the instrumentation's HelperInjector.
       if (!helperClassNames.contains(reference.getClassName())) {
-        mismatches = lazyAddAll(mismatches, checkMatch(reference, loader));
+        checkMatch(reference, loader, mismatches);
       }
     }
 
@@ -105,182 +106,213 @@ public final class ReferenceMatcher {
    * @param loader
    * @return A list of mismatched sources. A list of size 0 means the reference matches the class.
    */
-  private static List<Reference.Mismatch> checkMatch(
-      final Reference reference, final ClassLoader loader) {
+  private static boolean checkMatch(
+      final Reference reference, final ClassLoader loader, final List<Mismatch> mismatches) {
     final TypePool typePool =
         AgentTooling.poolStrategy()
             .typePool(AgentTooling.locationStrategy().classFileLocator(loader), loader);
     try {
       final TypePool.Resolution resolution = typePool.describe(reference.getClassName());
       if (!resolution.isResolved()) {
-        return Collections.<Mismatch>singletonList(
+        mismatches.add(
             new Mismatch.MissingClass(
                 reference.getSources().toArray(new Source[0]), reference.getClassName()));
+        return false;
       }
-      return checkMatch(reference, resolution.resolve());
+      return checkMatch(reference, resolution.resolve(), mismatches);
     } catch (final Exception e) {
       if (e.getMessage().startsWith("Cannot resolve type description for ")) {
         // bytebuddy throws an illegal state exception with this message if it cannot resolve types
         // TODO: handle missing type resolutions without catching bytebuddy's exceptions
         final String className = e.getMessage().replace("Cannot resolve type description for ", "");
-        return Collections.<Mismatch>singletonList(
+        mismatches.add(
             new Mismatch.MissingClass(reference.getSources().toArray(new Source[0]), className));
+        return false;
       } else {
         // Shouldn't happen. Fail the reference check and add a mismatch for debug logging.
-        return Collections.<Mismatch>singletonList(
-            new Mismatch.ReferenceCheckError(e, reference, loader));
+        mismatches.add(new Mismatch.ReferenceCheckError(e, reference, loader));
+        return false;
       }
     }
   }
 
-  public static List<Reference.Mismatch> checkMatch(
-      final Reference reference, final TypeDescription typeOnClasspath) {
-    List<Mismatch> mismatches = Collections.emptyList();
+  public static boolean checkMatch(
+      final Reference reference,
+      final TypeDescription typeOnClasspath,
+      final List<Mismatch> mismatches) {
 
     for (final Reference.Flag flag : reference.getFlags()) {
       if (!flag.matches(typeOnClasspath.getModifiers())) {
         final String desc = reference.getClassName();
-        mismatches =
-            lazyAdd(
-                mismatches,
-                new Mismatch.MissingFlag(
-                    reference.getSources().toArray(new Source[0]),
-                    desc,
-                    flag,
-                    typeOnClasspath.getModifiers()));
+        mismatches.add(
+            new Mismatch.MissingFlag(
+                reference.getSources().toArray(new Source[0]),
+                desc,
+                flag,
+                typeOnClasspath.getModifiers()));
       }
     }
 
-    for (final Reference.Field fieldRef : reference.getFields()) {
-      final FieldDescription.InDefinedShape fieldDescription = findField(fieldRef, typeOnClasspath);
-      if (fieldDescription == null) {
-        mismatches =
-            lazyAdd(
-                mismatches,
-                new Reference.Mismatch.MissingField(
-                    fieldRef.getSources().toArray(new Reference.Source[0]),
-                    reference.getClassName(),
-                    fieldRef.getName(),
-                    fieldRef.getType().getInternalName()));
-      } else {
-        for (final Reference.Flag flag : fieldRef.getFlags()) {
-          if (!flag.matches(fieldDescription.getModifiers())) {
-            final String desc =
-                reference.getClassName()
-                    + "#"
-                    + fieldRef.getName()
-                    + fieldRef.getType().getInternalName();
-            mismatches =
-                lazyAdd(
-                    mismatches,
-                    new Mismatch.MissingFlag(
-                        fieldRef.getSources().toArray(new Source[0]),
-                        desc,
-                        flag,
-                        fieldDescription.getModifiers()));
+    // we match the fields and methods we are looking for by name, type or descriptor, and flags.
+    // So that we don't have to check every field/method on every type we visit against every
+    // field/method we're looking for, we index them by name and type/descriptor first.
+    // When we find a possible match, we'll remove the item, so stop looking for it,
+    // but will check the flags there and add a mismatch there and then.
+    // Once every field/method in a type is checked, if there is a super class, we visit it,
+    // and check each field/type there, and continue recursively. As soon as either map is empty,
+    // we stop looking for elements (fields/methods) of that type, otherwise every concrete type
+    // in the hierarchy is visited. Finally, once concrete types have been checked,
+    // since the base type implements any supertype's interfaces too,
+    // if we have entries in indexedMethods (i.e. there are still some missing methods),
+    // the interfaces will be checked once. If either map is non empty by the end, mismatches are
+    // constructed.
+    //
+    // This means:
+    // * each field/method in the type hierarchy will be checked at most once
+    // * each type in the hierarchy will be visited at most once
+    Map<Pair<String, String>, Reference.Method> indexedMethods =
+        indexMethods(reference.getMethods());
+    Map<Pair<String, String>, Reference.Field> indexedFields = indexFields(reference.getFields());
+    traverseHierarchy(reference, typeOnClasspath, indexedMethods, indexedFields, mismatches);
+    if (!indexedMethods.isEmpty()) {
+      findInterfaceMethods(reference, typeOnClasspath, indexedMethods, mismatches);
+    }
+
+    for (Reference.Field missingField : indexedFields.values()) {
+      mismatches.add(
+          new Reference.Mismatch.MissingField(
+              missingField.getSources().toArray(new Reference.Source[0]),
+              reference.getClassName(),
+              missingField.getName(),
+              missingField.getType().getInternalName()));
+    }
+    for (Reference.Method missingMethod : indexedMethods.values()) {
+      mismatches.add(
+          new Reference.Mismatch.MissingMethod(
+              missingMethod.getSources().toArray(new Reference.Source[0]),
+              missingMethod.getName(),
+              missingMethod.getDescriptor()));
+    }
+
+    return mismatches.isEmpty();
+  }
+
+  private static Map<Pair<String, String>, Reference.Field> indexFields(
+      final Set<Reference.Field> fields) {
+    Map<Pair<String, String>, Reference.Field> map = new HashMap<>(fields.size() * 4 / 3);
+    for (Reference.Field field : fields) {
+      map.put(Pair.of(field.getName(), field.getType().getInternalName()), field);
+    }
+    return map;
+  }
+
+  private static Map<Pair<String, String>, Reference.Method> indexMethods(
+      final Set<Reference.Method> methods) {
+    Map<Pair<String, String>, Reference.Method> map = new HashMap<>(methods.size() * 4 / 3);
+    for (Reference.Method method : methods) {
+      map.put(Pair.of(method.getName(), method.getDescriptor()), method);
+    }
+    return map;
+  }
+
+  private static void traverseHierarchy(
+      final Reference reference,
+      final TypeDescription typeOnClasspath,
+      Map<Pair<String, String>, Reference.Method> methodsToFind,
+      Map<Pair<String, String>, Reference.Field> fieldsToFind,
+      final List<Reference.Mismatch> flagMismatches) {
+    findFieldsForType(reference, typeOnClasspath, fieldsToFind, flagMismatches);
+    findMethodsForType(reference, typeOnClasspath, methodsToFind, flagMismatches);
+    if (!fieldsToFind.isEmpty() || !methodsToFind.isEmpty()) {
+      TypeDescription.Generic superClass = typeOnClasspath.getSuperClass();
+      if (superClass != null) {
+        traverseHierarchy(
+            reference, superClass.asErasure(), methodsToFind, fieldsToFind, flagMismatches);
+      }
+    }
+  }
+
+  private static void findFieldsForType(
+      final Reference reference,
+      final TypeDescription typeOnClasspath,
+      final Map<Pair<String, String>, Reference.Field> fieldsToFind,
+      final List<Reference.Mismatch> flagMismatches) {
+    if (!fieldsToFind.isEmpty()) {
+      for (final FieldDescription.InDefinedShape fieldType : typeOnClasspath.getDeclaredFields()) {
+        Pair<String, String> key =
+            Pair.of(fieldType.getInternalName(), fieldType.getType().asErasure().getInternalName());
+        Reference.Field found = fieldsToFind.remove(key);
+        if (null != found) {
+          for (final Reference.Flag flag : found.getFlags()) {
+            if (!flag.matches(fieldType.getModifiers())) {
+              final String desc =
+                  reference.getClassName()
+                      + "#"
+                      + found.getName()
+                      + found.getType().getInternalName();
+              flagMismatches.add(
+                  new Mismatch.MissingFlag(
+                      found.getSources().toArray(new Source[0]),
+                      desc,
+                      flag,
+                      fieldType.getModifiers()));
+              break;
+            }
           }
+        }
+        if (fieldsToFind.isEmpty()) {
+          break;
         }
       }
     }
+  }
 
-    for (final Reference.Method methodRef : reference.getMethods()) {
-      final MethodDescription.InDefinedShape methodDescription =
-          findMethod(methodRef, typeOnClasspath);
-      if (methodDescription == null) {
-        mismatches =
-            lazyAdd(
-                mismatches,
-                new Reference.Mismatch.MissingMethod(
-                    methodRef.getSources().toArray(new Reference.Source[0]),
-                    methodRef.getName(),
-                    methodRef.getDescriptor()));
-      } else {
-        for (final Reference.Flag flag : methodRef.getFlags()) {
-          if (!flag.matches(methodDescription.getModifiers())) {
-            final String desc =
-                reference.getClassName() + "#" + methodRef.getName() + methodRef.getDescriptor();
-            mismatches =
-                lazyAdd(
-                    mismatches,
-                    new Mismatch.MissingFlag(
-                        methodRef.getSources().toArray(new Source[0]),
-                        desc,
-                        flag,
-                        methodDescription.getModifiers()));
-          }
+  private static void findInterfaceMethods(
+      final Reference reference,
+      final TypeDescription typeOnClasspath,
+      final Map<Pair<String, String>, Reference.Method> methodsToFind,
+      final List<Reference.Mismatch> flagMismatches) {
+    if (!methodsToFind.isEmpty()) {
+      for (final TypeDescription.Generic interfaceType : typeOnClasspath.getInterfaces()) {
+        findMethodsForType(reference, interfaceType.asErasure(), methodsToFind, flagMismatches);
+        if (methodsToFind.isEmpty()) {
+          break;
         }
       }
     }
-    return mismatches;
   }
 
-  private static FieldDescription.InDefinedShape findField(
-      final Reference.Field fieldRef, final TypeDescription typeOnClasspath) {
-    for (final FieldDescription.InDefinedShape fieldType : typeOnClasspath.getDeclaredFields()) {
-      if (fieldType.getName().equals(fieldRef.getName())
-          && fieldType
-              .getType()
-              .asErasure()
-              .getInternalName()
-              .equals(fieldRef.getType().getInternalName())) {
-        return fieldType;
+  private static void findMethodsForType(
+      final Reference reference,
+      final TypeDescription typeOnClasspath,
+      final Map<Pair<String, String>, Reference.Method> methodsToFind,
+      final List<Reference.Mismatch> flagMismatches) {
+    if (!methodsToFind.isEmpty()) {
+      for (final MethodDescription.InDefinedShape methodDescription :
+          typeOnClasspath.getDeclaredMethods()) {
+        Pair<String, String> key =
+            Pair.of(methodDescription.getInternalName(), methodDescription.getDescriptor());
+        Reference.Method found = methodsToFind.remove(key);
+        if (null != found) {
+          // will stop looking for this one now, but check it has the right flags
+          for (final Reference.Flag flag : found.getFlags()) {
+            if (!flag.matches(methodDescription.getModifiers())) {
+              final String desc =
+                  reference.getClassName() + "#" + found.getName() + found.getDescriptor();
+              flagMismatches.add(
+                  new Mismatch.MissingFlag(
+                      found.getSources().toArray(new Source[0]),
+                      desc,
+                      flag,
+                      methodDescription.getModifiers()));
+              break;
+            }
+          }
+        }
+        if (methodsToFind.isEmpty()) {
+          break;
+        }
       }
     }
-    if (typeOnClasspath.getSuperClass() != null) {
-      final FieldDescription.InDefinedShape fieldOnSupertype =
-          findField(fieldRef, typeOnClasspath.getSuperClass().asErasure());
-      if (fieldOnSupertype != null) {
-        return fieldOnSupertype;
-      }
-    }
-    for (final TypeDescription.Generic interfaceType : typeOnClasspath.getInterfaces()) {
-      final FieldDescription.InDefinedShape fieldOnSupertype =
-          findField(fieldRef, interfaceType.asErasure());
-      if (fieldOnSupertype != null) {
-        return fieldOnSupertype;
-      }
-    }
-    return null;
-  }
-
-  private static MethodDescription.InDefinedShape findMethod(
-      final Reference.Method methodRef, final TypeDescription typeOnClasspath) {
-    for (final MethodDescription.InDefinedShape methodDescription :
-        typeOnClasspath.getDeclaredMethods()) {
-      if (methodDescription.getInternalName().equals(methodRef.getName())
-          && methodDescription.getDescriptor().equals(methodRef.getDescriptor())) {
-        return methodDescription;
-      }
-    }
-    if (typeOnClasspath.getSuperClass() != null) {
-      final MethodDescription.InDefinedShape methodOnSupertype =
-          findMethod(methodRef, typeOnClasspath.getSuperClass().asErasure());
-      if (methodOnSupertype != null) {
-        return methodOnSupertype;
-      }
-    }
-    for (final TypeDescription.Generic interfaceType : typeOnClasspath.getInterfaces()) {
-      final MethodDescription.InDefinedShape methodOnSupertype =
-          findMethod(methodRef, interfaceType.asErasure());
-      if (methodOnSupertype != null) {
-        return methodOnSupertype;
-      }
-    }
-    return null;
-  }
-
-  private static List<Mismatch> lazyAdd(List<Mismatch> mismatches, Mismatch mismatch) {
-    List<Mismatch> result = mismatches.isEmpty() ? new ArrayList<Mismatch>() : mismatches;
-    result.add(mismatch);
-    return result;
-  }
-
-  private static List<Mismatch> lazyAddAll(List<Mismatch> mismatches, List<Mismatch> toAdd) {
-    if (!toAdd.isEmpty()) {
-      List<Mismatch> result = mismatches.isEmpty() ? new ArrayList<Mismatch>() : mismatches;
-      result.addAll(toAdd);
-      return result;
-    }
-    return mismatches;
   }
 }
