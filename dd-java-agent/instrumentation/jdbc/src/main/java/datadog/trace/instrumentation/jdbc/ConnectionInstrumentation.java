@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static java.util.Collections.singletonMap;
@@ -22,6 +23,11 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
 
   public ConnectionInstrumentation() {
     super("jdbc");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return hasClassesNamed("java.sql.Connection");
   }
 
   @Override
