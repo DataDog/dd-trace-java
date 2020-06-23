@@ -6,14 +6,12 @@ apply from: "$rootDir/gradle/java.gradle"
 
 jar {
   manifest {
-    attributes(
-      'Main-Class': 'datadog.smoketest.moduleapp.ModuleApplication'
-    )
+    attributes('Main-Class': 'datadog.smoketest.moduleapp.ModuleApplication')
   }
 }
 
 // If the current JDK version (the one running gradle) is < 9, we need to find a version >= 9
-// to compile this project.  java.gradle creates a map of java executables 
+// to compile this project.  java.gradle creates a map of java executables
 // called "javaExecutableVersionCache" pulled from the environment.
 // This loops over the cache to find a usable jdk.
 // Since this project is the only one that requires a version above Java 8

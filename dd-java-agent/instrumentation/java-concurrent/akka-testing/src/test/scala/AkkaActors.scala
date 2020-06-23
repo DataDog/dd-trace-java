@@ -3,7 +3,10 @@ import akka.pattern.ask
 import akka.util.Timeout
 import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activeScope, activeSpan}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
+  activeScope,
+  activeSpan
+}
 
 import scala.concurrent.duration._
 
@@ -16,8 +19,10 @@ object AkkaActors {
   val howdyGreeter: ActorRef =
     system.actorOf(Greeter.props("Howdy", printer), "howdyGreeter")
 
-  val forwarder: ActorRef = system.actorOf(Forwarder.props(printer), "forwarderActor")
-  val helloGreeter: ActorRef = system.actorOf(Greeter.props("Hello", forwarder), "helloGreeter")
+  val forwarder: ActorRef =
+    system.actorOf(Forwarder.props(printer), "forwarderActor")
+  val helloGreeter: ActorRef =
+    system.actorOf(Greeter.props("Hello", forwarder), "helloGreeter")
 
   @Trace
   def tracedChild(opName: String): Unit = {
@@ -67,7 +72,8 @@ class AkkaActors {
 }
 
 object Greeter {
-  def props(message: String, receiverActor: ActorRef): Props = Props(new Greeter(message, receiverActor))
+  def props(message: String, receiverActor: ActorRef): Props =
+    Props(new Greeter(message, receiverActor))
 
   final case class WhoToGreet(who: String)
 
@@ -110,7 +116,8 @@ class Receiver extends Actor with ActorLogging {
 }
 
 object Forwarder {
-  def props(receiverActor: ActorRef): Props = Props(new Forwarder(receiverActor))
+  def props(receiverActor: ActorRef): Props =
+    Props(new Forwarder(receiverActor))
 }
 
 class Forwarder(receiverActor: ActorRef) extends Actor with ActorLogging {

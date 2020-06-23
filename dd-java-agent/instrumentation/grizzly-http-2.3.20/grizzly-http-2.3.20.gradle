@@ -30,7 +30,6 @@ dependencies {
   latestDepTestCompile group: 'org.glassfish.grizzly', name: 'grizzly-http-server', version: '2.3.20+'
   latestDepTestCompile group: 'org.glassfish.jersey.containers', name: 'jersey-container-grizzly2-http', version: '2.+'
   latestDepTestCompile group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: '2.+'
-
 }
 
 

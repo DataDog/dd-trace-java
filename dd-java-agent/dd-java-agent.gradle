@@ -102,7 +102,7 @@ shadowJar generalShadowJarConfig >> {
       "Premain-Class": "datadog.trace.bootstrap.AgentBootstrap",
       "Can-Redefine-Classes": true,
       "Can-Retransform-Classes": true,
-    )
+      )
   }
 }
 

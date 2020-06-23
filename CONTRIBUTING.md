@@ -9,17 +9,38 @@ To build the full project from the command line you need to have JDK versions fo
 
 In contrast to the [IntelliJ IDEA setup](#intellij-idea) the default JVM to build and run tests from the command line should be Java 8.
 
-## Code Style
+# Automatic code formatting
 
 This project includes a `.editorconfig` file for basic editor settings.  This file is supported by most common text editors.
 
-Java files must be formatted using [google-java-format](https://github.com/google/google-java-format).  Please run the following task to ensure files are formatted before committing:
+We have automatic code formatting enabled in Gradle configuration using [Spotless](https://github.com/diffplug/spotless)
+[Gradle plugin](https://github.com/diffplug/spotless/tree/master/plugin-gradle).
+Main goal is to avoid extensive reformatting caused by different IDEs having different opinion about how things should
+be formatted by establishing single 'point of truth'.
 
-```shell
-./gradlew googleJavaFormat
+Running
+
+```bash
+./gradlew spotlessApply
 ```
 
-Other source files (Groovy, Scala, etc) should ideally be formatted by Intellij Idea's default formatting, but are not enforced.
+reformats all the files that need reformatting.
+
+Running
+
+```bash
+./gradlew spotlessCheck
+```
+
+runs formatting verify task only.
+
+## Pre-commit hook
+
+There is a pre-commit hook setup to verify formatting before committing. It can be activated with this command:
+
+```bash
+git config core.hooksPath .githooks
+```
 
 ## Intellij IDEA
 

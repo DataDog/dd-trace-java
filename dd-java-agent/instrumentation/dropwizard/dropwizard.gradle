@@ -18,5 +18,5 @@ dependencies {
   testCompile group: 'com.fasterxml.jackson.module', name: 'jackson-module-afterburner', version: '2.9.10'
 
   // Anything 1.0+ fails with a java.lang.NoClassDefFoundError: org/eclipse/jetty/server/RequestLog
-//  latestDepTestCompile group: 'io.dropwizard', name: 'dropwizard-testing', version: '1.+'
+  //  latestDepTestCompile group: 'io.dropwizard', name: 'dropwizard-testing', version: '1.+'
 }

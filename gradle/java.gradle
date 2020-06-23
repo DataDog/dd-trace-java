@@ -4,7 +4,7 @@ apply plugin: 'java'
 apply plugin: 'groovy'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
-apply from: "$rootDir/gradle/googleJavaFormat.gradle"
+apply from: "$rootDir/gradle/spotless.gradle"
 
 def applyCodeCoverage = !(
   project.path.startsWith(":dd-smoke-tests") ||

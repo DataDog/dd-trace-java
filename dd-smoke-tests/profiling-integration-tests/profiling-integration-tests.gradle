@@ -14,9 +14,7 @@ description = 'Profiling Integration Tests.'
 
 jar {
   manifest {
-    attributes(
-      'Main-Class': 'datadog.smoketest.profiling.ProfilingTestApplication'
-    )
+    attributes('Main-Class': 'datadog.smoketest.profiling.ProfilingTestApplication')
   }
 }
 
