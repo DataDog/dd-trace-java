@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.rediscala;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -34,6 +35,11 @@ public final class RediscalaInstrumentation extends Instrumenter.Default {
 
   public RediscalaInstrumentation() {
     super("rediscala", "redis");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return hasClassesNamed("redis.Request");
   }
 
   @Override
