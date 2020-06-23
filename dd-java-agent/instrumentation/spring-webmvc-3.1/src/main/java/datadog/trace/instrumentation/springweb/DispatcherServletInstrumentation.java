@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE_RENDER;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
@@ -15,20 +14,16 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.servlet.ServletContext;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.context.ApplicationContext;
-import org.springframework.web.servlet.DispatcherServlet;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -45,17 +40,9 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Default
   }
 
   @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(
-        "org.springframework.web.servlet.DispatcherServlet",
-        packageName + ".HandlerMappingResourceNameFilter");
-  }
-
-  @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SpringWebHttpServerDecorator",
-      packageName + ".SpringWebHttpServerDecorator$1",
       packageName + ".HandlerMappingResourceNameFilter",
     };
   }
@@ -94,23 +81,14 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Default
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterRefresh(
-        @Advice.This final DispatcherServlet dispatcher,
         @Advice.Argument(0) final ApplicationContext springCtx,
-        @Advice.FieldValue("handlerMappings") final List<HandlerMapping> handlerMappings,
-        @Advice.Thrown final Throwable throwable) {
-      final ServletContext servletContext = springCtx.getBean(ServletContext.class);
-      if (handlerMappings != null && servletContext != null) {
-        final ContextStore<DispatcherServlet, HandlerMappingResourceNameFilter> contextStore =
-            InstrumentationContext.get(
-                DispatcherServlet.class, HandlerMappingResourceNameFilter.class);
-        HandlerMappingResourceNameFilter filter = contextStore.get(dispatcher);
-        if (filter == null) {
-          filter = new HandlerMappingResourceNameFilter();
-          contextStore.put(dispatcher, filter);
+        @Advice.FieldValue("handlerMappings") final List<HandlerMapping> handlerMappings) {
+      if (springCtx.containsBean("ddDispatcherFilter")) {
+        final HandlerMappingResourceNameFilter filter =
+            (HandlerMappingResourceNameFilter) springCtx.getBean("ddDispatcherFilter");
+        if (handlerMappings != null && filter != null) {
+          filter.setHandlerMappings(handlerMappings);
         }
-        filter.setHandlerMappings(handlerMappings);
-        servletContext.setAttribute(
-            "dd.dispatcher-filter", filter); // used by Servlet3Decorator.onContext
       }
     }
   }

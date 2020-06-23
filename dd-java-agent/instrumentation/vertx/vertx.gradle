@@ -17,7 +17,7 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 dependencies {
-//  compileOnly group: 'io.vertx', name: 'vertx-web', version: '3.5.0'
+  //  compileOnly group: 'io.vertx', name: 'vertx-web', version: '3.5.0'
 
   testCompile project(':dd-java-agent:instrumentation:netty-4.1')
   testCompile project(':dd-java-agent:instrumentation:trace-annotation')

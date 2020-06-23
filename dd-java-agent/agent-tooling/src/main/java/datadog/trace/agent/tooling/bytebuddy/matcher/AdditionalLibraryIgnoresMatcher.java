@@ -100,7 +100,11 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
             || name.startsWith(
                 "org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer$")
             || name.equals(
-                "org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedWebappClassLoader")) {
+                "org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedWebappClassLoader")
+            || name.equals(
+                "org.springframework.boot.context.embedded.EmbeddedWebApplicationContext")
+            || name.equals(
+                "org.springframework.boot.context.embedded.AnnotationConfigEmbeddedWebApplicationContext")) {
           return false;
         }
         return true;
@@ -167,7 +171,11 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
       if (name.startsWith("org.springframework.web.")) {
         if (name.startsWith("org.springframework.web.servlet.")
             || name.startsWith("org.springframework.web.reactive.")
-            || name.startsWith("org.springframework.web.context.request.async.")) {
+            || name.startsWith("org.springframework.web.context.request.async.")
+            || name.equals(
+                "org.springframework.web.context.support.AbstractRefreshableWebApplicationContext")
+            || name.equals("org.springframework.web.context.support.GenericWebApplicationContext")
+            || name.equals("org.springframework.web.context.support.XmlWebApplicationContext")) {
           return false;
         }
         return true;
@@ -193,6 +201,10 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
     if (name.startsWith("ch.qos.logback.")) {
       // We instrument this Runnable
       if (name.equals("ch.qos.logback.core.AsyncAppenderBase$Worker")) {
+        return false;
+      }
+      // for inserting service, env, version in MDC of every thread
+      if (name.equals("ch.qos.logback.classic.util.LogbackMDCAdapter")) {
         return false;
       }
 

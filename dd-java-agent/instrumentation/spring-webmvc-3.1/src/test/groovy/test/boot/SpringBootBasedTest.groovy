@@ -1,6 +1,5 @@
 package test.boot
 
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.SpanAssert
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -8,16 +7,20 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
+import okhttp3.FormBody
+import okhttp3.RequestBody
 import org.apache.catalina.core.ApplicationFilterChain
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.view.RedirectView
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.LOGIN
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static java.util.Collections.singletonMap
 
@@ -25,7 +28,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
   @Override
   ConfigurableApplicationContext startServer(int port) {
-    def app = new SpringApplication(AppConfig)
+    def app = new SpringApplication(AppConfig, SecurityConfig, AuthServerConfig)
     app.setDefaultProperties(singletonMap("server.port", port))
     def context = app.run()
     return context
@@ -63,6 +66,36 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     false
   }
 
+
+  def "test character encoding of #testPassword"() {
+    setup:
+    def authProvider = server.getBean(SavingAuthenticationProvider)
+
+    RequestBody formBody = new FormBody.Builder()
+      .add("username", "test")
+      .add("password", testPassword).build()
+
+    def request = request(LOGIN, "POST", formBody).build()
+
+    when:
+    authProvider.latestAuthentications.clear()
+    def response = client.newCall(request).execute()
+
+    then:
+    response.code() == 302 // redirect after success
+    authProvider.latestAuthentications.get(0).password == testPassword
+
+    and:
+    cleanAndAssertTraces(1) {
+      trace(0, 1) {
+        serverSpan(it, 0, null, null, "POST", LOGIN)
+      }
+    }
+
+    where:
+    testPassword << ["password", "dfsdföääöüüä", "🤓"]
+  }
+
   void cleanAndAssertTraces(
     final int size,
     @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
@@ -85,7 +118,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
           tags {
             "$Tags.COMPONENT" "spring-webmvc"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "view.type" RedirectView.name
+            "view.type" RedirectView.simpleName
             defaultTags()
           }
         }

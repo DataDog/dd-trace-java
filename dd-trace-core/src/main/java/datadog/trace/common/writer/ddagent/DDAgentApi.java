@@ -306,11 +306,6 @@ public class DDAgentApi {
     }
   }
 
-  @Override
-  public String toString() {
-    return "DDApi { tracesUrl=" + tracesUrl + " }";
-  }
-
   /**
    * Encapsulates an attempted response from the Datadog agent.
    *

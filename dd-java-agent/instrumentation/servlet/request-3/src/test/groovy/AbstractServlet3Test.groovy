@@ -5,6 +5,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import okhttp3.Request
+import okhttp3.RequestBody
 import org.apache.catalina.core.ApplicationFilterChain
 
 import javax.servlet.Servlet
@@ -65,7 +66,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
   protected ServerEndpoint lastRequest
 
   @Override
-  Request.Builder request(ServerEndpoint uri, String method, String body) {
+  Request.Builder request(ServerEndpoint uri, String method, RequestBody body) {
     lastRequest = uri
     super.request(uri, method, body)
   }

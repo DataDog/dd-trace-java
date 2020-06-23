@@ -5,7 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OF
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
-import static java.util.concurrent.TimeUnit.MICROSECONDS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.DDSpanTypes;
@@ -14,7 +14,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
-import datadog.trace.core.util.Clock;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.TimestampType;
@@ -79,7 +78,7 @@ public class KafkaDecorator extends ClientDecorator {
 
   public void finishConsumerSpan(final AgentSpan span) {
     if (endToEndDurationsEnabled) {
-      long now = Clock.currentMicroTime();
+      long now = System.currentTimeMillis();
       String traceStartTime = span.getBaggageItem(DDTags.TRACE_START_TIME);
       if (null != traceStartTime) {
         // we want to use the span end time, so need its duration, which is set
@@ -89,10 +88,9 @@ public class KafkaDecorator extends ClientDecorator {
         // getting the current time is a reasonable compromise.
         // not being defensive here because we own the lifecycle of this value
         span.setTag(
-            RECORD_END_TO_END_DURATION_MS,
-            Math.max(0L, MICROSECONDS.toMillis(now) - Long.parseLong(traceStartTime)));
+            RECORD_END_TO_END_DURATION_MS, Math.max(0L, now - Long.parseLong(traceStartTime)));
       }
-      span.finish(now);
+      span.finish(MILLISECONDS.toMicros(now));
     } else {
       span.finish();
     }

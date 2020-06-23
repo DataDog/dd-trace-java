@@ -10,8 +10,6 @@ dependencies {
 
 jar {
   manifest {
-    attributes(
-      "Main-Class": "datadog.perftest.jetty.JettyPerftest"
-    )
+    attributes("Main-Class": "datadog.perftest.jetty.JettyPerftest")
   }
 }

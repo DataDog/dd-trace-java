@@ -16,6 +16,7 @@ import org.apache.catalina.core.ApplicationFilterChain
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.web.servlet.view.RedirectView
+import test.boot.SecurityConfig
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -25,7 +26,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
 
   @Override
   ConfigurableApplicationContext startServer(int port) {
-    def app = new SpringApplication(FilteredAppConfig)
+    def app = new SpringApplication(FilteredAppConfig, SecurityConfig)
     app.setDefaultProperties(singletonMap("server.port", port))
     def context = app.run()
     return context
@@ -90,7 +91,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
           tags {
             "$Tags.COMPONENT" "spring-webmvc"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "view.type" RedirectView.name
+            "view.type" RedirectView.simpleName
             defaultTags()
           }
         }

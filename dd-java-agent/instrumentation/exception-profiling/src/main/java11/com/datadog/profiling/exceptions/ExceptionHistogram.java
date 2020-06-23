@@ -1,25 +1,23 @@
 package com.datadog.profiling.exceptions;
 
 import datadog.trace.api.Config;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 import jdk.jfr.EventType;
 import jdk.jfr.FlightRecorder;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.LongAdder;
-import java.util.stream.Stream;
-
 /**
  * A simple exception type histogram implementation.<br>
- * It tracks a fixed number of exception types and for each of them it keeps the number of instances created since
- * the last {@linkplain ExceptionHistogram#emit()} call (or creating a new {@linkplain ExceptionHistogram} instance
- * if {@linkplain ExceptionHistogram#emit()} hasn't been called yet).<br>
- *
- * An {@linkplain ExceptionHistogram} instance is registered with JFR to call {@linkplain ExceptionHistogram#emit()}
- * method at chunk end, as specified in {@linkplain ExceptionCountEvent} class. This callback will then emit a number
- * of {@linkplain ExceptionCountEvent} events.
+ * It tracks a fixed number of exception types and for each of them it keeps the number of instances
+ * created since the last {@linkplain ExceptionHistogram#emit()} call (or creating a new {@linkplain
+ * ExceptionHistogram} instance if {@linkplain ExceptionHistogram#emit()} hasn't been called yet).
+ * <br>
+ * An {@linkplain ExceptionHistogram} instance is registered with JFR to call {@linkplain
+ * ExceptionHistogram#emit()} method at chunk end, as specified in {@linkplain ExceptionCountEvent}
+ * class. This callback will then emit a number of {@linkplain ExceptionCountEvent} events.
  */
 @Slf4j
 public class ExceptionHistogram {
@@ -40,23 +38,23 @@ public class ExceptionHistogram {
     FlightRecorder.addPeriodicEvent(ExceptionCountEvent.class, eventHook);
   }
 
-  /**
-   * Remove this instance from JFR periodic events callbacks
-   */
+  /** Remove this instance from JFR periodic events callbacks */
   void deregister() {
     FlightRecorder.removePeriodicEvent(eventHook);
   }
 
   /**
    * Record a new exception instance
+   *
    * @param exception instance
-   * @return {@literal true} if this is the first record of the given exception type; {@literal false} otherwise
+   * @return {@literal true} if this is the first record of the given exception type; {@literal
+   *     false} otherwise
    */
   public boolean record(final Throwable exception) {
     if (exception == null) {
       return false;
     }
-    return record(exception.getClass().getCanonicalName());
+    return record(exception.getClass().getName());
   }
 
   private boolean record(String typeName) {
@@ -69,12 +67,7 @@ public class ExceptionHistogram {
       typeName = CLIPPED_ENTRY_TYPE_NAME;
     }
 
-    long count = histogram
-      .computeIfAbsent(
-        typeName,
-        k -> new AtomicLong()
-      )
-      .getAndIncrement();
+    long count = histogram.computeIfAbsent(typeName, k -> new AtomicLong()).getAndIncrement();
 
     /*
      * This is supposed to signal that a particular exception type was seen the first time in a particular time span.
@@ -94,12 +87,10 @@ public class ExceptionHistogram {
 
   void doEmit() {
     Stream<Pair<String, Long>> items =
-      histogram
-        .entrySet()
-        .stream()
-        .map(e -> Pair.of(e.getKey(), e.getValue().getAndSet(0)))
-        .filter(p -> p.getValue() != 0)
-        .sorted((l1, l2) -> Long.compare(l2.getValue(), l1.getValue()));
+        histogram.entrySet().stream()
+            .map(e -> Pair.of(e.getKey(), e.getValue().getAndSet(0)))
+            .filter(p -> p.getValue() != 0)
+            .sorted((l1, l2) -> Long.compare(l2.getValue(), l1.getValue()));
 
     if (maxTopItems > 0) {
       items = items.limit(maxTopItems);

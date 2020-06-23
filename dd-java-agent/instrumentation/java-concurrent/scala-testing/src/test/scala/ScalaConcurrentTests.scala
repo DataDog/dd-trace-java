@@ -1,6 +1,9 @@
 import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activeScope, activeSpan}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
+  activeScope,
+  activeSpan
+}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -9,8 +12,8 @@ import scala.concurrent.{Await, Future, Promise}
 class ScalaConcurrentTests {
 
   /**
-   * @return Number of expected spans in the trace
-   */
+    * @return Number of expected spans in the trace
+    */
   @Trace
   def traceWithFutureAndCallbacks(): Integer = {
     activeScope().setAsyncPropagation(true)
@@ -40,11 +43,12 @@ class ScalaConcurrentTests {
       1
     }
     goodFuture onSuccess {
-      case _ => Future {
-        2
-      } onSuccess {
-        case _ => tracedChild("callback")
-      }
+      case _ =>
+        Future {
+          2
+        } onSuccess {
+          case _ => tracedChild("callback")
+        }
     }
 
     blockUntilChildSpansFinished(1)
@@ -52,8 +56,8 @@ class ScalaConcurrentTests {
   }
 
   /**
-   * @return Number of expected spans in the trace
-   */
+    * @return Number of expected spans in the trace
+    */
   @Trace
   def traceWithPromises(): Integer = {
     activeScope().setAsyncPropagation(true)
@@ -86,25 +90,21 @@ class ScalaConcurrentTests {
   }
 
   /**
-   * @return Number of expected spans in the trace
-   */
+    * @return Number of expected spans in the trace
+    */
   @Trace
   def tracedWithFutureFirstCompletions(): Integer = {
     activeScope().setAsyncPropagation(true)
-    val completedVal = Future.firstCompletedOf(
-      List(
-        Future {
-          tracedChild("timeout1")
-          false
-        },
-        Future {
-          tracedChild("timeout2")
-          false
-        },
-        Future {
-          tracedChild("timeout3")
-          true
-        }))
+    val completedVal = Future.firstCompletedOf(List(Future {
+      tracedChild("timeout1")
+      false
+    }, Future {
+      tracedChild("timeout2")
+      false
+    }, Future {
+      tracedChild("timeout3")
+      true
+    }))
     Await.result(completedVal, 30 seconds)
 
     blockUntilChildSpansFinished(3)
@@ -112,8 +112,8 @@ class ScalaConcurrentTests {
   }
 
   /**
-   * @return Number of expected spans in the trace
-   */
+    * @return Number of expected spans in the trace
+    */
   @Trace
   def tracedTimeout(): Integer = {
     activeScope().setAsyncPropagation(true)

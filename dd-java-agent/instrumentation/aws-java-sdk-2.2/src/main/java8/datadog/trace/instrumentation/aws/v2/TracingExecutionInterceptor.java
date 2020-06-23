@@ -6,9 +6,8 @@ import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORAT
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.function.Consumer;
-
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import java.util.function.Consumer;
 import software.amazon.awssdk.core.client.builder.SdkClientBuilder;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.interceptor.Context;

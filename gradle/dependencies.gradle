@@ -75,6 +75,10 @@ ext {
     // Shared between agent tooling, instrumentation, JMXFetch, and profiling
     shared        : [
       dependencies.create(group: 'com.squareup.okhttp3', name: 'okhttp', version: versions.okhttp),
+      // Force specific version of okio required by com.squareup.moshi:moshi
+      // When all of the dependencies are declared in dd-trace-core, moshi overrides the okhttp's
+      // transitive dependency.  Since okhttp is declared here and moshi is not, this lead to an incompatible version
+      dependencies.create(group: 'com.squareup.okio', name: 'okio', version: '1.16.0'),
       dependencies.create(group: 'com.datadoghq', name: 'java-dogstatsd-client', version: versions.dogstatsd),
       dependencies.create(group: 'com.github.jnr', name: 'jnr-unixsocket', version: versions.jnr_unixsocket),
       dependencies.create(group: 'com.google.guava', name: 'guava', version: versions.guava)

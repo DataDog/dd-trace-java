@@ -1,7 +1,6 @@
 package datadog.trace.agent.test.base
 
 import ch.qos.logback.classic.Level
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -10,11 +9,13 @@ import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.Response
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -137,6 +138,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 //    QUERY_FRAGMENT_PARAM("query/fragment?some=query#some-fragment", 200, "some=query#some-fragment"),
     PATH_PARAM("path/123/param", 200, "123"),
     AUTH_REQUIRED("authRequired", 200, null),
+    LOGIN("login", 302, null),
 
     private final String path
     final String query
@@ -180,7 +182,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     }
   }
 
-  Request.Builder request(ServerEndpoint uri, String method, String body) {
+  Request.Builder request(ServerEndpoint uri, String method, RequestBody body) {
     def url = HttpUrl.get(uri.resolve(address)).newBuilder()
       .query(uri.query)
       .fragment(uri.fragment)

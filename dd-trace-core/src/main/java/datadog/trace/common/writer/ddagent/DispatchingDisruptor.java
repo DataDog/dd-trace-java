@@ -24,18 +24,12 @@ public class DispatchingDisruptor implements AutoCloseable {
       EventFactory<TraceBuffer> eventFactory,
       DDAgentApi api,
       Monitor monitor,
-      final DDAgentWriter writer) {
+      DDAgentWriter writer) {
     this.disruptor =
         DisruptorUtils.create(
             eventFactory,
             disruptorSize,
-            DaemonThreadFactory.TRACE_WRITER.withInitializer(
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    writer.getApi().detectEndpointAndBuildClient();
-                  }
-                }),
+            DaemonThreadFactory.TRACE_WRITER,
             ProducerType.SINGLE,
             // block (and use no resources) until there's a batch of data to dispatch
             new BlockingWaitStrategy());

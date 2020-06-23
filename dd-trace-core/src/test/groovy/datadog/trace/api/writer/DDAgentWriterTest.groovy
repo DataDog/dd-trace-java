@@ -17,7 +17,6 @@ import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferOutput
 import spock.lang.Retry
 import spock.lang.Timeout
-import spock.util.concurrent.BlockingVariable
 
 import java.util.concurrent.Phaser
 import java.util.concurrent.Semaphore
@@ -50,31 +49,6 @@ class DDAgentWriterTest extends DDSpecification {
     phaser.register()
   }
 
-  def "test connect early to agent"() {
-    setup:
-    // the call to the api is asynchronous so we need to work around it
-    def buildClientWasCalled = new BlockingVariable(1) // 1 second
-    DDAgentApi apiMock = Mock()
-    apiMock.detectEndpointAndBuildClient() >> {
-      buildClientWasCalled.set(true)
-    }
-    def writer = DDAgentWriter.builder()
-      .agentApi(apiMock)
-      .traceBufferSize(1)
-      .flushFrequencySeconds(120)
-      .serializer(serializer)
-      .build()
-
-    when:
-    writer.start()
-
-    then:
-    buildClientWasCalled.get()
-
-    cleanup:
-    writer.close()
-  }
-
   def "test happy path"() {
     setup:
     def writer = DDAgentWriter.builder()
@@ -92,7 +66,6 @@ class DDAgentWriterTest extends DDSpecification {
     _ * serializer.reset(_) >> { trace -> callRealMethod() }
     _ * serializer.isAtCapacity() >> false
     _ * serializer.dropBuffer() >> { trace -> callRealMethod() }
-    _ * api.detectEndpointAndBuildClient() // might have been called on another thread
     0 * _
 
     when:
@@ -108,7 +81,6 @@ class DDAgentWriterTest extends DDSpecification {
     1 * api.sendSerializedTraces({
       (it.traceCount() == 2) && (it.headerSize() == 1) && (it.representativeCount() == 2)
     }) >> DDAgentApi.Response.success(200)
-    _ * api.detectEndpointAndBuildClient() // might have been called on another thread
     0 * _
 
     cleanup:
@@ -140,7 +112,6 @@ class DDAgentWriterTest extends DDSpecification {
     _ * serializer.serialize(_) >> { trace -> callRealMethod() }
     _ * serializer.reset(_) >> { trace -> callRealMethod() }
     1 * api.sendSerializedTraces({ it.traceCount() < traceCount }) >> DDAgentApi.Response.success(200)
-    _ * api.detectEndpointAndBuildClient() // might have been called on another thread
     0 * _
 
     cleanup:
@@ -179,7 +150,6 @@ class DDAgentWriterTest extends DDSpecification {
     1 * monitor.onSend(_, _, _, _) >> {
       phaser.arrive()
     }
-    _ * api.detectEndpointAndBuildClient() // might have been called on another thread
     0 * _
 
     cleanup:
@@ -266,7 +236,6 @@ class DDAgentWriterTest extends DDSpecification {
     1 * monitor.onFailedPublish(_, _)
     1 * monitor.onFlush(_, _)
     1 * monitor.onShutdown(_, _)
-    _ * api.detectEndpointAndBuildClient() // might have been called on another thread
     0 * _
     writer.traceCount.get() == 0
   }
@@ -292,7 +261,6 @@ class DDAgentWriterTest extends DDSpecification {
     _ * serializer.reset(_) >> { trace -> callRealMethod() }
     1 * monitor.onSerialize(writer, _, _)
     1 * monitor.onPublish(writer, _)
-    _ * api.detectEndpointAndBuildClient() // might have been called on another thread
     0 * _
     writer.traceCount.get() == 0
 

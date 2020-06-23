@@ -223,11 +223,10 @@ public class DDAgentWriter implements Writer {
     // Monitor or checking the result of Monitor#toString() to determine
     // if something is *probably* the NoopMonitor.
 
-    String str = "DDAgentWriter { api=" + api;
+    String str = "DDAgentWriter";
     if (!(monitor instanceof Monitor.Noop)) {
-      str += ", monitor=" + monitor;
+      str += " { monitor=" + monitor + " }";
     }
-    str += " }";
 
     return str;
   }

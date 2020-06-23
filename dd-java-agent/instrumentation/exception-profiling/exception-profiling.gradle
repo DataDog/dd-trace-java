@@ -32,7 +32,13 @@ targetCompatibility = JavaVersion.VERSION_1_7
     // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
     // Disable '-path' because we do not have some of the paths seem to be missing.
     // Compile to 8 compatible byte code
-    options.compilerArgs.addAll(['-source', '8', '-target', '8', '-Xlint:all,-processing,-options,-path'])
+    options.compilerArgs.addAll([
+      '-source',
+      '8',
+      '-target',
+      '8',
+      '-Xlint:all,-processing,-options,-path'
+    ])
     options.fork = true
     options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
   }

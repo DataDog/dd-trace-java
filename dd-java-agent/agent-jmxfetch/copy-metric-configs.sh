@@ -51,4 +51,3 @@ for input_file in $metrics_files ; do
   output_file="$build_resources_output_directory/metricconfigs/$output_file.yaml"
   cp $input_file $output_file
 done
-
