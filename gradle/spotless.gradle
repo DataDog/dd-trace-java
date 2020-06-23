@@ -16,14 +16,14 @@ spotless {
     ktlint().userData(['indent_size': '2', 'continuation_indent_size': '2'])
   }
 
-  groovy {
-    excludeJava() // excludes all Java sources within the Groovy source dirs from formatting
-    // the Groovy Eclipse formatter extends the Java Eclipse formatter,
-    // so it formats Java files by default (unless `excludeJava` is used).
-
-    targetExclude '**/*Test.groovy' // Current formatting configuration is not great for our tests.
-    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
-  }
+//  groovy {
+//    excludeJava() // excludes all Java sources within the Groovy source dirs from formatting
+//    // the Groovy Eclipse formatter extends the Java Eclipse formatter,
+//    // so it formats Java files by default (unless `excludeJava` is used).
+//
+//    targetExclude '**/*Test.groovy' // Current formatting configuration is not great for our tests.
+//    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
+//  }
   scala {
     scalafmt()
   }
@@ -34,7 +34,7 @@ spotless {
 
   format 'misc', {
     target '**/.gitignore', '**/*.md', '**/*.sh'
-    targetExclude 'integrations-core/**' // Exclude git submodule from evaluation.
+    targetExclude '**/integrations-core/**' // Exclude git submodule from evaluation.
     indentWithSpaces()
     trimTrailingWhitespace()
     endWithNewline()
