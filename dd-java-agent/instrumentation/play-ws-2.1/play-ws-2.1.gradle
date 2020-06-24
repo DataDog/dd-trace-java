@@ -47,9 +47,10 @@ dependencies {
   testCompile project(path: ':dd-java-agent:instrumentation:play-ws', configuration: 'testArtifacts')
 
   // These are to ensure cross compatibility
+  testCompile project(':dd-java-agent:instrumentation:akka-http-10.0')
   testCompile project(':dd-java-agent:instrumentation:netty-4.0')
   testCompile project(':dd-java-agent:instrumentation:netty-4.1')
-  testCompile project(':dd-java-agent:instrumentation:akka-http-10.0')
+  testCompile project(':dd-java-agent:instrumentation:scala-concurrent')
 
   testCompile group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '2.1.0'
 

@@ -22,5 +22,7 @@ artifacts {
 dependencies {
   compileOnly group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '1.0.2'
 
+  testCompile project(':dd-java-agent:instrumentation:scala-concurrent')
+
   testCompile group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '1.0.2'
 }
