@@ -45,15 +45,6 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
       WHITELISTED_EXECUTORS_PREFIXES = Collections.emptyList();
     } else {
       final String[] whitelist = {
-        "akka.actor.ActorSystemImpl$$anon$1",
-        "akka.dispatch.BalancingDispatcher",
-        "akka.dispatch.Dispatcher",
-        "akka.dispatch.Dispatcher$LazyExecutorServiceDelegate",
-        "akka.dispatch.ExecutionContexts$sameThreadExecutionContext$",
-        "akka.dispatch.forkjoin.ForkJoinPool",
-        "akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinPool",
-        "akka.dispatch.MessageDispatcher",
-        "akka.dispatch.PinnedDispatcher",
         "com.google.common.util.concurrent.AbstractListeningExecutorService",
         "com.google.common.util.concurrent.MoreExecutors$ListeningDecorator",
         "com.google.common.util.concurrent.MoreExecutors$ScheduledListeningDecorator",
@@ -82,10 +73,6 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
         "org.eclipse.jetty.util.thread.QueuedThreadPool",
         "org.eclipse.jetty.util.thread.ReservedThreadExecutor",
         "org.glassfish.grizzly.threadpool.GrizzlyExecutorService",
-        "play.api.libs.streams.Execution$trampoline$",
-        "scala.concurrent.forkjoin.ForkJoinPool",
-        "scala.concurrent.Future$InternalCallbackExecutor$",
-        "scala.concurrent.impl.ExecutionContextImpl",
       };
 
       final Set<String> executors = new HashSet<>(Config.get().getTraceExecutors());
