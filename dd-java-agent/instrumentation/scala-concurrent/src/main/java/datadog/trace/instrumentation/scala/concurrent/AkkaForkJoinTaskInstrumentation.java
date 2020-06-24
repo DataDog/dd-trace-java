@@ -17,7 +17,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
-import datadog.trace.instrumentation.java.concurrent.AbstractExecutorInstrumentation;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,7 +40,7 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default 
   static final String TASK_CLASS_NAME = "akka.dispatch.forkjoin.ForkJoinTask";
 
   public AkkaForkJoinTaskInstrumentation() {
-    super(AbstractExecutorInstrumentation.EXEC_NAME);
+    super(AbstractScalaExecutorInstrumentation.EXEC_NAME);
   }
 
   @Override

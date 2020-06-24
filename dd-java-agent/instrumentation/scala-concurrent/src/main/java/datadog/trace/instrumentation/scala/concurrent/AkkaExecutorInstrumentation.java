@@ -13,7 +13,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
-import datadog.trace.instrumentation.java.concurrent.AbstractExecutorInstrumentation;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,7 +24,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class AkkaExecutorInstrumentation extends AbstractExecutorInstrumentation {
+public final class AkkaExecutorInstrumentation extends AbstractScalaExecutorInstrumentation {
 
   public AkkaExecutorInstrumentation() {
     super(EXEC_NAME + ".akka_fork_join");

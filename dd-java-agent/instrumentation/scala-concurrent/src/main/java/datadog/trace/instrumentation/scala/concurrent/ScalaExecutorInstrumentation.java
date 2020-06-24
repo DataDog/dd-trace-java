@@ -13,7 +13,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
-import datadog.trace.instrumentation.java.concurrent.AbstractExecutorInstrumentation;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -25,7 +24,7 @@ import scala.concurrent.forkjoin.ForkJoinTask;
 
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class ScalaExecutorInstrumentation extends AbstractExecutorInstrumentation {
+public final class ScalaExecutorInstrumentation extends AbstractScalaExecutorInstrumentation {
 
   public ScalaExecutorInstrumentation() {
     super(EXEC_NAME + ".scala_fork_join");
