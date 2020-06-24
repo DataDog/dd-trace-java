@@ -56,10 +56,12 @@ public class HaystackHttpCodec {
         //  to the converted value in BigInteger, use that instead.
         //  this will preserve the complete UUID/GUID without losing the most significant bit part
         String originalHaystackTraceId = getBaggageItemIgnoreCase(context.getBaggageItems(), HAYSTACK_TRACE_ID_BAGGAGE_KEY);
+        String injectedTraceId = originalHaystackTraceId;
         if (originalHaystackTraceId != null && convertUUIDToBigInt(originalHaystackTraceId).equals(context.getTraceId())) {
           setter.set(carrier, TRACE_ID_KEY, originalHaystackTraceId);
         } else {
-          setter.set(carrier, TRACE_ID_KEY, convertBigIntToUUID(context.getTraceId()));
+          injectedTraceId = convertBigIntToUUID(context.getTraceId());
+          setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
         }
         setter.set(carrier, DD_TRACE_ID_BAGGAGE_KEY, HttpCodec.encode(context.getTraceId().toString()));
         setter.set(carrier, SPAN_ID_KEY, convertBigIntToUUID(context.getSpanId()));
@@ -70,7 +72,7 @@ public class HaystackHttpCodec {
         for (final Map.Entry<String, String> entry : context.baggageItems()) {
           setter.set(carrier, OT_BAGGAGE_PREFIX + entry.getKey(), HttpCodec.encode(entry.getValue()));
         }
-        log.debug("{} - Haystack parent context injected", context.getTraceId());
+        log.debug("{} - Haystack parent context injected - {}", context.getTraceId(), injectedTraceId);
       } catch (final NumberFormatException e) {
         log.debug(
           "Cannot parse context id(s): {} {}", context.getTraceId(), context.getSpanId(), e);

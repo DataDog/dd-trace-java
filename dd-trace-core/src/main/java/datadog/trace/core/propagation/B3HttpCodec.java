@@ -1,11 +1,13 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
+import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -38,8 +40,9 @@ class B3HttpCodec {
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       try {
-        setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toHexString().toLowerCase());
-        setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toHexString().toLowerCase());
+        String injectedTraceId = context.getTraceId().toString(HEX_RADIX).toLowerCase();
+        setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
+        setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toString(HEX_RADIX).toLowerCase());
 
         if (context.lockSamplingPriority()) {
           setter.set(
@@ -47,7 +50,7 @@ class B3HttpCodec {
               SAMPLING_PRIORITY_KEY,
               convertSamplingPriority(context.getSamplingPriority()));
         }
-        log.debug("{} - B3 parent context injected", context.getTraceId());
+        log.debug("{} - B3 parent context injected - {}", context.getTraceId(), injectedTraceId);
       } catch (final NumberFormatException e) {
         if (log.isDebugEnabled()) {
           log.debug(
