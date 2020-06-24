@@ -55,6 +55,7 @@ class HaystackHttpInjectorTest extends DDSpecification {
 
     then:
     1 * carrier.put(TRACE_ID_KEY, traceUuid)
+    mockedContext.getTags().get(HAYSTACK_TRACE_ID_BAGGAGE_KEY) == traceUuid
     1 * carrier.put(DD_TRACE_ID_BAGGAGE_KEY, traceId.toString())
     1 * carrier.put(SPAN_ID_KEY, spanUuid)
     1 * carrier.put(DD_SPAN_ID_BAGGAGE_KEY, spanId.toString())

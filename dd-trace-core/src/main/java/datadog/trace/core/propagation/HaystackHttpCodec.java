@@ -56,13 +56,14 @@ public class HaystackHttpCodec {
         //  to the converted value in BigInteger, use that instead.
         //  this will preserve the complete UUID/GUID without losing the most significant bit part
         String originalHaystackTraceId = getBaggageItemIgnoreCase(context.getBaggageItems(), HAYSTACK_TRACE_ID_BAGGAGE_KEY);
-        String injectedTraceId = originalHaystackTraceId;
+        String injectedTraceId;
         if (originalHaystackTraceId != null && convertUUIDToBigInt(originalHaystackTraceId).equals(context.getTraceId())) {
-          setter.set(carrier, TRACE_ID_KEY, originalHaystackTraceId);
+          injectedTraceId = originalHaystackTraceId;
         } else {
           injectedTraceId = convertBigIntToUUID(context.getTraceId());
-          setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
         }
+        setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
+        context.setTag(HAYSTACK_TRACE_ID_BAGGAGE_KEY, injectedTraceId);
         setter.set(carrier, DD_TRACE_ID_BAGGAGE_KEY, HttpCodec.encode(context.getTraceId().toString()));
         setter.set(carrier, SPAN_ID_KEY, convertBigIntToUUID(context.getSpanId()));
         setter.set(carrier, DD_SPAN_ID_BAGGAGE_KEY, HttpCodec.encode(context.getSpanId().toString()));
