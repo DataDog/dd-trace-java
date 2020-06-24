@@ -110,6 +110,11 @@ class SpanAssert {
     traceDDId(parent.traceId)
   }
 
+  def notChildOf(DDSpan parent) {
+    assert parent.spanId != span.parentId
+    assert parent.traceId != span.traceId
+  }
+
   def errored(boolean errored) {
     assert span.isError() == errored
     checked.errored = true
