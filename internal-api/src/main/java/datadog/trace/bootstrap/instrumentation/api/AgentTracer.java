@@ -267,6 +267,11 @@ public class AgentTracer {
     }
 
     @Override
+    public Object getTag(String key) {
+      return null;
+    }
+
+    @Override
     public long getStartTime() {
       return 0;
     }

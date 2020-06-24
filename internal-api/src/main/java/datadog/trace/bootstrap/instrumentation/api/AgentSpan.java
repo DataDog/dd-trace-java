@@ -22,6 +22,8 @@ public interface AgentSpan extends MutableSpan {
 
   AgentSpan setTag(String key, Object value);
 
+  Object getTag(String key);
+
   @Override
   AgentSpan setError(boolean error);
 
