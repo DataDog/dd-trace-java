@@ -20,6 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
 public class ThreadContextInstrumentation extends Instrumenter.Default {
+  private static final String TYPE_NAME = "org.apache.logging.log4j.ThreadContext";
   public static final String MDC_INSTRUMENTATION_NAME = "log4j";
 
   public ThreadContextInstrumentation() {
@@ -33,7 +34,7 @@ public class ThreadContextInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("org.apache.logging.log4j.ThreadContext");
+    return named(TYPE_NAME);
   }
 
   @Override
@@ -52,7 +53,6 @@ public class ThreadContextInstrumentation extends Instrumenter.Default {
   public static class ThreadContextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void mdcClassInitialized(@Advice.Origin final Class<?> threadContextClass) {
-      // @Advice.FieldValue("contextMap") Object contextMap
       try {
         final Method putMethod = threadContextClass.getMethod("put", String.class, String.class);
         final Method removeMethod = threadContextClass.getMethod("remove", String.class);
@@ -61,11 +61,21 @@ public class ThreadContextInstrumentation extends Instrumenter.Default {
         final Field contextMapField = threadContextClass.getDeclaredField("contextMap");
         contextMapField.setAccessible(true);
         Object contextMap = contextMapField.get(null);
-
+        if (contextMap
+            .getClass()
+            .getCanonicalName()
+            .equals("org.apache.logging.slf4j.MDCContextMap")) {
+          org.slf4j.LoggerFactory.getLogger(threadContextClass)
+              .debug(
+                  "Log4j to SLF4J Adapter detected. "
+                      + TYPE_NAME
+                      + "'s ThreadLocal"
+                      + " field will not be instrumented because it delegates to slf4-MDC");
+          return;
+        }
         final Field localMapField = contextMap.getClass().getDeclaredField("localMap");
         localMapField.setAccessible(true);
         localMapField.set(contextMap, new ThreadLocalWithDDTagsInitValue());
-
       } catch (final NoSuchMethodException | NoSuchFieldException | IllegalAccessException e) {
         org.slf4j.LoggerFactory.getLogger(threadContextClass)
             .debug("Failed to add log4j ThreadContext span listener", e);
