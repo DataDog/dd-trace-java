@@ -96,11 +96,13 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   }
 
   @Override
-  public void writeNumberAsString(byte[] key, Number value, MessagePacker destination)
+  public void writeObjectAsString(byte[] key, Object value, MessagePacker destination)
       throws IOException {
     writeKey(key, destination);
     if (value instanceof Long || value instanceof Integer) {
-      writeLongAsString(value.longValue(), destination);
+      writeLongAsString(((Number) value).longValue(), destination);
+    } else if (value instanceof String) {
+      cachedWriteString((String) value, destination);
     } else {
       cachedWriteString(String.valueOf(value), destination);
     }

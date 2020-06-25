@@ -18,9 +18,9 @@ public interface MutableSpan {
 
   MutableSpan setServiceName(final String serviceName);
 
-  String getResourceName();
+  CharSequence getResourceName();
 
-  MutableSpan setResourceName(final String resourceName);
+  MutableSpan setResourceName(final CharSequence resourceName);
 
   Integer getSamplingPriority();
 
