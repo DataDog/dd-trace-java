@@ -74,11 +74,10 @@ public final class StreamUtils {
     } else {
       final FastByteArrayOutputStream baos = new FastByteArrayOutputStream(expectedSize);
       try (final OutputStream zipped =
-          new LZ4FrameOutputStream(
+        new LZ4FrameOutputStream(
               baos,
               LZ4FrameOutputStream.BLOCKSIZE.SIZE_64KB,
-              LZ4FrameOutputStream.FLG.Bits.BLOCK_CHECKSUM,
-              LZ4FrameOutputStream.FLG.Bits.CONTENT_CHECKSUM,
+              // copy of the default flag(s) used by LZ4FrameOutputStream
               LZ4FrameOutputStream.FLG.Bits.BLOCK_INDEPENDENCE)) {
         copy(is, zipped);
       }
