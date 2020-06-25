@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.bootstrap.WeakMap.Provider.newWeakMap;
 
 import datadog.trace.bootstrap.WeakMap;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -14,5 +15,6 @@ import java.sql.PreparedStatement;
  */
 public class JDBCMaps {
   public static final WeakMap<Connection, DBInfo> connectionInfo = newWeakMap();
-  public static final WeakMap<PreparedStatement, String> preparedStatements = newWeakMap();
+  public static final WeakMap<String, UTF8BytesString> preparedStatementsSql = newWeakMap();
+  public static final WeakMap<PreparedStatement, UTF8BytesString> preparedStatements = newWeakMap();
 }

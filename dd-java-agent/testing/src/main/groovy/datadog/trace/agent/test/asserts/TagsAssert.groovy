@@ -4,6 +4,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
@@ -78,19 +79,21 @@ class TagsAssert {
       return
     }
     assertedTags.add(name)
+    def t = tag(name)
     if (value instanceof Pattern) {
-      assert tags[name] =~ value
+      assert t =~ value
     } else if (value instanceof Class) {
-      assert ((Class) value).isInstance(tags[name])
+      assert ((Class) value).isInstance(t)
     } else if (value instanceof Closure) {
-      assert ((Closure) value).call(tags[name])
+      assert ((Closure) value).call(t)
     } else {
-      assert tags[name] == value
+      assert t == value
     }
   }
 
   def tag(String name) {
-    return tags[name]
+    def t = tags[name]
+    return (t instanceof UTF8BytesString) ? t.toString() : t
   }
 
   def methodMissing(String name, args) {

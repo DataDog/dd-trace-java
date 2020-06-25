@@ -1,6 +1,24 @@
 apply from: "$rootDir/gradle/java.gradle"
 
+excludedClassesCoverage += [
+  "datadog.trace.bootstrap.instrumentation.api.Tags",
+  "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentPropagation",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopContext",
+  "datadog.trace.bootstrap.instrumentation.api.InstrumentationTags",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopContinuation",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan",
+  "datadog.trace.bootstrap.instrumentation.api.DDSpanNames",
+  "datadog.trace.bootstrap.instrumentation.api.DDComponents",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTrace",
+]
+
 dependencies {
   // references TraceScope and Continuation from public api
   compile project(':dd-trace-api')
+
+  testCompile project(":utils:test-utils")
 }
