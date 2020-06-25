@@ -1,4 +1,4 @@
-package datadog.trace.core.util
+package datadog.trace.bootstrap.instrumentation.api
 
 import datadog.trace.util.test.DDSpecification
 import spock.util.concurrent.AsyncConditions

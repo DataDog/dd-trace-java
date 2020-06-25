@@ -243,27 +243,6 @@ class TagInterceptorTest extends DDSpecification {
     type = DDSpanTypes.HTTP_CLIENT
   }
 
-  def "override operation with DBTypeTagInterceptor"() {
-    when:
-    span.setTag(Tags.DB_TYPE, type)
-
-    then:
-    span.getOperationName() == type + ".query"
-    span.context().getSpanType() == "sql"
-    span.serviceName == type
-
-    when:
-    span.setTag(Tags.DB_TYPE, "mongo")
-
-    then:
-    span.getOperationName() == "mongo.query"
-    span.context().getSpanType() == "mongodb"
-    span.serviceName == "mongo"
-
-    where:
-    type = "foo"
-  }
-
   def "span metrics starts empty but added with rate limiting value of #rate"() {
     expect:
     span.metrics == [:]

@@ -14,7 +14,6 @@ public class TagInterceptorsFactory {
 
     for (final AbstractTagInterceptor interceptor :
         Arrays.asList(
-            new DBTypeTagInterceptor(),
             new ForceManualDropTagInterceptor(),
             new ForceManualKeepTagInterceptor(),
             new PeerServiceTagInterceptor(),

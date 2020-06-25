@@ -3,10 +3,11 @@ package datadog.trace.instrumentation.spymemcached;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import net.spy.memcached.MemcachedConnection;
 
-public class MemcacheClientDecorator extends DatabaseClientDecorator<MemcachedConnection> {
+public class MemcacheClientDecorator
+    extends DBTypeProcessingDatabaseClientDecorator<MemcachedConnection> {
   public static final MemcacheClientDecorator DECORATE = new MemcacheClientDecorator();
 
   @Override

@@ -1,4 +1,4 @@
-package datadog.trace.core.util;
+package datadog.trace.bootstrap.instrumentation.api;
 
 /**
  * This is a fixed size cache that only has one operation <code>computeIfAbsent</code>, that is used
@@ -18,6 +18,19 @@ public class FixedSizeCache<K, V> {
 
   public interface Creator<K, V> {
     V create(K key);
+  }
+
+  public static final class Suffix implements Creator<String, String> {
+    private final String suffix;
+
+    public Suffix(String suffix) {
+      this.suffix = suffix;
+    }
+
+    @Override
+    public String create(String key) {
+      return key + suffix;
+    }
   }
 
   static final int MAXIMUM_CAPACITY = 1 << 30;
