@@ -152,11 +152,8 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   public void setServiceName(final String serviceName) {
-    if (serviceNameMappings.containsKey(serviceName)) {
-      this.serviceName = serviceNameMappings.get(serviceName);
-    } else {
-      this.serviceName = serviceName;
-    }
+    String mappedServiceName = serviceNameMappings.get(serviceName);
+    this.serviceName = mappedServiceName == null ? serviceName : mappedServiceName;
   }
 
   public String getResourceName() {
