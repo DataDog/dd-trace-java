@@ -26,6 +26,8 @@ class BaseDecoratorTest extends DDSpecification {
     1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
     1 * span.setTag(Tags.COMPONENT, "test-component")
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
+    _ * span.setServiceName(_)
+    _ * span.setOperationName(_)
     0 * _
   }
 

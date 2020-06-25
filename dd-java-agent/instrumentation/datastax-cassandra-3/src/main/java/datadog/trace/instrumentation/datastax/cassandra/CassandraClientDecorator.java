@@ -6,9 +6,9 @@ import com.datastax.driver.core.Session;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
+import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
-public class CassandraClientDecorator extends DatabaseClientDecorator<Session> {
+public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
   public static final CassandraClientDecorator DECORATE = new CassandraClientDecorator();
 
   @Override
