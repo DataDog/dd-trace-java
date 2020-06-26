@@ -95,13 +95,7 @@ class JMXSampler {
       log.warn("ThreadStack provider is no op. It will not provide thread stacks.");
       providerFirstAccess = false;
     }
-    ThreadInfo[] threadInfos = provider.getThreadInfo(tmpArray);
-    if (threadInfos.length > 0 && log.isDebugEnabled()) {
-      log.debug(
-          "Collecting stacktraces for {} {}",
-          threadInfos.length,
-          threadInfos.length == 1 ? "thread" : "threads");
-    }
+    final ThreadInfo[] threadInfos = provider.getThreadInfo(tmpArray);
     // dispatch to Scopes
     for (ThreadInfo threadInfo : threadInfos) {
       ScopeManager scopeManager = threadScopeMapper.forThread(threadInfo.getThreadId());
