@@ -50,7 +50,7 @@ public class DDSpanContext implements AgentSpan.Context {
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
   /** The resource associated to the service (server_web, database, etc.) */
-  private volatile String resourceName;
+  private volatile CharSequence resourceName;
   /** Each span have an operation name describing the current span */
   private volatile String operationName;
   /** The type of the span. If null, the Datadog Agent will report as a custom */
@@ -81,7 +81,7 @@ public class DDSpanContext implements AgentSpan.Context {
       final DDId parentId,
       final String serviceName,
       final String operationName,
-      final String resourceName,
+      final CharSequence resourceName,
       final int samplingPriority,
       final String origin,
       final Map<String, String> baggageItems,
@@ -152,26 +152,23 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   public void setServiceName(final String serviceName) {
-    if (serviceNameMappings.containsKey(serviceName)) {
-      this.serviceName = serviceNameMappings.get(serviceName);
-    } else {
-      this.serviceName = serviceName;
-    }
+    String mappedServiceName = serviceNameMappings.get(serviceName);
+    this.serviceName = mappedServiceName == null ? serviceName : mappedServiceName;
   }
 
-  public String getResourceName() {
+  public CharSequence getResourceName() {
     return isResourceNameSet() ? resourceName : operationName;
   }
 
   public boolean isResourceNameSet() {
-    return !(resourceName == null || resourceName.isEmpty());
+    return resourceName != null && resourceName.length() != 0;
   }
 
   public boolean hasResourceName() {
     return isResourceNameSet() || tags.containsKey(DDTags.RESOURCE_NAME);
   }
 
-  public void setResourceName(final String resourceName) {
+  public void setResourceName(final CharSequence resourceName) {
     this.resourceName = resourceName;
   }
 

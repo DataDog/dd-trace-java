@@ -62,8 +62,8 @@ public abstract class FormatWriter<DEST> {
   public abstract void writeId(final byte[] key, DDId id, final DEST destination)
       throws IOException;
 
-  public abstract void writeNumberAsString(
-      final byte[] key, final Number value, final DEST destination) throws IOException;
+  public abstract void writeObjectAsString(
+      final byte[] key, final Object value, final DEST destination) throws IOException;
 
   public void writeNumber(final byte[] key, final Number value, final DEST destination)
       throws IOException {
@@ -105,15 +105,7 @@ public abstract class FormatWriter<DEST> {
       }
     }
     for (Map.Entry<String, Object> entry : tags.entrySet()) {
-      byte[] key = stringToBytes(entry.getKey());
-      Object value = entry.getValue();
-      if (value instanceof String) {
-        writeTag(key, (String) value, destination);
-      } else if (value instanceof Number) {
-        writeNumberAsString(key, (Number) value, destination);
-      } else {
-        writeString(key, String.valueOf(entry.getValue()), destination);
-      }
+      writeObjectAsString(stringToBytes(entry.getKey()), entry.getValue(), destination);
     }
     writeMapFooter(destination);
   }
@@ -131,7 +123,7 @@ public abstract class FormatWriter<DEST> {
     writeMapHeader(12, destination); // must match count below.
     /* 1  */ writeTag(SERVICE, span.getServiceName(), destination);
     /* 2  */ writeString(NAME, span.getOperationName(), destination);
-    /* 3  */ writeString(RESOURCE, span.getResourceName(), destination);
+    /* 3  */ writeObjectAsString(RESOURCE, span.getResourceName(), destination);
     /* 4  */ writeId(TRACE_ID, span.getTraceId(), destination);
     /* 5  */ writeId(SPAN_ID, span.getSpanId(), destination);
     /* 6  */ writeId(PARENT_ID, span.getParentId(), destination);

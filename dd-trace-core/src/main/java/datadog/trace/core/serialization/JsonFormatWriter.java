@@ -112,7 +112,7 @@ public class JsonFormatWriter extends FormatWriter<JsonWriter> {
   }
 
   @Override
-  public void writeNumberAsString(byte[] key, Number value, JsonWriter destination)
+  public void writeObjectAsString(byte[] key, Object value, JsonWriter destination)
       throws IOException {
     writeString(key, String.valueOf(value), destination);
   }

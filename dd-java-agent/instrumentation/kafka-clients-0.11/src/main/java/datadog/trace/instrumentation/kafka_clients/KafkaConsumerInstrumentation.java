@@ -39,8 +39,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Default {
       packageName + ".TextMapExtractAdapter",
       packageName + ".TracingIterable",
       packageName + ".TracingIterator",
-      packageName + ".TracingList",
-      "datadog.trace.core.util.Clock"
+      packageName + ".TracingList"
     };
   }
 

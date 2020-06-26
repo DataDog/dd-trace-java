@@ -132,12 +132,12 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public String getResourceName() {
+  public CharSequence getResourceName() {
     return delegate.getResourceName();
   }
 
   @Override
-  public MutableSpan setResourceName(final String resourceName) {
+  public MutableSpan setResourceName(final CharSequence resourceName) {
     return delegate.setResourceName(resourceName);
   }
 

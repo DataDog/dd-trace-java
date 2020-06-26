@@ -77,7 +77,10 @@ public class KafkaDecorator extends ClientDecorator {
   }
 
   public void finishConsumerSpan(final AgentSpan span) {
-    if (endToEndDurationsEnabled) {
+    if (endToEndDurationsEnabled
+        // no context propagation on tombstones, so this is always the
+        // trace start if we get one
+        && !Boolean.TRUE.equals(span.getTag(InstrumentationTags.TOMBSTONE))) {
       long now = System.currentTimeMillis();
       String traceStartTime = span.getBaggageItem(DDTags.TRACE_START_TIME);
       if (null != traceStartTime) {

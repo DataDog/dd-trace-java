@@ -215,6 +215,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
     return context.getTags().remove(tag);
   }
 
+  @Override
   public Object getTag(final String tag) {
     return context.getTags().get(tag);
   }
@@ -248,7 +249,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
   }
 
   @Override
-  public final DDSpan setResourceName(final String resourceName) {
+  public final DDSpan setResourceName(final CharSequence resourceName) {
     context.setResourceName(resourceName);
     return this;
   }
@@ -312,7 +313,7 @@ public class DDSpan implements MutableSpan, AgentSpan {
   }
 
   @Override
-  public String getResourceName() {
+  public CharSequence getResourceName() {
     return context.getResourceName();
   }
 

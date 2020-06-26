@@ -57,22 +57,22 @@ class SpanAssert {
   }
 
   def resourceName(Pattern pattern) {
-    assert span.resourceName.matches(pattern)
+    assert span.resourceName.toString().matches(pattern)
     checked.resourceName = true
   }
 
   def resourceName(String name) {
-    assert span.resourceName == name
+    assert span.resourceName.toString() == name
     checked.resourceName = true
   }
 
   def resourceName(Closure<Boolean> eval) {
-    assert eval(span.resourceName)
+    assert eval(span.resourceName.toString())
     checked.resourceName = true
   }
 
   def resourceNameContains(String... resourceNameParts) {
-    assertSpanNameContains(span.resourceName, resourceNameParts)
+    assertSpanNameContains(span.resourceName.toString(), resourceNameParts)
     checked.resourceName = true
   }
 
@@ -108,6 +108,11 @@ class SpanAssert {
   def childOf(DDSpan parent) {
     parentDDId(parent.spanId)
     traceDDId(parent.traceId)
+  }
+
+  def notChildOf(DDSpan parent) {
+    assert parent.spanId != span.parentId
+    assert parent.traceId != span.traceId
   }
 
   def errored(boolean errored) {

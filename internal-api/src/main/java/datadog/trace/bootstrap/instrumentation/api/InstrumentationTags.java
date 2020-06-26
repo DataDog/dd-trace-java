@@ -12,6 +12,7 @@ public class InstrumentationTags {
   public static final String OFFSET = "offset";
   public static final String RECORD_QUEUE_TIME_MS = "record.queue_time_ms";
   public static final String RECORD_END_TO_END_DURATION_MS = "record.e2e_duration_ms";
+  public static final String TOMBSTONE = "tombstone";
   public static final String AWS_AGENT = "aws.agent";
   public static final String AWS_SERVICE = "aws.service";
   public static final String BUCKET = "bucket";

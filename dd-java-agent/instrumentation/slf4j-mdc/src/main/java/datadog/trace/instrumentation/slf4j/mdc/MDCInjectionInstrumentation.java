@@ -20,7 +20,6 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.BooleanMatcher;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
-import org.slf4j.spi.MDCAdapter;
 
 @AutoService(Instrumenter.class)
 public class MDCInjectionInstrumentation extends Instrumenter.Default {
@@ -88,7 +87,7 @@ public class MDCInjectionInstrumentation extends Instrumenter.Default {
 
         final Field mdcAdapterField = mdcClass.getDeclaredField("mdcAdapter");
         mdcAdapterField.setAccessible(true);
-        final MDCAdapter mdcAdapterInstance = (MDCAdapter) mdcAdapterField.get(null);
+        final Object mdcAdapterInstance = mdcAdapterField.get(null);
         final Field copyOnThreadLocalField =
             mdcAdapterInstance.getClass().getDeclaredField("copyOnThreadLocal");
         copyOnThreadLocalField.setAccessible(true);

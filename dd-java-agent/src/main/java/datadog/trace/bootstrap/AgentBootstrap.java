@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.instrument.Instrumentation;
-import java.lang.invoke.MethodHandles;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -41,7 +40,7 @@ import java.util.regex.Pattern;
  * </ul>
  */
 public final class AgentBootstrap {
-  private static final Class<?> thisClass = MethodHandles.lookup().lookupClass();
+  private static final Class<?> thisClass = AgentBootstrap.class;
 
   public static void premain(final String agentArgs, final Instrumentation inst) {
     agentmain(agentArgs, inst);
@@ -128,10 +127,10 @@ public final class AgentBootstrap {
   private static List<String> getVMArgumentsThroughReflection() {
     try {
       // Try Oracle-based
-      final Class managementFactoryHelperClass =
+      final Class<?> managementFactoryHelperClass =
           thisClass.getClassLoader().loadClass("sun.management.ManagementFactoryHelper");
 
-      final Class vmManagementClass =
+      final Class<?> vmManagementClass =
           thisClass.getClassLoader().loadClass("sun.management.VMManagement");
 
       Object vmManagement;
@@ -151,7 +150,7 @@ public final class AgentBootstrap {
 
     } catch (final ReflectiveOperationException e) {
       try { // Try IBM-based.
-        final Class VMClass = thisClass.getClassLoader().loadClass("com.ibm.oti.vm.VM");
+        final Class<?> VMClass = thisClass.getClassLoader().loadClass("com.ibm.oti.vm.VM");
         final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);
         return Arrays.asList(argArray);
       } catch (final ReflectiveOperationException e1) {

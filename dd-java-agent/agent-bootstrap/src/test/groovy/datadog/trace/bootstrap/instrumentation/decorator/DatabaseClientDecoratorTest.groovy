@@ -24,7 +24,6 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     }
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, "client")
-    1 * span.setTag(Tags.DB_TYPE, "test-db")
     1 * span.setTag(DDTags.SPAN_TYPE, "test-type")
     1 * span.setTag(DDTags.ANALYTICS_SAMPLE_RATE, 1.0)
     0 * _

@@ -51,11 +51,8 @@ public class InternalJarURLHandler extends URLStreamHandler {
           final JarEntry entry = entries.nextElement();
           String name = entry.getName();
           if (name.startsWith(filePrefix)) {
-            if (entry.isDirectory()) {
+            if (entry.isDirectory() && !name.contains("/META-INF/")) {
               int prefix = filePrefix.length();
-              if (name.contains("META-INF/services/")) {
-                prefix += "META-INF/services/".length();
-              }
               if (name.length() > prefix) {
                 String dir = name.substring(prefix, name.length() - 1);
                 String currentPackage = dir.replace('/', '.');
