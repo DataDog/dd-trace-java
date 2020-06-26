@@ -10,11 +10,9 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
 
   public static final MessageInjectAdapter SETTER = new MessageInjectAdapter();
 
-  static final String DASH = "__dash__";
-
   @Override
   public void set(final Message carrier, final String key, final String value) {
-    final String propName = key.replace("-", DASH);
+    final String propName = key.replace('-', '$');
     try {
       carrier.setStringProperty(propName, value);
     } catch (final JMSException e) {

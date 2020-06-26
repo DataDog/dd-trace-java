@@ -1,32 +1,29 @@
 package datadog.trace.instrumentation.akkahttp;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
+
 import akka.http.javadsl.model.HttpHeader;
 import akka.http.scaladsl.model.HttpRequest;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import datadog.trace.bootstrap.instrumentation.api.CachingContextVisitor;
 
-public class AkkaHttpServerHeaders implements AgentPropagation.Getter<HttpRequest> {
+public class AkkaHttpServerHeaders extends CachingContextVisitor<HttpRequest> {
 
   public static final AkkaHttpServerHeaders GETTER = new AkkaHttpServerHeaders();
 
   @Override
-  public List<String> keys(final HttpRequest carrier) {
-    final List<String> keys = new ArrayList<>();
+  public void forEachKey(
+      final HttpRequest carrier,
+      final AgentPropagation.KeyClassifier classifier,
+      final AgentPropagation.KeyValueConsumer consumer) {
     for (final HttpHeader header : carrier.getHeaders()) {
-      keys.add(header.name());
-    }
-    return keys;
-  }
-
-  @Override
-  public String get(final HttpRequest carrier, final String key) {
-    final Optional<HttpHeader> header = carrier.getHeader(key);
-    if (header.isPresent()) {
-      return header.get().value();
-    } else {
-      return null;
+      String lowerCaseKey = toLowerCase(header.name());
+      int classification = classifier.classify(lowerCaseKey);
+      if (classification != IGNORE) {
+        if (!consumer.accept(classification, lowerCaseKey, header.value())) {
+          return;
+        }
+      }
     }
   }
 }

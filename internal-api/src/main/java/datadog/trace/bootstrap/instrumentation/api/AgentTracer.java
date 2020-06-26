@@ -218,7 +218,7 @@ public class AgentTracer {
     public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
 
     @Override
-    public <C> Context extract(final C carrier, final Getter<C> getter) {
+    public <C> Context extract(final C carrier, final ContextVisitor<C> getter) {
       return null;
     }
   }
@@ -448,7 +448,7 @@ public class AgentTracer {
     public <C> void inject(final Context context, final C carrier, final Setter<C> setter) {}
 
     @Override
-    public <C> Context extract(final C carrier, final Getter<C> getter) {
+    public <C> Context extract(final C carrier, final ContextVisitor<C> getter) {
       return NoopContext.INSTANCE;
     }
   }

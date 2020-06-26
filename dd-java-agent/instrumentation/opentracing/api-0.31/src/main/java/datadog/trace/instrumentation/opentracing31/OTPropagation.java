@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.opentracing31;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.CachingContextVisitor;
 import io.opentracing.propagation.TextMap;
-import java.util.HashMap;
 import java.util.Map;
 
 class OTPropagation {
@@ -16,25 +18,28 @@ class OTPropagation {
     }
   }
 
-  static class TextMapExtractGetter implements AgentPropagation.Getter<TextMap> {
-    private final Map<String, String> extracted = new HashMap<>();
+  static class TextMapExtractGetter extends CachingContextVisitor<TextMap> {
 
-    TextMapExtractGetter(final TextMap carrier) {
-      for (final Map.Entry<String, String> entry : carrier) {
-        extracted.put(entry.getKey(), entry.getValue());
-      }
-    }
+    static final TextMapExtractGetter INSTANCE = new TextMapExtractGetter();
+
+    private TextMapExtractGetter() {}
 
     @Override
-    public Iterable<String> keys(final TextMap carrier) {
-      return extracted.keySet();
-    }
-
-    @Override
-    public String get(final TextMap carrier, final String key) {
+    public void forEachKey(
+        TextMap carrier,
+        AgentPropagation.KeyClassifier classifier,
+        AgentPropagation.KeyValueConsumer consumer) {
       // This is the same as the one passed into the constructor
       // So using "extracted" is valid
-      return extracted.get(key);
+      for (Map.Entry<String, String> entry : carrier) {
+        String lowerCaseKey = toLowerCase(entry.getKey());
+        int classification = classifier.classify(lowerCaseKey);
+        if (classification != IGNORE) {
+          if (!consumer.accept(classification, lowerCaseKey, entry.getValue())) {
+            return;
+          }
+        }
+      }
     }
   }
 }

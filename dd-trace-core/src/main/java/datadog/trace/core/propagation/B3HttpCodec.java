@@ -6,9 +6,11 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -61,86 +63,104 @@ class B3HttpCodec {
     }
   }
 
-  public static class Extractor implements HttpCodec.Extractor {
+  public static HttpCodec.Extractor newExtractor(final Map<String, String> tagMapping) {
+    return new TagContextExtractor(
+        tagMapping,
+        new ContextInterpreter.Factory() {
+          @Override
+          protected ContextInterpreter construct(Map<String, String> mapping) {
+            return new B3ContextInterpreter(mapping);
+          }
+        });
+  }
 
-    private final Map<String, String> taggedHeaders;
+  private static class B3ContextInterpreter extends ContextInterpreter {
 
-    public Extractor(final Map<String, String> taggedHeaders) {
-      this.taggedHeaders = new HashMap<>();
-      for (final Map.Entry<String, String> mapping : taggedHeaders.entrySet()) {
-        this.taggedHeaders.put(mapping.getKey().trim().toLowerCase(), mapping.getValue());
-      }
+    private static final String TRACE_ID_KEY_LC = "x-b3-traceid";
+    private static final String SPAN_ID_KEY_LC = "x-b3-spanid";
+    private static final String SAMPLING_PRIORITY_KEY_LC = "x-b3-sampled";
+
+    private static final Set<String> B3_KEYS =
+        new HashSet<>(Arrays.asList(TRACE_ID_KEY_LC, SPAN_ID_KEY_LC, SAMPLING_PRIORITY_KEY_LC));
+
+    private static final int SPECIAL_HEADERS = 0;
+    private static final int TAGS = 1;
+    private static final int IGNORE = -1;
+
+    private B3ContextInterpreter(Map<String, String> taggedHeaders) {
+      super(taggedHeaders);
     }
 
     @Override
-    public <C> TagContext extract(final C carrier, final AgentPropagation.Getter<C> getter) {
+    public boolean accept(int classification, String lowerCaseKey, String value) {
       try {
-        Map<String, String> tags = Collections.emptyMap();
-        DDId traceId = DDId.ZERO;
-        DDId spanId = DDId.ZERO;
-        int samplingPriority = PrioritySampling.UNSET;
-
-        for (final String uncasedKey : getter.keys(carrier)) {
-          final String key = uncasedKey.toLowerCase();
-          final String value = firstHeaderValue(getter.get(carrier, uncasedKey));
-
-          if (value == null) {
-            continue;
-          }
-
-          if (TRACE_ID_KEY.equalsIgnoreCase(key)) {
-            final String trimmedValue;
-            final int length = value.length();
-            if (length > 32) {
-              log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, value);
-              traceId = DDId.ZERO;
-              continue;
-            } else if (length > 16) {
-              trimmedValue = value.substring(length - 16);
-            } else {
-              trimmedValue = value;
-            }
-            traceId = DDId.fromHex(trimmedValue);
-          } else if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
-            spanId = DDId.fromHex(value);
-          } else if (SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
-            samplingPriority = convertSamplingPriority(value);
-          }
-
-          if (taggedHeaders.containsKey(key)) {
-            if (tags.isEmpty()) {
-              tags = new HashMap<>();
-            }
-            tags.put(taggedHeaders.get(key), HttpCodec.decode(value));
+        String firstValue = firstHeaderValue(value);
+        if (null != firstValue) {
+          switch (classification) {
+            case SPECIAL_HEADERS:
+              {
+                switch (lowerCaseKey) {
+                  case TRACE_ID_KEY_LC:
+                    {
+                      final String trimmedValue;
+                      final int length = firstValue.length();
+                      if (length > 32) {
+                        log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, value);
+                        traceId = DDId.ZERO;
+                        return true;
+                      } else if (length > 16) {
+                        trimmedValue = value.substring(length - 16);
+                      } else {
+                        trimmedValue = value;
+                      }
+                      traceId = DDId.fromHex(trimmedValue);
+                      break;
+                    }
+                  case SPAN_ID_KEY_LC:
+                    spanId = DDId.fromHex(firstValue);
+                    break;
+                  case SAMPLING_PRIORITY_KEY_LC:
+                    samplingPriority = convertSamplingPriority(firstValue);
+                    break;
+                  default:
+                    // shouldn't happen
+                }
+                break;
+              }
+            case TAGS:
+              {
+                String mappedKey = taggedHeaders.get(lowerCaseKey);
+                if (null != mappedKey) {
+                  if (tags.isEmpty()) {
+                    tags = new TreeMap<>();
+                  }
+                  tags.put(mappedKey, HttpCodec.decode(value));
+                }
+                break;
+              }
           }
         }
-
-        if (!DDId.ZERO.equals(traceId)) {
-          final ExtractedContext context =
-              new ExtractedContext(
-                  traceId,
-                  spanId,
-                  samplingPriority,
-                  null,
-                  Collections.<String, String>emptyMap(),
-                  tags);
-          context.lockSamplingPriority();
-
-          log.debug("{} - Parent context extracted", context.getTraceId());
-          return context;
-        } else if (!tags.isEmpty()) {
-          log.debug("Tags context extracted");
-          return new TagContext(null, tags);
-        }
-      } catch (final RuntimeException e) {
-        log.debug("Exception when extracting context", e);
+      } catch (RuntimeException e) {
+        invalidateContext();
+        log.error("Exception when extracting context", e);
+        return false;
       }
+      return true;
+    }
 
-      return null;
+    @Override
+    public int classify(String key) {
+      if (B3_KEYS.contains(key)) {
+        return SPECIAL_HEADERS;
+      }
+      if (taggedHeaders.containsKey(key)) {
+        return TAGS;
+      }
+      return IGNORE;
     }
 
     private int convertSamplingPriority(final String samplingPriority) {
-      return Integer.parseInt(samplingPriority) == 1
+      return "1".equals(samplingPriority)
           ? PrioritySampling.SAMPLER_KEEP
           : PrioritySampling.SAMPLER_DROP;
     }
