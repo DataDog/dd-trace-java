@@ -72,7 +72,7 @@ public class TraceStatsCollector extends CacheLoader<String, Histogram>
       return value.toString();
     }
     // TODO add class/method after those are added as tags.
-    return span.getResourceName();
+    return span.getResourceName().toString();
   }
 
   @Override
