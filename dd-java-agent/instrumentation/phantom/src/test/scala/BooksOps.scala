@@ -28,4 +28,8 @@ class BooksOps(database: BooksDatabase) {
       .modify(_.inventory setTo count)
       .future()(session, ecc)
   }
+
+  def getBook(id: UUID): Future[Option[Book]] = {
+    database.Books.select.where(_.id eqs id).one()
+  }
 }

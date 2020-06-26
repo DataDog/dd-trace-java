@@ -18,10 +18,9 @@ public class TaskCompletionListener extends AbstractFunction1<Option<Throwable>,
   @Override
   public Task<BoxedUnit> apply(final Option<Throwable> throwableOption) {
     final AgentScope scope = activateSpan(agentSpan);
+    agentSpan.finish();
     scope.setAsyncPropagation(false);
     scope.close();
-    agentSpan.finish();
-
     return null;
   }
 }

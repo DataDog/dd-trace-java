@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.phantom;
 
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.Statement;
 import com.google.auto.service.AutoService;
 import com.outworkers.phantom.ResultSet;
 import com.outworkers.phantom.ops.QueryContext;
@@ -8,6 +9,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
+import java.util.HashMap;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -36,14 +38,16 @@ public class PhantomInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("com.outworkers.phantom.ops.QueryContext$RootQueryOps");
+    return ElementMatchers.nameStartsWith("com.outworkers.phantom.builder.query.execution.PromiseInterface");
   }
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return Collections.singletonMap(
-      isMethod().and(ElementMatchers.<MethodDescription>named("future")), packageName + ".PhantomAdvice"
-    );
+    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+    //transformers.put(isMethod().and(named("future")), packageName + ".PhantomAdvice");
+    transformers.put(isMethod().and(named("fromGuava").and(ElementMatchers.takesArgument(0, named("com.datastax.driver.core.Statement")))),
+      packageName + ".GuavaAdapterAdvice");
+    return transformers;
   }
 
   @Override

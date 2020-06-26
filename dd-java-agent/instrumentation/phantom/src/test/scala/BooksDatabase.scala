@@ -4,7 +4,7 @@ import com.outworkers.phantom.Table
 import com.outworkers.phantom.connectors.{CassandraConnection, ContactPoint}
 import com.outworkers.phantom.database.{Database, DatabaseProvider}
 import com.outworkers.phantom.dsl._
-import datadog.trace.api.Trace
+
 case class Book(
                id: UUID,
                title: String,
@@ -25,15 +25,13 @@ class BooksDatabase(override val connector: CassandraConnection) extends Databas
   object Books extends Books with Connector
 }
 
-object EmbeddedBooksDatabase extends BooksDatabase(ContactPoint.embedded.keySpace("books")) {
+class EmbeddedBooksDatabase(port: Int) extends BooksDatabase(ContactPoint.apply(port).keySpace("books"))
 
-}
-
-object BooksDatabaseUtils extends DatabaseProvider[BooksDatabase] {
+class BooksDatabaseUtils(db: BooksDatabase) extends DatabaseProvider[BooksDatabase] {
 
   import scala.concurrent.duration._
 
-  override def database: BooksDatabase = EmbeddedBooksDatabase
+  override def database: BooksDatabase = db
 
   def create: Unit = database.create(5.seconds)(scala.concurrent.ExecutionContext.Implicits.global)
 

@@ -40,9 +40,9 @@ public class FutureCompletionListener extends AbstractFunction1<Try<ResultSet>, 
       DECORATE.onError(agentSpan, t);
     } finally {
       log.debug("doing finish and close");
+      agentSpan.finish();
       scope.setAsyncPropagation(false);
       scope.close();
-      agentSpan.finish();
     }
     return null;
   }
