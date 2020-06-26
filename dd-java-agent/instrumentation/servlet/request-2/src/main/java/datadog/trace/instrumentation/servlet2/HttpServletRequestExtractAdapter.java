@@ -1,34 +1,32 @@
 package datadog.trace.instrumentation.servlet2;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import datadog.trace.bootstrap.instrumentation.api.CachingContextVisitor;
+import java.util.Enumeration;
 import javax.servlet.http.HttpServletRequest;
 
-public class HttpServletRequestExtractAdapter
-    implements AgentPropagation.Getter<HttpServletRequest> {
+public class HttpServletRequestExtractAdapter extends CachingContextVisitor<HttpServletRequest> {
 
   public static final HttpServletRequestExtractAdapter GETTER =
       new HttpServletRequestExtractAdapter();
 
   @Override
-  public List<String> keys(final HttpServletRequest carrier) {
-    final ArrayList<String> keys = Collections.list(carrier.getHeaderNames());
-    keys.addAll(Collections.list(carrier.getAttributeNames()));
-    return keys;
-  }
-
-  @Override
-  public String get(final HttpServletRequest carrier, final String key) {
-    /*
-     * Read from the attributes and override the headers.
-     * This is used by HttpServletRequestSetter when a request is async-dispatched.
-     */
-    final Object attribute = carrier.getAttribute(key);
-    if (attribute instanceof String) {
-      return (String) attribute;
+  public void forEachKey(
+      HttpServletRequest carrier,
+      AgentPropagation.KeyClassifier classifier,
+      AgentPropagation.KeyValueConsumer consumer) {
+    Enumeration<String> headerNames = carrier.getHeaderNames();
+    while (headerNames.hasMoreElements()) {
+      String header = headerNames.nextElement();
+      String lowerCaseKey = toLowerCase(header);
+      int classification = classifier.classify(lowerCaseKey);
+      if (classification != IGNORE) {
+        if (!consumer.accept(classification, lowerCaseKey, carrier.getHeader(header))) {
+          return;
+        }
+      }
     }
-    return carrier.getHeader(key);
   }
 }

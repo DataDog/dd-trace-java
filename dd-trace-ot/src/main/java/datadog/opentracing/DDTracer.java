@@ -1,5 +1,7 @@
 package datadog.opentracing;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
+
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -356,25 +358,28 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     }
   }
 
-  private static class TextMapExtractGetter implements AgentPropagation.Getter<TextMapExtract> {
-    private final Map<String, String> extracted = new HashMap<>();
+  private static class TextMapExtractGetter
+      implements AgentPropagation.ContextVisitor<TextMapExtract> {
+    private final TextMapExtract carrier;
 
     private TextMapExtractGetter(final TextMapExtract carrier) {
-      for (final Entry<String, String> entry : carrier) {
-        extracted.put(entry.getKey(), entry.getValue());
+      this.carrier = carrier;
+    }
+
+    @Override
+    public void forEachKey(
+        TextMapExtract ignored,
+        AgentPropagation.KeyClassifier classifier,
+        AgentPropagation.KeyValueConsumer consumer) {
+      for (Entry<String, String> entry : carrier) {
+        String lowerCaseKey = entry.getKey().toLowerCase();
+        int classification = classifier.classify(lowerCaseKey);
+        if (classification != IGNORE) {
+          if (!consumer.accept(classification, lowerCaseKey, entry.getValue())) {
+            return;
+          }
+        }
       }
-    }
-
-    @Override
-    public Iterable<String> keys(final TextMapExtract carrier) {
-      return extracted.keySet();
-    }
-
-    @Override
-    public String get(final TextMapExtract carrier, final String key) {
-      // This is the same as the one passed into the constructor
-      // So using "extracted" is valid
-      return extracted.get(key);
     }
   }
 

@@ -1,26 +1,31 @@
 package datadog.trace.instrumentation.play23;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import play.api.mvc.Headers;
-import scala.Option;
-import scala.collection.JavaConversions;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
 
-public class PlayHeaders implements AgentPropagation.Getter<Headers> {
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.CachingContextVisitor;
+import play.api.mvc.Headers;
+import scala.Tuple2;
+import scala.collection.JavaConversions;
+import scala.collection.Seq;
+
+public class PlayHeaders extends CachingContextVisitor<Headers> {
 
   public static final PlayHeaders GETTER = new PlayHeaders();
 
   @Override
-  public Iterable<String> keys(final Headers headers) {
-    return JavaConversions.asJavaIterable(headers.keys());
-  }
-
-  @Override
-  public String get(final Headers headers, final String key) {
-    final Option<String> option = headers.get(key);
-    if (option.isDefined()) {
-      return option.get();
-    } else {
-      return null;
+  public void forEachKey(
+      Headers carrier,
+      AgentPropagation.KeyClassifier classifier,
+      AgentPropagation.KeyValueConsumer consumer) {
+    for (Tuple2<String, Seq<String>> entry : JavaConversions.asJavaIterable(carrier.data())) {
+      String lowerCaseKey = toLowerCase(entry._1());
+      int classification = classifier.classify(lowerCaseKey);
+      if (classification != IGNORE && !entry._2().isEmpty()) {
+        if (!consumer.accept(classification, lowerCaseKey, entry._2().head())) {
+          return;
+        }
+      }
     }
   }
 }

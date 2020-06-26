@@ -56,8 +56,7 @@ public class OTTracer implements Tracer {
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
       final AgentSpan.Context tagContext =
-          tracer.extract(
-              (TextMap) carrier, new OTPropagation.TextMapExtractGetter((TextMap) carrier));
+          tracer.extract((TextMap) carrier, OTPropagation.TextMapExtractGetter.INSTANCE);
 
       return converter.toSpanContext(tagContext);
     } else {

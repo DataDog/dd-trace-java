@@ -13,7 +13,7 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY
 
 class DatadogHttpExtractorTest extends DDSpecification {
 
-  HttpCodec.Extractor extractor = new DatadogHttpCodec.Extractor(["SOME_HEADER": "some-tag"])
+  HttpCodec.Extractor extractor = DatadogHttpCodec.newExtractor(["SOME_HEADER": "some-tag"])
 
   def "extract http headers"() {
     setup:

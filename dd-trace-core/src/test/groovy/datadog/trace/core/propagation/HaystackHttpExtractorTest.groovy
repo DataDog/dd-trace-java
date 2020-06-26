@@ -11,7 +11,7 @@ import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY
 
 class HaystackHttpExtractorTest extends DDSpecification {
 
-  HttpCodec.Extractor extractor = new HaystackHttpCodec.Extractor(["SOME_HEADER": "some-tag"])
+  HttpCodec.Extractor extractor = HaystackHttpCodec.newExtractor(["SOME_HEADER": "some-tag"])
 
   def "extract http headers"() {
     setup:

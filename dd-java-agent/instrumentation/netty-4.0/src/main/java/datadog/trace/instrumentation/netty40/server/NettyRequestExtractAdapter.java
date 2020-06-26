@@ -1,19 +1,29 @@
 package datadog.trace.instrumentation.netty40.server;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import io.netty.handler.codec.http.HttpHeaders;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
 
-public class NettyRequestExtractAdapter implements AgentPropagation.Getter<HttpHeaders> {
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.CachingContextVisitor;
+import io.netty.handler.codec.http.HttpHeaders;
+import java.util.Map;
+
+public class NettyRequestExtractAdapter extends CachingContextVisitor<HttpHeaders> {
 
   public static final NettyRequestExtractAdapter GETTER = new NettyRequestExtractAdapter();
 
   @Override
-  public Iterable<String> keys(final HttpHeaders headers) {
-    return headers.names();
-  }
-
-  @Override
-  public String get(final HttpHeaders headers, final String key) {
-    return headers.get(key);
+  public void forEachKey(
+      HttpHeaders carrier,
+      AgentPropagation.KeyClassifier classifier,
+      AgentPropagation.KeyValueConsumer consumer) {
+    for (Map.Entry<String, String> header : carrier) {
+      String lowerCaseKey = toLowerCase(header.getKey());
+      int classification = classifier.classify(lowerCaseKey);
+      if (classification != IGNORE) {
+        if (!consumer.accept(classification, lowerCaseKey, header.getValue())) {
+          return;
+        }
+      }
+    }
   }
 }

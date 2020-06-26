@@ -1,8 +1,11 @@
 package datadog.trace.instrumentation.opentelemetry;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.CachingContextVisitor;
 import io.grpc.Context;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.context.propagation.HttpTextFormat;
@@ -63,7 +66,7 @@ public class OtelContextPropagators implements ContextPropagators {
     }
   }
 
-  private static class OtelGetter<C> implements AgentPropagation.Getter<C> {
+  private static class OtelGetter<C> extends CachingContextVisitor<C> {
     private static final String DD_TRACE_ID_KEY = "x-datadog-trace-id";
     private static final String DD_SPAN_ID_KEY = "x-datadog-parent-id";
     private static final String DD_SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
@@ -97,15 +100,19 @@ public class OtelContextPropagators implements ContextPropagators {
     }
 
     @Override
-    public Iterable<String> keys(final C carrier) {
-      // TODO: Otel doesn't expose the keys, so we have to rely on hard coded keys.
-      // https://github.com/open-telemetry/opentelemetry-specification/issues/433
-      return KEYS;
-    }
-
-    @Override
-    public String get(final C carrier, final String key) {
-      return getter.get(carrier, key);
+    public void forEachKey(
+        C carrier,
+        AgentPropagation.KeyClassifier classifier,
+        AgentPropagation.KeyValueConsumer consumer) {
+      for (String key : KEYS) {
+        String lowerCaseKey = toLowerCase(key);
+        int classification = classifier.classify(lowerCaseKey);
+        if (classification != IGNORE) {
+          if (!consumer.accept(classification, lowerCaseKey, getter.get(carrier, key))) {
+            return;
+          }
+        }
+      }
     }
   }
 }

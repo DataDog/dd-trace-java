@@ -3,12 +3,13 @@ package datadog.trace.core.propagation;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 
 import datadog.trace.api.DDId;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 
 /** A codec designed for HTTP transport via headers using Datadog headers */
@@ -20,6 +21,10 @@ class DatadogHttpCodec {
   private static final String SPAN_ID_KEY = "x-datadog-parent-id";
   private static final String SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
   private static final String ORIGIN_KEY = "x-datadog-origin";
+
+  private static final Set<CharSequence> DD_KEYS =
+      new HashSet<CharSequence>(
+          Arrays.asList(TRACE_ID_KEY, SPAN_ID_KEY, SAMPLING_PRIORITY_KEY, ORIGIN_KEY));
 
   private DatadogHttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -48,73 +53,96 @@ class DatadogHttpCodec {
     }
   }
 
-  public static class Extractor implements HttpCodec.Extractor {
-    private final Map<String, String> taggedHeaders;
+  public static HttpCodec.Extractor newExtractor(final Map<String, String> tagMapping) {
+    return new TagContextExtractor(
+        tagMapping,
+        new ContextInterpreter.Factory() {
+          @Override
+          protected ContextInterpreter construct(Map<String, String> mapping) {
+            return new DatadogContextInterpreter(mapping);
+          }
+        });
+  }
 
-    public Extractor(final Map<String, String> taggedHeaders) {
-      this.taggedHeaders = new HashMap<>();
-      for (final Map.Entry<String, String> mapping : taggedHeaders.entrySet()) {
-        this.taggedHeaders.put(mapping.getKey().trim().toLowerCase(), mapping.getValue());
-      }
+  private static class DatadogContextInterpreter extends ContextInterpreter {
+
+    private static final int SPECIAL_HEADERS = 0;
+    private static final int TAGS = 1;
+    private static final int OT_BAGGAGE = 2;
+    private static final int IGNORE = -1;
+
+    private DatadogContextInterpreter(Map<String, String> taggedHeaders) {
+      super(taggedHeaders);
     }
 
     @Override
-    public <C> TagContext extract(final C carrier, final AgentPropagation.Getter<C> getter) {
+    public boolean accept(int classification, String lowerCaseKey, String value) {
       try {
-        Map<String, String> baggage = Collections.emptyMap();
-        Map<String, String> tags = Collections.emptyMap();
-        DDId traceId = DDId.ZERO;
-        DDId spanId = DDId.ZERO;
-        int samplingPriority = PrioritySampling.UNSET;
-        String origin = null;
-
-        for (final String uncasedKey : getter.keys(carrier)) {
-          final String key = uncasedKey.toLowerCase();
-          final String value = firstHeaderValue(getter.get(carrier, uncasedKey));
-
-          if (value == null) {
-            continue;
-          }
-
-          if (TRACE_ID_KEY.equalsIgnoreCase(key)) {
-            traceId = DDId.from(value);
-          } else if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
-            spanId = DDId.from(value);
-          } else if (SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
-            samplingPriority = Integer.parseInt(value);
-          } else if (ORIGIN_KEY.equalsIgnoreCase(key)) {
-            origin = value;
-          } else if (key.startsWith(OT_BAGGAGE_PREFIX)) {
-            if (baggage.isEmpty()) {
-              baggage = new HashMap<>();
-            }
-            baggage.put(key.replace(OT_BAGGAGE_PREFIX, ""), HttpCodec.decode(value));
-          }
-
-          if (taggedHeaders.containsKey(key)) {
-            if (tags.isEmpty()) {
-              tags = new HashMap<>();
-            }
-            tags.put(taggedHeaders.get(key), HttpCodec.decode(value));
+        String firstValue = firstHeaderValue(value);
+        if (null != firstValue) {
+          switch (classification) {
+            case SPECIAL_HEADERS:
+              {
+                switch (lowerCaseKey) {
+                  case TRACE_ID_KEY:
+                    traceId = DDId.from(firstValue);
+                    break;
+                  case SPAN_ID_KEY:
+                    spanId = DDId.from(firstValue);
+                    break;
+                  case ORIGIN_KEY:
+                    origin = firstValue;
+                    break;
+                  case SAMPLING_PRIORITY_KEY:
+                    samplingPriority = Integer.parseInt(firstValue);
+                    break;
+                  default:
+                    // shouldn't happen
+                }
+                break;
+              }
+            case TAGS:
+              {
+                String mappedKey = taggedHeaders.get(lowerCaseKey);
+                if (null != mappedKey) {
+                  if (tags.isEmpty()) {
+                    tags = new HashMap<>();
+                  }
+                  tags.put(mappedKey, HttpCodec.decode(value));
+                }
+                break;
+              }
+            case OT_BAGGAGE:
+              {
+                if (baggage.isEmpty()) {
+                  baggage = new HashMap<>();
+                }
+                baggage.put(
+                    lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), HttpCodec.decode(value));
+              }
+              break;
           }
         }
-
-        if (!DDId.ZERO.equals(traceId)) {
-          final ExtractedContext context =
-              new ExtractedContext(traceId, spanId, samplingPriority, origin, baggage, tags);
-          context.lockSamplingPriority();
-
-          log.debug("{} - Parent context extracted", context.getTraceId());
-          return context;
-        } else if (origin != null || !tags.isEmpty()) {
-          log.debug("Tags context extracted");
-          return new TagContext(origin, tags);
-        }
-      } catch (final RuntimeException e) {
+      } catch (RuntimeException e) {
+        invalidateContext();
         log.error("Exception when extracting context", e);
+        return false;
       }
+      return true;
+    }
 
-      return null;
+    @Override
+    public int classify(String key) {
+      if (DD_KEYS.contains(key)) {
+        return SPECIAL_HEADERS;
+      }
+      if (taggedHeaders.containsKey(key)) {
+        return TAGS;
+      }
+      if (key.startsWith(OT_BAGGAGE_PREFIX)) {
+        return OT_BAGGAGE;
+      }
+      return IGNORE;
     }
   }
 }

@@ -1,32 +1,34 @@
 package datadog.trace.instrumentation.play26;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import java.util.ArrayList;
-import java.util.List;
-import play.api.mvc.Headers;
-import scala.Option;
+import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
 
-public class PlayHeaders implements AgentPropagation.Getter<Headers> {
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.bootstrap.instrumentation.api.CachingContextVisitor;
+import play.api.mvc.Headers;
+import scala.Tuple2;
+import scala.collection.Iterator;
+import scala.collection.Map;
+
+public class PlayHeaders extends CachingContextVisitor<Headers> {
 
   public static final PlayHeaders GETTER = new PlayHeaders();
 
   @Override
-  public Iterable<String> keys(final Headers headers) {
-    final List<String> javaList = new ArrayList<>();
-    final scala.collection.Iterator<String> scalaIterator = headers.keys().iterator();
-    while (scalaIterator.hasNext()) {
-      javaList.add(scalaIterator.next());
-    }
-    return javaList;
-  }
-
-  @Override
-  public String get(final Headers headers, final String key) {
-    final Option<String> option = headers.get(key);
-    if (option.isDefined()) {
-      return option.get();
-    } else {
-      return null;
+  public void forEachKey(
+      Headers carrier,
+      AgentPropagation.KeyClassifier classifier,
+      AgentPropagation.KeyValueConsumer consumer) {
+    Map<String, String> map = carrier.toSimpleMap();
+    Iterator<Tuple2<String, String>> it = map.iterator();
+    while (it.hasNext()) {
+      Tuple2<String, String> entry = it.next();
+      String lowerCaseKey = toLowerCase(entry._1());
+      int classification = classifier.classify(lowerCaseKey);
+      if (classification != IGNORE) {
+        if (!consumer.accept(classification, lowerCaseKey, entry._2())) {
+          return;
+        }
+      }
     }
   }
 }
