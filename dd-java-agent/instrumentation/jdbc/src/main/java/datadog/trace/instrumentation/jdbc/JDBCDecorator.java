@@ -4,6 +4,7 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
@@ -15,7 +16,11 @@ import java.sql.SQLException;
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
 
-  private static final String DB_QUERY = "DB Query";
+  private static final UTF8BytesString DB_QUERY = UTF8BytesString.create("DB Query");
+  private static final UTF8BytesString JDBC_STATEMENT =
+      UTF8BytesString.create("java-jdbc-statement");
+  private static final UTF8BytesString JDBC_PREPARED_STATEMENT =
+      UTF8BytesString.create("java-jdbc-prepared_statement");
 
   @Override
   protected String[] instrumentationNames() {
@@ -94,18 +99,18 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   @Override
-  public AgentSpan onStatement(final AgentSpan span, final String statement) {
-    final String resourceName = statement == null ? DB_QUERY : statement;
+  public AgentSpan onStatement(final AgentSpan span, final CharSequence statement) {
+    final CharSequence resourceName = statement == null ? DB_QUERY : statement;
     span.setTag(DDTags.RESOURCE_NAME, resourceName);
-    span.setTag(Tags.COMPONENT, "java-jdbc-statement");
+    span.setTag(Tags.COMPONENT, JDBC_STATEMENT);
     return super.onStatement(span, statement);
   }
 
   public AgentSpan onPreparedStatement(final AgentSpan span, final PreparedStatement statement) {
-    final String sql = JDBCMaps.preparedStatements.get(statement);
-    final String resourceName = sql == null ? DB_QUERY : sql;
+    final UTF8BytesString sql = JDBCMaps.preparedStatements.get(statement);
+    final UTF8BytesString resourceName = sql == null ? DB_QUERY : sql;
     span.setTag(DDTags.RESOURCE_NAME, resourceName);
-    span.setTag(Tags.COMPONENT, "java-jdbc-prepared_statement");
+    span.setTag(Tags.COMPONENT, JDBC_PREPARED_STATEMENT);
     return super.onStatement(span, sql);
   }
 }

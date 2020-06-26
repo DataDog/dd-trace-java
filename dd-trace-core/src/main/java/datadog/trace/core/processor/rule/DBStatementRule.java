@@ -20,9 +20,9 @@ public class DBStatementRule implements TraceProcessor.Rule {
     // Skip the decorators
     if (!"java-mongo".equals(span.getTag(Tags.COMPONENT))) {
       final Object dbStatementValue = span.getAndRemoveTag(Tags.DB_STATEMENT);
-      if (dbStatementValue instanceof String) {
-        final String statement = (String) dbStatementValue;
-        if (!statement.isEmpty()) {
+      if (dbStatementValue instanceof CharSequence) {
+        final CharSequence statement = (CharSequence) dbStatementValue;
+        if (statement.length() != 0) {
           span.setResourceName(statement);
         }
       }

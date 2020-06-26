@@ -302,12 +302,12 @@ public class AgentTracer {
     }
 
     @Override
-    public String getResourceName() {
+    public CharSequence getResourceName() {
       return null;
     }
 
     @Override
-    public MutableSpan setResourceName(final String resourceName) {
+    public MutableSpan setResourceName(final CharSequence resourceName) {
       return this;
     }
 

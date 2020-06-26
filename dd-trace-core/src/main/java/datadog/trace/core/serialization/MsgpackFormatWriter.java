@@ -1,6 +1,7 @@
 package datadog.trace.core.serialization;
 
 import datadog.trace.api.DDId;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.StringTables;
 import datadog.trace.core.util.LRUCache;
 import java.io.IOException;
@@ -96,11 +97,17 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
   }
 
   @Override
-  public void writeNumberAsString(byte[] key, Number value, MessagePacker destination)
+  public void writeObjectAsString(byte[] key, Object value, MessagePacker destination)
       throws IOException {
     writeKey(key, destination);
     if (value instanceof Long || value instanceof Integer) {
-      writeLongAsString(value.longValue(), destination);
+      writeLongAsString(((Number) value).longValue(), destination);
+    } else if (value instanceof String) {
+      cachedWriteString((String) value, destination);
+    } else if (value instanceof UTF8BytesString) {
+      byte[] bytes = ((UTF8BytesString) value).getUtf8Bytes();
+      destination.packRawStringHeader(bytes.length);
+      destination.addPayload(bytes);
     } else {
       cachedWriteString(String.valueOf(value), destination);
     }

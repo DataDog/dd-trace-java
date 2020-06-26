@@ -14,7 +14,9 @@ public class ResourceNameRule implements TraceProcessor.Rule {
   @Override
   public void processSpan(final DDSpan span) {
     final Object name = span.getAndRemoveTag(DDTags.RESOURCE_NAME);
-    if (name != null) {
+    if (name instanceof CharSequence) {
+      span.setResourceName((CharSequence) name);
+    } else if (name != null) {
       span.setResourceName(name.toString());
     }
   }

@@ -44,7 +44,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     return span;
   }
 
-  public AgentSpan onStatement(final AgentSpan span, final String statement) {
+  public AgentSpan onStatement(final AgentSpan span, final CharSequence statement) {
     assert span != null;
     span.setTag(Tags.DB_STATEMENT, statement);
     return span;
