@@ -1,5 +1,6 @@
 package com.datadog.profiling.controller.openjdk.events;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import jdk.jfr.Category;
 import jdk.jfr.Description;
 import jdk.jfr.Enabled;
@@ -8,8 +9,6 @@ import jdk.jfr.FlightRecorder;
 import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.Period;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @Name("datadog.Deadlock")
 @Label("Deadlock")
