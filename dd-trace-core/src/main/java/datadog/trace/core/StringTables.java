@@ -52,6 +52,7 @@ public class StringTables {
     internConstantsUTF8(CommonTagValues.class, UTF8_INTERN_TAGS_TABLE, TAGS_FIRST_CHAR_IS_PRESENT);
     intern(
         UTF8_INTERN_TAGS_TABLE, Config.get().getServiceName(), UTF_8, TAGS_FIRST_CHAR_IS_PRESENT);
+    intern(UTF8_INTERN_TAGS_TABLE, Config.get().getRuntimeId(), UTF_8, TAGS_FIRST_CHAR_IS_PRESENT);
     intern(UTF8_INTERN_KEYS_TABLE, RateByServiceSampler.SAMPLING_AGENT_RATE, UTF_8, null);
     UTF8_INTERN_TAGS_TABLE.put("", new byte[0]);
     MAX_TAGS_LENGTH = maxKeyLength(UTF8_INTERN_TAGS_TABLE.keySet());
