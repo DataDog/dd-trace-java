@@ -9,6 +9,8 @@ import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.Period;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 @Name("datadog.Deadlock")
 @Label("Deadlock")
 @Description("Datadog deadlock detection event.")
@@ -16,7 +18,8 @@ import jdk.jfr.Period;
 @Period(value = "57 s")
 @Enabled
 public class DeadlockEvent extends Event {
-  private static final DeadlockEventFactory eventFactory = new DeadlockEventFactory();
+  private static final AtomicBoolean REGISTERED_FLAG = new AtomicBoolean();
+  private static final DeadlockEventFactory EVENT_FACTORY = new DeadlockEventFactory();
 
   @Label("Deadlock ID")
   @Description("Referential index for data related to a particular deadlock")
@@ -36,11 +39,13 @@ public class DeadlockEvent extends Event {
   }
 
   public static void emit() {
-    eventFactory.collectEvents().forEach(Event::commit);
+    EVENT_FACTORY.collectEvents().forEach(Event::commit);
   }
 
   public static void register() {
-    FlightRecorder.addPeriodicEvent(DeadlockEvent.class, DeadlockEvent::emit);
+    if (REGISTERED_FLAG.compareAndSet(false, true)) {
+      FlightRecorder.addPeriodicEvent(DeadlockEvent.class, DeadlockEvent::emit);
+    }
   }
 
   long getId() {
