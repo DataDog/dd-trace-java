@@ -24,14 +24,12 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import jdk.jfr.Recording;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * This is the implementation of the controller for OpenJDK. It should work for JDK 11+ today, and
  * unmodified for JDK 8+ once JFR has been back-ported. The Oracle JDK implementation will be far
  * messier... ;)
  */
-@Slf4j
 public final class OpenJdkController implements Controller {
   private static final AtomicBoolean EVENTS_REGISTERED_FLAG = new AtomicBoolean();
 
