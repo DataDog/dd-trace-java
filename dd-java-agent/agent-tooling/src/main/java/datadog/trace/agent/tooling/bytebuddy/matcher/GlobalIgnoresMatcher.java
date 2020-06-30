@@ -77,6 +77,10 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
       }
       return true;
     }
+    // clojure
+    if (name.startsWith("clojure.") || name.contains("$fn__")) {
+      return true;
+    }
 
     if (name.startsWith("datadog.trace.")) {
       // FIXME: We should remove this once
