@@ -3,6 +3,7 @@ package datadog.trace.common.writer.ddagent;
 import com.lmax.disruptor.BlockingWaitStrategy;
 import com.lmax.disruptor.EventFactory;
 import com.lmax.disruptor.EventHandler;
+import com.lmax.disruptor.InsufficientCapacityException;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
 import datadog.common.exec.DaemonThreadFactory;
@@ -46,7 +47,26 @@ public class DispatchingDisruptor implements AutoCloseable {
   }
 
   long beginTransaction() {
-    return disruptor.getRingBuffer().next();
+    long backoffMillis = 1;
+    long nextLogTime = 0;
+    while (!Thread.currentThread().isInterrupted()) {
+      try {
+        return disruptor.getRingBuffer().tryNext();
+      } catch (InsufficientCapacityException insufficientCapacity) {
+        long now = System.currentTimeMillis();
+        backoffMillis = Math.min(backoffMillis * 2, 1000);
+        if (now > nextLogTime) { // log every 20 seconds
+          log.debug("no buffer available, sleeping for {}ms", backoffMillis);
+          nextLogTime = now + 20_000;
+        }
+        try {
+          Thread.sleep(backoffMillis);
+        } catch (InterruptedException interrupted) {
+          Thread.currentThread().interrupt();
+        }
+      }
+    }
+    return -1L;
   }
 
   TraceBuffer getTraceBuffer(long sequence) {
