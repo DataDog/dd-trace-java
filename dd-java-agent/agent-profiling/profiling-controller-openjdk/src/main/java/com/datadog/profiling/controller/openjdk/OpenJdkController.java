@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import jdk.jfr.Recording;
 import lombok.extern.slf4j.Slf4j;
 
