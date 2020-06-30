@@ -25,7 +25,13 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
     HttpRequest request = requestFactory.buildRequest(method, genericUrl, null)
     request.connectTimeout = CONNECT_TIMEOUT_MS
     request.readTimeout = READ_TIMEOUT_MS
-    request.getHeaders().putAll(headers)
+
+    // GenericData::putAll method converts all known http headers to List<String>
+    // and lowercase all other headers
+    def ci = request.getHeaders().getClassInfo()
+    request.getHeaders().putAll(headers.collectEntries { name, value
+           -> [(name) : (ci.getFieldInfo(name) != null ? [value] : value.toLowerCase())]})
+
     request.setThrowExceptionOnExecuteError(throwExceptionOnError)
 
     HttpResponse response = executeRequest(request)
@@ -71,7 +77,6 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
             "$Tags.HTTP_URL" String
             "$Tags.HTTP_METHOD" String
             "$Tags.HTTP_STATUS" Integer
-            "$Tags.ERROR" true
             "$DDTags.ERROR_MSG" "Server Error"
             defaultTags()
           }

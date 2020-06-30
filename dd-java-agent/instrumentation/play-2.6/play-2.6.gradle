@@ -17,18 +17,18 @@ muzzle {
   pass {
     group = 'com.typesafe.play'
     module = 'play_2.12'
-    versions = '[2.6.0,2.8.0)'
+    versions = "[$playVersion,)"
     assertInverse = true
   }
   pass {
     group = 'com.typesafe.play'
     module = 'play_2.13'
-    versions = '[2.6.0,2.8.0)'
+    versions = "[$playVersion,)"
     assertInverse = true
   }
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 apply plugin: 'org.unbroken-dome.test-sets'
 

@@ -12,6 +12,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.servlet.http.HttpServletRequest;
@@ -33,14 +34,13 @@ public class JettyHandlerAdvice {
 
     final AgentSpan span =
         startSpan("jetty.request", extractedContext)
-            .setTag("span.origin.type", source.getClass().getName());
+            .setTag("span.origin.type", source.getClass().getName())
+            .setTag(InstrumentationTags.DD_MEASURED, true);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, req);
     DECORATE.onRequest(span, req);
-    final String resourceName = req.getMethod() + " " + source.getClass().getName();
-    span.setTag(DDTags.RESOURCE_NAME, resourceName);
 
-    final AgentScope scope = activateSpan(span, false);
+    final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
     req.setAttribute(DD_SPAN_ATTRIBUTE, span);
     req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
@@ -84,8 +84,9 @@ public class JettyHandlerAdvice {
       if (!req.isAsyncStarted() && activated.compareAndSet(false, true)) {
         DECORATE.onResponse(span, resp);
         DECORATE.beforeFinish(span);
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
+        span.finish();
       }
+      // else span finished by TagSettingAsyncListener
     }
     scope.close();
   }

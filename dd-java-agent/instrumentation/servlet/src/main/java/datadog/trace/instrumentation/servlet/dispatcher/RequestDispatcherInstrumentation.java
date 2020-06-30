@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet.dispatcher;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -62,8 +63,7 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        named("forward")
-            .or(named("include"))
+        namedOneOf("forward", "include")
             .and(takesArguments(2))
             .and(takesArgument(0, named("javax.servlet.ServletRequest")))
             .and(takesArgument(1, named("javax.servlet.ServletResponse")))
@@ -79,12 +79,27 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
         @Advice.This final RequestDispatcher dispatcher,
         @Advice.Local("_requestSpan") Object requestSpan,
         @Advice.Argument(0) final ServletRequest request) {
-      if (activeSpan() == null) {
+      final AgentSpan parentSpan = activeSpan();
+
+      final Object servletSpanObject = request.getAttribute(DD_SPAN_ATTRIBUTE);
+      final AgentSpan servletSpan =
+          servletSpanObject instanceof AgentSpan ? (AgentSpan) servletSpanObject : null;
+
+      if (parentSpan == null && servletSpan == null) {
         // Don't want to generate a new top-level span
         return null;
       }
+      final AgentSpan.Context parent;
+      if (servletSpan == null || (parentSpan != null && servletSpan.isSameTrace(parentSpan))) {
+        // Use the parentSpan if the servletSpan is null or part of the same trace.
+        parent = parentSpan.context();
+      } else {
+        // parentSpan is part of a different trace, so lets ignore it.
+        // This can happen with the way Tomcat does error handling.
+        parent = servletSpan.context();
+      }
 
-      final AgentSpan span = startSpan("servlet." + method);
+      final AgentSpan span = startSpan("servlet." + method, parent);
       DECORATE.afterStart(span);
 
       final String target =
@@ -98,7 +113,9 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
       requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
 
-      return activateSpan(span, true).setAsyncPropagation(true);
+      final AgentScope agentScope = activateSpan(span);
+      agentScope.setAsyncPropagation(true);
+      return agentScope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -119,6 +136,7 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 }

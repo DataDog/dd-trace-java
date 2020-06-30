@@ -59,9 +59,11 @@ public class ExecutorInstrumentationUtils {
 
     final TraceScope.Continuation continuation = scope.capture();
     if (state.setContinuation(continuation)) {
-      log.debug("created continuation {} from scope {}, state: {}", continuation, scope, state);
+      if (log.isDebugEnabled()) {
+        log.debug("created continuation {} from scope {}, state: {}", continuation, scope, state);
+      }
     } else {
-      continuation.close(false);
+      continuation.cancel();
     }
 
     return state;

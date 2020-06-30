@@ -49,6 +49,7 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
     final String name = target.getActualName();
 
     if (name.startsWith("datadog.opentracing.")
+        || name.startsWith("datadog.trace.core.")
         || name.startsWith("datadog.slf4j.")
         || name.startsWith("net.bytebuddy.")
         || name.startsWith("jdk.")
@@ -89,6 +90,10 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
     }
 
     if (name.startsWith("java.")) {
+      // allow exception profiling instrumentation
+      if (name.equals("java.lang.Throwable")) {
+        return false;
+      }
       if (name.equals("java.net.URL") || name.equals("java.net.HttpURLConnection")) {
         return false;
       }
@@ -147,6 +152,7 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
         || name.contains("javassist")
         || name.contains(".asm.")
         || name.contains("$__sisu")
+        || name.contains("$$EnhancerByProxool$$")
         || name.startsWith("org.springframework.core.$Proxy")) {
       return true;
     }

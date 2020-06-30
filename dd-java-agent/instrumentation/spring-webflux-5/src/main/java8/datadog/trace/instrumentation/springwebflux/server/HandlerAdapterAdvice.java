@@ -38,7 +38,7 @@ public class HandlerAdapterAdvice {
       span.setSpanName(operationName);
       span.setTag("handler.type", handlerType);
 
-      scope = activateSpan(span, false);
+      scope = activateSpan(span);
       scope.setAsyncPropagation(true);
     }
 
@@ -64,6 +64,7 @@ public class HandlerAdapterAdvice {
     }
     if (scope != null) {
       scope.close();
+      // span finished in SpanFinishingSubscriber
     }
   }
 }

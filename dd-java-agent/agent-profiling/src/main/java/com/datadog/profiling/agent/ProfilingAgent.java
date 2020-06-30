@@ -5,17 +5,22 @@ import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerFactory;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
-import com.datadog.profiling.uploader.RecordingUploader;
+import com.datadog.profiling.uploader.ProfileUploader;
 import datadog.trace.api.Config;
 import java.lang.ref.WeakReference;
 import java.time.Duration;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
 /** Profiling agent implementation */
 @Slf4j
 public class ProfilingAgent {
 
-  private static volatile ProfilingSystem PROFILER;
+  private static final Predicate<String> API_KEY_REGEX =
+      Pattern.compile("^[0-9a-fA-F]{32}$").asPredicate();
+
+  private static volatile ProfilingSystem profiler;
 
   /**
    * Main entry point into profiling Note: this must be reentrant because we may want to start
@@ -23,7 +28,7 @@ public class ProfilingAgent {
    */
   public static synchronized void run(final boolean isStartingFirst)
       throws IllegalArgumentException {
-    if (PROFILER == null) {
+    if (profiler == null) {
       final Config config = Config.get();
       if (isStartingFirst && !config.isProfilingStartForceFirst()) {
         log.debug("Profiling: not starting first");
@@ -34,15 +39,17 @@ public class ProfilingAgent {
         log.info("Profiling: disabled");
         return;
       }
-      if (config.getProfilingApiKey() == null) {
-        log.info("Profiling: no API key, profiling disabled");
+      if (config.getApiKey() != null && !API_KEY_REGEX.test(config.getApiKey())) {
+        log.info(
+            "Profiling: API key doesn't match expected format, expected to get a 32 character hex string. Profiling is disabled. {} ",
+            config.getApiKey());
         return;
       }
 
       try {
         final Controller controller = ControllerFactory.createController(config);
 
-        final RecordingUploader uploader = new RecordingUploader(config);
+        final ProfileUploader uploader = new ProfileUploader(config);
 
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());
         final Duration uploadPeriod = Duration.ofSeconds(config.getProfilingUploadPeriod());
@@ -51,7 +58,7 @@ public class ProfilingAgent {
         // this in the future
         final Duration startupDelayRandomRange = uploadPeriod;
 
-        PROFILER =
+        profiler =
             new ProfilingSystem(
                 controller,
                 uploader::upload,
@@ -59,7 +66,7 @@ public class ProfilingAgent {
                 startupDelayRandomRange,
                 uploadPeriod,
                 config.isProfilingStartForceFirst());
-        PROFILER.start();
+        profiler.start();
         log.info("Profiling has started!");
 
         try {
@@ -69,21 +76,26 @@ public class ProfilingAgent {
           This means that if/when we implement functionality to manually shutdown profiler we would
           need to not forget to add code that removes this shutdown hook from JVM.
            */
-          Runtime.getRuntime().addShutdownHook(new ShutdownHook(PROFILER, uploader));
+          Runtime.getRuntime().addShutdownHook(new ShutdownHook(profiler, uploader));
         } catch (final IllegalStateException ex) {
           // The JVM is already shutting down.
         }
-      } catch (final UnsupportedEnvironmentException | ConfigurationException e) {
-        log.warn("Failed to initialize profiling agent!", e);
+      } catch (final UnsupportedEnvironmentException e) {
+        log.warn(e.getMessage());
+        log.debug("", e);
+      } catch (final ConfigurationException e) {
+        log.warn("Failed to initialize profiling agent! " + e.getMessage());
+        log.debug("Failed to initialize profiling agent!", e);
       }
     }
   }
 
   private static class ShutdownHook extends Thread {
-    private final WeakReference<ProfilingSystem> profilerRef;
-    private final WeakReference<RecordingUploader> uploaderRef;
 
-    private ShutdownHook(final ProfilingSystem profiler, final RecordingUploader uploader) {
+    private final WeakReference<ProfilingSystem> profilerRef;
+    private final WeakReference<ProfileUploader> uploaderRef;
+
+    private ShutdownHook(final ProfilingSystem profiler, final ProfileUploader uploader) {
       profilerRef = new WeakReference<>(profiler);
       uploaderRef = new WeakReference<>(uploader);
     }
@@ -95,7 +107,7 @@ public class ProfilingAgent {
         profiler.shutdown();
       }
 
-      final RecordingUploader uploader = uploaderRef.get();
+      final ProfileUploader uploader = uploaderRef.get();
       if (uploader != null) {
         uploader.shutdown();
       }

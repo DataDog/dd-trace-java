@@ -24,7 +24,9 @@ class JettyServlet2Test extends HttpServerTest<Server> {
   @Override
   Server startServer(int port) {
     def jettyServer = new Server(port)
-    jettyServer.connectors.each { it.resolveNames = true } // get localhost instead of 127.0.0.1
+    jettyServer.connectors.each {
+      it.setHost('localhost')
+    }
     ServletContextHandler servletContext = new ServletContextHandler(null, "/$CONTEXT")
     servletContext.errorHandler = new ErrorHandler() {
       protected void handleErrorPage(HttpServletRequest request, Writer writer, int code, String message) throws IOException {
@@ -86,7 +88,7 @@ class JettyServlet2Test extends HttpServerTest<Server> {
     trace.span(index) {
       serviceName expectedServiceName()
       operationName expectedOperationName()
-      resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
+      resourceName endpoint.resource(method, address, testPathParam())
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint.errored
       if (parentID != null) {
@@ -107,7 +109,6 @@ class JettyServlet2Test extends HttpServerTest<Server> {
         "servlet.path" endpoint.path
         "span.origin.type" TestServlet2.Sync.name
         if (endpoint.errored) {
-          "$Tags.ERROR" endpoint.errored
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }
           "error.stack" { it == null || it instanceof String }

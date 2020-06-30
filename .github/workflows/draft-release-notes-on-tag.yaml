@@ -1,0 +1,98 @@
+name: Draft release notes on tag
+on:
+  create
+
+jobs:
+  draft_release_notes:
+    if: github.event.ref_type == 'tag' && github.event.master_branch == 'master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get milestone title
+        id: milestoneTitle
+        uses: actions/github-script@0.9.0
+        with:
+          result-encoding: string
+          script: |
+            // Our tags are of the form vX.X.X and milestones don't have the "v"
+            return '${{github.event.ref}}'.startsWith('v') ? '${{github.event.ref}}'.substring(1) : '${{github.event.ref}}';
+      - name: Get milestone for tag
+        id: milestone
+        uses: actions/github-script@0.9.0
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const options = github.issues.listMilestonesForRepo.endpoint.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all'
+            })
+
+            const milestones = await github.paginate(options)
+
+            const milestone = milestones.find( milestone => milestone.title == '${{steps.milestoneTitle.outputs.result}}' )
+
+            if (milestone) {
+              return milestone.number
+            } else {
+              return null
+            }
+      - name: Generate release notes text
+        if: fromJSON(steps.milestone.outputs.result)
+        id: generate
+        uses: actions/github-script@0.9.0
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          result-encoding: string
+          script: |
+            const options = github.pulls.list.endpoint.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              base: 'master'
+            })
+
+            const pullRequests = await github.paginate(options)
+
+            var draftText = "# Improvements \n\n# Changes \n\n"
+            for (let pull of pullRequests) {
+              if (pull.merged_at && pull.milestone && pull.milestone.number == ${{steps.milestone.outputs.result}}) {
+                if (pull.labels.some(label => label.name == "no release notes")) {
+                  continue
+                }
+
+                var lineItem = "* "
+                for (let label of pull.labels) {
+                  lineItem += "[" + label.name.charAt(0).toUpperCase() + label.name.slice(1) + "] "
+                }
+
+                lineItem += pull.title + " #" + pull.number
+
+                // Add author if community labeled
+                if (pull.labels.some(label => label.name == "community")) {
+                  lineItem += " (Thanks @" + pull.user.login + " for the contribution!)"
+                }
+
+                draftText += lineItem + "\n"
+              }
+            }
+            draftText += "\n# Fixes \n"
+
+            // Escape backticks
+            draftText = draftText.replace(/`/g,"\\`")
+
+            return draftText
+      - name: Create release notes
+        if: fromJSON(steps.milestone.outputs.result)
+        # can't use actions/create-release because it doesn't like the text coming from JS
+        uses: actions/github-script@0.9.0
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            await github.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: '${{ github.event.ref }}',
+              name: '${{ steps.milestoneTitle.outputs.result }}',
+              draft: true,
+              body: `${{ steps.generate.outputs.result }}`
+            })

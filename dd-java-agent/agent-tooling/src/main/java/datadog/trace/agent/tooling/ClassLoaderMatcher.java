@@ -1,8 +1,8 @@
 package datadog.trace.agent.tooling;
 
+import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.PatchLogger;
 import datadog.trace.bootstrap.WeakCache;
-import io.opentracing.util.GlobalTracer;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -37,6 +37,8 @@ public final class ClassLoaderMatcher {
     /* Cache of classloader-instance -> (true|false). True = skip instrumentation. False = safe to instrument. */
     private static final String DATADOG_CLASSLOADER_NAME =
         "datadog.trace.bootstrap.DatadogClassLoader";
+    private static final String DATADOG_DELEGATE_CLASSLOADER_NAME =
+        "datadog.trace.bootstrap.DatadogClassLoader$DelegateClassLoader";
     private static final WeakCache<ClassLoader, Boolean> skipCache = AgentTooling.newWeakCache();
 
     private SkipClassLoaderMatcher() {}
@@ -73,6 +75,7 @@ public final class ClassLoaderMatcher {
         case "org.apache.cxf.common.util.ASMHelper$TypeHelperClassLoader":
         case "sun.misc.Launcher$ExtClassLoader":
         case DATADOG_CLASSLOADER_NAME:
+        case DATADOG_DELEGATE_CLASSLOADER_NAME:
           return true;
       }
       return false;
@@ -86,7 +89,7 @@ public final class ClassLoaderMatcher {
      */
     private static boolean delegatesToBootstrap(final ClassLoader loader) {
       boolean delegates = true;
-      if (!loadsExpectedClass(loader, GlobalTracer.class)) {
+      if (!loadsExpectedClass(loader, Tracer.class)) {
         log.debug("loader {} failed to delegate bootstrap opentracing class", loader);
         delegates = false;
       }

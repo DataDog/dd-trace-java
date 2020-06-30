@@ -9,10 +9,12 @@ muzzle {
     group = "javax.servlet"
     module = 'servlet-api'
     versions = "[,]"
+    skipVersions += '0'
+    assertInverse = true
   }
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   compileOnly group: 'javax.servlet', name: 'servlet-api', version: '2.3'

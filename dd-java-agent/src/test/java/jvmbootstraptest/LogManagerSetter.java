@@ -1,5 +1,6 @@
 package jvmbootstraptest;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.logging.LogManager;
 
 public class LogManagerSetter {
@@ -194,7 +195,7 @@ public class LogManagerSetter {
   private static boolean isTracerInstalled(final boolean wait) {
     // Wait up to 10 seconds for tracer to get installed
     for (int i = 0; i < 20; i++) {
-      if (io.opentracing.util.GlobalTracer.isRegistered()) {
+      if (AgentTracer.isRegistered()) {
         return true;
       }
       if (!wait) {

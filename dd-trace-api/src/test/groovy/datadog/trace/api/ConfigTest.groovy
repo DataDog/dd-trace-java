@@ -8,15 +8,14 @@ import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import static datadog.trace.api.Config.AGENT_HOST
 import static datadog.trace.api.Config.AGENT_PORT_LEGACY
 import static datadog.trace.api.Config.AGENT_UNIX_DOMAIN_SOCKET
+import static datadog.trace.api.Config.API_KEY
+import static datadog.trace.api.Config.API_KEY_FILE
 import static datadog.trace.api.Config.CONFIGURATION_FILE
-import static datadog.trace.api.Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
-import static datadog.trace.api.Config.DEFAULT_JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.Config.GLOBAL_TAGS
 import static datadog.trace.api.Config.HEADER_TAGS
 import static datadog.trace.api.Config.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.Config.HEALTH_METRICS_STATSD_HOST
 import static datadog.trace.api.Config.HEALTH_METRICS_STATSD_PORT
-import static datadog.trace.api.Config.HOST_TAG
 import static datadog.trace.api.Config.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.Config.HTTP_SERVER_ERROR_STATUSES
@@ -27,15 +26,15 @@ import static datadog.trace.api.Config.JMX_FETCH_REFRESH_BEANS_PERIOD
 import static datadog.trace.api.Config.JMX_FETCH_STATSD_HOST
 import static datadog.trace.api.Config.JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.Config.JMX_TAGS
-import static datadog.trace.api.Config.LANGUAGE_TAG_KEY
-import static datadog.trace.api.Config.LANGUAGE_TAG_VALUE
 import static datadog.trace.api.Config.PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.api.Config.PRIORITY_SAMPLING
-import static datadog.trace.api.Config.PROFILING_API_KEY
-import static datadog.trace.api.Config.PROFILING_API_KEY_FILE
 import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_OLD
+import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_VERY_OLD
 import static datadog.trace.api.Config.PROFILING_ENABLED
+import static datadog.trace.api.Config.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
+import static datadog.trace.api.Config.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
+import static datadog.trace.api.Config.PROFILING_EXCEPTION_SAMPLE_LIMIT
 import static datadog.trace.api.Config.PROFILING_PROXY_HOST
 import static datadog.trace.api.Config.PROFILING_PROXY_PASSWORD
 import static datadog.trace.api.Config.PROFILING_PROXY_PORT
@@ -51,10 +50,9 @@ import static datadog.trace.api.Config.PROFILING_URL
 import static datadog.trace.api.Config.PROPAGATION_STYLE_EXTRACT
 import static datadog.trace.api.Config.PROPAGATION_STYLE_INJECT
 import static datadog.trace.api.Config.RUNTIME_CONTEXT_FIELD_INJECTION
-import static datadog.trace.api.Config.RUNTIME_ID_TAG
 import static datadog.trace.api.Config.SERVICE_MAPPING
 import static datadog.trace.api.Config.SERVICE_NAME
-import static datadog.trace.api.Config.SERVICE_TAG
+import static datadog.trace.api.Config.SITE
 import static datadog.trace.api.Config.SPAN_TAGS
 import static datadog.trace.api.Config.SPLIT_BY_TAGS
 import static datadog.trace.api.Config.TAGS
@@ -67,6 +65,22 @@ import static datadog.trace.api.Config.TRACE_SAMPLE_RATE
 import static datadog.trace.api.Config.TRACE_SAMPLING_OPERATION_RULES
 import static datadog.trace.api.Config.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.Config.WRITER_TYPE
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_STATSD_PORT
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_PROXY_PORT
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE
+import static datadog.trace.api.DDTags.HOST_TAG
+import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
+import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
+import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
+import static datadog.trace.api.DDTags.SERVICE
+import static datadog.trace.api.DDTags.SERVICE_TAG
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 class ConfigTest extends DDSpecification {
   @Rule
@@ -74,11 +88,14 @@ class ConfigTest extends DDSpecification {
   @Rule
   public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
 
+  private static final DD_API_KEY_ENV = "DD_API_KEY"
   private static final DD_SERVICE_NAME_ENV = "DD_SERVICE_NAME"
   private static final DD_TRACE_ENABLED_ENV = "DD_TRACE_ENABLED"
   private static final DD_WRITER_TYPE_ENV = "DD_WRITER_TYPE"
   private static final DD_SERVICE_MAPPING_ENV = "DD_SERVICE_MAPPING"
   private static final DD_TAGS_ENV = "DD_TAGS"
+  private static final DD_ENV_ENV = "DD_ENV"
+  private static final DD_VERSION_ENV = "DD_VERSION"
   private static final DD_GLOBAL_TAGS_ENV = "DD_TRACE_GLOBAL_TAGS"
   private static final DD_SPAN_TAGS_ENV = "DD_TRACE_SPAN_TAGS"
   private static final DD_HEADER_TAGS_ENV = "DD_TRACE_HEADER_TAGS"
@@ -90,15 +107,18 @@ class ConfigTest extends DDSpecification {
   private static final DD_AGENT_PORT_LEGACY_ENV = "DD_AGENT_PORT"
   private static final DD_TRACE_REPORT_HOSTNAME = "DD_TRACE_REPORT_HOSTNAME"
 
-  private static final DD_PROFILING_API_KEY_ENV = "DD_PROFILING_API_KEY"
-  private static final DD_PROFILING_API_KEY_OLD_ENV = "DD_PROFILING_APIKEY"
+  private static final DD_PROFILING_API_KEY_OLD_ENV = "DD_PROFILING_API_KEY"
+  private static final DD_PROFILING_API_KEY_VERY_OLD_ENV = "DD_PROFILING_APIKEY"
   private static final DD_PROFILING_TAGS_ENV = "DD_PROFILING_TAGS"
+  private static final DD_PROFILING_PROXY_PASSWORD_ENV = "DD_PROFILING_PROXY_PASSWORD"
 
   def "verify defaults"() {
     when:
     Config config = provider()
 
     then:
+    config.apiKey == null
+    config.site == DEFAULT_SITE
     config.serviceName == "unnamed-java-app"
     config.traceEnabled == true
     config.writerType == "DDAgentWriter"
@@ -111,8 +131,8 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [:]
     config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [:]
-    config.httpServerErrorStatuses == (500..599).toSet()
-    config.httpClientErrorStatuses == (400..499).toSet()
+    config.httpServerErrorStatuses == toBitSet((500..599))
+    config.httpClientErrorStatuses == toBitSet((400..499))
     config.httpClientSplitByDomain == false
     config.dbClientSplitByInstance == false
     config.splitByTags == [].toSet()
@@ -133,8 +153,7 @@ class ConfigTest extends DDSpecification {
     config.healthMetricsStatsdPort == null
 
     config.profilingEnabled == false
-    config.profilingUrl == Config.DEFAULT_PROFILING_URL
-    config.profilingApiKey == null
+    config.profilingUrl == null
     config.mergedProfilingTags == [(HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 10
     config.profilingStartForceFirst == false
@@ -142,9 +161,12 @@ class ConfigTest extends DDSpecification {
     config.profilingTemplateOverrideFile == null
     config.profilingUploadTimeout == 30
     config.profilingProxyHost == null
-    config.profilingProxyPort == Config.DEFAULT_PROFILING_PROXY_PORT
+    config.profilingProxyPort == DEFAULT_PROFILING_PROXY_PORT
     config.profilingProxyUsername == null
     config.profilingProxyPassword == null
+    config.profilingExceptionSampleLimit == DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT
+    config.profilingExceptionHistogramTopItems == DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
+    config.profilingExceptionHistogramMaxCollectionSize == DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
 
     config.toString().contains("unnamed-java-app")
 
@@ -159,6 +181,8 @@ class ConfigTest extends DDSpecification {
   def "specify overrides via properties"() {
     setup:
     def prop = new Properties()
+    prop.setProperty(API_KEY, "new api key")
+    prop.setProperty(SITE, "new site")
     prop.setProperty(SERVICE_NAME, "something else")
     prop.setProperty(TRACE_ENABLED, "false")
     prop.setProperty(WRITER_TYPE, "LoggingWriter")
@@ -199,7 +223,6 @@ class ConfigTest extends DDSpecification {
 
     prop.setProperty(PROFILING_ENABLED, "true")
     prop.setProperty(PROFILING_URL, "new url")
-    prop.setProperty(PROFILING_API_KEY, "new api key")
     prop.setProperty(PROFILING_TAGS, "f:6,host:test-host")
     prop.setProperty(PROFILING_START_DELAY, "1111")
     prop.setProperty(PROFILING_START_FORCE_FIRST, "true")
@@ -211,11 +234,16 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROFILING_PROXY_PORT, "1118")
     prop.setProperty(PROFILING_PROXY_USERNAME, "proxy-username")
     prop.setProperty(PROFILING_PROXY_PASSWORD, "proxy-password")
+    prop.setProperty(PROFILING_EXCEPTION_SAMPLE_LIMIT, "811")
+    prop.setProperty(PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS, "1121")
+    prop.setProperty(PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
 
     when:
     Config config = Config.get(prop)
 
     then:
+    config.apiKey == "new api key" // we can still override via internal properties object
+    config.site == "new site"
     config.serviceName == "something else"
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
@@ -228,8 +256,8 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
-    config.httpServerErrorStatuses == (122..457).toSet()
-    config.httpClientErrorStatuses == (111..111).toSet()
+    config.httpServerErrorStatuses == toBitSet((122..457))
+    config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
     config.dbClientSplitByInstance == true
     config.splitByTags == ["some.tag1", "some.tag2"].toSet()
@@ -255,7 +283,6 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.profilingApiKey == "new api key" // we can still override via internal properties object
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
@@ -267,10 +294,15 @@ class ConfigTest extends DDSpecification {
     config.profilingProxyPort == 1118
     config.profilingProxyUsername == "proxy-username"
     config.profilingProxyPassword == "proxy-password"
+    config.profilingExceptionSampleLimit == 811
+    config.profilingExceptionHistogramTopItems == 1121
+    config.profilingExceptionHistogramMaxCollectionSize == 1122
   }
 
   def "specify overrides via system properties"() {
     setup:
+    System.setProperty(PREFIX + API_KEY, "new api key")
+    System.setProperty(PREFIX + SITE, "new site")
     System.setProperty(PREFIX + SERVICE_NAME, "something else")
     System.setProperty(PREFIX + TRACE_ENABLED, "false")
     System.setProperty(PREFIX + WRITER_TYPE, "LoggingWriter")
@@ -311,7 +343,6 @@ class ConfigTest extends DDSpecification {
 
     System.setProperty(PREFIX + PROFILING_ENABLED, "true")
     System.setProperty(PREFIX + PROFILING_URL, "new url")
-    System.setProperty(PREFIX + PROFILING_API_KEY, "new api key")
     System.setProperty(PREFIX + PROFILING_TAGS, "f:6,host:test-host")
     System.setProperty(PREFIX + PROFILING_START_DELAY, "1111")
     System.setProperty(PREFIX + PROFILING_START_FORCE_FIRST, "true")
@@ -323,11 +354,16 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROFILING_PROXY_PORT, "1118")
     System.setProperty(PREFIX + PROFILING_PROXY_USERNAME, "proxy-username")
     System.setProperty(PREFIX + PROFILING_PROXY_PASSWORD, "proxy-password")
+    System.setProperty(PREFIX + PROFILING_EXCEPTION_SAMPLE_LIMIT, "811")
+    System.setProperty(PREFIX + PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS, "1121")
+    System.setProperty(PREFIX + PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
 
     when:
     Config config = new Config()
 
     then:
+    config.apiKey == null // system properties cannot be used to provide a key
+    config.site == "new site"
     config.serviceName == "something else"
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
@@ -340,8 +376,8 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
-    config.httpServerErrorStatuses == (122..457).toSet()
-    config.httpClientErrorStatuses == (111..111).toSet()
+    config.httpServerErrorStatuses == toBitSet((122..457))
+    config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
     config.dbClientSplitByInstance == true
     config.splitByTags == ["some.tag3", "some.tag2", "some.tag1"].toSet()
@@ -367,7 +403,6 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.profilingApiKey == null // system properties cannot be used to provide a key
     config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
@@ -379,10 +414,14 @@ class ConfigTest extends DDSpecification {
     config.profilingProxyPort == 1118
     config.profilingProxyUsername == "proxy-username"
     config.profilingProxyPassword == "proxy-password"
+    config.profilingExceptionSampleLimit == 811
+    config.profilingExceptionHistogramTopItems == 1121
+    config.profilingExceptionHistogramMaxCollectionSize == 1122
   }
 
   def "specify overrides via env vars"() {
     setup:
+    environmentVariables.set(DD_API_KEY_ENV, "test-api-key")
     environmentVariables.set(DD_SERVICE_NAME_ENV, "still something else")
     environmentVariables.set(DD_TRACE_ENABLED_ENV, "false")
     environmentVariables.set(DD_WRITER_TYPE_ENV, "LoggingWriter")
@@ -390,12 +429,12 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_PROPAGATION_STYLE_INJECT, "Datadog B3")
     environmentVariables.set(DD_JMXFETCH_METRICS_CONFIGS_ENV, "some/file")
     environmentVariables.set(DD_TRACE_REPORT_HOSTNAME, "true")
-    environmentVariables.set(DD_PROFILING_API_KEY_ENV, "test-api-key")
 
     when:
     def config = new Config()
 
     then:
+    config.apiKey == "test-api-key"
     config.serviceName == "still something else"
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
@@ -403,7 +442,6 @@ class ConfigTest extends DDSpecification {
     config.propagationStylesToInject.toList() == [Config.PropagationStyle.DATADOG, Config.PropagationStyle.B3]
     config.jmxFetchMetricsConfigs == ["some/file"]
     config.reportHostName == true
-    config.profilingApiKey == "test-api-key"
   }
 
   def "sys props override env vars"() {
@@ -461,8 +499,8 @@ class ConfigTest extends DDSpecification {
     config.serviceMapping == [:]
     config.mergedSpanTags == [:]
     config.headerTags == [:]
-    config.httpServerErrorStatuses == (500..599).toSet()
-    config.httpClientErrorStatuses == (400..499).toSet()
+    config.httpServerErrorStatuses == toBitSet((500..599))
+    config.httpClientErrorStatuses == toBitSet((400..499))
     config.httpClientSplitByDomain == false
     config.dbClientSplitByInstance == false
     config.splitByTags == [].toSet()
@@ -558,8 +596,8 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [b: "2", c: "3"]
     config.mergedJmxTags == [b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
-    config.httpServerErrorStatuses == (122..457).toSet()
-    config.httpClientErrorStatuses == (111..111).toSet()
+    config.httpServerErrorStatuses == toBitSet((122..457))
+    config.httpClientErrorStatuses == toBitSet((111..111))
     config.httpClientSplitByDomain == true
     config.dbClientSplitByInstance == true
     config.splitByTags == [].toSet()
@@ -825,15 +863,15 @@ class ConfigTest extends DDSpecification {
 
     then:
     if (expected) {
-      assert config.httpServerErrorStatuses == expected.toSet()
-      assert config.httpClientErrorStatuses == expected.toSet()
-      assert propConfig.httpServerErrorStatuses == expected.toSet()
-      assert propConfig.httpClientErrorStatuses == expected.toSet()
+      assert config.httpServerErrorStatuses == toBitSet(expected)
+      assert config.httpClientErrorStatuses == toBitSet(expected)
+      assert propConfig.httpServerErrorStatuses == toBitSet(expected)
+      assert propConfig.httpClientErrorStatuses == toBitSet(expected)
     } else {
-      assert config.httpServerErrorStatuses == Config.DEFAULT_HTTP_SERVER_ERROR_STATUSES
-      assert config.httpClientErrorStatuses == Config.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
-      assert propConfig.httpServerErrorStatuses == Config.DEFAULT_HTTP_SERVER_ERROR_STATUSES
-      assert propConfig.httpClientErrorStatuses == Config.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
+      assert config.httpServerErrorStatuses == DEFAULT_HTTP_SERVER_ERROR_STATUSES
+      assert config.httpClientErrorStatuses == DEFAULT_HTTP_CLIENT_ERROR_STATUSES
+      assert propConfig.httpServerErrorStatuses == DEFAULT_HTTP_SERVER_ERROR_STATUSES
+      assert propConfig.httpClientErrorStatuses == DEFAULT_HTTP_CLIENT_ERROR_STATUSES
     }
 
     where:
@@ -952,7 +990,17 @@ class ConfigTest extends DDSpecification {
     cleanup:
     System.clearProperty(PREFIX + CONFIGURATION_FILE)
     System.clearProperty(PREFIX + SERVICE_NAME)
-    environmentVariables.clear("DD_SERVICE_NAME")
+  }
+
+  def "verify fallback to DD_SERVICE"() {
+    setup:
+    environmentVariables.set("DD_SERVICE", "service-name-from-dd-service-env-var")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "service-name-from-dd-service-env-var"
   }
 
   def "verify fallback to properties file that does not exist does not crash app"() {
@@ -1001,19 +1049,30 @@ class ConfigTest extends DDSpecification {
 
   def "verify api key loaded from file: #path"() {
     setup:
-    environmentVariables.set(DD_PROFILING_API_KEY_ENV, "default-api-key")
-    System.setProperty(PREFIX + PROFILING_API_KEY_FILE, path)
+    environmentVariables.set(DD_API_KEY_ENV, "default-api-key")
+    System.setProperty(PREFIX + API_KEY_FILE, path)
 
     when:
     def config = new Config()
 
     then:
-    config.profilingApiKey == expectedKey
+    config.apiKey == expectedKey
 
     where:
     path                                                        | expectedKey
     getClass().getClassLoader().getResource("apikey").getFile() | "test-api-key"
     "/path/that/doesnt/exist"                                   | "default-api-key"
+  }
+
+  def "verify api key loaded from old option name"() {
+    setup:
+    environmentVariables.set(DD_PROFILING_API_KEY_OLD_ENV, "old-api-key")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.apiKey == "old-api-key"
   }
 
   def "verify api key loaded from file for old option name: #path"() {
@@ -1025,7 +1084,7 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
-    config.profilingApiKey == expectedKey
+    config.apiKey == expectedKey
 
     where:
     path                                                            | expectedKey
@@ -1033,37 +1092,82 @@ class ConfigTest extends DDSpecification {
     "/path/that/doesnt/exist"                                       | "default-api-key"
   }
 
-  def "verify api key loaded from new option when both new and old are set"() {
+  def "verify api key loaded from very old option name"() {
     setup:
-    System.setProperty(PREFIX + PROFILING_API_KEY_FILE_OLD, getClass().getClassLoader().getResource("apikey.old").getFile())
-    System.setProperty(PREFIX + PROFILING_API_KEY_FILE, getClass().getClassLoader().getResource("apikey").getFile())
+    environmentVariables.set(DD_PROFILING_API_KEY_VERY_OLD_ENV, "very-old-api-key")
 
     when:
     def config = new Config()
 
     then:
-    config.profilingApiKey == "test-api-key"
+    config.apiKey == "very-old-api-key"
+  }
+
+  def "verify api key loaded from file for very old option name: #path"() {
+    setup:
+    environmentVariables.set(DD_PROFILING_API_KEY_VERY_OLD_ENV, "default-api-key")
+    System.setProperty(PREFIX + PROFILING_API_KEY_FILE_VERY_OLD, path)
+
+    when:
+    def config = new Config()
+
+    then:
+    config.apiKey == expectedKey
+
+    where:
+    path                                                                 | expectedKey
+    getClass().getClassLoader().getResource("apikey.very-old").getFile() | "test-api-key-very-old"
+    "/path/that/doesnt/exist"                                            | "default-api-key"
+  }
+
+  def "verify api key loaded from new option when both new and old are set"() {
+    setup:
+    System.setProperty(PREFIX + API_KEY_FILE, getClass().getClassLoader().getResource("apikey").getFile())
+    System.setProperty(PREFIX + PROFILING_API_KEY_FILE_OLD, getClass().getClassLoader().getResource("apikey.old").getFile())
+
+    when:
+    def config = new Config()
+
+    then:
+    config.apiKey == "test-api-key"
+  }
+
+  def "verify api key loaded from new option when both old and very old are set"() {
+    setup:
+    System.setProperty(PREFIX + PROFILING_API_KEY_FILE_OLD, getClass().getClassLoader().getResource("apikey.old").getFile())
+    System.setProperty(PREFIX + PROFILING_API_KEY_FILE_VERY_OLD, getClass().getClassLoader().getResource("apikey.very-old").getFile())
+
+    when:
+    def config = new Config()
+
+    then:
+    config.apiKey == "test-api-key-old"
   }
 
   def "verify dd.tags overrides global tags in properties"() {
     setup:
     def prop = new Properties()
-    prop.setProperty(TAGS, "a:1")
+    prop.setProperty(TAGS, "a:1,env:us-west,version:42")
     prop.setProperty(GLOBAL_TAGS, "b:2")
     prop.setProperty(SPAN_TAGS, "c:3")
     prop.setProperty(JMX_TAGS, "d:4")
     prop.setProperty(HEADER_TAGS, "e:5")
     prop.setProperty(PROFILING_TAGS, "f:6")
+    prop.setProperty(Config.ENV, "eu-east")
+    prop.setProperty(Config.VERSION, "43")
 
     when:
     Config config = Config.get(prop)
 
     then:
-    config.mergedSpanTags == [a: "1", c: "3"]
-    config.mergedJmxTags == [a: "1", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.mergedSpanTags == [a: "1", b: "2", c: "3", (Config.ENV): "eu-east", (Config.VERSION): "43"]
+    config.mergedJmxTags == [a               : "1", b: "2", d: "4", (Config.ENV): "eu-east", (Config.VERSION): "43",
+                             (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
 
-    config.mergedProfilingTags == [a: "1", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [a            : "1", b: "2", f: "6", (Config.ENV): "eu-east", (Config.VERSION): "43",
+                                   (HOST_TAG)   : config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(),
+                                   (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
   def "verify dd.tags overrides global tags in system properties"() {
@@ -1079,14 +1183,14 @@ class ConfigTest extends DDSpecification {
     Config config = new Config()
 
     then:
-    config.mergedSpanTags == [a: "1", c: "3"]
-    config.mergedJmxTags == [a: "1", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.mergedSpanTags == [a: "1", b: "2", c: "3"]
+    config.mergedJmxTags == [a: "1", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
 
-    config.mergedProfilingTags == [a: "1", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [a: "1", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
   }
 
-  def "verify dd.tags overrides global tags in env variables"() {
+  def "verify dd.tags merges with global tags in env variables"() {
     setup:
     environmentVariables.set(DD_TAGS_ENV, "a:1")
     environmentVariables.set(DD_GLOBAL_TAGS_ENV, "b:2")
@@ -1099,10 +1203,401 @@ class ConfigTest extends DDSpecification {
     Config config = new Config()
 
     then:
-    config.mergedSpanTags == [a: "1", c: "3"]
-    config.mergedJmxTags == [a: "1", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
+    config.mergedSpanTags == [a: "1", b: "2", c: "3"]
+    config.mergedJmxTags == [a: "1", b: "2", d: "4", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
     config.headerTags == [e: "5"]
 
-    config.mergedProfilingTags == [a: "1", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [a: "1", b: "2", f: "6", (HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+  }
+
+  def "toString works when passwords are empty"() {
+    when:
+    def config = new Config()
+
+    then:
+    config.toString().contains("apiKey=null")
+    config.toString().contains("profilingProxyPassword=null")
+  }
+
+  def "sensitive information removed for toString/debug log"() {
+    setup:
+    environmentVariables.set(DD_API_KEY_ENV, "test-secret-api-key")
+    environmentVariables.set(DD_PROFILING_PROXY_PASSWORD_ENV, "test-secret-proxy-password")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.toString().contains("apiKey=****")
+    !config.toString().contains("test-secret-api-key")
+    config.toString().contains("profilingProxyPassword=****")
+    !config.toString().contains("test-secret-proxy-password")
+    config.apiKey == "test-secret-api-key"
+    config.profilingProxyPassword == "test-secret-proxy-password"
+  }
+
+  def "custom datadog site with API key"() {
+    setup:
+    def prop = new Properties()
+    prop.setProperty(SITE, "some.new.site")
+    prop.setProperty(API_KEY, "feedbeef")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.getFinalProfilingUrl() == "https://intake.profile.some.new.site/v1/input"
+  }
+
+  def "custom datadog site without API key"() {
+    setup:
+    def prop = new Properties()
+    prop.setProperty(SITE, "some.new.site")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.getFinalProfilingUrl() == "http://" + config.getAgentHost() + ":" + config.getAgentPort() + "/profiling/v1/input"
+  }
+
+
+  def "custom profiling url override"() {
+    setup:
+    def prop = new Properties()
+    prop.setProperty(SITE, "some.new.site")
+    prop.setProperty(PROFILING_URL, "https://some.new.url/goes/here")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.getFinalProfilingUrl() == "https://some.new.url/goes/here"
+  }
+
+  def "fallback to DD_TAGS"() {
+    setup:
+    environmentVariables.set(DD_TAGS_ENV, "a:1,b:2,c:3")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.mergedSpanTags == [a: "1", c: "3", b: "2"]
+  }
+
+  def "explicit DD_ENV and DD_VERSION overwrite DD_TAGS"() {
+    setup:
+    environmentVariables.set(DD_TAGS_ENV, "env:production   ,    version:3.2.1")
+    environmentVariables.set(DD_ENV_ENV, "test_env")
+    environmentVariables.set(DD_VERSION_ENV, "1.2.3")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.mergedSpanTags == ["env": "test_env", "version": "1.2.3"]
+  }
+
+  def "explicit DD_ENV and DD_VERSION overwrites dd.trace.global.tags"() {
+    setup:
+    environmentVariables.set(DD_VERSION_ENV, "1.2.3")
+    environmentVariables.set(DD_ENV_ENV, "production-us")
+    System.setProperty(PREFIX + GLOBAL_TAGS,
+      "env:us-barista-test,other_tag:test,version:3.2.1")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.mergedSpanTags == ["version": "1.2.3", "env": "production-us", "other_tag": "test"]
+  }
+
+  def "merge env from dd.trace.global.tags and DD_VERSION"() {
+    setup:
+    environmentVariables.set(DD_VERSION_ENV, "1.2.3")
+    System.setProperty(PREFIX + GLOBAL_TAGS, "env:us-barista-test,other_tag:test,version:3.2.1")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.mergedSpanTags == ["version": "1.2.3", "env": "us-barista-test", "other_tag": "test"]
+  }
+
+  def "merge version from dd.trace.global.tags and DD_ENV"() {
+    setup:
+    environmentVariables.set(DD_ENV_ENV, "us-barista-test")
+    System.setProperty(PREFIX + GLOBAL_TAGS, "other_tag:test,version:3.2.1")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.mergedSpanTags == ["version": "3.2.1", "env": "us-barista-test", "other_tag": "test"]
+  }
+
+  def "merge version from dd.trace.global.tags and DD_SERVICE and DD_ENV"() {
+    setup:
+    environmentVariables.set("DD_SERVICE", "dd-service-env-var")
+    environmentVariables.set(DD_ENV_ENV, "us-barista-test")
+    System.setProperty(PREFIX + GLOBAL_TAGS, "other_tag:test,version:3.2.1,service.version:my-svc-vers")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.serviceName == "dd-service-env-var"
+    config.mergedSpanTags == [version: "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
+    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): 'dd-service-env-var',
+                             version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
+  }
+
+  def "merge env from dd.trace.global.tags and DD_SERVICE and DD_VERSION"() {
+    setup:
+    environmentVariables.set("DD_SERVICE", "dd-service-env-var")
+    environmentVariables.set(DD_VERSION_ENV, "3.2.1")
+    System.setProperty(PREFIX + GLOBAL_TAGS, "other_tag:test,env:us-barista-test,service.version:my-svc-vers")
+
+    when:
+    Config config = new Config()
+
+    then:
+    config.serviceName == "dd-service-env-var"
+    config.mergedSpanTags == [version: "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
+    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): 'dd-service-env-var',
+                             version         : "3.2.1", "service.version": "my-svc-vers", "env": "us-barista-test", other_tag: "test"]
+  }
+
+  def "set of dd.trace.global.tags.env exclusively by java properties and without DD_ENV"() {
+    setup:
+    System.setProperty(PREFIX + GLOBAL_TAGS, "env:production")
+
+    when:
+    Config config = new Config()
+
+    then:
+    //check that env wasn't set:
+    System.getenv(DD_ENV_ENV) == null
+    System.getenv(DD_VERSION_ENV) == null
+    //actual guard:
+    config.mergedSpanTags == ["env": "production"]
+  }
+
+  def "set of dd.trace.global.tags.version exclusively by java properties"() {
+    setup:
+    System.setProperty(PREFIX + GLOBAL_TAGS, "version:42")
+
+    when:
+    Config config = new Config()
+
+    then:
+    //check that env wasn't set:
+    System.getenv(DD_ENV_ENV) == null
+    System.getenv(DD_VERSION_ENV) == null
+    //actual guard:
+    config.mergedSpanTags == [(Config.VERSION): "42"]
+  }
+
+  def "set of version exclusively by DD_VERSION and without DD_ENV "() {
+    setup:
+    environmentVariables.set(DD_VERSION_ENV, "3.2.1")
+
+    when:
+    Config config = new Config()
+
+    then:
+    System.getenv(DD_ENV_ENV) == null
+    config.mergedSpanTags.get("env") == null
+    config.mergedSpanTags == [(Config.VERSION): "3.2.1"]
+  }
+
+  // service name precedence checks
+  def "default service name exist"() {
+    expect:
+    Config.get().serviceName == DEFAULT_SERVICE_NAME
+  }
+
+  def "default service name is not affected by tags, nor env variables"() {
+    setup:
+    System.setProperty(PREFIX + GLOBAL_TAGS, "service:service-tag-in-dd-trace-global-tags-java-property,service.version:my-svc-vers")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == DEFAULT_SERVICE_NAME
+    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+                             'service.version': 'my-svc-vers']
+  }
+
+  def "DD_SERVICE precedence over 'dd.service.name' java property is set; 'dd.service' overwrites DD_SERVICE"() {
+    setup:
+    environmentVariables.set(DD_SERVICE_NAME_ENV, "dd-service-name-env-var")
+    System.setProperty(PREFIX + SERVICE_NAME, "dd-service-name-java-prop")
+    environmentVariables.set("DD_SERVICE", "dd-service-env-var")
+    System.setProperty(PREFIX + SERVICE, "dd-service-java-prop")
+    System.setProperty(PREFIX + GLOBAL_TAGS, "service:service-tag-in-dd-trace-global-tags-java-property,service.version:my-svc-vers")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "dd-service-java-prop"
+    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+                             'service.version': 'my-svc-vers']
+  }
+
+  def "DD_SERVICE precedence over 'DD_SERVICE_NAME' environment var is set"() {
+    setup:
+    environmentVariables.set(DD_SERVICE_NAME_ENV, "dd-service-name-env-var")
+    environmentVariables.set("DD_SERVICE", "dd-service-env-var")
+    System.setProperty(PREFIX + GLOBAL_TAGS, "service:service-tag-in-dd-trace-global-tags-java-property,service.version:my-svc-vers")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "dd-service-env-var"
+    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+                             'service.version': 'my-svc-vers']
+  }
+
+  def "dd.service overwrites DD_SERVICE"() {
+    setup:
+    environmentVariables.set("DD_SERVICE", "dd-service-env-var")
+    System.setProperty(PREFIX + SERVICE, "dd-service-java-prop")
+    System.setProperty(PREFIX + GLOBAL_TAGS, "service:service-tag-in-dd-trace-global-tags-java-property,service.version:my-svc-vers")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "dd-service-java-prop"
+    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+                             'service.version': 'my-svc-vers']
+  }
+
+  def "set servicenaem by DD_SERVICE"() {
+    setup:
+    environmentVariables.set("DD_SERVICE", "dd-service-env-var")
+    System.setProperty(PREFIX + GLOBAL_TAGS, "service:service-tag-in-dd-trace-global-tags-java-property,service.version:my-svc-vers")
+    environmentVariables.set(DD_GLOBAL_TAGS_ENV, "service:service-tag-in-env-var,service.version:my-svc-vers")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "dd-service-env-var"
+    config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
+    config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
+                             'service.version': 'my-svc-vers']
+  }
+
+  // Static methods test:
+  def "getProperty*Value unit test"() {
+    setup:
+    def p = new Properties()
+    p.setProperty("a", "42.42")
+    p.setProperty("intProp", "13")
+
+    expect:
+    Config.getPropertyDoubleValue(p, "intProp", 40) == 13
+    Config.getPropertyDoubleValue(p, "a", 41) == 42.42
+    Config.getPropertyIntegerValue(p, "b", 61) == 61
+    Config.getPropertyIntegerValue(p, "intProp", 61) == 13
+    Config.getPropertyBooleanValue(p, "a", true) == false
+  }
+
+  def "valueOf positive test"() {
+    expect:
+    Config.valueOf(value, tClass, defaultValue) == expected
+
+    where:
+    value       | tClass  | defaultValue | expected
+    "42.42"     | Boolean | true         | false
+    "42.42"     | Boolean | null         | false
+    "true"      | Boolean | null         | true
+    "trUe"      | Boolean | null         | true
+    "trUe"      | Boolean | false        | true
+    "tru"       | Boolean | true         | false
+    "truee"     | Boolean | true         | false
+    "true "     | Boolean | true         | false
+    " true"     | Boolean | true         | false
+    " true "    | Boolean | true         | false
+    "   true  " | Boolean | true         | false
+    null        | Float   | 43.3         | 43.3
+    "42.42"     | Float   | 21.21        | 42.42f
+    null        | Double  | 43.3         | 43.3
+    "42.42"     | Double  | 21.21        | 42.42
+    null        | Integer | 13           | 13
+    "44"        | Integer | 21           | 44
+    "45"        | Long    | 21           | 45
+    "46"        | Short   | 21           | 46
+  }
+
+  def "valueOf negative test when tClass is null"() {
+    when:
+    Config.valueOf(value, tClass, defaultValue)
+
+    then:
+    def exception = thrown(NullPointerException)
+    exception.message == "tClass is marked non-null but is null"
+
+    where:
+    value    | tClass | defaultValue
+    null     | null   | "42"
+    ""       | null   | "43"
+    "      " | null   | "44"
+    "1"      | null   | "45"
+  }
+
+  def "valueOf negative test"() {
+    when:
+    Config.valueOf(value, tClass, null)
+
+    then:
+    def exception = thrown(NumberFormatException)
+    println("cause: ": exception.message)
+
+    where:
+    value   | tClass
+    "42.42" | Number
+    "42.42" | Byte
+    "42.42" | Character
+    "42.42" | Short
+    "42.42" | Integer
+    "42.42" | Long
+    "42.42" | Object
+    "42.42" | Object[]
+    "42.42" | boolean[]
+    "42.42" | boolean
+    "42.42" | byte
+    "42.42" | byte
+    "42.42" | char
+    "42.42" | short
+    "42.42" | int
+    "42.42" | long
+    "42.42" | double
+    "42.42" | float
+    "42.42" | ClassThrowsExceptionForValueOfMethod // will wrapped in NumberFormatException anyway
+  }
+
+  static class ClassThrowsExceptionForValueOfMethod {
+    static ClassThrowsExceptionForValueOfMethod valueOf(String ignored) {
+      throw new Throwable()
+    }
+  }
+
+  static BitSet toBitSet(Collection<Integer> set) {
+    BitSet bs = new BitSet()
+    for (Integer i : set) {
+      bs.set(i)
+    }
+    return bs
   }
 }

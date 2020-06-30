@@ -2,9 +2,9 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.skipClassLoader;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import datadog.trace.agent.tooling.context.FieldBackedProvider;
@@ -32,6 +32,11 @@ public class AgentInstaller {
 
   public static Instrumentation getInstrumentation() {
     return INSTRUMENTATION;
+  }
+
+  static {
+    // WeakMap is used by other classes below, so we need to register the provider first.
+    AgentTooling.registerWeakMapProvider();
   }
 
   public static void installBytebuddyAgent(final Instrumentation inst) {
@@ -125,15 +130,25 @@ public class AgentInstaller {
   private static ElementMatcher.Junction<Object> matchesConfiguredExcludes() {
     final List<String> excludedClasses = Config.get().getExcludedClasses();
     ElementMatcher.Junction matcher = none();
+    List<String> literals = new ArrayList<>();
+    List<String> prefixes = new ArrayList<>();
+    // first accumulate by operation because a lot of work can be aggregated
     for (String excludedClass : excludedClasses) {
       excludedClass = excludedClass.trim();
       if (excludedClass.endsWith("*")) {
         // remove the trailing *
-        final String prefix = excludedClass.substring(0, excludedClass.length() - 1);
-        matcher = matcher.or(nameStartsWith(prefix));
+        prefixes.add(excludedClass.substring(0, excludedClass.length() - 1));
       } else {
-        matcher = matcher.or(named(excludedClass));
+        literals.add(excludedClass);
       }
+    }
+    if (!literals.isEmpty()) {
+      matcher = matcher.or(namedOneOf(literals));
+    }
+    for (String prefix : prefixes) {
+      // TODO - with a prefix tree this matching logic can be handled by a
+      // single longest common prefix query
+      matcher = matcher.or(nameStartsWith(prefix));
     }
     return matcher;
   }
@@ -174,11 +189,13 @@ public class AgentInstaller {
         final JavaModule module,
         final boolean loaded,
         final Throwable throwable) {
-      log.debug(
-          "Failed to handle {} for transformation on classloader {}: {}",
-          typeName,
-          classLoader,
-          throwable.getMessage());
+      if (log.isDebugEnabled()) {
+        log.debug(
+            "Failed to handle {} for transformation on classloader {}: {}",
+            typeName,
+            classLoader,
+            throwable.getMessage());
+      }
     }
 
     @Override

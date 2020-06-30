@@ -86,7 +86,7 @@ public class FinatraInstrumentation extends Instrumenter.Default {
       DECORATE.afterStart(span);
       span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForClass(clazz));
 
-      final AgentScope scope = activateSpan(span, false);
+      final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
       return scope;
     }
@@ -124,7 +124,7 @@ public class FinatraInstrumentation extends Instrumenter.Default {
     @Override
     public void onSuccess(final Response response) {
       // Don't use DECORATE.onResponse because this is the controller span
-      if (Config.get().getHttpServerErrorStatuses().contains(DECORATE.status(response))) {
+      if (Config.get().getHttpServerErrorStatuses().get(DECORATE.status(response))) {
         scope.span().setError(true);
       }
 

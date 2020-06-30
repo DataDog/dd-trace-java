@@ -85,7 +85,9 @@ public final class HttpServletInstrumentation extends Instrumenter.Default {
       // Here we use the Method instead of "this.class.name" to distinguish calls to "super".
       span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(method));
 
-      return activateSpan(span, true).setAsyncPropagation(true);
+      final AgentScope agentScope = activateSpan(span);
+      agentScope.setAsyncPropagation(true);
+      return agentScope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -97,6 +99,7 @@ public final class HttpServletInstrumentation extends Instrumenter.Default {
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 }

@@ -1,8 +1,12 @@
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activeScope, activeSpan}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
+  activeScope,
+  activeSpan
+}
 
 import scala.concurrent.duration._
 
@@ -15,8 +19,10 @@ object AkkaActors {
   val howdyGreeter: ActorRef =
     system.actorOf(Greeter.props("Howdy", printer), "howdyGreeter")
 
-  val forwarder: ActorRef = system.actorOf(Forwarder.props(printer), "forwarderActor")
-  val helloGreeter: ActorRef = system.actorOf(Greeter.props("Hello", forwarder), "helloGreeter")
+  val forwarder: ActorRef =
+    system.actorOf(Forwarder.props(printer), "forwarderActor")
+  val helloGreeter: ActorRef =
+    system.actorOf(Greeter.props("Hello", forwarder), "helloGreeter")
 
   @Trace
   def tracedChild(opName: String): Unit = {
@@ -33,28 +39,41 @@ class AkkaActors {
 
   @Trace
   def basicTell(): Unit = {
-    activeScope().setAsyncPropagation(true)
-    howdyGreeter ! WhoToGreet("Akka")
-    howdyGreeter ! Greet
+    try {
+      activeScope().setAsyncPropagation(true)
+      howdyGreeter ! WhoToGreet("Akka")
+      howdyGreeter ! Greet
+    } finally {
+      blockUntilChildSpansFinished(1)
+    }
   }
 
   @Trace
   def basicAsk(): Unit = {
-    activeScope().setAsyncPropagation(true)
-    howdyGreeter ! WhoToGreet("Akka")
-    howdyGreeter ? Greet
+    try {
+      activeScope().setAsyncPropagation(true)
+      howdyGreeter ! WhoToGreet("Akka")
+      howdyGreeter ? Greet
+    } finally {
+      blockUntilChildSpansFinished(1)
+    }
   }
 
   @Trace
   def basicForward(): Unit = {
-    activeScope().setAsyncPropagation(true)
-    helloGreeter ! WhoToGreet("Akka")
-    helloGreeter ? Greet
+    try {
+      activeScope().setAsyncPropagation(true)
+      helloGreeter ! WhoToGreet("Akka")
+      helloGreeter ? Greet
+    } finally {
+      blockUntilChildSpansFinished(1)
+    }
   }
 }
 
 object Greeter {
-  def props(message: String, receiverActor: ActorRef): Props = Props(new Greeter(message, receiverActor))
+  def props(message: String, receiverActor: ActorRef): Props =
+    Props(new Greeter(message, receiverActor))
 
   final case class WhoToGreet(who: String)
 
@@ -97,7 +116,8 @@ class Receiver extends Actor with ActorLogging {
 }
 
 object Forwarder {
-  def props(receiverActor: ActorRef): Props = Props(new Forwarder(receiverActor))
+  def props(receiverActor: ActorRef): Props =
+    Props(new Forwarder(receiverActor))
 }
 
 class Forwarder(receiverActor: ActorRef) extends Actor with ActorLogging {

@@ -1,15 +1,18 @@
 package datadog.trace.agent.test.asserts
 
-import datadog.opentracing.DDSpan
 import datadog.trace.api.Config
+import datadog.trace.api.DDId
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
+import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 
 import java.util.regex.Pattern
 
 class TagsAssert {
-  private final BigInteger spanParentId
+  private final DDId spanParentId
   private final Map<String, Object> tags
   private final Set<String> assertedTags = new TreeSet<>()
 
@@ -35,26 +38,26 @@ class TagsAssert {
   def defaultTags(boolean distributedRootSpan = false) {
     assertedTags.add("thread.name")
     assertedTags.add("thread.id")
-    assertedTags.add(Config.RUNTIME_ID_TAG)
-    assertedTags.add(Config.LANGUAGE_TAG_KEY)
+    assertedTags.add(DDTags.RUNTIME_ID_TAG)
+    assertedTags.add(DDTags.LANGUAGE_TAG_KEY)
 
     assert tags["thread.name"] != null
     assert tags["thread.id"] != null
 
     // FIXME: DQH - Too much conditional logic?  Maybe create specialized methods for client & server cases
 
-    boolean isRoot = (0G == spanParentId)
+    boolean isRoot = (DDId.ZERO == spanParentId)
     if (isRoot || distributedRootSpan) {
-      assert tags[Config.RUNTIME_ID_TAG] == Config.get().runtimeId
+      assert tags[DDTags.RUNTIME_ID_TAG] == Config.get().runtimeId
     } else {
-      assert tags[Config.RUNTIME_ID_TAG] == null
+      assert tags[DDTags.RUNTIME_ID_TAG] == null
     }
 
     boolean isServer = (tags[Tags.SPAN_KIND] == Tags.SPAN_KIND_SERVER)
     if (isRoot || distributedRootSpan || isServer) {
-      assert tags[Config.LANGUAGE_TAG_KEY] == Config.LANGUAGE_TAG_VALUE
+      assert tags[DDTags.LANGUAGE_TAG_KEY] == DDTags.LANGUAGE_TAG_VALUE
     } else {
-      assert tags[Config.LANGUAGE_TAG_KEY] == null
+      assert tags[DDTags.LANGUAGE_TAG_KEY] == null
     }
   }
 
@@ -63,7 +66,6 @@ class TagsAssert {
   }
 
   def errorTags(Class<Throwable> errorType, message) {
-    tag("error", true)
     tag("error.type", errorType.name)
     tag("error.stack", String)
 
@@ -77,19 +79,21 @@ class TagsAssert {
       return
     }
     assertedTags.add(name)
+    def t = tag(name)
     if (value instanceof Pattern) {
-      assert tags[name] =~ value
+      assert t =~ value
     } else if (value instanceof Class) {
-      assert ((Class) value).isInstance(tags[name])
+      assert ((Class) value).isInstance(t)
     } else if (value instanceof Closure) {
-      assert ((Closure) value).call(tags[name])
+      assert ((Closure) value).call(t)
     } else {
-      assert tags[name] == value
+      assert t == value
     }
   }
 
   def tag(String name) {
-    return tags[name]
+    def t = tags[name]
+    return (t instanceof UTF8BytesString) ? t.toString() : t
   }
 
   def methodMissing(String name, args) {

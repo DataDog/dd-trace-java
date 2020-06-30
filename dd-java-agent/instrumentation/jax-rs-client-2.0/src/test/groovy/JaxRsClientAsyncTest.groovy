@@ -15,6 +15,7 @@ import javax.ws.rs.client.InvocationCallback
 import javax.ws.rs.client.WebTarget
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 abstract class JaxRsClientAsyncTest extends HttpClientTest {
@@ -27,11 +28,13 @@ abstract class JaxRsClientAsyncTest extends HttpClientTest {
     headers.each { builder.header(it.key, it.value) }
     AsyncInvoker request = builder.async()
 
+    def latch = new CountDownLatch(1)
     def body = BODY_METHODS.contains(method) ? Entity.text("") : null
     Response response = request.method(method, (Entity) body, new InvocationCallback<Response>() {
       @Override
       void completed(Response s) {
         callback?.call()
+        latch.countDown()
       }
 
       @Override
@@ -39,6 +42,7 @@ abstract class JaxRsClientAsyncTest extends HttpClientTest {
       }
     }).get()
 
+    latch.await()
     return response.status
   }
 

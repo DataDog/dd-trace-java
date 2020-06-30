@@ -1,7 +1,5 @@
 package datadog.trace.agent.test;
 
-import io.opentracing.Tracer;
-import io.opentracing.util.GlobalTracer;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -11,6 +9,7 @@ import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,13 +55,8 @@ public class IntegrationTestUtils {
   /** Returns the URL to the jar the agent appended to the bootstrap classpath * */
   public static ClassLoader getBootstrapProxy() throws Exception {
     final ClassLoader agentClassLoader = getAgentClassLoader();
-    final Field field = agentClassLoader.getClass().getDeclaredField("bootstrapProxy");
-    try {
-      field.setAccessible(true);
-      return (ClassLoader) field.get(agentClassLoader);
-    } finally {
-      field.setAccessible(false);
-    }
+    final Method getBootstrapProxy = agentClassLoader.getClass().getMethod("getBootstrapProxy");
+    return (ClassLoader) getBootstrapProxy.invoke(agentClassLoader);
   }
 
   /** See {@link IntegrationTestUtils#createJarWithClasses(String, Class[])} */
@@ -129,30 +123,6 @@ public class IntegrationTestUtils {
     }
   }
 
-  public static void registerOrReplaceGlobalTracer(final Tracer tracer) {
-    try {
-      GlobalTracer.register(tracer);
-    } catch (final Exception e) {
-      // Force it anyway using reflection
-      Field field = null;
-      try {
-        field = GlobalTracer.class.getDeclaredField("tracer");
-        field.setAccessible(true);
-        field.set(null, tracer);
-      } catch (final Exception e2) {
-        throw new IllegalStateException(e2);
-      } finally {
-        if (null != field) {
-          field.setAccessible(false);
-        }
-      }
-    }
-
-    if (!GlobalTracer.isRegistered()) {
-      throw new RuntimeException("Unable to register the global tracer.");
-    }
-  }
-
   /** com.foo.Bar -> com/foo/Bar.class */
   public static String getResourceName(final String className) {
     return className.replace('.', '/') + ".class";
@@ -185,6 +155,18 @@ public class IntegrationTestUtils {
     throw new RuntimeException("Agent jar not found");
   }
 
+  public static int runOnSeparateJvm(
+      final String mainClassName,
+      final String[] jvmArgs,
+      final String[] mainMethodArgs,
+      final Map<String, String> envVars,
+      final boolean printOutputStreams)
+      throws Exception {
+    final String classPath = System.getProperty("java.class.path");
+    return runOnSeparateJvm(
+        mainClassName, jvmArgs, mainMethodArgs, envVars, classPath, printOutputStreams);
+  }
+
   /**
    * On a separate JVM, run the main method for a given class.
    *
@@ -198,11 +180,11 @@ public class IntegrationTestUtils {
       final String[] jvmArgs,
       final String[] mainMethodArgs,
       final Map<String, String> envVars,
+      final String classpath,
       final boolean printOutputStreams)
       throws Exception {
 
     final String separator = System.getProperty("file.separator");
-    final String classpath = System.getProperty("java.class.path");
     final String path = System.getProperty("java.home") + separator + "bin" + separator + "java";
 
     final List<String> vmArgsList = new ArrayList<>(Arrays.asList(jvmArgs));

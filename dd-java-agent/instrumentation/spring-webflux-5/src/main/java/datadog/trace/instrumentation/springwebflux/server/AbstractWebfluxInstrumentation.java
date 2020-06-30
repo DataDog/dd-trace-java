@@ -12,10 +12,8 @@ public abstract class AbstractWebfluxInstrumentation extends Instrumenter.Defaul
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SpringWebfluxHttpServerDecorator",
-      // Some code comes from reactor's instrumentation's helper
-      "datadog.trace.instrumentation.reactor.core.ReactorCoreAdviceUtils",
-      "datadog.trace.instrumentation.reactor.core.ReactorCoreAdviceUtils$TracingSubscriber",
       packageName + ".AdviceUtils",
+      packageName + ".AdviceUtils$SpanFinishingSubscriber",
       packageName + ".RouteOnSuccessOrError"
     };
   }

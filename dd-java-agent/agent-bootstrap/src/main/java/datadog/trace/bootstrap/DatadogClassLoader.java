@@ -6,10 +6,9 @@ import java.net.URLClassLoader;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Classloader used to run the core datadog agent.
- *
- * <p>It is built around the concept of a jar inside another jar. This classloader loads the files
- * of the internal jar to load classes and resources.
+ * A classloader which maintains a package index of isolated delegate classloaders, and delegates
+ * class loads according to package. Loads classes itself according to package, but delegates
+ * upwards when a class cannot be loaded.
  */
 @Slf4j
 public class DatadogClassLoader extends URLClassLoader {
@@ -17,42 +16,32 @@ public class DatadogClassLoader extends URLClassLoader {
     ClassLoader.registerAsParallelCapable();
   }
 
+  protected final InternalJarURLHandler internalJarURLHandler;
+
   // Calling java.lang.instrument.Instrumentation#appendToBootstrapClassLoaderSearch
   // adds a jar to the bootstrap class lookup, but not to the resource lookup.
   // As a workaround, we keep a reference to the bootstrap jar
   // to use only for resource lookups.
   private final ClassLoader bootstrapProxy;
-  /**
-   * Construct a new DatadogClassLoader
-   *
-   * @param bootstrapJarLocation Used for resource lookups.
-   * @param internalJarFileName File name of the internal jar
-   * @param parent Classloader parent. Should null (bootstrap), or the platform classloader for java
-   *     9+.
-   */
+  private final String classLoaderName;
+
+  private String lastPackage = null;
+
   public DatadogClassLoader(
       final URL bootstrapJarLocation,
       final String internalJarFileName,
       final ClassLoader bootstrapProxy,
       final ClassLoader parent) {
     super(new URL[] {}, parent);
-
     this.bootstrapProxy = bootstrapProxy;
-
+    this.classLoaderName = null == internalJarFileName ? "datadog" : internalJarFileName;
+    this.internalJarURLHandler =
+        new InternalJarURLHandler(internalJarFileName, bootstrapJarLocation);
     try {
       // The fields of the URL are mostly dummy.  InternalJarURLHandler is the only important
       // field.  If extending this class from Classloader instead of URLClassloader required less
       // boilerplate it could be used and the need for dummy fields would be reduced
-
-      final URL internalJarURL =
-          new URL(
-              "x-internal-jar",
-              null,
-              0,
-              "/",
-              new InternalJarURLHandler(internalJarFileName, bootstrapJarLocation));
-
-      addURL(internalJarURL);
+      addURL(new URL("x-internal-jar", null, 0, "/", internalJarURLHandler));
     } catch (final MalformedURLException e) {
       // This can't happen with current URL constructor
       log.error("URL malformed.  Unsupported JDK?", e);
@@ -75,6 +64,29 @@ public class DatadogClassLoader extends URLClassLoader {
    */
   public boolean hasLoadedClass(final String className) {
     return findLoadedClass(className) != null;
+  }
+
+  Class<?> loadFromPackage(String packageName, String name) throws ClassNotFoundException {
+    if (internalJarURLHandler.getPackages().contains(packageName)) {
+      Class<?> loaded = findLoadedClass(name);
+      return null == loaded ? findClass(name) : loaded;
+    }
+    return super.loadClass(name);
+  }
+
+  String getPackageName(final String className) {
+    // intentionally not thread-safe: the worst case scenario is excess allocation/lookups
+    String packageName = lastPackage;
+    if (null == packageName || !className.startsWith(packageName)) {
+      int end = className.lastIndexOf('.');
+      if (end != -1) {
+        packageName = className.substring(0, end);
+        this.lastPackage = packageName;
+      } else {
+        packageName = "";
+      }
+    }
+    return packageName;
   }
 
   public ClassLoader getBootstrapProxy() {
@@ -108,6 +120,47 @@ public class DatadogClassLoader extends URLClassLoader {
     @Override
     protected Class<?> findClass(final String name) throws ClassNotFoundException {
       throw new ClassNotFoundException(name);
+    }
+  }
+
+  @Override
+  public String toString() {
+    return classLoaderName;
+  }
+
+  public static class DelegateClassLoader extends DatadogClassLoader {
+    static {
+      ClassLoader.registerAsParallelCapable();
+    }
+
+    private final DatadogClassLoader shared;
+
+    /**
+     * Construct a new DatadogClassLoader
+     *
+     * @param bootstrapJarLocation Used for resource lookups.
+     * @param internalJarFileName File name of the internal jar
+     * @param parent Classloader parent. Should null (bootstrap), or the platform classloader for
+     *     java 9+.
+     */
+    public DelegateClassLoader(
+        final URL bootstrapJarLocation,
+        final String internalJarFileName,
+        final ClassLoader bootstrapProxy,
+        final ClassLoader parent,
+        final ClassLoader shared) {
+      super(bootstrapJarLocation, internalJarFileName, bootstrapProxy, parent);
+      this.shared = (DatadogClassLoader) shared;
+    }
+
+    @Override
+    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+      String packageName = shared.getPackageName(name);
+      if (internalJarURLHandler.getPackages().contains(packageName)) {
+        Class<?> loaded = findLoadedClass(name);
+        return null == loaded ? findClass(name) : loaded;
+      }
+      return shared.loadFromPackage(packageName, name);
     }
   }
 }

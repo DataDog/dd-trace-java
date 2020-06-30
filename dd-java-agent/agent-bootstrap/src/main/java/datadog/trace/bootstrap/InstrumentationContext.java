@@ -13,6 +13,8 @@ public class InstrumentationContext {
    * <p>However, the implementation is actually provided by bytecode transformation for performance
    * reasons.
    *
+   * <p>This method must only be called within an Advice class.
+   *
    * @param keyClass The key class context is attached to.
    * @param contextClass The context class attached to the user class.
    * @param <K> key class

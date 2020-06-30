@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet2;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -10,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -25,28 +27,31 @@ public final class Servlet2Instrumentation extends Instrumenter.Default {
   // this is required to make sure servlet 2 instrumentation won't apply to servlet 3
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return not(hasClassesNamed("javax.servlet.AsyncEvent", "javax.servlet.AsyncListener"));
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed("javax.servlet.http.HttpServlet")
+        .and(not(hasClassesNamed("javax.servlet.AsyncEvent", "javax.servlet.AsyncListener")));
   }
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return safeHasSuperType(
-        named("javax.servlet.FilterChain").or(named("javax.servlet.http.HttpServlet")));
+        namedOneOf("javax.servlet.FilterChain", "javax.servlet.http.HttpServlet"));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".Servlet2Decorator",
-      packageName + ".HttpServletRequestExtractAdapter",
-      packageName + ".StatusSavingHttpServletResponseWrapper",
+      packageName + ".Servlet2Decorator", packageName + ".HttpServletRequestExtractAdapter",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap(
+    final Map<String, String> contextStores = new HashMap<>();
+    contextStores.put(
         "javax.servlet.http.HttpServletResponse", "javax.servlet.http.HttpServletRequest");
+    contextStores.put("javax.servlet.ServletResponse", Integer.class.getName());
+    return contextStores;
   }
 
   /**
@@ -57,8 +62,7 @@ public final class Servlet2Instrumentation extends Instrumenter.Default {
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        named("doFilter")
-            .or(named("service"))
+        namedOneOf("doFilter", "service")
             .and(takesArgument(0, named("javax.servlet.ServletRequest")))
             .and(takesArgument(1, named("javax.servlet.ServletResponse")))
             .and(isPublic()),

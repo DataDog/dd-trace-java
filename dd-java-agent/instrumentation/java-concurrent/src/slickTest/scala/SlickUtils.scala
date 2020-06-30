@@ -1,3 +1,4 @@
+import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import slick.jdbc.H2Profile.api._
@@ -9,7 +10,8 @@ class SlickUtils {
 
   import SlickUtils._
 
-  val database = Database.forURL(Url,
+  val database = Database.forURL(
+    Url,
     user = Username,
     driver = "org.h2.Driver",
     keepAliveConnection = true,
@@ -17,12 +19,21 @@ class SlickUtils {
     // wrapped runnables.
     executor = AsyncExecutor("test", numThreads = 1, queueSize = 1000)
   )
-  Await.result(database.run(sqlu"""CREATE ALIAS IF NOT EXISTS SLEEP FOR "java.lang.Thread.sleep(long)""""), Duration.Inf)
+  Await.result(
+    database.run(
+      sqlu"""CREATE ALIAS IF NOT EXISTS SLEEP FOR "java.lang.Thread.sleep(long)""""
+    ),
+    Duration.Inf
+  )
 
   @Trace
   def startQuery(query: String): Future[Vector[Int]] = {
-    activeScope().setAsyncPropagation(true)
-    database.run(sql"#$query".as[Int])
+    try {
+      activeScope().setAsyncPropagation(true)
+      database.run(sql"#$query".as[Int])
+    } finally {
+      blockUntilChildSpansFinished(1)
+    }
   }
 
   def getResults(future: Future[Vector[Int]]): Int = {

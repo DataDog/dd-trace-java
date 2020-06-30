@@ -1,8 +1,7 @@
-import datadog.opentracing.DDSpan
-import datadog.opentracing.DDSpanContext
 import datadog.opentracing.DDTracer
-import datadog.opentracing.propagation.ExtractedContext
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.DDSpan
 import datadog.trace.util.test.DDSpecification
 import io.opentracing.Tracer
 import io.opentracing.propagation.Format
@@ -25,7 +24,7 @@ class OT31ApiTest extends DDSpecification {
     scope.close()
 
     then:
-    (scope.span() as DDSpan).isFinished() == finishSpan
+    (scope.span().delegate as DDSpan).isFinished() == finishSpan
 
     where:
     finishSpan << [true, false]
@@ -46,14 +45,23 @@ class OT31ApiTest extends DDSpecification {
   def "test scopemanager"() {
     setup:
     def span = tracer.buildSpan("some name").start()
+    def scope = tracer.scopeManager().activate(span, finishSpan)
 
-    when:
-    tracer.scopeManager().activate(span, finishSpan) != null
+    expect:
+    scope != null
     tracer.scopeManager().active().span() == span
 
-    then:
+    when: "attempting to close the span this way doesn't work because we lost the 'finishSpan' reference"
     tracer.scopeManager().active().close()
-    (span as DDSpan).isFinished() == finishSpan
+
+    then:
+    !(span.delegate as DDSpan).isFinished()
+
+    when:
+    scope.close()
+
+    then:
+    (span.delegate as DDSpan).isFinished() == finishSpan
 
     where:
     finishSpan << [true, false]
@@ -61,27 +69,36 @@ class OT31ApiTest extends DDSpecification {
 
   def "test inject extract"() {
     setup:
-    def context = tracer.buildSpan("some name").start().context() as DDSpanContext
+    def context = tracer.buildSpan("some name").start().context()
     def textMap = [:]
     def adapter = new TextMapAdapter(textMap)
 
     when:
+    context.delegate.samplingPriority = contextPriority
     tracer.inject(context, Format.Builtin.TEXT_MAP, adapter)
 
     then:
     textMap == [
       "x-datadog-trace-id"         : context.toTraceId(),
       "x-datadog-parent-id"        : context.toSpanId(),
-      "x-datadog-sampling-priority": "$context.samplingPriority",
+      "x-datadog-sampling-priority": propagatedPriority.toString(),
     ]
 
     when:
-    def extract = tracer.extract(Format.Builtin.TEXT_MAP, adapter) as ExtractedContext
+    def extract = tracer.extract(Format.Builtin.TEXT_MAP, adapter)
 
     then:
-    extract.traceId == context.traceId
-    extract.spanId == context.spanId
-    extract.samplingPriority == context.samplingPriority
+    extract.toTraceId() == context.toTraceId()
+    extract.toSpanId() == context.toSpanId()
+    extract.delegate.samplingPriority == propagatedPriority
+
+    where:
+    contextPriority               | propagatedPriority
+    PrioritySampling.SAMPLER_DROP | PrioritySampling.SAMPLER_DROP
+    PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP
+    PrioritySampling.UNSET        | PrioritySampling.SAMPLER_KEEP
+    PrioritySampling.USER_KEEP    | PrioritySampling.USER_KEEP
+    PrioritySampling.USER_DROP    | PrioritySampling.USER_DROP
   }
 
   static class TextMapAdapter implements TextMap {

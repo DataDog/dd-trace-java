@@ -49,8 +49,6 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Defaul
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JMSDecorator",
-      packageName + ".JMSDecorator$1",
-      packageName + ".JMSDecorator$2",
       packageName + ".MessageExtractAdapter",
       packageName + ".MessageInjectAdapter"
     };
@@ -92,7 +90,7 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Defaul
       }
       span.setTag("span.origin.type", consumer.getClass().getName());
 
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         CONSUMER_DECORATE.afterStart(span);
         if (message == null) {
           CONSUMER_DECORATE.onReceive(span, method);

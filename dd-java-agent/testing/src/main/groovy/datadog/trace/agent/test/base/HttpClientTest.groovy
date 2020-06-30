@@ -1,12 +1,12 @@
 package datadog.trace.agent.test.base
 
-import datadog.opentracing.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import spock.lang.AutoCleanup
 import spock.lang.Requires
 import spock.lang.Shared
@@ -26,6 +26,8 @@ abstract class HttpClientTest extends AgentTestRunner {
   protected static final BODY_METHODS = ["POST", "PUT"]
   protected static final CONNECT_TIMEOUT_MS = 1000
   protected static final READ_TIMEOUT_MS = 2000
+  protected static final BASIC_AUTH_KEY = "custom authorization header"
+  protected static final BASIC_AUTH_VAL = "plain text auth token"
 
   @AutoCleanup
   @Shared
@@ -52,6 +54,18 @@ abstract class HttpClientTest extends AgentTestRunner {
       prefix("circular-redirect") {
         handleDistributedRequest()
         redirect(server.address.resolve("/circular-redirect").toURL().toString())
+      }
+      prefix("secured") {
+        handleDistributedRequest()
+        if (request.headers.get(BASIC_AUTH_KEY) == BASIC_AUTH_VAL) {
+          response.status(200).send("secured string under basic auth")
+        } else {
+          response.status(401).send("Unauthorized")
+        }
+      }
+      prefix("to-secured") {
+        handleDistributedRequest()
+        redirect(server.address.resolve("/secured").toURL().toString())
       }
     }
   }
@@ -171,7 +185,9 @@ abstract class HttpClientTest extends AgentTestRunner {
     when:
     def status = runUnderTrace("parent") {
       doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"]) {
-        runUnderTrace("child") {}
+        runUnderTrace("child") {
+          blockUntilChildSpansFinished(1)
+        }
       }
     }
 
@@ -194,9 +210,23 @@ abstract class HttpClientTest extends AgentTestRunner {
     when:
     def status = doRequest(method, server.address.resolve("/success"), ["is-dd-server": "false"]) {
       runUnderTrace("callback") {
-        // Ensure consistent ordering of traces for assertion.
-        TEST_WRITER.waitForTraces(1)
+        // FIXME: since in async we may not have the other trace report until the callback is done
+        //  we should add a test method to detect that the other trace is finished but waiting for
+        //  references to clear out in order to validate the behavior that the client spans are
+        //  finished regardless of the callback operation
+        // PendingTrace.pendingTraces(1) or TEST_WRITER.waitForPendingTraces(1)
       }
+    }
+
+    TEST_WRITER.waitForTraces(2)
+
+    // Java 7 CopyOnWrite lists cannot be sorted in place
+    List<List<DDSpan>> traces = TEST_WRITER.toList()
+    traces.sort({ t1, t2 ->
+      return t1[0].startTimeNano <=> t2[0].startTimeNano
+    })
+    for (int i = 0; i < traces.size(); i++) {
+      TEST_WRITER.set(i, traces.get(i))
     }
 
     then:
@@ -281,6 +311,28 @@ abstract class HttpClientTest extends AgentTestRunner {
       server.distributedRequestTrace(it, 1, trace(2).last())
       trace(2, size(1)) {
         clientSpan(it, 0, null, method, false, false, uri, statusOnRedirectError(), thrownException)
+      }
+    }
+
+    where:
+    method = "GET"
+  }
+
+  def "redirect #method to secured endpoint copies auth header"() {
+    given:
+    assumeTrue(testRedirects())
+    def uri = server.address.resolve("/to-secured")
+
+    when:
+    def status = doRequest(method, uri, [(BASIC_AUTH_KEY) : BASIC_AUTH_VAL])
+
+    then:
+    status == 200
+    assertTraces(3) {
+      server.distributedRequestTrace(it, 0, trace(2).last())
+      server.distributedRequestTrace(it, 1, trace(2).last())
+      trace(2, size(1)) {
+        clientSpan(it, 0, null, method, false, false, uri)
       }
     }
 
@@ -417,6 +469,9 @@ abstract class HttpClientTest extends AgentTestRunner {
           errorTags(exception.class, exception.message)
         }
         defaultTags()
+      }
+      metrics {
+        defaultMetrics()
       }
     }
   }

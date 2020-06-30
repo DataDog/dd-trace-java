@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.spymemcached;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -66,7 +67,7 @@ public final class MemcachedClientInstrumentation extends Instrumenter.Default {
         isMethod().and(isPublic()).and(returns(named(MEMCACHED_PACKAGE + ".internal.BulkFuture"))),
         MemcachedClientInstrumentation.class.getName() + "$AsyncBulkAdvice");
     transformers.put(
-        isMethod().and(isPublic()).and(named("incr").or(named("decr"))),
+        isMethod().and(isPublic()).and(namedOneOf("incr", "decr")),
         MemcachedClientInstrumentation.class.getName() + "$SyncOperationAdvice");
     return transformers;
   }

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.twilio;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.DECORATE;
@@ -9,7 +10,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
@@ -43,11 +43,12 @@ public class TwilioSyncInstrumentation extends Instrumenter.Default {
           ? super net.bytebuddy.description.type.TypeDescription>
       typeMatcher() {
     return extendsClass(
-        named("com.twilio.base.Creator")
-            .or(named("com.twilio.base.Deleter"))
-            .or(named("com.twilio.base.Fetcher"))
-            .or(named("com.twilio.base.Reader"))
-            .or(named("com.twilio.base.Updater")));
+        namedOneOf(
+            "com.twilio.base.Creator",
+            "com.twilio.base.Deleter",
+            "com.twilio.base.Fetcher",
+            "com.twilio.base.Reader",
+            "com.twilio.base.Updater"));
   }
 
   /** Return the helper classes which will be available for use in instrumentation. */
@@ -73,12 +74,7 @@ public class TwilioSyncInstrumentation extends Instrumenter.Default {
         isMethod()
             .and(isPublic())
             .and(not(isAbstract()))
-            .and(
-                named("create")
-                    .or(named("delete"))
-                    .or(named("read"))
-                    .or(named("fetch"))
-                    .or(named("update"))),
+            .and(namedOneOf("create", "delete", "read", "fetch", "update")),
         TwilioSyncInstrumentation.class.getName() + "$TwilioClientAdvice");
   }
 
@@ -103,7 +99,7 @@ public class TwilioSyncInstrumentation extends Instrumenter.Default {
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     /** Method exit instrumentation. */
@@ -117,14 +113,14 @@ public class TwilioSyncInstrumentation extends Instrumenter.Default {
       }
 
       // If we have a scope (i.e. we were the top-level Twilio SDK invocation),
+      final AgentSpan span = scope.span();
       try {
-        final AgentSpan span = scope.span();
-
         DECORATE.onResult(span, response);
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
       } finally {
         scope.close();
+        span.finish();
         CallDepthThreadLocalMap.reset(Twilio.class); // reset call depth count
       }
     }

@@ -183,10 +183,13 @@ public class ReferenceCreator extends ClassVisitor {
   }
 
   private void addReference(final Reference ref) {
-    if (references.containsKey(ref.getClassName())) {
-      references.put(ref.getClassName(), references.get(ref.getClassName()).merge(ref));
-    } else {
-      references.put(ref.getClassName(), ref);
+    if (!ref.getClassName().startsWith("java.")) {
+      Reference reference = references.get(ref.getClassName());
+      if (null == reference) {
+        references.put(ref.getClassName(), ref);
+      } else {
+        references.put(ref.getClassName(), reference.merge(ref));
+      }
     }
   }
 
@@ -362,6 +365,16 @@ public class ReferenceCreator extends ClassVisitor {
                   methodType.getArgumentTypes())
               .build());
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+    }
+
+    @Override
+    public void visitTypeInsn(final int opcode, final String type) {
+      addReference(
+          new Reference.Builder(type)
+              .withSource(refSourceClassName, currentLineNumber)
+              .withFlag(computeMinimumClassAccess(refSourceType, Type.getObjectType(type)))
+              .build());
+      super.visitTypeInsn(opcode, type);
     }
 
     @Override

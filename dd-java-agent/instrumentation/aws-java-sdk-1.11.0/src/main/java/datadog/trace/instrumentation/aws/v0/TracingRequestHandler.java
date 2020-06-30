@@ -29,10 +29,10 @@ public class TracingRequestHandler extends RequestHandler2 {
 
   @Override
   public void beforeRequest(final Request<?> request) {
-    final AgentSpan span = startSpan("aws.command");
+    final AgentSpan span = startSpan("aws.http");
     decorate.afterStart(span);
     decorate.onRequest(span, request);
-    request.addHandlerContext(SCOPE_CONTEXT_KEY, activateSpan(span, true));
+    request.addHandlerContext(SCOPE_CONTEXT_KEY, activateSpan(span));
   }
 
   @Override
@@ -43,6 +43,7 @@ public class TracingRequestHandler extends RequestHandler2 {
       decorate.onResponse(scope.span(), response);
       decorate.beforeFinish(scope.span());
       scope.close();
+      scope.span().finish();
     }
   }
 
@@ -54,6 +55,7 @@ public class TracingRequestHandler extends RequestHandler2 {
       decorate.onError(scope.span(), e);
       decorate.beforeFinish(scope.span());
       scope.close();
+      scope.span().finish();
     }
   }
 }

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet.http;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
@@ -52,7 +53,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(named("sendError").or(named("sendRedirect")), SendAdvice.class.getName());
+    return singletonMap(namedOneOf("sendError", "sendRedirect"), SendAdvice.class.getName());
   }
 
   @Override
@@ -86,7 +87,9 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
       // In case we lose context, inject trace into to the request.
       propagate().inject(span, req, SETTER);
 
-      return activateSpan(span, true).setAsyncPropagation(true);
+      final AgentScope scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -98,6 +101,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 }

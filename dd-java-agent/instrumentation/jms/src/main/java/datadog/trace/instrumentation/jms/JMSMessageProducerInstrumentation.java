@@ -49,8 +49,6 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JMSDecorator",
-      packageName + ".JMSDecorator$1",
-      packageName + ".JMSDecorator$2",
       packageName + ".MessageExtractAdapter",
       packageName + ".MessageInjectAdapter"
     };
@@ -95,7 +93,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
 
       propagate().inject(span, message, SETTER);
 
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -107,6 +105,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
       CallDepthThreadLocalMap.reset(MessageProducer.class);
     }
   }
@@ -130,7 +129,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
 
       propagate().inject(span, message, SETTER);
 
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -142,6 +141,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
       CallDepthThreadLocalMap.reset(MessageProducer.class);
     }
   }

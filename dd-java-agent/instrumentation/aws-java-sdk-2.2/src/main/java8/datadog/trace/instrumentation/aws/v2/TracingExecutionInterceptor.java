@@ -6,6 +6,7 @@ import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORAT
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.function.Consumer;
 import software.amazon.awssdk.core.client.builder.SdkClientBuilder;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
@@ -29,8 +30,9 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   @Override
   public void beforeExecution(
       final Context.BeforeExecution context, final ExecutionAttributes executionAttributes) {
-    final AgentSpan span = startSpan("aws.command");
-    try (final AgentScope scope = activateSpan(span, false)) {
+    final AgentSpan span = startSpan("aws.http");
+    span.setTag(InstrumentationTags.DD_MEASURED, true);
+    try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       executionAttributes.putAttribute(SPAN_ATTRIBUTE, span);
     }
@@ -53,7 +55,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
     // This scope will be closed by AwsHttpClientInstrumentation since ExecutionInterceptor API
     // doesn't provide a way to run code in the same thread after transmission has been scheduled.
-    final AgentScope scope = activateSpan(span, false);
+    final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
   }
 

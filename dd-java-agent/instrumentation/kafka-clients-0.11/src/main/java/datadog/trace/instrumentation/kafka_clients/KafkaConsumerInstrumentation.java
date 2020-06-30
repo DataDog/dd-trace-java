@@ -36,12 +36,10 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Default {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".KafkaDecorator",
-      packageName + ".KafkaDecorator$1",
-      packageName + ".KafkaDecorator$2",
       packageName + ".TextMapExtractAdapter",
       packageName + ".TracingIterable",
       packageName + ".TracingIterator",
-      packageName + ".TracingList",
+      packageName + ".TracingList"
     };
   }
 

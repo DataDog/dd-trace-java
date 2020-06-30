@@ -47,8 +47,6 @@ public final class JMSMessageListenerInstrumentation extends Instrumenter.Defaul
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".JMSDecorator",
-      packageName + ".JMSDecorator$1",
-      packageName + ".JMSDecorator$2",
       packageName + ".MessageExtractAdapter",
       packageName + ".MessageInjectAdapter"
     };
@@ -75,7 +73,7 @@ public final class JMSMessageListenerInstrumentation extends Instrumenter.Defaul
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onReceive(span, message);
 
-      final AgentScope scope = activateSpan(span, true);
+      final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
       return scope;
     }
@@ -89,6 +87,7 @@ public final class JMSMessageListenerInstrumentation extends Instrumenter.Defaul
       CONSUMER_DECORATE.onError(scope, throwable);
       CONSUMER_DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 }

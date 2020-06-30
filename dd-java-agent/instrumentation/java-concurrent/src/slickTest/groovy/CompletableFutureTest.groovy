@@ -1,6 +1,6 @@
-import datadog.opentracing.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
+import datadog.trace.core.DDSpan
 
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
@@ -42,10 +42,14 @@ class CompletableFutureTest extends AgentTestRunner {
       @Override
       @Trace(operationName = "parent")
       CompletableFuture<String> get() {
-        activeScope().setAsyncPropagation(true)
-        return CompletableFuture.supplyAsync(supplier, pool)
-          .thenCompose({ s -> CompletableFuture.supplyAsync(new AppendingSupplier(s), differentPool) })
-          .thenApply(function)
+        try {
+          activeScope().setAsyncPropagation(true)
+          return CompletableFuture.supplyAsync(supplier, pool)
+            .thenCompose({ s -> CompletableFuture.supplyAsync(new AppendingSupplier(s), differentPool) })
+            .thenApply(function)
+        } finally {
+          blockUntilChildSpansFinished(3)
+        }
       }
     }.get()
 

@@ -10,6 +10,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import io.grpc.ForwardingServerCall;
 import io.grpc.ForwardingServerCallListener;
 import io.grpc.Metadata;
@@ -33,10 +34,11 @@ public class TracingServerInterceptor implements ServerInterceptor {
     final Context spanContext = propagate().extract(headers, GETTER);
     final AgentSpan span =
         startSpan("grpc.server", spanContext)
-            .setTag(DDTags.RESOURCE_NAME, call.getMethodDescriptor().getFullMethodName());
+            .setTag(DDTags.RESOURCE_NAME, call.getMethodDescriptor().getFullMethodName())
+            .setTag(InstrumentationTags.DD_MEASURED, true);
     DECORATE.afterStart(span);
 
-    final AgentScope scope = activateSpan(span, false);
+    final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
     final ServerCall.Listener<ReqT> result;
@@ -55,6 +57,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     } finally {
       scope.setAsyncPropagation(false);
       scope.close();
+      // span finished by TracingServerCall
     }
 
     // This ensures the server implementation can see the span in scope
@@ -73,7 +76,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void close(final Status status, final Metadata trailers) {
       DECORATE.onClose(span, status);
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         // Using async propagate here breaks the tests which use InProcessTransport.
         // It also seems logical to not need it at all, so removing it.
         delegate().close(status, trailers);
@@ -99,7 +102,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
           startSpan("grpc.message", this.span.context())
               .setTag("message.type", message.getClass().getName());
       DECORATE.afterStart(span);
-      final AgentScope scope = activateSpan(span, true);
+      final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
       try {
         delegate().onMessage(message);
@@ -112,12 +115,13 @@ public class TracingServerInterceptor implements ServerInterceptor {
         scope.setAsyncPropagation(false);
         DECORATE.beforeFinish(span);
         scope.close();
+        span.finish();
       }
     }
 
     @Override
     public void onHalfClose() {
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         scope.setAsyncPropagation(true);
         delegate().onHalfClose();
         scope.setAsyncPropagation(false);
@@ -132,7 +136,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onCancel() {
       // Finishes span.
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         scope.setAsyncPropagation(true);
         delegate().onCancel();
         span.setTag("canceled", true);
@@ -149,7 +153,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onComplete() {
       // Finishes span.
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         scope.setAsyncPropagation(true);
         delegate().onComplete();
         scope.setAsyncPropagation(false);
@@ -164,7 +168,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
 
     @Override
     public void onReady() {
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         scope.setAsyncPropagation(true);
         delegate().onReady();
         scope.setAsyncPropagation(false);

@@ -72,9 +72,9 @@ public class Agent {
      */
     if (appUsingCustomLogManager) {
       log.debug("Custom logger detected. Delaying JMXFetch initialization.");
-      registerLogManagerCallback(new StartJmxFetchCallback(bootstrapURL));
+      registerLogManagerCallback(new StartJmxCallback(bootstrapURL));
     } else {
-      startJmxFetch(bootstrapURL);
+      startJmx(bootstrapURL);
     }
 
     /*
@@ -151,8 +151,8 @@ public class Agent {
     public abstract void execute();
   }
 
-  protected static class StartJmxFetchCallback extends ClassLoadCallBack {
-    StartJmxFetchCallback(final URL bootstrapURL) {
+  protected static class StartJmxCallback extends ClassLoadCallBack {
+    StartJmxCallback(final URL bootstrapURL) {
       super(bootstrapURL);
     }
 
@@ -163,7 +163,7 @@ public class Agent {
 
     @Override
     public void execute() {
-      startJmxFetch(bootstrapURL);
+      startJmx(bootstrapURL);
     }
   }
 
@@ -216,7 +216,7 @@ public class Agent {
           grandParent = getPlatformClassLoader();
         }
 
-        PARENT_CLASSLOADER = createDatadogClassLoader("shared.isolated", bootstrapURL, grandParent);
+        PARENT_CLASSLOADER = createDatadogClassLoader("shared", bootstrapURL, grandParent);
       } catch (final Throwable ex) {
         log.error("Throwable thrown creating parent classloader", ex);
       }
@@ -228,8 +228,7 @@ public class Agent {
     if (AGENT_CLASSLOADER == null) {
       try {
         final ClassLoader agentClassLoader =
-            createDatadogClassLoader(
-                "agent-tooling-and-instrumentation.isolated", bootstrapURL, PARENT_CLASSLOADER);
+            createDelegateClassLoader("inst", bootstrapURL, PARENT_CLASSLOADER);
 
         final Class<?> agentInstallerClass =
             agentClassLoader.loadClass("datadog.trace.agent.tooling.AgentInstaller");
@@ -262,12 +261,33 @@ public class Agent {
     }
   }
 
+  private static synchronized void startJmx(final URL bootstrapURL) {
+    startJmxFetch(bootstrapURL);
+    initializeJmxThreadCpuTimeProvider();
+  }
+
+  /** Enable JMX based thread CPU time provider once it is safe to touch JMX */
+  private static synchronized void initializeJmxThreadCpuTimeProvider() {
+    log.info("Initializing JMX thread CPU time provider");
+    if (AGENT_CLASSLOADER == null) {
+      throw new IllegalStateException("Datadog agent should have been started already");
+    }
+    try {
+      final Class<?> tracerInstallerClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.core.util.ThreadCpuTimeAccess");
+      final Method enableJmxMethod = tracerInstallerClass.getMethod("enableJmx");
+      enableJmxMethod.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while initializing JMX thread CPU time provider", ex);
+    }
+  }
+
   private static synchronized void startJmxFetch(final URL bootstrapURL) {
     if (JMXFETCH_CLASSLOADER == null) {
       final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
       try {
         final ClassLoader jmxFetchClassLoader =
-            createDatadogClassLoader("agent-jmxfetch.isolated", bootstrapURL, PARENT_CLASSLOADER);
+            createDelegateClassLoader("metrics", bootstrapURL, PARENT_CLASSLOADER);
         Thread.currentThread().setContextClassLoader(jmxFetchClassLoader);
         final Class<?> jmxFetchAgentClass =
             jmxFetchClassLoader.loadClass("datadog.trace.agent.jmxfetch.JMXFetch");
@@ -288,7 +308,7 @@ public class Agent {
     try {
       if (PROFILING_CLASSLOADER == null) {
         PROFILING_CLASSLOADER =
-            createDatadogClassLoader("agent-profiling.isolated", bootstrapURL, PARENT_CLASSLOADER);
+            createDelegateClassLoader("profiling", bootstrapURL, PARENT_CLASSLOADER);
       }
       Thread.currentThread().setContextClassLoader(PROFILING_CLASSLOADER);
       final Class<?> profilingAgentClass =
@@ -300,7 +320,8 @@ public class Agent {
       Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
       (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
       */
-      log.error("Cannot start profiling agent ", e);
+      log.error("Profiling requires OpenJDK 8 or above - skipping");
+      log.debug("Cannot start profiling agent ", e);
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting profiling agent", ex);
     } finally {
@@ -344,6 +365,22 @@ public class Agent {
             URL.class, String.class, ClassLoader.class, ClassLoader.class);
     return (ClassLoader)
         constructor.newInstance(bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent);
+  }
+
+  private static ClassLoader createDelegateClassLoader(
+      final String innerJarFilename, final URL bootstrapURL, final ClassLoader parent)
+      throws Exception {
+    final Class<?> loaderClass =
+        ClassLoader.getSystemClassLoader()
+            .loadClass("datadog.trace.bootstrap.DatadogClassLoader$DelegateClassLoader");
+    final Constructor constructor =
+        loaderClass.getDeclaredConstructor(
+            URL.class, String.class, ClassLoader.class, ClassLoader.class, ClassLoader.class);
+    ClassLoader classLoader =
+        (ClassLoader)
+            constructor.newInstance(
+                bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent, PARENT_CLASSLOADER);
+    return classLoader;
   }
 
   private static ClassLoader getPlatformClassLoader()

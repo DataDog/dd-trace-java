@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -29,6 +30,11 @@ public final class StatementInstrumentation extends Instrumenter.Default {
 
   public StatementInstrumentation() {
     super("jdbc");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return hasClassesNamed("java.sql.Statement");
   }
 
   @Override
@@ -70,7 +76,7 @@ public final class StatementInstrumentation extends Instrumenter.Default {
       DECORATE.onConnection(span, connection);
       DECORATE.onStatement(span, sql);
       span.setTag("span.origin.type", statement.getClass().getName());
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -82,6 +88,7 @@ public final class StatementInstrumentation extends Instrumenter.Default {
       DECORATE.onError(scope.span(), throwable);
       DECORATE.beforeFinish(scope.span());
       scope.close();
+      scope.span().finish();
       CallDepthThreadLocalMap.reset(Statement.class);
     }
   }

@@ -13,7 +13,7 @@ muzzle {
   }
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 apply plugin: 'org.unbroken-dome.test-sets'
 
@@ -29,7 +29,7 @@ dependencies {
 
   testCompile group: 'com.github.kstyrc', name: 'embedded-redis', version: '0.6'
   testCompile group: 'io.lettuce', name: 'lettuce-core', version: '5.0.0.RELEASE'
+  testCompile project(':dd-java-agent:instrumentation:reactor-core-3.1')
 
-  // FIXME: Tests need to be updated to support 5.1+
-  latestDepTestCompile group: 'io.lettuce', name: 'lettuce-core', version: '5.0.+'
+  latestDepTestCompile group: 'io.lettuce', name: 'lettuce-core', version: '5.+'
 }

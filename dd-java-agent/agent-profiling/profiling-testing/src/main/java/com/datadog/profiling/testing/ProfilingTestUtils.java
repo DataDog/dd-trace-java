@@ -30,8 +30,7 @@ public final class ProfilingTestUtils {
   }
 
   public static Map<String, String> parseTags(final Collection<Object> params) {
-    return params
-        .stream()
+    return params.stream()
         .map(p -> ((String) p).split(":", 2))
         .collect(Collectors.toMap(p -> p[0], p -> p[1]));
   }

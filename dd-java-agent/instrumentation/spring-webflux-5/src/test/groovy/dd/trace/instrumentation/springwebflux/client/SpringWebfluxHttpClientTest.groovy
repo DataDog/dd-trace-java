@@ -10,7 +10,6 @@ import datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClien
 import org.springframework.http.HttpMethod
 import org.springframework.web.reactive.function.client.ClientResponse
 import org.springframework.web.reactive.function.client.WebClient
-import spock.lang.Shared
 import spock.lang.Timeout
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
@@ -18,18 +17,14 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 @Timeout(5)
 class SpringWebfluxHttpClientTest extends HttpClientTest {
 
-  @Shared
-  def client = WebClient.builder().build()
-
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
     def hasParent = activeSpan() != null
-    ClientResponse response = client.method(HttpMethod.resolve(method))
-      .headers { h -> headers.forEach({ key, value -> h.add(key, value) }) }
+    ClientResponse response = WebClient.builder().build().method(HttpMethod.resolve(method))
       .uri(uri)
+      .headers { h -> headers.forEach({ key, value -> h.add(key, value) }) }
       .exchange()
-      .doOnSuccessOrError { success, error ->
-        blockUntilChildSpansFinished(1)
+      .doAfterSuccessOrError { res, ex ->
         callback?.call()
       }
       .block()
@@ -94,6 +89,7 @@ class SpringWebfluxHttpClientTest extends HttpClientTest {
   boolean testConnectionFailure() {
     false
   }
+
 
   boolean testRemoteConnection() {
     // FIXME: figure out how to configure timeouts.

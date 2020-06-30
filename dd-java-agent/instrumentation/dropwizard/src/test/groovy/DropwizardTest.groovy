@@ -1,4 +1,4 @@
-import datadog.opentracing.DDSpan
+import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
@@ -26,7 +26,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
 // Work around for: address already in use
-@Retry
+@Retry(count = 5, delay = 100)
 class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
 
   @Override
@@ -118,7 +118,6 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
         "$Tags.HTTP_STATUS" endpoint.status
         "span.origin.type" ServletHandler.CachedChain.name
         if (endpoint.errored) {
-          "$Tags.ERROR" endpoint.errored
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }
           "error.stack" { it == null || it instanceof String }

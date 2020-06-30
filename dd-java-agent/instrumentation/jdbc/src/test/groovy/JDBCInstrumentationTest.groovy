@@ -2,7 +2,6 @@ import com.mchange.v2.c3p0.ComboPooledDataSource
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.derby.jdbc.EmbeddedDataSource
@@ -25,6 +24,7 @@ import java.sql.Statement
 import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 class JDBCInstrumentationTest extends AgentTestRunner {
   static {
@@ -164,7 +164,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     setup:
     Statement statement = connection.createStatement()
     ResultSet resultSet = runUnderTrace("parent") {
-      withConfigOverride(Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
+      withConfigOverride(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
         return statement.executeQuery(query)
       }
     }

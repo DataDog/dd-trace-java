@@ -14,6 +14,8 @@ import com.amazonaws.handlers.RequestHandler2;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -60,9 +62,12 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Default {
         final AgentScope scope = request.getHandlerContext(SCOPE_CONTEXT_KEY);
         if (scope != null) {
           request.addHandlerContext(SCOPE_CONTEXT_KEY, null);
-          DECORATE.onError(scope.span(), throwable);
-          DECORATE.beforeFinish(scope.span());
+          final AgentSpan span = scope.span();
+          span.setTag(InstrumentationTags.DD_MEASURED, true);
+          DECORATE.onError(span, throwable);
+          DECORATE.beforeFinish(span);
           scope.close();
+          span.finish();
         }
       }
     }
@@ -96,9 +101,12 @@ public class AWSHttpClientInstrumentation extends Instrumenter.Default {
           final AgentScope scope = request.getHandlerContext(SCOPE_CONTEXT_KEY);
           if (scope != null) {
             request.addHandlerContext(SCOPE_CONTEXT_KEY, null);
-            DECORATE.onError(scope.span(), throwable);
-            DECORATE.beforeFinish(scope.span());
+            final AgentSpan span = scope.span();
+            span.setTag(InstrumentationTags.DD_MEASURED, true);
+            DECORATE.onError(span, throwable);
+            DECORATE.beforeFinish(span);
             scope.close();
+            span.finish();
           }
         }
       }

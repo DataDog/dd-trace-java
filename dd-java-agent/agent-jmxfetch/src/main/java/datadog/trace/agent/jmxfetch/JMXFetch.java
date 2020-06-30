@@ -4,6 +4,7 @@ import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
 import com.google.common.collect.ImmutableList;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -56,16 +57,18 @@ public class JMXFetch {
     final Map<String, String> globalTags = config.getMergedJmxTags();
     final String reporter = getReporter(config);
 
-    log.info(
-        "JMXFetch config: {} {} {} {} {} {} {} {}",
-        jmxFetchConfigDir,
-        jmxFetchConfigs,
-        internalMetricsConfigs,
-        metricsConfigs,
-        checkPeriod,
-        refreshBeansPeriod,
-        globalTags,
-        reporter);
+    if (log.isInfoEnabled()) {
+      log.info(
+          "JMXFetch config: {} {} {} {} {} {} {} {}",
+          jmxFetchConfigDir,
+          jmxFetchConfigs,
+          internalMetricsConfigs,
+          metricsConfigs,
+          checkPeriod,
+          refreshBeansPeriod,
+          globalTags,
+          reporter);
+    }
 
     final AppConfig.AppConfigBuilder configBuilder =
         AppConfig.builder()
@@ -115,7 +118,7 @@ public class JMXFetch {
   }
 
   private static String getReporter(final Config config) {
-    if (Config.LOGGING_WRITER_TYPE.equals(config.getWriterType())) {
+    if (WriterConstants.LOGGING_WRITER_TYPE.equals(config.getWriterType())) {
       // If logging writer is enabled then also enable console reporter in JMXFetch
       return "console";
     }

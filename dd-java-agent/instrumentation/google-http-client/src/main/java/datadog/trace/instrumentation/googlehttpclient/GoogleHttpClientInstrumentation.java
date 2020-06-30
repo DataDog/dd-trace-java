@@ -19,6 +19,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -89,8 +90,9 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
       }
 
       final AgentSpan span = state.getSpan();
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
 
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, request);
         propagate().inject(span, request, SETTER);
@@ -110,7 +112,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
       if (state != null) {
         final AgentSpan span = state.getSpan();
 
-        try (final AgentScope scope = activateSpan(span, false)) {
+        try (final AgentScope scope = activateSpan(span)) {
           DECORATE.onResponse(span, response);
           DECORATE.onError(span, throwable);
 
@@ -154,7 +156,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
         if (state != null) {
           final AgentSpan span = state.getSpan();
 
-          try (final AgentScope scope = activateSpan(span, false)) {
+          try (final AgentScope scope = activateSpan(span)) {
             DECORATE.onError(span, throwable);
 
             DECORATE.beforeFinish(span);

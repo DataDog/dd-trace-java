@@ -33,7 +33,7 @@ tasks.withType(Upload).matching { it.name != "install" }.configureEach {
 def isRoot = project.rootProject == project
 if (!isRoot) {
   apply from: "$rootDir/gradle/version.gradle"
-  apply from: "${rootDir}/gradle/pom.gradle"
+  apply from: "$rootDir/gradle/pom.gradle"
 
   configurations {
     configurations {
@@ -55,7 +55,7 @@ if (!isRoot) {
 }
 
 def isSnapshot = version.endsWith("-SNAPSHOT")
-def isCIandTagged = System.getenv("CIRCLE_TAG") != null
+def isCIandTagged = System.getenv("CIRCLE_TAG") != null || System.getenv("CI_COMMIT_TAG") != null
 // define in ~/.gradle/gradle.properties to override for testing
 def forceLocal = project.hasProperty('forceLocal') && forceLocal
 

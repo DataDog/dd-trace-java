@@ -13,6 +13,7 @@ import net.bytebuddy.dynamic.ClassFileLocator
 import org.slf4j.LoggerFactory
 import spock.lang.Shared
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf
 import static net.bytebuddy.matcher.ElementMatchers.isMethod
 import static net.bytebuddy.matcher.ElementMatchers.named
 
@@ -39,7 +40,7 @@ class ExceptionHandlerTest extends DDSpecification {
           .with(new AgentBuilder.LocationStrategy.Simple(ClassFileLocator.ForClassLoader.of(BadAdvice.getClassLoader())))
           .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
           .advice(
-            isMethod().and(named("smallStack").or(named("largeStack"))),
+            isMethod().and(namedOneOf("smallStack", "largeStack")),
             BadAdvice.NoOpAdvice.getName()))
 
     ByteBuddyAgent.install()

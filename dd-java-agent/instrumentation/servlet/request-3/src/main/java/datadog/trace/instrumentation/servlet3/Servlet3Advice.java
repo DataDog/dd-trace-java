@@ -13,6 +13,7 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.security.Principal;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -47,13 +48,14 @@ public class Servlet3Advice {
 
     final AgentSpan span =
         startSpan("servlet.request", extractedContext)
-            .setTag("span.origin.type", servlet.getClass().getName());
+            .setTag("span.origin.type", servlet.getClass().getName())
+            .setTag(InstrumentationTags.DD_MEASURED, true);
 
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, httpServletRequest);
     DECORATE.onRequest(span, httpServletRequest);
 
-    final AgentScope scope = activateSpan(span, false);
+    final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
@@ -115,6 +117,7 @@ public class Servlet3Advice {
           DECORATE.beforeFinish(span);
           span.finish(); // Finish the span manually since finishSpanOnClose was false
         }
+        // else span finished in TagSettingAsyncListener
       }
       scope.close();
     }

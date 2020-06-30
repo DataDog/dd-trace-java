@@ -65,7 +65,7 @@ public final class DropwizardViewInstrumentation extends Instrumenter.Default {
               .setTag(DDTags.RESOURCE_NAME, "View " + view.getTemplateName())
               .setTag(Tags.COMPONENT, "dropwizard-view")
               .setTag("span.origin.type", obj.getClass().getSimpleName());
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -80,6 +80,7 @@ public final class DropwizardViewInstrumentation extends Instrumenter.Default {
         span.addThrowable(throwable);
       }
       scope.close();
+      span.finish();
     }
   }
 }

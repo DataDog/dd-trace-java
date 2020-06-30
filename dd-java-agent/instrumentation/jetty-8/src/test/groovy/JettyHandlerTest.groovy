@@ -120,7 +120,7 @@ class JettyHandlerTest extends HttpServerTest<Server> {
     trace.span(index) {
       serviceName expectedServiceName()
       operationName expectedOperationName()
-      resourceName endpoint.status == 404 ? "404" : "$method $handlerName"
+      resourceName endpoint.resource(method, address, testPathParam())
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint.errored
       if (parentID != null) {
@@ -139,7 +139,6 @@ class JettyHandlerTest extends HttpServerTest<Server> {
         "$Tags.HTTP_STATUS" endpoint.status
         "span.origin.type" handlerName
         if (endpoint.errored) {
-          "$Tags.ERROR" endpoint.errored
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }
           "error.stack" { it == null || it instanceof String }

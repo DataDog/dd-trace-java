@@ -1,7 +1,6 @@
 package datadog.trace.agent.test.base
 
 import ch.qos.logback.classic.Level
-import datadog.opentracing.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -10,11 +9,13 @@ import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.Response
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -27,6 +28,7 @@ import static datadog.trace.agent.test.asserts.TraceAssert.assertTrace
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -92,7 +94,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     false
   }
 
-  // Return the handler span's name
+  /** Return the handler span's name */
   String reorderHandlerSpan() {
     null
   }
@@ -113,6 +115,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     true
   }
 
+  boolean testException() {
+    true
+  }
+
+  /** Return the expected resource name */
+  String testPathParam() {
+    null
+  }
+
   enum ServerEndpoint {
     SUCCESS("success", 200, "success"),
     REDIRECT("redirect", 302, "/redirected"),
@@ -127,6 +138,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 //    QUERY_FRAGMENT_PARAM("query/fragment?some=query#some-fragment", 200, "some=query#some-fragment"),
     PATH_PARAM("path/123/param", 200, "123"),
     AUTH_REQUIRED("authRequired", 200, null),
+    LOGIN("login", 302, null),
 
     private final String path
     final String query
@@ -134,6 +146,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     final int status
     final String body
     final Boolean errored
+    final boolean hasPathParam
 
     ServerEndpoint(String uri, int status, String body) {
       def uriObj = URI.create(uri)
@@ -143,6 +156,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
       this.status = status
       this.body = body
       this.errored = status >= 500
+      this.hasPathParam = body == "123"
     }
 
     String getPath() {
@@ -157,6 +171,10 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
       return address.resolve(path)
     }
 
+    String resource(String method, URI address, String pathParam) {
+      return status == 404 ? "404" : "$method ${hasPathParam ? pathParam : resolve(address).path}"
+    }
+
     private static final Map<String, ServerEndpoint> PATH_MAP = values().collectEntries { [it.path, it] }
 
     static ServerEndpoint forPath(String path) {
@@ -164,7 +182,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     }
   }
 
-  Request.Builder request(ServerEndpoint uri, String method, String body) {
+  Request.Builder request(ServerEndpoint uri, String method, RequestBody body) {
     def url = HttpUrl.get(uri.resolve(address)).newBuilder()
       .query(uri.query)
       .fragment(uri.fragment)
@@ -288,6 +306,37 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     endpoint << [SUCCESS, QUERY_PARAM]
   }
 
+  def "test path param"() {
+    setup:
+    assumeTrue(testPathParam() != null)
+    def request = request(PATH_PARAM, method, body).build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == PATH_PARAM.status
+    response.body().string() == PATH_PARAM.body
+
+    and:
+    cleanAndAssertTraces(1) {
+      if (hasHandlerSpan()) {
+        trace(0, 3) {
+          serverSpan(it, 0, null, null, method, PATH_PARAM)
+          handlerSpan(it, 1, span(0), PATH_PARAM)
+          controllerSpan(it, 2, span(1))
+        }
+      } else {
+        trace(0, 2) {
+          serverSpan(it, 0, null, null, method, PATH_PARAM)
+          controllerSpan(it, 1, span(0))
+        }
+      }
+    }
+
+    where:
+    method = "GET"
+    body = null
+  }
+
   def "test success with multiple header attached parent"() {
     setup:
     def traceId = 123G
@@ -388,6 +437,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 
   def "test exception"() {
     setup:
+    assumeTrue(testException())
     def request = request(EXCEPTION, method, body).build()
     def response = client.newCall(request).execute()
 
@@ -509,6 +559,9 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
         }
         defaultTags()
       }
+      metrics {
+        defaultMetrics()
+      }
     }
   }
 
@@ -521,7 +574,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     trace.span(index) {
       serviceName expectedServiceName()
       operationName expectedOperationName()
-      resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
+      resourceName endpoint.resource(method, address, testPathParam())
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint.errored
       if (parentID != null) {
@@ -538,9 +591,6 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" endpoint.status
-        if (endpoint.errored) {
-          "$Tags.ERROR" endpoint.errored
-        }
         if (endpoint.query) {
           "$DDTags.HTTP_QUERY" endpoint.query
         }
@@ -549,6 +599,9 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 //          "$DDTags.HTTP_FRAGMENT" endpoint.fragment
 //        }
         defaultTags(true)
+      }
+      metrics {
+        defaultMetrics()
       }
     }
   }

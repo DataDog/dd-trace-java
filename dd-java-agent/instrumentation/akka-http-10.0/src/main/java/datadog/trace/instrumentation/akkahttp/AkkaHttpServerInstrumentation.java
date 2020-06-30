@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.DDSpanNames.AKKA_REQUEST;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders.GETTER;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -16,6 +17,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.context.TraceScope;
 import java.util.HashMap;
@@ -95,13 +97,14 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
   public static class DatadogWrapperHelper {
     public static AgentScope createSpan(final HttpRequest request) {
       final AgentSpan.Context extractedContext = propagate().extract(request, GETTER);
-      final AgentSpan span = startSpan("akka-http.request", extractedContext);
+      final AgentSpan span = startSpan(AKKA_REQUEST, extractedContext);
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
 
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, request);
       DECORATE.onRequest(span, request);
 
-      final AgentScope scope = activateSpan(span, false);
+      final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
       return scope;
     }

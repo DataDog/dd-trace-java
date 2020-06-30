@@ -1,4 +1,4 @@
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 minimumBranchCoverage = 0.6
 excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
@@ -19,10 +19,9 @@ dependencies {
   annotationProcessor deps.autoservice
   implementation deps.autoservice
 
-  compile project(':dd-trace-ot')
-  compile project(':dd-trace-ot:jfr-openjdk')
-  
-  testCompile deps.opentracing
+  compile project(':dd-trace-core')
+  compile project(':dd-trace-core:jfr-openjdk')
+
   testCompile project(':dd-java-agent:testing')
 
   instrumentationMuzzle sourceSets.main.output

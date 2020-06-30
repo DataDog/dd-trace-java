@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.grizzly;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.DDSpanNames.GRIZZLY_REQUEST;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyRequestExtractAdapter.GETTER;
@@ -18,6 +19,7 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -71,12 +73,13 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Default {
       }
 
       final Context parentContext = propagate().extract(request, GETTER);
-      final AgentSpan span = startSpan("grizzly.request", parentContext);
+      final AgentSpan span = startSpan(GRIZZLY_REQUEST, parentContext);
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, request);
       DECORATE.onRequest(span, request);
 
-      final AgentScope scope = activateSpan(span, false);
+      final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
 
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
@@ -101,6 +104,7 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Default {
         span.finish();
       }
       scope.close();
+      // span finished by SpanClosingListener
     }
   }
 

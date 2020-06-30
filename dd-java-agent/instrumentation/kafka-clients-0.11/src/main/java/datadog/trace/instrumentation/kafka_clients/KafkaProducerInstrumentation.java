@@ -13,8 +13,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -42,8 +44,6 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".KafkaDecorator",
-      packageName + ".KafkaDecorator$1",
-      packageName + ".KafkaDecorator$2",
       packageName + ".TextMapInjectAdapter",
       KafkaProducerInstrumentation.class.getName() + "$ProducerCallback"
     };
@@ -73,10 +73,22 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
 
       callback = new ProducerCallback(callback, span);
 
+      boolean isTombstone = record.value() == null && !record.headers().iterator().hasNext();
+      if (isTombstone) {
+        span.setTag(InstrumentationTags.TOMBSTONE, true);
+      }
+
       // Do not inject headers for batch versions below 2
       // This is how similar check is being done in Kafka client itself:
       // https://github.com/apache/kafka/blob/05fcfde8f69b0349216553f711fdfc3f0259c601/clients/src/main/java/org/apache/kafka/common/record/MemoryRecordsBuilder.java#L411-L412
-      if (apiVersions.maxUsableProduceMagic() >= RecordBatch.MAGIC_VALUE_V2) {
+      // Also, do not inject headers if specified by JVM option or environment variable
+      // This can help in mixed client environments where clients < 0.11 that do not support
+      // headers attempt to read messages that were produced by clients > 0.11 and the magic
+      // value of the broker(s) is >= 2
+      if (apiVersions.maxUsableProduceMagic() >= RecordBatch.MAGIC_VALUE_V2
+          && Config.get().isKafkaClientPropagationEnabled()
+          // Must not interfere with tombstones
+          && !isTombstone) {
         try {
           propagate().inject(span, record.headers(), SETTER);
         } catch (final IllegalStateException e) {
@@ -94,7 +106,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
         }
       }
 
-      return activateSpan(span, false);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -103,6 +115,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
+      // span finished by ProducerCallback
     }
   }
 
@@ -117,7 +130,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
 
     @Override
     public void onCompletion(final RecordMetadata metadata, final Exception exception) {
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         PRODUCER_DECORATE.onError(span, exception);
         try {
           if (callback != null) {

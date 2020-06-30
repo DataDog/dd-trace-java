@@ -1,0 +1,45 @@
+apply plugin: 'com.diffplug.gradle.spotless'
+
+spotless {
+  java {
+    googleJavaFormat()
+  }
+  groovyGradle {
+    // same as groovy, but for .gradle (defaults to '*.gradle')
+    target '*.gradle'
+    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
+  }
+  kotlinGradle {
+    // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
+    target '*.gradle.kts'
+    ktfmt()
+    ktlint().userData(['indent_size': '2', 'continuation_indent_size': '2'])
+  }
+
+//  groovy {
+//    excludeJava() // excludes all Java sources within the Groovy source dirs from formatting
+//    // the Groovy Eclipse formatter extends the Java Eclipse formatter,
+//    // so it formats Java files by default (unless `excludeJava` is used).
+//
+//    targetExclude '**/*Test.groovy' // Current formatting configuration is not great for our tests.
+//    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
+//  }
+  scala {
+    scalafmt()
+  }
+  kotlin {
+//    ktfmt() // Requires newer version of java
+    ktlint().userData(['indent_size': '2', 'continuation_indent_size': '2'])
+  }
+
+  format 'misc', {
+    target '**/.gitignore', '**/*.md', '**/*.sh'
+    targetExclude '**/integrations-core/**' // Exclude git submodule from evaluation.
+    indentWithSpaces()
+    trimTrailingWhitespace()
+    endWithNewline()
+  }
+}
+
+task formatCode(dependsOn: ['spotlessApply'])
+check.dependsOn 'spotlessCheck'

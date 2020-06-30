@@ -6,9 +6,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jaxrs.InjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator.DECORATE;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import javax.annotation.Priority;
 import javax.ws.rs.Priorities;
 import javax.ws.rs.client.ClientRequestContext;
@@ -24,10 +24,9 @@ public class ClientTracingFilter implements ClientRequestFilter, ClientResponseF
 
   @Override
   public void filter(final ClientRequestContext requestContext) {
-    final AgentSpan span =
-        startSpan("jax-rs.client.call")
-            .setTag(DDTags.RESOURCE_NAME, requestContext.getMethod() + " jax-rs.client.call");
-    try (final AgentScope scope = activateSpan(span, false)) {
+    final AgentSpan span = startSpan("jax-rs.client.call");
+    try (final AgentScope scope = activateSpan(span)) {
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, requestContext);
 
@@ -43,6 +42,7 @@ public class ClientTracingFilter implements ClientRequestFilter, ClientResponseF
     final Object spanObj = requestContext.getProperty(SPAN_PROPERTY_NAME);
     if (spanObj instanceof AgentSpan) {
       final AgentSpan span = (AgentSpan) spanObj;
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
       DECORATE.onResponse(span, responseContext);
       DECORATE.beforeFinish(span);
       span.finish();

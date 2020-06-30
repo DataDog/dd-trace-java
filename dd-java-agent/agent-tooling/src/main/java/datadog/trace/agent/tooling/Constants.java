@@ -14,16 +14,17 @@ public final class Constants {
    * datadog.trace.agent.test.SpockRunner#BOOTSTRAP_PACKAGE_PREFIXES_COPY
    */
   public static final String[] BOOTSTRAP_PACKAGE_PREFIXES = {
+    "datadog.common.exec",
     "datadog.slf4j",
     "datadog.trace.api",
     "datadog.trace.bootstrap",
     "datadog.trace.context",
     "datadog.trace.instrumentation.api",
-    "io.opentracing",
   };
 
   // This is used in IntegrationTestUtils.java
   public static final String[] AGENT_PACKAGE_PREFIXES = {
+    "datadog.common.exec",
     "datadog.trace.common",
     "datadog.trace.agent",
     "datadog.trace.instrumentation",
@@ -35,12 +36,8 @@ public final class Constants {
     "com.blogspot.mydailyjava.weaklockfree",
     // bytebuddy
     "net.bytebuddy",
-    // OT contribs for dd trace resolver
-    "io.opentracing.contrib",
-    // jackson
+    // msgpack
     "org.msgpack",
-    "com.fasterxml.jackson",
-    "org.yaml.snakeyaml",
     // disruptor
     "com.lmax.disruptor",
     // okHttp

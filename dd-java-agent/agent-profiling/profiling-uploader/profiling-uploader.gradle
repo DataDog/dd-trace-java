@@ -3,7 +3,9 @@ ext {
   jmcVersion = '8.0.0-SNAPSHOT'
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
+
+minimumBranchCoverage = 0.8
 
 excludedClassesCoverage += [
   // This is just a static declaration that is hard to test
@@ -14,6 +16,7 @@ excludedClassesCoverage += [
 
 dependencies {
   compile deps.slf4j
+  compile project(':utils:container-utils')
   compile project(':dd-trace-api')
 
   compile project(':dd-java-agent:agent-profiling:profiling-controller')
@@ -27,10 +30,7 @@ dependencies {
 
   testCompile deps.junit5
   testCompile project(':dd-java-agent:agent-profiling:profiling-testing')
-  testCompile group: 'org.mockito', name: 'mockito-core', version: '3.1.0'
-  testCompile group: 'org.mockito', name: 'mockito-junit-jupiter', version: '3.1.0'
-  testCompile deps.bytebuddy
-  testCompile deps.bytebuddyagent
+  testCompile deps.mockito
   testCompile group: 'com.squareup.okhttp3', name: 'mockwebserver', version: versions.okhttp
 }
 

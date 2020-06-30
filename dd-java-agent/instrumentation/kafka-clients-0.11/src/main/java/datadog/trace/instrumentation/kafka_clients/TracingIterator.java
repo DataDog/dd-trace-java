@@ -8,6 +8,7 @@ import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Iterator;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -36,8 +37,7 @@ public class TracingIterator implements Iterator<ConsumerRecord> {
   @Override
   public boolean hasNext() {
     if (currentScope != null) {
-      currentScope.close();
-      currentScope = null;
+      finish();
     }
     return delegateIterator.hasNext();
   }
@@ -46,8 +46,7 @@ public class TracingIterator implements Iterator<ConsumerRecord> {
   public ConsumerRecord next() {
     if (currentScope != null) {
       // in case they didn't call hasNext()...
-      currentScope.close();
-      currentScope = null;
+      finish();
     }
 
     final ConsumerRecord next = delegateIterator.next();
@@ -56,15 +55,26 @@ public class TracingIterator implements Iterator<ConsumerRecord> {
       if (next != null) {
         final Context spanContext = propagate().extract(next.headers(), GETTER);
         final AgentSpan span = startSpan(operationName, spanContext);
+        // tombstone checking logic here because it can only be inferred
+        // from the record itself
+        if (next.value() == null && !next.headers().iterator().hasNext()) {
+          span.setTag(InstrumentationTags.TOMBSTONE, true);
+        }
         decorator.afterStart(span);
         decorator.onConsume(span, next);
-        currentScope = activateSpan(span, true);
+        currentScope = activateSpan(span);
         currentScope.setAsyncPropagation(true);
       }
     } catch (final Exception e) {
       log.debug("Error during decoration", e);
     }
     return next;
+  }
+
+  private void finish() {
+    currentScope.close();
+    decorator.finishConsumerSpan(currentScope.span());
+    currentScope = null;
   }
 
   @Override

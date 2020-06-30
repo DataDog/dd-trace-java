@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jaxrs1;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasSuperMethod;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -18,6 +19,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.lang.reflect.Method;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -65,13 +67,14 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Default 
             .and(
                 hasSuperMethod(
                     isAnnotatedWith(
-                        named("javax.ws.rs.Path")
-                            .or(named("javax.ws.rs.DELETE"))
-                            .or(named("javax.ws.rs.GET"))
-                            .or(named("javax.ws.rs.HEAD"))
-                            .or(named("javax.ws.rs.OPTIONS"))
-                            .or(named("javax.ws.rs.POST"))
-                            .or(named("javax.ws.rs.PUT"))))),
+                        namedOneOf(
+                            "javax.ws.rs.Path",
+                            "javax.ws.rs.DELETE",
+                            "javax.ws.rs.GET",
+                            "javax.ws.rs.HEAD",
+                            "javax.ws.rs.OPTIONS",
+                            "javax.ws.rs.POST",
+                            "javax.ws.rs.PUT")))),
         JaxRsAnnotationsInstrumentation.class.getName() + "$JaxRsAnnotationsAdvice");
   }
 
@@ -84,10 +87,11 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Default 
       final AgentSpan parent = activeSpan();
 
       final AgentSpan span = startSpan(JAX_ENDPOINT_OPERATION_NAME);
-      DECORATE.onControllerStart(span, parent, target.getClass(), method);
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
+      DECORATE.onJaxRsSpan(span, parent, target.getClass(), method);
       DECORATE.afterStart(span);
 
-      final AgentScope scope = activateSpan(span, true);
+      final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
       return scope;
     }
@@ -99,6 +103,7 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Default 
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
       scope.close();
+      scope.span().finish();
     }
   }
 }

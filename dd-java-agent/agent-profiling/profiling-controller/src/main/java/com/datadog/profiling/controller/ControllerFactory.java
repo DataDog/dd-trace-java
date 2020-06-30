@@ -29,13 +29,14 @@ public final class ControllerFactory {
    * @return the created controller.
    * @throws UnsupportedEnvironmentException if there is controller available for the platform we're
    *     running in. See the exception message for specifics.
+   * @throws ConfigurationException if profiler cannot start due to configuration problems
    */
   public static Controller createController(final Config config)
-      throws UnsupportedEnvironmentException {
+      throws UnsupportedEnvironmentException, ConfigurationException {
     try {
       Class.forName("com.oracle.jrockit.jfr.Producer");
       throw new UnsupportedEnvironmentException(
-          "The JFR controller is currently not supported on the Oracle JDK <= JDK 11!");
+          "Not enabling profiling; it requires Oracle Java 11+.");
     } catch (final ClassNotFoundException e) {
       // Fall through - until we support Oracle JDK 7 & 8, this is a good thing. ;)
     }
@@ -49,8 +50,30 @@ public final class ControllerFactory {
         | InstantiationException
         | IllegalAccessException
         | InvocationTargetException e) {
-      throw new UnsupportedEnvironmentException(
-          "The JFR controller could not find a supported JFR API", e);
+      if (e.getCause() != null && e.getCause() instanceof ConfigurationException) {
+        throw (ConfigurationException) e.getCause();
+      }
+      final String message = "Not enabling profiling" + getFixProposalMessage();
+      throw new UnsupportedEnvironmentException(message, e);
+    }
+  }
+
+  private static String getFixProposalMessage() {
+    try {
+      final String javaVersion = System.getProperty("java.version");
+      if (javaVersion == null) {
+        return "";
+      }
+      final String javaVendor = System.getProperty("java.vendor", "");
+      if (javaVersion.startsWith("1.8")) {
+        if (javaVendor.startsWith("Azul Systems")) {
+          return "; it requires Zulu Java 8 (1.8.0_212+).";
+        }
+        // TODO Add version minimum once JFR backported into OpenJDK distros
+      }
+      return "; it requires OpenJDK 11+, Oracle Java 11+, or Zulu Java 8 (1.8.0_212+).";
+    } catch (final Exception ex) {
+      return "";
     }
   }
 }

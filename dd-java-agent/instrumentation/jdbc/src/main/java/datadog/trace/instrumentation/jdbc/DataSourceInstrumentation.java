@@ -62,7 +62,9 @@ public final class DataSourceInstrumentation extends Instrumenter.Default {
 
       span.setTag(DDTags.RESOURCE_NAME, ds.getClass().getSimpleName() + ".getConnection");
 
-      return activateSpan(span, true).setAsyncPropagation(true);
+      final AgentScope agentScope = activateSpan(span);
+      agentScope.setAsyncPropagation(true);
+      return agentScope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -74,6 +76,7 @@ public final class DataSourceInstrumentation extends Instrumenter.Default {
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 }

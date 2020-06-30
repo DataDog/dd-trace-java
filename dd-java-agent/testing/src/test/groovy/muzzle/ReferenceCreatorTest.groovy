@@ -4,6 +4,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.tooling.muzzle.Reference
 import datadog.trace.agent.tooling.muzzle.ReferenceCreator
 
+import static muzzle.TestClasses.InstanceofAdvice
 import static muzzle.TestClasses.LdcAdvice
 import static muzzle.TestClasses.MethodBodyAdvice
 
@@ -13,20 +14,18 @@ class ReferenceCreatorTest extends AgentTestRunner {
     Map<String, Reference> references = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.getName(), this.getClass().getClassLoader())
 
     expect:
-    references.get('java.lang.Object') != null
-    references.get('java.lang.String') != null
     references.get('muzzle.TestClasses$MethodBodyAdvice$A') != null
     references.get('muzzle.TestClasses$MethodBodyAdvice$B') != null
     references.get('muzzle.TestClasses$MethodBodyAdvice$SomeInterface') != null
     references.get('muzzle.TestClasses$MethodBodyAdvice$SomeImplementation') != null
-    references.keySet().size() == 6
+    references.keySet().size() == 4
 
     // interface flags
     references.get('muzzle.TestClasses$MethodBodyAdvice$B').getFlags().contains(Reference.Flag.NON_INTERFACE)
     references.get('muzzle.TestClasses$MethodBodyAdvice$SomeInterface').getFlags().contains(Reference.Flag.INTERFACE)
 
     // class access flags
-    references.get('java.lang.Object').getFlags().contains(Reference.Flag.PUBLIC)
+    references.get('muzzle.TestClasses$MethodBodyAdvice$A').getFlags().contains(Reference.Flag.PACKAGE_OR_HIGHER)
     references.get('muzzle.TestClasses$MethodBodyAdvice$B').getFlags().contains(Reference.Flag.PACKAGE_OR_HIGHER)
 
     // method refs
@@ -62,6 +61,14 @@ class ReferenceCreatorTest extends AgentTestRunner {
   def "ldc creates references"() {
     setup:
     Map<String, Reference> references = ReferenceCreator.createReferencesFrom(LdcAdvice.getName(), this.getClass().getClassLoader())
+
+    expect:
+    references.get('muzzle.TestClasses$MethodBodyAdvice$A') != null
+  }
+
+  def "instanceof creates references"() {
+    setup:
+    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(InstanceofAdvice.getName(), this.getClass().getClassLoader())
 
     expect:
     references.get('muzzle.TestClasses$MethodBodyAdvice$A') != null

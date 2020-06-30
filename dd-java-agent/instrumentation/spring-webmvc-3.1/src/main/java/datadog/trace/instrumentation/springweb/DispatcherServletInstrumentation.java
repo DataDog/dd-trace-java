@@ -10,18 +10,21 @@ import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.springframework.web.method.HandlerMethod;
+import org.springframework.context.ApplicationContext;
+import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.ModelAndView;
 
 @AutoService(Instrumenter.class)
@@ -40,7 +43,7 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Default
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SpringWebHttpServerDecorator",
-      packageName + ".SpringWebHttpServerDecorator$1",
+      packageName + ".HandlerMappingResourceNameFilter",
     };
   }
 
@@ -50,9 +53,16 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Default
     transformers.put(
         isMethod()
             .and(isProtected())
+            .and(named("onRefresh"))
+            .and(takesArgument(0, named("org.springframework.context.ApplicationContext")))
+            .and(takesArguments(1)),
+        DispatcherServletInstrumentation.class.getName() + "$HandlerMappingAdvice");
+    transformers.put(
+        isMethod()
+            .and(isProtected())
             .and(named("render"))
             .and(takesArgument(0, named("org.springframework.web.servlet.ModelAndView"))),
-        DispatcherServletInstrumentation.class.getName() + "$DispatcherAdvice");
+        DispatcherServletInstrumentation.class.getName() + "$RenderAdvice");
     transformers.put(
         isMethod()
             .and(isProtected())
@@ -62,14 +72,35 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Default
     return transformers;
   }
 
-  public static class DispatcherAdvice {
+  /**
+   * This advice creates a filter that has reference to the handlerMappings from DispatcherServlet
+   * which allows the mappings to be evaluated at the beginning of the filter chain. This evaluation
+   * is done inside the Servlet3Decorator.onContext method.
+   */
+  public static class HandlerMappingAdvice {
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void afterRefresh(
+        @Advice.Argument(0) final ApplicationContext springCtx,
+        @Advice.FieldValue("handlerMappings") final List<HandlerMapping> handlerMappings) {
+      if (springCtx.containsBean("ddDispatcherFilter")) {
+        final HandlerMappingResourceNameFilter filter =
+            (HandlerMappingResourceNameFilter) springCtx.getBean("ddDispatcherFilter");
+        if (handlerMappings != null && filter != null) {
+          filter.setHandlerMappings(handlerMappings);
+        }
+      }
+    }
+  }
+
+  public static class RenderAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.Argument(0) final ModelAndView mv) {
       final AgentSpan span = startSpan("response.render");
       DECORATE_RENDER.afterStart(span);
       DECORATE_RENDER.onRender(span, mv);
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -78,11 +109,7 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Default
       DECORATE_RENDER.onError(scope, throwable);
       DECORATE_RENDER.beforeFinish(scope);
       scope.close();
-    }
-
-    // Make this advice match consistently with HandlerAdapterInstrumentation
-    private void muzzleCheck(final HandlerMethod method) {
-      method.getMethod();
+      scope.span().finish();
     }
   }
 

@@ -9,6 +9,7 @@ import static datadog.trace.instrumentation.grpc.client.GrpcInjectAdapter.SETTER
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
@@ -30,8 +31,10 @@ public class TracingClientInterceptor implements ClientInterceptor {
       final Channel next) {
 
     final AgentSpan span =
-        startSpan("grpc.client").setTag(DDTags.RESOURCE_NAME, method.getFullMethodName());
-    try (final AgentScope scope = activateSpan(span, false)) {
+        startSpan("grpc.client")
+            .setTag(DDTags.RESOURCE_NAME, method.getFullMethodName())
+            .setTag(InstrumentationTags.DD_MEASURED, true);
+    try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       scope.setAsyncPropagation(true);
 
@@ -63,7 +66,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
     public void start(final Listener<RespT> responseListener, final Metadata headers) {
       propagate().inject(span, headers, SETTER);
 
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         // Don't async propagate otherwise the span gets tied up with a timeout handler.
         super.start(new TracingClientCallListener<>(span, responseListener), headers);
       } catch (final Throwable e) {
@@ -76,7 +79,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
 
     @Override
     public void sendMessage(final ReqT message) {
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         scope.setAsyncPropagation(true);
         super.sendMessage(message);
       } catch (final Throwable e) {
@@ -103,7 +106,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
           startSpan("grpc.message", span.context())
               .setTag("message.type", message.getClass().getName());
       DECORATE.afterStart(messageSpan);
-      final AgentScope scope = activateSpan(messageSpan, true);
+      final AgentScope scope = activateSpan(messageSpan);
       scope.setAsyncPropagation(true);
       try {
         delegate().onMessage(message);
@@ -113,6 +116,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
       } finally {
         DECORATE.beforeFinish(messageSpan);
         scope.close();
+        messageSpan.finish();
       }
     }
 
@@ -120,7 +124,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
     public void onClose(final Status status, final Metadata trailers) {
       DECORATE.onClose(span, status);
       // Finishes span.
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         scope.setAsyncPropagation(true);
         delegate().onClose(status, trailers);
       } catch (final Throwable e) {
@@ -134,7 +138,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
 
     @Override
     public void onReady() {
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         scope.setAsyncPropagation(true);
         delegate().onReady();
       } catch (final Throwable e) {

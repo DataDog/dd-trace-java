@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends ServerDecorator {
   public static final String DD_SPAN_ATTRIBUTE = "datadog.span";
+  public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
 
   // Source: https://www.regextester.com/22
   private static final Pattern VALID_IPV4_ADDRESS =
@@ -108,10 +109,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       final Integer status = status(response);
       if (status != null) {
         span.setTag(Tags.HTTP_STATUS, status);
-
-        if (Config.get().getHttpServerErrorStatuses().contains(status)) {
-          span.setError(true);
-        }
       }
     }
     return span;

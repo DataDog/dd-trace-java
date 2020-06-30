@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.netty38.ChannelTraceContext;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -37,7 +38,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
       if (span == null) {
         ctx.sendUpstream(msg); // superclass does not throw
       } else {
-        try (final AgentScope scope = activateSpan(span, false)) {
+        try (final AgentScope scope = activateSpan(span)) {
           scope.setAsyncPropagation(true);
           ctx.sendUpstream(msg); // superclass does not throw
         }
@@ -50,7 +51,8 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
     final Context context = propagate().extract(request.headers(), GETTER);
 
     final AgentSpan span = startSpan("netty.request", context);
-    try (final AgentScope scope = activateSpan(span, false)) {
+    span.setTag(InstrumentationTags.DD_MEASURED, true);
+    try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, ctx.getChannel());
       DECORATE.onRequest(span, request);

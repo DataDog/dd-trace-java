@@ -3,13 +3,22 @@ package datadog.trace.instrumentation.rabbitmq.amqp;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_COMMAND;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MESSAGE_SIZE;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SPAN_ORIGIN_TYPE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.TextMapExtractAdapter.GETTER;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.ShutdownSignalException;
+import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
@@ -25,10 +34,13 @@ import lombok.extern.slf4j.Slf4j;
 public class TracedDelegatingConsumer implements Consumer {
   private final String queue;
   private final Consumer delegate;
+  private final boolean traceStartTimeEnabled;
 
-  public TracedDelegatingConsumer(final String queue, final Consumer delegate) {
+  public TracedDelegatingConsumer(
+      final String queue, final Consumer delegate, boolean traceStartTimeEnabled) {
     this.queue = queue;
     this.delegate = delegate;
+    this.traceStartTimeEnabled = traceStartTimeEnabled;
   }
 
   @Override
@@ -69,13 +81,23 @@ public class TracedDelegatingConsumer implements Consumer {
       final Context context = headers == null ? null : propagate().extract(headers, GETTER);
 
       final AgentSpan span =
-          startSpan("amqp.command", context)
-              .setTag("message.size", body == null ? 0 : body.length)
-              .setTag("span.origin.type", delegate.getClass().getName());
+          startSpan(AMQP_COMMAND, context)
+              .setTag(MESSAGE_SIZE, body == null ? 0 : body.length)
+              .setTag(SPAN_ORIGIN_TYPE, delegate.getClass().getName())
+              .setTag(DD_MEASURED, true);
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);
+      final long spanStartTime = NANOSECONDS.toMillis(span.getStartTime());
 
-      scope = activateSpan(span, true);
+      // TODO - do we still need both?
+      if (properties.getTimestamp() != null) {
+        // this will be set if the sender sets the timestamp,
+        // or if a plugin is installed on the rabbitmq broker
+        long produceTime = properties.getTimestamp().getTime();
+        span.setTag(RECORD_QUEUE_TIME_MS, Math.max(0L, spanStartTime - produceTime));
+      }
+
+      scope = activateSpan(span);
 
     } catch (final Exception e) {
       log.debug("Instrumentation error in tracing consumer", e);
@@ -94,6 +116,20 @@ public class TracedDelegatingConsumer implements Consumer {
         if (scope != null) {
           CONSUMER_DECORATE.beforeFinish(scope);
           scope.close();
+          AgentSpan span = scope.span();
+          if (traceStartTimeEnabled) {
+            long now = System.currentTimeMillis();
+            String traceStartTime = span.getBaggageItem(DDTags.TRACE_START_TIME);
+            if (null != traceStartTime) {
+              // not being defensive here because we own the lifecycle of this value
+              span.setTag(
+                  RECORD_END_TO_END_DURATION_MS,
+                  Math.max(0L, now - Long.parseLong(traceStartTime)));
+            }
+            span.finish(MILLISECONDS.toMicros(now));
+          } else {
+            span.finish();
+          }
         }
       }
     }

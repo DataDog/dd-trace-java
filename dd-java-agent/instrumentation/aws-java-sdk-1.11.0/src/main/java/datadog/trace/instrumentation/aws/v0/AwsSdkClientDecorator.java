@@ -7,6 +7,7 @@ import com.amazonaws.Response;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.util.Map;
@@ -42,6 +43,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setTag(
         DDTags.RESOURCE_NAME,
         remapServiceName(awsServiceName) + "." + remapOperationName(awsOperation));
+    span.setTag(InstrumentationTags.DD_MEASURED, true);
 
     if (contextStore != null) {
       final RequestMeta requestMeta = contextStore.get(originalRequest);

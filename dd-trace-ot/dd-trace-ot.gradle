@@ -1,24 +1,23 @@
 plugins {
   id "com.github.johnrengelman.shadow" version "5.2.0"
   id "me.champeau.gradle.jmh" version "0.5.0"
+  id "com.palantir.revapi" version "1.4.0"
 }
 
 description = 'dd-trace-ot'
 
-apply from: "${rootDir}/gradle/java.gradle"
-apply from: "${rootDir}/gradle/publish.gradle"
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/publish.gradle"
 
+// TODO raise these when equals() and hashCode() are excluded
 minimumBranchCoverage = 0.5
-minimumInstructionCoverage = 0.6
+minimumInstructionCoverage = 0.5
+
 excludedClassesCoverage += [
-  'datadog.trace.common.writer.ListWriter',
-  'datadog.trace.common.writer.LoggingWriter',
-  'datadog.trace.common.writer.DDAgentWriter.DDAgentWriterBuilder',
-  'datadog.trace.common.sampling.PrioritySampling',
-  // This code is copied from okHttp samples and we have integration tests to verify that it works.
-  'datadog.trace.common.writer.unixdomainsockets.TunnelingUnixSocket',
-  'datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory',
-  'datadog.opentracing.StringCachingBigInteger'
+  // This is mainly equals() and hashCode()
+  "datadog.opentracing.OTSpanContext",
+  // The builder is generated
+  "datadog.opentracing.DDTracer.DDTracerBuilder"
 ]
 
 apply plugin: 'org.unbroken-dome.test-sets'
@@ -26,7 +25,6 @@ apply plugin: 'org.unbroken-dome.test-sets'
 testSets {
   ot31CompatabilityTest
   ot33CompatabilityTest
-  traceAgentTest
 }
 
 dependencies {
@@ -34,19 +32,15 @@ dependencies {
   implementation deps.autoservice
 
   compile project(':dd-trace-api')
-  compile project(':utils:thread-utils')
+  compile project(':dd-trace-core')
 
-  compile deps.opentracing
+  // OpenTracing
+  compile group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  compile group: 'io.opentracing', name: 'opentracing-noop', version: '0.32.0'
+  compile group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
   compile group: 'io.opentracing.contrib', name: 'opentracing-tracerresolver', version: '0.1.0'
 
-  compile group: 'com.datadoghq', name: 'java-dogstatsd-client', version: '2.1.1'
-
   compile deps.slf4j
-  compile deps.okhttp
-  compile group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
-  compile group: 'com.squareup.moshi', name: 'moshi', version: '1.9.2'
-  compile group: 'com.github.jnr', name: 'jnr-unixsocket', version: '0.23'
-  compile group: 'com.lmax', name: 'disruptor', version: '3.4.2'
 
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
   testAnnotationProcessor deps.autoservice
@@ -54,9 +48,6 @@ dependencies {
 
   testCompile project(":dd-java-agent:testing")
   testCompile group: 'com.github.stefanbirkner', name: 'system-rules', version: '1.19.0'
-  testCompile group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
-
-  traceAgentTestCompile deps.testcontainers
 
   ot31CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
   ot31CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
@@ -67,14 +58,20 @@ dependencies {
   ot33CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-noop', version: '0.33.0'
 }
 
-[configurations.ot31CompatabilityTestCompile, configurations.ot31CompatabilityTestRuntime].each {
+[
+  configurations.ot31CompatabilityTestCompile,
+  configurations.ot31CompatabilityTestRuntime
+].each {
   it.resolutionStrategy {
     force group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
     force group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
     force group: 'io.opentracing', name: 'opentracing-noop', version: '0.31.0'
   }
 }
-[configurations.ot33CompatabilityTestCompile, configurations.ot33CompatabilityTestRuntime].each {
+[
+  configurations.ot33CompatabilityTestCompile,
+  configurations.ot33CompatabilityTestRuntime
+].each {
   it.resolutionStrategy {
     force group: 'io.opentracing', name: 'opentracing-api', version: '0.33.0'
     force group: 'io.opentracing', name: 'opentracing-util', version: '0.33.0'
@@ -89,23 +86,53 @@ jar {
   archiveClassifier = 'unbundled'
 }
 
+def bundledProjects = [
+  ':dd-trace-core',
+  ':internal-api',
+  ':utils:thread-utils',
+  ':utils:container-utils'
+]
+
 shadowJar {
   archiveClassifier = ''
 
   dependencies {
-    include(project(':utils:thread-utils'))
+    bundledProjects.forEach {
+      include(project(it))
+    }
   }
 }
 
-// We don't want bundled dependencies to show up in the pom.
 modifyPom {
-  dependencies.removeAll { it.artifactId == "thread-utils" }
+  // We're bundling the internal dependencies.  So we need to add the transitive dependencies
+  // of those projects. Directly adding to the XML is the only way to prevent the shadowJar plugin
+  // from removing them
+  def bundledProjectNames = bundledProjects.collect { it.substring(it.lastIndexOf(":") + 1) }
+  withXml({ XmlProvider provider ->
+    Node dependencies = provider.asNode().dependencies[0]
+    def addedDependencies = project.configurations.getByName("compile").dependencies.collect { it.name }
+    addedDependencies.addAll(bundledProjectNames)
+    bundledProjects.forEach { bundledProject ->
+      project(bundledProject).configurations.getByName("compile").dependencies.forEach { transitiveDependency ->
+        if (!addedDependencies.contains(transitiveDependency.name)) {
+          def dependency = dependencies.appendNode("dependency")
+          dependency.appendNode("groupId", transitiveDependency.group)
+          dependency.appendNode("artifactId", transitiveDependency.name)
+          dependency.appendNode("version", transitiveDependency.version)
+          dependency.appendNode("scope", "compile")
+          addedDependencies.add(transitiveDependency.name)
+        }
+      }
+    }
+  })
+
+  dependencies.removeAll { bundledProjectNames.contains(it.artifactId) }
 }
 
 jmh {
-//  include = [".*URLAsResourceNameBenchmark"]
-//  include = ['some regular expression'] // include pattern (regular expression) for benchmarks to be executed
-//  exclude = ['some regular expression'] // exclude pattern (regular expression) for benchmarks to be executed
+  //  include = [".*URLAsResourceNameBenchmark"]
+  //  include = ['some regular expression'] // include pattern (regular expression) for benchmarks to be executed
+  //  exclude = ['some regular expression'] // exclude pattern (regular expression) for benchmarks to be executed
   iterations = 1 // Number of measurement iterations to do.
   benchmarkMode = ['thrpt', 'avgt', 'ss']
   // Benchmark mode. Available modes are: [Throughput/thrpt, AverageTime/avgt, SampleTime/sample, SingleShotTime/ss, All/all]
@@ -114,33 +141,33 @@ jmh {
   fork = 1 // How many times to forks a single benchmark. Use 0 to disable forking altogether
   failOnError = false // Should JMH fail immediately if any benchmark had experienced the unrecoverable error?
   forceGC = false // Should JMH force GC between iterations?
-//  jvm = 'myjvm' // Custom JVM to use when forking.
-//  jvmArgs = ['Custom JVM args to use when forking.']
-//  jvmArgsAppend = ['Custom JVM args to use when forking (append these)']
-//  jvmArgsPrepend =[ 'Custom JVM args to use when forking (prepend these)']
-//  humanOutputFile = project.file("${project.buildDir}/reports/jmh/human.txt") // human-readable output file
-//  resultsFile = project.file("${project.buildDir}/reports/jmh/results.txt") // results file
-//  operationsPerInvocation = 10 // Operations per invocation.
-//  benchmarkParameters =  [:] // Benchmark parameters.
-//  profilers = ['stack'] // Use profilers to collect additional data. Supported profilers: [cl, comp, gc, stack, perf, perfnorm, perfasm, xperf, xperfasm, hs_cl, hs_comp, hs_gc, hs_rt, hs_thr]
+  //  jvm = 'myjvm' // Custom JVM to use when forking.
+  //  jvmArgs = ['Custom JVM args to use when forking.']
+  //  jvmArgsAppend = ['Custom JVM args to use when forking (append these)']
+  //  jvmArgsPrepend =[ 'Custom JVM args to use when forking (prepend these)']
+  //  humanOutputFile = project.file("${project.buildDir}/reports/jmh/human.txt") // human-readable output file
+  //  resultsFile = project.file("${project.buildDir}/reports/jmh/results.txt") // results file
+  //  operationsPerInvocation = 10 // Operations per invocation.
+  //  benchmarkParameters =  [:] // Benchmark parameters.
+  //  profilers = ['stack'] // Use profilers to collect additional data. Supported profilers: [cl, comp, gc, stack, perf, perfnorm, perfasm, xperf, xperfasm, hs_cl, hs_comp, hs_gc, hs_rt, hs_thr]
   timeOnIteration = '1s' // Time to spend at each measurement iteration.
-//  resultFormat = 'CSV' // Result format type (one of CSV, JSON, NONE, SCSV, TEXT)
-//  synchronizeIterations = false // Synchronize iterations?
-//  threads = 2 // Number of worker threads to run with.
-//  threadGroups = [2,3,4] //Override thread group distribution for asymmetric benchmarks.
-//  timeout = '1s' // Timeout for benchmark iteration.
+  //  resultFormat = 'CSV' // Result format type (one of CSV, JSON, NONE, SCSV, TEXT)
+  //  synchronizeIterations = false // Synchronize iterations?
+  //  threads = 2 // Number of worker threads to run with.
+  //  threadGroups = [2,3,4] //Override thread group distribution for asymmetric benchmarks.
+  //  timeout = '1s' // Timeout for benchmark iteration.
   timeUnit = 'us' // Output time unit. Available time units are: [m, s, ms, us, ns].
-//  verbosity = 'NORMAL' // Verbosity mode. Available modes are: [SILENT, NORMAL, EXTRA]
+  //  verbosity = 'NORMAL' // Verbosity mode. Available modes are: [SILENT, NORMAL, EXTRA]
   warmup = '2s' // Time to spend at each warmup iteration.
-//  warmupBatchSize = 10 // Warmup batch size: number of benchmark method calls per operation.
+  //  warmupBatchSize = 10 // Warmup batch size: number of benchmark method calls per operation.
   warmupForks = 1 // How many warmup forks to make for a single benchmark. 0 to disable warmup forks.
   warmupIterations = 1 // Number of warmup iterations to do.
-//  warmupMode = 'INDI' // Warmup mode for warming up selected benchmarks. Warmup modes are: [INDI, BULK, BULK_INDI].
-//  warmupBenchmarks = ['.*Warmup'] // Warmup benchmarks to include in the run in addition to already selected. JMH will not measure these benchmarks, but only use them for the warmup.
+  //  warmupMode = 'INDI' // Warmup mode for warming up selected benchmarks. Warmup modes are: [INDI, BULK, BULK_INDI].
+  //  warmupBenchmarks = ['.*Warmup'] // Warmup benchmarks to include in the run in addition to already selected. JMH will not measure these benchmarks, but only use them for the warmup.
 
-//  zip64 = true // Use ZIP64 format for bigger archives
+  //  zip64 = true // Use ZIP64 format for bigger archives
   jmhVersion = '1.23' // Specifies JMH version
-//  includeTests = true // Allows to include test sources into generate JMH jar, i.e. use it when benchmarks depend on the test classes.
+  //  includeTests = true // Allows to include test sources into generate JMH jar, i.e. use it when benchmarks depend on the test classes.
   duplicateClassesStrategy = 'warn'
   // Strategy to apply when encountring duplicate classes during creation of the fat jar (i.e. while executing jmhJar task)
 }

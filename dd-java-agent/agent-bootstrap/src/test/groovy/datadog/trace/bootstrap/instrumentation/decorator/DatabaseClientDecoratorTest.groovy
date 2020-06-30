@@ -1,11 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-import datadog.trace.api.Config
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 class DatabaseClientDecoratorTest extends ClientDecoratorTest {
 
@@ -24,7 +24,6 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     }
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, "client")
-    1 * span.setTag(Tags.DB_TYPE, "test-db")
     1 * span.setTag(DDTags.SPAN_TYPE, "test-type")
     1 * span.setTag(DDTags.ANALYTICS_SAMPLE_RATE, 1.0)
     0 * _
@@ -38,7 +37,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     def decorator = newDecorator()
 
     when:
-    withConfigOverride(Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
+    withConfigOverride(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
       decorator.onConnection(span, session)
     }
 

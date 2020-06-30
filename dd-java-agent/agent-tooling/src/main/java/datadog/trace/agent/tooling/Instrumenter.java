@@ -67,8 +67,9 @@ public interface Instrumenter {
       instrumentationPrimaryName = instrumentationName;
 
       enabled = Config.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
-      if (contextStore().size() > 0) {
-        contextProvider = new FieldBackedProvider(this);
+      Map<String, String> contextStore = contextStore();
+      if (!contextStore.isEmpty()) {
+        contextProvider = new FieldBackedProvider(this, contextStore);
       } else {
         contextProvider = NoopContextProvider.INSTANCE;
       }
@@ -108,7 +109,7 @@ public interface Instrumenter {
       if (helperClassNames.length > 0) {
         agentBuilder =
             agentBuilder.transform(
-                new HelperInjector(this.getClass().getSimpleName(), helperClassNames));
+                new HelperInjector(getClass().getSimpleName(), helperClassNames));
       }
       return agentBuilder;
     }
@@ -146,21 +147,25 @@ public interface Instrumenter {
             if (log.isDebugEnabled()) {
               final List<Reference.Mismatch> mismatches =
                   muzzle.getMismatchedReferenceSources(classLoader);
-              log.debug(
-                  "Instrumentation muzzled: {} -- {} on {}",
-                  instrumentationNames,
-                  Instrumenter.Default.this.getClass().getName(),
-                  classLoader);
+              if (log.isDebugEnabled()) {
+                log.debug(
+                    "Instrumentation muzzled: {} -- {} on {}",
+                    instrumentationNames,
+                    Instrumenter.Default.this.getClass().getName(),
+                    classLoader);
+              }
               for (final Reference.Mismatch mismatch : mismatches) {
                 log.debug("-- {}", mismatch);
               }
             }
           } else {
-            log.debug(
-                "Applying instrumentation: {} -- {} on {}",
-                instrumentationPrimaryName,
-                Instrumenter.Default.this.getClass().getName(),
-                classLoader);
+            if (log.isDebugEnabled()) {
+              log.debug(
+                  "Applying instrumentation: {} -- {} on {}",
+                  instrumentationPrimaryName,
+                  Instrumenter.Default.this.getClass().getName(),
+                  classLoader);
+            }
           }
           return isMatch;
         }

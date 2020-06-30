@@ -1,11 +1,72 @@
 package datadog.trace.api;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_TAG_QUERY_STRING;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_STATSD_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_PROXY_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_DELAY;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_START_FORCE_FIRST;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_COMPRESSION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_PERIOD;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_UPLOAD_TIMEOUT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_EXTRACT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE_INJECT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SPLIT_BY_TAGS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
+import static datadog.trace.api.DDTags.HOST_TAG;
+import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
+import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
+import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
+import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
+import static datadog.trace.api.DDTags.SERVICE;
+import static datadog.trace.api.DDTags.SERVICE_TAG;
+
+import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.config.JmxFetchConfig;
+import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.config.TraceInstrumentationConfig;
+import datadog.trace.api.config.TracerConfig;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
@@ -13,9 +74,9 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +86,7 @@ import java.util.SortedSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,161 +99,140 @@ import lombok.extern.slf4j.Slf4j;
  * <p>System properties are {@link Config#PREFIX}'ed. Environment variables are the same as the
  * system property, but uppercased with '.' -> '_'.
  */
+@Deprecated
 @Slf4j
 @ToString(includeFieldNames = true)
 public class Config {
+  private static final MethodHandles.Lookup PUBLIC_LOOKUP = MethodHandles.publicLookup();
+
   /** Config keys below */
   private static final String PREFIX = "dd.";
 
-  private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
+  public static final String CONFIGURATION_FILE = GeneralConfig.CONFIGURATION_FILE;
+  public static final String API_KEY = GeneralConfig.API_KEY;
+  public static final String API_KEY_FILE = GeneralConfig.API_KEY_FILE;
+  public static final String SITE = GeneralConfig.SITE;
+  public static final String SERVICE_NAME = GeneralConfig.SERVICE_NAME;
+  public static final String TRACE_ENABLED = TraceInstrumentationConfig.TRACE_ENABLED;
+  public static final String INTEGRATIONS_ENABLED = TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
+  public static final String WRITER_TYPE = TracerConfig.WRITER_TYPE;
+  public static final String AGENT_HOST = TracerConfig.AGENT_HOST;
+  public static final String TRACE_AGENT_PORT = TracerConfig.TRACE_AGENT_PORT;
+  public static final String AGENT_PORT_LEGACY = TracerConfig.AGENT_PORT_LEGACY;
+  public static final String AGENT_UNIX_DOMAIN_SOCKET = TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
+  public static final String AGENT_TIMEOUT = TracerConfig.AGENT_TIMEOUT;
+  public static final String PRIORITY_SAMPLING = TracerConfig.PRIORITY_SAMPLING;
 
-  public static final String CONFIGURATION_FILE = "trace.config";
-  public static final String SERVICE_NAME = "service.name";
-  public static final String TRACE_ENABLED = "trace.enabled";
-  public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
-  public static final String WRITER_TYPE = "writer.type";
-  public static final String AGENT_HOST = "agent.host";
-  public static final String TRACE_AGENT_PORT = "trace.agent.port";
-  public static final String AGENT_PORT_LEGACY = "agent.port";
-  public static final String AGENT_UNIX_DOMAIN_SOCKET = "trace.agent.unix.domain.socket";
-  public static final String PRIORITY_SAMPLING = "priority.sampling";
-  public static final String TRACE_RESOLVER_ENABLED = "trace.resolver.enabled";
-  public static final String SERVICE_MAPPING = "service.mapping";
+  @Deprecated
+  public static final String TRACE_RESOLVER_ENABLED = TracerConfig.TRACE_RESOLVER_ENABLED;
 
-  public static final String TAGS = "tags";
+  public static final String SERVICE_MAPPING = TracerConfig.SERVICE_MAPPING;
+
+  private static final String ENV = GeneralConfig.ENV;
+  private static final String VERSION = GeneralConfig.VERSION;
+  public static final String TAGS = GeneralConfig.TAGS;
   @Deprecated // Use dd.tags instead
-  public static final String GLOBAL_TAGS = "trace.global.tags";
-  public static final String SPAN_TAGS = "trace.span.tags";
-  public static final String JMX_TAGS = "trace.jmx.tags";
-
-  public static final String TRACE_ANALYTICS_ENABLED = "trace.analytics.enabled";
-  public static final String TRACE_ANNOTATIONS = "trace.annotations";
-  public static final String TRACE_EXECUTORS_ALL = "trace.executors.all";
-  public static final String TRACE_EXECUTORS = "trace.executors";
-  public static final String TRACE_METHODS = "trace.methods";
-  public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
-  public static final String TRACE_SAMPLING_SERVICE_RULES = "trace.sampling.service.rules";
-  public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
-  public static final String TRACE_SAMPLE_RATE = "trace.sample.rate";
-  public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
-  public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";
-  public static final String HEADER_TAGS = "trace.header.tags";
-  public static final String HTTP_SERVER_ERROR_STATUSES = "http.server.error.statuses";
-  public static final String HTTP_CLIENT_ERROR_STATUSES = "http.client.error.statuses";
-  public static final String HTTP_SERVER_TAG_QUERY_STRING = "http.server.tag.query-string";
-  public static final String HTTP_CLIENT_TAG_QUERY_STRING = "http.client.tag.query-string";
-  public static final String HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN = "trace.http.client.split-by-domain";
-  public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE = "trace.db.client.split-by-instance";
-  public static final String SPLIT_BY_TAGS = "trace.split-by-tags";
-  public static final String SCOPE_DEPTH_LIMIT = "trace.scope.depth.limit";
-  public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
+  public static final String GLOBAL_TAGS = GeneralConfig.GLOBAL_TAGS;
+  public static final String SPAN_TAGS = TracerConfig.SPAN_TAGS;
+  public static final String JMX_TAGS = JmxFetchConfig.JMX_TAGS;
+  public static final String TRACE_ANALYTICS_ENABLED = TracerConfig.TRACE_ANALYTICS_ENABLED;
+  public static final String TRACE_ANNOTATIONS = TraceInstrumentationConfig.TRACE_ANNOTATIONS;
+  public static final String TRACE_EXECUTORS_ALL = TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
+  public static final String TRACE_EXECUTORS = TraceInstrumentationConfig.TRACE_EXECUTORS;
+  public static final String TRACE_METHODS = TraceInstrumentationConfig.TRACE_METHODS;
+  public static final String TRACE_CLASSES_EXCLUDE =
+      TraceInstrumentationConfig.TRACE_CLASSES_EXCLUDE;
+  public static final String TRACE_SAMPLING_SERVICE_RULES =
+      TracerConfig.TRACE_SAMPLING_SERVICE_RULES;
+  public static final String TRACE_SAMPLING_OPERATION_RULES =
+      TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
+  public static final String TRACE_SAMPLE_RATE = TracerConfig.TRACE_SAMPLE_RATE;
+  public static final String TRACE_RATE_LIMIT = TracerConfig.TRACE_RATE_LIMIT;
+  public static final String TRACE_REPORT_HOSTNAME = TracerConfig.TRACE_REPORT_HOSTNAME;
+  public static final String HEADER_TAGS = TracerConfig.HEADER_TAGS;
+  public static final String HTTP_SERVER_ERROR_STATUSES = TracerConfig.HTTP_SERVER_ERROR_STATUSES;
+  public static final String HTTP_CLIENT_ERROR_STATUSES = TracerConfig.HTTP_CLIENT_ERROR_STATUSES;
+  public static final String HTTP_SERVER_TAG_QUERY_STRING =
+      TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING;
+  public static final String HTTP_CLIENT_TAG_QUERY_STRING =
+      TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING;
+  public static final String HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN =
+      TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN;
+  public static final String DB_CLIENT_HOST_SPLIT_BY_INSTANCE =
+      TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
+  public static final String SPLIT_BY_TAGS = TracerConfig.SPLIT_BY_TAGS;
+  public static final String SCOPE_DEPTH_LIMIT = TracerConfig.SCOPE_DEPTH_LIMIT;
+  public static final String PARTIAL_FLUSH_MIN_SPANS = TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
-      "trace.runtime.context.field.injection";
-  public static final String PROPAGATION_STYLE_EXTRACT = "propagation.style.extract";
-  public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
+      TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
+  public static final String PROPAGATION_STYLE_EXTRACT = TracerConfig.PROPAGATION_STYLE_EXTRACT;
+  public static final String PROPAGATION_STYLE_INJECT = TracerConfig.PROPAGATION_STYLE_INJECT;
 
-  public static final String JMX_FETCH_ENABLED = "jmxfetch.enabled";
-  public static final String JMX_FETCH_CONFIG_DIR = "jmxfetch.config.dir";
-  public static final String JMX_FETCH_CONFIG = "jmxfetch.config";
-  public static final String JMX_FETCH_METRICS_CONFIGS = "jmxfetch.metrics-configs";
-  public static final String JMX_FETCH_CHECK_PERIOD = "jmxfetch.check-period";
-  public static final String JMX_FETCH_REFRESH_BEANS_PERIOD = "jmxfetch.refresh-beans-period";
-  public static final String JMX_FETCH_STATSD_HOST = "jmxfetch.statsd.host";
-  public static final String JMX_FETCH_STATSD_PORT = "jmxfetch.statsd.port";
+  public static final String JMX_FETCH_ENABLED = JmxFetchConfig.JMX_FETCH_ENABLED;
+  public static final String JMX_FETCH_CONFIG_DIR = JmxFetchConfig.JMX_FETCH_CONFIG_DIR;
+  public static final String JMX_FETCH_CONFIG = JmxFetchConfig.JMX_FETCH_CONFIG;
 
-  public static final String HEALTH_METRICS_ENABLED = "trace.health.metrics.enabled";
-  public static final String HEALTH_METRICS_STATSD_HOST = "trace.health.metrics.statsd.host";
-  public static final String HEALTH_METRICS_STATSD_PORT = "trace.health.metrics.statsd.port";
+  @Deprecated
+  public static final String JMX_FETCH_METRICS_CONFIGS = JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS;
 
-  public static final String LOGS_INJECTION_ENABLED = "logs.injection";
+  public static final String JMX_FETCH_CHECK_PERIOD = JmxFetchConfig.JMX_FETCH_CHECK_PERIOD;
+  public static final String JMX_FETCH_REFRESH_BEANS_PERIOD =
+      JmxFetchConfig.JMX_FETCH_REFRESH_BEANS_PERIOD;
+  public static final String JMX_FETCH_STATSD_HOST = JmxFetchConfig.JMX_FETCH_STATSD_HOST;
+  public static final String JMX_FETCH_STATSD_PORT = JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 
-  public static final String PROFILING_ENABLED = "profiling.enabled";
-  public static final String PROFILING_URL = "profiling.url";
+  public static final String HEALTH_METRICS_ENABLED = GeneralConfig.HEALTH_METRICS_ENABLED;
+  public static final String HEALTH_METRICS_STATSD_HOST = GeneralConfig.HEALTH_METRICS_STATSD_HOST;
+  public static final String HEALTH_METRICS_STATSD_PORT = GeneralConfig.HEALTH_METRICS_STATSD_PORT;
 
-  public static final String PROFILING_API_KEY = "profiling.api-key";
-  public static final String PROFILING_API_KEY_FILE = "profiling.api-key-file";
-  public static final String PROFILING_API_KEY_OLD = "profiling.apikey";
-  public static final String PROFILING_API_KEY_FILE_OLD = "profiling.apikey.file";
-  public static final String PROFILING_TAGS = "profiling.tags";
-  public static final String PROFILING_START_DELAY = "profiling.start-delay";
+  public static final String LOGS_INJECTION_ENABLED =
+      TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
+
+  public static final String PROFILING_ENABLED = ProfilingConfig.PROFILING_ENABLED;
+  @Deprecated // Use dd.site instead
+  public static final String PROFILING_URL = ProfilingConfig.PROFILING_URL;
+  @Deprecated // Use dd.api-key instead
+  public static final String PROFILING_API_KEY_OLD = ProfilingConfig.PROFILING_API_KEY_OLD;
+  @Deprecated // Use dd.api-key-file instead
+  public static final String PROFILING_API_KEY_FILE_OLD =
+      ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
+  @Deprecated // Use dd.api-key instead
+  public static final String PROFILING_API_KEY_VERY_OLD =
+      ProfilingConfig.PROFILING_API_KEY_VERY_OLD;
+  @Deprecated // Use dd.api-key-file instead
+  public static final String PROFILING_API_KEY_FILE_VERY_OLD =
+      ProfilingConfig.PROFILING_API_KEY_FILE_VERY_OLD;
+  public static final String PROFILING_TAGS = ProfilingConfig.PROFILING_TAGS;
+  public static final String PROFILING_START_DELAY = ProfilingConfig.PROFILING_START_DELAY;
   // DANGEROUS! May lead on sigsegv on JVMs before 14
   // Not intended for production use
   public static final String PROFILING_START_FORCE_FIRST =
-      "profiling.experimental.start-force-first";
-  public static final String PROFILING_UPLOAD_PERIOD = "profiling.upload.period";
+      ProfilingConfig.PROFILING_START_FORCE_FIRST;
+  public static final String PROFILING_UPLOAD_PERIOD = ProfilingConfig.PROFILING_UPLOAD_PERIOD;
   public static final String PROFILING_TEMPLATE_OVERRIDE_FILE =
-      "profiling.jfr-template-override-file";
-  public static final String PROFILING_UPLOAD_TIMEOUT = "profiling.upload.timeout";
-  public static final String PROFILING_UPLOAD_COMPRESSION = "profiling.upload.compression";
-  public static final String PROFILING_PROXY_HOST = "profiling.proxy.host";
-  public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
-  public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
-  public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
+      ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
+  public static final String PROFILING_UPLOAD_TIMEOUT = ProfilingConfig.PROFILING_UPLOAD_TIMEOUT;
+  public static final String PROFILING_UPLOAD_COMPRESSION =
+      ProfilingConfig.PROFILING_UPLOAD_COMPRESSION;
+  public static final String PROFILING_PROXY_HOST = ProfilingConfig.PROFILING_PROXY_HOST;
+  public static final String PROFILING_PROXY_PORT = ProfilingConfig.PROFILING_PROXY_PORT;
+  public static final String PROFILING_PROXY_USERNAME = ProfilingConfig.PROFILING_PROXY_USERNAME;
+  public static final String PROFILING_PROXY_PASSWORD = ProfilingConfig.PROFILING_PROXY_PASSWORD;
+  public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT =
+      ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT;
+  public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
+      ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
+  public static final String PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE =
+      ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
 
-  public static final String RUNTIME_ID_TAG = "runtime-id";
-  public static final String SERVICE_TAG = "service";
-  public static final String HOST_TAG = "host";
-  public static final String LANGUAGE_TAG_KEY = "language";
-  public static final String LANGUAGE_TAG_VALUE = "jvm";
+  public static final String KAFKA_CLIENT_PROPAGATION_ENABLED =
+      TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
 
-  public static final String DEFAULT_SERVICE_NAME = "unnamed-java-app";
+  private static final String PROFILING_REMOTE_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
+  private static final String PROFILING_LOCAL_URL_TEMPLATE = "http://%s:%d/profiling/v1/input";
 
-  private static final boolean DEFAULT_TRACE_ENABLED = true;
-  public static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
-  public static final String DD_AGENT_WRITER_TYPE = "DDAgentWriter";
-  public static final String LOGGING_WRITER_TYPE = "LoggingWriter";
-  private static final String DEFAULT_AGENT_WRITER_TYPE = DD_AGENT_WRITER_TYPE;
-
-  public static final String DEFAULT_AGENT_HOST = "localhost";
-  public static final int DEFAULT_TRACE_AGENT_PORT = 8126;
-  public static final String DEFAULT_AGENT_UNIX_DOMAIN_SOCKET = null;
-
-  private static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
-
-  private static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
-  private static final boolean DEFAULT_TRACE_RESOLVER_ENABLED = true;
-  private static final Set<Integer> DEFAULT_HTTP_SERVER_ERROR_STATUSES =
-      parseIntegerRangeSet("500-599", "default");
-  private static final Set<Integer> DEFAULT_HTTP_CLIENT_ERROR_STATUSES =
-      parseIntegerRangeSet("400-499", "default");
-  private static final boolean DEFAULT_HTTP_SERVER_TAG_QUERY_STRING = false;
-  private static final boolean DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING = false;
-  private static final boolean DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN = false;
-  private static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
-  private static final String DEFAULT_SPLIT_BY_TAGS = "";
-  private static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
-  private static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
-  private static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
-  private static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
-  private static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
-
-  public static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;
-
-  public static final boolean DEFAULT_METRICS_ENABLED = false;
-  // No default constants for metrics statsd support -- falls back to jmxfetch values
-
-  public static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
-
-  public static final boolean DEFAULT_PROFILING_ENABLED = false;
-  public static final String DEFAULT_PROFILING_URL =
-      "https://intake.profile.datadoghq.com/v1/input";
-  public static final int DEFAULT_PROFILING_START_DELAY = 10;
-  public static final boolean DEFAULT_PROFILING_START_FORCE_FIRST = false;
-  public static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
-  public static final int DEFAULT_PROFILING_UPLOAD_TIMEOUT = 30; // seconds
-  public static final String DEFAULT_PROFILING_UPLOAD_COMPRESSION = "on";
-  public static final int DEFAULT_PROFILING_PROXY_PORT = 8080;
-
+  private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
-
-  private static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
-  private static final String DEFAULT_TRACE_ANNOTATIONS = null;
-  private static final boolean DEFAULT_TRACE_EXECUTORS_ALL = false;
-  private static final String DEFAULT_TRACE_EXECUTORS = "";
-  private static final String DEFAULT_TRACE_METHODS = null;
-  public static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
-  public static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
-  public static final double DEFAULT_TRACE_RATE_LIMIT = 100;
 
   public enum PropagationStyle {
     DATADOG,
@@ -199,14 +240,34 @@ public class Config {
     HAYSTACK
   }
 
-  /** A tag intended for internal use only, hence not added to the public api DDTags class. */
-  private static final String INTERNAL_HOST_NAME = "_dd.hostname";
+  /** Used for masking sensitive information when doing toString */
+  @ToString.Include(name = "apiKey")
+  private String profilingApiKeyMasker() {
+    return apiKey != null ? "****" : null;
+  }
+
+  /** Used for masking sensitive information when doing toString */
+  @ToString.Include(name = "profilingProxyPassword")
+  private String profilingProxyPasswordMasker() {
+    return profilingProxyPassword != null ? "****" : null;
+  }
 
   /**
    * this is a random UUID that gets generated on JVM start up and is attached to every root span
    * and every JMX metric that is sent out.
    */
   @Getter private final String runtimeId;
+
+  /**
+   * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
+   * affected by this setting.
+   */
+  @Getter private final String apiKey;
+  /**
+   * Note: this has effect only on profiling site. Traces are sent to Datadog agent and are not
+   * affected by this setting.
+   */
+  @Getter private final String site;
 
   @Getter private final String serviceName;
   @Getter private final boolean traceEnabled;
@@ -215,17 +276,17 @@ public class Config {
   @Getter private final String agentHost;
   @Getter private final int agentPort;
   @Getter private final String agentUnixDomainSocket;
+  @Getter private final int agentTimeout;
   @Getter private final boolean prioritySamplingEnabled;
   @Getter private final boolean traceResolverEnabled;
   @Getter private final Map<String, String> serviceMapping;
-  private final Map<String, String> tags;
-  @Deprecated private final Map<String, String> globalTags;
+  @NonNull private final Map<String, String> tags;
   private final Map<String, String> spanTags;
   private final Map<String, String> jmxTags;
   @Getter private final List<String> excludedClasses;
   @Getter private final Map<String, String> headerTags;
-  @Getter private final Set<Integer> httpServerErrorStatuses;
-  @Getter private final Set<Integer> httpClientErrorStatuses;
+  @Getter private final BitSet httpServerErrorStatuses;
+  @Getter private final BitSet httpClientErrorStatuses;
   @Getter private final boolean httpServerTagQueryString;
   @Getter private final boolean httpClientTagQueryString;
   @Getter private final boolean httpClientSplitByDomain;
@@ -269,8 +330,7 @@ public class Config {
   @Getter private final Double traceRateLimit;
 
   @Getter private final boolean profilingEnabled;
-  @Getter private final String profilingUrl;
-  @Getter private final String profilingApiKey;
+  @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
   @Getter private final int profilingStartDelay;
   @Getter private final boolean profilingStartForceFirst;
@@ -282,6 +342,11 @@ public class Config {
   @Getter private final int profilingProxyPort;
   @Getter private final String profilingProxyUsername;
   @Getter private final String profilingProxyPassword;
+  @Getter private final int profilingExceptionSampleLimit;
+  @Getter private final int profilingExceptionHistogramTopItems;
+  @Getter private final int profilingExceptionHistogramMaxCollectionSize;
+
+  @Getter private final boolean kafkaClientPropagationEnabled;
 
   // Values from an optionally provided properties file
   private static Properties propertiesFromConfigFile;
@@ -293,7 +358,23 @@ public class Config {
 
     runtimeId = UUID.randomUUID().toString();
 
-    serviceName = getSettingFromEnvironment(SERVICE_NAME, DEFAULT_SERVICE_NAME);
+    // Note: We do not want APiKey to be loaded from property for security reasons
+    // Note: we do not use defined default here
+    // FIXME: We should use better authentication mechanism
+    final String apiKeyFile = getSettingFromEnvironment(API_KEY_FILE, null);
+    String tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(API_KEY));
+    if (apiKeyFile != null) {
+      try {
+        tmpApiKey =
+            new String(Files.readAllBytes(Paths.get(apiKeyFile)), StandardCharsets.UTF_8).trim();
+      } catch (final IOException e) {
+        log.error("Cannot read API key from file {}, skipping", apiKeyFile, e);
+      }
+    }
+    site = getSettingFromEnvironment(SITE, DEFAULT_SITE);
+    serviceName =
+        getSettingFromEnvironment(
+            SERVICE, getSettingFromEnvironment(SERVICE_NAME, DEFAULT_SERVICE_NAME));
 
     traceEnabled = getBooleanSettingFromEnvironment(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     integrationsEnabled =
@@ -306,14 +387,20 @@ public class Config {
             getIntegerSettingFromEnvironment(AGENT_PORT_LEGACY, DEFAULT_TRACE_AGENT_PORT));
     agentUnixDomainSocket =
         getSettingFromEnvironment(AGENT_UNIX_DOMAIN_SOCKET, DEFAULT_AGENT_UNIX_DOMAIN_SOCKET);
+    agentTimeout = getIntegerSettingFromEnvironment(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
     prioritySamplingEnabled =
         getBooleanSettingFromEnvironment(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
     traceResolverEnabled =
         getBooleanSettingFromEnvironment(TRACE_RESOLVER_ENABLED, DEFAULT_TRACE_RESOLVER_ENABLED);
     serviceMapping = getMapSettingFromEnvironment(SERVICE_MAPPING, null);
 
-    tags = getMapSettingFromEnvironment(TAGS, null);
-    globalTags = getMapSettingFromEnvironment(GLOBAL_TAGS, null);
+    {
+      final Map<String, String> tags =
+          new HashMap<>(getMapSettingFromEnvironment(GLOBAL_TAGS, null));
+      tags.putAll(getMapSettingFromEnvironment(TAGS, null));
+      this.tags = getMapWithPropertiesDefinedByEnvironment(tags, ENV, VERSION);
+    }
+
     spanTags = getMapSettingFromEnvironment(SPAN_TAGS, null);
     jmxTags = getMapSettingFromEnvironment(JMX_TAGS, null);
 
@@ -360,17 +447,11 @@ public class Config {
             RUNTIME_CONTEXT_FIELD_INJECTION, DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
 
     propagationStylesToExtract =
-        getEnumSetSettingFromEnvironment(
-            PROPAGATION_STYLE_EXTRACT,
-            DEFAULT_PROPAGATION_STYLE_EXTRACT,
-            PropagationStyle.class,
-            true);
+        getPropagationStyleSetSettingFromEnvironmentOrDefault(
+            PROPAGATION_STYLE_EXTRACT, DEFAULT_PROPAGATION_STYLE_EXTRACT);
     propagationStylesToInject =
-        getEnumSetSettingFromEnvironment(
-            PROPAGATION_STYLE_INJECT,
-            DEFAULT_PROPAGATION_STYLE_INJECT,
-            PropagationStyle.class,
-            true);
+        getPropagationStyleSetSettingFromEnvironmentOrDefault(
+            PROPAGATION_STYLE_INJECT, DEFAULT_PROPAGATION_STYLE_INJECT);
 
     jmxFetchEnabled =
         getBooleanSettingFromEnvironment(JMX_FETCH_ENABLED, DEFAULT_JMX_FETCH_ENABLED);
@@ -415,39 +496,39 @@ public class Config {
 
     profilingEnabled =
         getBooleanSettingFromEnvironment(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
-    profilingUrl = getSettingFromEnvironment(PROFILING_URL, DEFAULT_PROFILING_URL);
-    // Note: We do not want APiKey to be loaded from property for security reasons
-    // Note: we do not use defined default here
-    // FIXME: We should use better authentication mechanism
-    final String profilingApiKeyFile = getSettingFromEnvironment(PROFILING_API_KEY_FILE, null);
-    String tmpProfilingApiKey =
-        System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY));
-    if (profilingApiKeyFile != null) {
-      try {
-        tmpProfilingApiKey =
-            new String(Files.readAllBytes(Paths.get(profilingApiKeyFile)), StandardCharsets.UTF_8)
-                .trim();
-      } catch (final IOException e) {
-        log.error("Cannot read API key from file {}, skipping", profilingApiKeyFile, e);
-      }
-    }
-    if (tmpProfilingApiKey == null) {
+    profilingUrl = getSettingFromEnvironment(PROFILING_URL, null);
+
+    if (tmpApiKey == null) {
       final String oldProfilingApiKeyFile =
           getSettingFromEnvironment(PROFILING_API_KEY_FILE_OLD, null);
-      tmpProfilingApiKey =
-          System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
+      tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
       if (oldProfilingApiKeyFile != null) {
         try {
-          tmpProfilingApiKey =
+          tmpApiKey =
               new String(
                       Files.readAllBytes(Paths.get(oldProfilingApiKeyFile)), StandardCharsets.UTF_8)
                   .trim();
         } catch (final IOException e) {
-          log.error("Cannot read API key from file {}, skipping", profilingApiKeyFile, e);
+          log.error("Cannot read API key from file {}, skipping", oldProfilingApiKeyFile, e);
         }
       }
     }
-    profilingApiKey = tmpProfilingApiKey;
+    if (tmpApiKey == null) {
+      final String veryOldProfilingApiKeyFile =
+          getSettingFromEnvironment(PROFILING_API_KEY_FILE_VERY_OLD, null);
+      tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_VERY_OLD));
+      if (veryOldProfilingApiKeyFile != null) {
+        try {
+          tmpApiKey =
+              new String(
+                      Files.readAllBytes(Paths.get(veryOldProfilingApiKeyFile)),
+                      StandardCharsets.UTF_8)
+                  .trim();
+        } catch (final IOException e) {
+          log.error("Cannot read API key from file {}, skipping", veryOldProfilingApiKeyFile, e);
+        }
+      }
+    }
 
     profilingTags = getMapSettingFromEnvironment(PROFILING_TAGS, null);
     profilingStartDelay =
@@ -471,6 +552,25 @@ public class Config {
     profilingProxyUsername = getSettingFromEnvironment(PROFILING_PROXY_USERNAME, null);
     profilingProxyPassword = getSettingFromEnvironment(PROFILING_PROXY_PASSWORD, null);
 
+    profilingExceptionSampleLimit =
+        getIntegerSettingFromEnvironment(
+            PROFILING_EXCEPTION_SAMPLE_LIMIT, DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT);
+    profilingExceptionHistogramTopItems =
+        getIntegerSettingFromEnvironment(
+            PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
+            DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS);
+    profilingExceptionHistogramMaxCollectionSize =
+        getIntegerSettingFromEnvironment(
+            PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
+            DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE);
+
+    kafkaClientPropagationEnabled =
+        getBooleanSettingFromEnvironment(
+            KAFKA_CLIENT_PROPAGATION_ENABLED, DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED);
+
+    // Setting this last because we have a few places where this can come from
+    apiKey = tmpApiKey;
+
     log.debug("New instance: {}", this);
   }
 
@@ -478,7 +578,10 @@ public class Config {
   private Config(final Properties properties, final Config parent) {
     runtimeId = parent.runtimeId;
 
-    serviceName = properties.getProperty(SERVICE_NAME, parent.serviceName);
+    apiKey = properties.getProperty(API_KEY, parent.apiKey);
+    site = properties.getProperty(SITE, parent.site);
+    serviceName =
+        properties.getProperty(SERVICE, properties.getProperty(SERVICE_NAME, parent.serviceName));
 
     traceEnabled = getPropertyBooleanValue(properties, TRACE_ENABLED, parent.traceEnabled);
     integrationsEnabled =
@@ -492,14 +595,20 @@ public class Config {
             getPropertyIntegerValue(properties, AGENT_PORT_LEGACY, parent.agentPort));
     agentUnixDomainSocket =
         properties.getProperty(AGENT_UNIX_DOMAIN_SOCKET, parent.agentUnixDomainSocket);
+    agentTimeout = getPropertyIntegerValue(properties, AGENT_TIMEOUT, parent.agentTimeout);
     prioritySamplingEnabled =
         getPropertyBooleanValue(properties, PRIORITY_SAMPLING, parent.prioritySamplingEnabled);
     traceResolverEnabled =
         getPropertyBooleanValue(properties, TRACE_RESOLVER_ENABLED, parent.traceResolverEnabled);
     serviceMapping = getPropertyMapValue(properties, SERVICE_MAPPING, parent.serviceMapping);
 
-    tags = getPropertyMapValue(properties, TAGS, parent.tags);
-    globalTags = getPropertyMapValue(properties, GLOBAL_TAGS, parent.globalTags);
+    {
+      final Map<String, String> preTags =
+          new HashMap<>(
+              getPropertyMapValue(properties, GLOBAL_TAGS, Collections.<String, String>emptyMap()));
+      preTags.putAll(getPropertyMapValue(properties, TAGS, parent.tags));
+      tags = overwriteKeysFromProperties(preTags, properties, ENV, VERSION);
+    }
     spanTags = getPropertyMapValue(properties, SPAN_TAGS, parent.spanTags);
     jmxTags = getPropertyMapValue(properties, JMX_TAGS, parent.jmxTags);
     excludedClasses =
@@ -547,13 +656,13 @@ public class Config {
             properties, RUNTIME_CONTEXT_FIELD_INJECTION, parent.runtimeContextFieldInjection);
 
     final Set<PropagationStyle> parsedPropagationStylesToExtract =
-        getPropertySetValue(properties, PROPAGATION_STYLE_EXTRACT, PropagationStyle.class);
+        getPropagationStyleSetFromPropertyValue(properties, PROPAGATION_STYLE_EXTRACT);
     propagationStylesToExtract =
         parsedPropagationStylesToExtract == null
             ? parent.propagationStylesToExtract
             : parsedPropagationStylesToExtract;
     final Set<PropagationStyle> parsedPropagationStylesToInject =
-        getPropertySetValue(properties, PROPAGATION_STYLE_INJECT, PropagationStyle.class);
+        getPropagationStyleSetFromPropertyValue(properties, PROPAGATION_STYLE_INJECT);
     propagationStylesToInject =
         parsedPropagationStylesToInject == null
             ? parent.propagationStylesToInject
@@ -610,7 +719,6 @@ public class Config {
     profilingEnabled =
         getPropertyBooleanValue(properties, PROFILING_ENABLED, parent.profilingEnabled);
     profilingUrl = properties.getProperty(PROFILING_URL, parent.profilingUrl);
-    profilingApiKey = properties.getProperty(PROFILING_API_KEY, parent.profilingApiKey);
     profilingTags = getPropertyMapValue(properties, PROFILING_TAGS, parent.profilingTags);
     profilingStartDelay =
         getPropertyIntegerValue(properties, PROFILING_START_DELAY, parent.profilingStartDelay);
@@ -634,6 +742,25 @@ public class Config {
         properties.getProperty(PROFILING_PROXY_USERNAME, parent.profilingProxyUsername);
     profilingProxyPassword =
         properties.getProperty(PROFILING_PROXY_PASSWORD, parent.profilingProxyPassword);
+
+    profilingExceptionSampleLimit =
+        getPropertyIntegerValue(
+            properties, PROFILING_EXCEPTION_SAMPLE_LIMIT, parent.profilingExceptionSampleLimit);
+
+    profilingExceptionHistogramTopItems =
+        getPropertyIntegerValue(
+            properties,
+            PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
+            parent.profilingExceptionHistogramTopItems);
+    profilingExceptionHistogramMaxCollectionSize =
+        getPropertyIntegerValue(
+            properties,
+            PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
+            parent.profilingExceptionHistogramMaxCollectionSize);
+
+    kafkaClientPropagationEnabled =
+        getPropertyBooleanValue(
+            properties, KAFKA_CLIENT_PROPAGATION_ENABLED, parent.kafkaClientPropagationEnabled);
 
     log.debug("New instance: {}", this);
   }
@@ -699,7 +826,7 @@ public class Config {
 
   /**
    * Returns the sample rate for the specified instrumentation or {@link
-   * #DEFAULT_ANALYTICS_SAMPLE_RATE} if none specified.
+   * ConfigDefaults#DEFAULT_ANALYTICS_SAMPLE_RATE} if none specified.
    */
   public float getInstrumentationAnalyticsSampleRate(final String... aliases) {
     for (final String alias : aliases) {
@@ -716,7 +843,7 @@ public class Config {
    * version of this setting if new (dd.tags) version has not been specified.
    */
   private Map<String, String> getGlobalTags() {
-    return tags.isEmpty() ? globalTags : tags;
+    return tags;
   }
 
   /**
@@ -734,19 +861,33 @@ public class Config {
     return Collections.unmodifiableMap(result);
   }
 
+  public String getFinalProfilingUrl() {
+    if (profilingUrl != null) {
+      // when profilingUrl is set we use it regardless of apiKey
+      return profilingUrl;
+    } else if (apiKey != null) {
+      // when profilingUrl is not set and apiKey is set we send directly to our intake
+      return String.format(PROFILING_REMOTE_URL_TEMPLATE, site);
+    } else {
+      // when profilingUrl and apiKey are not set we send to the dd trace agent running locally
+      return String.format(PROFILING_LOCAL_URL_TEMPLATE, agentHost, agentPort);
+    }
+  }
+
   public boolean isIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
     return integrationEnabled(integrationNames, defaultEnabled);
   }
 
   /**
-   * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isIntegrationEnabled(SortedSet, boolean)}.
    * @param integrationNames
    * @param defaultEnabled
    * @return
+   * @deprecated This method should only be used internally. Use the instance getter instead {@link
+   *     #isIntegrationEnabled(SortedSet, boolean)}.
    */
-  public static boolean integrationEnabled(
+  @Deprecated
+  private static boolean integrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
     // If default is enabled, we want to enable individually,
     // if default is disabled, we want to disable individually.
@@ -768,17 +909,17 @@ public class Config {
     return jmxFetchIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
-  public boolean isDecoratorEnabled(final String name) {
+  public boolean isRuleEnabled(final String name) {
     return getBooleanSettingFromEnvironment("trace." + name + ".enabled", true)
         && getBooleanSettingFromEnvironment("trace." + name.toLowerCase() + ".enabled", true);
   }
 
   /**
-   * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isJmxFetchIntegrationEnabled(SortedSet, boolean)}.
    * @param integrationNames
    * @param defaultEnabled
    * @return
+   * @deprecated This method should only be used internally. Use the instance getter instead {@link
+   *     #isJmxFetchIntegrationEnabled(SortedSet, boolean)}.
    */
   public static boolean jmxFetchIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -797,17 +938,27 @@ public class Config {
     return anyEnabled;
   }
 
+  public boolean isEndToEndDurationEnabled(
+      final boolean defaultEnabled, final String... integrationNames) {
+    return isEnabled(integrationNames, ".e2e.duration.enabled", defaultEnabled);
+  }
+
   public boolean isTraceAnalyticsIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
     return traceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
+  public boolean isTraceAnalyticsIntegrationEnabled(
+      final boolean defaultEnabled, final String... integrationNames) {
+    return isEnabled(integrationNames, ".analytics.enabled", defaultEnabled);
+  }
+
   /**
-   * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    * @param integrationNames
    * @param defaultEnabled
    * @return
+   * @deprecated This method should only be used internally. Use the instance getter instead {@link
+   *     #isTraceAnalyticsIntegrationEnabled(SortedSet, boolean)}.
    */
   public static boolean traceAnalyticsIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
@@ -817,6 +968,23 @@ public class Config {
     for (final String name : integrationNames) {
       final boolean configEnabled =
           getBooleanSettingFromEnvironment(name + ".analytics.enabled", defaultEnabled);
+      if (defaultEnabled) {
+        anyEnabled &= configEnabled;
+      } else {
+        anyEnabled |= configEnabled;
+      }
+    }
+    return anyEnabled;
+  }
+
+  private static boolean isEnabled(
+      final String[] integrationNames, final String settingSuffix, final boolean defaultEnabled) {
+    // If default is enabled, we want to enable individually,
+    // if default is disabled, we want to disable individually.
+    boolean anyEnabled = defaultEnabled;
+    for (final String name : integrationNames) {
+      final boolean configEnabled =
+          getBooleanSettingFromEnvironment(name + settingSuffix, defaultEnabled);
       if (defaultEnabled) {
         anyEnabled &= configEnabled;
       } else {
@@ -839,9 +1007,10 @@ public class Config {
    */
   private static String getSettingFromEnvironment(final String name, final String defaultValue) {
     String value;
+    final String systemPropertyName = propertyNameToSystemPropertyName(name);
 
     // System properties and properties provided from command line have the highest precedence
-    value = System.getProperties().getProperty(propertyNameToSystemPropertyName(name));
+    value = System.getProperties().getProperty(systemPropertyName);
     if (null != value) {
       return value;
     }
@@ -853,7 +1022,7 @@ public class Config {
     }
 
     // If value is not defined yet, we look at properties optionally defined in a properties file
-    value = propertiesFromConfigFile.getProperty(propertyNameToSystemPropertyName(name));
+    value = propertiesFromConfigFile.getProperty(systemPropertyName);
     if (null != value) {
       return value;
     }
@@ -862,6 +1031,7 @@ public class Config {
   }
 
   /** @deprecated This method should only be used internally. Use the explicit getter instead. */
+  @NonNull
   private static Map<String, String> getMapSettingFromEnvironment(
       final String name, final String defaultValue) {
     return parseMap(
@@ -874,7 +1044,8 @@ public class Config {
    *
    * @deprecated This method should only be used internally. Use the explicit getter instead.
    */
-  public static List<String> getListSettingFromEnvironment(
+  @NonNull
+  private static List<String> getListSettingFromEnvironment(
       final String name, final String defaultValue) {
     return parseList(getSettingFromEnvironment(name, defaultValue));
   }
@@ -886,8 +1057,7 @@ public class Config {
    */
   public static Boolean getBooleanSettingFromEnvironment(
       final String name, final Boolean defaultValue) {
-    final String value = getSettingFromEnvironment(name, null);
-    return value == null || value.trim().isEmpty() ? defaultValue : Boolean.valueOf(value);
+    return getSettingFromEnvironmentWithLog(name, Boolean.class, defaultValue);
   }
 
   /**
@@ -896,13 +1066,7 @@ public class Config {
    * @deprecated This method should only be used internally. Use the explicit getter instead.
    */
   public static Float getFloatSettingFromEnvironment(final String name, final Float defaultValue) {
-    final String value = getSettingFromEnvironment(name, null);
-    try {
-      return value == null ? defaultValue : Float.valueOf(value);
-    } catch (final NumberFormatException e) {
-      log.warn("Invalid configuration for " + name, e);
-      return defaultValue;
-    }
+    return getSettingFromEnvironmentWithLog(name, Float.class, defaultValue);
   }
 
   /**
@@ -910,15 +1074,10 @@ public class Config {
    *
    * @deprecated This method should only be used internally. Use the explicit getter instead.
    */
-  public static Double getDoubleSettingFromEnvironment(
+  @Deprecated
+  private static Double getDoubleSettingFromEnvironment(
       final String name, final Double defaultValue) {
-    final String value = getSettingFromEnvironment(name, null);
-    try {
-      return value == null ? defaultValue : Double.valueOf(value);
-    } catch (final NumberFormatException e) {
-      log.warn("Invalid configuration for " + name, e);
-      return defaultValue;
-    }
+    return getSettingFromEnvironmentWithLog(name, Double.class, defaultValue);
   }
 
   /**
@@ -926,9 +1085,13 @@ public class Config {
    */
   private static Integer getIntegerSettingFromEnvironment(
       final String name, final Integer defaultValue) {
-    final String value = getSettingFromEnvironment(name, null);
+    return getSettingFromEnvironmentWithLog(name, Integer.class, defaultValue);
+  }
+
+  private static <T> T getSettingFromEnvironmentWithLog(
+      final String name, final Class<T> tClass, final T defaultValue) {
     try {
-      return value == null ? defaultValue : Integer.valueOf(value);
+      return valueOf(getSettingFromEnvironment(name, null), tClass, defaultValue);
     } catch (final NumberFormatException e) {
       log.warn("Invalid configuration for " + name, e);
       return defaultValue;
@@ -939,29 +1102,23 @@ public class Config {
    * Calls {@link #getSettingFromEnvironment(String, String)} and converts the result to a set of
    * strings splitting by space or comma.
    */
-  private static <T extends Enum<T>> Set<T> getEnumSetSettingFromEnvironment(
-      final String name,
-      final String defaultValue,
-      final Class<T> clazz,
-      final boolean emptyResultMeansUseDefault) {
+  private static Set<PropagationStyle> getPropagationStyleSetSettingFromEnvironmentOrDefault(
+      final String name, final String defaultValue) {
     final String value = getSettingFromEnvironment(name, defaultValue);
-    Set<T> result =
-        convertStringSetToEnumSet(
-            parseStringIntoSetOfNonEmptyStrings(value, SPLIT_BY_SPACE_OR_COMMA_REGEX), clazz);
+    Set<PropagationStyle> result =
+        convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(value));
 
-    if (emptyResultMeansUseDefault && result.isEmpty()) {
+    if (result.isEmpty()) {
       // Treat empty parsing result as no value and use default instead
       result =
-          convertStringSetToEnumSet(
-              parseStringIntoSetOfNonEmptyStrings(defaultValue, SPLIT_BY_SPACE_OR_COMMA_REGEX),
-              clazz);
+          convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(defaultValue));
     }
 
     return result;
   }
 
-  private Set<Integer> getIntegerRangeSettingFromEnvironment(
-      final String name, final Set<Integer> defaultValue) {
+  private static BitSet getIntegerRangeSettingFromEnvironment(
+      final String name, final BitSet defaultValue) {
     final String value = getSettingFromEnvironment(name, null);
     try {
       return value == null ? defaultValue : parseIntegerRangeSet(value, name);
@@ -978,6 +1135,7 @@ public class Config {
    * @param setting The setting name, e.g. `service.name`
    * @return The public facing environment variable name
    */
+  @NonNull
   private static String propertyNameToEnvironmentVariableName(final String setting) {
     return ENV_REPLACEMENT
         .matcher(propertyNameToSystemPropertyName(setting).toUpperCase())
@@ -991,8 +1149,38 @@ public class Config {
    * @param setting The setting name, e.g. `service.name`
    * @return The public facing system property name
    */
+  @NonNull
   private static String propertyNameToSystemPropertyName(final String setting) {
     return PREFIX + setting;
+  }
+
+  /**
+   * @param value to parse by tClass::valueOf
+   * @param tClass should contain static parsing method "T valueOf(String)"
+   * @param defaultValue
+   * @param <T>
+   * @return value == null || value.trim().isEmpty() ? defaultValue : tClass.valueOf(value)
+   * @throws NumberFormatException
+   */
+  private static <T> T valueOf(
+      final String value, @NonNull final Class<T> tClass, final T defaultValue) {
+    if (value == null || value.trim().isEmpty()) {
+      return defaultValue;
+    }
+    try {
+      return (T)
+          PUBLIC_LOOKUP
+              .findStatic(tClass, "valueOf", MethodType.methodType(tClass, String.class))
+              .invoke(value);
+    } catch (final NumberFormatException e) {
+      throw e;
+    } catch (final NoSuchMethodException | IllegalAccessException e) {
+      log.debug("Can't invoke or access 'valueOf': ", e);
+      throw new NumberFormatException(e.toString());
+    } catch (final Throwable e) {
+      log.debug("Can't parse: ", e);
+      throw new NumberFormatException(e.toString());
+    }
   }
 
   private static Map<String, String> getPropertyMapValue(
@@ -1009,29 +1197,25 @@ public class Config {
 
   private static Boolean getPropertyBooleanValue(
       final Properties properties, final String name, final Boolean defaultValue) {
-    final String value = properties.getProperty(name);
-    return value == null || value.trim().isEmpty() ? defaultValue : Boolean.valueOf(value);
+    return valueOf(properties.getProperty(name), Boolean.class, defaultValue);
   }
 
   private static Integer getPropertyIntegerValue(
       final Properties properties, final String name, final Integer defaultValue) {
-    final String value = properties.getProperty(name);
-    return value == null || value.trim().isEmpty() ? defaultValue : Integer.valueOf(value);
+    return valueOf(properties.getProperty(name), Integer.class, defaultValue);
   }
 
   private static Double getPropertyDoubleValue(
       final Properties properties, final String name, final Double defaultValue) {
-    final String value = properties.getProperty(name);
-    return value == null || value.trim().isEmpty() ? defaultValue : Double.valueOf(value);
+    return valueOf(properties.getProperty(name), Double.class, defaultValue);
   }
 
-  private static <T extends Enum<T>> Set<T> getPropertySetValue(
-      final Properties properties, final String name, final Class<T> clazz) {
+  private static Set<PropagationStyle> getPropagationStyleSetFromPropertyValue(
+      final Properties properties, final String name) {
     final String value = properties.getProperty(name);
     if (value != null) {
-      final Set<T> result =
-          convertStringSetToEnumSet(
-              parseStringIntoSetOfNonEmptyStrings(value, SPLIT_BY_SPACE_OR_COMMA_REGEX), clazz);
+      final Set<PropagationStyle> result =
+          convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(value));
       if (!result.isEmpty()) {
         return result;
       }
@@ -1040,8 +1224,8 @@ public class Config {
     return null;
   }
 
-  private Set<Integer> getPropertyIntegerRangeValue(
-      final Properties properties, final String name, final Set<Integer> defaultValue) {
+  private static BitSet getPropertyIntegerRangeValue(
+      final Properties properties, final String name, final BitSet defaultValue) {
     final String value = properties.getProperty(name);
     try {
       return value == null ? defaultValue : parseIntegerRangeSet(value, name);
@@ -1051,6 +1235,7 @@ public class Config {
     }
   }
 
+  @NonNull
   private static Map<String, String> parseMap(final String str, final String settingName) {
     // If we ever want to have default values besides an empty map, this will need to change.
     if (str == null || str.trim().isEmpty()) {
@@ -1080,9 +1265,9 @@ public class Config {
     return Collections.unmodifiableMap(map);
   }
 
-  private static Set<Integer> parseIntegerRangeSet(String str, final String settingName)
+  @NonNull
+  static BitSet parseIntegerRangeSet(@NonNull String str, final String settingName)
       throws NumberFormatException {
-    assert str != null;
     str = str.replaceAll("\\s", "");
     if (!str.matches("\\d{3}(?:-\\d{3})?(?:,\\d{3}(?:-\\d{3})?)*")) {
       log.warn(
@@ -1092,30 +1277,73 @@ public class Config {
       throw new NumberFormatException();
     }
 
+    final int lastSeparator = Math.max(str.lastIndexOf(','), str.lastIndexOf('-'));
+    final int maxValue = Integer.parseInt(str.substring(lastSeparator + 1));
+    final BitSet set = new BitSet(maxValue);
     final String[] tokens = str.split(",", -1);
-    final Set<Integer> set = new HashSet<>();
-
     for (final String token : tokens) {
-      final String[] range = token.split("-", -1);
-      if (range.length == 1) {
-        set.add(Integer.parseInt(range[0]));
-      } else if (range.length == 2) {
-        final int left = Integer.parseInt(range[0]);
-        final int right = Integer.parseInt(range[1]);
+      final int separator = token.indexOf('-');
+      if (separator == -1) {
+        set.set(Integer.parseInt(token));
+      } else if (separator > 0) {
+        final int left = Integer.parseInt(token.substring(0, separator));
+        final int right = Integer.parseInt(token.substring(separator + 1));
         final int min = Math.min(left, right);
         final int max = Math.max(left, right);
-        for (int i = min; i <= max; i++) {
-          set.add(i);
-        }
+        set.set(min, max + 1);
       }
     }
-    return Collections.unmodifiableSet(set);
+    return set;
   }
 
+  @NonNull
   private static Map<String, String> newHashMap(final int size) {
     return new HashMap<>(size + 1, 1f);
   }
 
+  /**
+   * @param map
+   * @param propNames
+   * @return new unmodifiable copy of {@param map} where properties are overwritten from environment
+   */
+  @NonNull
+  private static Map<String, String> getMapWithPropertiesDefinedByEnvironment(
+      @NonNull final Map<String, String> map, @NonNull final String... propNames) {
+    final Map<String, String> res = new HashMap<>(map);
+    for (final String propName : propNames) {
+      final String val = getSettingFromEnvironment(propName, null);
+      if (val != null) {
+        res.put(propName, val);
+      }
+    }
+    return Collections.unmodifiableMap(res);
+  }
+
+  /**
+   * same as {@link Config#getMapWithPropertiesDefinedByEnvironment(Map, String...)} but using
+   * {@code properties} as source of values to overwrite inside map
+   *
+   * @param map
+   * @param properties
+   * @param keys
+   * @return
+   */
+  @NonNull
+  private static Map<String, String> overwriteKeysFromProperties(
+      @NonNull final Map<String, String> map,
+      @NonNull final Properties properties,
+      @NonNull final String... keys) {
+    final Map<String, String> res = new HashMap<>(map);
+    for (final String propName : keys) {
+      final String val = properties.getProperty(propName, null);
+      if (val != null) {
+        res.put(propName, val);
+      }
+    }
+    return Collections.unmodifiableMap(res);
+  }
+
+  @NonNull
   private static List<String> parseList(final String str) {
     if (str == null || str.trim().isEmpty()) {
       return Collections.emptyList();
@@ -1129,13 +1357,13 @@ public class Config {
     return Collections.unmodifiableList(Arrays.asList(tokens));
   }
 
-  private static Set<String> parseStringIntoSetOfNonEmptyStrings(
-      final String str, final String regex) {
+  @NonNull
+  private static Set<String> parseStringIntoSetOfNonEmptyStrings(final String str) {
     // Using LinkedHashSet to preserve original string order
     final Set<String> result = new LinkedHashSet<>();
     // Java returns single value when splitting an empty string. We do not need that value, so
     // we need to throw it out.
-    for (final String value : str.split(regex)) {
+    for (final String value : str.split(SPLIT_BY_SPACE_OR_COMMA_REGEX)) {
       if (!value.isEmpty()) {
         result.add(value);
       }
@@ -1143,15 +1371,16 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
-  private static <V extends Enum<V>> Set<V> convertStringSetToEnumSet(
-      final Set<String> input, final Class<V> clazz) {
+  @NonNull
+  private static Set<PropagationStyle> convertStringSetToPropagationStyleSet(
+      final Set<String> input) {
     // Using LinkedHashSet to preserve original string order
-    final Set<V> result = new LinkedHashSet<>();
+    final Set<PropagationStyle> result = new LinkedHashSet<>();
     for (final String value : input) {
       try {
-        result.add(Enum.valueOf(clazz, value.toUpperCase()));
+        result.add(PropagationStyle.valueOf(value.toUpperCase()));
       } catch (final IllegalArgumentException e) {
-        log.debug("Cannot recognize config string value: {}, {}", value, clazz);
+        log.debug("Cannot recognize config string value: {}, {}", value, PropagationStyle.class);
       }
     }
     return Collections.unmodifiableSet(result);
@@ -1188,8 +1417,7 @@ public class Config {
       return properties;
     }
 
-    try {
-      final FileReader fileReader = new FileReader(configurationFile);
+    try (final FileReader fileReader = new FileReader(configurationFile)) {
       properties.load(fileReader);
     } catch (final FileNotFoundException fnf) {
       log.error("Configuration file '{}' not found.", configurationFilePath);
@@ -1202,8 +1430,8 @@ public class Config {
   }
 
   /** Returns the detected hostname. First tries locally, then using DNS */
-  private String getHostName() {
-    String possibleHostname = null;
+  private static String getHostName() {
+    String possibleHostname;
 
     // Try environment variable.  This works in almost all environments
     if (System.getProperty("os.name").startsWith("Windows")) {
@@ -1218,12 +1446,11 @@ public class Config {
     }
 
     // Try hostname command
-    try {
-      final Process process = Runtime.getRuntime().exec("hostname");
-      final BufferedReader reader =
-          new BufferedReader(new InputStreamReader(process.getInputStream()));
+    try (final BufferedReader reader =
+        new BufferedReader(
+            new InputStreamReader(Runtime.getRuntime().exec("hostname").getInputStream()))) {
       possibleHostname = reader.readLine();
-    } catch (final Exception e) {
+    } catch (final Exception ignore) {
       // Ignore.  Hostname command is not always available
     }
 
@@ -1249,6 +1476,20 @@ public class Config {
     return INSTANCE;
   }
 
+  /**
+   * This method is deprecated since the method of configuration will be changed in the future. The
+   * properties instance should instead be passed directly into the DDTracer builder:
+   *
+   * <pre>
+   *   DDTracer.builder().withProperties(new Properties()).build()
+   * </pre>
+   *
+   * Config keys for use in Properties instance construction can be found in {@link GeneralConfig}
+   * and {@link TracerConfig}.
+   *
+   * @deprecated
+   */
+  @Deprecated
   public static Config get(final Properties properties) {
     if (properties == null || properties.isEmpty()) {
       return INSTANCE;

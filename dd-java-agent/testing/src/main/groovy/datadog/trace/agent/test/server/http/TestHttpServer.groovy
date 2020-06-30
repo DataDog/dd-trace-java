@@ -1,6 +1,6 @@
 package datadog.trace.agent.test.server.http
 
-import datadog.opentracing.DDSpan
+import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -42,6 +42,9 @@ class TestHttpServer implements AutoCloseable {
 
   private TestHttpServer() {
     internalServer = new Server(0)
+    internalServer.connectors.each {
+      it.setHost('localhost')
+    }
   }
 
   def start() {
@@ -103,6 +106,9 @@ class TestHttpServer implements AutoCloseable {
         tags {
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
           defaultTags(parentSpan != null)
+        }
+        metrics {
+          defaultMetrics()
         }
       }
     }

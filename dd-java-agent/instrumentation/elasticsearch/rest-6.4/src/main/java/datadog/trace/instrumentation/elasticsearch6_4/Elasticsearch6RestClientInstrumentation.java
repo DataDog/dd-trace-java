@@ -65,7 +65,7 @@ public class Elasticsearch6RestClientInstrumentation extends Instrumenter.Defaul
 
       responseListener = new RestResponseListener(responseListener, span);
 
-      return activateSpan(span, false);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -78,6 +78,7 @@ public class Elasticsearch6RestClientInstrumentation extends Instrumenter.Defaul
         span.finish();
       }
       scope.close();
+      // span finished by RestResponseListener
     }
   }
 }

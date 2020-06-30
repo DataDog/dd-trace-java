@@ -19,9 +19,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  * This instrumenter prevents a mechanism from GlassFish classloader to produces a class not found
  * exception in our tracer. Link to the GH issue:
  * https://github.com/eclipse-ee4j/glassfish/issues/22566 If a class loading is attempted, as an
- * example, as a resource and is it not found, then it is blacklisted. Successive attempts to load a
+ * example, as a resource and is it not found, then it is blocked. Successive attempts to load a
  * class as a class (not a resource) will fail because the class is not even tried. We hook into the
- * blacklisting method to avoid specific namespaces to be blacklisted.
+ * blocking method to avoid specific namespaces to be blocked.
  */
 @Slf4j
 @AutoService(Instrumenter.class)
@@ -45,17 +45,17 @@ public final class GlassFishInstrumentation extends Instrumenter.Default {
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
         isMethod().and(named("addToBlackList")).and(takesArguments(1)),
-        GlassFishInstrumentation.class.getName() + "$AvoidGlassFishBlacklistAdvice");
+        GlassFishInstrumentation.class.getName() + "$AvoidGlassFishBlockingAdvice");
   }
 
-  public static class AvoidGlassFishBlacklistAdvice {
+  public static class AvoidGlassFishBlockingAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void preventBlacklistingOfTracerClasses(
+    public static void preventBlockingOfTracerClasses(
         @Advice.Argument(value = 0, readOnly = false) String name) {
       for (final String prefix : Constants.BOOTSTRAP_PACKAGE_PREFIXES) {
         if (name.startsWith(prefix)) {
-          name = "__datadog_no_blacklist." + name;
+          name = "__datadog_no_block." + name;
           break;
         }
       }

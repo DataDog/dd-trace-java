@@ -1,5 +1,9 @@
+import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activeScope, activeSpan}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
+  activeScope,
+  activeSpan
+}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -28,6 +32,7 @@ class ScalaConcurrentTests {
       case t: Throwable => tracedChild("failureCallback")
     }
 
+    blockUntilChildSpansFinished(4)
     return 5
   }
 
@@ -38,13 +43,15 @@ class ScalaConcurrentTests {
       1
     }
     goodFuture onSuccess {
-      case _ => Future {
-        2
-      } onSuccess {
-        case _ => tracedChild("callback")
-      }
+      case _ =>
+        Future {
+          2
+        } onSuccess {
+          case _ => tracedChild("callback")
+        }
     }
 
+    blockUntilChildSpansFinished(1)
     return 2
   }
 
@@ -78,6 +85,7 @@ class ScalaConcurrentTests {
       case t => tracedChild("brokenPromise")
     }
 
+    blockUntilChildSpansFinished(4)
     return 5
   }
 
@@ -87,21 +95,19 @@ class ScalaConcurrentTests {
   @Trace
   def tracedWithFutureFirstCompletions(): Integer = {
     activeScope().setAsyncPropagation(true)
-    val completedVal = Future.firstCompletedOf(
-      List(
-        Future {
-          tracedChild("timeout1")
-          false
-        },
-        Future {
-          tracedChild("timeout2")
-          false
-        },
-        Future {
-          tracedChild("timeout3")
-          true
-        }))
+    val completedVal = Future.firstCompletedOf(List(Future {
+      tracedChild("timeout1")
+      false
+    }, Future {
+      tracedChild("timeout2")
+      false
+    }, Future {
+      tracedChild("timeout3")
+      true
+    }))
     Await.result(completedVal, 30 seconds)
+
+    blockUntilChildSpansFinished(3)
     return 4
   }
 
@@ -124,6 +130,8 @@ class ScalaConcurrentTests {
     } catch {
       case e: Exception => {}
     }
+
+    blockUntilChildSpansFinished(1)
     return 2
   }
 

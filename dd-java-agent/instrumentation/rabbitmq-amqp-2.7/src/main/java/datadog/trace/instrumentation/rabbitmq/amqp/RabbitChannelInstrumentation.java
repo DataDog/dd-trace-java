@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.rabbitmq.amqp;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
@@ -36,6 +37,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.util.HashMap;
@@ -69,11 +71,10 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".RabbitDecorator",
-      packageName + ".RabbitDecorator$1",
-      packageName + ".RabbitDecorator$2",
       packageName + ".TextMapInjectAdapter",
       packageName + ".TextMapExtractAdapter",
       packageName + ".TracedDelegatingConsumer",
+      "datadog.trace.core.util.Clock"
     };
   }
 
@@ -90,11 +91,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
                         .or(isSetter())
                         .or(nameEndsWith("Listener"))
                         .or(nameEndsWith("Listeners"))
-                        .or(named("processAsync"))
-                        .or(named("open"))
-                        .or(named("close"))
-                        .or(named("abort"))
-                        .or(named("basicGet"))))
+                        .or(namedOneOf("processAsync", "open", "close", "abort", "basicGet"))))
             .and(isPublic())
             .and(canThrow(IOException.class).or(canThrow(InterruptedException.class))),
         RabbitChannelInstrumentation.class.getName() + "$ChannelMethodAdvice");
@@ -127,10 +124,11 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       final AgentSpan span =
           startSpan("amqp.command")
               .setTag(DDTags.RESOURCE_NAME, method)
-              .setTag(Tags.PEER_PORT, connection.getPort());
+              .setTag(Tags.PEER_PORT, connection.getPort())
+              .setTag(InstrumentationTags.DD_MEASURED, true);
       DECORATE.afterStart(span);
       DECORATE.onPeerConnection(span, connection.getAddress());
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -142,6 +140,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
       CallDepthThreadLocalMap.reset(Channel.class);
     }
   }
@@ -203,7 +202,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
 
       callDepth = CallDepthThreadLocalMap.incrementCallDepth(Channel.class);
       // Don't want RabbitCommandInstrumentation to mess up our actual parent span.
-      placeholderScope = activateSpan(noopSpan(), false);
+      placeholderScope = activateSpan(noopSpan());
       return System.currentTimeMillis();
     }
 
@@ -217,7 +216,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
         @Advice.Return final GetResponse response,
         @Advice.Thrown final Throwable throwable) {
 
-      placeholderScope.close();
+      placeholderScope.close(); // noop span, so no need to finish.
 
       if (callDepth > 0) {
         return;
@@ -247,11 +246,12 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       } else {
         span = startSpan("amqp.command", TimeUnit.MILLISECONDS.toMicros(startTime));
       }
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
       if (response != null) {
         span.setTag("message.size", response.getBody().length);
       }
       span.setTag(Tags.PEER_PORT, connection.getPort());
-      try (final AgentScope scope = activateSpan(span, false)) {
+      try (final AgentScope scope = activateSpan(span)) {
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onGet(span, queue);
         CONSUMER_DECORATE.onPeerConnection(span, connection.getAddress());
@@ -271,7 +271,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
         @Advice.Argument(value = 6, readOnly = false) Consumer consumer) {
       // We have to save off the queue name here because it isn't available to the consumer later.
       if (consumer != null && !(consumer instanceof TracedDelegatingConsumer)) {
-        consumer = new TracedDelegatingConsumer(queue, consumer);
+        consumer = DECORATE.wrapConsumer(queue, consumer);
       }
     }
   }

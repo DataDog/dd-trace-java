@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.hibernate.core.v4_0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.instrumentation.hibernate.HibernateDecorator.DECORATOR;
 import static datadog.trace.instrumentation.hibernate.SessionMethodUtils.SCOPE_ONLY_METHODS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -59,21 +60,22 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     transformers.put(
         isMethod()
             .and(
-                named("save")
-                    .or(named("replicate"))
-                    .or(named("saveOrUpdate"))
-                    .or(named("update"))
-                    .or(named("merge"))
-                    .or(named("persist"))
-                    .or(named("lock"))
-                    .or(named("refresh"))
-                    .or(named("insert"))
-                    .or(named("delete"))
+                namedOneOf(
+                    "save",
+                    "replicate",
+                    "saveOrUpdate",
+                    "update",
+                    "merge",
+                    "persist",
+                    "lock",
+                    "refresh",
+                    "insert",
+                    "delete",
                     // Iterator methods.
-                    .or(named("iterate"))
+                    "iterate",
                     // Lazy-load methods.
-                    .or(named("immediateLoad"))
-                    .or(named("internalLoad"))),
+                    "immediateLoad",
+                    "internalLoad")),
         SessionInstrumentation.class.getName() + "$SessionMethodAdvice");
     // Handle the non-generic 'get' separately.
     transformers.put(
@@ -87,7 +89,7 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     // current Span to the returned object using a ContextStore.
     transformers.put(
         isMethod()
-            .and(named("beginTransaction").or(named("getTransaction")))
+            .and(namedOneOf("beginTransaction", "getTransaction"))
             .and(returns(named("org.hibernate.Transaction"))),
         SessionInstrumentation.class.getName() + "$GetTransactionAdvice");
 
@@ -132,9 +134,10 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     public static SessionState startMethod(
         @Advice.This final SharedSessionContract session,
         @Advice.Origin("#m") final String name,
-        @Advice.Argument(0) final Object entity) {
+        @Advice.Argument(0) final Object entity,
+        @Advice.Local("startSpan") boolean startSpan) {
 
-      final boolean startSpan = !SCOPE_ONLY_METHODS.contains(name);
+      startSpan = !SCOPE_ONLY_METHODS.contains(name);
       final ContextStore<SharedSessionContract, SessionState> contextStore =
           InstrumentationContext.get(SharedSessionContract.class, SessionState.class);
       return SessionMethodUtils.startScopeFrom(
@@ -143,12 +146,12 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void endMethod(
-        @Advice.This final SharedSessionContract session,
         @Advice.Enter final SessionState sessionState,
         @Advice.Thrown final Throwable throwable,
+        @Advice.Local("startSpan") final boolean startSpan,
         @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Object returned) {
 
-      SessionMethodUtils.closeScope(sessionState, throwable, returned);
+      SessionMethodUtils.closeScope(sessionState, throwable, returned, startSpan);
     }
   }
 

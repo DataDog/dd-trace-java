@@ -1,4 +1,4 @@
-import datadog.opentracing.DDSpan
+import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -32,9 +32,7 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   Server startServer(int port) {
     def jettyServer = new Server(port)
     jettyServer.connectors.each {
-      if (it.hasProperty("resolveNames")) {
-        it.resolveNames = true  // get localhost instead of 127.0.0.1
-      }
+      it.setHost('localhost')
     }
 
     ServletContextHandler servletContext = new ServletContextHandler(null, "/$context")
@@ -266,7 +264,6 @@ abstract class JettyDispatchTest extends JettyServlet3Test {
               it == TestServlet3.DispatchImmediate.name || it == TestServlet3.DispatchAsync.name || it == ApplicationFilterChain.name
             }
             if (endpoint.errored) {
-              "$Tags.ERROR" endpoint.errored
               "error.msg" { it == null || it == EXCEPTION.body }
               "error.type" { it == null || it == Exception.name }
               "error.stack" { it == null || it instanceof String }

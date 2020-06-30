@@ -1,27 +1,56 @@
-## Contributing
+# Contributing
 
 Pull requests for bug fixes are welcome, but before submitting new features or changes to current functionality [open an issue](https://github.com/DataDog/dd-trace-java/issues/new)
 and discuss your ideas or propose the changes you wish to make. After a resolution is reached a PR can be submitted for review.
 
-### Code Style
+## Requirements
+
+To build the full project from the command line you need to have JDK versions for 7,8,11, and 14 installed on your machine, as well as the following environment variables set up: `JAVA_7_HOME, JAVA_8_HOME, JAVA_11_HOME, JAVA_14_HOME`, pointing to the respective JDK.
+
+In contrast to the [IntelliJ IDEA setup](#intellij-idea) the default JVM to build and run tests from the command line should be Java 8.
+
+# Automatic code formatting
 
 This project includes a `.editorconfig` file for basic editor settings.  This file is supported by most common text editors.
 
-Java files must be formatted using [google-java-format](https://github.com/google/google-java-format).  Please run the following task to ensure files are formatted before committing:
+We have automatic code formatting enabled in Gradle configuration using [Spotless](https://github.com/diffplug/spotless)
+[Gradle plugin](https://github.com/diffplug/spotless/tree/master/plugin-gradle).
+Main goal is to avoid extensive reformatting caused by different IDEs having different opinion about how things should
+be formatted by establishing single 'point of truth'.
 
-```shell 
-./gradlew googleJavaFormat
+Running
+
+```bash
+./gradlew spotlessApply
 ```
 
-Other source files (Groovy, Scala, etc) should ideally be formatted by Intellij Idea's default formatting, but are not enforced.
+reformats all the files that need reformatting.
 
-### Intellij IDEA
+Running
+
+```bash
+./gradlew spotlessCheck
+```
+
+runs formatting verify task only.
+
+## Pre-commit hook
+
+There is a pre-commit hook setup to verify formatting before committing. It can be activated with this command:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+## Intellij IDEA
 
 Compiler settings:
+
 * OpenJDK 11 must be installed to build the entire project.  Under `SDKs` it must have the name `11`.
 * Under `Build, Execution, Deployment > Compiler > Java Compiler` disable `Use '--release' option for cross-compilation`
 
 Required plugins:
+
 * [Lombok](https://plugins.jetbrains.com/plugin/6317-lombok-plugin)
 
 Suggested plugins and settings:

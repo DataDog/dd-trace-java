@@ -19,6 +19,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
@@ -46,10 +47,7 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Default {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SpringWebHttpServerDecorator",
-      packageName + ".SpringWebHttpServerDecorator$1",
-    };
+    return new String[] {packageName + ".SpringWebHttpServerDecorator"};
   }
 
   @Override
@@ -82,10 +80,11 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Default {
       // Now create a span for handler/controller execution.
 
       final AgentSpan span = startSpan("spring.handler");
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
       DECORATE.afterStart(span);
       DECORATE.onHandle(span, handler);
 
-      final AgentScope scope = activateSpan(span, true);
+      final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
       return scope;
     }
@@ -99,6 +98,7 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Default {
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
+      scope.span().finish();
     }
   }
 }

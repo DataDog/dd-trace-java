@@ -32,12 +32,12 @@ public class SpockRunner extends Sputnik {
    * references bootstrap classes (e.g. DatadogClassLoader).
    */
   public static final String[] BOOTSTRAP_PACKAGE_PREFIXES_COPY = {
+    "datadog.common.exec",
     "datadog.slf4j",
     "datadog.trace.api",
     "datadog.trace.bootstrap",
     "datadog.trace.context",
     "datadog.trace.instrumentation.api",
-    "io.opentracing",
   };
 
   private static final String[] TEST_BOOTSTRAP_PREFIXES;
@@ -45,7 +45,6 @@ public class SpockRunner extends Sputnik {
   static {
     ByteBuddyAgent.install();
     final String[] testBS = {
-      "io.opentracing",
       "org.slf4j",
       "ch.qos.logback",
       // Tomcat's servlet classes must be on boostrap

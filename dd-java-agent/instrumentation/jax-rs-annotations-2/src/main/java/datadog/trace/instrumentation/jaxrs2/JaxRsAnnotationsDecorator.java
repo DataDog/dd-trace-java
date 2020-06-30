@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.jaxrs2;
 
+import static datadog.trace.bootstrap.WeakMap.Provider.newWeakMap;
+
 import datadog.trace.agent.tooling.ClassHierarchyIterable;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
@@ -25,8 +27,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
 
   public static final JaxRsAnnotationsDecorator DECORATE = new JaxRsAnnotationsDecorator();
 
-  private final WeakMap<Class<?>, Map<Method, String>> resourceNames =
-      WeakMap.Provider.newWeakMap();
+  private final WeakMap<Class<?>, Map<Method, String>> resourceNames = newWeakMap();
 
   @Override
   protected String[] instrumentationNames() {
@@ -47,7 +48,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
       final AgentSpan span, final AgentSpan parent, final Class<?> target, final Method method) {
 
     final String resourceName = getPathResourceName(target, method);
-    updateParent(parent, resourceName);
+    updateRootSpan(parent, resourceName);
 
     span.setTag(DDTags.SPAN_TYPE, DDSpanTypes.HTTP_SERVER);
 
@@ -56,21 +57,22 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     if (isRootScope && !resourceName.isEmpty()) {
       span.setTag(DDTags.RESOURCE_NAME, resourceName);
     } else {
-      span.setTag(
-          DDTags.RESOURCE_NAME,
-          DECORATE.spanNameForClass(target) + (method == null ? "" : "." + method.getName()));
+      span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(target, method));
     }
   }
 
-  private void updateParent(AgentSpan span, final String resourceName) {
+  private void updateRootSpan(AgentSpan span, final String resourceName) {
     if (span == null) {
       return;
     }
     span = span.getLocalRootSpan();
-    span.setTag(Tags.COMPONENT, "jax-rs");
 
-    if (!resourceName.isEmpty()) {
-      span.setTag(DDTags.RESOURCE_NAME, resourceName);
+    if (!span.hasResourceName()) {
+      span.setTag(Tags.COMPONENT, "jax-rs");
+
+      if (!resourceName.isEmpty()) {
+        span.setTag(DDTags.RESOURCE_NAME, resourceName);
+      }
     }
   }
 

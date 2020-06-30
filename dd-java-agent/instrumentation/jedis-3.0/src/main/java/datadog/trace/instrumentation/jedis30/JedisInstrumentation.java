@@ -64,7 +64,7 @@ public final class JedisInstrumentation extends Instrumenter.Default {
         // us if that changes
         DECORATE.onStatement(span, new String(command.getRaw()));
       }
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -73,6 +73,7 @@ public final class JedisInstrumentation extends Instrumenter.Default {
       DECORATE.onError(scope.span(), throwable);
       DECORATE.beforeFinish(scope.span());
       scope.close();
+      scope.span().finish();
     }
   }
 }

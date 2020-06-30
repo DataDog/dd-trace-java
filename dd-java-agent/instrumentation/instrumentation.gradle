@@ -13,7 +13,7 @@ buildscript {
 plugins {
   id "com.github.johnrengelman.shadow"
 }
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 Project instr_project = project
 subprojects { Project subProj ->
@@ -83,10 +83,12 @@ dependencies {
 }
 
 shadowJar {
+  duplicatesStrategy = DuplicatesStrategy.FAIL
   dependencies deps.sharedInverse
   dependencies {
     exclude(project(':dd-java-agent:agent-bootstrap'))
     exclude(project(':dd-trace-api'))
+    exclude(project(':internal-api'))
     exclude(dependency('org.slf4j::'))
   }
 }

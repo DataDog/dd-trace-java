@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.netty41.server;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.instrumentation.netty41.AttributeKeys;
@@ -20,18 +22,20 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       return;
     }
 
-    final HttpResponse response = (HttpResponse) msg;
+    try (final AgentScope scope = activateSpan(span)) {
+      final HttpResponse response = (HttpResponse) msg;
 
-    try {
-      ctx.write(msg, prm);
-    } catch (final Throwable throwable) {
-      DECORATE.onError(span, throwable);
-      span.setTag(Tags.HTTP_STATUS, 500);
+      try {
+        ctx.write(msg, prm);
+      } catch (final Throwable throwable) {
+        DECORATE.onError(span, throwable);
+        span.setTag(Tags.HTTP_STATUS, 500);
+        span.finish(); // Finish the span manually since finishSpanOnClose was false
+        throw throwable;
+      }
+      DECORATE.onResponse(span, response);
+      DECORATE.beforeFinish(span);
       span.finish(); // Finish the span manually since finishSpanOnClose was false
-      throw throwable;
     }
-    DECORATE.onResponse(span, response);
-    DECORATE.beforeFinish(span);
-    span.finish(); // Finish the span manually since finishSpanOnClose was false
   }
 }

@@ -1,5 +1,5 @@
-apply from: "${rootDir}/gradle/java.gradle"
-apply from: "${rootDir}/gradle/publish.gradle"
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/publish.gradle"
 
 minimumBranchCoverage = 0.8
 
@@ -15,5 +15,6 @@ excludedClassesCoverage += [
 description = 'dd-trace-api'
 dependencies {
   compile deps.slf4j
+
   testCompile project(':utils:test-utils')
 }

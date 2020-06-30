@@ -1,13 +1,22 @@
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import kotlinx.coroutines.*
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.actor
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.channels.toChannel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.selects.select
-import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 
 class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
 
@@ -136,4 +145,3 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
     return runBlocking(dispatcher, block = block)
   }
 }
-

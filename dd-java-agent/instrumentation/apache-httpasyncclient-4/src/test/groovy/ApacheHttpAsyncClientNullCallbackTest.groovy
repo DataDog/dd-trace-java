@@ -37,12 +37,15 @@ class ApacheHttpAsyncClientNullCallbackTest extends HttpClientTest {
     // So to make sure request is done we start request, wait for future to finish
     // and then call callback if present.
     Future future = client.execute(request, null)
-    future.get()
-    if (callback != null) {
+    try {
+      future.get()
+    } finally {
       blockUntilChildSpansFinished(1)
+    }
+    if (callback != null) {
       callback()
     }
-    return 200
+    return future.get().statusLine.statusCode
   }
 
   @Override

@@ -8,11 +8,13 @@ import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORAT
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.playws.BasePlayWSClientInstrumentation;
 import net.bytebuddy.asm.Advice;
 import play.shaded.ahc.org.asynchttpclient.AsyncHandler;
 import play.shaded.ahc.org.asynchttpclient.Request;
 import play.shaded.ahc.org.asynchttpclient.handler.StreamedAsyncHandler;
+import play.shaded.ahc.org.asynchttpclient.ws.WebSocketUpgradeHandler;
 
 @AutoService(Instrumenter.class)
 public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation {
@@ -23,6 +25,7 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
         @Advice.Argument(value = 1, readOnly = false) AsyncHandler asyncHandler) {
 
       final AgentSpan span = startSpan("play-ws.request");
+      span.setTag(InstrumentationTags.DD_MEASURED, true);
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
@@ -30,7 +33,8 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
 
       if (asyncHandler instanceof StreamedAsyncHandler) {
         asyncHandler = new StreamedAsyncHandlerWrapper((StreamedAsyncHandler) asyncHandler, span);
-      } else {
+      } else if (!(asyncHandler instanceof WebSocketUpgradeHandler)) {
+        // websocket upgrade handlers aren't supported
         asyncHandler = new AsyncHandlerWrapper(asyncHandler, span);
       }
 

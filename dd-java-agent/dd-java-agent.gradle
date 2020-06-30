@@ -1,13 +1,15 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 plugins {
   id "com.github.johnrengelman.shadow" version "5.2.0"
 }
 
 description = 'dd-java-agent'
 
-apply from: "${rootDir}/gradle/java.gradle"
-apply from: "${rootDir}/gradle/publish.gradle"
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/publish.gradle"
 
 configurations {
   shadowInclude
@@ -39,14 +41,30 @@ ext.generalShadowJarConfig = {
   if (!project.hasProperty("disableShadowRelocate") || !disableShadowRelocate) {
     // shadow OT impl to prevent casts to implementation
     relocate 'datadog.trace.common', 'datadog.trace.agent.common'
+    relocate 'datadog.trace.core', 'datadog.trace.agent.core'
     relocate 'datadog.opentracing', 'datadog.trace.agent.ot'
   }
 }
 
 def includeShadowJar(shadowJarTask, jarname) {
+  def opentracingFound = new AtomicBoolean()
   project.processResources {
+    doFirst {
+      eachFile {
+        // We seem unlikely to use this name somewhere else.
+        if (it.path.contains("opentracing") && it.name.contains("Format\$Builtin")) {
+          opentracingFound.set(true)
+        }
+      }
+    }
+    doLast {
+      if (opentracingFound.get()) {
+        throw new GradleException("OpenTracing direct dependency found!")
+      }
+    }
+
     from(zipTree(shadowJarTask.archiveFile)) {
-      into jarname + '.isolated'
+      into jarname
       rename '(^.*)\\.class$', '$1.classdata'
       // Rename LICENSE file since it clashes with license dir on non-case sensitive FSs (i.e. Mac)
       rename '^LICENSE$', 'LICENSE.renamed'
@@ -58,13 +76,13 @@ def includeShadowJar(shadowJarTask, jarname) {
 }
 
 project(':dd-java-agent:instrumentation').afterEvaluate {
-  includeShadowJar(it.tasks.shadowJar, 'agent-tooling-and-instrumentation')
+  includeShadowJar(it.tasks.shadowJar, 'inst')
 }
 project(':dd-java-agent:agent-jmxfetch').afterEvaluate {
-  includeShadowJar(it.tasks.shadowJar, 'agent-jmxfetch')
+  includeShadowJar(it.tasks.shadowJar, 'metrics')
 }
 project(':dd-java-agent:agent-profiling').afterEvaluate {
-  includeShadowJar(it.tasks.shadowJar, 'agent-profiling')
+  includeShadowJar(it.tasks.shadowJar, 'profiling')
 }
 
 task sharedShadowJar(type: ShadowJar) {
@@ -84,7 +102,7 @@ shadowJar generalShadowJarConfig >> {
       "Premain-Class": "datadog.trace.bootstrap.AgentBootstrap",
       "Can-Redefine-Classes": true,
       "Can-Retransform-Classes": true,
-    )
+      )
   }
 }
 
@@ -96,12 +114,12 @@ modifyPom {
 dependencies {
   testCompile project(':dd-java-agent:agent-bootstrap')
   testCompile project(':dd-trace-api')
-  testCompile project(':dd-trace-ot')
+  testCompile project(':dd-trace-core')
   testCompile project(':utils:test-utils')
 
-  testCompile deps.opentracingMock
   testCompile deps.testLogging
   testCompile deps.guava
+  testCompile group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
 
   // Includes for the top level shadow jar
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')

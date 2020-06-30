@@ -1,9 +1,7 @@
 package springdata
 
-import com.anotherchrisberry.spock.extensions.retry.RetryOnFailure
 import com.google.common.collect.ImmutableSet
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.elasticsearch.action.search.SearchResponse
@@ -21,6 +19,7 @@ import org.springframework.data.elasticsearch.core.ResultsExtractor
 import org.springframework.data.elasticsearch.core.query.IndexQueryBuilder
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder
+import spock.lang.Retry
 import spock.lang.Shared
 
 import java.util.concurrent.atomic.AtomicLong
@@ -28,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING
 
-@RetryOnFailure(times = 3, delaySeconds = 1)
+@Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
   public static final long TIMEOUT = 10000; // 10 seconds
 
@@ -38,20 +37,16 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
   public static final Set<String> IGNORED_ACTIONS = ImmutableSet.of("NodesStatsAction", "IndicesStatsAction")
 
   @Shared
-  int httpPort
-  @Shared
-  int tcpPort
-  @Shared
   Node testNode
   @Shared
   File esWorkingDir
+  @Shared
+  String clusterName = UUID.randomUUID().toString()
 
   @Shared
   ElasticsearchTemplate template
 
   def setupSpec() {
-    httpPort = PortUtils.randomOpenPort()
-    tcpPort = PortUtils.randomOpenPort()
 
     esWorkingDir = File.createTempDir("test-es-working-dir-", "")
     esWorkingDir.deleteOnExit()
@@ -61,11 +56,9 @@ class Elasticsearch53SpringTemplateTest extends AgentTestRunner {
       .put("path.home", esWorkingDir.path)
     // Since we use listeners to close spans this should make our span closing deterministic which is good for tests
       .put("thread_pool.listener.size", 1)
-      .put("http.port", httpPort)
-      .put("transport.tcp.port", tcpPort)
       .put("transport.type", "netty3")
       .put("http.type", "netty3")
-      .put(CLUSTER_NAME_SETTING.getKey(), "test-cluster")
+      .put(CLUSTER_NAME_SETTING.getKey(), clusterName)
       .build()
     testNode = new Node(new Environment(InternalSettingsPreparer.prepareSettings(settings)), [Netty3Plugin])
     testNode.start()

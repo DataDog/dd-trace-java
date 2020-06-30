@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.elasticsearch;
 
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
+
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -8,6 +10,13 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 public class ElasticsearchTransportClientDecorator extends DatabaseClientDecorator {
   public static final ElasticsearchTransportClientDecorator DECORATE =
       new ElasticsearchTransportClientDecorator();
+
+  @Override
+  public AgentSpan afterStart(AgentSpan span) {
+    span.setServiceName(dbType());
+    span.setTag(DB_TYPE, dbType());
+    return super.afterStart(span);
+  }
 
   @Override
   protected String[] instrumentationNames() {

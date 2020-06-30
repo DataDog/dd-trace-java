@@ -7,7 +7,9 @@ import java.net.URISyntaxException;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class Servlet3Decorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
   public static final Servlet3Decorator DECORATE = new Servlet3Decorator();
@@ -58,8 +60,12 @@ public class Servlet3Decorator
   public AgentSpan onRequest(final AgentSpan span, final HttpServletRequest request) {
     assert span != null;
     if (request != null) {
-      span.setTag("servlet.context", request.getContextPath());
       span.setTag("servlet.path", request.getServletPath());
+      span.setTag("servlet.context", request.getContextPath());
+
+      if (request.getServletContext() != null) {
+        request.setAttribute(DD_SPAN_ATTRIBUTE, span);
+      }
     }
     return super.onRequest(span, request);
   }

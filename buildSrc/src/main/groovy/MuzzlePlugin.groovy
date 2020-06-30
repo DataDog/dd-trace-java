@@ -24,19 +24,33 @@ import org.gradle.api.model.ObjectFactory
 import java.lang.reflect.Method
 import java.security.SecureClassLoader
 import java.util.concurrent.atomic.AtomicReference
+import java.util.regex.Pattern
 
 /**
  * muzzle task plugin which runs muzzle validation against a range of dependencies.
  */
 class MuzzlePlugin implements Plugin<Project> {
   /**
+   * Select a random set of versions to test
+   */
+  private static final int RANGE_COUNT_LIMIT = 25
+  /**
    * Remote repositories used to query version ranges and fetch dependencies
    */
   private static final List<RemoteRepository> MUZZLE_REPOS
   private static final AtomicReference<ClassLoader> TOOLING_LOADER = new AtomicReference<>()
+
   static {
     RemoteRepository central = new RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build()
-    MUZZLE_REPOS = new ArrayList<RemoteRepository>(Arrays.asList(central))
+    RemoteRepository sonatype = new RemoteRepository.Builder("sonatype", "default", "https://oss.sonatype.org/content/repositories/releases/").build()
+    RemoteRepository jcenter = new RemoteRepository.Builder("jcenter", "default", "https://jcenter.bintray.com/").build()
+    RemoteRepository spring = new RemoteRepository.Builder("spring", "default", "https://repo.spring.io/libs-release/").build()
+    RemoteRepository jboss = new RemoteRepository.Builder("jboss", "default", "https://repository.jboss.org/nexus/content/repositories/releases/").build()
+    RemoteRepository typesafe = new RemoteRepository.Builder("typesafe", "default", "https://repo.typesafe.com/typesafe/releases").build()
+    RemoteRepository akka = new RemoteRepository.Builder("akka", "default", "https://dl.bintray.com/akka/maven/").build()
+    RemoteRepository atlassian = new RemoteRepository.Builder("atlassian", "default", "https://maven.atlassian.com/content/repositories/atlassian-public/").build()
+//    MUZZLE_REPOS = Arrays.asList(central, sonatype, jcenter, spring, jboss, typesafe, akka, atlassian)
+    MUZZLE_REPOS = Arrays.asList(central, jcenter, typesafe)
   }
 
   @Override
@@ -195,17 +209,23 @@ class MuzzlePlugin implements Plugin<Project> {
   /**
    * Convert a muzzle directive to a list of artifacts
    */
-  private static List<Artifact> muzzleDirectiveToArtifacts(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
+  private static Set<Artifact> muzzleDirectiveToArtifacts(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
     final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", muzzleDirective.versions)
 
     final VersionRangeRequest rangeRequest = new VersionRangeRequest()
     rangeRequest.setRepositories(MUZZLE_REPOS)
     rangeRequest.setArtifact(directiveArtifact)
     final VersionRangeResult rangeResult = system.resolveVersionRange(session, rangeRequest)
+    final Set<Version> versions = rangeResult.versions.toSet()
 
-    final List<Artifact> allVersionArtifacts = filterVersion(rangeResult.versions).collect { version ->
+    limitLargeRanges(rangeResult, versions, muzzleDirective.skipVersions)
+
+//    println "Range Request: " + rangeRequest
+//    println "Range Result: " + rangeResult
+
+    final Set<Artifact> allVersionArtifacts = filterVersion(versions, muzzleDirective.skipVersions).collect { version ->
       new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", version.toString())
-    }
+    }.toSet()
 
     if (allVersionArtifacts.isEmpty()) {
       throw new GradleException("No muzzle artifacts found for $muzzleDirective.group:$muzzleDirective.module $muzzleDirective.versions")
@@ -217,8 +237,8 @@ class MuzzlePlugin implements Plugin<Project> {
   /**
    * Create a list of muzzle directives which assert the opposite of the given MuzzleDirective.
    */
-  private static List<MuzzleDirective> inverseOf(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
-    List<MuzzleDirective> inverseDirectives = new ArrayList<>()
+  private static Set<MuzzleDirective> inverseOf(MuzzleDirective muzzleDirective, RepositorySystem system, RepositorySystemSession session) {
+    Set<MuzzleDirective> inverseDirectives = new HashSet<>()
 
     final Artifact allVerisonsArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", "[,)")
     final Artifact directiveArtifact = new DefaultArtifact(muzzleDirective.group, muzzleDirective.module, "jar", muzzleDirective.versions)
@@ -233,9 +253,10 @@ class MuzzlePlugin implements Plugin<Project> {
     rangeRequest.setRepositories(MUZZLE_REPOS)
     rangeRequest.setArtifact(directiveArtifact)
     final VersionRangeResult rangeResult = system.resolveVersionRange(session, rangeRequest)
+    final Set<Version> versions = rangeResult.versions.toSet()
 
-    filterVersion(allRangeResult.versions).collect { version ->
-      if (!rangeResult.versions.contains(version)) {
+    filterVersion(allRangeResult.versions.toSet(), muzzleDirective.skipVersions).collect { version ->
+      if (!versions.contains(version)) {
         final MuzzleDirective inverseDirective = new MuzzleDirective()
         inverseDirective.group = muzzleDirective.group
         inverseDirective.module = muzzleDirective.module
@@ -246,6 +267,21 @@ class MuzzlePlugin implements Plugin<Project> {
     }
 
     return inverseDirectives
+  }
+
+  private static void limitLargeRanges(VersionRangeResult result, Set<Version> versions, Set<String> skipVersions) {
+    List<Version> copy = new ArrayList<>(versions)
+    Collections.shuffle(copy)
+    copy.removeAll(skipVersions)
+    while (RANGE_COUNT_LIMIT <= copy.size()) {
+      Version version = copy.pop()
+      if (!(version.equals(result.lowestVersion) || version.equals(result.highestVersion))) {
+        skipVersions.add(version.toString())
+      }
+    }
+    if (skipVersions.size() > 0) {
+      println "Muzzle skipping " + skipVersions.size() + " versions"
+    }
   }
 
   /**
@@ -343,10 +379,12 @@ class MuzzlePlugin implements Plugin<Project> {
     return session
   }
 
+  private static final Pattern GIT_SHA_PATTERN = Pattern.compile('^.*-[0-9a-f]{7,}$')
+
   /**
    * Filter out snapshot-type builds from versions list.
    */
-  private static filterVersion(List<Version> list) {
+  private static filterVersion(Set<Version> list, Set<String> skipVersions) {
     list.removeIf {
       def version = it.toString().toLowerCase()
       return version.contains("rc") ||
@@ -357,7 +395,11 @@ class MuzzlePlugin implements Plugin<Project> {
         version.contains(".m") ||
         version.contains("-m") ||
         version.contains("-dev") ||
-        version.contains("public_draft")
+        version.contains("-ea") ||
+        version.contains("-atlassian-") ||
+        version.contains("public_draft") ||
+        skipVersions.contains(version) ||
+        version.matches(GIT_SHA_PATTERN)
     }
     return list
   }
@@ -382,6 +424,7 @@ class MuzzleDirective {
   String group
   String module
   String versions
+  Set<String> skipVersions = new HashSet<>()
   List<String> additionalDependencies = new ArrayList<>()
   boolean assertPass
   boolean assertInverse = false
@@ -437,6 +480,7 @@ class MuzzleExtension {
   void pass(Action<? super MuzzleDirective> action) {
     final MuzzleDirective pass = objectFactory.newInstance(MuzzleDirective)
     action.execute(pass)
+    postConstruct(pass)
     pass.assertPass = true
     directives.add(pass)
   }
@@ -444,7 +488,15 @@ class MuzzleExtension {
   void fail(Action<? super MuzzleDirective> action) {
     final MuzzleDirective fail = objectFactory.newInstance(MuzzleDirective)
     action.execute(fail)
+    postConstruct(fail)
     fail.assertPass = false
     directives.add(fail)
+  }
+
+  private postConstruct(MuzzleDirective directive) {
+    // Make skipVersions case insensitive.
+    directive.skipVersions = directive.skipVersions.collect {
+      it.toLowerCase()
+    }
   }
 }

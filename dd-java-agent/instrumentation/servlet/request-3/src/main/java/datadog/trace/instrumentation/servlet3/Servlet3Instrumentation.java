@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -29,7 +30,7 @@ public final class Servlet3Instrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return safeHasSuperType(
-        named("javax.servlet.FilterChain").or(named("javax.servlet.http.HttpServlet")));
+        namedOneOf("javax.servlet.FilterChain", "javax.servlet.http.HttpServlet"));
   }
 
   @Override
@@ -55,8 +56,7 @@ public final class Servlet3Instrumentation extends Instrumenter.Default {
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
-        named("doFilter")
-            .or(named("service"))
+        namedOneOf("doFilter", "service")
             .and(takesArgument(0, named("javax.servlet.ServletRequest")))
             .and(takesArgument(1, named("javax.servlet.ServletResponse")))
             .and(isPublic()),

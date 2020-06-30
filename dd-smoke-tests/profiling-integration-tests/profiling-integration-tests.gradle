@@ -6,18 +6,15 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_11
   // Zulu has backported profiling support
   forceJdk = ['ZULU8']
-  jmcVersion = '8.0.0-SNAPSHOT'
 }
 
-apply from: "${rootDir}/gradle/java.gradle"
+apply from: "$rootDir/gradle/java.gradle"
 
 description = 'Profiling Integration Tests.'
 
 jar {
   manifest {
-    attributes(
-      'Main-Class': 'datadog.smoketest.profiling.ProfilingTestApplication'
-    )
+    attributes('Main-Class': 'datadog.smoketest.profiling.ProfilingTestApplication')
   }
 }
 
@@ -26,11 +23,7 @@ dependencies {
 
   testCompile project(':dd-smoke-tests')
   testCompile project(':dd-java-agent:agent-profiling:profiling-testing')
-  testCompile "org.openjdk.jmc:common:$jmcVersion"
-  testCompile "org.openjdk.jmc:flightrecorder:$jmcVersion"
-  testCompile "org.openjdk.jmc:flightrecorder.rules:$jmcVersion"
-  testCompile "org.openjdk.jmc:flightrecorder.rules.jdk:$jmcVersion"
-  compile group: 'org.lz4', name: 'lz4-java', version: '1.7.1'
+  testCompile deps.jmc
 }
 
 tasks.withType(Test).configureEach {

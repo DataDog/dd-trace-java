@@ -39,7 +39,8 @@ import java.util.regex.Pattern;
  *   <li>Do dot touch any logging facilities here so we can configure them later
  * </ul>
  */
-public class AgentBootstrap {
+public final class AgentBootstrap {
+  private static final Class<?> thisClass = AgentBootstrap.class;
 
   public static void premain(final String agentArgs, final Instrumentation inst) {
     agentmain(agentArgs, inst);
@@ -56,24 +57,26 @@ public class AgentBootstrap {
       startMethod.invoke(null, inst, bootstrapURL);
     } catch (final Throwable ex) {
       // Don't rethrow.  We don't have a log manager here, so just print.
+      System.err.println("ERROR " + thisClass.getName());
       ex.printStackTrace();
     }
   }
 
   private static synchronized URL installBootstrapJar(final Instrumentation inst)
       throws IOException, URISyntaxException {
-    URL bootstrapURL = null;
+    URL ddJavaAgentJarURL = null;
 
     // First try Code Source
-    final CodeSource codeSource = AgentBootstrap.class.getProtectionDomain().getCodeSource();
+    final CodeSource codeSource = thisClass.getProtectionDomain().getCodeSource();
 
     if (codeSource != null) {
-      bootstrapURL = codeSource.getLocation();
-      final File bootstrapFile = new File(bootstrapURL.toURI());
+      ddJavaAgentJarURL = codeSource.getLocation();
+      final File bootstrapFile = new File(ddJavaAgentJarURL.toURI());
 
       if (!bootstrapFile.isDirectory()) {
+        checkJarManifestMainClassIsThis(ddJavaAgentJarURL);
         inst.appendToBootstrapClassLoaderSearch(new JarFile(bootstrapFile));
-        return bootstrapURL;
+        return ddJavaAgentJarURL;
       }
     }
 
@@ -114,20 +117,21 @@ public class AgentBootstrap {
     if (!(javaagentFile.exists() || javaagentFile.isFile())) {
       throw new RuntimeException("Unable to find javaagent file: " + javaagentFile);
     }
-    bootstrapURL = javaagentFile.toURI().toURL();
+    ddJavaAgentJarURL = javaagentFile.toURI().toURL();
+    checkJarManifestMainClassIsThis(ddJavaAgentJarURL);
     inst.appendToBootstrapClassLoaderSearch(new JarFile(javaagentFile));
 
-    return bootstrapURL;
+    return ddJavaAgentJarURL;
   }
 
   private static List<String> getVMArgumentsThroughReflection() {
     try {
       // Try Oracle-based
-      final Class managementFactoryHelperClass =
-          AgentBootstrap.class.getClassLoader().loadClass("sun.management.ManagementFactoryHelper");
+      final Class<?> managementFactoryHelperClass =
+          thisClass.getClassLoader().loadClass("sun.management.ManagementFactoryHelper");
 
-      final Class vmManagementClass =
-          AgentBootstrap.class.getClassLoader().loadClass("sun.management.VMManagement");
+      final Class<?> vmManagementClass =
+          thisClass.getClassLoader().loadClass("sun.management.VMManagement");
 
       Object vmManagement;
 
@@ -146,7 +150,7 @@ public class AgentBootstrap {
 
     } catch (final ReflectiveOperationException e) {
       try { // Try IBM-based.
-        final Class VMClass = AgentBootstrap.class.getClassLoader().loadClass("com.ibm.oti.vm.VM");
+        final Class<?> VMClass = thisClass.getClassLoader().loadClass("com.ibm.oti.vm.VM");
         final String[] argArray = (String[]) VMClass.getMethod("getVMArgs").invoke(null);
         return Arrays.asList(argArray);
       } catch (final ReflectiveOperationException e1) {
@@ -157,6 +161,27 @@ public class AgentBootstrap {
         return ManagementFactory.getRuntimeMXBean().getInputArguments();
       }
     }
+  }
+
+  private static boolean checkJarManifestMainClassIsThis(final URL jarUrl) throws IOException {
+    final URL manifestUrl = new URL("jar:" + jarUrl + "!/META-INF/MANIFEST.MF");
+    final String mainClassLine = "Main-Class: " + thisClass.getCanonicalName();
+    try (final BufferedReader reader =
+        new BufferedReader(
+            new InputStreamReader(manifestUrl.openStream(), StandardCharsets.UTF_8))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        if (line.equals(mainClassLine)) {
+          return true;
+        }
+      }
+    }
+    throw new RuntimeException(
+        "dd-java-agent is not installed, because class '"
+            + thisClass.getCanonicalName()
+            + "' is located in '"
+            + jarUrl
+            + "'. Make sure you don't have this .class-file anywhere, besides dd-java-agent.jar");
   }
 
   /**
@@ -183,8 +208,7 @@ public class AgentBootstrap {
     try (final BufferedReader reader =
         new BufferedReader(
             new InputStreamReader(
-                AgentBootstrap.class.getResourceAsStream("/dd-java-agent.version"),
-                StandardCharsets.UTF_8))) {
+                thisClass.getResourceAsStream("/dd-java-agent.version"), StandardCharsets.UTF_8))) {
 
       for (int c = reader.read(); c != -1; c = reader.read()) {
         sb.append((char) c);

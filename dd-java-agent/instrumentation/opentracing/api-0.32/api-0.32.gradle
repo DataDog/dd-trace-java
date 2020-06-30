@@ -1,0 +1,28 @@
+muzzle {
+  pass {
+    module = 'opentracing-util'
+    group = 'io.opentracing'
+    versions = '[0.32.0,]'
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compile project(':dd-java-agent:instrumentation:opentracing')
+
+  compileOnly group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+
+  testCompile group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+
+  latestDepTestCompile group: 'io.opentracing', name: 'opentracing-util', version: '+'
+}

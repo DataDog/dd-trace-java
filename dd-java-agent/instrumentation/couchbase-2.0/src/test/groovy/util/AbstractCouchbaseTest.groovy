@@ -10,19 +10,21 @@ import com.couchbase.mock.Bucket
 import com.couchbase.mock.BucketConfiguration
 import com.couchbase.mock.CouchbaseMock
 import com.couchbase.mock.http.query.QueryServer
-import datadog.opentracing.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.PortUtils
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
+
+import static datadog.trace.api.Config.PREFIX
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 abstract class AbstractCouchbaseTest extends AgentTestRunner {
 
@@ -66,7 +68,7 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
     mock.createBucket(convert(bucketMemcache))
 
     // This setting should have no effect since decorator returns null for the instance.
-    System.setProperty(Config.PREFIX + Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
+    System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
   }
 
   private static BucketConfiguration convert(BucketSettings bucketSettings) {
@@ -82,7 +84,7 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
   def cleanupSpec() {
     mock?.stop()
 
-    System.clearProperty(Config.PREFIX + Config.DB_CLIENT_HOST_SPLIT_BY_INSTANCE)
+    System.clearProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE)
   }
 
   protected DefaultCouchbaseEnvironment.Builder envBuilder(BucketSettings bucketSettings) {
