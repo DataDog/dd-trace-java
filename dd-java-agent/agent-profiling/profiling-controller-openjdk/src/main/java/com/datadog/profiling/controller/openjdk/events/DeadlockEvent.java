@@ -17,7 +17,6 @@ import jdk.jfr.Period;
 @Period(value = "57 s")
 @Enabled
 public class DeadlockEvent extends Event {
-  private static final AtomicBoolean REGISTERED_FLAG = new AtomicBoolean();
   private static final DeadlockEventFactory EVENT_FACTORY = new DeadlockEventFactory();
 
   @Label("Deadlock ID")
@@ -39,12 +38,6 @@ public class DeadlockEvent extends Event {
 
   public static void emit() {
     EVENT_FACTORY.collectEvents().forEach(Event::commit);
-  }
-
-  public static void register() {
-    if (REGISTERED_FLAG.compareAndSet(false, true)) {
-      FlightRecorder.addPeriodicEvent(DeadlockEvent.class, DeadlockEvent::emit);
-    }
   }
 
   long getId() {

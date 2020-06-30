@@ -13,16 +13,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import jdk.jfr.Event;
+import jdk.jfr.FlightRecorder;
 
 public class DeadlockEventFactory {
-
   private static final DeadlockEvent DEADLOCK_EVENT = new DeadlockEvent();
   private static final DeadlockedThreadEvent DEADLOCKED_THREAD_EVENT = new DeadlockedThreadEvent();
 
   private final ThreadMXBean threadMXBean;
   private final AtomicLong deadlockCounter = new AtomicLong();
+
+  public static void registerEvents() {
+    FlightRecorder.addPeriodicEvent(DeadlockEvent.class, DeadlockEvent::emit);
+  }
 
   DeadlockEventFactory(ThreadMXBean threadMXBean) {
     this.threadMXBean = threadMXBean;
