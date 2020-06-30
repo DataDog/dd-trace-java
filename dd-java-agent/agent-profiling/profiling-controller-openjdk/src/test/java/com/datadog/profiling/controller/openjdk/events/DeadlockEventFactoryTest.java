@@ -93,19 +93,22 @@ class DeadlockEventFactoryTest {
                   }
                   return true;
                 })
-            .sorted((e1, e2) -> {
-              if (e1 instanceof DeadlockEvent) {
-                return e2 instanceof DeadlockEvent ? 0 : -1;
-              } else {
-                if (e2 instanceof DeadlockEvent) {
-                  return 1;
-                }
-              }
-              if (e1 instanceof DeadlockedThreadEvent && e2 instanceof DeadlockedThreadEvent) {
-                return ((DeadlockedThreadEvent) e1).getThreadName().compareTo(((DeadlockedThreadEvent) e2).getThreadName());
-              }
-              return 0;
-            })
+            .sorted(
+                (e1, e2) -> {
+                  if (e1 instanceof DeadlockEvent) {
+                    return e2 instanceof DeadlockEvent ? 0 : -1;
+                  } else {
+                    if (e2 instanceof DeadlockEvent) {
+                      return 1;
+                    }
+                  }
+                  if (e1 instanceof DeadlockedThreadEvent && e2 instanceof DeadlockedThreadEvent) {
+                    return ((DeadlockedThreadEvent) e1)
+                        .getThreadName()
+                        .compareTo(((DeadlockedThreadEvent) e2).getThreadName());
+                  }
+                  return 0;
+                })
             .collect(Collectors.toList());
 
     assertNotNull(events);
