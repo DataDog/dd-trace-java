@@ -6,7 +6,13 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springsecurity.SpringSecurityDecorator.DECORATOR;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.*;
+import static net.bytebuddy.matcher.ElementMatchers.isInterface;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -62,12 +68,12 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope StartSpan(
         @Advice.Argument(0) final org.springframework.security.core.Authentication auth,
-        @Advice.This(optional = true) Object thiz) {
+        @Advice.This(optional = true) final Object thiz) {
 
       AgentSpan span = startSpan("security");
       span = DECORATOR.afterStart(span);
       if (auth != null) {
-        String resource_name = "authenticate" + " " + auth.getName();
+        final String resource_name = "authenticate" + " " + auth.getName();
         span.setTag(RESOURCE_NAME, resource_name);
         DECORATOR.setTagsFromAuth(span, auth);
       }
@@ -78,9 +84,9 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Enter final AgentScope scope,
-        @Advice.Return org.springframework.security.core.Authentication auth,
+        @Advice.Return final org.springframework.security.core.Authentication auth,
         @Advice.Thrown final Throwable throwable) {
-      AgentSpan span = scope.span();
+      final AgentSpan span = scope.span();
 
       if (auth != null) {
         // updates if authentication was a success

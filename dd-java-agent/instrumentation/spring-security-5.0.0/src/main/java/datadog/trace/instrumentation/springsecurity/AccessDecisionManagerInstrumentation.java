@@ -6,7 +6,12 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springsecurity.SpringSecurityDecorator.DECORATOR;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.*;
+import static net.bytebuddy.matcher.ElementMatchers.isInterface;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -73,7 +78,7 @@ public final class AccessDecisionManagerInstrumentation extends Instrumenter.Def
       DECORATOR.setTagsFromSecuredObject(span, object);
       DECORATOR.setTagsFromConfigAttributes(span, configAttributes);
 
-      String resource_name = "access_decision" + " " + DECORATOR.securedObject();
+      final String resource_name = "access_decision" + " " + DECORATOR.securedObject();
       span.setTag(RESOURCE_NAME, resource_name);
 
       return activateSpan(span, true);
@@ -84,7 +89,7 @@ public final class AccessDecisionManagerInstrumentation extends Instrumenter.Def
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
 
       if (throwable != null) {
-        AgentSpan span = scope.span();
+        final AgentSpan span = scope.span();
         span.setError(Boolean.TRUE);
         span.addThrowable(throwable);
       }

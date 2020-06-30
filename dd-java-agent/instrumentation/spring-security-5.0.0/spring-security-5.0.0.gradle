@@ -33,7 +33,7 @@ dependencies {
   testCompile group: 'org.springframework.security', name: 'spring-security-ldap', version: '5.0.0.RELEASE'
   testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.1.9.RELEASE'
   testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '2.1.9.RELEASE'
-  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version:  '2.1.9.RELEASE'
+  testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.1.9.RELEASE'
   testCompile group: 'org.springframework.ldap', name: 'spring-ldap-core', version: '2.3.2.RELEASE'
   testCompile group: 'com.unboundid', name: 'unboundid-ldapsdk', version: '4.0.12'
   testCompile group: 'org.spockframework', name: 'spock-spring', version: '1.1-groovy-2.4'
@@ -54,7 +54,5 @@ dependencies {
   latestDepTestCompile group: 'org.springframework.ldap', name: 'spring-ldap-core', version: '2.3.2.RELEASE'
   latestDepTestCompile group: 'com.unboundid', name: 'unboundid-ldapsdk', version: '4.0.12'
   latestDepTestCompile group: 'org.spockframework', name: 'spock-spring', version: '1.1-groovy-2.4'
-
-
 }
 

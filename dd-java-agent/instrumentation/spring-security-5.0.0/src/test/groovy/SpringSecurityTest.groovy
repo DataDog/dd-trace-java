@@ -18,10 +18,10 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.core.GrantedAuthority
 import spock.lang.Shared
 
-@SpringBootTest( webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT,classes = AuthenticatingLdapApplication)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT, classes = AuthenticatingLdapApplication)
 class SpringSecurityTest extends AgentTestRunner {
 
-   @Shared
+  @Shared
   protected AccessDecisionManager accessManager
 
   @Shared
@@ -30,14 +30,14 @@ class SpringSecurityTest extends AgentTestRunner {
 
   def setupSpec() {
 
-  def context = new AnnotationConfigApplicationContext()
-  context.register(WebSecurityConfig)
-  context.refresh()
-    authManager= context.getBean(AuthenticationManager)
+    def context = new AnnotationConfigApplicationContext()
+    context.register(WebSecurityConfig)
+    context.refresh()
+    authManager = context.getBean(AuthenticationManager)
     accessManager = context.getBean(AccessDecisionManager)
   }
 
- def "access decision test one"() {
+  def "access decision test one"() {
 
     setup:
 
@@ -54,9 +54,9 @@ class SpringSecurityTest extends AgentTestRunner {
 
     when:
 
-    Authentication query = new UsernamePasswordAuthenticationToken("bob","azerty", grantedAuthorityList  )
+    Authentication query = new UsernamePasswordAuthenticationToken("bob", "azerty", grantedAuthorityList)
     Authentication response = authManager.authenticate(query)
-    List list =  new ArrayList<ConfigAttribute>()
+    List list = new ArrayList<ConfigAttribute>()
     ConfigAttribute ca = new SecurityConfig("ROLE_YOUHOU")
     list.add(ca)
     accessManager.decide(response, filterInvocation, list)
@@ -95,16 +95,16 @@ class SpringSecurityTest extends AgentTestRunner {
         return "ROLE_DEVELOPERS"
       }
     })
-    
+
 
     def request = new MockHttpServletRequest('GET', "http://localhost:8080/hello")
     def filterInvocation = new org.springframework.security.web.FilterInvocation(request, new MockHttpServletResponse(), new MockFilterChain())
 
     when:
 
-    Authentication query = new UsernamePasswordAuthenticationToken("bob","azerty", grantedAuthorityList  )
+    Authentication query = new UsernamePasswordAuthenticationToken("bob", "azerty", grantedAuthorityList)
     Authentication response = authManager.authenticate(query)
-    List list =  new ArrayList<ConfigAttribute>()
+    List list = new ArrayList<ConfigAttribute>()
     ConfigAttribute ca = new SecurityConfig("ROLE_DEVELOPERS")
     list.add(ca)
 
@@ -173,7 +173,7 @@ class SpringSecurityTest extends AgentTestRunner {
   def "wrong password"() {
 
     setup:
-    Authentication upat = new UsernamePasswordAuthenticationToken("bob","ytreza", new ArrayList<GrantedAuthority>() )
+    Authentication upat = new UsernamePasswordAuthenticationToken("bob", "ytreza", new ArrayList<GrantedAuthority>())
 
     when:
 
@@ -189,15 +189,15 @@ class SpringSecurityTest extends AgentTestRunner {
           errored true
           spanType "web"
           tags {
-               "$Tags.COMPONENT.key" "spring-security"
-              "authentication.name" "bob"
-              "authentication.is_authenticated" true
-              "error.type" "org.springframework.security.authentication.BadCredentialsException"
-              "error" true
-              "error.msg" "Bad credentials"
-              "error.stack" String
-              defaultTags()
-         }
+            "$Tags.COMPONENT.key" "spring-security"
+            "authentication.name" "bob"
+            "authentication.is_authenticated" true
+            "error.type" "org.springframework.security.authentication.BadCredentialsException"
+            "error" true
+            "error.msg" "Bad credentials"
+            "error.stack" String
+            defaultTags()
+          }
         }
       }
     }
@@ -208,7 +208,7 @@ class SpringSecurityTest extends AgentTestRunner {
   def "unknown login"() {
 
     setup:
-    Authentication upat = new UsernamePasswordAuthenticationToken("toto","ytreza", new ArrayList<GrantedAuthority>() )
+    Authentication upat = new UsernamePasswordAuthenticationToken("toto", "ytreza", new ArrayList<GrantedAuthority>())
 
     when:
 
