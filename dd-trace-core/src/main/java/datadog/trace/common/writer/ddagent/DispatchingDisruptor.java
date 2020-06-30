@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 public class DispatchingDisruptor implements AutoCloseable {
 
   private final Disruptor<TraceBuffer> disruptor;
+  private final Monitor monitor;
 
   public DispatchingDisruptor(
       int disruptorSize,
@@ -35,6 +36,7 @@ public class DispatchingDisruptor implements AutoCloseable {
             // block (and use no resources) until there's a batch of data to dispatch
             new BlockingWaitStrategy());
     disruptor.handleEventsWith(new TraceDispatchingHandler(api, monitor, writer));
+    this.monitor = monitor;
   }
 
   public void start() {
@@ -53,6 +55,7 @@ public class DispatchingDisruptor implements AutoCloseable {
       try {
         return disruptor.getRingBuffer().tryNext();
       } catch (InsufficientCapacityException insufficientCapacity) {
+        monitor.onBackedUpTraceBuffer();
         long now = System.currentTimeMillis();
         backoffMillis = Math.min(backoffMillis * 2, 1000);
         if (now > nextLogTime) { // log every 20 seconds

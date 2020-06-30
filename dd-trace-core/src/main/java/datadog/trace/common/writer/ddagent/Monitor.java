@@ -32,6 +32,8 @@ public interface Monitor {
 
   void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete);
 
+  void onBackedUpTraceBuffer();
+
   void onSerialize(
       final DDAgentWriter agentWriter, final List<DDSpan> trace, final int serializedSizeInBytes);
 
@@ -112,6 +114,11 @@ public interface Monitor {
     @Override
     public void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete) {
       // not recorded
+    }
+
+    @Override
+    public void onBackedUpTraceBuffer() {
+      statsd.incrementCounter("trace.buffer.backlog");
     }
 
     @Override
@@ -202,6 +209,9 @@ public interface Monitor {
     @Override
     public void onScheduleFlush(
         final DDAgentWriter agentWriter, final boolean previousIncomplete) {}
+
+    @Override
+    public void onBackedUpTraceBuffer() {}
 
     @Override
     public void onSerialize(
