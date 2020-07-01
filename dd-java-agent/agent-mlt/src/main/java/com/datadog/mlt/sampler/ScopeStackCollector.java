@@ -119,6 +119,11 @@ final class ScopeStackCollector implements IMLTChunk {
   }
 
   @Override
+  public boolean hasStacks() {
+    return !stacks.isEmpty();
+  }
+
+  @Override
   public Stream<FrameSequence> frameSequences() {
     // stack pointer stream is internally compressed - needs to be decompressed first
     return IMLTChunk.decompressStackPtrs(frameSequenceCpIndexes()).mapToObj(stackPool::get);

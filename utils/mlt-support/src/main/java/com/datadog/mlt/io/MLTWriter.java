@@ -16,6 +16,9 @@ public final class MLTWriter {
    * @return chunk in its MLT binary format
    */
   public byte[] writeChunk(IMLTChunk chunk) {
+    if (!chunk.hasStacks()) {
+      return null;
+    }
     LEB128Writer chunkWriter = LEB128Writer.getInstance();
     writeChunk(chunk, chunkWriter);
     byte[] data = chunkWriter.export();
