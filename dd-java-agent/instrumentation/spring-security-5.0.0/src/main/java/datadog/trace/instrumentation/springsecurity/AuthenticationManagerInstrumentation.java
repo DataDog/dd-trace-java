@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.springsecurity;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
-import static datadog.trace.api.DDTags.RESOURCE_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springsecurity.SpringSecurityDecorator.DECORATOR;
@@ -23,18 +23,18 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.springframework.security.core.Authentication;
 
-/* Instrumentation of
- org.springframework.security.authentication
-Interface AuthenticationManager
-Authentication authenticate(Authentication authentication)
-throws AuthenticationException
-*/
 @AutoService(Instrumenter.class)
 public final class AuthenticationManagerInstrumentation extends Instrumenter.Default {
 
   public AuthenticationManagerInstrumentation() {
     super("spring-security");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return hasClassesNamed("org.springframework.security.authentication.AuthenticationManager");
   }
 
   @Override
@@ -48,7 +48,7 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.agent.decorator.BaseDecorator", packageName + ".SpringSecurityDecorator"
+      packageName + ".SpringSecurityDecorator",
     };
   }
 
@@ -66,37 +66,31 @@ public final class AuthenticationManagerInstrumentation extends Instrumenter.Def
   public static class AuthenticateAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope StartSpan(
-        @Advice.Argument(0) final org.springframework.security.core.Authentication auth,
-        @Advice.This(optional = true) final Object thiz) {
+    public static AgentScope start(@Advice.Argument(0) final Authentication auth) {
 
-      AgentSpan span = startSpan("security");
+      AgentSpan span = startSpan("security.authenticate");
       span = DECORATOR.afterStart(span);
       if (auth != null) {
-        final String resource_name = "authenticate" + " " + auth.getName();
-        span.setTag(RESOURCE_NAME, resource_name);
-        DECORATOR.setTagsFromAuth(span, auth);
+        DECORATOR.onAuthentication(span, auth);
       }
 
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
+    public static void stop(
         @Advice.Enter final AgentScope scope,
-        @Advice.Return final org.springframework.security.core.Authentication auth,
+        @Advice.Return final Authentication auth,
         @Advice.Thrown final Throwable throwable) {
       final AgentSpan span = scope.span();
-
       if (auth != null) {
         // updates if authentication was a success
-        DECORATOR.setTagsFromAuth(span, auth);
+        DECORATOR.onAuthentication(span, auth);
       }
-      if (throwable != null) {
-        span.setError(Boolean.TRUE);
-        span.addThrowable(throwable);
-      }
+      DECORATOR.onError(span, throwable);
+      DECORATOR.beforeFinish(span);
       scope.close();
+      span.finish();
     }
   }
 }

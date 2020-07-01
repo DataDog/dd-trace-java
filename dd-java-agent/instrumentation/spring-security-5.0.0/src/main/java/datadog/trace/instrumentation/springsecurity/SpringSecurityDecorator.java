@@ -1,13 +1,9 @@
 package datadog.trace.instrumentation.springsecurity;
 
-import datadog.trace.api.DDSpanTypes;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.Collection;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.security.access.ConfigAttribute;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,19 +13,12 @@ import org.springframework.security.web.FilterInvocation;
 
 @Slf4j
 public class SpringSecurityDecorator extends BaseDecorator {
-  public static final Logger LOGGER = LoggerFactory.getLogger(SpringSecurityDecorator.class);
   public static final String DELIMITER = ", ";
   public static final SpringSecurityDecorator DECORATOR = new SpringSecurityDecorator();
-  private String securedObject;
 
   @Override
   protected String[] instrumentationNames() {
     return new String[] {"spring-security"};
-  }
-
-  // @Override
-  protected String service() {
-    return "spring-security";
   }
 
   @Override
@@ -42,27 +31,18 @@ public class SpringSecurityDecorator extends BaseDecorator {
     return false;
   }
 
+  @Override
   protected String spanType() {
-    return DDSpanTypes.HTTP_SERVER;
+    return null;
   }
 
-  public String securedObject() {
-    return securedObject;
-  }
-
-  public AgentSpan afterStart(final AgentSpan span) {
-    assert span != null;
-    span.setTag(DDTags.SERVICE_NAME, service());
-    return super.afterStart(span);
-  }
-
-  public void setTagsFromConfigAttributes(
-      AgentSpan span, Collection<ConfigAttribute> configAttributes) {
+  public void onConfigAttributes(
+      final AgentSpan span, final Collection<ConfigAttribute> configAttributes) {
     String str = new String();
 
-    for (ConfigAttribute ca : configAttributes) {
+    for (final ConfigAttribute ca : configAttributes) {
       str += DELIMITER;
-      String attribute = ca.getAttribute();
+      final String attribute = ca.getAttribute();
       if (attribute != null) {
         str += attribute;
       } else {
@@ -74,54 +54,53 @@ public class SpringSecurityDecorator extends BaseDecorator {
     }
   }
 
-  public void setTagsFromSecuredObject(AgentSpan span, Object object) {
-    if (object != null) {
-      if (object instanceof org.springframework.security.web.FilterInvocation) {
-        FilterInvocation fi = (FilterInvocation) object;
-        securedObject = fi.getRequest().getRequestURL().toString();
-      }
-      if (object instanceof org.springframework.security.util.SimpleMethodInvocation) {
-        SimpleMethodInvocation smi = (SimpleMethodInvocation) object;
-        securedObject = smi.getMethod().getName();
-      }
-      span.setTag("secured.object", securedObject);
+  public void onSecuredObject(final AgentSpan span, final Object object) {
+    String securedObject = null;
+    if (object instanceof org.springframework.security.web.FilterInvocation) {
+      final FilterInvocation fi = (FilterInvocation) object;
+      securedObject = fi.getRequest().getRequestURL().toString();
+    } else if (object instanceof org.springframework.security.util.SimpleMethodInvocation) {
+      final SimpleMethodInvocation smi = (SimpleMethodInvocation) object;
+      securedObject = smi.getMethod().getName();
     }
+    span.setTag("secured.object", securedObject);
   }
 
-  public void setTagsFromAuth(AgentSpan span, Authentication auth) {
-    assert span != null;
-    assert auth != null;
+  public void onAuthentication(final AgentSpan span, final Authentication auth) {
+    if (auth == null) {
+      return;
+    }
 
-    Object principal = auth.getPrincipal();
+    final Object principal = auth.getPrincipal();
 
     if (principal instanceof UserDetails) {
 
-      UserDetails ud = (UserDetails) principal;
-      String username = ud.getUsername();
+      final UserDetails ud = (UserDetails) principal;
+      final String username = ud.getUsername();
       if (username != null && !username.isEmpty()) {
-        span.setTag("authentication.userdetails.username", username);
+        span.setTag("auth.user.name", username);
       }
-      Boolean isAccountNonExpired = ud.isAccountNonExpired();
-      span.setTag("authentication.userdetails.is_account_non_expired", isAccountNonExpired);
-      Boolean isAccountNonLocked = ud.isAccountNonLocked();
-      span.setTag("authentication.userdetails.is_account_non_locked", isAccountNonLocked);
-      Boolean isCredentialsNonExpired = ud.isCredentialsNonExpired();
-      span.setTag("authentication.userdetails.is_credentials_non_locked", isCredentialsNonExpired);
+      final Boolean isAccountNonExpired = ud.isAccountNonExpired();
+      span.setTag("auth.user.non_expired", isAccountNonExpired);
+      final Boolean isAccountNonLocked = ud.isAccountNonLocked();
+      span.setTag("auth.user.account_non_locked", isAccountNonLocked);
+      final Boolean isCredentialsNonExpired = ud.isCredentialsNonExpired();
+      span.setTag("auth.user.credentials_non_locked", isCredentialsNonExpired);
 
-      Collection<? extends GrantedAuthority> coll = ud.getAuthorities();
+      final Collection<? extends GrantedAuthority> coll = ud.getAuthorities();
       String str = new String();
-      for (GrantedAuthority authority : coll) {
+      for (final GrantedAuthority authority : coll) {
         str += DELIMITER;
         str += authority.getAuthority().toString();
       }
       if (coll.size() != 0) {
-        span.setTag("authentication.userdetails.authorities", str.substring(DELIMITER.length()));
+        span.setTag("auth.user.authorities", str.substring(DELIMITER.length()));
       }
     }
 
-    span.setTag("authentication.name", auth.getName());
+    span.setTag("auth.name", auth.getName());
 
-    boolean isAuthenticated = auth.isAuthenticated();
-    span.setTag("authentication.is_authenticated", isAuthenticated);
+    final boolean isAuthenticated = auth.isAuthenticated();
+    span.setTag("auth.authenticated", isAuthenticated);
   }
 }

@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.springsecurity;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
-import static datadog.trace.api.DDTags.RESOURCE_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springsecurity.SpringSecurityDecorator.DECORATOR;
@@ -25,23 +25,16 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.springframework.security.access.ConfigAttribute;
 
-/* Instrumentation of
-org.springframework.security.access
-public interface AccessDecisionManager
-  void decide(Authentication authentication,
-            Object object,
-            Collection<ConfigAttribute> configAttributes)
-  throws AccessDeniedException,
-  InsufficientAuthenticationException
-
-*/
-
 @AutoService(Instrumenter.class)
 public final class AccessDecisionManagerInstrumentation extends Instrumenter.Default {
-  public static final String DELIMITER = ", ";
 
   public AccessDecisionManagerInstrumentation() {
     super("spring-security");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return hasClassesNamed("org.springframework.security.access.AccessDecisionManager");
   }
 
   @Override
@@ -53,7 +46,7 @@ public final class AccessDecisionManagerInstrumentation extends Instrumenter.Def
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.agent.decorator.BaseDecorator", packageName + ".SpringSecurityDecorator"
+      packageName + ".SpringSecurityDecorator",
     };
   }
 
@@ -67,34 +60,28 @@ public final class AccessDecisionManagerInstrumentation extends Instrumenter.Def
   public static class AccessDecisionAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope StartSpan(
+    public static AgentScope start(
         @Advice.Argument(0) final org.springframework.security.core.Authentication auth,
         @Advice.Argument(1) final Object object,
         @Advice.Argument(2) final Collection<ConfigAttribute> configAttributes) {
-      AgentSpan span = startSpan("security");
+      final AgentSpan span = startSpan("security.access_decision");
 
-      span = DECORATOR.afterStart(span);
-      DECORATOR.setTagsFromAuth(span, auth);
-      DECORATOR.setTagsFromSecuredObject(span, object);
-      DECORATOR.setTagsFromConfigAttributes(span, configAttributes);
+      DECORATOR.afterStart(span);
+      DECORATOR.onAuthentication(span, auth);
+      DECORATOR.onSecuredObject(span, object);
+      DECORATOR.onConfigAttributes(span, configAttributes);
 
-      final String resource_name = "access_decision" + " " + DECORATOR.securedObject();
-      span.setTag(RESOURCE_NAME, resource_name);
-
-      return activateSpan(span, true);
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
+    public static void stop(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-
-      if (throwable != null) {
-        final AgentSpan span = scope.span();
-        span.setError(Boolean.TRUE);
-        span.addThrowable(throwable);
-      }
-
+      final AgentSpan span = scope.span();
+      DECORATOR.onError(span, throwable);
+      DECORATOR.beforeFinish(span);
       scope.close();
+      span.finish();
     }
   }
 }

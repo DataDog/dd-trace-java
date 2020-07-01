@@ -97,6 +97,9 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
         if (name.startsWith("org.springframework.boot.autoconfigure.BackgroundPreinitializer$")
             || name.startsWith("org.springframework.boot.autoconfigure.condition.OnClassCondition$")
             || name.startsWith("org.springframework.boot.web.embedded.netty.NettyWebServer$")
+            || name.startsWith("org.springframework.boot.web.embedded.tomcat.TomcatWebServer$1")
+            || name.equals(
+                "org.springframework.boot.web.embedded.tomcat.TomcatEmbeddedWebappClassLoader")
             || name.startsWith(
                 "org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainer$")
             || name.equals(

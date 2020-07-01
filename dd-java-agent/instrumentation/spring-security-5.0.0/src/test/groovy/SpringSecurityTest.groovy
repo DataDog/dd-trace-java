@@ -1,7 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import dd.trace.instrumentation.springsecurity.AuthenticatingLdapApplication
 import dd.trace.instrumentation.springsecurity.WebSecurityConfig
-import io.opentracing.tag.Tags
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.mock.web.MockFilterChain
@@ -29,7 +29,6 @@ class SpringSecurityTest extends AgentTestRunner {
 
 
   def setupSpec() {
-
     def context = new AnnotationConfigApplicationContext()
     context.register(WebSecurityConfig)
     context.refresh()
@@ -38,9 +37,7 @@ class SpringSecurityTest extends AgentTestRunner {
   }
 
   def "access decision test one"() {
-
     setup:
-
     def grantedAuthorityList = new ArrayList<GrantedAuthority>()
     grantedAuthorityList.add(new GrantedAuthority() {
       @Override
@@ -49,15 +46,14 @@ class SpringSecurityTest extends AgentTestRunner {
       }
     })
 
-    def request = new MockHttpServletRequest('GET', "http://localhost:8080/hello")
+    def request = new MockHttpServletRequest('GET', "/hello")
     def filterInvocation = new org.springframework.security.web.FilterInvocation(request, new MockHttpServletResponse(), new MockFilterChain())
 
     when:
-
     Authentication query = new UsernamePasswordAuthenticationToken("bob", "azerty", grantedAuthorityList)
     Authentication response = authManager.authenticate(query)
     List list = new ArrayList<ConfigAttribute>()
-    ConfigAttribute ca = new SecurityConfig("ROLE_YOUHOU")
+    ConfigAttribute ca = new SecurityConfig("ROLE_YOUHOO")
     list.add(ca)
     accessManager.decide(response, filterInvocation, list)
 
@@ -67,27 +63,48 @@ class SpringSecurityTest extends AgentTestRunner {
     assertTraces(2) {
       trace(0, 1) {
         span(0) {
-          operationName "security"
-          spanType "web"
+          operationName "security.authenticate"
+          resourceName "security.authenticate"
           errored false
+          tags {
+            "$Tags.COMPONENT" "spring-security"
+            "auth.name" "bob"
+            "auth.user.name" "bob"
+            "auth.authenticated" true
+            "auth.user.authorities" "ROLE_DEVELOPERS"
+            "auth.user.non_expired" true
+            "auth.user.account_non_locked" true
+            "auth.user.credentials_non_locked" true
+            defaultTags()
+          }
         }
       }
       trace(1, 1) {
         span(0) {
-          operationName "security"
-          spanType "web"
+          operationName "security.access_decision"
+          resourceName "security.access_decision"
           errored true
+          tags {
+            "$Tags.COMPONENT" "spring-security"
+            "auth.name" "bob"
+            "auth.user.name" "bob"
+            "auth.authenticated" true
+            "auth.user.authorities" "ROLE_DEVELOPERS"
+            "auth.user.non_expired" true
+            "auth.user.account_non_locked" true
+            "auth.user.credentials_non_locked" true
+            "secured.object" "http://localhost/hello"
+            "config.attribute" "ROLE_YOUHOO"
+            errorTags(AccessDeniedException, "Access is denied")
+            defaultTags()
+          }
         }
       }
     }
-
-
   }
 
   def "access decision should succeed"() {
-
     setup:
-
     def grantedAuthorityList = new ArrayList<GrantedAuthority>()
     grantedAuthorityList.add(new GrantedAuthority() {
       @Override
@@ -96,12 +113,10 @@ class SpringSecurityTest extends AgentTestRunner {
       }
     })
 
-
-    def request = new MockHttpServletRequest('GET', "http://localhost:8080/hello")
+    def request = new MockHttpServletRequest('GET', "/hello")
     def filterInvocation = new org.springframework.security.web.FilterInvocation(request, new MockHttpServletResponse(), new MockFilterChain())
 
     when:
-
     Authentication query = new UsernamePasswordAuthenticationToken("bob", "azerty", grantedAuthorityList)
     Authentication response = authManager.authenticate(query)
     List list = new ArrayList<ConfigAttribute>()
@@ -111,38 +126,56 @@ class SpringSecurityTest extends AgentTestRunner {
     accessManager.decide(response, filterInvocation, list)
 
     then:
-
     assertTraces(2) {
       trace(0, 1) {
         span(0) {
-          operationName "security"
-          spanType "web"
+          operationName "security.authenticate"
+          resourceName "security.authenticate"
           errored false
+          tags {
+            "$Tags.COMPONENT" "spring-security"
+            "auth.name" "bob"
+            "auth.user.name" "bob"
+            "auth.authenticated" true
+            "auth.user.authorities" "ROLE_DEVELOPERS"
+            "auth.user.non_expired" true
+            "auth.user.account_non_locked" true
+            "auth.user.credentials_non_locked" true
+            defaultTags()
+          }
         }
       }
       trace(1, 1) {
         span(0) {
-          operationName "security"
-          spanType "web"
+          operationName "security.access_decision"
+          resourceName "security.access_decision"
           errored false
+          tags {
+            "$Tags.COMPONENT" "spring-security"
+            "auth.name" "bob"
+            "auth.user.name" "bob"
+            "auth.authenticated" true
+            "auth.user.authorities" "ROLE_DEVELOPERS"
+            "auth.user.non_expired" true
+            "auth.user.account_non_locked" true
+            "auth.user.credentials_non_locked" true
+            "secured.object" "http://localhost/hello"
+            "config.attribute" "ROLE_DEVELOPERS"
+            defaultTags()
+          }
         }
       }
-
     }
-
-
   }
 
 
   //tests for authentication
 
   def "Login success"() {
-
     setup:
     Authentication upat = new UsernamePasswordAuthenticationToken("bob", "azerty", new ArrayList<GrantedAuthority>())
 
     when:
-
     def auth = authManager.authenticate(upat)
 
     then:
@@ -150,18 +183,18 @@ class SpringSecurityTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
-          operationName "security"
+          operationName "security.authenticate"
+          resourceName "security.authenticate"
           errored false
-          spanType "web"
           tags {
-            "$Tags.COMPONENT.key" "spring-security"
-            "authentication.name" "bob"
-            "authentication.is_authenticated" true
-            "authentication.userdetails.authorities" "ROLE_DEVELOPERS"
-            "authentication.userdetails.is_account_non_expired" true
-            "authentication.userdetails.is_account_non_locked" true
-            "authentication.userdetails.is_credentials_non_locked" true
-            "authentication.userdetails.username" "bob"
+            "$Tags.COMPONENT" "spring-security"
+            "auth.name" "bob"
+            "auth.user.name" "bob"
+            "auth.authenticated" true
+            "auth.user.authorities" "ROLE_DEVELOPERS"
+            "auth.user.non_expired" true
+            "auth.user.account_non_locked" true
+            "auth.user.credentials_non_locked" true
             defaultTags()
           }
         }
@@ -185,23 +218,19 @@ class SpringSecurityTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
-          operationName "security"
+          operationName "security.authenticate"
+          resourceName "security.authenticate"
           errored true
-          spanType "web"
           tags {
-            "$Tags.COMPONENT.key" "spring-security"
-            "authentication.name" "bob"
-            "authentication.is_authenticated" true
-            "error.type" "org.springframework.security.authentication.BadCredentialsException"
-            "error" true
-            "error.msg" "Bad credentials"
-            "error.stack" String
+            "$Tags.COMPONENT" "spring-security"
+            "auth.name" "bob"
+            "auth.authenticated" true
+            errorTags(BadCredentialsException, "Bad credentials")
             defaultTags()
           }
         }
       }
     }
-
   }
 
 
@@ -220,25 +249,20 @@ class SpringSecurityTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
-          operationName "security"
+          operationName "security.authenticate"
+          resourceName "security.authenticate"
           errored true
-          spanType "web"
           tags {
-            "$Tags.COMPONENT.key" "spring-security"
-            "authentication.name" "toto"
-            "error.type" "org.springframework.security.authentication.BadCredentialsException"
-            "authentication.is_authenticated" true
-            "error" true
-            "error.msg" "Bad credentials"
-            "error.stack" String
+            "$Tags.COMPONENT" "spring-security"
+            "auth.name" "toto"
+            "auth.authenticated" true
+            errorTags(BadCredentialsException, "Bad credentials")
             defaultTags() //' 'language', 'runtime-id', 'thread.id', 'thread.name'
           }
         }
       }
     }
-
   }
-
 }
 
 
