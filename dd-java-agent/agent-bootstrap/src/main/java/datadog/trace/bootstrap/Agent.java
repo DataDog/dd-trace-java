@@ -284,7 +284,7 @@ public class Agent {
   /** Enable JMX based thread CPU time provider once it is safe to touch JMX */
   private static synchronized void initializeJmxThreadCpuTimeProvider() {
     log.info("Initializing JMX thread CPU time provider");
-    if (PROFILING_CLASSLOADER == null) {
+    if (AGENT_CLASSLOADER == null) {
       throw new IllegalStateException("Datadog agent should have been started already");
     }
     try {
