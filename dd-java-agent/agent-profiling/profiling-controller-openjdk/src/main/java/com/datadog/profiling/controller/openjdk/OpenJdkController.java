@@ -17,12 +17,10 @@ package com.datadog.profiling.controller.openjdk;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
-import com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory;
 import datadog.trace.api.Config;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import jdk.jfr.Recording;
 
 /**
@@ -31,8 +29,6 @@ import jdk.jfr.Recording;
  * messier... ;)
  */
 public final class OpenJdkController implements Controller {
-  private static final AtomicBoolean EVENTS_REGISTERED_FLAG = new AtomicBoolean();
-
   // Visible for testing
   static final String JFP = "jfr/dd.jfp";
   static final int RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
@@ -62,8 +58,6 @@ public final class OpenJdkController implements Controller {
 
   @Override
   public OpenJdkOngoingRecording createRecording(final String recordingName) {
-    registerEvents();
-
     final Recording recording = new Recording();
     recording.setName(recordingName);
     recording.setSettings(recordingSettings);
@@ -71,12 +65,5 @@ public final class OpenJdkController implements Controller {
     recording.setMaxAge(RECORDING_MAX_AGE);
     recording.start();
     return new OpenJdkOngoingRecording(recording);
-  }
-
-  private void registerEvents() {
-    // prevent re-registration as that would cause JFR to throw an exception
-    if (EVENTS_REGISTERED_FLAG.compareAndSet(false, true)) {
-      DeadlockEventFactory.registerEvents();
-    }
   }
 }
