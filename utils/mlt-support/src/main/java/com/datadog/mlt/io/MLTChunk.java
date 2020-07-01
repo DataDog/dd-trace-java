@@ -32,6 +32,12 @@ public final class MLTChunk implements IMLTChunk {
 
   @Generated // disable jacoco check; the method is trivial
   @Override
+  public boolean hasStacks() {
+    return !stacks.isEmpty();
+  }
+
+  @Generated // disable jacoco check; the method is trivial
+  @Override
   public Stream<FrameSequence> frameSequences() {
     return stacks.stream();
   }

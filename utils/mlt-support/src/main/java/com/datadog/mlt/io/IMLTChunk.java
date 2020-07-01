@@ -19,6 +19,9 @@ public interface IMLTChunk {
   /** @return associated thread ID */
   long getThreadId();
 
+  /** @return {@literal true} if the chunk contains any stacktrace data */
+  boolean hasStacks();
+
   /** @return associated thread name */
   String getThreadName();
 
