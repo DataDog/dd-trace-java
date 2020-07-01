@@ -1,5 +1,6 @@
 package datadog.smoketest
 
+import datadog.trace.api.config.ProfilingConfig
 import okhttp3.mockwebserver.MockWebServer
 import spock.lang.Shared
 
@@ -11,9 +12,12 @@ abstract class AbstractProfilingIntegrationTest extends AbstractSmokeTest {
   ProcessBuilder createProcessBuilder() {
     String profilingShadowJar = System.getProperty("datadog.smoketest.profiling.shadowJar.path")
 
+    String templateOverride = AbstractProfilingIntegrationTest.getClassLoader().getResource("overrides.jfp").getFile()
+
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
+    command.addAll((String[]) ["-Ddd.${ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE}=${templateOverride}"])
     command.addAll((String[]) ["-jar", profilingShadowJar])
     command.add(Integer.toString(exitDelay))
     ProcessBuilder processBuilder = new ProcessBuilder(command)

@@ -264,6 +264,21 @@ public class Agent {
   private static synchronized void startJmx(final URL bootstrapURL) {
     startJmxFetch(bootstrapURL);
     initializeJmxThreadCpuTimeProvider();
+    registerDeadlockDetectionEvent(bootstrapURL);
+  }
+
+  private static synchronized void registerDeadlockDetectionEvent(URL bootstrapUrl) {
+    log.info("Initializing JMX thread deadlock detector");
+    try {
+      ClassLoader classLoader = getProfilingClassloader(bootstrapUrl);
+      final Class<?> deadlockFactoryClass =
+          classLoader.loadClass(
+              "com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory");
+      final Method registerMethod = deadlockFactoryClass.getMethod("registerEvents");
+      registerMethod.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while initializing JMX thread deadlock detector", ex);
+    }
   }
 
   /** Enable JMX based thread CPU time provider once it is safe to touch JMX */
@@ -306,13 +321,10 @@ public class Agent {
       final URL bootstrapURL, final boolean isStartingFirst) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
-      if (PROFILING_CLASSLOADER == null) {
-        PROFILING_CLASSLOADER =
-            createDelegateClassLoader("profiling", bootstrapURL, PARENT_CLASSLOADER);
-      }
-      Thread.currentThread().setContextClassLoader(PROFILING_CLASSLOADER);
+      ClassLoader classLoader = getProfilingClassloader(bootstrapURL);
+      Thread.currentThread().setContextClassLoader(classLoader);
       final Class<?> profilingAgentClass =
-          PROFILING_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
+          classLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
       final Method profilingInstallerMethod = profilingAgentClass.getMethod("run", Boolean.TYPE);
       profilingInstallerMethod.invoke(null, isStartingFirst);
     } catch (final ClassFormatError e) {
@@ -327,6 +339,15 @@ public class Agent {
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
+  }
+
+  private static synchronized ClassLoader getProfilingClassloader(URL bootstrapURL)
+      throws Exception {
+    if (PROFILING_CLASSLOADER == null) {
+      PROFILING_CLASSLOADER =
+          createDelegateClassLoader("profiling", bootstrapURL, PARENT_CLASSLOADER);
+    }
+    return PROFILING_CLASSLOADER;
   }
 
   private static void configureLogger() {

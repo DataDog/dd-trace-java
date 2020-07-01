@@ -80,11 +80,16 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractProfilingIntegr
     // filter out scope events without CPU time data
     def filteredScopeEvents = scopeEvents.apply(ItemFilters.more(cpuTimeAttr, UnitLookup.NANOSECOND.quantity(Long.MIN_VALUE)))
     // make sure there is at least one scope event with CPU time data
-    filteredScopeEvents.size() > 0
+    filteredScopeEvents.hasItems()
 
     filteredScopeEvents.getAggregate(Aggregators.min("datadog.Scope", cpuTimeAttr)).longValue() >= 10_000L
 
-    IItemCollection exceptionSampleEvents = events.apply(ItemFilters.type("datadog.ExceptionSample"))
-    exceptionSampleEvents.size() > 0
+    // check exception events
+    events.apply(ItemFilters.type("datadog.ExceptionSample")).hasItems()
+    events.apply(ItemFilters.type("datadog.ExceptionCount")).hasItems()
+
+    // check deadlock events
+    events.apply(ItemFilters.type("datadog.Deadlock")).hasItems()
+    events.apply(ItemFilters.type("datadog.DeadlockedThread")).hasItems()
   }
 }

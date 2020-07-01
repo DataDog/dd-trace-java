@@ -4,6 +4,8 @@ import datadog.trace.api.Trace;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 
 public class ProfilingTestApplication {
@@ -14,6 +16,7 @@ public class ProfilingTestApplication {
     if (args.length > 0) {
       exitDelay = TimeUnit.SECONDS.toMillis(Long.parseLong(args[0]));
     }
+    setupDeadlock();
     final long startTime = System.currentTimeMillis();
     while (true) {
       tracedMethod();
@@ -48,5 +51,60 @@ public class ProfilingTestApplication {
       }
     }
     System.out.println("accumulated: " + accumulator);
+  }
+
+  private static void setupDeadlock() {
+    final Phaser phaser = new Phaser(3);
+    final Object lockA = new Object();
+    final Object lockB = new Object();
+
+    final Thread threadA =
+        new Thread(
+            new Runnable() {
+              @Override
+              public void run() {
+                synchronized (lockA) {
+                  phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
+                  synchronized (lockB) {
+                    phaser.arriveAndDeregister(); // virtually unreachable
+                  }
+                }
+              }
+            },
+            "monitor-thread-A");
+    final Thread threadB =
+        new Thread(
+            new Runnable() {
+              @Override
+              public void run() {
+                synchronized (lockB) {
+                  phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
+                  synchronized (lockA) {
+                    phaser.arriveAndDeregister(); // virtually unreachable
+                  }
+                }
+              }
+            },
+            "monitor-thread-B");
+    threadA.setDaemon(true);
+    threadB.setDaemon(true);
+
+    final CountDownLatch latch = new CountDownLatch(1);
+    Thread main =
+        new Thread(
+            new Runnable() {
+              @Override
+              public void run() {
+                threadA.start();
+                threadB.start();
+                phaser.arriveAndAwaitAdvance(); // enter deadlock
+                phaser.arriveAndAwaitAdvance(); // unreachable if deadlock is present
+                latch.countDown();
+              }
+            },
+            "main-monitor-thread");
+    main.setDaemon(true);
+
+    main.start();
   }
 }
