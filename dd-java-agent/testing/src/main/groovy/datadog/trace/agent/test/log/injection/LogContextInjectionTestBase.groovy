@@ -33,6 +33,13 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
    */
   abstract get(String key)
 
+  /**
+   * Remove from the framework-specific context the value at the given key
+   */
+  abstract remove(String key)
+
+  abstract clear()
+
   static {
     ConfigUtils.updateConfig {
       System.setProperty("dd.logs.injection", "true")
@@ -167,6 +174,8 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
 
   def "always log service, version, env"() {
     def mainThreadVersion = get(Tags.DD_VERSION)
+    def t1threadNameBeg
+    def t1threadNameEnd
     def t1VersionBeg
     def t1VersionEnd
     def t1EnvBeg
@@ -177,14 +186,28 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
       void run() {
         t1VersionBeg = get(Tags.DD_VERSION)
         t1EnvBeg = get(Tags.DD_ENV)
+        put("threadName", currentThread().getName())
 
         println("something: " + this)
 
+        t1threadNameBeg = get("threadName")
+        remove("threadName")
+
+        t1threadNameEnd =  get("threadName")
         t1VersionEnd = get(Tags.DD_VERSION)
         t1EnvEnd = get(Tags.DD_ENV)
+
+        remove(Tags.DD_VERSION)
+        remove(Tags.DD_ENV)
       }
     }
+    thread1.setName("thread1")
     thread1.start()
+    put("threadName", Thread.currentThread().getName())
+    def mainThreadNameBeg = get("threadName")
+    remove("threadName")
+    def mainThreadNameEnd = get("threadName")
+
     thread1.join()
 
     expect:
@@ -196,5 +219,26 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     t1VersionEnd == TEST_VERSION
     t1EnvBeg == TEST_ENV
     t1EnvEnd == TEST_ENV
+    t1threadNameBeg == "thread1"
+    mainThreadNameBeg != t1threadNameBeg
+    t1threadNameEnd == null
+    mainThreadNameEnd == null
+  }
+
+  def "modify thread context after clear of context map at the beginning of new thread"() {
+    def t1A
+    final Thread thread1 = new Thread() {
+      @Override
+      void run() {
+        clear()
+        put("a", "a thread1")
+        t1A = get("a")
+      }
+    }
+    thread1.start()
+    thread1.join()
+
+    expect:
+    t1A == "a thread1"
   }
 }
