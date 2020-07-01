@@ -77,8 +77,14 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
       }
       return true;
     }
+    int firstDollar = name.indexOf('$');
     // clojure
-    if (name.startsWith("clojure.") || name.contains("$fn__")) {
+    if (name.startsWith("clojure.")
+        || (firstDollar > 0
+            && (name.startsWith("$fn__", firstDollar)
+                || name.startsWith("$loading__", firstDollar)
+                || name.startsWith("$reify__", firstDollar)))
+        || name.endsWith("__init")) {
       return true;
     }
 
@@ -151,13 +157,16 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
       return true;
     }
 
-    if (name.contains("$JaxbAccessor")
-        || name.contains("CGLIB$$")
-        || name.contains("javassist")
-        || name.contains(".asm.")
-        || name.contains("$__sisu")
-        || name.contains("$$EnhancerByProxool$$")
-        || name.startsWith("org.springframework.core.$Proxy")) {
+    if (firstDollar >= 0) {
+      if (name.contains("$JaxbAccessor")
+          || name.contains("CGLIB$$")
+          || name.contains("$__sisu")
+          || name.contains("$$EnhancerByProxool$$")
+          || name.startsWith("org.springframework.core.$Proxy")) {
+        return true;
+      }
+    }
+    if (name.contains("javassist") || name.contains(".asm.")) {
       return true;
     }
 
