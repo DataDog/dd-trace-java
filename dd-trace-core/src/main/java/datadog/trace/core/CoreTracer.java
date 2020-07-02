@@ -1,5 +1,8 @@
 package datadog.trace.core;
 
+import com.timgroup.statsd.NoOpStatsDClient;
+import com.timgroup.statsd.NonBlockingStatsDClientBuilder;
+import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -10,11 +13,15 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.DDAgentWriter;
+import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.common.writer.Writer;
+import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
+import datadog.trace.common.writer.ddagent.Monitor;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.jfr.DDNoopScopeEventFactory;
@@ -39,6 +46,7 @@ import java.util.ServiceLoader;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.TimeUnit;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 
@@ -53,6 +61,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public static final BigInteger TRACE_ID_MAX =
       BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
   public static final BigInteger TRACE_ID_MIN = BigInteger.ZERO;
+
+  public static final String LANG_STATSD_TAG = "lang";
+  public static final String LANG_VERSION_STATSD_TAG = "lang_version";
+  public static final String LANG_INTERPRETER_STATSD_TAG = "lang_interpreter";
+  public static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
+  public static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
 
   /** Default service name if none provided on the trace or span */
   final String serviceName;
@@ -72,6 +86,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** number of spans in a pending trace before they get flushed */
   @lombok.Getter private final int partialFlushMinSpans;
+
+  private final StatsDClient statsDClient;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -153,11 +169,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     assert taggedHeaders != null;
 
     this.serviceName = serviceName;
-    if (writer == null) {
-      this.writer = Writer.Builder.forConfig(config);
-    } else {
-      this.writer = writer;
-    }
     this.sampler = sampler;
     this.injector = injector;
     this.extractor = extractor;
@@ -166,6 +177,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.defaultSpanTags = defaultSpanTags;
     this.serviceNameMappings = serviceNameMappings;
     this.partialFlushMinSpans = partialFlushMinSpans;
+
+    this.statsDClient = createStatsDClient(config);
+
+    if (writer == null) {
+      this.writer = createWriter(config, sampler, statsDClient);
+    } else {
+      this.writer = writer;
+    }
 
     this.writer.start();
 
@@ -448,6 +467,75 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       log.debug("Profiling of ScopeEvents is not available");
     }
     return new DDNoopScopeEventFactory();
+  }
+
+  private static Writer createWriter(
+      final Config config, final Sampler sampler, final StatsDClient statsDClient) {
+    final String configuredType = config.getWriterType();
+
+    if (WriterConstants.LOGGING_WRITER_TYPE.equals(configuredType)) {
+      return new LoggingWriter();
+    }
+
+    if (!WriterConstants.DD_AGENT_WRITER_TYPE.equals(configuredType)) {
+      log.warn(
+          "Writer type not configured correctly: Type {} not recognized. Defaulting to DDAgentWriter.",
+          configuredType);
+    }
+
+    final DDAgentApi ddAgentApi =
+        new DDAgentApi(
+            config.getAgentHost(),
+            config.getAgentPort(),
+            config.getAgentUnixDomainSocket(),
+            TimeUnit.SECONDS.toMillis(config.getAgentTimeout()));
+
+    final DDAgentWriter ddAgentWriter =
+        DDAgentWriter.builder().agentApi(ddAgentApi).monitor(new Monitor(statsDClient)).build();
+
+    if (sampler instanceof DDAgentResponseListener) {
+      ddAgentWriter.addResponseListener((DDAgentResponseListener) sampler);
+    }
+
+    return ddAgentWriter;
+  }
+
+  private static StatsDClient createStatsDClient(final Config config) {
+    if (!config.isHealthMetricsEnabled()) {
+      return new NoOpStatsDClient();
+    } else {
+      String host = config.getHealthMetricsStatsdHost();
+      if (host == null) {
+        host = config.getJmxFetchStatsdHost();
+      }
+      if (host == null) {
+        host = config.getAgentHost();
+      }
+
+      Integer port = config.getHealthMetricsStatsdPort();
+      if (port == null) {
+        port = config.getJmxFetchStatsdPort();
+      }
+
+      final String[] constantTags =
+          new String[] {
+            statsdTag(LANG_INTERPRETER_STATSD_TAG, "java"),
+            statsdTag(LANG_VERSION_STATSD_TAG, DDTraceCoreInfo.JAVA_VERSION),
+            statsdTag(LANG_INTERPRETER_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_NAME),
+            statsdTag(LANG_INTERPRETER_VENDOR_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_VENDOR),
+            statsdTag(TRACER_VERSION_STATSD_TAG, DDTraceCoreInfo.VERSION)
+          };
+
+      return new NonBlockingStatsDClientBuilder()
+          .hostname(host)
+          .port(port)
+          .constantTags(constantTags)
+          .build();
+    }
+  }
+
+  private static String statsdTag(final String tagPrefix, final String tagValue) {
+    return tagPrefix + ":" + tagValue;
   }
 
   /** Spans are built using this builder */

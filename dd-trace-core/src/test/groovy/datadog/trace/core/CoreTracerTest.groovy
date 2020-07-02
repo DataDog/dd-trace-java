@@ -1,5 +1,7 @@
 package datadog.trace.core
 
+import com.timgroup.statsd.NoOpStatsDClient
+import com.timgroup.statsd.NonBlockingStatsDClient
 import datadog.trace.api.Config
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
@@ -9,7 +11,6 @@ import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.LoggingWriter
-import datadog.trace.common.writer.ddagent.Monitor
 import datadog.trace.common.writer.ddagent.TraceBuffer
 import datadog.trace.core.propagation.DatadogHttpCodec
 import datadog.trace.core.propagation.HttpCodec
@@ -43,7 +44,7 @@ class CoreTracerTest extends DDSpecification {
     tracer.serviceName == "unnamed-java-app"
     tracer.sampler instanceof RateByServiceSampler
     tracer.writer instanceof DDAgentWriter
-    tracer.writer.monitor instanceof Monitor.Noop
+    tracer.statsDClient instanceof NoOpStatsDClient
 
     !tracer.spanTagInterceptors.isEmpty()
 
@@ -59,8 +60,7 @@ class CoreTracerTest extends DDSpecification {
     def tracer = CoreTracer.builder().config(new Config()).build()
 
     then:
-    tracer.writer.monitor instanceof Monitor.StatsD
-    tracer.writer.monitor.hostInfo == "localhost:8125"
+    tracer.statsDClient instanceof NonBlockingStatsDClient
   }
 
 

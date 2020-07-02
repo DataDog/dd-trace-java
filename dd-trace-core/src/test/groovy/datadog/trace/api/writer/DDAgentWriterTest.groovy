@@ -1,6 +1,7 @@
 package datadog.trace.api.writer
 
 import com.timgroup.statsd.StatsDClient
+import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -9,7 +10,6 @@ import datadog.trace.common.writer.ddagent.Monitor
 import datadog.trace.common.writer.ddagent.MsgPackStatefulSerializer
 import datadog.trace.common.writer.ddagent.TraceBuffer
 import datadog.trace.core.CoreTracer
-import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
@@ -146,7 +146,7 @@ class DDAgentWriterTest extends DDSpecification {
     _ * serializer.isAtCapacity() >> { trace -> callRealMethod() }
     _ * serializer.dropBuffer() >> { trace -> callRealMethod() }
     _ * serializer.reset(_) >> { trace -> callRealMethod() }
-    1 * api.sendSerializedTraces( { it.traceCount() == 5 }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == 5 }) >> DDAgentApi.Response.success(200)
     _ * monitor.onPublish(_, _)
     _ * monitor.onSerialize(_, _, _)
     1 * monitor.onSend(_, _, _, _) >> {
@@ -612,7 +612,7 @@ class DDAgentWriterTest extends DDSpecification {
       numResponses += 1
     }
 
-    def monitor = new Monitor.StatsD(statsd)
+    def monitor = new Monitor(statsd)
     def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitor(monitor).build()
     writer.start()
 
@@ -657,7 +657,7 @@ class DDAgentWriterTest extends DDSpecification {
       numErrors += 1
     }
 
-    def monitor = new Monitor.StatsD(statsd)
+    def monitor = new Monitor(statsd)
     def writer = DDAgentWriter.builder().agentApi(api).monitor(monitor).build()
     writer.start()
 

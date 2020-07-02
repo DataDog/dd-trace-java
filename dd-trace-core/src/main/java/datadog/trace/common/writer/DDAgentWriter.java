@@ -6,6 +6,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 
 import com.lmax.disruptor.EventFactory;
+import com.timgroup.statsd.NoOpStatsDClient;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.DispatchingDisruptor;
@@ -56,39 +57,8 @@ public class DDAgentWriter implements Writer {
     String unixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
     long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
     int traceBufferSize = DISRUPTOR_BUFFER_SIZE;
-    Monitor monitor = new Monitor.Noop();
+    Monitor monitor = new Monitor(new NoOpStatsDClient());
     int flushFrequencySeconds = 1;
-  }
-
-  @Deprecated
-  public DDAgentWriter() {
-    this(
-        new DDAgentApi(
-            DEFAULT_AGENT_HOST,
-            DEFAULT_TRACE_AGENT_PORT,
-            DEFAULT_AGENT_UNIX_DOMAIN_SOCKET,
-            TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT)),
-        new Monitor.Noop());
-  }
-
-  @Deprecated
-  public DDAgentWriter(final DDAgentApi api, final Monitor monitor) {
-    final StatefulSerializer serializer = new MsgPackStatefulSerializer();
-    this.api = api;
-    this.monitor = monitor;
-    dispatchingDisruptor =
-        new DispatchingDisruptor(
-            OUTSTANDING_REQUESTS, toEventFactory(serializer), api, monitor, this);
-    traceProcessingDisruptor =
-        new TraceProcessingDisruptor(
-            DISRUPTOR_BUFFER_SIZE,
-            dispatchingDisruptor,
-            monitor,
-            this,
-            serializer,
-            1,
-            TimeUnit.SECONDS,
-            false);
   }
 
   @lombok.Builder
@@ -205,21 +175,6 @@ public class DDAgentWriter implements Writer {
       dispatchingDisruptor.close();
     }
     monitor.onShutdown(this, flushed);
-  }
-
-  @Override
-  public String toString() {
-    // DQH - I don't particularly like the instanceof check,
-    // but I decided it was preferable to adding an isNoop method onto
-    // Monitor or checking the result of Monitor#toString() to determine
-    // if something is *probably* the NoopMonitor.
-
-    String str = "DDAgentWriter";
-    if (!(monitor instanceof Monitor.Noop)) {
-      str += " { monitor=" + monitor + " }";
-    }
-
-    return str;
   }
 
   private static EventFactory<TraceBuffer> toEventFactory(final StatefulSerializer serializer) {
