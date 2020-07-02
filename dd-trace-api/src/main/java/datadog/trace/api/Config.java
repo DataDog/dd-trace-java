@@ -374,7 +374,8 @@ public class Config {
     site = getSettingFromEnvironment(SITE, DEFAULT_SITE);
     serviceName =
         getSettingFromEnvironment(
-            SERVICE, getSettingFromEnvironment(SERVICE_NAME, DEFAULT_SERVICE_NAME));
+            SERVICE,
+            getSettingFromEnvironment(SERVICE_NAME, autodetectServiceName(DEFAULT_SERVICE_NAME)));
 
     traceEnabled = getBooleanSettingFromEnvironment(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     integrationsEnabled =
@@ -1469,6 +1470,53 @@ public class Config {
     return null;
   }
 
+  /**
+   * Returns autodetected service name based on the java process command line. Tipically, the
+   * autodetection will return either the JAR filename or the java main class.
+   */
+  private static String autodetectServiceName(final String defaultValue) {
+    /*
+     Testing purposes
+     Automatic detection breaks the tests that assert default values.
+     To fix that, it is checked if the method is executed from a DDSpecification
+    */
+    if (System.getProperty("DDSpecification") != null
+        && !System.getProperty("DDSpecification").equals("")) {
+      return defaultValue;
+    }
+
+    if (System.getenv("JAVA_MAIN_CLASS") != null) {
+      return System.getenv("JAVA_MAIN_CLASS");
+    }
+
+    // Oracle JDKs
+    if (System.getProperty("sun.java.command") != null) {
+      return extractJarOrClass(System.getProperty("sun.java.command"), defaultValue);
+    }
+
+    // TODO Others JDKs
+
+    return defaultValue;
+  }
+
+  private static String extractJarOrClass(final String command, final String defaultValue) {
+    if (command == null || command.equals("")) {
+      return defaultValue;
+    }
+
+    final String[] split = command.split(" ");
+    if (split.length < 1 || split[0] == null || split[0].equals("")) {
+      return defaultValue;
+    }
+
+    final String candidate = split[0];
+    if (candidate.endsWith(".jar")) {
+      return new File(candidate).getName();
+    }
+
+    return candidate;
+  }
+
   // This has to be placed after all other static fields to give them a chance to initialize
   private static final Config INSTANCE = new Config();
 
@@ -1484,8 +1532,8 @@ public class Config {
    *   DDTracer.builder().withProperties(new Properties()).build()
    * </pre>
    *
-   * Config keys for use in Properties instance construction can be found in {@link GeneralConfig}
-   * and {@link TracerConfig}.
+   * <p>Config keys for use in Properties instance construction can be found in {@link
+   * GeneralConfig} and {@link TracerConfig}.
    *
    * @deprecated
    */

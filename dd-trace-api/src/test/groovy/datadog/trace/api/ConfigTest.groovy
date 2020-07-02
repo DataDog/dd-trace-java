@@ -1498,6 +1498,30 @@ class ConfigTest extends DDSpecification {
                              'service.version': 'my-svc-vers']
   }
 
+  def "set servicename by autodetection with class"() {
+    setup:
+    System.setProperty("DDSpecification", "")
+    System.setProperty("sun.java.command", "org.example.App arg1 arg2 arg3")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "org.example.App"
+  }
+
+  def "set servicename by autodetection with jar"() {
+    setup:
+    System.setProperty("DDSpecification", "")
+    System.setProperty("sun.java.command", "foo/bar/example.jar arg1 arg2 arg3")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "example.jar"
+  }
+
   // Static methods test:
   def "getProperty*Value unit test"() {
     setup:

@@ -17,6 +17,7 @@ abstract class DDSpecification extends Specification {
 
   static {
     makeConfigInstanceModifiable()
+    System.setProperty("DDSpecification", "true")
   }
 
   // Keep track of config instance already made modifiable
