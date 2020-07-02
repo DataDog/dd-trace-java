@@ -103,6 +103,9 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
       case 'h' - 'a':
         break;
       case 'i' - 'a':
+        if (name.startsWith("io.micronaut.tracing.")) {
+          return true;
+        }
         break;
       case 'j' - 'a':
         if (name.startsWith("jdk.")) {
