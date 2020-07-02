@@ -26,6 +26,9 @@ public class TextMapExtractAdapter implements AgentPropagation.Getter<Headers> {
     if (header == null) {
       return null;
     }
+    if (header.value() == null) {
+      return null;
+    }
     return new String(header.value(), StandardCharsets.UTF_8);
   }
 }
