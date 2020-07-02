@@ -1,6 +1,10 @@
 def springSecurityVersion = '5.0.0.RELEASE'
 def springBootVersion = '2.0.0.RELEASE'
 
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
 muzzle {
   pass {
     group = 'org.springframework.security'
