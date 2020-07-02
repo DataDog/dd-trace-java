@@ -195,10 +195,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       // The JVM is already shutting down.
     }
 
-    if (this.writer instanceof DDAgentWriter && sampler instanceof DDAgentResponseListener) {
-      ((DDAgentWriter) this.writer).addResponseListener((DDAgentResponseListener) this.sampler);
-    }
-
     log.info("New instance: {}", this);
 
     final List<AbstractTagInterceptor> tagInterceptors =
