@@ -3,7 +3,6 @@ package datadog.trace.api.env
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.util.test.DDSpecification
 import org.junit.Rule
-import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
 
 class CapturedEnvironmentTest extends DDSpecification {
@@ -11,13 +10,9 @@ class CapturedEnvironmentTest extends DDSpecification {
   @Rule
   public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
 
-  @Rule
-  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
-
-  def "non autodetected servicename"() {
+  def "non autodetected service.name with null command"() {
     setup:
-    System.setProperty("sun.java.command", "")
-    environmentVariables.set("JAVA_MAIN_CLASS", null)
+    System.clearProperty("sun.java.command")
 
     when:
     def capturedEnv = new CapturedEnvironment()
@@ -27,9 +22,33 @@ class CapturedEnvironmentTest extends DDSpecification {
     props.get(GeneralConfig.SERVICE_NAME) == null
   }
 
-  def "set servicename by env var JAVA_MAIN_CLASS"() {
+  def "non autodetected service.name with empty command"() {
     setup:
-    environmentVariables.set("JAVA_MAIN_CLASS", "org.example.App")
+    System.setProperty("sun.java.command", "")
+
+    when:
+    def capturedEnv = new CapturedEnvironment()
+
+    then:
+    def props = capturedEnv.properties
+    props.get(GeneralConfig.SERVICE_NAME) == null
+  }
+
+  def "non autodetected service.name with all blanks command"() {
+    setup:
+    System.setProperty("sun.java.command", " ")
+
+    when:
+    def capturedEnv = new CapturedEnvironment()
+
+    then:
+    def props = capturedEnv.properties
+    props.get(GeneralConfig.SERVICE_NAME) == null
+  }
+
+  def "set service.name by sysprop 'sun.java.command' with class"() {
+    setup:
+    System.setProperty("sun.java.command", "org.example.App -Dfoo=bar arg2 arg3")
 
     when:
     def capturedEnv = new CapturedEnvironment()
@@ -39,21 +58,9 @@ class CapturedEnvironmentTest extends DDSpecification {
     props.get(GeneralConfig.SERVICE_NAME) == "org.example.App"
   }
 
-  def "set servicename by sysprop 'sun.java.command' with class"() {
+  def "set service.name by sysprop 'sun.java.command' with jar"() {
     setup:
-    System.setProperty("sun.java.command", "org.example.App arg1 arg2 arg3")
-
-    when:
-    def capturedEnv = new CapturedEnvironment()
-
-    then:
-    def props = capturedEnv.properties
-    props.get(GeneralConfig.SERVICE_NAME) == "org.example.App"
-  }
-
-  def "set servicename by sysprop 'sun.java.command' with jar"() {
-    setup:
-    System.setProperty("sun.java.command", "foo/bar/example.jar arg1 arg2 arg3")
+    System.setProperty("sun.java.command", "foo/bar/example.jar -Dfoo=bar arg2 arg3")
 
     when:
     def capturedEnv = new CapturedEnvironment()
@@ -61,6 +68,15 @@ class CapturedEnvironmentTest extends DDSpecification {
     then:
     def props = capturedEnv.properties
     props.get(GeneralConfig.SERVICE_NAME) == "example.jar"
+  }
+
+  def "set service.name with real 'sun.java.command' property"() {
+    when:
+    def capturedEnv = new CapturedEnvironment()
+
+    then:
+    def props = capturedEnv.properties
+    props.get(GeneralConfig.SERVICE_NAME) != null
   }
 
 }

@@ -37,16 +37,13 @@ public class CapturedEnvironment {
    * autodetection will return either the JAR filename or the java main class.
    */
   private String autodetectServiceName() {
-    if (System.getenv("JAVA_MAIN_CLASS") != null) {
-      return System.getenv("JAVA_MAIN_CLASS");
-    }
-
-    // Oracle JDKs
+    // Besides "sun.java.command" property is not an standard, all main JDKs has set this property.
+    // Tested on:
+    // - OracleJDK, OpenJDK, AdoptOpenJDK, IBM JDK, Azul Zulu JDK, Amazon Coretto JDK
     if (System.getProperty("sun.java.command") != null) {
       return extractJarOrClass(System.getProperty("sun.java.command"));
     }
 
-    // TODO Others JDKs
     return null;
   }
 
@@ -55,8 +52,8 @@ public class CapturedEnvironment {
       return null;
     }
 
-    final String[] split = command.split(" ");
-    if (split.length < 1 || split[0] == null || split[0].equals("")) {
+    final String[] split = command.trim().split(" ");
+    if (split.length < 1 || split[0].equals("")) {
       return null;
     }
 
