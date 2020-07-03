@@ -1,5 +1,7 @@
 package datadog.trace.api
 
+
+import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.util.test.DDSpecification
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
@@ -87,6 +89,8 @@ class ConfigTest extends DDSpecification {
   public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
   @Rule
   public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
+  @Rule
+  public final FixedCapturedEnvironment fixedCapturedEnvironment = new FixedCapturedEnvironment()
 
   private static final DD_API_KEY_ENV = "DD_API_KEY"
   private static final DD_SERVICE_NAME_ENV = "DD_SERVICE_NAME"
@@ -643,6 +647,19 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == "unnamed-java-app"
     config.writerType == "DDAgentWriter"
+  }
+
+  def "captured env props override default props"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(SERVICE_NAME, "automatic service name")
+    fixedCapturedEnvironment.load(properties)
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "automatic service name"
   }
 
   def "verify integration config"() {
@@ -1496,30 +1513,6 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
                              'service.version': 'my-svc-vers']
-  }
-
-  def "set servicename by autodetection with class"() {
-    setup:
-    System.setProperty("DDSpecification", "")
-    System.setProperty("sun.java.command", "org.example.App arg1 arg2 arg3")
-
-    when:
-    def config = new Config()
-
-    then:
-    config.serviceName == "org.example.App"
-  }
-
-  def "set servicename by autodetection with jar"() {
-    setup:
-    System.setProperty("DDSpecification", "")
-    System.setProperty("sun.java.command", "foo/bar/example.jar arg1 arg2 arg3")
-
-    when:
-    def config = new Config()
-
-    then:
-    config.serviceName == "example.jar"
   }
 
   // Static methods test:
