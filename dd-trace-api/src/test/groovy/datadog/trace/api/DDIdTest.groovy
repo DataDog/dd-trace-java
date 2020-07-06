@@ -1,6 +1,9 @@
 package datadog.trace.api
 
+import com.google.common.io.BaseEncoding
 import datadog.trace.util.test.DDSpecification
+
+import java.nio.charset.StandardCharsets
 
 class DDIdTest extends DDSpecification {
   def "convert ids from/to long and check strings and BigInteger"() {
@@ -80,6 +83,44 @@ class DDIdTest extends DDSpecification {
 
     where:
     hexId << [null, "", "-1", "1" + "0" * 16, "f" * 14 + "zf", "f" * 15 + "z" ]
+  }
+
+  def "lenient to base64 encoded valid ids decimal"() {
+    when:
+    final ddid = DDId.from(BaseEncoding.base64().encode(stringId.getBytes(StandardCharsets.ISO_8859_1)))
+
+    then:
+    ddid == expectedId
+    ddid.toString() == stringId
+
+    where:
+    stringId                                        | expectedId
+    "0"                                             | DDId.ZERO
+    "1"                                             | DDId.ONE
+    "18446744073709551615"                          | DDId.MAX
+    "${Long.MAX_VALUE}"                             | DDId.from(Long.MAX_VALUE)
+    "${BigInteger.valueOf(Long.MAX_VALUE).plus(1)}" | DDId.from(Long.MIN_VALUE)
+  }
+
+  def "lenient to base64 encoded valid ids hex"() {
+    when:
+    final ddid = DDId.fromHex(BaseEncoding.base64().encode(hexId.getBytes(StandardCharsets.ISO_8859_1)))
+
+    then:
+    ddid == expectedId
+    if (hexId.length() > 1) {
+      hexId = hexId.replaceAll("^0+", "") // drop leading zeros
+    }
+    ddid.toHexString() == hexId
+
+    where:
+    hexId                    | expectedId
+    "0"                      | DDId.ZERO
+    "1"                      | DDId.ONE
+    "f" * 16                 | DDId.MAX
+    "7" + "f" * 15           | DDId.from(Long.MAX_VALUE)
+    "8" + "0" * 15           | DDId.from(Long.MIN_VALUE)
+    "0" * 4 + "8" + "0" * 15 | DDId.from(Long.MIN_VALUE)
   }
 
   def "pump up the coverage"() {
