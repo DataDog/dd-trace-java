@@ -2,7 +2,6 @@ package datadog.trace.core.scopemanager
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.ScopeListener
@@ -130,37 +129,6 @@ class ScopeManagerTest extends DDSpecification {
     noopChild | _
     false     | _
     true      | _
-  }
-
-  def "scopemanager returns noop scope if depth exceeded"() {
-    when: "fill up the scope stack"
-    AgentScope scope = null
-    for (int i = 0; i <= depth; i++) {
-      def span = tracer.buildSpan("test").start()
-      scope = tracer.activateSpan(span)
-      assert scope instanceof ContinuableScopeManager.ContinuableScope
-    }
-
-    then: "last scope is still valid"
-    (scope as ContinuableScopeManager.ContinuableScope).depth() == depth
-
-    when: "activate a scope over the limit"
-    scope = scopeManager.activate(NoopAgentSpan.INSTANCE)
-
-    then: "a noop instance is returned"
-    scope instanceof NoopAgentScope
-
-    when: "try again for good measure"
-    scope = scopeManager.activate(NoopAgentSpan.INSTANCE)
-
-    then: "still have a noop instance"
-    scope instanceof NoopAgentScope
-
-    and: "scope stack not effected."
-    (scopeManager.active() as ContinuableScopeManager.ContinuableScope).depth() == depth
-
-    where:
-    depth = scopeManager.depthLimit
   }
 
   def "DDScope only creates continuations when propagation is set"() {
