@@ -1,6 +1,9 @@
 package datadog.trace.api;
 
+import com.google.common.io.BaseEncoding;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ThreadLocalRandom;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Class encapsulating the unsigned 64 bit id used for Trace and Span ids.
@@ -9,10 +12,13 @@ import java.util.concurrent.ThreadLocalRandom;
  * representations. The decimal string representation is either kept from parsing, or generated on
  * demand and cached.
  */
+@Slf4j
 public class DDId {
 
   public static final DDId ZERO = new DDId(0, "0");
   public static final DDId MAX = new DDId(-1, "18446744073709551615"); // All bits set
+
+  private static final BaseEncoding BASE64 = BaseEncoding.base64();
 
   // Convenience constant used from tests
   private static final DDId ONE = DDId.from(1);
@@ -54,7 +60,22 @@ public class DDId {
    * @throws NumberFormatException
    */
   public static DDId from(String s) throws NumberFormatException {
-    return DDId.create(parseUnsignedLong(s), s);
+    try {
+      return DDId.create(parseUnsignedLong(s), s);
+    } catch (NumberFormatException e) {
+      // we have reports of Kakfa mirror maker base64 encoding record headers
+      // attempting to base64 decode the ids here rather than in the Kafka instrumentation
+      // helps users understand they have a problem without making other users pay for it
+      if (null != s && BASE64.canDecode(s)) {
+        String decoded = new String(BASE64.decode(s), StandardCharsets.ISO_8859_1);
+        log.debug(
+            "id {} was base 64 encoded to {}, it was decoded but this indicates there is a problem elsewhere in your system",
+            decoded,
+            s);
+        return DDId.create(parseUnsignedLong(decoded), decoded);
+      }
+      throw e;
+    }
   }
 
   /**
@@ -66,8 +87,23 @@ public class DDId {
    * @throws NumberFormatException
    */
   public static DDId fromHex(String s) throws NumberFormatException {
-    long id = parseUnsignedLongHex(s);
-    return DDId.create(id, null);
+    try {
+      long id = parseUnsignedLongHex(s);
+      return DDId.create(id, null);
+    } catch (NumberFormatException e) {
+      // we have reports of Kakfa mirror maker base64 encoding record headers
+      // attempting to base64 decode the ids here rather than in the Kafka instrumentation
+      // helps users understand they have a problem without making other users pay for it
+      if (null != s && BASE64.canDecode(s)) {
+        String decoded = new String(BASE64.decode(s), StandardCharsets.ISO_8859_1);
+        log.debug(
+            "id {} was base 64 encoded to {}, it was decoded but this indicates there is a problem elsewhere in your system",
+            decoded,
+            s);
+        return DDId.create(parseUnsignedLongHex(decoded), null);
+      }
+      throw e;
+    }
   }
 
   private final long id;
