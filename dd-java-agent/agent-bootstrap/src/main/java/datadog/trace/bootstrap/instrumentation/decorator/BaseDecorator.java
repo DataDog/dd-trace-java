@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static java.util.concurrent.TimeUnit.MICROSECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -69,7 +69,7 @@ public abstract class BaseDecorator {
     if (endToEndDurationsEnabled) {
       if (null == span.getBaggageItem(DDTags.TRACE_START_TIME)) {
         span.setBaggageItem(
-            DDTags.TRACE_START_TIME, Long.toString(MICROSECONDS.toMillis(span.getStartTime())));
+            DDTags.TRACE_START_TIME, Long.toString(NANOSECONDS.toMillis(span.getStartTime())));
       }
     }
     return span;

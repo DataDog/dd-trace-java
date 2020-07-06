@@ -46,7 +46,8 @@ public class ThreadContextInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      LogContextScopeListener.class.getName(), ThreadLocalWithDDTagsInitValue.class.getName(),
+      "datadog.trace.agent.tooling.log.LogContextScopeListener",
+      "datadog.trace.agent.tooling.log.ThreadLocalWithDDTagsInitValue",
     };
   }
 

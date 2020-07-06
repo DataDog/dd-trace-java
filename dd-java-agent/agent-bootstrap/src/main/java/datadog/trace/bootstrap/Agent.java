@@ -264,7 +264,27 @@ public class Agent {
     }
   }
 
-  private static synchronized void installMethodLevelTracer(URL bootstrapURL) {
+  private static synchronized void startJmx(final URL bootstrapURL) {
+    startJmxFetch(bootstrapURL);
+    initializeJmxThreadCpuTimeProvider();
+    registerDeadlockDetectionEvent(bootstrapURL);
+  }
+
+  private static synchronized void registerDeadlockDetectionEvent(final URL bootstrapUrl) {
+    log.info("Initializing JMX thread deadlock detector");
+    try {
+      final ClassLoader classLoader = getProfilingClassloader(bootstrapUrl);
+      final Class<?> deadlockFactoryClass =
+          classLoader.loadClass(
+              "com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory");
+      final Method registerMethod = deadlockFactoryClass.getMethod("registerEvents");
+      registerMethod.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while initializing JMX thread deadlock detector", ex);
+    }
+  }
+
+  private static synchronized void installMethodLevelTracer(final URL bootstrapURL) {
     log.info("Installing Method-level Tracer");
     try {
       if (MLT_CLASSLOADER == null) {
@@ -276,18 +296,12 @@ public class Agent {
           MLT_CLASSLOADER.loadClass("datadog.trace.agent.mlt.TracerInstaller");
       final Method tracerInstallerMethod = tracerInstallerClass.getMethod("install");
       tracerInstallerMethod.invoke(null);
-    } catch (ClassFormatError ex) {
+    } catch (final ClassFormatError ex) {
       // method-level trace supports JDK 8+ - it is ok to encounter ClassFormatError on JDK 7
       log.warn("Method-level Tracer requires Java 8 or newer. The tracer will be disabled.");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Method-Level Tracer", ex);
     }
-  }
-
-  private static synchronized void startJmx(final URL bootstrapURL) {
-    startJmxFetch(bootstrapURL);
-    initializeJmxThreadCpuTimeProvider();
-    initializeJmxThreadStackProvider();
   }
 
   /** Enable JMX based thread CPU time provider once it is safe to touch JMX */
@@ -345,13 +359,10 @@ public class Agent {
       final URL bootstrapURL, final boolean isStartingFirst) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
-      if (PROFILING_CLASSLOADER == null) {
-        PROFILING_CLASSLOADER =
-            createDelegateClassLoader("profiling", bootstrapURL, PARENT_CLASSLOADER);
-      }
-      Thread.currentThread().setContextClassLoader(PROFILING_CLASSLOADER);
+      final ClassLoader classLoader = getProfilingClassloader(bootstrapURL);
+      Thread.currentThread().setContextClassLoader(classLoader);
       final Class<?> profilingAgentClass =
-          PROFILING_CLASSLOADER.loadClass("com.datadog.profiling.agent.ProfilingAgent");
+          classLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
       final Method profilingInstallerMethod = profilingAgentClass.getMethod("run", Boolean.TYPE);
       profilingInstallerMethod.invoke(null, isStartingFirst);
     } catch (final ClassFormatError e) {
@@ -366,6 +377,15 @@ public class Agent {
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
     }
+  }
+
+  private static synchronized ClassLoader getProfilingClassloader(final URL bootstrapURL)
+      throws Exception {
+    if (PROFILING_CLASSLOADER == null) {
+      PROFILING_CLASSLOADER =
+          createDelegateClassLoader("profiling", bootstrapURL, PARENT_CLASSLOADER);
+    }
+    return PROFILING_CLASSLOADER;
   }
 
   private static void configureLogger() {
@@ -415,7 +435,7 @@ public class Agent {
     final Constructor constructor =
         loaderClass.getDeclaredConstructor(
             URL.class, String.class, ClassLoader.class, ClassLoader.class, ClassLoader.class);
-    ClassLoader classLoader =
+    final ClassLoader classLoader =
         (ClassLoader)
             constructor.newInstance(
                 bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent, PARENT_CLASSLOADER);

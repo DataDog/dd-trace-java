@@ -3,6 +3,7 @@ package datadog.trace.common.writer.ddagent;
 import com.lmax.disruptor.BlockingWaitStrategy;
 import com.lmax.disruptor.EventFactory;
 import com.lmax.disruptor.EventHandler;
+import com.lmax.disruptor.InsufficientCapacityException;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
 import datadog.common.exec.DaemonThreadFactory;
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 public class DispatchingDisruptor implements AutoCloseable {
 
   private final Disruptor<TraceBuffer> disruptor;
+  private final Monitor monitor;
 
   public DispatchingDisruptor(
       int disruptorSize,
@@ -34,6 +36,7 @@ public class DispatchingDisruptor implements AutoCloseable {
             // block (and use no resources) until there's a batch of data to dispatch
             new BlockingWaitStrategy());
     disruptor.handleEventsWith(new TraceDispatchingHandler(api, monitor, writer));
+    this.monitor = monitor;
   }
 
   public void start() {
@@ -46,7 +49,27 @@ public class DispatchingDisruptor implements AutoCloseable {
   }
 
   long beginTransaction() {
-    return disruptor.getRingBuffer().next();
+    long backoffMillis = 1;
+    long nextLogTime = 0;
+    while (!Thread.currentThread().isInterrupted()) {
+      try {
+        return disruptor.getRingBuffer().tryNext();
+      } catch (InsufficientCapacityException insufficientCapacity) {
+        monitor.onBackedUpTraceBuffer();
+        long now = System.currentTimeMillis();
+        backoffMillis = Math.min(backoffMillis * 2, 1000);
+        if (now > nextLogTime) { // log every 20 seconds
+          log.debug("no buffer available, sleeping for {}ms", backoffMillis);
+          nextLogTime = now + 20_000;
+        }
+        try {
+          Thread.sleep(backoffMillis);
+        } catch (InterruptedException interrupted) {
+          Thread.currentThread().interrupt();
+        }
+      }
+    }
+    return -1L;
   }
 
   TraceBuffer getTraceBuffer(long sequence) {

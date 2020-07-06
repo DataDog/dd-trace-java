@@ -9,12 +9,14 @@ excludedClassesCoverage += [
   'datadog.trace.api.DDTraceApiInfo',
   'datadog.trace.api.GlobalTracer*',
   'datadog.trace.api.CorrelationIdentifier',
-  'datadog.trace.api.DDTags'
+  'datadog.trace.api.DDTags',
+  'datadog.trace.api.DDId.Base64Decoder'
 ]
 
 description = 'dd-trace-api'
 dependencies {
   compile deps.slf4j
 
+  testCompile deps.guava
   testCompile project(':utils:test-utils')
 }
