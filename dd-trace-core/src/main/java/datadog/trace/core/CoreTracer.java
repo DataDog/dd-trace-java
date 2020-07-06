@@ -1,7 +1,7 @@
 package datadog.trace.core;
 
 import com.timgroup.statsd.NoOpStatsDClient;
-import com.timgroup.statsd.NonBlockingStatsDClientBuilder;
+import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
@@ -522,11 +522,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             statsdTag(TRACER_VERSION_STATSD_TAG, DDTraceCoreInfo.VERSION)
           };
 
-      return new NonBlockingStatsDClientBuilder()
-          .hostname(host)
-          .port(port)
-          .constantTags(constantTags)
-          .build();
+      return new NonBlockingStatsDClient("datadog.tracer", host, port, constantTags);
     }
   }
 
