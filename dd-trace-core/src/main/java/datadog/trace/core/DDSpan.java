@@ -34,6 +34,8 @@ public class DDSpan implements MutableSpan, AgentSpan {
   /** The context attached to the span */
   private final DDSpanContext context;
 
+  private byte[] binaryData;
+
   /**
    * Creation time of the span in microseconds provided by external clock. Must be greater than
    * zero.
@@ -389,6 +391,14 @@ public class DDSpan implements MutableSpan, AgentSpan {
 
   public int getError() {
     return context.getErrorFlag() ? 1 : 0;
+  }
+
+  public byte[] getBinaryData() {
+    return binaryData;
+  }
+
+  public void setBinaryData(final byte[] binaryData) {
+    this.binaryData = binaryData;
   }
 
   @Override
