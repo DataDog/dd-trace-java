@@ -267,6 +267,7 @@ public class Agent {
   private static synchronized void startJmx(final URL bootstrapURL) {
     startJmxFetch(bootstrapURL);
     initializeJmxThreadCpuTimeProvider();
+    initializeJmxThreadStackProvider();
     registerDeadlockDetectionEvent(bootstrapURL);
   }
 
