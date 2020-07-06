@@ -40,11 +40,7 @@ public class CapturedEnvironment {
     // Besides "sun.java.command" property is not an standard, all main JDKs has set this property.
     // Tested on:
     // - OracleJDK, OpenJDK, AdoptOpenJDK, IBM JDK, Azul Zulu JDK, Amazon Coretto JDK
-    if (System.getProperty("sun.java.command") != null) {
-      return extractJarOrClass(System.getProperty("sun.java.command"));
-    }
-
-    return null;
+    return extractJarOrClass(System.getProperty("sun.java.command"));
   }
 
   private String extractJarOrClass(final String command) {
@@ -53,7 +49,7 @@ public class CapturedEnvironment {
     }
 
     final String[] split = command.trim().split(" ");
-    if (split.length < 1 || split[0].equals("")) {
+    if (split.length == 0 || split[0].equals("")) {
       return null;
     }
 
