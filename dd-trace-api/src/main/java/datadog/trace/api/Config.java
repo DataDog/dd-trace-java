@@ -162,6 +162,7 @@ public class Config {
       TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
   public static final String SPLIT_BY_TAGS = TracerConfig.SPLIT_BY_TAGS;
   public static final String SCOPE_DEPTH_LIMIT = TracerConfig.SCOPE_DEPTH_LIMIT;
+  public static final String SCOPE_STRICT_MODE = TracerConfig.SCOPE_STRICT_MODE;
   public static final String PARTIAL_FLUSH_MIN_SPANS = TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -293,6 +294,7 @@ public class Config {
   @Getter private final boolean dbClientSplitByInstance;
   @Getter private final Set<String> splitByTags;
   @Getter private final Integer scopeDepthLimit;
+  @Getter private final boolean scopeStrictMode;
   @Getter private final Integer partialFlushMinSpans;
   @Getter private final boolean runtimeContextFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
@@ -438,6 +440,8 @@ public class Config {
 
     scopeDepthLimit =
         getIntegerSettingFromEnvironment(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
+
+    scopeStrictMode = getBooleanSettingFromEnvironment(SCOPE_STRICT_MODE, false);
 
     partialFlushMinSpans =
         getIntegerSettingFromEnvironment(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
@@ -647,6 +651,9 @@ public class Config {
 
     scopeDepthLimit =
         getPropertyIntegerValue(properties, SCOPE_DEPTH_LIMIT, parent.scopeDepthLimit);
+
+    scopeStrictMode =
+        getPropertyBooleanValue(properties, SCOPE_STRICT_MODE, parent.scopeStrictMode);
 
     partialFlushMinSpans =
         getPropertyIntegerValue(properties, PARTIAL_FLUSH_MIN_SPANS, parent.partialFlushMinSpans);
