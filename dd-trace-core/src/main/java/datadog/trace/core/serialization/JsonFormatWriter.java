@@ -117,6 +117,12 @@ public class JsonFormatWriter extends FormatWriter<JsonWriter> {
     writeString(key, String.valueOf(value), destination);
   }
 
+  @Override
+  public void writeBlob(final byte[] key, final byte[] value, final JsonWriter destination)
+      throws IOException {
+    // TODO: not implemented.
+  }
+
   private void writeBigInteger(
       final byte[] key, final BigInteger value, final JsonWriter destination) throws IOException {
     writeKey(key, destination);

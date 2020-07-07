@@ -1,5 +1,6 @@
 package datadog.trace.core.serialization;
 
+import static datadog.trace.core.StringTables.BLOB;
 import static datadog.trace.core.StringTables.DURATION;
 import static datadog.trace.core.StringTables.ERROR;
 import static datadog.trace.core.StringTables.META;
@@ -65,6 +66,8 @@ public abstract class FormatWriter<DEST> {
   public abstract void writeObjectAsString(
       final byte[] key, final Object value, final DEST destination) throws IOException;
 
+  public abstract void writeBlob(byte[] key, byte[] value, DEST destination) throws IOException;
+
   public void writeNumber(final byte[] key, final Number value, final DEST destination)
       throws IOException {
     if (value instanceof Double) {
@@ -119,8 +122,9 @@ public abstract class FormatWriter<DEST> {
   }
 
   public void writeDDSpan(final DDSpan span, final DEST destination) throws IOException {
+    final boolean hasBlob = span.getBinaryData() != null;
     // Some of the tests rely on the specific ordering here.
-    writeMapHeader(12, destination); // must match count below.
+    writeMapHeader(hasBlob ? 13 : 12, destination); // must match count below.
     /* 1  */ writeTag(SERVICE, span.getServiceName(), destination);
     /* 2  */ writeString(NAME, span.getOperationName(), destination);
     /* 3  */ writeObjectAsString(RESOURCE, span.getResourceName(), destination);
@@ -133,6 +137,9 @@ public abstract class FormatWriter<DEST> {
     /* 10 */ writeInt(ERROR, span.getError(), destination);
     /* 11 */ writeNumberMap(METRICS, span.getMetrics(), destination);
     /* 12 */ writeMeta(span, destination);
+    if (hasBlob) {
+      /* 13 */ writeBlob(BLOB, span.getBinaryData(), destination);
+    }
     writeMapFooter(destination);
   }
 

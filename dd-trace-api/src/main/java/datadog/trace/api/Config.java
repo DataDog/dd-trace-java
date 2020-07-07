@@ -149,6 +149,7 @@ public class Config {
   public static final String TRACE_SAMPLE_RATE = TracerConfig.TRACE_SAMPLE_RATE;
   public static final String TRACE_RATE_LIMIT = TracerConfig.TRACE_RATE_LIMIT;
   public static final String METHOD_TRACE_SAMPLE_RATE = TracerConfig.METHOD_TRACE_SAMPLE_RATE;
+  public static final String METHOD_TRACE_ENCODE_DATA = TracerConfig.METHOD_TRACE_ENCODE_DATA;
   public static final String TRACE_REPORT_HOSTNAME = TracerConfig.TRACE_REPORT_HOSTNAME;
   public static final String HEADER_TAGS = TracerConfig.HEADER_TAGS;
   public static final String HTTP_SERVER_ERROR_STATUSES = TracerConfig.HTTP_SERVER_ERROR_STATUSES;
@@ -331,6 +332,7 @@ public class Config {
   @Getter private final Double traceRateLimit;
 
   @Getter private final Double methodTraceSampleRate;
+  @Getter private final boolean methodTraceEncodeData;
 
   @Getter private final boolean profilingEnabled;
   @Deprecated private final String profilingUrl;
@@ -498,6 +500,7 @@ public class Config {
     traceRateLimit = getDoubleSettingFromEnvironment(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
     methodTraceSampleRate = getDoubleSettingFromEnvironment(METHOD_TRACE_SAMPLE_RATE, null);
+    methodTraceEncodeData = getBooleanSettingFromEnvironment(METHOD_TRACE_ENCODE_DATA, true);
 
     profilingEnabled =
         getBooleanSettingFromEnvironment(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
@@ -723,6 +726,8 @@ public class Config {
 
     methodTraceSampleRate =
         getPropertyDoubleValue(properties, METHOD_TRACE_SAMPLE_RATE, parent.methodTraceSampleRate);
+    methodTraceEncodeData =
+        getPropertyBooleanValue(properties, METHOD_TRACE_ENCODE_DATA, parent.methodTraceEncodeData);
 
     profilingEnabled =
         getPropertyBooleanValue(properties, PROFILING_ENABLED, parent.profilingEnabled);

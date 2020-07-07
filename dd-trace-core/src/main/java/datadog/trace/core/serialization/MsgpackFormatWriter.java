@@ -113,6 +113,14 @@ public class MsgpackFormatWriter extends FormatWriter<MessagePacker> {
     }
   }
 
+  @Override
+  public void writeBlob(final byte[] key, final byte[] value, final MessagePacker destination)
+      throws IOException {
+    writeKey(key, destination);
+    destination.packBinaryHeader(value.length);
+    destination.writePayload(value);
+  }
+
   private void writeUTF8Tag(final String value, final MessagePacker destination)
       throws IOException {
     if (null == value) {

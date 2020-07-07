@@ -32,6 +32,7 @@ public class StringTables {
   public static final byte[] ERROR = "error".getBytes(UTF_8);
   public static final byte[] METRICS = "metrics".getBytes(UTF_8);
   public static final byte[] META = "meta".getBytes(UTF_8);
+  public static final byte[] BLOB = "blob".getBytes(UTF_8);
 
   // intentionally not thread safe; must be maintained to be effectively immutable
   // if a constant registration API is added, should be ensured that this is only used during
