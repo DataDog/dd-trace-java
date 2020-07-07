@@ -98,6 +98,9 @@ public abstract class AbstractScalaExecutorInstrumentation extends Instrumenter.
                       && hasExecutorInterfaceMatcher.matches(target)) {
                     log.debug("Skipping executor instrumentation for {}", target.getName());
                   }
+                  if (whitelisted) {
+                    log.debug("Instrumenting executor {}", target.getName());
+                  }
                   return whitelisted;
                 }
               });
