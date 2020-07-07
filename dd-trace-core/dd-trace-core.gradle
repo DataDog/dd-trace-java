@@ -36,7 +36,6 @@ dependencies {
 
   compile deps.slf4j
   compile deps.okhttp
-  compile group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
   compile group: 'com.squareup.moshi', name: 'moshi', version: '1.9.2'
   compile group: 'com.github.jnr', name: 'jnr-unixsocket', version: "${versions.jnr_unixsocket}"
   compile group: 'com.lmax', name: 'disruptor', version: '3.4.2'
@@ -46,6 +45,7 @@ dependencies {
   testImplementation deps.autoservice
 
   testCompile project(":dd-java-agent:testing")
+  testCompile group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
   testCompile group: 'com.github.stefanbirkner', name: 'system-rules', version: '1.19.0'
   testCompile group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
 

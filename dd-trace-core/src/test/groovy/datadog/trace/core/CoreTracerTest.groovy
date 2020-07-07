@@ -11,7 +11,7 @@ import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.LoggingWriter
-import datadog.trace.common.writer.ddagent.TraceBuffer
+
 import datadog.trace.core.propagation.DatadogHttpCodec
 import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.util.test.DDSpecification
@@ -19,6 +19,8 @@ import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Timeout
+
+import java.nio.ByteBuffer
 
 import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
@@ -112,7 +114,7 @@ class CoreTracerTest extends DDSpecification {
     def tracer = CoreTracer.builder().config(new Config()).build()
     then:
     tracer.writer instanceof DDAgentWriter
-    ((DDAgentWriter) tracer.writer).api.sendSerializedTraces(Mock(TraceBuffer))
+    ((DDAgentWriter) tracer.writer).api.sendSerializedTraces(0, 0, ByteBuffer.allocate(0))
     ((DDAgentWriter) tracer.writer).api.tracesUrl.host() == value
     ((DDAgentWriter) tracer.writer).api.tracesUrl.port() == 8126
 
@@ -128,7 +130,7 @@ class CoreTracerTest extends DDSpecification {
 
     then:
     tracer.writer instanceof DDAgentWriter
-    ((DDAgentWriter) tracer.writer).api.sendSerializedTraces(Mock(TraceBuffer))
+    ((DDAgentWriter) tracer.writer).api.sendSerializedTraces(0, 0, ByteBuffer.allocate(0))
     ((DDAgentWriter) tracer.writer).api.tracesUrl.host() == "localhost"
     ((DDAgentWriter) tracer.writer).api.tracesUrl.port() == Integer.valueOf(value)
 
