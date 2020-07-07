@@ -55,7 +55,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       return active.incrementReferences();
     }
     final int currentDepth = active == null ? 0 : active.depth();
-    if (depthLimit <= currentDepth) {
+    if (depthLimit != 0 && depthLimit <= currentDepth) {
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
       return AgentTracer.NoopAgentScope.INSTANCE;
     }
