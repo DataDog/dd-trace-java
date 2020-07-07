@@ -137,8 +137,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       sampler(Sampler.Builder.forConfig(config));
       injector(HttpCodec.createInjector(config));
       extractor(HttpCodec.createExtractor(config, config.getHeaderTags()));
-      scopeManager(
-          new ContinuableScopeManager(config.getScopeDepthLimit(), createScopeEventFactory()));
+      // Explicitly skip setting scope manager because it depends on statsDClient
       localRootSpanTags(config.getLocalRootSpanTags());
       defaultSpanTags(config.getMergedSpanTags());
       serviceNameMappings(config.getServiceMapping());
@@ -173,13 +172,20 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.sampler = sampler;
     this.injector = injector;
     this.extractor = extractor;
-    this.scopeManager = scopeManager;
     this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
     this.serviceNameMappings = serviceNameMappings;
     this.partialFlushMinSpans = partialFlushMinSpans;
 
     this.statsDClient = createStatsDClient(config);
+
+    if (scopeManager == null) {
+      this.scopeManager =
+          new ContinuableScopeManager(
+              config.getScopeDepthLimit(), createScopeEventFactory(), statsDClient);
+    } else {
+      this.scopeManager = scopeManager;
+    }
 
     if (writer == null) {
       this.writer = createWriter(config, sampler, statsDClient);
