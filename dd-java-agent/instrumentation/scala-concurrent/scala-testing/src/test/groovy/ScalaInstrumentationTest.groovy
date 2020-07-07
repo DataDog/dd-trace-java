@@ -1,5 +1,6 @@
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.core.DDSpan
+import spock.lang.Ignore
 
 class ScalaInstrumentationTest extends AgentTestRunner {
 
@@ -19,6 +20,7 @@ class ScalaInstrumentationTest extends AgentTestRunner {
     findSpan(trace, "failureCallback").context().getParentId() == trace[0].context().getSpanId()
   }
 
+  @Ignore
   def "scala propagates across futures with no traces"() {
     setup:
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
