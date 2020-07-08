@@ -1,7 +1,6 @@
 package datadog.trace.core.scopemanager;
 
 import com.timgroup.statsd.StatsDClient;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -34,12 +33,19 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
   private final List<ScopeListener> scopeListeners;
   private final int depthLimit;
   private final StatsDClient statsDClient;
+  private final boolean strictMode;
 
   public ContinuableScopeManager(
       final int depthLimit,
       final DDScopeEventFactory scopeEventFactory,
-      final StatsDClient statsDClient) {
-    this(depthLimit, scopeEventFactory, statsDClient, new CopyOnWriteArrayList<ScopeListener>());
+      final StatsDClient statsDClient,
+      final boolean strictMode) {
+    this(
+        depthLimit,
+        scopeEventFactory,
+        statsDClient,
+        strictMode,
+        new CopyOnWriteArrayList<ScopeListener>());
   }
 
   // Separate constructor to allow passing scopeListeners to super arg and assign locally.
@@ -47,12 +53,14 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       final int depthLimit,
       final DDScopeEventFactory scopeEventFactory,
       final StatsDClient statsDClient,
+      final boolean strictMode,
       final List<ScopeListener> scopeListeners) {
     super(
         new EventScopeInterceptor(
             scopeEventFactory, new ListenerScopeInterceptor(scopeListeners, null)));
     this.depthLimit = depthLimit;
     this.statsDClient = statsDClient;
+    this.strictMode = strictMode;
     this.scopeListeners = scopeListeners;
   }
 
@@ -111,7 +119,6 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     private final int depth;
 
     private final ScopeSource source;
-    private final boolean strictMode;
 
     private final AtomicInteger referenceCount = new AtomicInteger(1);
 
@@ -125,7 +132,6 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       toRestore = tlsScope.get();
       depth = toRestore == null ? 0 : toRestore.depth() + 1;
       this.source = source;
-      this.strictMode = Config.get().isScopeStrictMode();
     }
 
     @Override

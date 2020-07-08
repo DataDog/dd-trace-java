@@ -161,7 +161,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders,
-      final int partialFlushMinSpans) {
+      final int partialFlushMinSpans,
+      final StatsDClient statsDClient) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -177,18 +178,25 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.serviceNameMappings = serviceNameMappings;
     this.partialFlushMinSpans = partialFlushMinSpans;
 
-    this.statsDClient = createStatsDClient(config);
+    if (statsDClient == null) {
+      this.statsDClient = createStatsDClient(config);
+    } else {
+      this.statsDClient = statsDClient;
+    }
 
     if (scopeManager == null) {
       this.scopeManager =
           new ContinuableScopeManager(
-              config.getScopeDepthLimit(), createScopeEventFactory(), statsDClient);
+              config.getScopeDepthLimit(),
+              createScopeEventFactory(),
+              this.statsDClient,
+              config.isScopeStrictMode());
     } else {
       this.scopeManager = scopeManager;
     }
 
     if (writer == null) {
-      this.writer = createWriter(config, sampler, statsDClient);
+      this.writer = createWriter(config, sampler, this.statsDClient);
     } else {
       this.writer = writer;
     }
