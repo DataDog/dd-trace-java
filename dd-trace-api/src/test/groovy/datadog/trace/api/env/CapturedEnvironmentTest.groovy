@@ -67,7 +67,7 @@ class CapturedEnvironmentTest extends DDSpecification {
 
     then:
     def props = capturedEnv.properties
-    props.get(GeneralConfig.SERVICE_NAME) == "example.jar"
+    props.get(GeneralConfig.SERVICE_NAME) == "example"
   }
 
   def "set service.name with real 'sun.java.command' property"() {

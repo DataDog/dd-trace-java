@@ -55,7 +55,7 @@ public class CapturedEnvironment {
 
     final String candidate = split[0];
     if (candidate.endsWith(".jar")) {
-      return new File(candidate).getName();
+      return new File(candidate).getName().replace(".jar", "");
     }
 
     return candidate;
