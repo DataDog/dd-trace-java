@@ -2,6 +2,7 @@ package datadog.trace.core.serialization.msgpack;
 
 import static org.junit.Assert.*;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
@@ -302,6 +303,35 @@ public class PackerTest {
         new Mapper<char[]>() {
           @Override
           public void map(char[] x, Writable w) {
+            w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
+          }
+        });
+    messageFormatter.flush();
+  }
+
+  @Test
+  public void testWriteUTF8ByteString() {
+    final UTF8BytesString utf8BytesString = UTF8BytesString.create("xyz");
+    MessageFormatter messageFormatter =
+        new Packer(
+            new ByteBufferConsumer() {
+              @Override
+              public void accept(int messageCount, ByteBuffer buffy) {
+                MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
+                try {
+                  assertEquals(1, unpacker.unpackArrayHeader());
+                  assertEquals("xyz", unpacker.unpackString());
+                } catch (IOException e) {
+                  Assert.fail(e.getMessage());
+                }
+              }
+            },
+            ByteBuffer.allocate(25));
+    messageFormatter.format(
+        utf8BytesString,
+        new Mapper<UTF8BytesString>() {
+          @Override
+          public void map(UTF8BytesString x, Writable w) {
             w.writeObject(x, EncodingCachingStrategies.NO_CACHING);
           }
         });

@@ -16,6 +16,7 @@ import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies
 import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.CONSTANT_TAGS;
 import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.NO_CACHING;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.serialization.msgpack.Mapper;
 import datadog.trace.core.serialization.msgpack.Writable;
@@ -36,7 +37,7 @@ public final class TraceMapper implements Mapper<List<DDSpan>> {
       writable.writeString(span.getOperationName(), CONSTANT_TAGS);
       /* 3  */
       writable.writeUTF8(RESOURCE);
-      writable.writeString(span.getResourceName(), NO_CACHING);
+      writable.writeObject(span.getResourceName(), NO_CACHING);
       /* 4  */
       writable.writeUTF8(TRACE_ID);
       writable.writeLong(span.getTraceId().toLong());
@@ -80,6 +81,9 @@ public final class TraceMapper implements Mapper<List<DDSpan>> {
           //  the agent would accept variably typed tag values, or numeric
           //  tags get moved to the metrics
           writeLongAsString(((Number) entry.getValue()).longValue(), writable);
+        } else if (entry.getValue() instanceof UTF8BytesString) {
+          // TODO assess whether this is still worth it
+          writable.writeObject(entry.getValue(), NO_CACHING);
         } else {
           writable.writeString(String.valueOf(entry.getValue()), NO_CACHING);
         }
