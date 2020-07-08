@@ -354,6 +354,9 @@ public class Config {
   @Getter private final boolean kafkaClientPropagationEnabled;
   @Getter private final boolean kafkaClientBase64DecodingEnabled;
 
+  @Getter private final boolean debugEnabled;
+  @Getter private final String configFile;
+
   // Values from an optionally provided properties file
   private static Properties propertiesFromConfigFile;
 
@@ -361,6 +364,7 @@ public class Config {
   // Visible for testing
   Config() {
     propertiesFromConfigFile = loadConfigurationFile();
+    configFile = findConfigurationFile();
 
     runtimeId = UUID.randomUUID().toString();
 
@@ -579,6 +583,8 @@ public class Config {
     kafkaClientBase64DecodingEnabled =
         getBooleanSettingFromEnvironment(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
 
+    debugEnabled = isDebugMode();
+
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
 
@@ -588,6 +594,8 @@ public class Config {
   // Read order: Properties -> Parent
   private Config(final Properties properties, final Config parent) {
     runtimeId = parent.runtimeId;
+
+    configFile = parent.configFile;
 
     apiKey = properties.getProperty(API_KEY, parent.apiKey);
     site = properties.getProperty(SITE, parent.site);
@@ -775,6 +783,8 @@ public class Config {
     kafkaClientPropagationEnabled =
         getPropertyBooleanValue(
             properties, KAFKA_CLIENT_PROPAGATION_ENABLED, parent.kafkaClientPropagationEnabled);
+
+    debugEnabled = parent.debugEnabled || isDebugMode();
 
     kafkaClientBase64DecodingEnabled =
         getPropertyBooleanValue(
@@ -971,6 +981,23 @@ public class Config {
   public boolean isTraceAnalyticsIntegrationEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
     return isEnabled(integrationNames, ".analytics.enabled", defaultEnabled);
+  }
+
+  private static boolean isDebugMode() {
+    final String tracerDebugLevelSysprop = "dd.trace.debug";
+    final String tracerDebugLevelProp = System.getProperty(tracerDebugLevelSysprop);
+
+    if (tracerDebugLevelProp != null) {
+      return Boolean.parseBoolean(tracerDebugLevelProp);
+    }
+
+    final String tracerDebugLevelEnv =
+        System.getenv(tracerDebugLevelSysprop.replace('.', '_').toUpperCase());
+
+    if (tracerDebugLevelEnv != null) {
+      return Boolean.parseBoolean(tracerDebugLevelEnv);
+    }
+    return false;
   }
 
   /**
@@ -1447,6 +1474,24 @@ public class Config {
     }
 
     return properties;
+  }
+
+  private static String findConfigurationFile() {
+    String configurationFilePath =
+        System.getProperty(propertyNameToSystemPropertyName(CONFIGURATION_FILE));
+    if (null == configurationFilePath) {
+      configurationFilePath =
+          System.getenv(propertyNameToEnvironmentVariableName(CONFIGURATION_FILE));
+    }
+    if (null != configurationFilePath) {
+      configurationFilePath =
+          configurationFilePath.replaceFirst("^~", System.getProperty("user.home"));
+      final File configurationFile = new File(configurationFilePath);
+      if (!configurationFile.exists()) {
+        return configurationFilePath;
+      }
+    }
+    return "no config file present";
   }
 
   /** Returns the detected hostname. First tries locally, then using DNS */

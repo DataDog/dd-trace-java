@@ -143,6 +143,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       serviceNameMappings(config.getServiceMapping());
       taggedHeaders(config.getHeaderTags());
       partialFlushMinSpans(config.getPartialFlushMinSpans());
+
       return this;
     }
   }
@@ -223,6 +224,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // Ensure that PendingTrace.SPAN_CLEANER is initialized in this thread:
     // FIXME: add test to verify the span cleaner thread is started with this call.
     PendingTrace.initialize();
+
+    StatusLogger.logStatus(config);
   }
 
   @Override
