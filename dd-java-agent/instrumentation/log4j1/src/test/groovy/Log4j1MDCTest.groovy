@@ -19,15 +19,4 @@ class Log4j1MDCTest extends LogContextInjectionTestBase {
   def get(String key) {
     return MDC.get(key)
   }
-
-  @Override
-  def remove(String key) {
-    MDC.context
-    return MDC.remove(key)
-  }
-
-  @Override
-  def clear() {
-    return MDC.clear()
-  }
 }

@@ -1,8 +1,6 @@
 package datadog.trace.agent.test
 
 import datadog.trace.agent.tooling.ClassLoaderMatcher
-import datadog.trace.agent.tooling.log.LogContextScopeListener
-import datadog.trace.agent.tooling.log.ThreadLocalWithDDTagsInitValue
 import datadog.trace.bootstrap.DatadogClassLoader
 import datadog.trace.util.test.DDSpecification
 
@@ -38,12 +36,6 @@ class ClassLoaderMatcherTest extends DDSpecification {
   def "DatadogClassLoader class name is hardcoded in ClassLoaderMatcher"() {
     expect:
     DatadogClassLoader.name == "datadog.trace.bootstrap.DatadogClassLoader"
-  }
-
-  def "helper class names are hardcoded in Log Instrumentations"() {
-    expect:
-    LogContextScopeListener.name == "datadog.trace.agent.tooling.log.LogContextScopeListener"
-    ThreadLocalWithDDTagsInitValue.name == "datadog.trace.agent.tooling.log.ThreadLocalWithDDTagsInitValue"
   }
 
   /*
