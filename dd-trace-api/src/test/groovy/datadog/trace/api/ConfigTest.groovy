@@ -1,7 +1,5 @@
 package datadog.trace.api
 
-
-import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.util.test.DDSpecification
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
@@ -89,8 +87,6 @@ class ConfigTest extends DDSpecification {
   public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
   @Rule
   public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
-  @Rule
-  public final FixedCapturedEnvironment fixedCapturedEnvironment = new FixedCapturedEnvironment()
 
   private static final DD_API_KEY_ENV = "DD_API_KEY"
   private static final DD_SERVICE_NAME_ENV = "DD_SERVICE_NAME"
@@ -647,65 +643,6 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == "unnamed-java-app"
     config.writerType == "DDAgentWriter"
-  }
-
-  def "captured env props override default props"() {
-    setup:
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "automatic service name")
-    fixedCapturedEnvironment.load(capturedEnv)
-
-    when:
-    def config = new Config()
-
-    then:
-    config.serviceName == "automatic service name"
-  }
-
-  def "specify props override captured env props"() {
-    setup:
-    def prop = new Properties()
-    prop.setProperty(SERVICE_NAME, "what actually wants")
-
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "something else")
-    fixedCapturedEnvironment.load(capturedEnv)
-
-    when:
-    def config = Config.get(prop)
-
-    then:
-    config.serviceName == "what actually wants"
-  }
-
-  def "sys props override captured env props"() {
-    setup:
-    System.setProperty(PREFIX + SERVICE_NAME, "what actually wants")
-
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "something else")
-    fixedCapturedEnvironment.load(capturedEnv)
-
-    when:
-    def config = new Config()
-
-    then:
-    config.serviceName == "what actually wants"
-  }
-
-  def "env vars override captured env props"() {
-    setup:
-    environmentVariables.set(DD_SERVICE_NAME_ENV, "what actually wants")
-
-    def capturedEnv = new HashMap<String, String>()
-    capturedEnv.put(SERVICE_NAME, "something else")
-    fixedCapturedEnvironment.load(capturedEnv)
-
-    when:
-    def config = new Config()
-
-    then:
-    config.serviceName == "what actually wants"
   }
 
   def "verify integration config"() {
