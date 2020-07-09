@@ -229,6 +229,9 @@ public class Config {
   public static final String KAFKA_CLIENT_PROPAGATION_ENABLED =
       TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
 
+  public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =
+      TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
+
   private static final String PROFILING_REMOTE_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
   private static final String PROFILING_LOCAL_URL_TEMPLATE = "http://%s:%d/profiling/v1/input";
 
@@ -349,6 +352,7 @@ public class Config {
   @Getter private final int profilingExceptionHistogramMaxCollectionSize;
 
   @Getter private final boolean kafkaClientPropagationEnabled;
+  @Getter private final boolean kafkaClientBase64DecodingEnabled;
 
   // Values from an optionally provided properties file
   private static Properties propertiesFromConfigFile;
@@ -572,6 +576,9 @@ public class Config {
         getBooleanSettingFromEnvironment(
             KAFKA_CLIENT_PROPAGATION_ENABLED, DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED);
 
+    kafkaClientBase64DecodingEnabled =
+        getBooleanSettingFromEnvironment(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
+
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
 
@@ -768,6 +775,12 @@ public class Config {
     kafkaClientPropagationEnabled =
         getPropertyBooleanValue(
             properties, KAFKA_CLIENT_PROPAGATION_ENABLED, parent.kafkaClientPropagationEnabled);
+
+    kafkaClientBase64DecodingEnabled =
+        getPropertyBooleanValue(
+            properties,
+            KAFKA_CLIENT_BASE64_DECODING_ENABLED,
+            parent.kafkaClientBase64DecodingEnabled);
 
     log.debug("New instance: {}", this);
   }

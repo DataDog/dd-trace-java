@@ -39,7 +39,8 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Default {
       packageName + ".TextMapExtractAdapter",
       packageName + ".TracingIterable",
       packageName + ".TracingIterator",
-      packageName + ".TracingList"
+      packageName + ".TracingList",
+      packageName + ".Base64Decoder"
     };
   }
 
