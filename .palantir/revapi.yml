@@ -491,3 +491,14 @@ acceptedBreaks:
       old: "method void datadog.trace.core.serialization.MsgpackFormatWriter::writeNumberAsString(byte[],\
         \ java.lang.Number, org.msgpack.core.MessagePacker) throws java.io.IOException"
       justification: "internal api"
+  "0.57.0":
+    com.datadoghq:dd-trace-ot:
+    - code: "java.field.removedWithConstant"
+      old: "field datadog.trace.bootstrap.instrumentation.api.Tags.DD_ENV"
+      justification: "reverting log changes"
+    - code: "java.field.removedWithConstant"
+      old: "field datadog.trace.bootstrap.instrumentation.api.Tags.DD_SERVICE"
+      justification: "reverting log changes"
+    - code: "java.field.removedWithConstant"
+      old: "field datadog.trace.bootstrap.instrumentation.api.Tags.DD_VERSION"
+      justification: "reverting log changes"
