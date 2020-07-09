@@ -56,8 +56,8 @@ public class TraceProcessingDisruptor implements AutoCloseable {
             disruptorSize,
             DaemonThreadFactory.TRACE_PROCESSOR,
             ProducerType.MULTI,
-            // use sleeping wait strategy because it reduces CPU usage,
-            // and is cheaper for application threads publishing traces
+            // using blocking wait strategy because the processor will
+            // spend some time doing IO anyway
             new BlockingWaitStrategy());
     disruptor.handleEventsWith(
         new TraceSerializingHandler(monitor, writer, flushInterval, timeUnit, api));
@@ -179,6 +179,10 @@ public class TraceProcessingDisruptor implements AutoCloseable {
 
     private void serialize(List<DDSpan> trace, int representativeCount) {
       // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
+      // the call below is blocking and will trigger IO if a flush is necessary
+      // there are alternative approaches to avoid blocking here, such as
+      // introducing an unbound queue and another thread to do the IO
+      // however, we can't block the application threads from here.
       packer.format(processor.onTraceComplete(trace), traceMapper);
       this.representativeCount += representativeCount;
     }
@@ -196,7 +200,8 @@ public class TraceProcessingDisruptor implements AutoCloseable {
 
     @Override
     public void accept(int messageCount, ByteBuffer buffer) {
-      // the packer calls this when the buffer is full
+      // the packer calls this when the buffer is full,
+      // or when the packer is flushed at a heartbeat
       if (messageCount > 0) {
         final int sizeInBytes = buffer.limit() - buffer.position();
         monitor.onSerialize(sizeInBytes);

@@ -72,6 +72,26 @@ public class Packer implements Writable, MessageFormatter {
   public <T> void format(T message, Mapper<T> mapper) {
     try {
       mapper.map(message, this);
+      // What happens here is when an entire message is put into the buffer
+      // (i.e. it's possible without overflow, we go to the next line, not
+      // the catch block) the buffer gets marked (i.e. we take a snapshot
+      // of the buffer's current position, where the next message would
+      // start). When there is overflow, the buffer is reset, so the
+      // position is restored to that snapshot and the serialisation work
+      // of `message` is lost.
+      //
+      // Now there are two cases:
+      //
+      // 1. That snapshot is the start of the buffer, so the object being mapped
+      //    is larger than we have space for. This is unrecoverable, and we're
+      //    relying on this not being possible. However, we have hard limits on
+      //    what we *can* send to the agent, so all traces have an implicit size
+      //    limit. So we need to select a buffer large enough for at least one
+      //    trace (and hopefully many).
+      // 2. Otherwise, the snapshot position is where the last successfully written
+      //    message ended. If we flip the buffer, it can be dispatched to the sink.
+      //    After it's been dispatched, we can write the message which caused the
+      //    overflow into the now reset buffer, doing the serialisation work again.
       buffer.mark();
       ++messageCount;
     } catch (BufferOverflowException e) {
@@ -250,7 +270,7 @@ public class Packer implements Writable, MessageFormatter {
         buffer.putLong(word);
         written += 8;
         i += 8;
-      } else { // redo some work, stupid but careful
+      } else { // redo some work, wasteful but careful
         int j = i;
         for (; j < i + 8; ++j) {
           char c = s.charAt(j);
@@ -284,8 +304,7 @@ public class Packer implements Writable, MessageFormatter {
               }
             }
           } else {
-            buffer.put((byte) (0xE0 | c >> 12));
-            buffer.put((byte) (0x80 | c >> 6 & 0x3F));
+            buffer.putChar((char) (((0xE0 | c >> 12) << 8) | (0x80 | c >> 6 & 0x3F)));
             buffer.put((byte) (0x80 | c & 0x3F));
             written += 3;
           }
