@@ -12,14 +12,4 @@ class Log4jThreadContextTest extends LogContextInjectionTestBase {
   def get(String key) {
     return ThreadContext.get(key)
   }
-
-  @Override
-  def remove(String key) {
-    return ThreadContext.remove(key)
-  }
-
-  @Override
-  def clear() {
-    return ThreadContext.clearAll()
-  }
 }

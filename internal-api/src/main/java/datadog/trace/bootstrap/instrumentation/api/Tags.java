@@ -25,8 +25,4 @@ public class Tags {
   public static final String DB_USER = "db.user";
   public static final String DB_STATEMENT = "db.statement";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
-
-  public static final String DD_SERVICE = "dd.service";
-  public static final String DD_VERSION = "dd.version";
-  public static final String DD_ENV = "dd.env";
 }
