@@ -14,11 +14,9 @@ import static net.bytebuddy.matcher.ElementMatchers.none
 
 abstract class DDSpecification extends Specification {
   private static final String CONFIG = "datadog.trace.api.Config"
-  private static final String CAPTURED_ENV = "datadog.trace.api.env.CapturedEnvironment"
 
   static {
     makeConfigInstanceModifiable()
-    cleanCapturedEnvironment()
   }
 
   // Keep track of config instance already made modifiable
@@ -52,20 +50,5 @@ abstract class DDSpecification extends Specification {
       }
       .installOn(instrumentation)
     isConfigInstanceModifiable = true
-  }
-
-  //Clean captured environment to avoid affecting Config settings with platform dependant properties.
-  static void cleanCapturedEnvironment() {
-    try {
-      def capturedEnvClass = this.getClassLoader().loadClass(CAPTURED_ENV)
-      def capturedEnvField = capturedEnvClass.getDeclaredField("INSTANCE")
-      capturedEnvField.setAccessible(true)
-
-      def propsField = capturedEnvClass.getDeclaredField("properties")
-      propsField.setAccessible(true)
-      propsField.set(capturedEnvField.get(null), new HashMap<String, String>())
-    } catch (final ClassNotFoundException ignored) {
-      //If CapturedEnvironment class is not found, no actions needed.
-    }
   }
 }
