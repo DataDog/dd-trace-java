@@ -7,6 +7,8 @@ import datadog.trace.context.TraceScope
 import datadog.trace.core.DDSpan
 import datadog.trace.core.propagation.ExtractedContext
 import io.opentracing.References
+import io.opentracing.Scope
+import io.opentracing.Span
 import io.opentracing.log.Fields
 import io.opentracing.noop.NoopSpan
 import io.opentracing.propagation.Format
@@ -214,6 +216,38 @@ class OpenTracing32Test extends AgentTestRunner {
 
     cleanup:
     scope.close()
+  }
+
+  def "closing scope when not on top"() {
+    when:
+    Span firstSpan = tracer.buildSpan("someOperation").start()
+    Scope firstScope = tracer.scopeManager().activate(firstSpan)
+
+    Span secondSpan = tracer.buildSpan("someOperation").start()
+    Scope secondScope = tracer.scopeManager().activate(secondSpan)
+
+    firstSpan.finish()
+    firstScope.close()
+
+    then:
+    tracer.scopeManager().active().delegate == secondScope.delegate
+    1 * STATS_D_CLIENT.incrementCounter("scope.close.error")
+    1 * STATS_D_CLIENT.incrementCounter("scope.user.close.error")
+    0 * _
+
+    when:
+    secondSpan.finish()
+    secondScope.close()
+
+    then:
+    tracer.scopeManager().active().delegate == firstScope.delegate
+    0 * _
+
+    when:
+    firstScope.close()
+
+    then:
+    0 * _
   }
 
   def "test inject extract"() {

@@ -7,7 +7,9 @@ import datadog.trace.context.TraceScope
 import datadog.trace.core.propagation.ExtractedContext
 import io.grpc.Context
 import io.opentelemetry.OpenTelemetry
+import io.opentelemetry.context.Scope
 import io.opentelemetry.context.propagation.HttpTextFormat
+import io.opentelemetry.trace.Span
 import io.opentelemetry.trace.Status
 import io.opentelemetry.trace.TracingContextUtils
 import spock.lang.Subject
@@ -200,6 +202,38 @@ class OpenTelemetryTest extends AgentTestRunner {
 
     cleanup:
     span.end()
+  }
+
+  def "test closing scope when not on top"() {
+    when:
+    Span firstSpan = tracer.spanBuilder("someOperation").startSpan()
+    Scope firstScope = tracer.withSpan(firstSpan)
+
+    Span secondSpan = tracer.spanBuilder("someOperation").startSpan()
+    Scope secondScope = tracer.withSpan(secondSpan)
+
+    firstSpan.end()
+    firstScope.close()
+
+    then:
+    tracer.currentSpan.delegate == secondScope.delegate.span()
+    1 * STATS_D_CLIENT.incrementCounter("scope.close.error")
+    1 * STATS_D_CLIENT.incrementCounter("scope.user.close.error")
+    0 * _
+
+    when:
+    secondSpan.end()
+    secondScope.close()
+
+    then:
+    tracer.currentSpan.delegate == firstScope.delegate.span()
+    0 * _
+
+    when:
+    firstScope.close()
+
+    then:
+    0 * _
   }
 
   def "test continuation"() {

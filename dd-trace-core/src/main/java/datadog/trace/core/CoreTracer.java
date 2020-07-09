@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
@@ -136,8 +137,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       sampler(Sampler.Builder.forConfig(config));
       injector(HttpCodec.createInjector(config));
       extractor(HttpCodec.createExtractor(config, config.getHeaderTags()));
-      scopeManager(
-          new ContinuableScopeManager(config.getScopeDepthLimit(), createScopeEventFactory()));
+      // Explicitly skip setting scope manager because it depends on statsDClient
       localRootSpanTags(config.getLocalRootSpanTags());
       defaultSpanTags(config.getMergedSpanTags());
       serviceNameMappings(config.getServiceMapping());
@@ -161,7 +161,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Map<String, String> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders,
-      final int partialFlushMinSpans) {
+      final int partialFlushMinSpans,
+      final StatsDClient statsDClient) {
 
     assert localRootSpanTags != null;
     assert defaultSpanTags != null;
@@ -172,16 +173,30 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.sampler = sampler;
     this.injector = injector;
     this.extractor = extractor;
-    this.scopeManager = scopeManager;
     this.localRootSpanTags = localRootSpanTags;
     this.defaultSpanTags = defaultSpanTags;
     this.serviceNameMappings = serviceNameMappings;
     this.partialFlushMinSpans = partialFlushMinSpans;
 
-    this.statsDClient = createStatsDClient(config);
+    if (statsDClient == null) {
+      this.statsDClient = createStatsDClient(config);
+    } else {
+      this.statsDClient = statsDClient;
+    }
+
+    if (scopeManager == null) {
+      this.scopeManager =
+          new ContinuableScopeManager(
+              config.getScopeDepthLimit(),
+              createScopeEventFactory(),
+              this.statsDClient,
+              config.isScopeStrictMode());
+    } else {
+      this.scopeManager = scopeManager;
+    }
 
     if (writer == null) {
-      this.writer = createWriter(config, sampler, statsDClient);
+      this.writer = createWriter(config, sampler, this.statsDClient);
     } else {
       this.writer = writer;
     }
@@ -297,9 +312,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         .start();
   }
 
-  @Override
   public AgentScope activateSpan(final AgentSpan span) {
-    return scopeManager.activate(span);
+    return scopeManager.activate(span, ScopeSource.INSTRUMENTATION);
+  }
+
+  @Override
+  public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
+    return scopeManager.activate(span, source);
   }
 
   @Override
