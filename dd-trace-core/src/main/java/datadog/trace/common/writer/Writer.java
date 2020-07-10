@@ -29,5 +29,4 @@ public interface Writer extends Closeable {
   void incrementTraceCount();
 
   TraceStatsCollector getTraceStatsCollector();
-
 }

@@ -19,7 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class LoggingWriter implements Writer {
   private final TraceStatsCollector collector = new TraceStatsCollector();
-  private final TraceProcessor processor = new TraceProcessor();
+  private final TraceProcessor processor = new TraceProcessor(collector);
+
   private static final JsonAdapter<List<DDSpan>> TRACE_ADAPTER =
       new Moshi.Builder()
           .add(DDSpanAdapter.FACTORY)

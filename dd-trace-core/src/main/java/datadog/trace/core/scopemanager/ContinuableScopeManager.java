@@ -38,13 +38,16 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
   public ContinuableScopeManager(
       final int depthLimit,
+      final Double methodTraceSampleRate,
       final DDScopeEventFactory scopeEventFactory,
       final TraceStatsCollector traceStatsCollector,
       final StatsDClient statsDClient,
       final boolean strictMode) {
     this(
         depthLimit,
+        methodTraceSampleRate,
         scopeEventFactory,
+        traceStatsCollector,
         statsDClient,
         strictMode,
         new CopyOnWriteArrayList<ScopeListener>());

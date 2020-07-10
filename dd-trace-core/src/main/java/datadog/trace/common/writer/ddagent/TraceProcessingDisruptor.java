@@ -65,7 +65,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
             // spend some time doing IO anyway
             new BlockingWaitStrategy());
     disruptor.handleEventsWith(
-        new TraceSerializingHandler(monitor, writer, flushInterval, timeUnit, api));
+        new TraceSerializingHandler(traceProcessor, monitor, writer, flushInterval, timeUnit, api));
     this.dataTranslator = new DisruptorEvent.DataTranslator<>();
     this.flushTranslator = new DisruptorEvent.FlushTranslator<>();
     this.doHeartbeat = heartbeat;
@@ -119,7 +119,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
   public static class TraceSerializingHandler
       implements EventHandler<DisruptorEvent<List<DDSpan>>>, ByteBufferConsumer {
 
-    private final TraceProcessor processor = new TraceProcessor();
+    private final TraceProcessor processor;
     private final Monitor monitor;
     private final DDAgentWriter writer;
     private final long flushIntervalMillis;
@@ -137,8 +137,8 @@ public class TraceProcessingDisruptor implements AutoCloseable {
         final DDAgentWriter writer,
         final long flushInterval,
         final TimeUnit timeUnit,
-        DDAgentApi api) {
-      this.traceProcessor = traceProcessor;
+        final DDAgentApi api) {
+      this.processor = traceProcessor;
       this.monitor = monitor;
       this.writer = writer;
       this.doTimeFlush = flushInterval > 0;
@@ -192,7 +192,6 @@ public class TraceProcessingDisruptor implements AutoCloseable {
       // however, we can't block the application threads from here.
       packer.format(processor.onTraceComplete(trace), traceMapper);
       this.representativeCount += representativeCount;
-      trace = traceProcessor.onTraceComplete(trace);
     }
 
     private void scheduleNextTimeFlush() {

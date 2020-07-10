@@ -184,23 +184,23 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.statsDClient = statsDClient;
     }
 
+    if (writer == null) {
+      this.writer = createWriter(config, sampler, this.statsDClient);
+    } else {
+      this.writer = writer;
+    }
+
     if (scopeManager == null) {
       this.scopeManager =
           new ContinuableScopeManager(
               config.getScopeDepthLimit(),
               config.getMethodTraceSampleRate(),
               createScopeEventFactory(),
-              this.writer.getTraceStatsCollector()
+              this.writer.getTraceStatsCollector(),
               this.statsDClient,
               config.isScopeStrictMode());
     } else {
       this.scopeManager = scopeManager;
-    }
-
-    if (writer == null) {
-      this.writer = createWriter(config, sampler, this.statsDClient);
-    } else {
-      this.writer = writer;
     }
 
     this.writer.start();
