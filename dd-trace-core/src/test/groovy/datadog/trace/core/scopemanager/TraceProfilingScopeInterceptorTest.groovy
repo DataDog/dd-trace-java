@@ -4,7 +4,7 @@ import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
-import datadog.trace.core.interceptor.TraceStatsCollector
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator
 import datadog.trace.mlt.MethodLevelTracer
 import datadog.trace.mlt.Session
 import datadog.trace.mlt.SessionFactory
@@ -16,7 +16,7 @@ import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 class TraceProfilingScopeInterceptorTest extends DDSpecification {
   def delegate = Mock(ScopeInterceptor)
   def delegateScope = Mock(ScopeInterceptor.Scope)
-  def statsCollector = Mock(TraceStatsCollector)
+  def statsCollector = Mock(TraceHeuristicsEvaluator)
   def statsDClient = Mock(StatsDClient)
   def span = Mock(AgentSpan)
   def factory = Mock(SessionFactory)

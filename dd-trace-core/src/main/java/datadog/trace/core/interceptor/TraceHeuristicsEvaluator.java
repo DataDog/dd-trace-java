@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.HdrHistogram.Histogram;
 
 @Slf4j
-public class TraceStatsCollector extends CacheLoader<String, Histogram>
+public class TraceHeuristicsEvaluator extends CacheLoader<String, Histogram>
     implements TraceInterceptor {
   LoadingCache<String, Histogram> cache = CacheBuilder.newBuilder().build(this);
   // for now collect everything into a single histogram

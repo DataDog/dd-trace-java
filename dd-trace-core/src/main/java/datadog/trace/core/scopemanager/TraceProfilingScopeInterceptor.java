@@ -6,7 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.core.CoreTracer;
-import datadog.trace.core.interceptor.TraceStatsCollector;
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import datadog.trace.mlt.MethodLevelTracer;
 import datadog.trace.mlt.Session;
 import java.math.BigDecimal;
@@ -37,13 +37,13 @@ public abstract class TraceProfilingScopeInterceptor
 
   public static TraceProfilingScopeInterceptor create(
       final Double methodTraceSampleRate,
-      final TraceStatsCollector statsCollector,
+      final TraceHeuristicsEvaluator traceHeuristicsEvaluator,
       final StatsDClient statsDClient,
       final ScopeInterceptor delegate) {
     if (methodTraceSampleRate != null) {
       return new Percentage(methodTraceSampleRate, statsDClient, delegate);
     }
-    return new Heuristical(statsCollector, statsDClient, delegate);
+    return new Heuristical(traceHeuristicsEvaluator, statsDClient, delegate);
   }
 
   @Override
@@ -87,10 +87,10 @@ public abstract class TraceProfilingScopeInterceptor
   private static class Heuristical extends TraceProfilingScopeInterceptor {
     private volatile long lastProfileTimestamp = System.nanoTime();
 
-    private final TraceStatsCollector statsCollector;
+    private final TraceHeuristicsEvaluator statsCollector;
 
     private Heuristical(
-        final TraceStatsCollector statsCollector,
+        final TraceHeuristicsEvaluator statsCollector,
         final StatsDClient statsDClient,
         final ScopeInterceptor delegate) {
       super(statsDClient, delegate);

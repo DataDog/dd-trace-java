@@ -11,7 +11,7 @@ import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.Monitor;
 import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.interceptor.TraceStatsCollector;
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,7 +38,7 @@ public class DDAgentWriter implements Writer {
 
   private final DDAgentApi api;
   private final TraceProcessingDisruptor traceProcessingDisruptor;
-  private final TraceStatsCollector statsCollector = new TraceStatsCollector();
+  private final TraceHeuristicsEvaluator traceHeuristicsEvaluator = new TraceHeuristicsEvaluator();
 
   private final AtomicInteger traceCount = new AtomicInteger(0);
   private volatile boolean closed;
@@ -76,7 +76,7 @@ public class DDAgentWriter implements Writer {
     traceProcessingDisruptor =
         new TraceProcessingDisruptor(
             traceBufferSize,
-            statsCollector,
+            traceHeuristicsEvaluator,
             monitor,
             this,
             api,
@@ -144,8 +144,8 @@ public class DDAgentWriter implements Writer {
   }
 
   @Override
-  public TraceStatsCollector getTraceStatsCollector() {
-    return statsCollector;
+  public TraceHeuristicsEvaluator getTraceHeuristicsEvaluator() {
+    return traceHeuristicsEvaluator;
   }
 
   public DDAgentApi getApi() {

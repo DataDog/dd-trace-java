@@ -6,7 +6,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.interceptor.TraceStatsCollector;
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import datadog.trace.core.processor.TraceProcessor;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class LoggingWriter implements Writer {
-  private final TraceStatsCollector collector = new TraceStatsCollector();
+  private final TraceHeuristicsEvaluator collector = new TraceHeuristicsEvaluator();
   private final TraceProcessor processor = new TraceProcessor(collector);
 
   private static final JsonAdapter<List<DDSpan>> TRACE_ADAPTER =
@@ -47,7 +47,7 @@ public class LoggingWriter implements Writer {
   }
 
   @Override
-  public TraceStatsCollector getTraceStatsCollector() {
+  public TraceHeuristicsEvaluator getTraceHeuristicsEvaluator() {
     return collector;
   }
 

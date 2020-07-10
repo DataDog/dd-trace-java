@@ -197,7 +197,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               config.getScopeDepthLimit(),
               config.getMethodTraceSampleRate(),
               createScopeEventFactory(),
-              this.writer.getTraceStatsCollector(),
+              this.writer.getTraceHeuristicsEvaluator(),
               this.statsDClient,
               config.isScopeStrictMode());
     } else {

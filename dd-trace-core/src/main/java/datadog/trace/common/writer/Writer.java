@@ -1,7 +1,7 @@
 package datadog.trace.common.writer;
 
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.interceptor.TraceStatsCollector;
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import java.io.Closeable;
 import java.util.List;
 
@@ -28,5 +28,5 @@ public interface Writer extends Closeable {
   /** Count that a trace was captured for stats, but without reporting it. */
   void incrementTraceCount();
 
-  TraceStatsCollector getTraceStatsCollector();
+  TraceHeuristicsEvaluator getTraceHeuristicsEvaluator();
 }
