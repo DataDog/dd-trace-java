@@ -48,6 +48,8 @@ class TagsAssert {
 
     boolean isRoot = (DDId.ZERO == spanParentId)
     if (isRoot || distributedRootSpan) {
+      // If runtime id is actually different here, it might indicate that
+      // the Config class was loaded on multiple different class loaders.
       assert tags[DDTags.RUNTIME_ID_TAG] == Config.get().runtimeId
     } else {
       assert tags[DDTags.RUNTIME_ID_TAG] == null
