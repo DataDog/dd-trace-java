@@ -2,18 +2,21 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
-import datadog.trace.common.writer.ddagent.MsgPackStatefulSerializer
+import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.core.CoreTracer
 import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
+import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
+import datadog.trace.core.serialization.msgpack.Packer
 import datadog.trace.util.test.DDSpecification
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.startupcheck.MinimumDurationRunningStartupCheckStrategy
 import spock.lang.Requires
 import spock.lang.Shared
 
+import java.nio.ByteBuffer
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -121,7 +124,7 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def "Sending traces succeeds (test #test)"() {
     expect:
-    api.sendSerializedTraces(request)
+    api.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
     assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
@@ -140,7 +143,7 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def "Sending traces to unix domain socket succeeds (test #test)"() {
     expect:
-    unixDomainSocketApi.sendSerializedTraces(request)
+    unixDomainSocketApi.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
     assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/v0.4/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
@@ -153,15 +156,28 @@ class DDApiIntegrationTest extends DDSpecification {
   }
 
 
-  def prepareRequest(List<List<DDSpan>> traces) {
-    def serializer = new MsgPackStatefulSerializer()
-    def traceRequest = serializer.newBuffer()
-    serializer.reset(traceRequest)
-    for (trace in traces) {
-      serializer.serialize(trace)
+  static class Traces implements ByteBufferConsumer {
+    int traceCount
+    int representativeCount
+    ByteBuffer buffer
+
+    @Override
+    void accept(int messageCount, ByteBuffer buffer) {
+      this.buffer = buffer
+      this.representativeCount = messageCount
+      this.traceCount = messageCount
     }
-    serializer.dropBuffer()
-    traceRequest.setRepresentativeCount(traces.size())
-    return traceRequest
+  }
+
+  Traces prepareRequest(List<List<DDSpan>> traces) {
+    ByteBuffer buffer = ByteBuffer.allocate(1 << 20)
+    Traces tracesToSend = new Traces()
+    def packer = new Packer(tracesToSend, buffer)
+    def traceMapper = new TraceMapper()
+    for (trace in traces) {
+      packer.format(trace, traceMapper)
+    }
+    packer.flush()
+    return tracesToSend
   }
 }

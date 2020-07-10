@@ -1,25 +1,28 @@
 package datadog.trace.core
 
 import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.common.writer.LoggingWriter
+import datadog.trace.common.writer.ddagent.TraceMapper
+import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
+import datadog.trace.core.serialization.msgpack.Packer
 import datadog.trace.util.test.DDSpecification
 import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferInput
-import org.msgpack.core.buffer.ArrayBufferOutput
 import org.msgpack.value.ValueType
 
-import static datadog.trace.core.serialization.JsonFormatWriter.SPAN_ADAPTER
-import static datadog.trace.core.serialization.MsgpackFormatWriter.MSGPACK_WRITER
+import java.nio.ByteBuffer
 
 class DDSpanSerializationTest extends DDSpecification {
 
-  def "serialize spans with sampling #samplingPriority"() throws Exception {
+  def "serialize trace with sampling #samplingPriority"() throws Exception {
     setup:
-    def jsonAdapter = new Moshi.Builder().build().adapter(Map)
+    def jsonAdapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(List, Map))
 
     final Map<String, Number> metrics = ["_sampling_priority_v1": 1]
     if (samplingPriority == PrioritySampling.UNSET) {  // RateByServiceSampler sets priority
@@ -70,8 +73,8 @@ class DDSpanSerializationTest extends DDSpecification {
 
     span.finish(133L)
 
-    def actualTree = jsonAdapter.fromJson(SPAN_ADAPTER.toJson(span))
-    def expectedTree = jsonAdapter.fromJson(jsonAdapter.toJson(expected))
+    def actualTree = jsonAdapter.fromJson(LoggingWriter.TRACE_ADAPTER.toJson(Collections.singletonList(span)))
+    def expectedTree = jsonAdapter.fromJson(jsonAdapter.toJson(Collections.singletonList(expected)))
     expect:
     actualTree == expectedTree
 
@@ -81,7 +84,7 @@ class DDSpanSerializationTest extends DDSpecification {
     PrioritySampling.UNSET        | "some-type"
   }
 
-  def "serialize trace/span with id #value as int"() {
+  def "serialize trace with id #value as int"() {
     setup:
     def writer = new ListWriter()
     def tracer = CoreTracer.builder().writer(writer).build()
@@ -102,15 +105,20 @@ class DDSpanSerializationTest extends DDSpecification {
       tracer,
       [:])
     def span = DDSpan.create(0, context)
-    def buffer = new ArrayBufferOutput()
-    def packer = MessagePack.newDefaultPacker(buffer)
-    MSGPACK_WRITER.writeDDSpan(span, packer)
+    def buffer = ByteBuffer.allocate(1024)
+    CaptureBuffer capture = new CaptureBuffer()
+    def packer = new Packer(capture, buffer)
+    packer.format(Collections.singletonList(span), new TraceMapper())
     packer.flush()
-    byte[] bytes = buffer.toByteArray()
-    def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(bytes))
+    def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
+    int traceCount = unpacker.unpackArrayHeader()
+    int spanCount = unpacker.unpackArrayHeader()
     int size = unpacker.unpackMapHeader()
 
     expect:
+    traceCount == 1
+    spanCount == 1
+    size == 12
     for (int i = 0; i < size; i++) {
       String key = unpacker.unpackString()
 
@@ -138,5 +146,17 @@ class DDSpanSerializationTest extends DDSpecification {
     DDId.from("${BigInteger.valueOf(Long.MAX_VALUE).subtract(1G)}") | "some-type"
     DDId.from("${BigInteger.valueOf(Long.MAX_VALUE).add(1G)}")      | null
     DDId.from("${2G.pow(64).subtract(1G)}")                         | "some-type"
+  }
+
+
+  private class CaptureBuffer implements ByteBufferConsumer {
+
+    private byte[] bytes
+
+    @Override
+    void accept(int messageCount, ByteBuffer buffer) {
+      this.bytes = new byte[buffer.limit() - buffer.position()]
+      buffer.get(bytes)
+    }
   }
 }

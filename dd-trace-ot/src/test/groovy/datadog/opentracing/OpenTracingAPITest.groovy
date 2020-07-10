@@ -1,6 +1,8 @@
 package datadog.opentracing
 
+import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.DDTags
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.common.writer.ListWriter
@@ -15,11 +17,13 @@ import io.opentracing.propagation.TextMapAdapter
 import io.opentracing.tag.Tags
 
 import static datadog.trace.agent.test.asserts.ListWriterAssert.assertTraces
+import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 
 class OpenTracingAPITest extends DDSpecification {
   def writer = new ListWriter()
+  def statsDClient = Mock(StatsDClient)
 
-  def tracer = DDTracer.builder().writer(writer).build()
+  def tracer = DDTracer.builder().writer(writer).statsDClient(statsDClient).build()
 
   def traceInterceptor = Mock(TraceInterceptor)
   def scopeListener = Mock(ScopeListener)
@@ -28,6 +32,10 @@ class OpenTracingAPITest extends DDSpecification {
     assert tracer.scopeManager().active() == null
     tracer.addTraceInterceptor(traceInterceptor)
     tracer.addScopeListener(scopeListener)
+  }
+
+  def cleanup() {
+    tracer.close()
   }
 
   def "tracer/scopeManager returns null for no active span"() {
@@ -284,6 +292,86 @@ class OpenTracingAPITest extends DDSpecification {
         }
       }
     }
+  }
+
+  def "closing scope when not on top"() {
+    when:
+    Span firstSpan = tracer.buildSpan("someOperation").start()
+    Scope firstScope = tracer.activateSpan(firstSpan)
+
+    Span secondSpan = tracer.buildSpan("someOperation").start()
+    Scope secondScope = tracer.activateSpan(secondSpan)
+
+    firstSpan.finish()
+    firstScope.close()
+
+    then:
+    2 * scopeListener.afterScopeActivated()
+    1 * statsDClient.incrementCounter("scope.close.error")
+    1 * statsDClient.incrementCounter("scope.user.close.error")
+    0 * _
+
+    when:
+    secondSpan.finish()
+    secondScope.close()
+
+    then:
+    1 * scopeListener.afterScopeClosed()
+    1 * traceInterceptor.onTraceComplete({ it.size() == 2 }) >> { args -> args[0] }
+    0 * _
+
+    when:
+    firstScope.close()
+
+    then:
+    1 * scopeListener.afterScopeClosed()
+    0 * _
+  }
+
+  def "closing scope when not on top in strict mode"() {
+    setup:
+    DDTracer strictTracer
+    withConfigOverride(TracerConfig.SCOPE_STRICT_MODE, "true") {
+      strictTracer = DDTracer.builder().writer(writer).statsDClient(statsDClient).build()
+      strictTracer.addTraceInterceptor(traceInterceptor)
+      strictTracer.addScopeListener(scopeListener)
+    }
+
+    when:
+    Span firstSpan = strictTracer.buildSpan("someOperation").start()
+    Scope firstScope = strictTracer.activateSpan(firstSpan)
+
+    Span secondSpan = strictTracer.buildSpan("someOperation").start()
+    Scope secondScope = strictTracer.activateSpan(secondSpan)
+
+    firstSpan.finish()
+    firstScope.close()
+
+    then:
+    thrown(RuntimeException)
+    2 * scopeListener.afterScopeActivated()
+    1 * statsDClient.incrementCounter("scope.close.error")
+    1 * statsDClient.incrementCounter("scope.user.close.error")
+    0 * _
+
+    when:
+    secondSpan.finish()
+    secondScope.close()
+
+    then:
+    1 * scopeListener.afterScopeClosed()
+    1 * traceInterceptor.onTraceComplete({ it.size() == 2 }) >> { args -> args[0] }
+    0 * _
+
+    when:
+    firstScope.close()
+
+    then:
+    1 * scopeListener.afterScopeClosed()
+    0 * _
+
+    cleanup:
+    strictTracer?.close()
   }
 
   def "inject and extract context"() {

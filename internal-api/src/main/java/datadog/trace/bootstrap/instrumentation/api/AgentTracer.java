@@ -38,7 +38,7 @@ public class AgentTracer {
   }
 
   public static AgentScope activateSpan(final AgentSpan span) {
-    return get().activateSpan(span);
+    return get().activateSpan(span, ScopeSource.INSTRUMENTATION);
   }
 
   public static AgentSpan activeSpan() {
@@ -89,7 +89,7 @@ public class AgentTracer {
 
     AgentSpan startSpan(String spanName, AgentSpan.Context parent, long startTimeMicros);
 
-    AgentScope activateSpan(AgentSpan span);
+    AgentScope activateSpan(AgentSpan span, ScopeSource source);
 
     AgentSpan activeSpan();
 
@@ -156,7 +156,7 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentScope activateSpan(final AgentSpan span) {
+    public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
       return NoopAgentScope.INSTANCE;
     }
 
@@ -277,7 +277,7 @@ public class AgentTracer {
     }
 
     @Override
-    public Object getTag(String key) {
+    public Object getTag(final String key) {
       return null;
     }
 

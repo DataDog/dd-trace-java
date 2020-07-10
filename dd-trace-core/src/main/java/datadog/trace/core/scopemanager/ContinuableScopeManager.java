@@ -1,10 +1,12 @@
 package datadog.trace.core.scopemanager;
 
+import com.timgroup.statsd.StatsDClient;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.interceptor.TraceStatsCollector;
@@ -31,17 +33,23 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
   private final List<ScopeListener> scopeListeners;
   private final int depthLimit;
+  private final StatsDClient statsDClient;
+  private final boolean strictMode;
 
   public ContinuableScopeManager(
       final int depthLimit,
       final Double methodTraceSampleRate,
       final DDScopeEventFactory scopeEventFactory,
-      final TraceStatsCollector traceStatsCollector) {
+      final TraceStatsCollector traceStatsCollector,
+      final StatsDClient statsDClient,
+      final boolean strictMode) {
     this(
         depthLimit,
         methodTraceSampleRate,
         scopeEventFactory,
         traceStatsCollector,
+        statsDClient,
+        strictMode,
         new CopyOnWriteArrayList<ScopeListener>());
   }
 
@@ -51,6 +59,8 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       final Double methodTraceSampleRate,
       final DDScopeEventFactory scopeEventFactory,
       final TraceStatsCollector traceStatsCollector,
+      final StatsDClient statsDClient,
+      final boolean strictMode,
       final List<ScopeListener> scopeListeners) {
     super(
         new EventScopeInterceptor(
@@ -60,30 +70,34 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
                 traceStatsCollector,
                 new ListenerScopeInterceptor(scopeListeners, null))));
     this.depthLimit = depthLimit;
+    this.statsDClient = statsDClient;
+    this.strictMode = strictMode;
     this.scopeListeners = scopeListeners;
   }
 
   @Override
-  public AgentScope activate(final AgentSpan span) {
+  public AgentScope activate(final AgentSpan span, final ScopeSource source) {
     final ContinuableScope active = tlsScope.get();
     if (active != null && active.span().equals(span)) {
       return active.incrementReferences();
     }
     final int currentDepth = active == null ? 0 : active.depth();
-    if (depthLimit <= currentDepth) {
+    if (depthLimit != 0 && depthLimit <= currentDepth) {
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
       return AgentTracer.NoopAgentScope.INSTANCE;
     }
-    return handleSpan(span);
+    return handleSpan(null, span, source);
   }
 
   @Override
   public Scope handleSpan(final AgentSpan span) {
-    return handleSpan(null, span);
+    return handleSpan(null, span, ScopeSource.INSTRUMENTATION);
   }
 
-  private Scope handleSpan(final Continuation continuation, final AgentSpan span) {
-    final ContinuableScope scope = new ContinuableScope(continuation, delegate.handleSpan(span));
+  private Scope handleSpan(
+      final Continuation continuation, final AgentSpan span, final ScopeSource source) {
+    final ContinuableScope scope =
+        new ContinuableScope(continuation, delegate.handleSpan(span), source);
     tlsScope.set(scope);
     scope.afterActivated();
     return scope;
@@ -115,15 +129,20 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     /** depth of scope on thread */
     private final int depth;
 
+    private final ScopeSource source;
+
     private final AtomicInteger referenceCount = new AtomicInteger(1);
 
     ContinuableScope(
-        final ContinuableScopeManager.Continuation continuation, final Scope delegate) {
+        final ContinuableScopeManager.Continuation continuation,
+        final Scope delegate,
+        final ScopeSource source) {
       super(delegate);
       assert delegate.span() != null;
       this.continuation = continuation;
       toRestore = tlsScope.get();
       depth = toRestore == null ? 0 : toRestore.depth() + 1;
+      this.source = source;
     }
 
     @Override
@@ -134,6 +153,17 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
       if (tlsScope.get() != this) {
         log.debug("Tried to close {} scope when {} is on top. Ignoring!", this, tlsScope.get());
+
+        statsDClient.incrementCounter("scope.close.error");
+
+        if (source == ScopeSource.MANUAL) {
+          statsDClient.incrementCounter("scope.user.close.error");
+
+          if (strictMode) {
+            throw new RuntimeException("Tried to close scope when not on top");
+          }
+        }
+
         return;
       }
 
@@ -173,7 +203,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     public ContinuableScopeManager.Continuation capture() {
       if (isAsyncPropagating()) {
         final ContinuableScopeManager.Continuation continuation =
-            new ContinuableScopeManager.Continuation(span());
+            new ContinuableScopeManager.Continuation(span(), source);
         return continuation.register();
       } else {
         return null;
@@ -194,13 +224,15 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     public WeakReference<AgentScope.Continuation> ref;
 
     private final AgentSpan spanUnderScope;
+    private final ScopeSource source;
 
     private final AgentTrace trace;
     private final AtomicBoolean used = new AtomicBoolean(false);
 
-    private Continuation(final AgentSpan spanUnderScope) {
+    private Continuation(final AgentSpan spanUnderScope, final ScopeSource source) {
 
       this.spanUnderScope = spanUnderScope;
+      this.source = source;
       trace = spanUnderScope.context().getTrace();
     }
 
@@ -212,13 +244,13 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     @Override
     public AgentScope activate() {
       if (used.compareAndSet(false, true)) {
-        final AgentScope scope = handleSpan(this, spanUnderScope);
+        final AgentScope scope = handleSpan(this, spanUnderScope, source);
         log.debug("t_id={} -> activating continuation {}", spanUnderScope.getTraceId(), this);
         return scope;
       } else {
         log.debug(
             "Failed to activate continuation. Reusing a continuation not allowed. Spans may be reported separately.");
-        return handleSpan(null, spanUnderScope);
+        return handleSpan(null, spanUnderScope, source);
       }
     }
 

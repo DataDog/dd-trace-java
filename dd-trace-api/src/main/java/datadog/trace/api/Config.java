@@ -164,6 +164,7 @@ public class Config {
       TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
   public static final String SPLIT_BY_TAGS = TracerConfig.SPLIT_BY_TAGS;
   public static final String SCOPE_DEPTH_LIMIT = TracerConfig.SCOPE_DEPTH_LIMIT;
+  public static final String SCOPE_STRICT_MODE = TracerConfig.SCOPE_STRICT_MODE;
   public static final String PARTIAL_FLUSH_MIN_SPANS = TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -230,6 +231,9 @@ public class Config {
   public static final String KAFKA_CLIENT_PROPAGATION_ENABLED =
       TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
 
+  public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =
+      TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
+
   private static final String PROFILING_REMOTE_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
   private static final String PROFILING_LOCAL_URL_TEMPLATE = "http://%s:%d/profiling/v1/input";
 
@@ -295,6 +299,7 @@ public class Config {
   @Getter private final boolean dbClientSplitByInstance;
   @Getter private final Set<String> splitByTags;
   @Getter private final Integer scopeDepthLimit;
+  @Getter private final boolean scopeStrictMode;
   @Getter private final Integer partialFlushMinSpans;
   @Getter private final boolean runtimeContextFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
@@ -352,6 +357,7 @@ public class Config {
   @Getter private final int profilingExceptionHistogramMaxCollectionSize;
 
   @Getter private final boolean kafkaClientPropagationEnabled;
+  @Getter private final boolean kafkaClientBase64DecodingEnabled;
 
   // Values from an optionally provided properties file
   private static Properties propertiesFromConfigFile;
@@ -443,6 +449,8 @@ public class Config {
 
     scopeDepthLimit =
         getIntegerSettingFromEnvironment(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
+
+    scopeStrictMode = getBooleanSettingFromEnvironment(SCOPE_STRICT_MODE, false);
 
     partialFlushMinSpans =
         getIntegerSettingFromEnvironment(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
@@ -576,6 +584,9 @@ public class Config {
         getBooleanSettingFromEnvironment(
             KAFKA_CLIENT_PROPAGATION_ENABLED, DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED);
 
+    kafkaClientBase64DecodingEnabled =
+        getBooleanSettingFromEnvironment(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
+
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
 
@@ -655,6 +666,9 @@ public class Config {
 
     scopeDepthLimit =
         getPropertyIntegerValue(properties, SCOPE_DEPTH_LIMIT, parent.scopeDepthLimit);
+
+    scopeStrictMode =
+        getPropertyBooleanValue(properties, SCOPE_STRICT_MODE, parent.scopeStrictMode);
 
     partialFlushMinSpans =
         getPropertyIntegerValue(properties, PARTIAL_FLUSH_MIN_SPANS, parent.partialFlushMinSpans);
@@ -774,6 +788,12 @@ public class Config {
     kafkaClientPropagationEnabled =
         getPropertyBooleanValue(
             properties, KAFKA_CLIENT_PROPAGATION_ENABLED, parent.kafkaClientPropagationEnabled);
+
+    kafkaClientBase64DecodingEnabled =
+        getPropertyBooleanValue(
+            properties,
+            KAFKA_CLIENT_BASE64_DECODING_ENABLED,
+            parent.kafkaClientBase64DecodingEnabled);
 
     log.debug("New instance: {}", this);
   }

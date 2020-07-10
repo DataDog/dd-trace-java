@@ -3,6 +3,7 @@ package datadog.opentracing;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
@@ -27,7 +28,7 @@ class OTScopeManager implements ScopeManager {
   @Override
   public Scope activate(final Span span, final boolean finishSpanOnClose) {
     final AgentSpan agentSpan = converter.toAgentSpan(span);
-    final AgentScope agentScope = tracer.activateSpan(agentSpan);
+    final AgentScope agentScope = tracer.activateSpan(agentSpan, ScopeSource.MANUAL);
 
     return converter.toScope(agentScope, finishSpanOnClose);
   }

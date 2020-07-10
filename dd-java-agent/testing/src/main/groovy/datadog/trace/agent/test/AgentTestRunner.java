@@ -3,6 +3,7 @@ package datadog.trace.agent.test;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import com.google.common.collect.Sets;
+import com.timgroup.statsd.StatsDClient;
 import datadog.trace.agent.test.asserts.ListWriterAssert;
 import datadog.trace.agent.tooling.AgentInstaller;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -37,12 +38,15 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.slf4j.LoggerFactory;
+import org.spockframework.mock.MockUtil;
 import org.spockframework.runtime.model.SpecMetadata;
+import spock.mock.DetachedMockFactory;
 
 /**
  * A spock test runner which automatically applies instrumentation and exposes a global trace
@@ -76,6 +80,8 @@ public abstract class AgentTestRunner extends DDSpecification {
   // so we declare tracer as an object and cast when needed.
   protected static final Object TEST_TRACER;
 
+  protected static final StatsDClient STATS_D_CLIENT;
+
   private static final ElementMatcher.Junction<TypeDescription> GLOBAL_LIBRARIES_IGNORES_MATCHER =
       AdditionalLibraryIgnoresMatcher.additionalLibraryIgnoresMatcher();
 
@@ -102,7 +108,9 @@ public abstract class AgentTestRunner extends DDSpecification {
             return result;
           }
         };
-    TEST_TRACER = CoreTracer.builder().writer(TEST_WRITER).build();
+
+    STATS_D_CLIENT = new DetachedMockFactory().Mock(StatsDClient.class);
+    TEST_TRACER = CoreTracer.builder().writer(TEST_WRITER).statsDClient(STATS_D_CLIENT).build();
     TracerInstaller.installGlobalTracer((CoreTracer) TEST_TRACER);
   }
 
@@ -171,7 +179,13 @@ public abstract class AgentTestRunner extends DDSpecification {
     assert getTestTracer().activeSpan() == null
         : "Span is active before test has started: " + getTestTracer().activeSpan();
     log.debug("Starting test: '{}'", getSpecificationContext().getCurrentIteration().getName());
+    new MockUtil().attachMock(STATS_D_CLIENT, this);
     TEST_WRITER.start();
+  }
+
+  @After
+  public void detachAfter() {
+    new MockUtil().detachMock(STATS_D_CLIENT);
   }
 
   /** See comment for {@code #setupBeforeTests} above. */
