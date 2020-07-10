@@ -1,5 +1,6 @@
 package datadog.trace.core.scopemanager
 
+import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.core.interceptor.TraceStatsCollector
@@ -15,6 +16,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
   def delegate = Mock(ScopeInterceptor)
   def delegateScope = Mock(ScopeInterceptor.Scope)
   def statsCollector = Mock(TraceStatsCollector)
+  def statsDClient = Mock(StatsDClient)
   def span = Mock(AgentSpan)
   def factory = Mock(SessionFactory)
   def session = Mock(Session)
@@ -30,7 +32,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
 
   def "validate Percentage scope lifecycle"() {
     setup:
-    def interceptor = TraceProfilingScopeInterceptor.create(rate, statsCollector, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(rate, statsCollector, statsDClient, delegate)
 
     when:
     def scope = interceptor.handleSpan(span)
@@ -88,7 +90,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
 
   def "validate Heuristical scope lifecycle with no histogram"() {
     setup:
-    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, statsDClient, delegate)
 
     when:
     def scope = interceptor.handleSpan(span)
@@ -125,7 +127,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
       traceStats.recordValue(traceVal)
     }
 
-    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, statsDClient, delegate)
     if (simulateDelay) {
       (interceptor as TraceProfilingScopeInterceptor.Heuristical).lastProfileTimestamp =
         (interceptor as TraceProfilingScopeInterceptor.Heuristical).lastProfileTimestamp -
@@ -199,7 +201,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
       traceStats.recordValue(traceVal)
     }
 
-    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, statsDClient, delegate)
 
     when:
     def activations = 0
