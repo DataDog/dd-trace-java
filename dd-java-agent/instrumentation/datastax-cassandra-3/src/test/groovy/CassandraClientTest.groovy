@@ -88,12 +88,12 @@ class CassandraClientTest extends AgentTestRunner {
       withConfigOverride(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
         def future = session.executeAsync(statement)
         future.addListener({ ->
-          runUnderTrace("callbackListener") {
-            callbackExecuted.set(true)
-          }
+//          runUnderTrace("callbackListener") {
+          callbackExecuted.set(true)
+//          }
         }, executor)
       }
-      blockUntilChildSpansFinished(2)
+      blockUntilChildSpansFinished(1)
     }
 
     expect:
@@ -104,10 +104,10 @@ class CassandraClientTest extends AgentTestRunner {
           cassandraSpan(it, 0, "USE $keyspace", null, false)
         }
       }
-      trace(keyspace ? 1 : 0, 3) {
+      trace(keyspace ? 1 : 0, 2) {
         basicSpan(it, 0, "parent")
-        basicSpan(it, 1, "callbackListener", span(0))
-        cassandraSpan(it, 2, statement, keyspace, renameService, span(0))
+//        basicSpan(it, 1, "callbackListener", span(0))
+        cassandraSpan(it, 1, statement, keyspace, renameService, span(0))
       }
     }
 
