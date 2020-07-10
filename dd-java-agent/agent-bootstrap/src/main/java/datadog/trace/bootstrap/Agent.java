@@ -281,7 +281,14 @@ public class Agent {
       final Method registerMethod = deadlockFactoryClass.getMethod("registerEvents");
       registerMethod.invoke(null);
     } catch (final Throwable ex) {
-      log.error("Throwable thrown while initializing JMX thread deadlock detector", ex);
+      String msg = "Unable to initialize JMX thread deadlock detector";
+      if (log.isDebugEnabled()) {
+        // in debug level we want to see also the throwable and stacktrace
+        log.info(msg, ex);
+      } else {
+        // in non-debug level do not scare the user with the throwable and stacktrace
+        log.info(msg);
+      }
     }
   }
 

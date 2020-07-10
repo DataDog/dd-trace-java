@@ -1,7 +1,5 @@
 package datadog.trace.common.writer.ddagent;
 
-import static org.msgpack.core.MessagePack.Code.FIXARRAY_PREFIX;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -11,6 +9,7 @@ import datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory;
 import datadog.trace.core.DDTraceCoreInfo;
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -86,25 +85,27 @@ public class DDAgentApi {
     }
   }
 
-  Response sendSerializedTraces(final TraceBuffer traces) {
+  Response sendSerializedTraces(
+      final int representativeCount, final int traceCount, final ByteBuffer buffer) {
     if (httpClient == null) {
       detectEndpointAndBuildClient();
     }
+    final int sizeInBytes = buffer.limit() - buffer.position();
 
     try {
       final Request request =
           prepareRequest(tracesUrl)
-              .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(traces.representativeCount()))
-              .put(new MsgPackRequestBody(traces))
+              .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(representativeCount))
+              .put(new MsgPackRequestBody(buffer))
               .build();
-      this.totalTraces += traces.representativeCount();
-      this.receivedTraces += traces.traceCount();
+      this.totalTraces += representativeCount;
+      this.receivedTraces += traceCount;
       try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
         if (response.code() != 200) {
-          countAndLogFailedSend(traces, response, null);
+          countAndLogFailedSend(traceCount, representativeCount, sizeInBytes, response, null);
           return Response.failed(response.code());
         }
-        countAndLogSuccessfulSend(traces);
+        countAndLogSuccessfulSend(traceCount, representativeCount, sizeInBytes);
         String responseString = null;
         try {
           responseString = response.body().string().trim();
@@ -123,36 +124,42 @@ public class DDAgentApi {
         }
       }
     } catch (final IOException e) {
-      countAndLogFailedSend(traces, null, e);
+      countAndLogFailedSend(traceCount, representativeCount, sizeInBytes, null, e);
       return Response.failed(e);
     }
   }
 
-  private void countAndLogSuccessfulSend(final TraceBuffer traces) {
+  private void countAndLogSuccessfulSend(
+      final int traceCount, final int representativeCount, final int sizeInBytes) {
     // count the successful traces
-    this.sentTraces += traces.traceCount();
+    this.sentTraces += traceCount;
 
     if (log.isDebugEnabled()) {
-      log.debug(createSendLogMessage(traces, "Success"));
+      log.debug(createSendLogMessage(traceCount, representativeCount, sizeInBytes, "Success"));
     } else if (this.logNextSuccess) {
       this.logNextSuccess = false;
       if (log.isInfoEnabled()) {
-        log.info(createSendLogMessage(traces, "Success"));
+        log.info(createSendLogMessage(traceCount, representativeCount, sizeInBytes, "Success"));
       }
     }
   }
 
   private void countAndLogFailedSend(
-      final TraceBuffer traces, final okhttp3.Response response, final IOException outer) {
+      final int traceCount,
+      final int representativeCount,
+      final int sizeInBytes,
+      final okhttp3.Response response,
+      final IOException outer) {
     // count the failed traces
-    this.failedTraces += traces.traceCount();
+    this.failedTraces += traceCount;
 
     // these are used to catch and log if there is a failure in debug logging the response body
     IOException exception = outer;
     boolean hasLogged = false;
 
     if (log.isDebugEnabled()) {
-      String sendErrorString = createSendLogMessage(traces, "Error");
+      String sendErrorString =
+          createSendLogMessage(traceCount, representativeCount, sizeInBytes, "Error");
       if (response != null) {
         try {
           log.debug(
@@ -178,7 +185,8 @@ public class DDAgentApi {
       if (now - this.previousErrorLogNanos >= NANOSECONDS_BETWEEN_ERROR_LOG) {
         this.previousErrorLogNanos = now;
         this.logNextSuccess = true;
-        String sendErrorString = createSendLogMessage(traces, "Error");
+        String sendErrorString =
+            createSendLogMessage(traceCount, representativeCount, sizeInBytes, "Error");
         if (response != null) {
           log.warn(
               "{} Status: {} {} {}",
@@ -200,15 +208,18 @@ public class DDAgentApi {
     }
   }
 
-  private String createSendLogMessage(final TraceBuffer traces, String prefix) {
-    int size = traces.sizeInBytes();
-    String sizeString =
-        size > 1024 ? String.valueOf(size / 1024) + "KB" : String.valueOf(size) + "B";
+  private String createSendLogMessage(
+      final int traceCount,
+      final int representativeCount,
+      final int sizeInBytes,
+      final String prefix) {
+    int size = sizeInBytes;
+    String sizeString = size > 1024 ? (size / 1024) + "KB" : size + "B";
     return prefix
         + " while sending "
-        + traces.traceCount()
+        + traceCount
         + " of "
-        + traces.representativeCount()
+        + representativeCount
         + " (size="
         + sizeString
         + ")"
@@ -224,7 +235,8 @@ public class DDAgentApi {
         + ".";
   }
 
-  private static final byte[] EMPTY_LIST = new byte[] {FIXARRAY_PREFIX};
+  // empty array - see messagepack spec
+  private static final byte[] EMPTY_LIST = new byte[] {(byte) 0x90};
 
   private static boolean endpointAvailable(
       final HttpUrl url,
@@ -365,9 +377,9 @@ public class DDAgentApi {
   }
 
   private static class MsgPackRequestBody extends RequestBody {
-    private final TraceBuffer traces;
+    private final ByteBuffer traces;
 
-    private MsgPackRequestBody(TraceBuffer traces) {
+    private MsgPackRequestBody(ByteBuffer traces) {
       this.traces = traces;
     }
 
@@ -378,12 +390,12 @@ public class DDAgentApi {
 
     @Override
     public long contentLength() {
-      return traces.headerSize() + traces.sizeInBytes();
+      return traces.limit() - traces.position();
     }
 
     @Override
     public void writeTo(final BufferedSink sink) throws IOException {
-      traces.writeTo(sink);
+      sink.write(traces);
       sink.flush();
     }
   }

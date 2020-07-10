@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.opentracing31;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.instrumentation.opentracing.DefaultLogHandler;
 import io.opentracing.References;
 import io.opentracing.Scope;
@@ -150,7 +151,8 @@ public class OTTracer implements Tracer {
 
     @Override
     public Scope startActive(final boolean finishSpanOnClose) {
-      return converter.toScope(tracer.activateSpan(delegate.start()), finishSpanOnClose);
+      return converter.toScope(
+          tracer.activateSpan(delegate.start(), ScopeSource.MANUAL), finishSpanOnClose);
     }
   }
 }

@@ -1,16 +1,15 @@
 package datadog.trace.core.scopemanager
 
+import com.timgroup.statsd.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.ScopeListener
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.util.test.DDSpecification
-import spock.lang.Shared
-import spock.lang.Subject
 import spock.lang.Timeout
 
 import java.lang.ref.WeakReference
@@ -23,18 +22,13 @@ import static java.util.concurrent.TimeUnit.SECONDS
 
 class ScopeManagerTest extends DDSpecification {
 
-  @Shared
   CountDownLatch latch
-  @Shared
   ListWriter writer
-  @Shared
   CoreTracer tracer
-
-  @Shared
-  @Subject
   ContinuableScopeManager scopeManager
+  StatsDClient statsDClient
 
-  def setupSpec() {
+  def setup() {
     latch = new CountDownLatch(1)
     final currentLatch = latch
     writer = new ListWriter() {
@@ -42,19 +36,18 @@ class ScopeManagerTest extends DDSpecification {
         currentLatch.countDown()
       }
     }
-    tracer = CoreTracer.builder().writer(writer).build()
+    statsDClient = Mock()
+    tracer = CoreTracer.builder().writer(writer).statsDClient(statsDClient).build()
     scopeManager = tracer.scopeManager
   }
 
   def cleanup() {
-    scopeManager.tlsScope.remove()
-    scopeManager.scopeListeners.clear()
-    writer.clear()
+    ContinuableScopeManager.tlsScope.remove()
   }
 
   def "non-ddspan activation results in a continuable scope"() {
     when:
-    def scope = scopeManager.activate(NoopAgentSpan.INSTANCE)
+    def scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
 
     then:
     scopeManager.active() == scope
@@ -130,37 +123,6 @@ class ScopeManagerTest extends DDSpecification {
     noopChild | _
     false     | _
     true      | _
-  }
-
-  def "scopemanager returns noop scope if depth exceeded"() {
-    when: "fill up the scope stack"
-    AgentScope scope = null
-    for (int i = 0; i <= depth; i++) {
-      def span = tracer.buildSpan("test").start()
-      scope = tracer.activateSpan(span)
-      assert scope instanceof ContinuableScopeManager.ContinuableScope
-    }
-
-    then: "last scope is still valid"
-    (scope as ContinuableScopeManager.ContinuableScope).depth() == depth
-
-    when: "activate a scope over the limit"
-    scope = scopeManager.activate(NoopAgentSpan.INSTANCE)
-
-    then: "a noop instance is returned"
-    scope instanceof NoopAgentScope
-
-    when: "try again for good measure"
-    scope = scopeManager.activate(NoopAgentSpan.INSTANCE)
-
-    then: "still have a noop instance"
-    scope instanceof NoopAgentScope
-
-    and: "scope stack not effected."
-    (scopeManager.active() as ContinuableScopeManager.ContinuableScope).depth() == depth
-
-    where:
-    depth = scopeManager.depthLimit
   }
 
   def "DDScope only creates continuations when propagation is set"() {
@@ -368,32 +330,23 @@ class ScopeManagerTest extends DDSpecification {
     scopeManager.tlsScope.get() == newScope
   }
 
-  def "add scope listener"() {
+  def "test activating same scope multiple times"() {
     setup:
-    AtomicInteger activatedCount = new AtomicInteger(0)
-    AtomicInteger closedCount = new AtomicInteger(0)
+    def eventCountingLister = new EventCountingListener()
+    AtomicInteger activatedCount = eventCountingLister.activatedCount
+    AtomicInteger closedCount = eventCountingLister.closedCount
 
-    scopeManager.addScopeListener(new ScopeListener() {
-      @Override
-      void afterScopeActivated() {
-        activatedCount.incrementAndGet()
-      }
-
-      @Override
-      void afterScopeClosed() {
-        closedCount.incrementAndGet()
-      }
-    })
+    scopeManager.addScopeListener(eventCountingLister)
 
     when:
-    AgentScope scope1 = scopeManager.activate(NoopAgentSpan.INSTANCE)
+    AgentScope scope1 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
 
     then:
     activatedCount.get() == 1
     closedCount.get() == 0
 
     when:
-    AgentScope scope2 = scopeManager.activate(NoopAgentSpan.INSTANCE)
+    AgentScope scope2 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
 
     then: 'Activating the same span multiple times does not create a new scope'
     activatedCount.get() == 1
@@ -412,6 +365,15 @@ class ScopeManagerTest extends DDSpecification {
     then:
     activatedCount.get() == 1
     closedCount.get() == 1
+  }
+
+  def "opening and closing multiple scopes"() {
+    setup:
+    def eventCountingLister = new EventCountingListener()
+    AtomicInteger activatedCount = eventCountingLister.activatedCount
+    AtomicInteger closedCount = eventCountingLister.closedCount
+
+    scopeManager.addScopeListener(eventCountingLister)
 
     when:
     AgentSpan span = tracer.buildSpan("foo").start()
@@ -419,8 +381,8 @@ class ScopeManagerTest extends DDSpecification {
 
     then:
     continuableScope instanceof ScopeInterceptor.Scope
-    activatedCount.get() == 2
-    closedCount.get() == 1
+    activatedCount.get() == 1
+    closedCount.get() == 0
 
     when:
     AgentSpan childSpan = tracer.buildSpan("foo").start()
@@ -428,27 +390,83 @@ class ScopeManagerTest extends DDSpecification {
 
     then:
     childDDScope instanceof ScopeInterceptor.Scope
-    activatedCount.get() == 3
-    closedCount.get() == 1
+    activatedCount.get() == 2
+    closedCount.get() == 0
 
     when:
     childDDScope.close()
     childSpan.finish()
 
     then:
-    activatedCount.get() == 3
-    closedCount.get() == 2
+    activatedCount.get() == 2
+    closedCount.get() == 1
 
     when:
     continuableScope.close()
     span.finish()
 
     then:
-    activatedCount.get() == 3 // the last scope closed was the last one on the stack so nothing more got activated
-    closedCount.get() == 3
+    activatedCount.get() == 2
+    closedCount.get() == 2
+  }
+
+  def "scope not closed when not on top"() {
+    setup:
+    def eventCountingLister = new EventCountingListener()
+    AtomicInteger activatedCount = eventCountingLister.activatedCount
+    AtomicInteger closedCount = eventCountingLister.closedCount
+
+    scopeManager.addScopeListener(eventCountingLister)
+
+    when:
+    AgentSpan firstSpan = tracer.buildSpan("foo").start()
+    AgentScope firstScope = tracer.activateSpan(firstSpan)
+
+    AgentSpan secondSpan = tracer.buildSpan("foo").start()
+    AgentScope secondScope = tracer.activateSpan(secondSpan)
+
+    firstSpan.finish()
+    firstScope.close()
+
+    then:
+    activatedCount.get() == 2
+    closedCount.get() == 0
+    1 * statsDClient.incrementCounter("scope.close.error")
+    0 * _
+
+    when:
+    secondSpan.finish()
+    secondScope.close()
+
+    then:
+    activatedCount.get() == 2
+    closedCount.get() == 1
+    0 * _
+
+    when:
+    firstScope.close()
+
+    then:
+    activatedCount.get() == 2
+    closedCount.get() == 2
+    0 * _
   }
 
   boolean spanFinished(AgentSpan span) {
     return ((DDSpan) span)?.isFinished()
+  }
+}
+
+class EventCountingListener implements ScopeListener {
+  AtomicInteger activatedCount = new AtomicInteger(0)
+  AtomicInteger closedCount = new AtomicInteger(0)
+
+  void afterScopeActivated() {
+    activatedCount.incrementAndGet()
+  }
+
+  @Override
+  void afterScopeClosed() {
+    closedCount.incrementAndGet()
   }
 }

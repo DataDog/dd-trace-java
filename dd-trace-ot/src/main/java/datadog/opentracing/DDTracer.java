@@ -1,5 +1,6 @@
 package datadog.opentracing;
 
+import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.interceptor.TraceInterceptor;
@@ -193,7 +194,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders,
       final int partialFlushMinSpans,
-      final LogHandler logHandler) {
+      final LogHandler logHandler,
+      final StatsDClient statsDClient) {
 
     if (logHandler != null) {
       converter = new TypeConverter(logHandler);
@@ -252,6 +254,10 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
 
     if (partialFlushMinSpans != 0) {
       builder = builder.partialFlushMinSpans(partialFlushMinSpans);
+    }
+
+    if (statsDClient != null) {
+      builder = builder.statsDClient(statsDClient);
     }
 
     tracer = builder.build();

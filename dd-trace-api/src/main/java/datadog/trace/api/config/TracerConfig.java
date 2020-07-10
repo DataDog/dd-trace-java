@@ -40,6 +40,7 @@ public final class TracerConfig {
   public static final String SPLIT_BY_TAGS = "trace.split-by-tags";
 
   public static final String SCOPE_DEPTH_LIMIT = "trace.scope.depth.limit";
+  public static final String SCOPE_STRICT_MODE = "trace.scope.strict.mode";
   public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
   public static final String PROPAGATION_STYLE_EXTRACT = "propagation.style.extract";
   public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
