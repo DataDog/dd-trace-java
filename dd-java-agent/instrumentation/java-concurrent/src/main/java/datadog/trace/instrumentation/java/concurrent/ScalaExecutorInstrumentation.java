@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.java.concurrent;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.nameMatches;
@@ -28,6 +29,12 @@ public final class ScalaExecutorInstrumentation extends AbstractExecutorInstrume
 
   public ScalaExecutorInstrumentation() {
     super(EXEC_NAME + ".scala_fork_join");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed(ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME);
   }
 
   @Override
