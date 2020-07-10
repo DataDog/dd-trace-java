@@ -1,5 +1,6 @@
 package datadog.trace.core.interceptor;
 
+import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -18,7 +19,10 @@ import org.HdrHistogram.Histogram;
 @Slf4j
 public class TraceHeuristicsEvaluator extends CacheLoader<String, Histogram>
     implements TraceInterceptor {
-  LoadingCache<String, Histogram> cache = CacheBuilder.newBuilder().build(this);
+
+  Cache<String, Boolean> evaluationCache = CacheBuilder.newBuilder().maximumSize(100).build();
+
+  LoadingCache<String, Histogram> histogramCache = CacheBuilder.newBuilder().build(this);
   // for now collect everything into a single histogram
   final Histogram overallStats = new Histogram(1);
 
@@ -36,8 +40,12 @@ public class TraceHeuristicsEvaluator extends CacheLoader<String, Histogram>
       try {
         final long durationNano = rootSpan.getDurationNano();
         overallStats.recordValue(durationNano);
-        final Histogram histogram = cache.get(getCacheKey(rootSpan));
+        final String cacheKey = getCacheKey(rootSpan);
+        final Histogram histogram = histogramCache.get(cacheKey);
         histogram.recordValue(durationNano);
+
+        final boolean isDistinctive = isTraceDistinctive(cacheKey, histogram);
+        evaluationCache.put(cacheKey, isDistinctive);
       } catch (final Exception e) {
         log.debug("error recording trace stats", e);
       }
@@ -46,13 +54,30 @@ public class TraceHeuristicsEvaluator extends CacheLoader<String, Histogram>
     return trace;
   }
 
-  public Histogram getTraceStats(final AgentSpan currentSpan) {
-    final AgentSpan rootSpan = currentSpan.getLocalRootSpan();
-    return rootSpan == null ? null : cache.getIfPresent(getCacheKey(rootSpan));
+  private boolean isTraceDistinctive(final String cacheKey, final Histogram traceStats) {
+
+    final long traceAverage = traceStats.getValueAtPercentile(50);
+    final long overall80 = overallStats.getValueAtPercentile(80);
+    if (overall80 < traceAverage) {
+      // This trace is likely to be slower than most.
+      return true;
+    }
+
+    final long traceCount = traceStats.getTotalCount();
+    final long overallCount = overallStats.getTotalCount();
+    if (3 < traceCount && traceCount < (overallCount * .9)) {
+      // This is an uncommon trace (but not unique).
+      return true;
+    }
+
+    return false;
   }
 
-  public Histogram getOverallStats() {
-    return overallStats;
+  public boolean isDistinctive(final AgentSpan currentSpan) {
+    final AgentSpan rootSpan = currentSpan.getLocalRootSpan();
+    final Boolean isDistinctive =
+        rootSpan == null ? null : evaluationCache.getIfPresent(getCacheKey(rootSpan));
+    return isDistinctive == null ? false : isDistinctive;
   }
 
   private String getCacheKey(final AgentSpan span) {

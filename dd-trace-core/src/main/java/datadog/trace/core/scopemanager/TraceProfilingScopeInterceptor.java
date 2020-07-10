@@ -11,7 +11,6 @@ import datadog.trace.mlt.MethodLevelTracer;
 import datadog.trace.mlt.Session;
 import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
-import org.HdrHistogram.Histogram;
 
 public abstract class TraceProfilingScopeInterceptor
     extends ScopeInterceptor.DelegatingInterceptor {
@@ -87,14 +86,14 @@ public abstract class TraceProfilingScopeInterceptor
   private static class Heuristical extends TraceProfilingScopeInterceptor {
     private volatile long lastProfileTimestamp = System.nanoTime();
 
-    private final TraceHeuristicsEvaluator statsCollector;
+    private final TraceHeuristicsEvaluator traceEvaluator;
 
     private Heuristical(
-        final TraceHeuristicsEvaluator statsCollector,
+        final TraceHeuristicsEvaluator traceEvaluator,
         final StatsDClient statsDClient,
         final ScopeInterceptor delegate) {
       super(statsDClient, delegate);
-      this.statsCollector = statsCollector;
+      this.traceEvaluator = traceEvaluator;
     }
 
     @Override
@@ -107,24 +106,8 @@ public abstract class TraceProfilingScopeInterceptor
     }
 
     private boolean maybeInteresting(final AgentSpan span) {
-      final Histogram traceStats = statsCollector.getTraceStats(span.getLocalRootSpan());
-      if (traceStats == null) {
-        // No historical data for this trace yet.
-        return false;
-      }
-      final Histogram overallStats = statsCollector.getOverallStats();
-
-      final long traceAverage = traceStats.getValueAtPercentile(50);
-      final long overall80 = overallStats.getValueAtPercentile(80);
-      if (overall80 < traceAverage) {
-        // This trace is likely to be slower than most, so lets profile it.
-        return true;
-      }
-
-      final long traceCount = traceStats.getTotalCount();
-      final long overallCount = overallStats.getTotalCount();
-      if (3 < traceCount && traceCount < (overallCount * .9)) {
-        // This is an uncommon trace (but not unique), so lets profile it.
+      if (traceEvaluator.isDistinctive(span.getLocalRootSpan())) {
+        // This is a distinctive trace, so lets profile it.
         return true;
       }
 
