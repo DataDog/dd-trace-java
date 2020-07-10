@@ -43,14 +43,9 @@ public class Monitor {
     // not recorded
   }
 
-  public void onBackedUpTraceBuffer() {
-    statsd.incrementCounter("trace.buffer.backlog");
-  }
-
   public void onFlush(final DDAgentWriter agentWriter, final boolean early) {}
 
-  public void onSerialize(
-      final DDAgentWriter agentWriter, final List<DDSpan> trace, final int serializedSizeInBytes) {
+  public void onSerialize(final int serializedSizeInBytes) {
     // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
     // map precisely
     statsd.count("queue.accepted_size", serializedSizeInBytes);
