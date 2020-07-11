@@ -3,6 +3,7 @@ package datadog.trace.core.scopemanager
 import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.core.interceptor.TraceStatsCollector
 import datadog.trace.mlt.MethodLevelTracer
 import datadog.trace.mlt.Session
@@ -74,7 +75,11 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     then:
     1 * delegateScope.close()
     if (isProfiling) {
-      1 * session.close()
+      1 * session.close() >> new byte[0]
+      1 * statsDClient.incrementCounter('mlt.count')
+      1 * statsDClient.count('mlt.bytes', 0)
+      1 * delegateScope.span() >> span
+      1 * span.setTag(InstrumentationTags.DD_MLT, new byte[0])
     }
     0 * _
 
@@ -174,7 +179,11 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     then:
     1 * delegateScope.close()
     if (isProfiling) {
-      1 * session.close()
+      1 * session.close() >> new byte[0]
+      1 * statsDClient.incrementCounter('mlt.count')
+      1 * statsDClient.count("mlt.bytes", 0)
+      1 * delegateScope.span() >> span
+      1 * span.setTag(InstrumentationTags.DD_MLT, new byte[0])
     }
     0 * _
 
