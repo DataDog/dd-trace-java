@@ -1,17 +1,23 @@
 package datadog.trace.agent.test.base
 
+
 import datadog.trace.agent.test.AgentTestRunner
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-abstract class AbstractPromiseTest<P> extends AgentTestRunner {
+// TODO: add a test for a longer chain of promises
+abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
 
   abstract P newPromise()
 
-  abstract void onComplete(P promise, Runnable callback)
+  abstract M map(P promise, Closure<String> callback)
 
-  abstract void complete(P promise)
+  abstract void onComplete(M promise, Closure callback)
+
+  abstract void complete(P promise, boolean value)
+
+  abstract Boolean get(P promise)
 
   def "test call with parent"() {
     setup:
@@ -19,16 +25,19 @@ abstract class AbstractPromiseTest<P> extends AgentTestRunner {
 
     when:
     runUnderTrace("parent") {
-      onComplete(promise) {
+      def mapped = map(promise) { "$it" }
+      onComplete(mapped) {
+        assert it == "$value"
         runUnderTrace("callback") {}
       }
       runUnderTrace("other") {
-        complete(promise)
+        complete(promise, value)
         blockUntilChildSpansFinished(1)
       }
     }
 
     then:
+    get(promise) == value
     assertTraces(1) {
       trace(0, 3) {
         basicSpan(it, 0, "parent")
@@ -36,6 +45,9 @@ abstract class AbstractPromiseTest<P> extends AgentTestRunner {
         basicSpan(it, 2, "callback", it.span(0))
       }
     }
+
+    where:
+    value << [true, false]
   }
 
   def "test call with parent delayed complete"() {
@@ -44,16 +56,19 @@ abstract class AbstractPromiseTest<P> extends AgentTestRunner {
 
     when:
     runUnderTrace("parent") {
-      onComplete(promise) {
+      def mapped = map(promise) { "$it" }
+      onComplete(mapped) {
+        assert it == "$value"
         runUnderTrace("callback") {}
       }
     }
 
     runUnderTrace("other") {
-      complete(promise)
+      complete(promise, value)
     }
 
     then:
+    get(promise) == value
     assertTraces(2) {
       trace(0, 1) {
         basicSpan(it, 0, "other")
@@ -63,6 +78,9 @@ abstract class AbstractPromiseTest<P> extends AgentTestRunner {
         basicSpan(it, 1, "parent")
       }
     }
+
+    where:
+    value << [true, false]
   }
 
   def "test call with parent complete separate thread"() {
@@ -71,22 +89,28 @@ abstract class AbstractPromiseTest<P> extends AgentTestRunner {
 
     when:
     runUnderTrace("parent") {
-      onComplete(promise) {
+      def mapped = map(promise) { "$it" }
+      onComplete(mapped) {
+        assert it == "$value"
         runUnderTrace("callback") {}
       }
       Thread.start {
-        complete(promise)
+        complete(promise, value)
       }.join()
       blockUntilChildSpansFinished(1)
     }
 
     then:
+    get(promise) == value
     assertTraces(1) {
       trace(0, 2) {
         basicSpan(it, 0, "parent")
         basicSpan(it, 1, "callback", it.span(0))
       }
     }
+
+    where:
+    value << [true, false]
   }
 
   def "test call with no parent"() {
@@ -94,16 +118,19 @@ abstract class AbstractPromiseTest<P> extends AgentTestRunner {
     def promise = newPromise()
 
     when:
-    onComplete(promise) {
+    def mapped = map(promise) { "$it" }
+    onComplete(mapped) {
+      assert it == "$value"
       runUnderTrace("callback") {}
     }
 
     runUnderTrace("other") {
-      complete(promise)
+      complete(promise, value)
       blockUntilChildSpansFinished(1)
     }
 
     then:
+    get(promise) == value
     assertTraces(1) {
       trace(0, 2) {
         // TODO: is this really the behavior we want?
@@ -111,5 +138,8 @@ abstract class AbstractPromiseTest<P> extends AgentTestRunner {
         basicSpan(it, 1, "callback", it.span(0))
       }
     }
+
+    where:
+    value << [true, false]
   }
 }

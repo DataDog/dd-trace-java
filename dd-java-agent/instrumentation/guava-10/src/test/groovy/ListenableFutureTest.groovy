@@ -1,10 +1,12 @@
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import datadog.trace.agent.test.base.AbstractPromiseTest
 import spock.lang.Shared
 
 import java.util.concurrent.Executors
 
-class ListenableFutureTest extends AbstractPromiseTest<SettableFuture<Boolean>> {
+class ListenableFutureTest extends AbstractPromiseTest<SettableFuture<Boolean>, ListenableFuture<String>> {
   @Shared
   def executor = Executors.newFixedThreadPool(1)
 
@@ -14,12 +16,23 @@ class ListenableFutureTest extends AbstractPromiseTest<SettableFuture<Boolean>> 
   }
 
   @Override
-  void onComplete(SettableFuture<Boolean> promise, Runnable callback) {
-    promise.addListener(callback, executor)
+  ListenableFuture<String> map(SettableFuture<Boolean> promise, Closure<String> callback) {
+    return Futures.transform(promise, callback, executor)
   }
 
   @Override
-  void complete(SettableFuture<Boolean> promise) {
-    promise.set(true)
+  void onComplete(ListenableFuture<String> promise, Closure callback) {
+    promise.addListener({ -> callback(promise.get()) }, executor)
+  }
+
+
+  @Override
+  void complete(SettableFuture<Boolean> promise, boolean value) {
+    promise.set(value)
+  }
+
+  @Override
+  Boolean get(SettableFuture<Boolean> promise) {
+    return promise.get()
   }
 }
