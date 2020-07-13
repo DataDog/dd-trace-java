@@ -75,18 +75,24 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
       return AgentTracer.NoopAgentScope.INSTANCE;
     }
-    return handleSpan(null, span, source);
+    return handleSpan(active, null, span, source);
   }
 
   @Override
   public Scope handleSpan(final AgentSpan span) {
-    return handleSpan(null, span, ScopeSource.INSTRUMENTATION);
+    return handleSpan(tlsScope.get(), null, span, ScopeSource.INSTRUMENTATION);
   }
 
   private Scope handleSpan(
+    final Continuation continuation, final AgentSpan span, final ScopeSource source) {
+    return handleSpan(tlsScope.get(), continuation, span, source);
+  }
+
+  private Scope handleSpan(
+    final ContinuableScope active,
       final Continuation continuation, final AgentSpan span, final ScopeSource source) {
     final ContinuableScope scope =
-        new ContinuableScope(continuation, delegate.handleSpan(span), source);
+        new ContinuableScope(active, continuation, delegate.handleSpan(span), source);
     tlsScope.set(scope);
     scope.afterActivated();
     return scope;
@@ -123,14 +129,15 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     private final AtomicInteger referenceCount = new AtomicInteger(1);
 
     ContinuableScope(
-        final ContinuableScopeManager.Continuation continuation,
-        final Scope delegate,
-        final ScopeSource source) {
+      final ContinuableScope toRestore,
+      final ContinuableScopeManager.Continuation continuation,
+      final Scope delegate,
+      final ScopeSource source) {
       super(delegate);
       assert delegate.span() != null;
       this.continuation = continuation;
-      toRestore = tlsScope.get();
-      depth = toRestore == null ? 0 : toRestore.depth() + 1;
+      this.toRestore = toRestore;
+      this.depth = null == toRestore ? 0 : toRestore.depth() + 1;
       this.source = source;
     }
 
