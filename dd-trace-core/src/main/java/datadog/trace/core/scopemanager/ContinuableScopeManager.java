@@ -68,6 +68,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
             TraceProfilingScopeInterceptor.create(
                 methodTraceSampleRate,
                 traceStatsCollector,
+                statsDClient,
                 new ListenerScopeInterceptor(scopeListeners, null))));
     this.depthLimit = depthLimit;
     this.statsDClient = statsDClient;

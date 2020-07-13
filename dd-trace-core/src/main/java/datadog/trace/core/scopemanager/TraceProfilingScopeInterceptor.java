@@ -1,6 +1,7 @@
 package datadog.trace.core.scopemanager;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.timgroup.statsd.StatsDClient;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -24,20 +25,25 @@ public abstract class TraceProfilingScopeInterceptor
         }
       };
 
+  private final StatsDClient statsDClient;
+
   protected final RateLimiter rateLimiter = RateLimiter.create(ACTIVATIONS_PER_SECOND);
 
-  private TraceProfilingScopeInterceptor(final ScopeInterceptor delegate) {
+  private TraceProfilingScopeInterceptor(
+      final StatsDClient statsDClient, final ScopeInterceptor delegate) {
     super(delegate);
+    this.statsDClient = statsDClient;
   }
 
   public static TraceProfilingScopeInterceptor create(
       final Double methodTraceSampleRate,
       final TraceStatsCollector statsCollector,
+      final StatsDClient statsDClient,
       final ScopeInterceptor delegate) {
     if (methodTraceSampleRate != null) {
-      return new Percentage(methodTraceSampleRate, delegate);
+      return new Percentage(methodTraceSampleRate, statsDClient, delegate);
     }
-    return new Heuristical(statsCollector, delegate);
+    return new Heuristical(statsCollector, statsDClient, delegate);
   }
 
   @Override
@@ -59,8 +65,9 @@ public abstract class TraceProfilingScopeInterceptor
 
     private final long cutoff;
 
-    private Percentage(final double percent, final ScopeInterceptor delegate) {
-      super(delegate);
+    private Percentage(
+        final double percent, final StatsDClient statsDClient, final ScopeInterceptor delegate) {
+      super(statsDClient, delegate);
       assert 0 <= percent && percent <= 1;
       cutoff = new BigDecimal(percent).multiply(TRACE_ID_MAX_AS_BIG_DECIMAL).longValue();
     }
@@ -82,8 +89,11 @@ public abstract class TraceProfilingScopeInterceptor
 
     private final TraceStatsCollector statsCollector;
 
-    private Heuristical(final TraceStatsCollector statsCollector, final ScopeInterceptor delegate) {
-      super(delegate);
+    private Heuristical(
+        final TraceStatsCollector statsCollector,
+        final StatsDClient statsDClient,
+        final ScopeInterceptor delegate) {
+      super(statsDClient, delegate);
       this.statsCollector = statsCollector;
     }
 
@@ -132,7 +142,7 @@ public abstract class TraceProfilingScopeInterceptor
     }
   }
 
-  private static class TraceProfilingScope extends DelegatingScope {
+  private class TraceProfilingScope extends DelegatingScope {
     private final Session session;
 
     private TraceProfilingScope(final AgentSpan span, final Scope delegate) {
@@ -148,6 +158,8 @@ public abstract class TraceProfilingScopeInterceptor
       final byte[] samplingData = session.close();
 
       if (samplingData != null) {
+        statsDClient.incrementCounter("mlt.count");
+        statsDClient.count("mlt.bytes", samplingData.length);
         span().setTag(InstrumentationTags.DD_MLT, samplingData);
       }
     }

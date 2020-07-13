@@ -1,7 +1,9 @@
 package datadog.trace.core.scopemanager
 
+import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.core.interceptor.TraceStatsCollector
 import datadog.trace.mlt.MethodLevelTracer
 import datadog.trace.mlt.Session
@@ -15,6 +17,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
   def delegate = Mock(ScopeInterceptor)
   def delegateScope = Mock(ScopeInterceptor.Scope)
   def statsCollector = Mock(TraceStatsCollector)
+  def statsDClient = Mock(StatsDClient)
   def span = Mock(AgentSpan)
   def factory = Mock(SessionFactory)
   def session = Mock(Session)
@@ -30,7 +33,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
 
   def "validate Percentage scope lifecycle"() {
     setup:
-    def interceptor = TraceProfilingScopeInterceptor.create(rate, statsCollector, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(rate, statsCollector, statsDClient, delegate)
 
     when:
     def scope = interceptor.handleSpan(span)
@@ -72,7 +75,11 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     then:
     1 * delegateScope.close()
     if (isProfiling) {
-      1 * session.close()
+      1 * session.close() >> new byte[0]
+      1 * statsDClient.incrementCounter('mlt.count')
+      1 * statsDClient.count('mlt.bytes', 0)
+      1 * delegateScope.span() >> span
+      1 * span.setTag(InstrumentationTags.DD_MLT, new byte[0])
     }
     0 * _
 
@@ -88,7 +95,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
 
   def "validate Heuristical scope lifecycle with no histogram"() {
     setup:
-    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, statsDClient, delegate)
 
     when:
     def scope = interceptor.handleSpan(span)
@@ -125,7 +132,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
       traceStats.recordValue(traceVal)
     }
 
-    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, statsDClient, delegate)
     if (simulateDelay) {
       (interceptor as TraceProfilingScopeInterceptor.Heuristical).lastProfileTimestamp =
         (interceptor as TraceProfilingScopeInterceptor.Heuristical).lastProfileTimestamp -
@@ -172,7 +179,11 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     then:
     1 * delegateScope.close()
     if (isProfiling) {
-      1 * session.close()
+      1 * session.close() >> new byte[0]
+      1 * statsDClient.incrementCounter('mlt.count')
+      1 * statsDClient.count("mlt.bytes", 0)
+      1 * delegateScope.span() >> span
+      1 * span.setTag(InstrumentationTags.DD_MLT, new byte[0])
     }
     0 * _
 
@@ -199,7 +210,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
       traceStats.recordValue(traceVal)
     }
 
-    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, statsDClient, delegate)
 
     when:
     def activations = 0
