@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RE
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,6 +20,11 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.TimestampType;
 
 public class KafkaDecorator extends ClientDecorator {
+
+  public static final TextMapExtractAdapter GETTER =
+      new TextMapExtractAdapter(Config.get().isKafkaClientBase64DecodingEnabled());
+
+  public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
 
   private final String spanKind;
   private final String spanType;
