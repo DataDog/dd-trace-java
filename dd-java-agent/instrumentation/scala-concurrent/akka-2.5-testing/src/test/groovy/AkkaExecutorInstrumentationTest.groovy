@@ -73,10 +73,10 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
     "submit Callable"      | submitCallable          | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
 
     // ForkJoinPool has additional set of method overloads for ForkJoinTask to deal with
-//    "execute Runnable"     | executeRunnable         | new ForkJoinPool()
+    "execute Runnable"     | executeRunnable         | new ForkJoinPool()
     "execute ForkJoinTask" | akkaExecuteForkJoinTask | new ForkJoinPool()
-//    "submit Runnable"      | submitRunnable          | new ForkJoinPool()
-//    "submit Callable"      | submitCallable          | new ForkJoinPool()
+    "submit Runnable"      | submitRunnable          | new ForkJoinPool()
+    "submit Callable"      | submitCallable          | new ForkJoinPool()
     "submit ForkJoinTask"  | akkaSubmitForkJoinTask  | new ForkJoinPool()
     "invoke ForkJoinTask"  | akkaInvokeForkJoinTask  | new ForkJoinPool()
   }
