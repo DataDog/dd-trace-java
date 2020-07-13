@@ -1,3 +1,7 @@
+plugins {
+  id "me.champeau.gradle.jmh" version "0.5.0"
+}
+
 description = 'dd-trace-core'
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -49,4 +53,9 @@ dependencies {
   testCompile group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
 
   traceAgentTestCompile deps.testcontainers
+}
+
+jmh {
+  jmhVersion = "1.23"
+  duplicateClassesStrategy = 'warn'
 }
