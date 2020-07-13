@@ -58,7 +58,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     super(
         new EventScopeInterceptor(
             scopeEventFactory, new ListenerScopeInterceptor(scopeListeners, null)));
-    this.depthLimit = depthLimit;
+    this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
     this.statsDClient = statsDClient;
     this.strictMode = strictMode;
     this.scopeListeners = scopeListeners;
@@ -70,10 +70,14 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     if (active != null && active.span().equals(span)) {
       return active.incrementReferences();
     }
-    final int currentDepth = active == null ? 0 : active.depth();
-    if (depthLimit != 0 && depthLimit <= currentDepth) {
-      log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-      return AgentTracer.NoopAgentScope.INSTANCE;
+    return activate(active, span, source);
+  }
+
+  private AgentScope activate(
+      final ContinuableScope active, final AgentSpan span, final ScopeSource source) {
+    final int currentDepth = active == null ? 0 : active.depth;
+    if (depthLimit <= currentDepth) {
+      return depthLimitExceeded(currentDepth);
     }
     return handleSpan(active, null, span, source);
   }
@@ -84,18 +88,15 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
   }
 
   private Scope handleSpan(
-    final Continuation continuation, final AgentSpan span, final ScopeSource source) {
-    return handleSpan(tlsScope.get(), continuation, span, source);
-  }
-
-  private Scope handleSpan(
-    final ContinuableScope active,
-      final Continuation continuation, final AgentSpan span, final ScopeSource source) {
-    final ContinuableScope scope =
+      final ContinuableScope active,
+      final Continuation continuation,
+      final AgentSpan span,
+      final ScopeSource source) {
+    final ContinuableScope continuableScope =
         new ContinuableScope(active, continuation, delegate.handleSpan(span), source);
-    tlsScope.set(scope);
-    scope.afterActivated();
-    return scope;
+    tlsScope.set(continuableScope);
+    continuableScope.afterActivated();
+    return continuableScope;
   }
 
   @Override
@@ -129,15 +130,14 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     private final AtomicInteger referenceCount = new AtomicInteger(1);
 
     ContinuableScope(
-      final ContinuableScope toRestore,
-      final ContinuableScopeManager.Continuation continuation,
-      final Scope delegate,
-      final ScopeSource source) {
+        final ContinuableScope toRestore,
+        final ContinuableScopeManager.Continuation continuation,
+        final Scope delegate,
+        final ScopeSource source) {
       super(delegate);
-      assert delegate.span() != null;
       this.continuation = continuation;
       this.toRestore = toRestore;
-      this.depth = null == toRestore ? 0 : toRestore.depth() + 1;
+      this.depth = childDepth(toRestore);
       this.source = source;
     }
 
@@ -148,27 +148,28 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       }
 
       if (tlsScope.get() != this) {
-        log.debug("Tried to close {} scope when {} is on top. Ignoring!", this, tlsScope.get());
-
-        statsDClient.incrementCounter("scope.close.error");
-
-        if (source == ScopeSource.MANUAL) {
-          statsDClient.incrementCounter("scope.user.close.error");
-
-          if (strictMode) {
-            throw new RuntimeException("Tried to close scope when not on top");
-          }
+        closeExceptionally();
+      } else {
+        if (null != continuation) {
+          span().context().getTrace().cancelContinuation(continuation);
         }
-
-        return;
+        tlsScope.set(toRestore);
+        super.close();
       }
+    }
 
-      if (null != continuation) {
-        span().context().getTrace().cancelContinuation(continuation);
+    private void closeExceptionally() {
+      log.debug("Tried to close {} scope when {} is on top. Ignoring!", this, tlsScope.get());
+
+      statsDClient.incrementCounter("scope.close.error");
+
+      if (source == ScopeSource.MANUAL) {
+        statsDClient.incrementCounter("scope.user.close.error");
+
+        if (strictMode) {
+          throw new RuntimeException("Tried to close scope when not on top");
+        }
       }
-      tlsScope.set(toRestore);
-
-      super.close();
     }
 
     public int depth() {
@@ -212,6 +213,15 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     }
   }
 
+  private static AgentScope depthLimitExceeded(int currentDepth) {
+    log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
+    return AgentTracer.NoopAgentScope.INSTANCE;
+  }
+
+  static int childDepth(ContinuableScope parent) {
+    return null == parent ? 0 : parent.depth + 1;
+  }
+
   /**
    * This class must not be a nested class of ContinuableScope to avoid avoid an unconstrained chain
    * of references (using too much memory).
@@ -240,14 +250,16 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     @Override
     public AgentScope activate() {
       if (used.compareAndSet(false, true)) {
-        final AgentScope scope = handleSpan(this, spanUnderScope, source);
-        log.debug("t_id={} -> activating continuation {}", spanUnderScope.getTraceId(), this);
-        return scope;
+        return handleSpan(tlsScope.get(), this, spanUnderScope, source);
       } else {
-        log.debug(
-            "Failed to activate continuation. Reusing a continuation not allowed. Spans may be reported separately.");
-        return handleSpan(null, spanUnderScope, source);
+        return activateExceptionally();
       }
+    }
+
+    private AgentScope activateExceptionally() {
+      log.debug(
+          "Failed to activate continuation. Reusing a continuation not allowed. Spans may be reported separately.");
+      return handleSpan(tlsScope.get(), null, spanUnderScope, source);
     }
 
     @Override
