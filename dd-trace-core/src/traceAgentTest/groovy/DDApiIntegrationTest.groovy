@@ -2,7 +2,7 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
-import datadog.trace.common.writer.ddagent.TraceMapper
+import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.core.CoreTracer
 import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
@@ -173,7 +173,7 @@ class DDApiIntegrationTest extends DDSpecification {
     ByteBuffer buffer = ByteBuffer.allocate(1 << 20)
     Traces tracesToSend = new Traces()
     def packer = new Packer(tracesToSend, buffer)
-    def traceMapper = new TraceMapper()
+    def traceMapper = new TraceMapperV0_4()
     for (trace in traces) {
       packer.format(trace, traceMapper)
     }

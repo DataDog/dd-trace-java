@@ -4,7 +4,9 @@ package datadog.trace.core
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.common.writer.ddagent.TraceMapper
+import datadog.trace.common.writer.LoggingWriter
+import datadog.trace.common.writer.ddagent.TraceMapperV0_4
+import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.Packer
 import datadog.trace.util.test.DDSpecification
@@ -40,7 +42,7 @@ class DDSpanSerializationTest extends DDSpecification {
     def buffer = ByteBuffer.allocate(1024)
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new Packer(capture, buffer)
-    packer.format(Collections.singletonList(span), new TraceMapper())
+    packer.format(Collections.singletonList(span), new TraceMapperV0_4())
     packer.flush()
     def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
     int traceCount = unpacker.unpackArrayHeader()
@@ -57,6 +59,68 @@ class DDSpanSerializationTest extends DDSpecification {
       switch (key) {
         case "trace_id":
         case "span_id":
+          MessageFormat next = unpacker.nextFormat
+          assert next.valueType == ValueType.INTEGER
+          if (next == MessageFormat.UINT64) {
+            assert value == DDId.from("${unpacker.unpackBigInteger()}")
+          } else {
+            assert value == DDId.from(unpacker.unpackLong())
+          }
+          break
+        default:
+          unpacker.unpackValue()
+      }
+    }
+
+    where:
+    value                                                           | spanType
+    DDId.ZERO                                                       | null
+    DDId.ONE                                                        | "some-type"
+    DDId.from("8223372036854775807")                                | null
+    DDId.from("${BigInteger.valueOf(Long.MAX_VALUE).subtract(1G)}") | "some-type"
+    DDId.from("${BigInteger.valueOf(Long.MAX_VALUE).add(1G)}")      | null
+    DDId.from("${2G.pow(64).subtract(1G)}")                         | "some-type"
+  }
+
+  def "serialize trace with id #value as int v0.5"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = CoreTracer.builder().writer(writer).build()
+    def context = new DDSpanContext(
+      value,
+      value,
+      DDId.ZERO,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      Collections.emptyMap(),
+      false,
+      spanType,
+      Collections.emptyMap(),
+      PendingTrace.create(tracer, DDId.ONE),
+      tracer,
+      [:])
+    def span = DDSpan.create(0, context)
+    def buffer = ByteBuffer.allocate(1024)
+    CaptureBuffer capture = new CaptureBuffer()
+    def packer = new Packer(capture, buffer)
+    packer.format(Collections.singletonList(span), new TraceMapperV0_5())
+    packer.flush()
+    def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
+    int traceCount = unpacker.unpackArrayHeader()
+    int spanCount = unpacker.unpackArrayHeader()
+    int size = unpacker.unpackArrayHeader()
+
+    expect:
+    traceCount == 1
+    spanCount == 1
+    size == 12
+    for (int i = 0; i < size; i++) {
+      switch (i) {
+        case 3:
+        case 4:
           MessageFormat next = unpacker.nextFormat
           assert next.valueType == ValueType.INTEGER
           if (next == MessageFormat.UINT64) {
@@ -105,7 +169,7 @@ class DDSpanSerializationTest extends DDSpecification {
     def buffer = ByteBuffer.allocate(1024)
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new Packer(capture, buffer)
-    packer.format(Collections.singletonList(span), new TraceMapper())
+    packer.format(Collections.singletonList(span), new TraceMapperV0_4())
     packer.flush()
     def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
     int traceCount = unpacker.unpackArrayHeader()

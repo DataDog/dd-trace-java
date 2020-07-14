@@ -6,13 +6,15 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.Monitor
-import datadog.trace.common.writer.ddagent.TraceMapper
+import datadog.trace.common.writer.ddagent.TraceMapperV0_4
+import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
+import datadog.trace.core.serialization.msgpack.Mapper
 import datadog.trace.core.serialization.msgpack.Packer
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Retry
@@ -33,12 +35,11 @@ import static datadog.trace.core.SpanFactory.newSpanOf
 class DDAgentWriterTest extends DDSpecification {
 
   def phaser = new Phaser()
-  def api = Mock(DDAgentApi) {
-    // Define the following response in the spec:
-//    sendSerializedTraces(_, _, _) >> {
-//      phaser.arrive()
-//      return DDAgentApi.Response.success(200)
-//    }
+  def apiWithVersion(String version) {
+    def api = Mock(DDAgentApi)
+    api.detectEndpointAndBuildClient() >> version
+    api.selectTraceMapper() >> { callRealMethod() }
+    return api
   }
   def monitor = Mock(Monitor)
 
@@ -48,8 +49,9 @@ class DDAgentWriterTest extends DDSpecification {
     phaser.register()
   }
 
-  def "test happy path"() {
+  def "no interactions because of initial flush" () {
     setup:
+    def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
       .traceBufferSize(2)
@@ -63,12 +65,28 @@ class DDAgentWriterTest extends DDSpecification {
     then:
     0 * _
 
+    where:
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+  }
+
+  def "test happy path"() {
+    setup:
+    def api = apiWithVersion(agentVersion)
+    def writer = DDAgentWriter.builder()
+      .agentApi(api)
+      .traceBufferSize(2)
+      .flushFrequencySeconds(-1)
+      .build()
+    writer.start()
+
     when:
     writer.write(trace)
     writer.write(trace)
     writer.flush()
 
     then:
+    1 * api.detectEndpointAndBuildClient() >> agentVersion
+    1 * api.selectTraceMapper()  >> { callRealMethod() }
     1 * api.sendSerializedTraces(2, 2, _) >> DDAgentApi.Response.success(200)
     0 * _
 
@@ -77,10 +95,12 @@ class DDAgentWriterTest extends DDSpecification {
 
     where:
     trace = [newSpanOf(0, "fixed-thread-name")]
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
   def "test flood of traces"() {
     setup:
+    def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
       .traceBufferSize(disruptorSize)
@@ -95,6 +115,8 @@ class DDAgentWriterTest extends DDSpecification {
     writer.flush()
 
     then:
+    1 * api.detectEndpointAndBuildClient() >> agentVersion
+    1 * api.selectTraceMapper()  >> { callRealMethod() }
     1 * api.sendSerializedTraces({ it <= traceCount }, { it <= traceCount }, _) >> DDAgentApi.Response.success(200)
     0 * _
 
@@ -105,10 +127,12 @@ class DDAgentWriterTest extends DDSpecification {
     trace = [newSpanOf(0, "fixed-thread-name")]
     disruptorSize = 2
     traceCount = 100 // Shouldn't trigger payload, but bigger than the disruptor size.
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
   def "test flush by time"() {
     setup:
+    def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
       .monitor(monitor)
@@ -123,7 +147,8 @@ class DDAgentWriterTest extends DDSpecification {
     phaser.awaitAdvanceInterruptibly(phaser.arriveAndDeregister())
 
     then:
-
+    1 * api.detectEndpointAndBuildClient() >> agentVersion
+    1 * api.selectTraceMapper()  >> { callRealMethod() }
     1 * monitor.onSerialize(_)
     1 * api.sendSerializedTraces({it == 5}, { it == 5 }, _) >> DDAgentApi.Response.success(200)
     _ * monitor.onPublish(_, _)
@@ -138,10 +163,12 @@ class DDAgentWriterTest extends DDSpecification {
     where:
     span = newSpanOf(0, "fixed-thread-name")
     trace = (1..10).collect { span }
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
   def "test default buffer size"() {
     setup:
+    def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
       .traceBufferSize(DISRUPTOR_BUFFER_SIZE)
@@ -150,6 +177,9 @@ class DDAgentWriterTest extends DDSpecification {
     writer.start()
 
     when:
+    def mapper = agentVersion.equals("v0.5/traces") ? new TraceMapperV0_5() : new TraceMapperV0_4()
+    int traceSize = calculateSize(minimalTrace, mapper)
+    int maxedPayloadTraceCount = ((int) ((TraceProcessingDisruptor.DEFAULT_BUFFER_SIZE - 5) / traceSize))
     (0..maxedPayloadTraceCount).each {
       writer.write(minimalTrace)
       def start = System.nanoTime()
@@ -161,6 +191,8 @@ class DDAgentWriterTest extends DDSpecification {
     writer.flush()
 
     then:
+    1 * api.detectEndpointAndBuildClient() >> agentVersion
+    1 * api.selectTraceMapper()  >> { callRealMethod() }
     1 * api.sendSerializedTraces({ it == maxedPayloadTraceCount }, { it == maxedPayloadTraceCount }, _) >> DDAgentApi.Response.success(200)
     1 * api.sendSerializedTraces({ it == 1 }, { it == 1 }, _) >> DDAgentApi.Response.success(200)
     0 * _
@@ -187,12 +219,12 @@ class DDAgentWriterTest extends DDSpecification {
       [:])
     minimalSpan = new DDSpan(0, minimalContext)
     minimalTrace = [minimalSpan]
-    traceSize = calculateSize(minimalTrace)
-    maxedPayloadTraceCount = ((int) ((TraceProcessingDisruptor.DEFAULT_BUFFER_SIZE - 5) / traceSize))
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
-  def "check that are no interactions after close"() {
+  def "check that there are no interactions after close"() {
     setup:
+    def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
       .monitor(monitor)
@@ -212,6 +244,9 @@ class DDAgentWriterTest extends DDSpecification {
     1 * monitor.onShutdown(_, _)
     0 * _
     writer.traceCount.get() == 0
+
+    where:
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
   def createMinimalTrace() {
@@ -244,7 +279,7 @@ class DDAgentWriterTest extends DDSpecification {
     // DQH -- need to set-up a dummy agent for the final send callback to work
     def agent = httpServer {
       handlers {
-        put("v0.4/traces") {
+        put(agentVersion) {
           response.status(200).send()
         }
       }
@@ -275,6 +310,9 @@ class DDAgentWriterTest extends DDSpecification {
 
     cleanup:
     agent.close()
+
+    where:
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
   def "monitor agent returns error"() {
@@ -285,7 +323,7 @@ class DDAgentWriterTest extends DDSpecification {
     def first = true
     def agent = httpServer {
       handlers {
-        put("v0.4/traces") {
+        put(agentVersion) {
           // DQH - DDApi sniffs for end point existence, so respond with 200 the first time
           if (first) {
             response.status(200).send()
@@ -322,13 +360,22 @@ class DDAgentWriterTest extends DDSpecification {
 
     cleanup:
     agent.close()
+
+    where:
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
   def "unreachable agent test"() {
     setup:
     def minimalTrace = createMinimalTrace()
+    def version = agentVersion
 
     def api = new DDAgentApi("localhost", 8192, null, 1000) {
+
+      String detectEndpointAndBuildClient() {
+        return version
+      }
+
       DDAgentApi.Response sendSerializedTraces(int representativeCount, int traceCount, ByteBuffer traces) {
         // simulating a communication failure to a server
         return DDAgentApi.Response.failed(new IOException("comm error"))
@@ -347,16 +394,19 @@ class DDAgentWriterTest extends DDSpecification {
     writer.flush()
 
     then:
-    1 * monitor.onPublish(writer, minimalTrace)
-    1 * monitor.onSerialize(_)
+    // if we know there's no agent, we'll drop the traces before serialising them
+    // but we also know that there's nowhere to send health metrics to
+    1 * monitor.onPublish(writer, _)
     1 * monitor.onFlush(writer, false)
-    1 * monitor.onFailedSend(writer, 1, _, { response -> !response.success() && response.status() == null })
 
     when:
     writer.close()
 
     then:
     1 * monitor.onShutdown(writer, true)
+
+    where:
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
   @Retry(delay = 500)
@@ -372,11 +422,12 @@ class DDAgentWriterTest extends DDSpecification {
     def responseSemaphore = new Semaphore(1)
 
     setup:
+    def version = agentVersion
 
     // Need to set-up a dummy agent for the final send callback to work
     def agent = httpServer {
       handlers {
-        put("v0.4/traces") {
+        put(version) {
           responseSemaphore.acquire()
           try {
             response.status(200).send()
@@ -465,6 +516,7 @@ class DDAgentWriterTest extends DDSpecification {
     where:
     bufferSize = 16
     minimalTrace = createMinimalTrace()
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
   def "multi threaded"() {
@@ -474,11 +526,12 @@ class DDAgentWriterTest extends DDSpecification {
 
     setup:
     def minimalTrace = createMinimalTrace()
+    def version = agentVersion
 
     // Need to set-up a dummy agent for the final send callback to work
     def agent = httpServer {
       handlers {
-        put("v0.4/traces") {
+        put(version) {
           response.status(200).send()
         }
       }
@@ -526,6 +579,9 @@ class DDAgentWriterTest extends DDSpecification {
     cleanup:
     writer.close()
     agent.close()
+
+    where:
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
   def "statsd success"() {
@@ -535,11 +591,12 @@ class DDAgentWriterTest extends DDSpecification {
 
     setup:
     def minimalTrace = createMinimalTrace()
+    def version = agentVersion
 
     // Need to set-up a dummy agent for the final send callback to work
     def agent = httpServer {
       handlers {
-        put("v0.4/traces") {
+        put(version) {
           response.status(200).send()
         }
       }
@@ -572,6 +629,9 @@ class DDAgentWriterTest extends DDSpecification {
     cleanup:
     agent.close()
     writer.close()
+
+    where:
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
   def "statsd comm failure"() {
@@ -582,13 +642,8 @@ class DDAgentWriterTest extends DDSpecification {
     setup:
     def minimalTrace = createMinimalTrace()
 
-    // DQH -- need to set-up a dummy agent for the final send callback to work
-    def api = new DDAgentApi("localhost", 8192, null, 1000) {
-      DDAgentApi.Response sendSerializedTraces(int traceCount, int representativeCount, ByteBuffer buffer) {
-        // simulating a communication failure to a server
-        return DDAgentApi.Response.failed(new IOException("comm error"))
-      }
-    }
+    def api = apiWithVersion(agentVersion)
+    api.sendSerializedTraces(_, _, _) >> DDAgentApi.Response.failed(new IOException("comm error"))
 
     def statsd = Stub(StatsDClient)
     statsd.incrementCounter("api.requests") >> { stat ->
@@ -616,9 +671,12 @@ class DDAgentWriterTest extends DDSpecification {
 
     cleanup:
     writer.close()
+
+    where:
+    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
-  static int calculateSize(List<DDSpan> trace) {
+  static int calculateSize(List<DDSpan> trace, Mapper<List<DDSpan>> mapper) {
     ByteBuffer buffer = ByteBuffer.allocate(1024)
     AtomicInteger size = new AtomicInteger()
     def packer = new Packer(new ByteBufferConsumer() {
@@ -627,7 +685,7 @@ class DDAgentWriterTest extends DDSpecification {
         size.set(buffy.limit() - buffy.position() - 1)
       }
     }, buffer)
-    packer.format(trace, new TraceMapper())
+    packer.format(trace, mapper)
     packer.flush()
     return size.get()
   }

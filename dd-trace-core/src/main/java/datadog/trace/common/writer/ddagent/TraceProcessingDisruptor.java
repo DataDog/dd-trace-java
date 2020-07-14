@@ -13,6 +13,7 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
+import datadog.trace.core.serialization.msgpack.Mapper;
 import datadog.trace.core.serialization.msgpack.Packer;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -122,7 +123,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
     private final DDAgentApi api;
     private int representativeCount = 0;
     private long nextFlushMillis;
-    private final TraceMapper traceMapper = new TraceMapper();
+    private Mapper<List<DDSpan>> traceMapper;
 
     private Packer packer;
 
@@ -131,7 +132,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
         final DDAgentWriter writer,
         final long flushInterval,
         final TimeUnit timeUnit,
-        DDAgentApi api) {
+        final DDAgentApi api) {
       this.monitor = monitor;
       this.writer = writer;
       this.doTimeFlush = flushInterval > 0;
@@ -147,8 +148,10 @@ public class TraceProcessingDisruptor implements AutoCloseable {
     @Override
     public void onEvent(
         final DisruptorEvent<List<DDSpan>> event, final long sequence, final boolean endOfBatch) {
-      if (null == packer) {
-        packer = new Packer(this, ByteBuffer.allocate(DEFAULT_BUFFER_SIZE));
+      if (event.data != null) {
+        // this will trigger logging and it can cause problems if this happens too soon
+        // waiting for a trace to have been produced helps to avoid this
+        postConstruct();
       }
       try {
         if (representativeCount > 0) {
@@ -164,7 +167,9 @@ public class TraceProcessingDisruptor implements AutoCloseable {
           serialize(event.data, event.representativeCount);
         }
         if (null != event.flushLatch) {
-          packer.flush();
+          if (null != packer) {
+            packer.flush();
+          }
           event.flushLatch.countDown();
         }
       } catch (final Throwable e) {
@@ -183,7 +188,11 @@ public class TraceProcessingDisruptor implements AutoCloseable {
       // there are alternative approaches to avoid blocking here, such as
       // introducing an unbound queue and another thread to do the IO
       // however, we can't block the application threads from here.
-      packer.format(processor.onTraceComplete(trace), traceMapper);
+      if (null != traceMapper) {
+        packer.format(processor.onTraceComplete(trace), traceMapper);
+      } else { // if the mapper is null, then there's no agent running, so we should drop
+        log.debug("dropping {} traces because no agent was detected", representativeCount);
+      }
       this.representativeCount += representativeCount;
     }
 
@@ -196,6 +205,15 @@ public class TraceProcessingDisruptor implements AutoCloseable {
     private long millisecondTime() {
       // important: nanoTime is monotonic, currentTimeMillis is not
       return NANOSECONDS.toMillis(System.nanoTime());
+    }
+
+    private void postConstruct() {
+      if (null == traceMapper) {
+        this.traceMapper = api.selectTraceMapper();
+        if (null == packer) {
+          this.packer = new Packer(this, ByteBuffer.allocate(DEFAULT_BUFFER_SIZE));
+        }
+      }
     }
 
     @Override
