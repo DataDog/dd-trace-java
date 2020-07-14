@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.java.concurrent;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static net.bytebuddy.matcher.ElementMatchers.nameMatches;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -28,6 +29,12 @@ public final class AkkaExecutorInstrumentation extends AbstractExecutorInstrumen
 
   public AkkaExecutorInstrumentation() {
     super(EXEC_NAME + ".akka_fork_join");
+  }
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    // Optimization for expensive typeMatcher.
+    return hasClassesNamed(AkkaForkJoinTaskInstrumentation.TASK_CLASS_NAME);
   }
 
   @Override
