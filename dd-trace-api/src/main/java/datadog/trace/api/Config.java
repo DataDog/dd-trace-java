@@ -1598,7 +1598,7 @@ public class Config {
 
     return properties;
   }
-
+  
   /**
    * Returns the detected hostname. First tries locally, then using DNS
    */
