@@ -1,5 +1,6 @@
 import com.google.common.io.BaseEncoding
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter
 import org.apache.kafka.common.header.Headers
 import org.apache.kafka.common.header.internals.RecordHeader
@@ -16,7 +17,19 @@ class TextMapExtractAdapterTest extends AgentTestRunner {
     Headers headers = new RecordHeaders(new RecordHeader("key", base64.getBytes(StandardCharsets.UTF_8)))
     TextMapExtractAdapter adapter = new TextMapExtractAdapter(base64Decode)
     when:
-    def extracted = adapter.get(headers, "key")
+    String extracted = null
+    adapter.forEachKey(headers, new AgentPropagation.KeyClassifier() {
+      @Override
+      int classify(String key) {
+        return 0
+      }
+    }, new AgentPropagation.KeyValueConsumer() {
+      @Override
+      boolean accept(int classification, String lowerCaseKey, String value) {
+        extracted = value
+        return false
+      }
+    })
 
     then:
     extracted == expectedValue
