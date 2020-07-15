@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.java.concurrent;
+package datadog.trace.instrumentation.akka.concurrent;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
@@ -40,7 +40,7 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default 
   static final String TASK_CLASS_NAME = "akka.dispatch.forkjoin.ForkJoinTask";
 
   public AkkaForkJoinTaskInstrumentation() {
-    super(AbstractExecutorInstrumentation.EXEC_NAME);
+    super("java_concurrent", "akka-concurrent");
   }
 
   @Override

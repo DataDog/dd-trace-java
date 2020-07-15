@@ -19,7 +19,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
  * Test executor instrumentation for Akka specific classes.
  * This is to large extent a copy of ExecutorInstrumentationTest.
  */
-class AkkaExecutorInstrumentationTest extends AgentTestRunner {
+class AkkaConcurrentInstrumentationTest extends AgentTestRunner {
 
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
