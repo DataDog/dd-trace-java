@@ -18,7 +18,7 @@ abstract class DDSpecification extends Specification {
 
   static {
     makeConfigInstanceModifiable()
-    cleanCapturedEnvironment()
+    //cleanCapturedEnvironment()
   }
 
   // Keep track of config instance already made modifiable
