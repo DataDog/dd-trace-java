@@ -1,0 +1,56 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+def akkaVersion = '2.5.0'
+def scalaVersion = '2.11'
+
+muzzle {
+  pass {
+    group = 'com.typesafe.akka'
+    module = "akka-actor_$scalaVersion"
+    versions = "[$akkaVersion,]"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/test-with-scala.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  akka23Test
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+compileAkka23TestGroovy {
+  classpath += files(sourceSets.akka23Test.scala.classesDirectory)
+}
+
+dependencies {
+  compileOnly group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
+
+  testCompile deps.scala
+  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
+  testCompile group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
+  testCompile group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: akkaVersion
+
+  latestDepTestCompile group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: '+'
+  latestDepTestCompile group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: '+'
+}
+
+[
+  configurations.akka23TestCompile,
+  configurations.akka23TestRuntime
+].each {
+  it.resolutionStrategy {
+    force group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: "2.3.16"
+    force group: 'com.typesafe.akka', name: "akka-testkit_$scalaVersion", version: "2.3.16"
+  }
+}
+
+// Run 2.3 tests along with the rest of unit tests
+test.dependsOn akka23Test

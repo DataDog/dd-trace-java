@@ -1,6 +1,5 @@
-package datadog.trace.instrumentation.java.concurrent;
+package datadog.trace.instrumentation.akka.concurrent;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static net.bytebuddy.matcher.ElementMatchers.nameMatches;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -21,20 +20,21 @@ import java.util.concurrent.Executor;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class AkkaExecutorInstrumentation extends AbstractExecutorInstrumentation {
+public final class AkkaForkJoinPoolInstrumentation extends Instrumenter.Default {
 
-  public AkkaExecutorInstrumentation() {
-    super(EXEC_NAME + ".akka_fork_join");
+  public AkkaForkJoinPoolInstrumentation() {
+    super("java_concurrent", "akka-concurrent");
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed(AkkaForkJoinTaskInstrumentation.TASK_CLASS_NAME);
+  public ElementMatcher<TypeDescription> typeMatcher() {
+    // This might need to be an extendsClass matcher...
+    return named("akka.dispatch.forkjoin.ForkJoinPool");
   }
 
   @Override
@@ -49,15 +49,15 @@ public final class AkkaExecutorInstrumentation extends AbstractExecutorInstrumen
     transformers.put(
         named("execute")
             .and(takesArgument(0, named(AkkaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
-        AkkaExecutorInstrumentation.class.getName() + "$SetAkkaForkJoinStateAdvice");
+        AkkaForkJoinPoolInstrumentation.class.getName() + "$SetAkkaForkJoinStateAdvice");
     transformers.put(
         named("submit")
             .and(takesArgument(0, named(AkkaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
-        AkkaExecutorInstrumentation.class.getName() + "$SetAkkaForkJoinStateAdvice");
+        AkkaForkJoinPoolInstrumentation.class.getName() + "$SetAkkaForkJoinStateAdvice");
     transformers.put(
         nameMatches("invoke")
             .and(takesArgument(0, named(AkkaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
-        AkkaExecutorInstrumentation.class.getName() + "$SetAkkaForkJoinStateAdvice");
+        AkkaForkJoinPoolInstrumentation.class.getName() + "$SetAkkaForkJoinStateAdvice");
     return transformers;
   }
 
