@@ -6,10 +6,11 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.api.config.GeneralConfig;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Map;
 import java.util.Set;
@@ -20,6 +21,7 @@ public class StatusLogger {
 
   public static void logStatus(Config config) {
     log.info(
+        "DATADOG TRACER CONFIGURATION {}",
         new Moshi.Builder()
             .add(ConfigAdapter.FACTORY)
             .build()
@@ -28,7 +30,9 @@ public class StatusLogger {
   }
 
   private static boolean agentServiceCheck(Config config) {
-    try (Socket s = new Socket(config.getAgentHost(), config.getAgentPort())) {
+    try (Socket s = new Socket()) {
+      s.setSoTimeout(500);
+      s.connect(new InetSocketAddress(config.getAgentHost(), config.getAgentPort()));
       return true;
     } catch (IOException ex) {
       return false;
@@ -101,7 +105,7 @@ public class StatusLogger {
       writer.name("profiling_enabled");
       writer.value(config.isProfilingEnabled());
       writer.name("dd_version");
-      writer.value(String.valueOf(config.getMergedSpanTags().get(Tags.DD_VERSION)));
+      writer.value(String.valueOf(config.getMergedSpanTags().get(GeneralConfig.VERSION)));
       writer.name("health_checks_enabled");
       writer.value(config.isHealthMetricsEnabled());
       writer.name("configuration_file");
