@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.junit4;
 
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
@@ -13,23 +12,32 @@ public class JUnit4Decorator extends TestDecorator {
   public static final JUnit4Decorator DECORATE = new JUnit4Decorator();
 
   @Override
+  public String testFramework() {
+    return "junit4";
+  }
+
+  @Override
   protected String[] instrumentationNames() {
     return new String[] {"junit", "junit-4"};
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.JUNIT;
-  }
-
-  @Override
-  protected String component() {
+  public String component() {
     return "junit";
   }
 
   public void onTestStart(final AgentSpan span, final Description description) {
-    span.setTag(DDTags.TEST_SUITE, description.getClassName());
-    span.setTag(DDTags.TEST_NAME, description.getMethodName());
+    onTestStart(span, description, null);
+  }
+
+  public void onTestStart(
+      final AgentSpan span, final Description description, final String testNameArg) {
+    final String testSuite = description.getClassName();
+    final String testName = (testNameArg != null) ? testNameArg : description.getMethodName();
+
+    span.setTag(DDTags.RESOURCE_NAME, testSuite + "." + testName);
+    span.setTag(DDTags.TEST_SUITE, testSuite);
+    span.setTag(DDTags.TEST_NAME, testName);
     span.setTag(DDTags.TEST_STATUS, TEST_PASS);
   }
 
@@ -44,9 +52,9 @@ public class JUnit4Decorator extends TestDecorator {
     }
   }
 
-  public void onTestIgnored(final AgentSpan span, final Description description) {
-    span.setTag(DDTags.TEST_SUITE, description.getClassName());
-    span.setTag(DDTags.TEST_NAME, description.getMethodName());
+  public void onTestIgnored(
+      final AgentSpan span, final Description description, final String testName) {
+    onTestStart(span, description, testName);
     span.setTag(DDTags.TEST_STATUS, TEST_SKIP);
   }
 }

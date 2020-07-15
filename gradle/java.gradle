@@ -277,6 +277,10 @@ def isJdkForced(String javaName) {
   return (project.hasProperty('forceJdk') && project.getProperty('forceJdk').contains(javaName))
 }
 
+def isTestingInstrumentation(Project project) {
+  return project.name == "junit-4"
+}
+
 // Disable default test tasks if current JVM doesn't match version requirements
 tasks.withType(Test).configureEach {
   if (name.endsWith("Generated")) {
@@ -316,6 +320,15 @@ for (def env : System.getenv().entrySet()) {
   tasks.check.dependsOn parentTask
 
   tasks.withType(Test).all {
+    //Avoid executing classes used to test testing frameworks instrumentation.
+    if (isTestingInstrumentation(project)) {
+      exclude "**/TestSucceed*"
+      exclude "**/TestFailed*"
+      exclude "**/TestError*"
+      exclude "**/TestSkipped*"
+      exclude "**/TestSkippedClass*"
+    }
+
     //if (name.endsWith("Generated")) {
     if (!name.equals("test")) {
       // The way we're copying the test doesn't currently work with "test-sets" generated tests.
@@ -339,6 +352,7 @@ for (def env : System.getenv().entrySet()) {
           enabled = false
         }
       }
+
     }
 
     parentTask.dependsOn newTask

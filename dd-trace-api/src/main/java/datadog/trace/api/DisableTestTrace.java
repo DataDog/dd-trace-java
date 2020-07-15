@@ -6,7 +6,11 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
-/** Set this annotation to a test method so the dd-java-agent does not consider it for tracing. */
+/**
+ * Set this annotation to a test method so the dd-java-agent does not consider it for tracing. This
+ * annotation must be only used in test framework instrumentation tests to avoid self-tracing of the
+ * test itself.
+ */
 @Retention(RUNTIME)
 @Target(METHOD)
 public @interface DisableTestTrace {

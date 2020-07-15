@@ -21,6 +21,7 @@ public class DDTags {
   public static final String TEST_SUITE = "test.suite";
   public static final String TEST_NAME = "test.name";
   public static final String TEST_STATUS = "test.status";
+  public static final String TEST_FRAMEWORK = "test.framework";
 
   public static final String ANALYTICS_SAMPLE_RATE = "_dd1.sr.eausr";
   @Deprecated public static final String EVENT_SAMPLE_RATE = ANALYTICS_SAMPLE_RATE;

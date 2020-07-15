@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.junit4.JUnit4Decorator.DECORATE;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
@@ -14,12 +13,15 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import org.junit.Test;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 
@@ -28,11 +30,6 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
 
   public JUnit4Instrumentation() {
     super("junit", "junit-4");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.junit.runner.Description", TestState.class.getName());
   }
 
   @Override
@@ -47,7 +44,7 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".JUnit4Decorator", packageName + ".TestState"};
+    return new String[] {packageName + ".JUnit4Decorator"};
   }
 
   @Override
@@ -71,7 +68,7 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
         return;
       }
 
-      final AgentSpan span = startSpan(description.getMethodName());
+      final AgentSpan span = startSpan("junit.test");
       final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
 
@@ -126,11 +123,23 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
         return;
       }
 
-      final AgentSpan span = startSpan(description.getMethodName());
-      DECORATE.afterStart(span);
-      DECORATE.onTestIgnored(span, description);
-      DECORATE.beforeFinish(span);
-      span.finish(span.getStartTime());
+      final List<String> testNames = new ArrayList<>();
+      if (description.getMethodName() != null && !"".equals(description.getMethodName())) {
+        testNames.add(description.getMethodName());
+      } else {
+        // If @Ignore annotation is kept at class level, the instrumentation
+        // reports every method annotated with @Test as skipped test.
+        final ClassLoader cl = description.getClass().getClassLoader();
+        testNames.addAll(DECORATE.testNames(description.getClassName(), cl, Test.class));
+      }
+
+      for (final String testName : testNames) {
+        final AgentSpan span = startSpan("junit.test");
+        DECORATE.afterStart(span);
+        DECORATE.onTestIgnored(span, description, testName);
+        DECORATE.beforeFinish(span);
+        span.finish(span.getStartTime());
+      }
     }
   }
 }
