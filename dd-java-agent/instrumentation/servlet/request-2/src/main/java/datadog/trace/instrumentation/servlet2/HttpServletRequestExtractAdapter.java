@@ -3,11 +3,11 @@ package datadog.trace.instrumentation.servlet2;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.CachingContextVisitor;
 import java.util.Enumeration;
 import javax.servlet.http.HttpServletRequest;
 
-public class HttpServletRequestExtractAdapter extends CachingContextVisitor<HttpServletRequest> {
+public class HttpServletRequestExtractAdapter
+    implements AgentPropagation.ContextVisitor<HttpServletRequest> {
 
   public static final HttpServletRequestExtractAdapter GETTER =
       new HttpServletRequestExtractAdapter();
@@ -20,7 +20,7 @@ public class HttpServletRequestExtractAdapter extends CachingContextVisitor<Http
     Enumeration<String> headerNames = carrier.getHeaderNames();
     while (headerNames.hasMoreElements()) {
       String header = headerNames.nextElement();
-      String lowerCaseKey = toLowerCase(header);
+      String lowerCaseKey = header.toLowerCase();
       int classification = classifier.classify(lowerCaseKey);
       if (classification != IGNORE) {
         if (!consumer.accept(classification, lowerCaseKey, carrier.getHeader(header))) {

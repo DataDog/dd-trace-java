@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.opentracing31;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.CachingContextVisitor;
 import io.opentracing.propagation.TextMap;
 import java.util.Map;
 
@@ -18,7 +17,7 @@ class OTPropagation {
     }
   }
 
-  static class TextMapExtractGetter extends CachingContextVisitor<TextMap> {
+  static class TextMapExtractGetter implements AgentPropagation.ContextVisitor<TextMap> {
 
     static final TextMapExtractGetter INSTANCE = new TextMapExtractGetter();
 
@@ -32,7 +31,7 @@ class OTPropagation {
       // This is the same as the one passed into the constructor
       // So using "extracted" is valid
       for (Map.Entry<String, String> entry : carrier) {
-        String lowerCaseKey = toLowerCase(entry.getKey());
+        String lowerCaseKey = entry.getKey().toLowerCase();
         int classification = classifier.classify(lowerCaseKey);
         if (classification != IGNORE) {
           if (!consumer.accept(classification, lowerCaseKey, entry.getValue())) {

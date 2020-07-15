@@ -1,15 +1,14 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
-import static java.nio.charset.StandardCharsets.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.CachingContextVisitor;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 
-public class TextMapExtractAdapter extends CachingContextVisitor<Headers> {
+public class TextMapExtractAdapter implements AgentPropagation.ContextVisitor<Headers> {
 
   public static final TextMapExtractAdapter GETTER =
       new TextMapExtractAdapter(Config.get().isKafkaClientBase64DecodingEnabled());
@@ -28,7 +27,7 @@ public class TextMapExtractAdapter extends CachingContextVisitor<Headers> {
       AgentPropagation.KeyClassifier classifier,
       AgentPropagation.KeyValueConsumer consumer) {
     for (Header header : carrier) {
-      String lowerCaseKey = toLowerCase(header.key());
+      String lowerCaseKey = header.key().toLowerCase();
       int classification = classifier.classify(lowerCaseKey);
       if (classification != IGNORE) {
         byte[] value = header.value();

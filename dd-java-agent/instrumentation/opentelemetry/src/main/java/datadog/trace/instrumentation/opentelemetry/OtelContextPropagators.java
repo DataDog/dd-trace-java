@@ -5,7 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyCl
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.CachingContextVisitor;
+import datadog.trace.bootstrap.instrumentation.api.Pair;
 import io.grpc.Context;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.context.propagation.HttpTextFormat;
@@ -66,7 +66,7 @@ public class OtelContextPropagators implements ContextPropagators {
     }
   }
 
-  private static class OtelGetter<C> extends CachingContextVisitor<C> {
+  private static class OtelGetter<C> implements AgentPropagation.ContextVisitor<C> {
     private static final String DD_TRACE_ID_KEY = "x-datadog-trace-id";
     private static final String DD_SPAN_ID_KEY = "x-datadog-parent-id";
     private static final String DD_SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
@@ -80,18 +80,18 @@ public class OtelContextPropagators implements ContextPropagators {
     private static final String HAYSTACK_SPAN_ID_KEY = "Span-ID";
     private static final String HAYSTACK_PARENT_ID_KEY = "Parent_ID";
 
-    private static final List<String> KEYS =
+    private static final List<Pair<String, String>> KEYS =
         Arrays.asList(
-            DD_TRACE_ID_KEY,
-            DD_SPAN_ID_KEY,
-            DD_SAMPLING_PRIORITY_KEY,
-            DD_ORIGIN_KEY,
-            B3_TRACE_ID_KEY,
-            B3_SPAN_ID_KEY,
-            B3_SAMPLING_PRIORITY_KEY,
-            HAYSTACK_TRACE_ID_KEY,
-            HAYSTACK_SPAN_ID_KEY,
-            HAYSTACK_PARENT_ID_KEY);
+            Pair.of(DD_TRACE_ID_KEY, DD_TRACE_ID_KEY.toLowerCase()),
+            Pair.of(DD_SPAN_ID_KEY, DD_SPAN_ID_KEY.toLowerCase()),
+            Pair.of(DD_SAMPLING_PRIORITY_KEY, DD_SAMPLING_PRIORITY_KEY.toLowerCase()),
+            Pair.of(DD_ORIGIN_KEY, DD_ORIGIN_KEY.toLowerCase()),
+            Pair.of(B3_TRACE_ID_KEY, B3_TRACE_ID_KEY.toLowerCase()),
+            Pair.of(B3_SPAN_ID_KEY, B3_SPAN_ID_KEY.toLowerCase()),
+            Pair.of(B3_SAMPLING_PRIORITY_KEY, B3_SAMPLING_PRIORITY_KEY.toLowerCase()),
+            Pair.of(HAYSTACK_TRACE_ID_KEY, HAYSTACK_TRACE_ID_KEY.toLowerCase()),
+            Pair.of(HAYSTACK_SPAN_ID_KEY, HAYSTACK_SPAN_ID_KEY.toLowerCase()),
+            Pair.of(HAYSTACK_PARENT_ID_KEY, HAYSTACK_PARENT_ID_KEY.toLowerCase()));
 
     private final HttpTextFormat.Getter<C> getter;
 
@@ -104,11 +104,11 @@ public class OtelContextPropagators implements ContextPropagators {
         C carrier,
         AgentPropagation.KeyClassifier classifier,
         AgentPropagation.KeyValueConsumer consumer) {
-      for (String key : KEYS) {
-        String lowerCaseKey = toLowerCase(key);
+      for (Pair<String, String> key : KEYS) {
+        String lowerCaseKey = key.getRight();
         int classification = classifier.classify(lowerCaseKey);
         if (classification != IGNORE) {
-          if (!consumer.accept(classification, lowerCaseKey, getter.get(carrier, key))) {
+          if (!consumer.accept(classification, lowerCaseKey, getter.get(carrier, key.getLeft()))) {
             return;
           }
         }
