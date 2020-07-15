@@ -93,7 +93,10 @@ class HttpUrlConnectionTest extends HttpClientTest {
           }
         }
         span(1) {
-          serviceName renameService ? "localhost" : "unnamed-java-app"
+          hasServiceName()
+          if (renameService) {
+            serviceName "localhost"
+          }
           operationName OPERATION_NAME
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
@@ -111,7 +114,10 @@ class HttpUrlConnectionTest extends HttpClientTest {
           }
         }
         span(2) {
-          serviceName renameService ? "localhost" : "unnamed-java-app"
+          hasServiceName()
+          if (renameService) {
+            serviceName "localhost"
+          }
           operationName OPERATION_NAME
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
@@ -178,7 +184,10 @@ class HttpUrlConnectionTest extends HttpClientTest {
           }
         }
         span(1) {
-          serviceName renameService ? "localhost" : "unnamed-java-app"
+          hasServiceName()
+          if (renameService) {
+            serviceName "localhost"
+          }
           operationName OPERATION_NAME
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
@@ -196,7 +205,10 @@ class HttpUrlConnectionTest extends HttpClientTest {
           }
         }
         span(2) {
-          serviceName renameService ? "localhost" : "unnamed-java-app"
+          hasServiceName()
+          if (renameService) {
+            serviceName "localhost"
+          }
           operationName OPERATION_NAME
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
@@ -248,7 +260,10 @@ class HttpUrlConnectionTest extends HttpClientTest {
           }
         }
         span(1) {
-          serviceName renameService ? "localhost" : "unnamed-java-app"
+          hasServiceName()
+          if (renameService) {
+            serviceName "localhost"
+          }
           operationName OPERATION_NAME
           resourceName "GET $url.path"
           spanType DDSpanTypes.HTTP_CLIENT
@@ -316,7 +331,10 @@ class HttpUrlConnectionTest extends HttpClientTest {
           }
         }
         span(1) {
-          serviceName renameService ? "localhost" : "unnamed-java-app"
+          hasServiceName()
+          if (renameService) {
+            serviceName "localhost"
+          }
           operationName OPERATION_NAME
           resourceName "POST $url.path"
           spanType DDSpanTypes.HTTP_CLIENT

@@ -41,6 +41,10 @@ class SpanAssert {
     }
   }
 
+  def hasServiceName() {
+    assert span.serviceName != null && !span.serviceName.isEmpty()
+  }
+
   def serviceName(String name) {
     assert span.serviceName == name
     checked.serviceName = true

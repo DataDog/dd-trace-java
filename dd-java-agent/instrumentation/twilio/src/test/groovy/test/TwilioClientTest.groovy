@@ -132,7 +132,7 @@ class TwilioClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 2) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "test"
           resourceName "test"
           errored false
@@ -184,7 +184,7 @@ class TwilioClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 2) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "test"
           resourceName "test"
           errored false
@@ -258,7 +258,7 @@ class TwilioClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 3) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "test"
           resourceName "test"
           errored false
@@ -363,7 +363,7 @@ class TwilioClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 4) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "test"
           resourceName "test"
           errored false
@@ -491,7 +491,7 @@ class TwilioClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 5) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "test"
           resourceName "test"
           errored false
@@ -598,7 +598,7 @@ class TwilioClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 2) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "test"
           resourceName "test"
           errored true
@@ -696,7 +696,7 @@ class TwilioClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 3) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "test"
           resourceName "test"
           errored false
@@ -780,7 +780,7 @@ class TwilioClientTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 3) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "test"
           resourceName "test"
           errored true

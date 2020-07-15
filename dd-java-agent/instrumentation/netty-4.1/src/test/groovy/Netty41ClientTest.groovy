@@ -1,7 +1,7 @@
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.netty41.client.HttpClientTracingHandler
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import io.netty.channel.AbstractChannel
@@ -203,7 +203,7 @@ class Netty41ClientTest extends HttpClientTest {
         basicSpan(it, 0, "parent")
         span(1) {
           childOf((DDSpan) span(0))
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "trace.annotation"
           resourceName "AnnotatedClass.makeRequestUnderTrace"
           errored false

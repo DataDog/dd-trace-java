@@ -75,7 +75,7 @@ class AkkaHttpClientInstrumentationTest extends HttpClientTest {
       trace(0, 1) {
         span(0) {
           parent()
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "akka-http.client.request"
           resourceName "akka-http.client.request"
           spanType DDSpanTypes.HTTP_CLIENT
