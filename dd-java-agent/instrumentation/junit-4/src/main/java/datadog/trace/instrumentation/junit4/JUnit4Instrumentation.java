@@ -10,10 +10,10 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.DisableTestTrace;
-import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.context.TraceScope;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -73,16 +73,10 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
 
       final AgentSpan span = startSpan(description.getMethodName());
       final AgentScope scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
 
       DECORATE.afterStart(span);
       DECORATE.onTestStart(span, description);
-
-      final TestState testState = new TestState(span);
-      testState.setTestScope(scope);
-
-      final ContextStore<Description, TestState> contextStore =
-          InstrumentationContext.get(Description.class, TestState.class);
-      contextStore.putIfAbsent(description, testState);
     }
   }
 
@@ -93,19 +87,16 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
         return;
       }
 
-      final ContextStore<Description, TestState> contextStore =
-          InstrumentationContext.get(Description.class, TestState.class);
-      final TestState testState = contextStore.get(description);
-
-      if (testState == null || testState.getTestSpan() == null) {
+      final AgentSpan span = AgentTracer.activeSpan();
+      if (span == null) {
         return;
       }
 
-      if (testState.getTestScope() != null) {
-        testState.getTestScope().close();
+      final TraceScope scope = AgentTracer.activeScope();
+      if (scope != null) {
+        scope.close();
       }
 
-      final AgentSpan span = testState.getTestSpan();
       DECORATE.onTestFinish(span);
       DECORATE.beforeFinish(span);
       span.finish();
@@ -119,15 +110,11 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
         return;
       }
 
-      final ContextStore<Description, TestState> contextStore =
-          InstrumentationContext.get(Description.class, TestState.class);
-      final TestState testState = contextStore.get(failure.getDescription());
-
-      if (testState == null || testState.getTestSpan() == null) {
+      final AgentSpan span = AgentTracer.activeSpan();
+      if (span == null) {
         return;
       }
 
-      final AgentSpan span = testState.getTestSpan();
       DECORATE.onTestFailure(span, failure);
     }
   }
