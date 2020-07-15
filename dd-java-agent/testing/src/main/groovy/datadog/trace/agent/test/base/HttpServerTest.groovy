@@ -8,6 +8,8 @@ import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
+import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
@@ -85,7 +87,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
   abstract String component()
 
   String expectedServiceName() {
-    "unnamed-java-app"
+    CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
   }
 
   abstract String expectedOperationName()

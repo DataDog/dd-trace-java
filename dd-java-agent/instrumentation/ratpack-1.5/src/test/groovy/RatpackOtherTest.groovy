@@ -64,7 +64,7 @@ class RatpackOtherTest extends AgentTestRunner {
       trace(0, 2) {
         span(0) {
           resourceName "GET /$route"
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
           parent()
@@ -82,7 +82,7 @@ class RatpackOtherTest extends AgentTestRunner {
         }
         span(1) {
           resourceName "GET /$route"
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "ratpack.handler"
           spanType DDSpanTypes.HTTP_SERVER
           childOf(span(0))

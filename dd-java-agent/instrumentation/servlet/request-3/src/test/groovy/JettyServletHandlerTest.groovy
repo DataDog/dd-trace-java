@@ -1,3 +1,5 @@
+import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.env.CapturedEnvironment
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.servlet.ServletHandler
@@ -46,7 +48,7 @@ class JettyServletHandlerTest extends AbstractServlet3Test<Server, ServletHandle
 
   @Override
   String expectedServiceName() {
-    "unnamed-java-app"
+    CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME)
   }
 
   @Override

@@ -57,7 +57,7 @@ class GrpcTest extends AgentTestRunner {
     assertTraces(2) {
       trace(0, 2) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "grpc.server"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
@@ -71,7 +71,7 @@ class GrpcTest extends AgentTestRunner {
           }
         }
         span(1) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "grpc.message"
           resourceName "grpc.message"
           spanType DDSpanTypes.RPC
@@ -88,7 +88,7 @@ class GrpcTest extends AgentTestRunner {
       trace(1, 3) {
         basicSpan(it, 0, "parent")
         span(1) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "grpc.client"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
@@ -102,7 +102,7 @@ class GrpcTest extends AgentTestRunner {
           }
         }
         span(2) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "grpc.message"
           resourceName "grpc.message"
           spanType DDSpanTypes.RPC
@@ -150,7 +150,7 @@ class GrpcTest extends AgentTestRunner {
     assertTraces(2) {
       trace(0, 2) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "grpc.server"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
@@ -168,7 +168,7 @@ class GrpcTest extends AgentTestRunner {
           }
         }
         span(1) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "grpc.message"
           resourceName "grpc.message"
           spanType DDSpanTypes.RPC
@@ -184,7 +184,7 @@ class GrpcTest extends AgentTestRunner {
       }
       trace(1, 1) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "grpc.client"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
@@ -239,7 +239,7 @@ class GrpcTest extends AgentTestRunner {
     assertTraces(2) {
       trace(0, 2) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "grpc.server"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
@@ -253,7 +253,7 @@ class GrpcTest extends AgentTestRunner {
           }
         }
         span(1) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "grpc.message"
           resourceName "grpc.message"
           spanType DDSpanTypes.RPC
@@ -269,7 +269,7 @@ class GrpcTest extends AgentTestRunner {
       }
       trace(1, 1) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "grpc.client"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC

@@ -41,7 +41,10 @@ class UrlConnectionTest extends AgentTestRunner {
           }
         }
         span(1) {
-          serviceName renameService ? "localhost" : "unnamed-java-app"
+          hasServiceName()
+          if (renameService) {
+            serviceName "localhost"
+          }
           operationName OPERATION_NAME
           resourceName "GET /"
           spanType DDSpanTypes.HTTP_CLIENT
@@ -96,7 +99,7 @@ class UrlConnectionTest extends AgentTestRunner {
           }
         }
         span(1) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "file.request"
           resourceName "file:$url.path"
           spanType DDSpanTypes.HTTP_CLIENT

@@ -72,7 +72,7 @@ class HystrixObservableChainTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 5) {
         span(0) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "parent"
           resourceName "parent"
           spanType null
@@ -83,7 +83,7 @@ class HystrixObservableChainTest extends AgentTestRunner {
           }
         }
         span(1) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "hystrix.cmd"
           resourceName "OtherGroup.HystrixObservableChainTest\$2.execute"
           spanType null
@@ -98,7 +98,7 @@ class HystrixObservableChainTest extends AgentTestRunner {
           }
         }
         span(2) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "trace.annotation"
           resourceName "HystrixObservableChainTest\$2.tracedMethod"
           spanType null
@@ -110,7 +110,7 @@ class HystrixObservableChainTest extends AgentTestRunner {
           }
         }
         span(3) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "hystrix.cmd"
           resourceName "ExampleGroup.HystrixObservableChainTest\$1.execute"
           spanType null
@@ -125,7 +125,7 @@ class HystrixObservableChainTest extends AgentTestRunner {
           }
         }
         span(4) {
-          serviceName "unnamed-java-app"
+          hasServiceName()
           operationName "trace.annotation"
           resourceName "HystrixObservableChainTest\$1.tracedMethod"
           spanType null
