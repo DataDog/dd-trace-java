@@ -330,7 +330,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     }
   }
 
-  // FIXME: it should be possible to simplify this logic and avod having SpanCleaner and
+  // FIXME: it should be possible to simplify this logic and avoid having SpanCleaner and
   // SpanCleanerTask
   private static class SpanCleaner implements Runnable, Closeable {
     private static final long CLEAN_FREQUENCY = 1;

@@ -28,7 +28,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public final class AkkaForkJoinPoolInstrumentation extends Instrumenter.Default {
 
   public AkkaForkJoinPoolInstrumentation() {
-    super("java_concurrent", "akka-concurrent");
+    super("java_concurrent", "akka_concurrent");
   }
 
   @Override

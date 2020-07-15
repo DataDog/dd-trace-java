@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.java.concurrent;
+package datadog.trace.instrumentation.scala.concurrent;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
@@ -40,7 +40,7 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Default
   static final String TASK_CLASS_NAME = "scala.concurrent.forkjoin.ForkJoinTask";
 
   public ScalaForkJoinTaskInstrumentation() {
-    super(AbstractExecutorInstrumentation.EXEC_NAME);
+    super("java_concurrent", "scala_concurrent");
   }
 
   @Override

@@ -39,6 +39,7 @@ dependencies {
 
   testCompile project(':dd-java-agent:instrumentation:netty-3.8')
   testCompile project(':dd-java-agent:instrumentation:akka-concurrent')
+  testCompile project(':dd-java-agent:instrumentation:scala-concurrent')
 
   testCompile group: 'com.typesafe.play', name: 'play-java_2.11', version: '2.3.0'
   testCompile group: 'com.typesafe.play', name: 'play-java-ws_2.11', version: '2.3.0'
