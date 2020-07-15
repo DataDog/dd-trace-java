@@ -2,13 +2,11 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
-def scalaVersion = '2.11.0'
-
 muzzle {
   pass {
     group = 'org.scala-lang'
     module = "scala-library"
-    versions = "[$scalaVersion,]"
+    versions = "[2.3.0,]"
     assertInverse = true
   }
 }
@@ -33,9 +31,9 @@ compileSlickTestGroovy {
 }
 
 dependencies {
-  compileOnly group: 'org.scala-lang', name: 'scala-library', version: scalaVersion
+  compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.3.0'
 
-  testCompile group: 'org.scala-lang', name: 'scala-library', version: scalaVersion
+  testCompile group: 'org.scala-lang', name: 'scala-library', version: '2.3.0'
   testCompile project(':dd-java-agent:instrumentation:trace-annotation')
 
   latestDepTestCompile group: 'org.scala-lang', name: 'scala-library', version: '+'
@@ -44,7 +42,7 @@ dependencies {
   slickTestCompile project(':dd-java-agent:instrumentation:trace-annotation')
   slickTestCompile project(':dd-java-agent:instrumentation:jdbc')
   slickTestCompile deps.scala
-  slickTestCompile group: 'com.typesafe.slick', name: "slick_${scalaVersion.replace(".0", "")}", version: '3.2.0'
+  slickTestCompile group: 'com.typesafe.slick', name: 'slick_2.11', version: '3.2.0'
   slickTestCompile group: 'com.h2database', name: 'h2', version: '1.4.197'
 }
 
