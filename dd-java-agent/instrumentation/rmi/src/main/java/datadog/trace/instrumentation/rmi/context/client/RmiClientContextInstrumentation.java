@@ -10,6 +10,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -43,6 +45,11 @@ import sun.rmi.transport.Connection;
  * exception and shutdown the connection which we do not want
  */
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "sun.rmi.transport.Connection",
+      contextClass = "java.lang.Boolean")
+})
 public class RmiClientContextInstrumentation extends Instrumenter.Default {
 
   public RmiClientContextInstrumentation() {
@@ -52,12 +59,6 @@ public class RmiClientContextInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return extendsClass(named("sun.rmi.transport.StreamRemoteCall"));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    // caching if a connection can support enhanced format
-    return singletonMap("sun.rmi.transport.Connection", "java.lang.Boolean");
   }
 
   @Override

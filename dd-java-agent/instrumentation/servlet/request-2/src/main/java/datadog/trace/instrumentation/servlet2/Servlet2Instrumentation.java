@@ -11,13 +11,22 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import java.util.HashMap;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "javax.servlet.http.HttpServletResponse",
+      contextClass = "javax.servlet.http.HttpServletRequest"),
+  @ContextStoreMapping(
+      keyClass = "javax.servlet.ServletResponse",
+      contextClass = "java.lang.Integer")
+})
 public final class Servlet2Instrumentation extends Instrumenter.Default {
 
   public Servlet2Instrumentation() {
@@ -43,15 +52,6 @@ public final class Servlet2Instrumentation extends Instrumenter.Default {
     return new String[] {
       packageName + ".Servlet2Decorator", packageName + ".HttpServletRequestExtractAdapter",
     };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> contextStores = new HashMap<>();
-    contextStores.put(
-        "javax.servlet.http.HttpServletResponse", "javax.servlet.http.HttpServletRequest");
-    contextStores.put("javax.servlet.ServletResponse", Integer.class.getName());
-    return contextStores;
   }
 
   /**

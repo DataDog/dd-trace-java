@@ -8,6 +8,8 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
@@ -20,15 +22,15 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.procedure.ProcedureCall;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "org.hibernate.ProcedureCall",
+      contextClass = "datadog.trace.instrumentation.hibernate.SessionState"),
+})
 public class ProcedureCallInstrumentation extends Instrumenter.Default {
 
   public ProcedureCallInstrumentation() {
     super("hibernate", "hibernate-core");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.hibernate.procedure.ProcedureCall", SessionState.class.getName());
   }
 
   @Override

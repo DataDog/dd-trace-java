@@ -12,13 +12,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.context.TraceScope;
-import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -28,6 +29,11 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "org.jboss.netty.channel.Channel",
+      contextClass = "datadog.trace.instrumentation.netty38.ChannelTraceContext"),
+})
 public class ChannelFutureListenerInstrumentation extends Instrumenter.Default {
 
   public ChannelFutureListenerInstrumentation() {
@@ -65,12 +71,6 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Default {
             .and(named("operationComplete"))
             .and(takesArgument(0, named("org.jboss.netty.channel.ChannelFuture"))),
         ChannelFutureListenerInstrumentation.class.getName() + "$OperationCompleteAdvice");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.jboss.netty.channel.Channel", packageName + ".ChannelTraceContext");
   }
 
   public static class OperationCompleteAdvice extends AbstractNettyAdvice {

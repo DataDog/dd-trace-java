@@ -9,6 +9,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -18,7 +20,6 @@ import datadog.trace.instrumentation.netty38.client.HttpClientTracingHandler;
 import datadog.trace.instrumentation.netty38.server.HttpServerRequestTracingHandler;
 import datadog.trace.instrumentation.netty38.server.HttpServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty38.server.HttpServerTracingHandler;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -36,6 +37,11 @@ import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 import org.jboss.netty.handler.codec.http.HttpServerCodec;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "org.jboss.netty.channel.Channel",
+      contextClass = "datadog.trace.instrumentation.netty38.ChannelTraceContext"),
+})
 public class NettyChannelPipelineInstrumentation extends Instrumenter.Default {
 
   static final String INSTRUMENTATION_NAME = "netty";
@@ -94,12 +100,6 @@ public class NettyChannelPipelineInstrumentation extends Instrumenter.Default {
             .and(takesArgument(2, named("org.jboss.netty.channel.ChannelHandler"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$ChannelPipelineAdd3ArgsAdvice");
     return transformers;
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.jboss.netty.channel.Channel", ChannelTraceContext.class.getName());
   }
 
   /**

@@ -13,12 +13,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -32,18 +33,21 @@ import org.hibernate.SharedSessionContract;
 import org.hibernate.Transaction;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "org.hibernate.SharedSessionContract",
+      contextClass = "datadog.trace.instrumentation.hibernate.SessionState"),
+  @ContextStoreMapping(
+      keyClass = "org.hibernate.Query",
+      contextClass = "datadog.trace.instrumentation.hibernate.SessionState"),
+  @ContextStoreMapping(
+      keyClass = "org.hibernate.Transaction",
+      contextClass = "datadog.trace.instrumentation.hibernate.SessionState"),
+  @ContextStoreMapping(
+      keyClass = "org.hibernate.Criteria",
+      contextClass = "datadog.trace.instrumentation.hibernate.SessionState"),
+})
 public class SessionInstrumentation extends AbstractHibernateInstrumentation {
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> map = new HashMap<>();
-    map.put("org.hibernate.SharedSessionContract", SessionState.class.getName());
-    map.put("org.hibernate.Query", SessionState.class.getName());
-    map.put("org.hibernate.Transaction", SessionState.class.getName());
-    map.put("org.hibernate.Criteria", SessionState.class.getName());
-    return Collections.unmodifiableMap(map);
-  }
-
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return implementsInterface(named("org.hibernate.SharedSessionContract"));

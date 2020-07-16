@@ -11,10 +11,11 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.context.TraceScope;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -24,6 +25,11 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.jboss.netty.channel.Channel;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "org.jboss.netty.channel.Channel",
+      contextClass = "datadog.trace.instrumentation.netty38.ChannelTraceContext"),
+})
 public class NettyChannelInstrumentation extends Instrumenter.Default {
   public NettyChannelInstrumentation() {
     super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
@@ -58,12 +64,6 @@ public class NettyChannelInstrumentation extends Instrumenter.Default {
             .and(returns(named("org.jboss.netty.channel.ChannelFuture"))),
         NettyChannelInstrumentation.class.getName() + "$ChannelConnectAdvice");
     return transformers;
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.jboss.netty.channel.Channel", ChannelTraceContext.class.getName());
   }
 
   public static class ChannelConnectAdvice extends AbstractNettyAdvice {

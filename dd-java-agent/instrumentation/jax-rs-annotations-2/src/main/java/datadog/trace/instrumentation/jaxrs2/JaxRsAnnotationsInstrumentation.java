@@ -16,6 +16,8 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -30,17 +32,17 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "javax.ws.rs.container.AsyncResponse",
+      contextClass = "datadog.trace.bootstrap.instrumentation.api.AgentSpan")
+})
 public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Default {
 
   private static final String JAX_ENDPOINT_OPERATION_NAME = "jax-rs.request";
 
   public JaxRsAnnotationsInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-annotations");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("javax.ws.rs.container.AsyncResponse", AgentSpan.class.getName());
   }
 
   @Override

@@ -7,6 +7,8 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import com.google.auto.service.AutoService;
 import com.google.common.util.concurrent.AbstractFuture;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
@@ -22,6 +24,11 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "java.lang.Runnable",
+      contextClass = "datadog.trace.bootstrap.instrumentation.java.concurrent.State")
+})
 public class ListenableFutureInstrumentation extends Instrumenter.Default {
 
   public ListenableFutureInstrumentation() {
@@ -31,11 +38,6 @@ public class ListenableFutureInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return named("com.google.common.util.concurrent.AbstractFuture");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(Runnable.class.getName(), State.class.getName());
   }
 
   @Override

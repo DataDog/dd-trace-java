@@ -8,6 +8,8 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
@@ -21,13 +23,12 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.Criteria;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "org.hibernate.Criteria",
+      contextClass = "datadog.trace.instrumentation.hibernate.SessionState")
+})
 public class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("org.hibernate.Criteria", SessionState.class.getName());
-  }
-
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return implementsInterface(named("org.hibernate.Criteria"));

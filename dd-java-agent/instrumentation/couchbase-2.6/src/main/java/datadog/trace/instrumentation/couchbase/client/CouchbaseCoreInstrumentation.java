@@ -11,11 +11,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.couchbase.client.core.message.CouchbaseRequest;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
-import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -23,6 +24,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "com.couchbase.client.core.message.CouchbaseRequest",
+      contextClass = "datadog.trace.bootstrap.instrumentation.api.AgentSpan")
+})
 public class CouchbaseCoreInstrumentation extends Instrumenter.Default {
 
   public CouchbaseCoreInstrumentation() {
@@ -32,12 +38,6 @@ public class CouchbaseCoreInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return named("com.couchbase.client.core.CouchbaseCore");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "com.couchbase.client.core.message.CouchbaseRequest", AgentSpan.class.getName());
   }
 
   @Override

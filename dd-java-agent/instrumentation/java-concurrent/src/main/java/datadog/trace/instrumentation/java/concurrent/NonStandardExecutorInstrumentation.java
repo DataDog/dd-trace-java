@@ -1,28 +1,28 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "java.lang.Runnable",
+      contextClass = "datadog.trace.bootstrap.instrumentation.java.concurrent.State"),
+})
 public final class NonStandardExecutorInstrumentation extends AbstractExecutorInstrumentation {
 
   public NonStandardExecutorInstrumentation() {
     super(EXEC_NAME + ".other");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(Runnable.class.getName(), State.class.getName());
   }
 
   @Override

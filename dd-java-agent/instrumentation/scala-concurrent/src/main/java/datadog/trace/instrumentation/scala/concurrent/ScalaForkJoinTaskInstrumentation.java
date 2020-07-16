@@ -10,13 +10,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +35,17 @@ import scala.concurrent.forkjoin.ForkJoinTask;
  */
 @Slf4j
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "java.lang.Runnable",
+      contextClass = "datadog.trace.bootstrap.instrumentation.java.concurrent.State"),
+  @ContextStoreMapping(
+      keyClass = "java.util.concurrent.Callable",
+      contextClass = "datadog.trace.bootstrap.instrumentation.java.concurrent.State"),
+  @ContextStoreMapping(
+      keyClass = ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME,
+      contextClass = "datadog.trace.bootstrap.instrumentation.java.concurrent.State"),
+})
 public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Default {
 
   static final String TASK_CLASS_NAME = "scala.concurrent.forkjoin.ForkJoinTask";
@@ -52,15 +63,6 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Default
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return extendsClass(named(TASK_CLASS_NAME));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> map = new HashMap<>();
-    map.put(Runnable.class.getName(), State.class.getName());
-    map.put(Callable.class.getName(), State.class.getName());
-    map.put(TASK_CLASS_NAME, State.class.getName());
-    return Collections.unmodifiableMap(map);
   }
 
   @Override

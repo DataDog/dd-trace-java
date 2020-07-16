@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.aws.v0;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -10,6 +9,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.amazonaws.AmazonWebServiceRequest;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
@@ -20,6 +21,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "com.amazonaws.AmazonWebServiceRequest",
+      contextClass = "datadog.trace.instrumentation.aws.v0.RequestMeta"),
+})
 public final class RequestInstrumentation extends Instrumenter.Default {
 
   public RequestInstrumentation() {
@@ -64,11 +70,6 @@ public final class RequestInstrumentation extends Instrumenter.Default {
         named("setTableName").and(takesArgument(0, String.class)),
         RequestInstrumentation.class.getName() + "$TableNameAdvice");
     return transformers;
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("com.amazonaws.AmazonWebServiceRequest", packageName + ".RequestMeta");
   }
 
   public static class BucketNameAdvice {

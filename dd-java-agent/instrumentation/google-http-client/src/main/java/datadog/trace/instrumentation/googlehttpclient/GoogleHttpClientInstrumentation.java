@@ -15,12 +15,13 @@ import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -29,6 +30,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "com.google.api.client.http.HttpRequest",
+      contextClass = "datadog.trace.instrumentation.googlehttpclient.RequestState")
+})
 public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
   public GoogleHttpClientInstrumentation() {
     super("google-http-client");
@@ -40,12 +46,6 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
     // Note: the rest of com.google.api is ignored in AdditionalLibraryIgnoresMatcher to speed
     // things up
     return named("com.google.api.client.http.HttpRequest");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "com.google.api.client.http.HttpRequest", RequestState.class.getName());
   }
 
   @Override

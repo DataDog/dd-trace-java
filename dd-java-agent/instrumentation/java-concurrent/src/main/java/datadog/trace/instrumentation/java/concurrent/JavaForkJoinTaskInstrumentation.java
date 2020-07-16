@@ -9,13 +9,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ForkJoinPool;
@@ -34,6 +34,17 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @Slf4j
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "java.lang.Runnable",
+      contextClass = "datadog.trace.bootstrap.instrumentation.java.concurrent.State"),
+  @ContextStoreMapping(
+      keyClass = "java.util.concurrent.Callable",
+      contextClass = "datadog.trace.bootstrap.instrumentation.java.concurrent.State"),
+  @ContextStoreMapping(
+      keyClass = "java.util.concurrent.ForkJoinTask",
+      contextClass = "datadog.trace.bootstrap.instrumentation.java.concurrent.State"),
+})
 public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Default {
 
   public JavaForkJoinTaskInstrumentation() {
@@ -43,15 +54,6 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Default 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return extendsClass(named(ForkJoinTask.class.getName()));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> map = new HashMap<>();
-    map.put(Runnable.class.getName(), State.class.getName());
-    map.put(Callable.class.getName(), State.class.getName());
-    map.put(ForkJoinTask.class.getName(), State.class.getName());
-    return Collections.unmodifiableMap(map);
   }
 
   @Override

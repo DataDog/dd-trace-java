@@ -3,12 +3,13 @@ package datadog.trace.instrumentation.servlet2;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
@@ -16,6 +17,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "javax.servlet.ServletResponse",
+      contextClass = "java.lang.Integer")
+})
 public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.Default {
   public Servlet2ResponseStatusInstrumentation() {
     super("servlet", "servlet-2");
@@ -30,11 +36,6 @@ public final class Servlet2ResponseStatusInstrumentation extends Instrumenter.De
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return safeHasSuperType(named("javax.servlet.http.HttpServletResponse"));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("javax.servlet.ServletResponse", Integer.class.getName());
   }
 
   /**

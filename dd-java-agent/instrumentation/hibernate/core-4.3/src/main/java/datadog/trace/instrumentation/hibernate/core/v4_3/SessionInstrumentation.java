@@ -10,12 +10,12 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -25,18 +25,18 @@ import org.hibernate.SharedSessionContract;
 import org.hibernate.procedure.ProcedureCall;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "org.hibernate.SharedSessionContract",
+      contextClass = "datadog.trace.instrumentation.hibernate.SessionState"),
+  @ContextStoreMapping(
+      keyClass = "org.hibernate.procedure.ProcedureCall",
+      contextClass = "datadog.trace.instrumentation.hibernate.SessionState"),
+})
 public class SessionInstrumentation extends Instrumenter.Default {
 
   public SessionInstrumentation() {
     super("hibernate", "hibernate-core");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> map = new HashMap<>();
-    map.put("org.hibernate.SharedSessionContract", SessionState.class.getName());
-    map.put("org.hibernate.procedure.ProcedureCall", SessionState.class.getName());
-    return Collections.unmodifiableMap(map);
   }
 
   @Override

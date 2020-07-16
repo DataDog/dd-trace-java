@@ -13,11 +13,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -27,17 +28,18 @@ import org.hibernate.Session;
 import org.hibernate.StatelessSession;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "org.hibernate.Session",
+      contextClass = "datadog.trace.instrumentation.hibernate.SessionState"),
+  @ContextStoreMapping(
+      keyClass = "org.hibernate.StatelessSession",
+      contextClass = "datadog.trace.instrumentation.hibernate.SessionState"),
+  @ContextStoreMapping(
+      keyClass = "org.hibernate.SharedSessionContract",
+      contextClass = "datadog.trace.instrumentation.hibernate.SessionState"),
+})
 public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentation {
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> stores = new HashMap<>();
-    stores.put("org.hibernate.Session", SessionState.class.getName());
-    stores.put("org.hibernate.StatelessSession", SessionState.class.getName());
-    stores.put("org.hibernate.SharedSessionContract", SessionState.class.getName());
-    return stores;
-  }
-
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return implementsInterface(named("org.hibernate.SessionFactory"));

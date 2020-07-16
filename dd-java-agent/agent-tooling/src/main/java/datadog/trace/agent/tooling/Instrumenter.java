@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.DDTransformers;
 import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
+import datadog.trace.agent.tooling.context.ContextStoreDefHelper;
 import datadog.trace.agent.tooling.context.FieldBackedProvider;
 import datadog.trace.agent.tooling.context.InstrumentationContextProvider;
 import datadog.trace.agent.tooling.context.NoopContextProvider;
@@ -16,7 +17,6 @@ import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import datadog.trace.api.Config;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
@@ -67,7 +67,7 @@ public interface Instrumenter {
       instrumentationPrimaryName = instrumentationName;
 
       enabled = Config.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
-      Map<String, String> contextStore = contextStore();
+      final Map<String, String> contextStore = ContextStoreDefHelper.getMappings(getClass());
       if (!contextStore.isEmpty()) {
         contextProvider = new FieldBackedProvider(this, contextStore);
       } else {
@@ -229,16 +229,6 @@ public interface Instrumenter {
 
     /** @return A map of matcher->advice */
     public abstract Map<? extends ElementMatcher<? super MethodDescription>, String> transformers();
-
-    /**
-     * Context stores to define for this instrumentation.
-     *
-     * <p>A map of {class-name -> context-class-name}. Keys (and their subclasses) will be
-     * associated with a context of the value.
-     */
-    public Map<String, String> contextStore() {
-      return Collections.emptyMap();
-    }
 
     protected boolean defaultEnabled() {
       return Config.get().isIntegrationsEnabled();

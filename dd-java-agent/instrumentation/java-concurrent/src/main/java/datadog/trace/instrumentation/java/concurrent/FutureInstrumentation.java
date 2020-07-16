@@ -7,6 +7,8 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -24,6 +26,11 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @Slf4j
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "java.util.concurrent.Future",
+      contextClass = "datadog.trace.bootstrap.instrumentation.java.concurrent.State"),
+})
 public final class FutureInstrumentation extends Instrumenter.Default {
 
   /**
@@ -87,11 +94,6 @@ public final class FutureInstrumentation extends Instrumenter.Default {
         return whitelisted;
       }
     }.and(hasFutureInterfaceMatcher); // Apply expensive matcher last.
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(Future.class.getName(), State.class.getName());
   }
 
   @Override

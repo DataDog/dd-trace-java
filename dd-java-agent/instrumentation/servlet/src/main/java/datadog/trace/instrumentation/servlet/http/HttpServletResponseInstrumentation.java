@@ -14,6 +14,8 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -27,6 +29,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "javax.servlet.http.HttpServletResponse",
+      contextClass = "javax.servlet.http.HttpServletRequest")
+})
 public final class HttpServletResponseInstrumentation extends Instrumenter.Default {
   public HttpServletResponseInstrumentation() {
     super("servlet", "servlet-response");
@@ -54,12 +61,6 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(namedOneOf("sendError", "sendRedirect"), SendAdvice.class.getName());
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(
-        "javax.servlet.http.HttpServletResponse", "javax.servlet.http.HttpServletRequest");
   }
 
   public static class SendAdvice {

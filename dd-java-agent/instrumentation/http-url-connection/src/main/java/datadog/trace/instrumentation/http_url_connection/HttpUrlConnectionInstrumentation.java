@@ -16,6 +16,8 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -30,6 +32,12 @@ import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "java.net.HttpURLConnection",
+      contextClass =
+          "datadog.trace.instrumentation.http_url_connection.HttpUrlConnectionInstrumentation$HttpUrlState")
+})
 public class HttpUrlConnectionInstrumentation extends Instrumenter.Default {
 
   public HttpUrlConnectionInstrumentation() {
@@ -53,11 +61,6 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Default {
       HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlState",
       HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlState$1",
     };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("java.net.HttpURLConnection", getClass().getName() + "$HttpUrlState");
   }
 
   @Override

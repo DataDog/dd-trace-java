@@ -10,6 +10,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Map;
 import javax.servlet.RequestDispatcher;
@@ -19,6 +21,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "javax.servlet.RequestDispatcher",
+      contextClass = "java.lang.String"),
+})
 public final class ServletContextInstrumentation extends Instrumenter.Default {
   public ServletContextInstrumentation() {
     super("servlet", "servlet-dispatcher");
@@ -33,11 +40,6 @@ public final class ServletContextInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return implementsInterface(named("javax.servlet.ServletContext"));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("javax.servlet.RequestDispatcher", String.class.getName());
   }
 
   @Override

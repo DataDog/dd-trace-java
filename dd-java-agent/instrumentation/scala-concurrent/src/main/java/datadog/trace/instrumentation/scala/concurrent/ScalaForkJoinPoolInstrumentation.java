@@ -7,12 +7,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -25,6 +26,11 @@ import scala.concurrent.forkjoin.ForkJoinTask;
 
 @Slf4j
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME,
+      contextClass = "datadog.trace.bootstrap.instrumentation.java.concurrent.State"),
+})
 public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Default {
 
   public ScalaForkJoinPoolInstrumentation() {
@@ -35,12 +41,6 @@ public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Default
   public ElementMatcher<TypeDescription> typeMatcher() {
     // This might need to be an extendsClass matcher...
     return named("scala.concurrent.forkjoin.ForkJoinPool");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME, State.class.getName());
   }
 
   @Override

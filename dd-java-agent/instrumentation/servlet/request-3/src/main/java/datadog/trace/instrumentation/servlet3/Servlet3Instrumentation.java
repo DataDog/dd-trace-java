@@ -10,12 +10,19 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "javax.servlet.http.HttpServletResponse",
+      contextClass = "javax.servlet.http.HttpServletRequest")
+})
 public final class Servlet3Instrumentation extends Instrumenter.Default {
   public Servlet3Instrumentation() {
     super("servlet", "servlet-3");
@@ -40,12 +47,6 @@ public final class Servlet3Instrumentation extends Instrumenter.Default {
       packageName + ".HttpServletRequestExtractAdapter",
       packageName + ".TagSettingAsyncListener"
     };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap(
-        "javax.servlet.http.HttpServletResponse", "javax.servlet.http.HttpServletRequest");
   }
 
   /**

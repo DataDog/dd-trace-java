@@ -9,6 +9,8 @@ import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.RequestHandler2;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,11 @@ import net.bytebuddy.matcher.ElementMatcher;
  * is tested. It could possibly be extended earlier.
  */
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "com.amazonaws.AmazonWebServiceRequest",
+      contextClass = "datadog.trace.instrumentation.aws.v0.RequestMeta")
+})
 public final class AWSClientInstrumentation extends Instrumenter.Default {
 
   public AWSClientInstrumentation() {
@@ -47,11 +54,6 @@ public final class AWSClientInstrumentation extends Instrumenter.Default {
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
         isConstructor(), AWSClientInstrumentation.class.getName() + "$AWSClientAdvice");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("com.amazonaws.AmazonWebServiceRequest", packageName + ".RequestMeta");
   }
 
   public static class AWSClientAdvice {

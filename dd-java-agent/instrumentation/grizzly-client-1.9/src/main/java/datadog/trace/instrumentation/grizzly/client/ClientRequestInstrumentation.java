@@ -7,22 +7,23 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.api.Pair;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "com.ning.http.client.AsyncHandler",
+      contextClass = "datadog.trace.bootstrap.instrumentation.api.Pair"),
+})
 public final class ClientRequestInstrumentation extends Instrumenter.Default {
 
   public ClientRequestInstrumentation() {
     super("grizzly-client", "ning");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("com.ning.http.client.AsyncHandler", Pair.class.getName());
   }
 
   @Override

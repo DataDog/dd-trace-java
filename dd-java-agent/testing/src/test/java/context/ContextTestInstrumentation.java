@@ -5,6 +5,8 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.context.ContextStoreDef;
+import datadog.trace.agent.tooling.context.ContextStoreMapping;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.HashMap;
@@ -15,6 +17,17 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
+@ContextStoreDef({
+  @ContextStoreMapping(
+      keyClass = "context.ContextTestInstrumentation$KeyClass",
+      contextClass = "context.ContextTestInstrumentation$Context"),
+  @ContextStoreMapping(
+      keyClass = "context.ContextTestInstrumentation$UntransformableKeyClass",
+      contextClass = "context.ContextTestInstrumentation$Context"),
+  @ContextStoreMapping(
+      keyClass = "context.ContextTestInstrumentation$DisabledKeyClass",
+      contextClass = "context.ContextTestInstrumentation$Context"),
+})
 public class ContextTestInstrumentation extends Instrumenter.Default {
   public ContextTestInstrumentation() {
     super("context-test-isntrumenter1");
@@ -46,15 +59,6 @@ public class ContextTestInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {getClass().getName() + "$Context", getClass().getName() + "$Context$1"};
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    final Map<String, String> store = new HashMap<>(2);
-    store.put(getClass().getName() + "$KeyClass", getClass().getName() + "$Context");
-    store.put(getClass().getName() + "$UntransformableKeyClass", getClass().getName() + "$Context");
-    store.put(getClass().getName() + "$DisabledKeyClass", getClass().getName() + "$Context");
-    return store;
   }
 
   public static class MarkInstrumentedAdvice {
