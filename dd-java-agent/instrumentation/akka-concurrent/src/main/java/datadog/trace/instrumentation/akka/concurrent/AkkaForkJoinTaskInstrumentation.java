@@ -40,7 +40,7 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default 
   static final String TASK_CLASS_NAME = "akka.dispatch.forkjoin.ForkJoinTask";
 
   public AkkaForkJoinTaskInstrumentation() {
-    super("java_concurrent", "akka-concurrent");
+    super("java_concurrent", "akka_concurrent");
   }
 
   @Override

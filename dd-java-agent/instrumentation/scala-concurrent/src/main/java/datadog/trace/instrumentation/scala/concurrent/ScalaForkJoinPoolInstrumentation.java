@@ -1,8 +1,6 @@
-package datadog.trace.instrumentation.java.concurrent;
+package datadog.trace.instrumentation.scala.concurrent;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.nameMatches;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -14,32 +12,35 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import scala.concurrent.forkjoin.ForkJoinTask;
 
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class ScalaExecutorInstrumentation extends AbstractExecutorInstrumentation {
+public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Default {
 
-  public ScalaExecutorInstrumentation() {
-    super(EXEC_NAME + ".scala_fork_join");
+  public ScalaForkJoinPoolInstrumentation() {
+    super("java_concurrent", "akka_concurrent");
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed(ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME);
+  public ElementMatcher<TypeDescription> typeMatcher() {
+    // This might need to be an extendsClass matcher...
+    return named("scala.concurrent.forkjoin.ForkJoinPool");
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap(ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME, State.class.getName());
+    return Collections.singletonMap(
+        ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME, State.class.getName());
   }
 
   @Override
@@ -48,15 +49,15 @@ public final class ScalaExecutorInstrumentation extends AbstractExecutorInstrume
     transformers.put(
         named("execute")
             .and(takesArgument(0, named(ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
-        ScalaExecutorInstrumentation.class.getName() + "$SetScalaForkJoinStateAdvice");
+        ScalaForkJoinPoolInstrumentation.class.getName() + "$SetScalaForkJoinStateAdvice");
     transformers.put(
         named("submit")
             .and(takesArgument(0, named(ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
-        ScalaExecutorInstrumentation.class.getName() + "$SetScalaForkJoinStateAdvice");
+        ScalaForkJoinPoolInstrumentation.class.getName() + "$SetScalaForkJoinStateAdvice");
     transformers.put(
         nameMatches("invoke")
             .and(takesArgument(0, named(ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
-        ScalaExecutorInstrumentation.class.getName() + "$SetScalaForkJoinStateAdvice");
+        ScalaForkJoinPoolInstrumentation.class.getName() + "$SetScalaForkJoinStateAdvice");
     return transformers;
   }
 

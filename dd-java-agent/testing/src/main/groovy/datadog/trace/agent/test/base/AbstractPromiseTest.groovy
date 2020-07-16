@@ -65,17 +65,18 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
 
     runUnderTrace("other") {
       complete(promise, value)
+      TEST_WRITER.waitForTraces(1)
     }
 
     then:
     get(promise) == value
     assertTraces(2) {
-      trace(0, 1) {
-        basicSpan(it, 0, "other")
-      }
-      trace(1, 2) {
+      trace(0, 2) {
         basicSpan(it, 0, "callback", it.span(1))
         basicSpan(it, 1, "parent")
+      }
+      trace(1, 1) {
+        basicSpan(it, 0, "other")
       }
     }
 
