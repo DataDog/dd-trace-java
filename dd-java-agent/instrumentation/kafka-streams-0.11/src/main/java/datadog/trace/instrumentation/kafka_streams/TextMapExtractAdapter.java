@@ -13,17 +13,14 @@ public class TextMapExtractAdapter extends CachingContextVisitor<Headers> {
   public static final TextMapExtractAdapter GETTER = new TextMapExtractAdapter();
 
   @Override
-  public void forEachKey(
-      Headers carrier,
-      AgentPropagation.KeyClassifier classifier,
-      AgentPropagation.KeyValueConsumer consumer) {
+  public void forEachKey(Headers carrier, AgentPropagation.KeyClassifier classifier) {
     for (Header header : carrier) {
       String lowerCaseKey = toLowerCase(header.key());
       int classification = classifier.classify(lowerCaseKey);
       if (classification != IGNORE) {
         byte[] value = header.value();
         if (null != value) {
-          if (!consumer.accept(
+          if (!classifier.accept(
               classification, lowerCaseKey, new String(header.value(), StandardCharsets.UTF_8))) {
             return;
           }

@@ -23,10 +23,7 @@ public class TextMapExtractAdapter extends CachingContextVisitor<Headers> {
   }
 
   @Override
-  public void forEachKey(
-      Headers carrier,
-      AgentPropagation.KeyClassifier classifier,
-      AgentPropagation.KeyValueConsumer consumer) {
+  public void forEachKey(Headers carrier, AgentPropagation.KeyClassifier classifier) {
     for (Header header : carrier) {
       String lowerCaseKey = toLowerCase(header.key());
       int classification = classifier.classify(lowerCaseKey);
@@ -37,7 +34,7 @@ public class TextMapExtractAdapter extends CachingContextVisitor<Headers> {
               base64DecodeHeaders
                   ? new String(base64.decode(header.value()), UTF_8)
                   : new String(header.value(), UTF_8);
-          if (!consumer.accept(classification, lowerCaseKey, string)) {
+          if (!classifier.accept(classification, lowerCaseKey, string)) {
             return;
           }
         }

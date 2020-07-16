@@ -11,15 +11,12 @@ public class GrizzlyRequestExtractAdapter extends CachingContextVisitor<Request>
   public static final GrizzlyRequestExtractAdapter GETTER = new GrizzlyRequestExtractAdapter();
 
   @Override
-  public void forEachKey(
-      Request carrier,
-      AgentPropagation.KeyClassifier classifier,
-      AgentPropagation.KeyValueConsumer consumer) {
+  public void forEachKey(Request carrier, AgentPropagation.KeyClassifier classifier) {
     for (String header : carrier.getHeaderNames()) {
       String lowerCaseKey = toLowerCase(header);
       int classification = classifier.classify(lowerCaseKey);
       if (classification != IGNORE) {
-        if (!consumer.accept(classification, lowerCaseKey, carrier.getHeader(header))) {
+        if (!classifier.accept(classification, lowerCaseKey, carrier.getHeader(header))) {
           return;
         }
       }

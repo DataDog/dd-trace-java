@@ -12,15 +12,12 @@ public class NettyRequestExtractAdapter extends CachingContextVisitor<HttpHeader
   public static final NettyRequestExtractAdapter GETTER = new NettyRequestExtractAdapter();
 
   @Override
-  public void forEachKey(
-      HttpHeaders carrier,
-      AgentPropagation.KeyClassifier classifier,
-      AgentPropagation.KeyValueConsumer consumer) {
+  public void forEachKey(HttpHeaders carrier, AgentPropagation.KeyClassifier classifier) {
     for (Map.Entry<String, String> header : carrier) {
       String lowerCaseKey = toLowerCase(header.getKey());
       int classification = classifier.classify(lowerCaseKey);
       if (classification != IGNORE) {
-        if (!consumer.accept(classification, lowerCaseKey, header.getValue())) {
+        if (!classifier.accept(classification, lowerCaseKey, header.getValue())) {
           return;
         }
       }

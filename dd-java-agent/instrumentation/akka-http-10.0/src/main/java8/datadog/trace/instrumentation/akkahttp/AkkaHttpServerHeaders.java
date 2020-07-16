@@ -13,14 +13,12 @@ public class AkkaHttpServerHeaders extends CachingContextVisitor<HttpRequest> {
 
   @Override
   public void forEachKey(
-      final HttpRequest carrier,
-      final AgentPropagation.KeyClassifier classifier,
-      final AgentPropagation.KeyValueConsumer consumer) {
+      final HttpRequest carrier, final AgentPropagation.KeyClassifier classifier) {
     for (final HttpHeader header : carrier.getHeaders()) {
       String lowerCaseKey = toLowerCase(header.name());
       int classification = classifier.classify(lowerCaseKey);
       if (classification != IGNORE) {
-        if (!consumer.accept(classification, lowerCaseKey, header.value())) {
+        if (!classifier.accept(classification, lowerCaseKey, header.value())) {
           return;
         }
       }

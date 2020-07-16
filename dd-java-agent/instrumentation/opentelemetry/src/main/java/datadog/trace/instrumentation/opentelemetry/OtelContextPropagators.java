@@ -100,15 +100,12 @@ public class OtelContextPropagators implements ContextPropagators {
     }
 
     @Override
-    public void forEachKey(
-        C carrier,
-        AgentPropagation.KeyClassifier classifier,
-        AgentPropagation.KeyValueConsumer consumer) {
+    public void forEachKey(C carrier, AgentPropagation.KeyClassifier classifier) {
       for (String key : KEYS) {
         String lowerCaseKey = toLowerCase(key);
         int classification = classifier.classify(lowerCaseKey);
         if (classification != IGNORE) {
-          if (!consumer.accept(classification, lowerCaseKey, getter.get(carrier, key))) {
+          if (!classifier.accept(classification, lowerCaseKey, getter.get(carrier, key))) {
             return;
           }
         }

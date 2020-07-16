@@ -11,15 +11,12 @@ public class TextMapExtractAdapter extends CachingContextVisitor<Map<String, Obj
   public static final TextMapExtractAdapter GETTER = new TextMapExtractAdapter();
 
   @Override
-  public void forEachKey(
-      Map<String, Object> carrier,
-      AgentPropagation.KeyClassifier classifier,
-      AgentPropagation.KeyValueConsumer consumer) {
+  public void forEachKey(Map<String, Object> carrier, AgentPropagation.KeyClassifier classifier) {
     for (Map.Entry<String, Object> entry : carrier.entrySet()) {
       String lowerCaseKey = toLowerCase(entry.getKey());
       int classification = classifier.classify(lowerCaseKey);
       if (classification != IGNORE) {
-        if (!consumer.accept(
+        if (!classifier.accept(
             classification,
             lowerCaseKey,
             null == entry.getValue() ? null : String.valueOf(entry.getValue()))) {

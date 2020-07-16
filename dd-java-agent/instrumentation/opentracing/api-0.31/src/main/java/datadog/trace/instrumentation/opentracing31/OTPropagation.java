@@ -25,17 +25,14 @@ class OTPropagation {
     private TextMapExtractGetter() {}
 
     @Override
-    public void forEachKey(
-        TextMap carrier,
-        AgentPropagation.KeyClassifier classifier,
-        AgentPropagation.KeyValueConsumer consumer) {
+    public void forEachKey(TextMap carrier, AgentPropagation.KeyClassifier classifier) {
       // This is the same as the one passed into the constructor
       // So using "extracted" is valid
       for (Map.Entry<String, String> entry : carrier) {
         String lowerCaseKey = toLowerCase(entry.getKey());
         int classification = classifier.classify(lowerCaseKey);
         if (classification != IGNORE) {
-          if (!consumer.accept(classification, lowerCaseKey, entry.getValue())) {
+          if (!classifier.accept(classification, lowerCaseKey, entry.getValue())) {
             return;
           }
         }

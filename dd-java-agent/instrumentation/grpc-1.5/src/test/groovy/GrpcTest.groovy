@@ -312,7 +312,7 @@ class GrpcTest extends AgentTestRunner {
         int classify(String key) {
           return 0
         }
-      }, new AgentPropagation.KeyValueConsumer() {
+
         @Override
         boolean accept(int classification, String lowerCaseKey, String value) {
           keys.add(lowerCaseKey)

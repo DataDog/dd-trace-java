@@ -28,10 +28,7 @@ public class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Me
   public static final MessageExtractAdapter GETTER = new MessageExtractAdapter();
 
   @Override
-  public void forEachKey(
-      Message carrier,
-      AgentPropagation.KeyClassifier classifier,
-      AgentPropagation.KeyValueConsumer consumer) {
+  public void forEachKey(Message carrier, AgentPropagation.KeyClassifier classifier) {
     try {
       final Enumeration<?> enumeration = carrier.getPropertyNames();
       if (null != enumeration) {
@@ -41,7 +38,7 @@ public class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Me
           int classification = classifier.classify(lowerCaseKey);
           if (classification != IGNORE) {
             Object value = carrier.getObjectProperty(key);
-            if (!consumer.accept(classification, lowerCaseKey, (String) value)) {
+            if (!classifier.accept(classification, lowerCaseKey, (String) value)) {
               return;
             }
           }

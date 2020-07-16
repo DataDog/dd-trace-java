@@ -12,17 +12,14 @@ public class ExtractAdapter extends CachingContextVisitor<HttpHeader> {
   public static final ExtractAdapter GETTER = new ExtractAdapter();
 
   @Override
-  public void forEachKey(
-      HttpHeader carrier,
-      AgentPropagation.KeyClassifier classifier,
-      AgentPropagation.KeyValueConsumer consumer) {
-    // TODO - what about ways to keep the prijection over the bytes a... projection over the bytes?
+  public void forEachKey(HttpHeader carrier, AgentPropagation.KeyClassifier classifier) {
+    // TODO - what about ways to keep the projection over the bytes a... projection over the bytes?
     MimeHeaders headers = carrier.getHeaders();
     for (int i = 0; i < headers.size(); ++i) {
       String lowerCaseKey = toLowerCase(headers.getName(i).toString(StandardCharsets.UTF_8));
       int classification = classifier.classify(lowerCaseKey);
       if (classification != IGNORE) {
-        if (!consumer.accept(
+        if (!classifier.accept(
             classification, lowerCaseKey, headers.getValue(i).toString(StandardCharsets.UTF_8))) {
           return;
         }

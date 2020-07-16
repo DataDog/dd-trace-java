@@ -5,13 +5,12 @@ import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import lombok.extern.slf4j.Slf4j;
 
 /** A codec designed for HTTP transport via headers using Datadog headers */
 @Slf4j

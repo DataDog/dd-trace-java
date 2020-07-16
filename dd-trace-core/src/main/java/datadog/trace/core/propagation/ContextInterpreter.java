@@ -7,8 +7,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class ContextInterpreter
-    implements AgentPropagation.KeyValueConsumer, AgentPropagation.KeyClassifier {
+public abstract class ContextInterpreter implements AgentPropagation.KeyClassifier {
 
   protected final Map<String, String> taggedHeaders;
 

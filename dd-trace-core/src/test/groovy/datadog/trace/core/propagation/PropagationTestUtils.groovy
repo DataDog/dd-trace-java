@@ -19,13 +19,12 @@ class MapGetter extends CachingContextVisitor<Map<String, String>> {
 
   @Override
   void forEachKey(Map<String, String> carrier,
-                  AgentPropagation.KeyClassifier classifier,
-                  AgentPropagation.KeyValueConsumer consumer) {
+                  AgentPropagation.KeyClassifier classifier) {
     for (Map.Entry<String, String> entry : carrier.entrySet()) {
       String lowerCaseKey = toLowerCase(entry.getKey())
       int classification = classifier.classify(lowerCaseKey)
       if (classification != IGNORE) {
-        if (!consumer.accept(classification, lowerCaseKey, entry.getValue())) {
+        if (!classifier.accept(classification, lowerCaseKey, entry.getValue())) {
           return
         }
       }

@@ -367,15 +367,12 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     }
 
     @Override
-    public void forEachKey(
-        TextMapExtract ignored,
-        AgentPropagation.KeyClassifier classifier,
-        AgentPropagation.KeyValueConsumer consumer) {
+    public void forEachKey(TextMapExtract ignored, AgentPropagation.KeyClassifier classifier) {
       for (Entry<String, String> entry : carrier) {
         String lowerCaseKey = entry.getKey().toLowerCase();
         int classification = classifier.classify(lowerCaseKey);
         if (classification != IGNORE) {
-          if (!consumer.accept(classification, lowerCaseKey, entry.getValue())) {
+          if (!classifier.accept(classification, lowerCaseKey, entry.getValue())) {
             return;
           }
         }

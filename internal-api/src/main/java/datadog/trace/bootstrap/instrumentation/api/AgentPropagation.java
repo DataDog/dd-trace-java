@@ -20,13 +20,11 @@ public interface AgentPropagation {
     int IGNORE = -1;
 
     int classify(String key);
-  }
 
-  interface KeyValueConsumer {
     boolean accept(int classification, String lowerCaseKey, String value);
   }
 
   interface ContextVisitor<C> {
-    void forEachKey(C carrier, KeyClassifier classifier, KeyValueConsumer consumer);
+    void forEachKey(C carrier, KeyClassifier classifier);
   }
 }

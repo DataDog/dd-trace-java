@@ -14,10 +14,7 @@ public class PlayHeaders extends CachingContextVisitor<Headers> {
   public static final PlayHeaders GETTER = new PlayHeaders();
 
   @Override
-  public void forEachKey(
-      Headers carrier,
-      AgentPropagation.KeyClassifier classifier,
-      AgentPropagation.KeyValueConsumer consumer) {
+  public void forEachKey(Headers carrier, AgentPropagation.KeyClassifier classifier) {
     Map<String, String> map = carrier.toSimpleMap();
     Iterator<Tuple2<String, String>> it = map.iterator();
     while (it.hasNext()) {
@@ -25,7 +22,7 @@ public class PlayHeaders extends CachingContextVisitor<Headers> {
       String lowerCaseKey = toLowerCase(entry._1());
       int classification = classifier.classify(lowerCaseKey);
       if (classification != IGNORE) {
-        if (!consumer.accept(classification, lowerCaseKey, entry._2())) {
+        if (!classifier.accept(classification, lowerCaseKey, entry._2())) {
           return;
         }
       }

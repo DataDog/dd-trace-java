@@ -55,15 +55,12 @@ public class ContextPayload {
   public static class ExtractAdapter extends CachingContextVisitor<ContextPayload> {
 
     @Override
-    public void forEachKey(
-        ContextPayload carrier,
-        AgentPropagation.KeyClassifier classifier,
-        AgentPropagation.KeyValueConsumer consumer) {
+    public void forEachKey(ContextPayload carrier, AgentPropagation.KeyClassifier classifier) {
       for (Map.Entry<String, String> entry : carrier.getContext().entrySet()) {
         String lowerCaseKey = toLowerCase(entry.getKey());
         int classification = classifier.classify(lowerCaseKey);
         if (classification != IGNORE) {
-          if (!consumer.accept(classification, lowerCaseKey, entry.getValue())) {
+          if (!classifier.accept(classification, lowerCaseKey, entry.getValue())) {
             return;
           }
         }

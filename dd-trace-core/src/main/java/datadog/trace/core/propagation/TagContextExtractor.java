@@ -5,7 +5,7 @@ import java.util.Map;
 
 public class TagContextExtractor implements HttpCodec.Extractor {
 
-  // here to keep a horrendous legacy test happy
+  // here to keep a legacy test happy
   private final Map<String, String> taggedHeaders;
   private final ThreadLocal<ContextInterpreter> ctxInterpreter;
 
@@ -24,7 +24,7 @@ public class TagContextExtractor implements HttpCodec.Extractor {
   @Override
   public <C> TagContext extract(final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
     ContextInterpreter interpreter = this.ctxInterpreter.get().reset();
-    getter.forEachKey(carrier, interpreter, interpreter);
+    getter.forEachKey(carrier, interpreter);
     return interpreter.build();
   }
 }

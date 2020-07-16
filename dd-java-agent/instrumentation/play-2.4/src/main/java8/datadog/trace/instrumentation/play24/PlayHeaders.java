@@ -13,17 +13,14 @@ public class PlayHeaders extends CachingContextVisitor<Headers> {
   public static final PlayHeaders GETTER = new PlayHeaders();
 
   @Override
-  public void forEachKey(
-      Headers carrier,
-      AgentPropagation.KeyClassifier classifier,
-      AgentPropagation.KeyValueConsumer consumer) {
+  public void forEachKey(Headers carrier, AgentPropagation.KeyClassifier classifier) {
     for (String entry : JavaConversions.asJavaIterable(carrier.keys())) {
       String lowerCaseKey = toLowerCase(entry);
       int classification = classifier.classify(lowerCaseKey);
       if (classification != IGNORE) {
         Option<String> value = carrier.get(entry);
         if (value.nonEmpty()) {
-          if (!consumer.accept(classification, lowerCaseKey, value.get())) {
+          if (!classifier.accept(classification, lowerCaseKey, value.get())) {
             return;
           }
         }
