@@ -308,14 +308,10 @@ class GrpcTest extends AgentTestRunner {
     when:
     def keys = new ArrayList()
       GrpcExtractAdapter.GETTER.forEachKey(meta, new AgentPropagation.KeyClassifier() {
-        @Override
-        int classify(String key) {
-          return 0
-        }
 
         @Override
-        boolean accept(int classification, String lowerCaseKey, String value) {
-          keys.add(lowerCaseKey)
+        boolean accept(String key, String value) {
+          keys.add(key.toLowerCase())
           return true
         }
       })

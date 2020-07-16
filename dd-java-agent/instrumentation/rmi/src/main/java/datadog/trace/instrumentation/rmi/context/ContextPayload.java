@@ -1,11 +1,9 @@
 package datadog.trace.instrumentation.rmi.context;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.CachingContextVisitor;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
@@ -18,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ContextPayload {
   @Getter private final Map<String, String> context;
-  public static final ExtractAdapter GETTER = new ExtractAdapter();
   public static final InjectAdapter SETTER = new InjectAdapter();
 
   public ContextPayload() {
@@ -50,22 +47,6 @@ public class ContextPayload {
 
   public void write(final ObjectOutput out) throws IOException {
     out.writeObject(context);
-  }
-
-  public static class ExtractAdapter extends CachingContextVisitor<ContextPayload> {
-
-    @Override
-    public void forEachKey(ContextPayload carrier, AgentPropagation.KeyClassifier classifier) {
-      for (Map.Entry<String, String> entry : carrier.getContext().entrySet()) {
-        String lowerCaseKey = toLowerCase(entry.getKey());
-        int classification = classifier.classify(lowerCaseKey);
-        if (classification != IGNORE) {
-          if (!classifier.accept(classification, lowerCaseKey, entry.getValue())) {
-            return;
-          }
-        }
-      }
-    }
   }
 
   public static class InjectAdapter implements AgentPropagation.Setter<ContextPayload> {

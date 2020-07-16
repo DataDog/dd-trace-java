@@ -6,10 +6,7 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,7 +25,6 @@ class B3HttpCodec {
   private static final String SAMPLING_PRIORITY_KEY = "X-B3-Sampled";
   private static final String SAMPLING_PRIORITY_ACCEPT = String.valueOf(1);
   private static final String SAMPLING_PRIORITY_DROP = String.valueOf(0);
-  private static final int HEX_RADIX = 16;
 
   private B3HttpCodec() {
     // This class should not be created. This also makes code coverage checks happy.
@@ -76,15 +72,10 @@ class B3HttpCodec {
 
   private static class B3ContextInterpreter extends ContextInterpreter {
 
-    private static final String TRACE_ID_KEY_LC = "x-b3-traceid";
-    private static final String SPAN_ID_KEY_LC = "x-b3-spanid";
-    private static final String SAMPLING_PRIORITY_KEY_LC = "x-b3-sampled";
-
-    private static final Set<String> B3_KEYS =
-        new HashSet<>(Arrays.asList(TRACE_ID_KEY_LC, SPAN_ID_KEY_LC, SAMPLING_PRIORITY_KEY_LC));
-
-    private static final int SPECIAL_HEADERS = 0;
-    private static final int TAGS = 1;
+    private static final int TRACE_ID = 0;
+    private static final int SPAN_ID = 1;
+    private static final int TAGS = 2;
+    private static final int SAMPLING_PRIORITY = 3;
     private static final int IGNORE = -1;
 
     private B3ContextInterpreter(Map<String, String> taggedHeaders) {
@@ -92,71 +83,71 @@ class B3HttpCodec {
     }
 
     @Override
-    public boolean accept(int classification, String lowerCaseKey, String value) {
-      try {
-        String firstValue = firstHeaderValue(value);
-        if (null != firstValue) {
-          switch (classification) {
-            case SPECIAL_HEADERS:
-              {
-                switch (lowerCaseKey) {
-                  case TRACE_ID_KEY_LC:
-                    {
-                      final String trimmedValue;
-                      final int length = firstValue.length();
-                      if (length > 32) {
-                        log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, value);
-                        traceId = DDId.ZERO;
-                        return true;
-                      } else if (length > 16) {
-                        trimmedValue = value.substring(length - 16);
-                      } else {
-                        trimmedValue = value;
-                      }
-                      traceId = DDId.fromHex(trimmedValue);
-                      break;
-                    }
-                  case SPAN_ID_KEY_LC:
-                    spanId = DDId.fromHex(firstValue);
-                    break;
-                  case SAMPLING_PRIORITY_KEY_LC:
-                    samplingPriority = convertSamplingPriority(firstValue);
-                    break;
-                  default:
-                    // shouldn't happen
-                }
-                break;
-              }
-            case TAGS:
-              {
-                String mappedKey = taggedHeaders.get(lowerCaseKey);
-                if (null != mappedKey) {
-                  if (tags.isEmpty()) {
-                    tags = new TreeMap<>();
-                  }
-                  tags.put(mappedKey, HttpCodec.decode(value));
-                }
-                break;
-              }
-          }
+    public boolean accept(String key, String value) {
+      String lowerCaseKey = null;
+      int classification = IGNORE;
+      if (Character.toLowerCase(key.charAt(0)) == 'x') {
+        if (TRACE_ID_KEY.equalsIgnoreCase(key)) {
+          classification = TRACE_ID;
+        } else if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
+          classification = SPAN_ID;
+        } else if (SAMPLING_PRIORITY_KEY.equalsIgnoreCase(key)) {
+          classification = SAMPLING_PRIORITY;
         }
-      } catch (RuntimeException e) {
-        invalidateContext();
-        log.error("Exception when extracting context", e);
-        return false;
+      }
+      if (!taggedHeaders.isEmpty() && classification == IGNORE) {
+        lowerCaseKey = toLowerCase(key);
+        if (taggedHeaders.containsKey(lowerCaseKey)) {
+          classification = TAGS;
+        }
+      }
+      if (classification != IGNORE) {
+        try {
+          String firstValue = firstHeaderValue(value);
+          if (null != firstValue) {
+            switch (classification) {
+              case TRACE_ID:
+                {
+                  final String trimmedValue;
+                  final int length = firstValue.length();
+                  if (length > 32) {
+                    log.debug("Header {} exceeded max length of 32: {}", TRACE_ID_KEY, value);
+                    traceId = DDId.ZERO;
+                    return true;
+                  } else if (length > 16) {
+                    trimmedValue = value.substring(length - 16);
+                  } else {
+                    trimmedValue = value;
+                  }
+                  traceId = DDId.fromHex(trimmedValue);
+                  break;
+                }
+              case SPAN_ID:
+                spanId = DDId.fromHex(firstValue);
+                break;
+              case SAMPLING_PRIORITY:
+                samplingPriority = convertSamplingPriority(firstValue);
+                break;
+              case TAGS:
+                {
+                  String mappedKey = taggedHeaders.get(lowerCaseKey);
+                  if (null != mappedKey) {
+                    if (tags.isEmpty()) {
+                      tags = new TreeMap<>();
+                    }
+                    tags.put(mappedKey, HttpCodec.decode(firstValue));
+                  }
+                  break;
+                }
+            }
+          }
+        } catch (RuntimeException e) {
+          invalidateContext();
+          log.error("Exception when extracting context", e);
+          return false;
+        }
       }
       return true;
-    }
-
-    @Override
-    public int classify(String key) {
-      if (B3_KEYS.contains(key)) {
-        return SPECIAL_HEADERS;
-      }
-      if (taggedHeaders.containsKey(key)) {
-        return TAGS;
-      }
-      return IGNORE;
     }
 
     private int convertSamplingPriority(final String samplingPriority) {

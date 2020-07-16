@@ -1,11 +1,8 @@
 package datadog.trace.instrumentation.opentelemetry;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.CachingContextVisitor;
 import io.grpc.Context;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.context.propagation.HttpTextFormat;
@@ -66,7 +63,7 @@ public class OtelContextPropagators implements ContextPropagators {
     }
   }
 
-  private static class OtelGetter<C> extends CachingContextVisitor<C> {
+  private static class OtelGetter<C> implements AgentPropagation.ContextVisitor<C> {
     private static final String DD_TRACE_ID_KEY = "x-datadog-trace-id";
     private static final String DD_SPAN_ID_KEY = "x-datadog-parent-id";
     private static final String DD_SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
@@ -102,12 +99,8 @@ public class OtelContextPropagators implements ContextPropagators {
     @Override
     public void forEachKey(C carrier, AgentPropagation.KeyClassifier classifier) {
       for (String key : KEYS) {
-        String lowerCaseKey = toLowerCase(key);
-        int classification = classifier.classify(lowerCaseKey);
-        if (classification != IGNORE) {
-          if (!classifier.accept(classification, lowerCaseKey, getter.get(carrier, key))) {
-            return;
-          }
+        if (!classifier.accept(key, getter.get(carrier, key))) {
+          return;
         }
       }
     }

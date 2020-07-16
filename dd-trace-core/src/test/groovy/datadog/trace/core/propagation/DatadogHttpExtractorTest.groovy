@@ -2,6 +2,7 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.util.test.DDSpecification
 
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
@@ -34,7 +35,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
     }
 
     when:
-    final ExtractedContext context = extractor.extract(headers, MapGetter.INSTANCE)
+    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
     context.traceId == DDId.from(traceId)
@@ -54,7 +55,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
 
   def "extract header tags with no propagation"() {
     when:
-    TagContext context = extractor.extract(headers, MapGetter.INSTANCE)
+    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
     !(context instanceof ExtractedContext)
@@ -71,7 +72,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
 
   def "extract empty headers returns null"() {
     expect:
-    extractor.extract(["ignored-header": "ignored-value"], MapGetter.INSTANCE) == null
+    extractor.extract(["ignored-header": "ignored-value"], ContextVisitors.stringValuesMap()) == null
   }
 
   def "extract http headers with invalid non-numeric ID"() {
@@ -85,7 +86,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext context = extractor.extract(headers, MapGetter.INSTANCE)
+    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
     context == null
@@ -103,7 +104,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext context = extractor.extract(headers, MapGetter.INSTANCE)
+    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
     context == null
@@ -120,7 +121,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    TagContext context = extractor.extract(headers, MapGetter.INSTANCE)
+    TagContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
     context == null
@@ -134,7 +135,7 @@ class DatadogHttpExtractorTest extends DDSpecification {
     ]
 
     when:
-    final ExtractedContext context = extractor.extract(headers, MapGetter.INSTANCE)
+    final ExtractedContext context = extractor.extract(headers, ContextVisitors.stringValuesMap())
 
     then:
     if (expectedTraceId) {

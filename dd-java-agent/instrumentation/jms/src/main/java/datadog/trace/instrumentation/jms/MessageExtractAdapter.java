@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.jms;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
 import java.util.Enumeration;
@@ -35,12 +33,9 @@ public class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Me
         while (enumeration.hasMoreElements()) {
           String key = ((String) enumeration.nextElement());
           String lowerCaseKey = cache.computeIfAbsent(key, KEY_MAPPER);
-          int classification = classifier.classify(lowerCaseKey);
-          if (classification != IGNORE) {
-            Object value = carrier.getObjectProperty(key);
-            if (!classifier.accept(classification, lowerCaseKey, (String) value)) {
-              return;
-            }
+          Object value = carrier.getObjectProperty(key);
+          if (value instanceof String && !classifier.accept(lowerCaseKey, (String) value)) {
+            return;
           }
         }
       }

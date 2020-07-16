@@ -17,11 +17,8 @@ public interface AgentPropagation {
   <C> AgentSpan.Context extract(C carrier, ContextVisitor<C> getter);
 
   interface KeyClassifier {
-    int IGNORE = -1;
 
-    int classify(String key);
-
-    boolean accept(int classification, String lowerCaseKey, String value);
+    boolean accept(String key, String value);
   }
 
   interface ContextVisitor<C> {

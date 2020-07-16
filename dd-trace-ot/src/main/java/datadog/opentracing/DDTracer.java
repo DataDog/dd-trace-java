@@ -1,7 +1,5 @@
 package datadog.opentracing;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.KeyClassifier.IGNORE;
-
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -369,12 +367,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
     @Override
     public void forEachKey(TextMapExtract ignored, AgentPropagation.KeyClassifier classifier) {
       for (Entry<String, String> entry : carrier) {
-        String lowerCaseKey = entry.getKey().toLowerCase();
-        int classification = classifier.classify(lowerCaseKey);
-        if (classification != IGNORE) {
-          if (!classifier.accept(classification, lowerCaseKey, entry.getValue())) {
-            return;
-          }
+        if (!classifier.accept(entry.getKey(), entry.getValue())) {
+          return;
         }
       }
     }

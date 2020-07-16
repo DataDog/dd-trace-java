@@ -3,6 +3,7 @@ package datadog.trace.core.propagation;
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
+import datadog.trace.core.util.FixedSizeCache;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,6 +19,14 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected Map<String, String> baggage;
   protected String origin;
   protected boolean valid;
+
+  private final FixedSizeCache<String, String> cache = new FixedSizeCache<>(64);
+  private static final FixedSizeCache.Creator<String, String> LOWER_CASE =
+      new FixedSizeCache.LowerCase();
+
+  protected String toLowerCase(String key) {
+    return cache.computeIfAbsent(key, LOWER_CASE);
+  }
 
   protected ContextInterpreter(Map<String, String> taggedHeaders) {
     this.taggedHeaders = taggedHeaders;
