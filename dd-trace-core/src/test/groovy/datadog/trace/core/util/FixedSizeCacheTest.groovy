@@ -8,9 +8,25 @@ import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
 
 class FixedSizeCacheTest extends DDSpecification {
+
+  def "test suffix" () {
+    setup:
+    FixedSizeCache.Suffix suffix = new FixedSizeCache.Suffix(value)
+
+    when:
+    String result = suffix.create(key)
+
+    then:
+    result == key + value
+
+    where:
+    key = "foo"
+    value = ".suffix"
+  }
+
   def "should store and retrieve values"() {
     setup:
-    def fsCache = new datadog.trace.bootstrap.instrumentation.api.FixedSizeCache<TKey, String>(15)
+    def fsCache = new FixedSizeCache<TKey, String>(15)
     def creationCount = new AtomicInteger(0)
     def tvc = new TVC(creationCount)
     def tk1 = new TKey(1, 1, "one")
@@ -43,7 +59,7 @@ class FixedSizeCacheTest extends DDSpecification {
     def conds = new AsyncConditions(numThreads)
     def started = new CountDownLatch(numThreads)
     def runTest = new CountDownLatch(1)
-    def fsCache = new datadog.trace.bootstrap.instrumentation.api.FixedSizeCache<TKey, String>(64)
+    def fsCache = new FixedSizeCache<TKey, String>(64)
 
     when:
     for (int t = 0; t < numThreads; t++) {
@@ -68,7 +84,7 @@ class FixedSizeCacheTest extends DDSpecification {
     conds.await(30.0) // the test is really fast locally, but I don't know how fast CI is
   }
 
-  private class TVC implements datadog.trace.bootstrap.instrumentation.api.FixedSizeCache.Creator<TKey, String> {
+  private class TVC implements FixedSizeCache.Creator<TKey, String> {
     private final AtomicInteger count
 
     TVC(AtomicInteger count) {
