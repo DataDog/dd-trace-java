@@ -5,12 +5,13 @@ import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import java.util.TreeMap;
 
 /** A codec designed for HTTP transport via headers using Datadog headers */
 @Slf4j
@@ -106,7 +107,7 @@ class DatadogHttpCodec {
                 String mappedKey = taggedHeaders.get(lowerCaseKey);
                 if (null != mappedKey) {
                   if (tags.isEmpty()) {
-                    tags = new HashMap<>();
+                    tags = new TreeMap<>();
                   }
                   tags.put(mappedKey, HttpCodec.decode(value));
                 }
@@ -115,7 +116,7 @@ class DatadogHttpCodec {
             case OT_BAGGAGE:
               {
                 if (baggage.isEmpty()) {
-                  baggage = new HashMap<>();
+                  baggage = new TreeMap<>();
                 }
                 baggage.put(
                     lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), HttpCodec.decode(value));
