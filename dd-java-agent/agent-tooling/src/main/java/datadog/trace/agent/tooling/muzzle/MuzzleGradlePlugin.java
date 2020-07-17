@@ -1,18 +1,22 @@
 package datadog.trace.agent.tooling.muzzle;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
+import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
+
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.WeakMap;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.WeakHashMap;
 import net.bytebuddy.build.Plugin;
-import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.DynamicType;
 
 /** Bytebuddy gradle plugin which creates muzzle-references at compile time. */
-public class MuzzleGradlePlugin implements Plugin {
+public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
   static {
     // prevent WeakMap from logging warning while plugin is running
     WeakMap.Provider.registerIfAbsent(
@@ -24,25 +28,8 @@ public class MuzzleGradlePlugin implements Plugin {
         });
   }
 
-  private static final TypeDescription DefaultInstrumenterTypeDesc =
-      new TypeDescription.ForLoadedType(Instrumenter.Default.class);
-
-  @Override
-  public boolean matches(final TypeDescription target) {
-    if (target.isAbstract()) {
-      return false;
-    }
-    // AutoService annotation is not retained at runtime. Check for Instrumenter.Default supertype
-    boolean isInstrumenter = false;
-    TypeDefinition instrumenter = null == target ? null : target.getSuperClass();
-    while (instrumenter != null) {
-      if (instrumenter.equals(DefaultInstrumenterTypeDesc)) {
-        isInstrumenter = true;
-        break;
-      }
-      instrumenter = instrumenter.getSuperClass();
-    }
-    return isInstrumenter;
+  public MuzzleGradlePlugin() {
+    super(not(isAbstract()).and(extendsClass(named(Instrumenter.Default.class.getName()))));
   }
 
   @Override
