@@ -38,8 +38,8 @@ public final class ConfigDefaults {
   static final String DEFAULT_SPLIT_BY_TAGS = "";
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
-  static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = Config.PropagationStyle.DATADOG.name();
-  static final String DEFAULT_PROPAGATION_STYLE_INJECT = Config.PropagationStyle.DATADOG.name();
+  static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
+  static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
 
   static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;

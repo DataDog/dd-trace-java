@@ -238,12 +238,6 @@ public class Config {
   private static final Pattern ENV_REPLACEMENT = Pattern.compile("[^a-zA-Z0-9_]");
   private static final String SPLIT_BY_SPACE_OR_COMMA_REGEX = "[,\\s]+";
 
-  public enum PropagationStyle {
-    DATADOG,
-    B3,
-    HAYSTACK
-  }
-
   /** Used for masking sensitive information when doing toString */
   @ToString.Include(name = "apiKey")
   private String profilingApiKeyMasker() {
