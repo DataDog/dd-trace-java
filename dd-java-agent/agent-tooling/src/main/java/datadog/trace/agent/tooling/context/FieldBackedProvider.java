@@ -1,10 +1,8 @@
 package datadog.trace.agent.tooling.context;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.BOOTSTRAP_CLASSLOADER;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
-import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.Instrumenter.Default;
 import datadog.trace.agent.tooling.Utils;
@@ -16,9 +14,6 @@ import datadog.trace.bootstrap.WeakMap;
 import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -98,31 +93,14 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
   }
 
   private final Instrumenter.Default instrumenter;
-  private final ByteBuddy byteBuddy;
   private final Map<String, String> contextStore;
-
-  /** fields-accessor-interface-name -> fields-accessor-interface-dynamic-type */
-  private final Map<String, DynamicType.Unloaded<?>> fieldAccessorInterfaces;
-
-  private final AgentBuilder.Transformer fieldAccessorInterfacesInjector;
-
-  /** context-store-type-name -> context-store-type-name-dynamic-type */
-  private final Map<String, DynamicType.Unloaded<?>> contextStoreImplementations;
-
-  private final AgentBuilder.Transformer contextStoreImplementationsInjector;
 
   private final boolean fieldInjectionEnabled;
 
   public FieldBackedProvider(
-      final Instrumenter.Default instrumenter, Map<String, String> contextStore) {
+      final Instrumenter.Default instrumenter, final Map<String, String> contextStore) {
     this.instrumenter = instrumenter;
     this.contextStore = contextStore;
-    byteBuddy = new ByteBuddy();
-    fieldAccessorInterfaces = generateFieldAccessorInterfaces();
-    fieldAccessorInterfacesInjector = bootstrapHelperInjector(fieldAccessorInterfaces.values());
-    contextStoreImplementations = generateContextStoreImplementationClasses();
-    contextStoreImplementationsInjector =
-        bootstrapHelperInjector(contextStoreImplementations.values());
     fieldInjectionEnabled = Config.get().isRuntimeContextFieldInjection();
   }
 
@@ -136,7 +114,6 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
        */
       builder =
           builder.transform(getTransformerForASMVisitor(getContextStoreReadsRewritingVisitor()));
-      builder = injectHelpersIntoBootstrapClassloader(builder);
     }
     return builder;
   }
@@ -216,7 +193,7 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
                     final String contextClassName = ((Type) stack[0]).getClassName();
                     final String keyClassName = ((Type) stack[1]).getClassName();
                     final TypeDescription contextStoreImplementationClass =
-                        getContextStoreImplementation(keyClassName, contextClassName);
+                        getContextStoreImplementation(keyClassName, contextClassName, typePool);
                     if (log.isDebugEnabled()) {
                       log.debug(
                           "Rewriting context-store map fetch for instrumenter {}: {} -> {}",
@@ -306,48 +283,6 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
     };
   }
 
-  private AgentBuilder.Identified.Extendable injectHelpersIntoBootstrapClassloader(
-      AgentBuilder.Identified.Extendable builder) {
-    /*
-     * We inject into bootstrap classloader because field accessor interfaces are needed by context
-     * store implementations. Unfortunately this forces us to remove stored type checking because
-     * actual classes may not be available at this point.
-     */
-    builder = builder.transform(fieldAccessorInterfacesInjector);
-
-    /*
-     * We inject context store implementation into bootstrap classloader because same implementation
-     * may be used by different instrumentations and it has to use same static map in case of
-     * fallback to map-backed storage.
-     */
-    builder = builder.transform(contextStoreImplementationsInjector);
-    return builder;
-  }
-
-  /** Get transformer that forces helper injection onto bootstrap classloader. */
-  private AgentBuilder.Transformer bootstrapHelperInjector(
-      final Collection<DynamicType.Unloaded<?>> helpers) {
-    // TODO: Better to pass through the context of the Instrumenter
-    return new AgentBuilder.Transformer() {
-      final HelperInjector injector =
-          HelperInjector.forDynamicTypes(getClass().getSimpleName(), helpers);
-
-      @Override
-      public DynamicType.Builder<?> transform(
-          final DynamicType.Builder<?> builder,
-          final TypeDescription typeDescription,
-          final ClassLoader classLoader,
-          final JavaModule module) {
-        return injector.transform(
-            builder,
-            typeDescription,
-            // context store implementation classes will always go to the bootstrap
-            BOOTSTRAP_CLASSLOADER,
-            module);
-      }
-    };
-  }
-
   /*
   Set of pairs (context holder, context class) for which we have matchers installed.
   We use this to make sure we do not install matchers repeatedly for cases when same
@@ -397,19 +332,9 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
                   .type(safeHasSuperType(named(entry.getKey())), instrumenter.classLoaderMatcher())
                   .and(safeToInjectFieldsMatcher())
                   .and(Default.NOT_DECORATOR_MATCHER)
-                  .transform(NoOpTransformer.INSTANCE);
-
-          /*
-           * We inject helpers here as well as when instrumentation is applied to ensure that
-           * helpers are present even if instrumented classes are not loaded, but classes with state
-           * fields added are loaded (e.g. sun.net.www.protocol.https.HttpsURLConnectionImpl).
-           */
-          builder = injectHelpersIntoBootstrapClassloader(builder);
-
-          builder =
-              builder.transform(
-                  getTransformerForASMVisitor(
-                      getFieldInjectionVisitor(entry.getKey(), entry.getValue())));
+                  .transform(
+                      getTransformerForASMVisitor(
+                          getFieldInjectionVisitor(entry.getKey(), entry.getValue())));
         }
       }
     }
@@ -472,8 +397,9 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
           private final String fieldName = getContextFieldName(keyClassName);
           private final String getterMethodName = getContextGetterName(keyClassName);
           private final String setterMethodName = getContextSetterName(keyClassName);
+
           private final TypeDescription interfaceType =
-              getFieldAccessorInterface(keyClassName, contextClassName);
+              getFieldAccessorInterface(keyClassName, contextClassName, typePool);
           private boolean foundField = false;
           private boolean foundGetter = false;
           private boolean foundSetter = false;
@@ -592,27 +518,11 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
     };
   }
 
-  private TypeDescription getContextStoreImplementation(
-      final String keyClassName, final String contextClassName) {
-    final DynamicType.Unloaded<?> type =
-        contextStoreImplementations.get(
-            getContextStoreImplementationClassName(keyClassName, contextClassName));
-    if (type == null) {
-      return null;
-    } else {
-      return type.getTypeDescription();
-    }
-  }
-
-  private Map<String, DynamicType.Unloaded<?>> generateContextStoreImplementationClasses() {
-    final Map<String, DynamicType.Unloaded<?>> contextStoreImplementations =
-        new HashMap<>(contextStore.size());
-    for (final Map.Entry<String, String> entry : contextStore.entrySet()) {
-      final DynamicType.Unloaded<?> type =
-          makeContextStoreImplementationClass(entry.getKey(), entry.getValue());
-      contextStoreImplementations.put(type.getTypeDescription().getName(), type);
-    }
-    return Collections.unmodifiableMap(contextStoreImplementations);
+  private static TypeDescription getContextStoreImplementation(
+      final String keyClassName, final String contextClassName, final TypePool typePool) {
+    return typePool
+        .describe(getContextStoreImplementationClassName(keyClassName, contextClassName))
+        .resolve();
   }
 
   /**
@@ -623,13 +533,17 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
    * @param contextClassName context class name
    * @return unloaded dynamic type containing generated class
    */
-  private DynamicType.Unloaded<?> makeContextStoreImplementationClass(
-      final String keyClassName, final String contextClassName) {
+  public static DynamicType.Unloaded<?> makeContextStoreImplementationClass(
+      final ByteBuddy byteBuddy,
+      final String keyClassName,
+      final String contextClassName,
+      final TypeDescription accessorInterface) {
     return byteBuddy
         .rebase(ContextStoreImplementationTemplate.class)
         .modifiers(Visibility.PUBLIC, TypeManifestation.FINAL)
         .name(getContextStoreImplementationClassName(keyClassName, contextClassName))
-        .visit(getContextStoreImplementationVisitor(keyClassName, contextClassName))
+        .visit(
+            getContextStoreImplementationVisitor(keyClassName, contextClassName, accessorInterface))
         .make();
   }
 
@@ -641,8 +555,10 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
    * @param contextClassName context class name
    * @return visitor that adds implementation for methods that need to be generated
    */
-  private AsmVisitorWrapper getContextStoreImplementationVisitor(
-      final String keyClassName, final String contextClassName) {
+  private static AsmVisitorWrapper getContextStoreImplementationVisitor(
+      final String keyClassName,
+      final String contextClassName,
+      final TypeDescription accessorInterface) {
     return new AsmVisitorWrapper() {
 
       @Override
@@ -666,9 +582,6 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
           final int writerFlags,
           final int readerFlags) {
         return new ClassVisitor(Opcodes.ASM7, classVisitor) {
-
-          private final TypeDescription accessorInterface =
-              getFieldAccessorInterface(keyClassName, contextClassName);
           private final String accessorInterfaceInternalName = accessorInterface.getInternalName();
           private final String instrumentedTypeInternalName = instrumentedType.getInternalName();
           private final boolean frames =
@@ -958,27 +871,11 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
     }
   }
 
-  private TypeDescription getFieldAccessorInterface(
-      final String keyClassName, final String contextClassName) {
-    final DynamicType.Unloaded<?> type =
-        fieldAccessorInterfaces.get(
-            getContextAccessorInterfaceName(keyClassName, contextClassName));
-    if (type == null) {
-      return null;
-    } else {
-      return type.getTypeDescription();
-    }
-  }
-
-  private Map<String, DynamicType.Unloaded<?>> generateFieldAccessorInterfaces() {
-    final Map<String, DynamicType.Unloaded<?>> fieldAccessorInterfaces =
-        new HashMap<>(contextStore.size());
-    for (final Map.Entry<String, String> entry : contextStore.entrySet()) {
-      final DynamicType.Unloaded<?> type =
-          makeFieldAccessorInterface(entry.getKey(), entry.getValue());
-      fieldAccessorInterfaces.put(type.getTypeDescription().getName(), type);
-    }
-    return Collections.unmodifiableMap(fieldAccessorInterfaces);
+  private static TypeDescription getFieldAccessorInterface(
+      final String keyClassName, final String contextClassName, final TypePool typePool) {
+    return typePool
+        .describe(getContextAccessorInterfaceName(keyClassName, contextClassName))
+        .resolve();
   }
 
   /**
@@ -989,8 +886,8 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
    * @param contextClassName context class name
    * @return unloaded dynamic type containing generated interface
    */
-  private DynamicType.Unloaded<?> makeFieldAccessorInterface(
-      final String keyClassName, final String contextClassName) {
+  public static DynamicType.Unloaded<?> makeFieldAccessorInterface(
+      final ByteBuddy byteBuddy, final String keyClassName, final String contextClassName) {
     // We are using Object class name instead of contextClassName here because this gets injected
     // onto Bootstrap classloader where context class may be unavailable
     final TypeDescription contextType = new TypeDescription.ForLoadedType(Object.class);
@@ -1005,7 +902,8 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
         .make();
   }
 
-  private AgentBuilder.Transformer getTransformerForASMVisitor(final AsmVisitorWrapper visitor) {
+  private static AgentBuilder.Transformer getTransformerForASMVisitor(
+      final AsmVisitorWrapper visitor) {
     return new AgentBuilder.Transformer() {
       @Override
       public DynamicType.Builder<?> transform(
@@ -1018,21 +916,19 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
     };
   }
 
-  private String getContextStoreImplementationClassName(
+  public static String getContextStoreImplementationClassName(
       final String keyClassName, final String contextClassName) {
     return DYNAMIC_CLASSES_PACKAGE
-        + getClass().getSimpleName()
-        + "$ContextStore$"
+        + "FieldBackedProvider$ContextStore$"
         + Utils.converToInnerClassName(keyClassName)
         + "$"
         + Utils.converToInnerClassName(contextClassName);
   }
 
-  private String getContextAccessorInterfaceName(
+  public static String getContextAccessorInterfaceName(
       final String keyClassName, final String contextClassName) {
     return DYNAMIC_CLASSES_PACKAGE
-        + getClass().getSimpleName()
-        + "$ContextAccessor$"
+        + "FieldBackedProvider$ContextAccessor$"
         + Utils.converToInnerClassName(keyClassName)
         + "$"
         + Utils.converToInnerClassName(contextClassName);
@@ -1048,19 +944,5 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
 
   private static String getContextSetterName(final String key) {
     return "set" + getContextFieldName(key);
-  }
-
-  // Originally found in AgentBuilder.Transformer.NoOp, but removed in 1.10.7
-  enum NoOpTransformer implements AgentBuilder.Transformer {
-    INSTANCE;
-
-    @Override
-    public DynamicType.Builder<?> transform(
-        final DynamicType.Builder<?> builder,
-        final TypeDescription typeDescription,
-        final ClassLoader classLoader,
-        final JavaModule module) {
-      return builder;
-    }
   }
 }

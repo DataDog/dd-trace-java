@@ -35,6 +35,13 @@ subprojects { Project subProj ->
         plugin = 'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin'
         classPath = project(':dd-java-agent:agent-tooling').configurations.instrumentationMuzzle + subProj.configurations.compile + subProj.sourceSets.main.output
       }
+
+      transformation {
+        tasks = ['compileJava', 'compileScala', 'compileKotlin']
+        plugin = 'datadog.trace.agent.tooling.context.ContextProviderGradlePlugin'
+        classPath = project(':dd-java-agent:agent-tooling').configurations.instrumentationMuzzle + subProj.configurations.compile + subProj.sourceSets.main.output
+        argument { value = project(':dd-java-agent').sourceSets.main.java.destinationDirectory.asFile.get().path }
+      }
     }
 
     String jdkCompile = null
@@ -69,6 +76,9 @@ subprojects { Project subProj ->
 
     // Make it so all instrumentation subproject tests can be run with a single command.
     instr_project.tasks.test.dependsOn(subProj.tasks.test)
+
+    // Make it so all instrumentation subprojects can be cleaned from the instrumentation project
+    instr_project.tasks.clean.dependsOn(subProj.tasks.clean)
   }
 
   instr_project.dependencies {

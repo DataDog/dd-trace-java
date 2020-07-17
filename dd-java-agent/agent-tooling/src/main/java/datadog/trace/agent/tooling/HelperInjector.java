@@ -10,9 +10,7 @@ import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.security.SecureClassLoader;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -67,15 +65,6 @@ public class HelperInjector implements Transformer {
 
     helperClassNames = helperMap.keySet();
     dynamicTypeMap.putAll(helperMap);
-  }
-
-  public static HelperInjector forDynamicTypes(
-      final String requestingName, final Collection<DynamicType.Unloaded<?>> helpers) {
-    final Map<String, byte[]> bytes = new HashMap<>(helpers.size());
-    for (final DynamicType.Unloaded<?> helper : helpers) {
-      bytes.put(helper.getTypeDescription().getName(), helper.getBytes());
-    }
-    return new HelperInjector(requestingName, bytes);
   }
 
   private Map<String, byte[]> getHelperMap() throws IOException {
