@@ -1,4 +1,4 @@
-package datadog.trace.api.writer
+package datadog.trace.common.writer
 
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.CoreTracer

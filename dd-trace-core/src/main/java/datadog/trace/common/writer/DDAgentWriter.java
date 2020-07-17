@@ -7,13 +7,13 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 
 import com.timgroup.statsd.NoOpStatsDClient;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
-import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.Monitor;
 import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor;
 import datadog.trace.core.DDSpan;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -33,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DDAgentWriter implements Writer {
 
-  private static final int DISRUPTOR_BUFFER_SIZE = 1024;
+  public static final int DISRUPTOR_BUFFER_SIZE = 1024;
 
   private final DDAgentApi api;
   private final TraceProcessingDisruptor traceProcessingDisruptor;
@@ -65,25 +65,26 @@ public class DDAgentWriter implements Writer {
       final int traceBufferSize,
       final Monitor monitor,
       final int flushFrequencySeconds) {
-    if (agentApi != null) {
-      api = agentApi;
-    } else {
-      api = new DDAgentApi(agentHost, traceAgentPort, unixDomainSocket, timeoutMillis);
-    }
+    api = agentApi;
     this.monitor = monitor;
     traceProcessingDisruptor =
         new TraceProcessingDisruptor(
             traceBufferSize,
             monitor,
-            this,
             api,
             flushFrequencySeconds,
             TimeUnit.SECONDS,
             flushFrequencySeconds > 0);
   }
 
-  public void addResponseListener(final DDAgentResponseListener listener) {
-    api.addResponseListener(listener);
+  @Inject
+  DDAgentWriter(
+      final DDAgentApi agentApi,
+      final Monitor monitor,
+      final TraceProcessingDisruptor traceProcessingDisruptor) {
+    api = agentApi;
+    this.monitor = monitor;
+    this.traceProcessingDisruptor = traceProcessingDisruptor;
   }
 
   // Exposing some statistics for consumption by monitors
@@ -138,10 +139,6 @@ public class DDAgentWriter implements Writer {
   @Override
   public void incrementTraceCount() {
     traceCount.incrementAndGet();
-  }
-
-  public DDAgentApi getApi() {
-    return api;
   }
 
   @Override

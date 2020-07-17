@@ -61,3 +61,4 @@ replay_pid*
 
 # Magic for local JMC built
 /vendor/jmc-libs
+**/src/*/generated/*

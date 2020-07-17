@@ -1,8 +1,9 @@
-package datadog.trace.api.writer
+package datadog.trace.common.writer
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.trace.common.sampling.RateByServiceSampler
+import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
 import datadog.trace.common.writer.ddagent.TraceMapper
@@ -25,6 +26,8 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 class DDAgentApiTest extends DDSpecification {
   static mapper = new ObjectMapper(new MessagePackFactory())
 
+  def sampler = Mock(Sampler)
+
   def "sending an empty list of traces returns no errors"() {
     setup:
     def agent = httpServer {
@@ -40,7 +43,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, sampler)
     def request = prepareTraces([])
 
     expect:
@@ -66,7 +69,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, sampler)
     Traces request = prepareTraces([])
     expect:
     def response = client.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
@@ -87,7 +90,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, sampler)
     def request = prepareTraces(traces)
 
     expect:
@@ -163,7 +166,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, sampler)
     client.addResponseListener(responseListener)
     def request = prepareTraces([[], [], []])
 
@@ -190,7 +193,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", v3Agent.address.port, null, 1000)
+    def client = new DDAgentApi("localhost", v3Agent.address.port, null, 1000, sampler)
     def request = prepareTraces([])
     expect:
     client.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer).success()
@@ -217,7 +220,7 @@ class DDAgentApiTest extends DDSpecification {
       }
     }
     def port = badPort ? 999 : agent.address.port
-    def client = new DDAgentApi("localhost", port, null, 1000)
+    def client = new DDAgentApi("localhost", port, null, 1000, sampler)
     def request = prepareTraces([])
     def result = client.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
 
@@ -249,7 +252,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, sampler)
     def request = prepareTraces(traces)
     when:
     def success = client.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer).success()
@@ -269,6 +272,179 @@ class DDAgentApiTest extends DDSpecification {
     65538          | (1..((1 << 16) - 1)).collect { [] }
     65541          | (1..(1 << 16)).collect { [] }
   }
+
+
+// TODO: reimplement the following tests:
+/*
+  @Retry(delay = 500)
+  // if execution is too slow, the http client timeout may trigger.
+  def "slow response test"() {
+    def numWritten = 0
+    def numFlushes = new AtomicInteger(0)
+    def numPublished = new AtomicInteger(0)
+    def numFailedPublish = new AtomicInteger(0)
+    def numRequests = new AtomicInteger(0)
+    def numFailedRequests = new AtomicInteger(0)
+
+    def responseSemaphore = new Semaphore(1)
+
+    setup:
+
+    // Need to set-up a dummy agent for the final send callback to work
+    def agent = httpServer {
+      handlers {
+        put("v0.4/traces") {
+          responseSemaphore.acquire()
+          try {
+            response.status(200).send()
+          } finally {
+            responseSemaphore.release()
+          }
+        }
+      }
+    }
+
+    // This test focuses just on failed publish, so not verifying every callback
+    def monitor = Stub(Monitor) {
+      onPublish(_, _) >> {
+        numPublished.incrementAndGet()
+      }
+      onFailedPublish(_, _) >> {
+        numFailedPublish.incrementAndGet()
+      }
+      onFlush(_, _) >> {
+        numFlushes.incrementAndGet()
+      }
+      onSend(_, _, _) >> {
+        numRequests.incrementAndGet()
+      }
+      onFailedPublish(_, _, _, _) >> {
+        numFailedRequests.incrementAndGet()
+      }
+    }
+
+    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitor(monitor).traceBufferSize(bufferSize).build()
+    writer.start()
+
+    // gate responses
+    responseSemaphore.acquire()
+
+    when:
+    // write a single trace and flush
+    // with responseSemaphore held, the response is blocked but may still time out
+    writer.write(minimalTrace)
+    numWritten += 1
+
+    // sanity check coordination mechanism of test
+    // release to allow response to be generated
+    responseSemaphore.release()
+    writer.flush()
+
+    // reacquire semaphore to stall further responses
+    responseSemaphore.acquire()
+
+    then:
+    numFailedPublish.get() == 0
+    numPublished.get() == numWritten
+    numPublished.get() + numFailedPublish.get() == numWritten
+    numFlushes.get() == 1
+
+    when:
+    // send many traces to fill the sender queue...
+    //   loop until outstanding requests > finished requests
+    while (writer.traceProcessingDisruptor.getDisruptorRemainingCapacity() > 0 || numFailedPublish.get() == 0) {
+      writer.write(minimalTrace)
+      numWritten += 1
+    }
+
+    then:
+    numFailedPublish.get() > 0
+    numPublished.get() + numFailedPublish.get() == numWritten
+
+    when:
+
+    // with both disruptor & queue full, should reject everything
+    def expectedRejects = 100
+    (1..expectedRejects).each {
+      writer.write(minimalTrace)
+      numWritten += 1
+    }
+
+    then:
+    numPublished.get() + numFailedPublish.get() == numWritten
+
+    cleanup:
+    responseSemaphore.release()
+
+    writer.close()
+    agent.close()
+
+    where:
+    bufferSize = 16
+    minimalTrace = createMinimalTrace()
+  }
+
+  def "multi threaded"() {
+    def numPublished = new AtomicInteger(0)
+    def numFailedPublish = new AtomicInteger(0)
+    def numRepSent = new AtomicInteger(0)
+
+    setup:
+    def minimalTrace = createMinimalTrace()
+
+    // Need to set-up a dummy agent for the final send callback to work
+    def agent = httpServer {
+      handlers {
+        put("v0.4/traces") {
+          response.status(200).send()
+        }
+      }
+    }
+
+    // This test focuses just on failed publish, so not verifying every callback
+    def monitor = Stub(Monitor) {
+      onPublish(_, _) >> {
+        numPublished.incrementAndGet()
+      }
+      onFailedPublish(_, _) >> {
+        numFailedPublish.incrementAndGet()
+      }
+      onSend(_, _, _) >> { repCount, sizeInBytes, response ->
+        numRepSent.addAndGet(repCount)
+      }
+    }
+
+    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitor(monitor).build()
+    writer.start()
+
+    when:
+    def producer = {
+      (1..100).each {
+        writer.write(minimalTrace)
+      }
+    } as Runnable
+
+    def t1 = new Thread(producer)
+    t1.start()
+
+    def t2 = new Thread(producer)
+    t2.start()
+
+    t1.join()
+    t2.join()
+
+    writer.flush()
+
+    then:
+    def totalTraces = 100 + 100
+    numPublished.get() == totalTraces
+    numRepSent.get() == totalTraces
+
+    cleanup:
+    writer.close()
+    agent.close()
+  }
+*/
 
   static List<List<TreeMap<String, Object>>> convertList(byte[] bytes) {
     return mapper.readValue(bytes, new TypeReference<List<List<TreeMap<String, Object>>>>() {})

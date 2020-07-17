@@ -1,5 +1,6 @@
 package datadog.trace.api;
 
+import java.math.BigInteger;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
 
@@ -12,6 +13,10 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class DDId {
+  // UINT64 max value
+  public static final BigInteger TRACE_ID_MAX =
+      BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
+  public static final BigInteger TRACE_ID_MIN = BigInteger.ZERO;
 
   public static final DDId ZERO = new DDId(0, "0");
   public static final DDId MAX = new DDId(-1, "18446744073709551615"); // All bits set

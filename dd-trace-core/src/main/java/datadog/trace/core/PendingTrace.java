@@ -44,6 +44,8 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   /** Nano second ticks value at trace start */
   private final long startNanoTicks;
 
+  private final int partialFlushMinSpans;
+
   private final ReferenceQueue spanReferenceQueue = new ReferenceQueue();
   private final Set<WeakReference<DDSpan>> weakSpans =
       Collections.newSetFromMap(new ConcurrentHashMap<WeakReference<DDSpan>, Boolean>());
@@ -82,6 +84,8 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   private PendingTrace(final CoreTracer tracer, final DDId traceId) {
     this.tracer = tracer;
     this.traceId = traceId;
+
+    partialFlushMinSpans = tracer.getPartialFlushMinSpans();
 
     startTimeNano = Clock.currentNanoTime();
     startNanoTicks = Clock.currentNanoTicks();
@@ -217,9 +221,9 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     if (count == 0) {
       write();
     } else {
-      if (tracer.getPartialFlushMinSpans() > 0 && size() > tracer.getPartialFlushMinSpans()) {
+      if (partialFlushMinSpans > 0 && size() > partialFlushMinSpans) {
         synchronized (this) {
-          if (size() > tracer.getPartialFlushMinSpans()) {
+          if (size() > partialFlushMinSpans) {
             final DDSpan rootSpan = getRootSpan();
             final List<DDSpan> partialTrace = new ArrayList(size());
             final Iterator<DDSpan> it = iterator();

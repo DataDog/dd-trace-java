@@ -4,7 +4,7 @@ import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.util.test.DDSpecification
 
-import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
+import static datadog.trace.api.DDId.TRACE_ID_MAX
 import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY
@@ -132,14 +132,14 @@ class HaystackHttpExtractorTest extends DDSpecification {
     }
 
     where:
-    traceId               | spanId                | expectedTraceId             | expectedSpanId
-    "-1"                  | "1"                   | null                        | null
-    "1"                   | "-1"                  | null                        | null
-    "0"                   | "1"                   | null                        | null
-    "1"                   | "0"                   | DDId.ONE                    | DDId.ZERO
-    "$TRACE_ID_MAX"       | "1"                   | DDId.from("$TRACE_ID_MAX")  | DDId.ONE
-    "${TRACE_ID_MAX + 1}" | "1"                   | null                        | null
-    "1"                   | "$TRACE_ID_MAX"       | DDId.ONE                    | DDId.from("$TRACE_ID_MAX")
-    "1"                   | "${TRACE_ID_MAX + 1}" | null                        | null
+    traceId               | spanId                | expectedTraceId            | expectedSpanId
+    "-1"                  | "1"                   | null                       | null
+    "1"                   | "-1"                  | null                       | null
+    "0"                   | "1"                   | null                       | null
+    "1"                   | "0"                   | DDId.ONE                   | DDId.ZERO
+    "$TRACE_ID_MAX"       | "1"                   | DDId.from("$TRACE_ID_MAX") | DDId.ONE
+    "${TRACE_ID_MAX + 1}" | "1"                   | null                       | null
+    "1"                   | "$TRACE_ID_MAX"       | DDId.ONE                   | DDId.from("$TRACE_ID_MAX")
+    "1"                   | "${TRACE_ID_MAX + 1}" | null                       | null
   }
 }

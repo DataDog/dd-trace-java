@@ -5,9 +5,9 @@ import datadog.trace.api.DDId
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Shared
 
+import static datadog.trace.api.DDId.TRACE_ID_MAX
 import static datadog.trace.api.PropagationStyle.B3
 import static datadog.trace.api.PropagationStyle.DATADOG
-import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 
 class HttpExtractorTest extends DDSpecification {
 

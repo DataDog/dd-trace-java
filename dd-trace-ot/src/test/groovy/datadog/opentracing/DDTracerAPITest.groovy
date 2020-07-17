@@ -21,7 +21,7 @@ class DDTracerAPITest extends DDSpecification {
     def tracer = tracerOT.tracer
 
     then:
-    tracer.serviceName == DEFAULT_SERVICE_NAME
+    tracer.coreComponent.serviceName() == DEFAULT_SERVICE_NAME
     tracer.sampler == sampler
     tracer.writer == writer
     tracer.localRootSpanTags[RUNTIME_ID_TAG].size() > 0 // not null or empty

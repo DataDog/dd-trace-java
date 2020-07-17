@@ -1,6 +1,6 @@
 package datadog.trace.common.sampling;
 
-import datadog.trace.core.CoreTracer;
+import datadog.trace.api.DDId;
 import datadog.trace.core.DDSpan;
 import java.math.BigDecimal;
 import lombok.extern.slf4j.Slf4j;
@@ -19,10 +19,7 @@ public class DeterministicSampler implements RateSampler {
   public DeterministicSampler(final double rate) {
     this.rate = rate;
     cutoff =
-        new BigDecimal(rate)
-                .multiply(new BigDecimal(CoreTracer.TRACE_ID_MAX))
-                .toBigInteger()
-                .longValue()
+        new BigDecimal(rate).multiply(new BigDecimal(DDId.TRACE_ID_MAX)).toBigInteger().longValue()
             + Long.MIN_VALUE;
 
     log.debug("Initializing the RateSampler, sampleRate: {} %", rate * 100);

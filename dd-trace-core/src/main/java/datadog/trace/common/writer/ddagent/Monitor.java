@@ -4,6 +4,8 @@ import com.timgroup.statsd.StatsDClient;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
 import java.util.List;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
 /**
  * Callback for monitoring the health of the DDAgentWriter. Provides hooks for major lifecycle
@@ -17,9 +19,11 @@ import java.util.List;
  *   <li>sending to agent
  * </ul>
  */
+@Singleton
 public class Monitor {
   private final StatsDClient statsd;
 
+  @Inject
   public Monitor(final StatsDClient statsd) {
     this.statsd = statsd;
   }
@@ -51,33 +55,23 @@ public class Monitor {
     statsd.count("queue.accepted_size", serializedSizeInBytes);
   }
 
-  public void onFailedSerialize(
-      final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause) {
+  public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
     // TODO - DQH - make a new stat for serialization failure -- or maybe count this towards
     // api.errors???
   }
 
   public void onSend(
-      final DDAgentWriter agentWriter,
-      final int representativeCount,
-      final int sizeInBytes,
-      final DDAgentApi.Response response) {
-    onSendAttempt(agentWriter, representativeCount, sizeInBytes, response);
+      final int representativeCount, final int sizeInBytes, final DDAgentApi.Response response) {
+    onSendAttempt(representativeCount, sizeInBytes, response);
   }
 
   public void onFailedSend(
-      final DDAgentWriter agentWriter,
-      final int representativeCount,
-      final int sizeInBytes,
-      final DDAgentApi.Response response) {
-    onSendAttempt(agentWriter, representativeCount, sizeInBytes, response);
+      final int representativeCount, final int sizeInBytes, final DDAgentApi.Response response) {
+    onSendAttempt(representativeCount, sizeInBytes, response);
   }
 
   private void onSendAttempt(
-      final DDAgentWriter agentWriter,
-      final int representativeCount,
-      final int sizeInBytes,
-      final DDAgentApi.Response response) {
+      final int representativeCount, final int sizeInBytes, final DDAgentApi.Response response) {
     statsd.incrementCounter("api.requests");
     statsd.recordGaugeValue("queue.length", representativeCount);
     // TODO: missing queue.spans (# of spans being sent)

@@ -5,6 +5,7 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.common.container.ContainerInfo;
 import datadog.common.exec.CommonTaskExecutor;
+import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory;
 import datadog.trace.core.DDTraceCoreInfo;
 import java.io.File;
@@ -15,6 +16,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
+import javax.inject.Inject;
+import javax.inject.Named;
+import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.ConnectionSpec;
 import okhttp3.Dispatcher;
@@ -27,6 +32,7 @@ import okio.BufferedSink;
 
 /** The API pointing to a DD agent */
 @Slf4j
+@Singleton
 public class DDAgentApi {
   private static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
   private static final String DATADOG_META_LANG_VERSION = "Datadog-Meta-Lang-Version";
@@ -68,15 +74,21 @@ public class DDAgentApi {
   private OkHttpClient httpClient;
   private HttpUrl tracesUrl;
 
+  @Inject
   public DDAgentApi(
-      final String host,
-      final int port,
-      final String unixDomainSocketPath,
-      final long timeoutMillis) {
+      @Named("agentHost") final String host,
+      @Named("agentPort") final int port,
+      @Named("unixDomainSocketPath") @Nullable final String unixDomainSocketPath,
+      @Named("agentTimeout") final long timeoutMillis,
+      final Sampler sampler) {
     this.host = host;
     this.port = port;
     this.unixDomainSocketPath = unixDomainSocketPath;
     this.timeoutMillis = timeoutMillis;
+
+    if (sampler instanceof DDAgentResponseListener) {
+      addResponseListener((DDAgentResponseListener) sampler);
+    }
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {

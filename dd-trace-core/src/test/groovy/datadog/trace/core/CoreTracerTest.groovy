@@ -11,7 +11,6 @@ import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.LoggingWriter
-
 import datadog.trace.core.propagation.DatadogHttpCodec
 import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.util.test.DDSpecification
@@ -43,10 +42,10 @@ class CoreTracerTest extends DDSpecification {
     def tracer = CoreTracer.builder().build()
 
     then:
-    tracer.serviceName == "unnamed-java-app"
+    tracer.coreComponent.serviceName() == "unnamed-java-app"
     tracer.sampler instanceof RateByServiceSampler
     tracer.writer instanceof DDAgentWriter
-    tracer.statsDClient instanceof NoOpStatsDClient
+    tracer.coreComponent.statsD() instanceof NoOpStatsDClient
 
     !tracer.spanTagInterceptors.isEmpty()
 
@@ -62,7 +61,7 @@ class CoreTracerTest extends DDSpecification {
     def tracer = CoreTracer.builder().config(new Config()).build()
 
     then:
-    tracer.statsDClient instanceof NonBlockingStatsDClient
+    tracer.coreComponent.statsD() instanceof NonBlockingStatsDClient
   }
 
 
@@ -98,8 +97,8 @@ class CoreTracerTest extends DDSpecification {
     def taggedHeaders = tracer.extractor.extractors[0].taggedHeaders
 
     then:
-    tracer.defaultSpanTags == map
-    tracer.serviceNameMappings == map
+    tracer.coreComponent.defaultSpanTags() == map
+    tracer.coreComponent.serviceNameMappings() == map
     taggedHeaders == map
 
     where:
@@ -114,9 +113,9 @@ class CoreTracerTest extends DDSpecification {
     def tracer = CoreTracer.builder().config(new Config()).build()
     then:
     tracer.writer instanceof DDAgentWriter
-    ((DDAgentWriter) tracer.writer).api.sendSerializedTraces(0, 0, ByteBuffer.allocate(0))
-    ((DDAgentWriter) tracer.writer).api.tracesUrl.host() == value
-    ((DDAgentWriter) tracer.writer).api.tracesUrl.port() == 8126
+    tracer.coreComponent.api().sendSerializedTraces(0, 0, ByteBuffer.allocate(0))
+    tracer.coreComponent.api().tracesUrl.host() == value
+    tracer.coreComponent.api().tracesUrl.port() == 8126
 
     where:
     key          | value
@@ -130,9 +129,9 @@ class CoreTracerTest extends DDSpecification {
 
     then:
     tracer.writer instanceof DDAgentWriter
-    ((DDAgentWriter) tracer.writer).api.sendSerializedTraces(0, 0, ByteBuffer.allocate(0))
-    ((DDAgentWriter) tracer.writer).api.tracesUrl.host() == "localhost"
-    ((DDAgentWriter) tracer.writer).api.tracesUrl.port() == Integer.valueOf(value)
+    tracer.coreComponent.api().sendSerializedTraces(0, 0, ByteBuffer.allocate(0))
+    tracer.coreComponent.api().tracesUrl.host() == "localhost"
+    tracer.coreComponent.api().tracesUrl.port() == Integer.valueOf(value)
 
     where:
     key                | value

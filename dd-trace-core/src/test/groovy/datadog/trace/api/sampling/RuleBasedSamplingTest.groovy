@@ -1,9 +1,11 @@
 package datadog.trace.api.sampling
 
+import datadog.trace.api.Config
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.sampling.RuleBasedSampler
 import datadog.trace.common.sampling.Sampler
+import datadog.trace.common.sampling.SamplerModule
 import datadog.trace.core.DDSpan
 import datadog.trace.core.SpanFactory
 import datadog.trace.util.test.DDSpecification
@@ -18,7 +20,7 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 class RuleBasedSamplingTest extends DDSpecification {
   def "Rule Based Sampler is not created when properties not set"() {
     when:
-    Sampler sampler = Sampler.Builder.forConfig(new Properties())
+    Sampler sampler = SamplerModule.fromConfig(Config.get(new Properties()))
 
     then:
     !(sampler instanceof RuleBasedSampler)
@@ -28,7 +30,7 @@ class RuleBasedSamplingTest extends DDSpecification {
     when:
     Properties properties = new Properties()
     properties.setProperty(TRACE_RATE_LIMIT, "50")
-    Sampler sampler = Sampler.Builder.forConfig(properties)
+    Sampler sampler = SamplerModule.fromConfig(Config.get(properties))
 
     then:
     !(sampler instanceof RuleBasedSampler)
@@ -54,7 +56,7 @@ class RuleBasedSamplingTest extends DDSpecification {
     }
 
     when:
-    Sampler sampler = Sampler.Builder.forConfig(properties)
+    Sampler sampler = SamplerModule.fromConfig(Config.get(properties))
 
     then:
     sampler instanceof PrioritySampler
@@ -140,7 +142,7 @@ class RuleBasedSamplingTest extends DDSpecification {
     Properties properties = new Properties()
     properties.setProperty(TRACE_SAMPLING_SERVICE_RULES, "service:1")
     properties.setProperty(TRACE_RATE_LIMIT, "1")
-    Sampler sampler = Sampler.Builder.forConfig(properties)
+    Sampler sampler = SamplerModule.fromConfig(Config.get(properties))
 
     DDSpan span1 = SpanFactory.newSpanOf("service", "bar")
     DDSpan span2 = SpanFactory.newSpanOf("service", "bar")
@@ -166,7 +168,7 @@ class RuleBasedSamplingTest extends DDSpecification {
     Properties properties = new Properties()
     properties.setProperty(TRACE_SAMPLING_SERVICE_RULES, "service:1,foo:1")
     properties.setProperty(TRACE_RATE_LIMIT, "1")
-    Sampler sampler = Sampler.Builder.forConfig(properties)
+    Sampler sampler = SamplerModule.fromConfig(Config.get(properties))
 
     DDSpan span1 = SpanFactory.newSpanOf("service", "bar")
     DDSpan span2 = SpanFactory.newSpanOf("foo", "bar")
