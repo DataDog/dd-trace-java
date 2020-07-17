@@ -139,8 +139,8 @@ class ConfigTest extends DDSpecification {
     config.partialFlushMinSpans == 1000
     config.reportHostName == false
     config.runtimeContextFieldInjection == true
-    config.propagationStylesToExtract.toList() == [Config.PropagationStyle.DATADOG]
-    config.propagationStylesToInject.toList() == [Config.PropagationStyle.DATADOG]
+    config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG]
+    config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG]
     config.jmxFetchEnabled == true
     config.jmxFetchMetricsConfigs == []
     config.jmxFetchCheckPeriod == null
@@ -264,8 +264,8 @@ class ConfigTest extends DDSpecification {
     config.partialFlushMinSpans == 15
     config.reportHostName == true
     config.runtimeContextFieldInjection == false
-    config.propagationStylesToExtract.toList() == [Config.PropagationStyle.DATADOG, Config.PropagationStyle.B3]
-    config.propagationStylesToInject.toList() == [Config.PropagationStyle.B3, Config.PropagationStyle.DATADOG]
+    config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
+    config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -384,8 +384,8 @@ class ConfigTest extends DDSpecification {
     config.partialFlushMinSpans == 25
     config.reportHostName == true
     config.runtimeContextFieldInjection == false
-    config.propagationStylesToExtract.toList() == [Config.PropagationStyle.DATADOG, Config.PropagationStyle.B3]
-    config.propagationStylesToInject.toList() == [Config.PropagationStyle.B3, Config.PropagationStyle.DATADOG]
+    config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
+    config.propagationStylesToInject.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.jmxFetchEnabled == false
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
@@ -438,8 +438,8 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "still something else"
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
-    config.propagationStylesToExtract.toList() == [Config.PropagationStyle.B3, Config.PropagationStyle.DATADOG]
-    config.propagationStylesToInject.toList() == [Config.PropagationStyle.DATADOG, Config.PropagationStyle.B3]
+    config.propagationStylesToExtract.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
+    config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.jmxFetchMetricsConfigs == ["some/file"]
     config.reportHostName == true
   }
@@ -504,8 +504,8 @@ class ConfigTest extends DDSpecification {
     config.httpClientSplitByDomain == false
     config.dbClientSplitByInstance == false
     config.splitByTags == [].toSet()
-    config.propagationStylesToExtract.toList() == [Config.PropagationStyle.DATADOG]
-    config.propagationStylesToInject.toList() == [Config.PropagationStyle.DATADOG]
+    config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG]
+    config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG]
   }
 
   def "sys props and env vars overrides for trace_agent_port and agent_port_legacy as expected"() {
@@ -602,8 +602,8 @@ class ConfigTest extends DDSpecification {
     config.dbClientSplitByInstance == true
     config.splitByTags == [].toSet()
     config.partialFlushMinSpans == 15
-    config.propagationStylesToExtract.toList() == [Config.PropagationStyle.B3, Config.PropagationStyle.DATADOG]
-    config.propagationStylesToInject.toList() == [Config.PropagationStyle.DATADOG, Config.PropagationStyle.B3]
+    config.propagationStylesToExtract.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
+    config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.jmxFetchMetricsConfigs == ["/foo.yaml", "/bar.yaml"]
     config.jmxFetchCheckPeriod == 100
     config.jmxFetchRefreshBeansPeriod == 200
