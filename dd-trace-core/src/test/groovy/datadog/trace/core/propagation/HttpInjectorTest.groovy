@@ -9,8 +9,8 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.util.test.DDSpecification
 
-import static datadog.trace.api.Config.PropagationStyle.B3
-import static datadog.trace.api.Config.PropagationStyle.DATADOG
+import static datadog.trace.api.PropagationStyle.B3
+import static datadog.trace.api.PropagationStyle.DATADOG
 
 class HttpInjectorTest extends DDSpecification {
 

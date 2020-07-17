@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.java.concurrent;
+package datadog.trace.instrumentation.scala.concurrent;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
@@ -8,8 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import akka.dispatch.forkjoin.ForkJoinPool;
-import akka.dispatch.forkjoin.ForkJoinTask;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
@@ -26,21 +24,23 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import scala.concurrent.forkjoin.ForkJoinPool;
+import scala.concurrent.forkjoin.ForkJoinTask;
 
 /**
  * Instrument {@link ForkJoinTask}.
  *
  * <p>Note: There are quite a few separate implementations of {@code ForkJoinTask}/{@code
- * ForkJoinPool}: JVM, Akka, Scala, Netty to name a few. This class handles Akka version.
+ * ForkJoinPool}: JVM, Akka, Scala, Netty to name a few. This class handles Scala version.
  */
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default {
+public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Default {
 
-  static final String TASK_CLASS_NAME = "akka.dispatch.forkjoin.ForkJoinTask";
+  static final String TASK_CLASS_NAME = "scala.concurrent.forkjoin.ForkJoinTask";
 
-  public AkkaForkJoinTaskInstrumentation() {
-    super(AbstractExecutorInstrumentation.EXEC_NAME);
+  public ScalaForkJoinTaskInstrumentation() {
+    super("java_concurrent", "scala_concurrent");
   }
 
   @Override
@@ -67,7 +67,7 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default 
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return singletonMap(
         named("exec").and(takesArguments(0)).and(not(isAbstract())),
-        AkkaForkJoinTaskInstrumentation.class.getName() + "$ForkJoinTaskAdvice");
+        ScalaForkJoinTaskInstrumentation.class.getName() + "$ForkJoinTaskAdvice");
   }
 
   public static class ForkJoinTaskAdvice {

@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.PropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
 import java.io.UnsupportedEncodingException;
@@ -24,16 +25,16 @@ public class HttpCodec {
 
   public static Injector createInjector(final Config config) {
     final List<Injector> injectors = new ArrayList<>();
-    for (final Config.PropagationStyle style : config.getPropagationStylesToInject()) {
-      if (style == Config.PropagationStyle.DATADOG) {
+    for (final PropagationStyle style : config.getPropagationStylesToInject()) {
+      if (style == PropagationStyle.DATADOG) {
         injectors.add(new DatadogHttpCodec.Injector());
         continue;
       }
-      if (style == Config.PropagationStyle.B3) {
+      if (style == PropagationStyle.B3) {
         injectors.add(new B3HttpCodec.Injector());
         continue;
       }
-      if (style == Config.PropagationStyle.HAYSTACK) {
+      if (style == PropagationStyle.HAYSTACK) {
         injectors.add(new HaystackHttpCodec.Injector());
         continue;
       }
@@ -45,7 +46,7 @@ public class HttpCodec {
   public static Extractor createExtractor(
       final Config config, final Map<String, String> taggedHeaders) {
     final List<Extractor> extractors = new ArrayList<>();
-    for (final Config.PropagationStyle style : config.getPropagationStylesToExtract()) {
+    for (final PropagationStyle style : config.getPropagationStylesToExtract()) {
       switch (style) {
         case DATADOG:
           extractors.add(DatadogHttpCodec.newExtractor(taggedHeaders));

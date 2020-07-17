@@ -1,10 +1,18 @@
 package datadog.trace.api;
 
-import static datadog.trace.api.Config.parseIntegerRangeSet;
-
 import java.util.BitSet;
 
 public final class ConfigDefaults {
+
+  static final BitSet DEFAULT_HTTP_SERVER_ERROR_STATUSES;
+  static final BitSet DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
+
+  static {
+    DEFAULT_HTTP_SERVER_ERROR_STATUSES = new BitSet();
+    DEFAULT_HTTP_SERVER_ERROR_STATUSES.set(500, 600);
+    DEFAULT_HTTP_CLIENT_ERROR_STATUSES = new BitSet();
+    DEFAULT_HTTP_CLIENT_ERROR_STATUSES.set(400, 500);
+  }
 
   /* These fields are made public because they're referenced elsewhere internally.  They're not intended as public API. */
   public static final String DEFAULT_AGENT_HOST = "localhost";
@@ -23,10 +31,6 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
   static final boolean DEFAULT_TRACE_RESOLVER_ENABLED = true;
-  static final BitSet DEFAULT_HTTP_SERVER_ERROR_STATUSES =
-      parseIntegerRangeSet("500-599", "default");
-  static final BitSet DEFAULT_HTTP_CLIENT_ERROR_STATUSES =
-      parseIntegerRangeSet("400-499", "default");
   static final boolean DEFAULT_HTTP_SERVER_TAG_QUERY_STRING = false;
   static final boolean DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING = false;
   static final boolean DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN = false;
@@ -34,8 +38,8 @@ public final class ConfigDefaults {
   static final String DEFAULT_SPLIT_BY_TAGS = "";
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
-  static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = Config.PropagationStyle.DATADOG.name();
-  static final String DEFAULT_PROPAGATION_STYLE_INJECT = Config.PropagationStyle.DATADOG.name();
+  static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
+  static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
 
   static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;

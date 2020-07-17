@@ -1,12 +1,10 @@
-package datadog.trace.instrumentation.java.concurrent;
+package datadog.trace.instrumentation.scala.concurrent;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static net.bytebuddy.matcher.ElementMatchers.nameMatches;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import akka.dispatch.forkjoin.ForkJoinTask;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
@@ -21,26 +19,28 @@ import java.util.concurrent.Executor;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
+import scala.concurrent.forkjoin.ForkJoinTask;
 
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class AkkaExecutorInstrumentation extends AbstractExecutorInstrumentation {
+public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Default {
 
-  public AkkaExecutorInstrumentation() {
-    super(EXEC_NAME + ".akka_fork_join");
+  public ScalaForkJoinPoolInstrumentation() {
+    super("java_concurrent", "akka_concurrent");
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed(AkkaForkJoinTaskInstrumentation.TASK_CLASS_NAME);
+  public ElementMatcher<TypeDescription> typeMatcher() {
+    // This might need to be an extendsClass matcher...
+    return named("scala.concurrent.forkjoin.ForkJoinPool");
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        AkkaForkJoinTaskInstrumentation.TASK_CLASS_NAME, State.class.getName());
+        ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME, State.class.getName());
   }
 
   @Override
@@ -48,20 +48,20 @@ public final class AkkaExecutorInstrumentation extends AbstractExecutorInstrumen
     final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
     transformers.put(
         named("execute")
-            .and(takesArgument(0, named(AkkaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
-        AkkaExecutorInstrumentation.class.getName() + "$SetAkkaForkJoinStateAdvice");
+            .and(takesArgument(0, named(ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
+        ScalaForkJoinPoolInstrumentation.class.getName() + "$SetScalaForkJoinStateAdvice");
     transformers.put(
         named("submit")
-            .and(takesArgument(0, named(AkkaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
-        AkkaExecutorInstrumentation.class.getName() + "$SetAkkaForkJoinStateAdvice");
+            .and(takesArgument(0, named(ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
+        ScalaForkJoinPoolInstrumentation.class.getName() + "$SetScalaForkJoinStateAdvice");
     transformers.put(
         nameMatches("invoke")
-            .and(takesArgument(0, named(AkkaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
-        AkkaExecutorInstrumentation.class.getName() + "$SetAkkaForkJoinStateAdvice");
+            .and(takesArgument(0, named(ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
+        ScalaForkJoinPoolInstrumentation.class.getName() + "$SetScalaForkJoinStateAdvice");
     return transformers;
   }
 
-  public static class SetAkkaForkJoinStateAdvice {
+  public static class SetScalaForkJoinStateAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static State enterJobSubmit(
