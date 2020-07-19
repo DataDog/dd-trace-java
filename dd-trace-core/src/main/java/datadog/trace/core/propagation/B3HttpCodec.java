@@ -1,7 +1,6 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
-import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -40,9 +39,9 @@ class B3HttpCodec {
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       try {
-        String injectedTraceId = context.getTraceId().toString(HEX_RADIX).toLowerCase();
+        String injectedTraceId = context.getTraceId().toHexString().toLowerCase();
         setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
-        setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toString(HEX_RADIX).toLowerCase());
+        setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toHexString().toLowerCase());
 
         if (context.lockSamplingPriority()) {
           setter.set(

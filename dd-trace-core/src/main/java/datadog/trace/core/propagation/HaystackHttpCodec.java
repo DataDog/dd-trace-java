@@ -1,13 +1,11 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
-import static datadog.trace.core.propagation.HttpCodec.validateUInt64BitsID;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
-import java.math.BigInteger;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -106,8 +104,8 @@ public class HaystackHttpCodec {
       try {
         Map<String, String> baggage = Collections.emptyMap();
         Map<String, String> tags = Collections.emptyMap();
-        BigInteger traceId = BigInteger.ZERO;
-        BigInteger spanId = BigInteger.ZERO;
+        DDId traceId = DDId.ZERO;
+        DDId spanId = DDId.ZERO;
         final int samplingPriority = PrioritySampling.SAMPLER_KEEP;
         final String origin = null; // Always null
 
@@ -162,15 +160,15 @@ public class HaystackHttpCodec {
     }
   }
 
-  private static String convertBigIntToUUID(BigInteger id) {
+  private static String convertBigIntToUUID(DDId id) {
     // This is not a true/real UUID, as we don't care about the version and variant markers
     //  the creation is just taking the least significant bits and doing static most significant ones.
-    //  this is done for the purpose of being able to maintain cardinality and idempotency of the conversion
-    String idHex = String.format("%016x", id);
+    //  this is done for the purpose of being able to maintain cardinality and idempotence of the conversion
+    String idHex = String.format("%016x", id.toLong());
     return DATADOG + "-" + idHex.substring(0, 4) + "-" + idHex.substring(4);
   }
 
-  private static BigInteger convertUUIDToBigInt(String value) {
+  private static DDId convertUUIDToBigInt(String value) {
     try {
       if (value.contains("-")) {
         String[] strings = value.split("-");
@@ -178,16 +176,16 @@ public class HaystackHttpCodec {
         // significant one.
         if (strings.length == 5) {
           String idHex = strings[3] + strings[4];
-          return validateUInt64BitsID(idHex, 16);
+          return DDId.fromHex(idHex);
         }
         throw new NumberFormatException("Invalid UUID format: " + value);
       } else {
         // This could be a regular hex id without separators
         int length = value.length();
         if (length == 32) {
-          return validateUInt64BitsID(value.substring(16), 16);
+          return DDId.fromHex(value.substring(16));
         } else {
-          return validateUInt64BitsID(value, 16);
+          return DDId.fromHex(value);
         }
       }
     } catch (final Exception e) {
