@@ -6,9 +6,9 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.Monitor
+import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
-import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
@@ -87,7 +87,7 @@ class DDAgentWriterTest extends DDSpecification {
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
     1 * api.selectTraceMapper()  >> { callRealMethod() }
-    1 * api.sendSerializedTraces(2, 2, _) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == 2 && it.representativeCount() == 2 }) >> DDAgentApi.Response.success(200)
     0 * _
 
     cleanup:
@@ -117,7 +117,7 @@ class DDAgentWriterTest extends DDSpecification {
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
     1 * api.selectTraceMapper()  >> { callRealMethod() }
-    1 * api.sendSerializedTraces({ it <= traceCount }, { it <= traceCount }, _) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() <= traceCount && it.representativeCount() <= traceCount }) >> DDAgentApi.Response.success(200)
     0 * _
 
     cleanup:
@@ -150,7 +150,7 @@ class DDAgentWriterTest extends DDSpecification {
     1 * api.detectEndpointAndBuildClient() >> agentVersion
     1 * api.selectTraceMapper()  >> { callRealMethod() }
     1 * monitor.onSerialize(_)
-    1 * api.sendSerializedTraces({it == 5}, { it == 5 }, _) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({it.traceCount() == 5 && it.representativeCount() == 5 }) >> DDAgentApi.Response.success(200)
     _ * monitor.onPublish(_)
     1 * monitor.onSend(_, _, _) >> {
       phaser.arrive()
@@ -179,7 +179,7 @@ class DDAgentWriterTest extends DDSpecification {
     when:
     def mapper = agentVersion.equals("v0.5/traces") ? new TraceMapperV0_5() : new TraceMapperV0_4()
     int traceSize = calculateSize(minimalTrace, mapper)
-    int maxedPayloadTraceCount = ((int) ((TraceProcessingDisruptor.DEFAULT_BUFFER_SIZE - 5) / traceSize))
+    int maxedPayloadTraceCount = ((int) ((PayloadDispatcher.DEFAULT_BUFFER_SIZE - 5) / traceSize))
     (0..maxedPayloadTraceCount).each {
       writer.write(minimalTrace)
       def start = System.nanoTime()
@@ -193,8 +193,8 @@ class DDAgentWriterTest extends DDSpecification {
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
     1 * api.selectTraceMapper()  >> { callRealMethod() }
-    1 * api.sendSerializedTraces({ it == maxedPayloadTraceCount }, { it == maxedPayloadTraceCount }, _) >> DDAgentApi.Response.success(200)
-    1 * api.sendSerializedTraces({ it == 1 }, { it == 1 }, _) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == maxedPayloadTraceCount && it.representativeCount() == maxedPayloadTraceCount }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == 1 && it.representativeCount() == 1 }) >> DDAgentApi.Response.success(200)
     0 * _
 
     cleanup:
@@ -375,7 +375,7 @@ class DDAgentWriterTest extends DDSpecification {
         return version
       }
 
-      DDAgentApi.Response sendSerializedTraces(int representativeCount, int traceCount, ByteBuffer traces) {
+      DDAgentApi.Response sendSerializedTraces(int representativeCount, int traceCount, ByteBuffer dictionary, ByteBuffer traces) {
         // simulating a communication failure to a server
         return DDAgentApi.Response.failed(new IOException("comm error"))
       }
@@ -642,7 +642,7 @@ class DDAgentWriterTest extends DDSpecification {
     def minimalTrace = createMinimalTrace()
 
     def api = apiWithVersion(agentVersion)
-    api.sendSerializedTraces(_, _, _) >> DDAgentApi.Response.failed(new IOException("comm error"))
+    api.sendSerializedTraces(_) >> DDAgentApi.Response.failed(new IOException("comm error"))
 
     def statsd = Stub(StatsDClient)
     statsd.incrementCounter("api.requests") >> { stat ->

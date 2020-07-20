@@ -20,12 +20,13 @@ import static datadog.trace.core.serialization.msgpack.Util.writeLongAsString;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.core.serialization.msgpack.Mapper;
 import datadog.trace.core.serialization.msgpack.Writable;
+import java.io.IOException;
+import java.nio.channels.WritableByteChannel;
 import java.util.List;
 import java.util.Map;
 
-public final class TraceMapperV0_4 implements Mapper<List<DDSpan>> {
+public final class TraceMapperV0_4 implements TraceMapper {
   private final byte[] numberByteArray = new byte[20]; // this is max long digits and sign
 
   @Override
@@ -110,6 +111,27 @@ public final class TraceMapperV0_4 implements Mapper<List<DDSpan>> {
                   }
                 }
               });
+    }
+  }
+
+  @Override
+  public Payload newPayload() {
+    return new PayloadV0_4();
+  }
+
+  @Override
+  public void reset() {}
+
+  private static class PayloadV0_4 extends Payload {
+
+    @Override
+    int sizeInBytes() {
+      return sizeInBytes(body);
+    }
+
+    @Override
+    void writeTo(WritableByteChannel channel) throws IOException {
+      writeBufferToChannel(body, channel);
     }
   }
 }

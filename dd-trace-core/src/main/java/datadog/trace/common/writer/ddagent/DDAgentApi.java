@@ -6,14 +6,11 @@ import com.squareup.moshi.Types;
 import datadog.common.container.ContainerInfo;
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory;
-import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDTraceCoreInfo;
-import datadog.trace.core.serialization.msgpack.Mapper;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -93,7 +90,7 @@ public class DDAgentApi {
     }
   }
 
-  Mapper<List<DDSpan>> selectTraceMapper() {
+  TraceMapper selectTraceMapper() {
     String endpoint = detectEndpointAndBuildClient();
     if (null == endpoint) {
       return null;
@@ -104,14 +101,14 @@ public class DDAgentApi {
     return new TraceMapperV0_4();
   }
 
-  Response sendSerializedTraces(
-      final int representativeCount, final int traceCount, final ByteBuffer buffer) {
-    final int sizeInBytes = buffer.limit() - buffer.position();
+  Response sendSerializedTraces(final Payload payload) {
+    final int sizeInBytes = payload.sizeInBytes();
     if (null == httpClient) {
       detectEndpointAndBuildClient();
       if (null == httpClient) {
         log.error("No datadog agent detected");
-        countAndLogFailedSend(traceCount, representativeCount, sizeInBytes, null, null);
+        countAndLogFailedSend(
+            payload.traceCount(), payload.representativeCount(), sizeInBytes, null, null);
         return Response.failed(agentRunning ? 404 : 503);
       }
     }
@@ -119,17 +116,18 @@ public class DDAgentApi {
     try {
       final Request request =
           prepareRequest(tracesUrl)
-              .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(representativeCount))
-              .put(new MsgPackRequestBody(buffer))
+              .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.representativeCount()))
+              .put(new MsgPackRequestBody(payload))
               .build();
-      this.totalTraces += representativeCount;
-      this.receivedTraces += traceCount;
+      this.totalTraces += payload.representativeCount();
+      this.receivedTraces += payload.traceCount();
       try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
         if (response.code() != 200) {
-          countAndLogFailedSend(traceCount, representativeCount, sizeInBytes, response, null);
+          countAndLogFailedSend(
+              payload.traceCount(), payload.representativeCount(), sizeInBytes, response, null);
           return Response.failed(response.code());
         }
-        countAndLogSuccessfulSend(traceCount, representativeCount, sizeInBytes);
+        countAndLogSuccessfulSend(payload.traceCount(), payload.representativeCount(), sizeInBytes);
         String responseString = null;
         try {
           responseString = response.body().string().trim();
@@ -148,7 +146,8 @@ public class DDAgentApi {
         }
       }
     } catch (final IOException e) {
-      countAndLogFailedSend(traceCount, representativeCount, sizeInBytes, null, e);
+      countAndLogFailedSend(
+          payload.traceCount(), payload.representativeCount(), sizeInBytes, null, e);
       return Response.failed(e);
     }
   }
@@ -436,10 +435,11 @@ public class DDAgentApi {
   }
 
   private static class MsgPackRequestBody extends RequestBody {
-    private final ByteBuffer traces;
 
-    private MsgPackRequestBody(ByteBuffer traces) {
-      this.traces = traces;
+    private final Payload payload;
+
+    private MsgPackRequestBody(Payload payload) {
+      this.payload = payload;
     }
 
     @Override
@@ -449,13 +449,12 @@ public class DDAgentApi {
 
     @Override
     public long contentLength() {
-      return traces.limit() - traces.position();
+      return payload.sizeInBytes();
     }
 
     @Override
-    public void writeTo(final BufferedSink sink) throws IOException {
-      sink.write(traces);
-      sink.flush();
+    public void writeTo(BufferedSink sink) throws IOException {
+      payload.writeTo(sink);
     }
   }
 }

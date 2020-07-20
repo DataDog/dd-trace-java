@@ -52,19 +52,29 @@ public class Packer implements Writable, MessageFormatter {
 
   private final ByteBufferConsumer sink;
   private final ByteBuffer buffer;
+  private final boolean manualReset;
   private int messageCount = 0;
 
   private final byte[] utf8Buffer = new byte[UTF8_BUFFER_SIZE * 4];
 
-  public Packer(Codec codec, ByteBufferConsumer sink, ByteBuffer buffer) {
+  public Packer(Codec codec, ByteBufferConsumer sink, ByteBuffer buffer, boolean manualReset) {
     this.codec = codec;
     this.sink = sink;
     this.buffer = buffer;
     initBuffer();
+    this.manualReset = manualReset;
+  }
+
+  public Packer(Codec codec, ByteBufferConsumer sink, ByteBuffer buffer) {
+    this(codec, sink, buffer, false);
   }
 
   public Packer(ByteBufferConsumer sink, ByteBuffer buffer) {
     this(Codec.INSTANCE, sink, buffer);
+  }
+
+  public Packer(ByteBufferConsumer sink, ByteBuffer buffer, boolean manualReset) {
+    this(Codec.INSTANCE, sink, buffer, manualReset);
   }
 
   private void initBuffer() {
@@ -109,6 +119,13 @@ public class Packer implements Writable, MessageFormatter {
     }
   }
 
+  public void reset() {
+    buffer.position(MAX_ARRAY_HEADER_SIZE);
+    initBuffer();
+    buffer.limit(buffer.capacity());
+    messageCount = 0;
+  }
+
   @Override
   public void flush() {
     buffer.flip();
@@ -122,9 +139,9 @@ public class Packer implements Writable, MessageFormatter {
     writeArrayHeader(messageCount);
     buffer.position(pos);
     sink.accept(messageCount, buffer.slice());
-    initBuffer();
-    buffer.limit(buffer.capacity());
-    messageCount = 0;
+    if (!manualReset) {
+      reset();
+    }
   }
 
   @Override
@@ -163,7 +180,7 @@ public class Packer implements Writable, MessageFormatter {
     if (null == s) {
       writeNull();
     } else {
-      byte[] utf8 = encodingCache.encode(s);
+      byte[] utf8 = null == encodingCache ? null : encodingCache.encode(s);
       if (null == utf8) {
         if (s.length() < UTF8_BUFFER_SIZE) {
           utf8EncodeWithArray(s);

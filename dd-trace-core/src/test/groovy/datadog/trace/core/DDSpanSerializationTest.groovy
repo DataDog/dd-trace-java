@@ -21,23 +21,9 @@ class DDSpanSerializationTest extends DDSpecification {
 
   def "serialize trace with id #value as int"() {
     setup:
-    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
-    def context = new DDSpanContext(
-      value,
-      value,
-      DDId.ZERO,
-      "fakeService",
-      "fakeOperation",
-      "fakeResource",
-      PrioritySampling.UNSET,
-      null,
-      Collections.emptyMap(),
-      false,
-      spanType,
-      0,
-      PendingTrace.create(tracer, DDId.ONE),
-      tracer,
-      [:])
+    def writer = new ListWriter()
+    def tracer = CoreTracer.builder().writer(writer).build()
+    def context = createContext(spanType, tracer, value)
     def span = DDSpan.create(0, context)
     def buffer = ByteBuffer.allocate(1024)
     CaptureBuffer capture = new CaptureBuffer()
@@ -86,30 +72,23 @@ class DDSpanSerializationTest extends DDSpecification {
     setup:
     def writer = new ListWriter()
     def tracer = CoreTracer.builder().writer(writer).build()
-    def context = new DDSpanContext(
-      value,
-      value,
-      DDId.ZERO,
-      "fakeService",
-      "fakeOperation",
-      "fakeResource",
-      PrioritySampling.UNSET,
-      null,
-      Collections.emptyMap(),
-      false,
-      spanType,
-      Collections.emptyMap(),
-      PendingTrace.create(tracer, DDId.ONE),
-      tracer,
-      [:])
+    def context = createContext(spanType, tracer, value)
     def span = DDSpan.create(0, context)
     def buffer = ByteBuffer.allocate(1024)
     CaptureBuffer capture = new CaptureBuffer()
     def packer = new Packer(capture, buffer)
-    packer.format(Collections.singletonList(span), new TraceMapperV0_5())
+    def traceMapper = new TraceMapperV0_5()
+    packer.format(Collections.singletonList(span), traceMapper)
     packer.flush()
+    def dictionaryUnpacker = MessagePack.newDefaultUnpacker(traceMapper.getDictionary())
+    String[] dictionary = new String[dictionaryUnpacker.unpackArrayHeader()]
+    dictionaryUnpacker.unpackNil()
+    for (int i = 1; i < dictionary.length; ++i) {
+      dictionary[i] = dictionaryUnpacker.unpackString()
+    }
     def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
     int traceCount = unpacker.unpackArrayHeader()
+
     int spanCount = unpacker.unpackArrayHeader()
     int size = unpacker.unpackArrayHeader()
 
@@ -221,5 +200,26 @@ class DDSpanSerializationTest extends DDSpecification {
       this.bytes = new byte[buffer.limit() - buffer.position()]
       buffer.get(bytes)
     }
+  }
+
+  def createContext(String spanType, CoreTracer tracer, DDId value) {
+    DDSpanContext ctx = new DDSpanContext(
+      value,
+      value,
+      DDId.ZERO,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      ["a-baggage": "value"],
+      false,
+      spanType,
+      1,
+      PendingTrace.create(tracer, DDId.ONE),
+      tracer,
+      [:])
+    ctx.setAllTags(["k1": "v1"])
+    return ctx
   }
 }

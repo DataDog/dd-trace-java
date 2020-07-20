@@ -6,7 +6,7 @@ public class EncodingCachingStrategies {
 
   public static final EncodingCache CONSTANT_KEYS = new ConstantKeys();
   public static final EncodingCache CONSTANT_TAGS = new ConstantTags();
-  public static final EncodingCache NO_CACHING = new NoCaching();
+  public static final EncodingCache NO_CACHING = null;
 
   private static final class ConstantTags implements EncodingCache {
 
@@ -21,14 +21,6 @@ public class EncodingCachingStrategies {
     @Override
     public byte[] encode(CharSequence s) {
       return StringTables.getKeyBytesUTF8(s);
-    }
-  }
-
-  private static final class NoCaching implements EncodingCache {
-
-    @Override
-    public byte[] encode(CharSequence s) {
-      return null;
     }
   }
 }

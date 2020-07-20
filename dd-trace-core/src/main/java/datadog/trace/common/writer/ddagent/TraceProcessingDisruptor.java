@@ -11,10 +11,6 @@ import datadog.common.exec.CommonTaskExecutor;
 import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
-import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
-import datadog.trace.core.serialization.msgpack.Mapper;
-import datadog.trace.core.serialization.msgpack.Packer;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
@@ -30,8 +26,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class TraceProcessingDisruptor implements AutoCloseable {
-
-  static final int DEFAULT_BUFFER_SIZE = 5 << 20; // 5MB
 
   private final Disruptor<DisruptorEvent<List<DDSpan>>> disruptor;
   private final DisruptorEvent.DataTranslator<List<DDSpan>> dataTranslator;
@@ -58,7 +52,9 @@ public class TraceProcessingDisruptor implements AutoCloseable {
             // using blocking wait strategy because the processor will
             // spend some time doing IO anyway
             new BlockingWaitStrategy());
-    disruptor.handleEventsWith(new TraceSerializingHandler(monitor, flushInterval, timeUnit, api));
+    disruptor.handleEventsWith(
+        new TraceSerializingHandler(
+            monitor, flushInterval, timeUnit, new PayloadDispatcher(api, monitor)));
     this.dataTranslator = new DisruptorEvent.DataTranslator<>();
     this.flushTranslator = new DisruptorEvent.FlushTranslator<>();
     this.doHeartbeat = heartbeat;
@@ -110,27 +106,23 @@ public class TraceProcessingDisruptor implements AutoCloseable {
   }
 
   public static class TraceSerializingHandler
-      implements EventHandler<DisruptorEvent<List<DDSpan>>>, ByteBufferConsumer {
+      implements EventHandler<DisruptorEvent<List<DDSpan>>> {
 
     private final TraceProcessor processor = new TraceProcessor();
     private final Monitor monitor;
     private final long flushIntervalMillis;
     private final boolean doTimeFlush;
-    private final DDAgentApi api;
-    private int representativeCount = 0;
+    private final PayloadDispatcher payloadDispatcher;
     private long nextFlushMillis;
-    private Mapper<List<DDSpan>> traceMapper;
-
-    private Packer packer;
 
     public TraceSerializingHandler(
         final Monitor monitor,
         final long flushInterval,
         final TimeUnit timeUnit,
-        final DDAgentApi api) {
+        PayloadDispatcher payloadDispatcher) {
       this.monitor = monitor;
       this.doTimeFlush = flushInterval > 0;
-      this.api = api;
+      this.payloadDispatcher = payloadDispatcher;
       if (doTimeFlush) {
         this.flushIntervalMillis = timeUnit.toMillis(flushInterval);
         scheduleNextTimeFlush();
@@ -142,28 +134,20 @@ public class TraceProcessingDisruptor implements AutoCloseable {
     @Override
     public void onEvent(
         final DisruptorEvent<List<DDSpan>> event, final long sequence, final boolean endOfBatch) {
-      if (event.data != null) {
-        // this will trigger logging and it can cause problems if this happens too soon
-        // waiting for a trace to have been produced helps to avoid this
-        postConstruct();
-      }
       try {
-        if (representativeCount > 0) {
-          // publish an incomplete batch if
-          // 1. we get a heartbeat, and it's time to send (early heartbeats will be ignored)
-          // 2. a synchronous flush command is received (at shutdown)
-          if ((event.data == null && doTimeFlush && millisecondTime() > nextFlushMillis)) {
-            packer.flush();
-            scheduleNextTimeFlush();
-          }
+        // publish an incomplete batch if
+        // 1. we get a heartbeat, and it's time to send (early heartbeats will be ignored)
+        // 2. a synchronous flush command is received (at shutdown)
+        if ((event.data == null && doTimeFlush && millisecondTime() > nextFlushMillis)) {
+          payloadDispatcher.flush();
+          scheduleNextTimeFlush();
         }
         if (event.data != null) {
-          serialize(event.data, event.representativeCount);
+          // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
+          payloadDispatcher.addTrace(processor.onTraceComplete(event.data));
         }
         if (null != event.flushLatch) {
-          if (null != packer) {
-            packer.flush();
-          }
+          payloadDispatcher.flush();
           event.flushLatch.countDown();
         }
       } catch (final Throwable e) {
@@ -176,20 +160,6 @@ public class TraceProcessingDisruptor implements AutoCloseable {
       }
     }
 
-    private void serialize(List<DDSpan> trace, int representativeCount) {
-      // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
-      // the call below is blocking and will trigger IO if a flush is necessary
-      // there are alternative approaches to avoid blocking here, such as
-      // introducing an unbound queue and another thread to do the IO
-      // however, we can't block the application threads from here.
-      if (null != traceMapper) {
-        packer.format(processor.onTraceComplete(trace), traceMapper);
-      } else { // if the mapper is null, then there's no agent running, so we should drop
-        log.debug("dropping {} traces because no agent was detected", representativeCount);
-      }
-      this.representativeCount += representativeCount;
-    }
-
     private void scheduleNextTimeFlush() {
       if (doTimeFlush) {
         nextFlushMillis = millisecondTime() + flushIntervalMillis;
@@ -199,43 +169,6 @@ public class TraceProcessingDisruptor implements AutoCloseable {
     private long millisecondTime() {
       // important: nanoTime is monotonic, currentTimeMillis is not
       return NANOSECONDS.toMillis(System.nanoTime());
-    }
-
-    private void postConstruct() {
-      if (null == traceMapper) {
-        this.traceMapper = api.selectTraceMapper();
-        if (null == packer) {
-          this.packer = new Packer(this, ByteBuffer.allocate(DEFAULT_BUFFER_SIZE));
-        }
-      }
-    }
-
-    @Override
-    public void accept(int messageCount, ByteBuffer buffer) {
-      // the packer calls this when the buffer is full,
-      // or when the packer is flushed at a heartbeat
-      if (messageCount > 0) {
-        final int sizeInBytes = buffer.limit() - buffer.position();
-        monitor.onSerialize(sizeInBytes);
-        DDAgentApi.Response response =
-            api.sendSerializedTraces(messageCount, representativeCount, buffer);
-        if (response.success()) {
-          if (log.isDebugEnabled()) {
-            log.debug("Successfully sent {} traces to the API", messageCount);
-          }
-          monitor.onSend(representativeCount, sizeInBytes, response);
-        } else {
-          if (log.isDebugEnabled()) {
-            log.debug(
-                "Failed to send {} traces (representing {}) of size {} bytes to the API",
-                messageCount,
-                representativeCount,
-                sizeInBytes);
-          }
-          monitor.onFailedSend(representativeCount, sizeInBytes, response);
-        }
-        this.representativeCount = 0;
-      }
     }
   }
 
