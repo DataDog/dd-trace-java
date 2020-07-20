@@ -61,7 +61,7 @@ final class ScopeStackCollector implements IMLTChunk {
     this.startTimeNs = startTimeNs;
 
     // Capture the base stacktrace:
-    collect(Thread.currentThread().getStackTrace());
+    collect(new Throwable().getStackTrace());
   }
 
   public void collect(StackTraceElement[] stackTrace) {
