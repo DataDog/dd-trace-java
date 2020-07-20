@@ -151,8 +151,8 @@ class DDAgentWriterTest extends DDSpecification {
     1 * api.selectTraceMapper()  >> { callRealMethod() }
     1 * monitor.onSerialize(_)
     1 * api.sendSerializedTraces({it == 5}, { it == 5 }, _) >> DDAgentApi.Response.success(200)
-    _ * monitor.onPublish(_, _)
-    1 * monitor.onSend(_, _, _, _) >> {
+    _ * monitor.onPublish(_)
+    1 * monitor.onSend(_, _, _) >> {
       phaser.arrive()
     }
     0 * _
@@ -237,11 +237,10 @@ class DDAgentWriterTest extends DDSpecification {
     writer.flush()
 
     then:
-//    2 * monitor.onFlush(_, false)
     // this will be checked during flushing
-    1 * monitor.onFailedPublish(_, _)
-    1 * monitor.onFlush(_, _)
-    1 * monitor.onShutdown(_, _)
+    1 * monitor.onFailedPublish(_)
+    1 * monitor.onFlush(_)
+    1 * monitor.onShutdown(_)
     0 * _
     writer.traceCount.get() == 0
 
@@ -290,23 +289,23 @@ class DDAgentWriterTest extends DDSpecification {
     writer.start()
 
     then:
-    1 * monitor.onStart(writer)
+    1 * monitor.onStart(writer.getDisruptorCapacity())
 
     when:
     writer.write(minimalTrace)
     writer.flush()
 
     then:
-    1 * monitor.onPublish(writer, minimalTrace)
+    1 * monitor.onPublish(minimalTrace)
     1 * monitor.onSerialize(_)
-    1 * monitor.onFlush(writer, false)
-    1 * monitor.onSend(writer, 1, _, { response -> response.success() && response.status() == 200 })
+    1 * monitor.onFlush(false)
+    1 * monitor.onSend(1, _, { response -> response.success() && response.status() == 200 })
 
     when:
     writer.close()
 
     then:
-    1 * monitor.onShutdown(writer, true)
+    1 * monitor.onShutdown(true)
 
     cleanup:
     agent.close()
@@ -340,23 +339,23 @@ class DDAgentWriterTest extends DDSpecification {
     writer.start()
 
     then:
-    1 * monitor.onStart(writer)
+    1 * monitor.onStart(writer.getDisruptorCapacity())
 
     when:
     writer.write(minimalTrace)
     writer.flush()
 
     then:
-    1 * monitor.onPublish(writer, minimalTrace)
+    1 * monitor.onPublish(minimalTrace)
     1 * monitor.onSerialize(_)
-    1 * monitor.onFlush(writer, false)
-    1 * monitor.onFailedSend(writer, 1, _, { response -> !response.success() && response.status() == 500 })
+    1 * monitor.onFlush(false)
+    1 * monitor.onFailedSend(1, _, { response -> !response.success() && response.status() == 500 })
 
     when:
     writer.close()
 
     then:
-    1 * monitor.onShutdown(writer, true)
+    1 * monitor.onShutdown(true)
 
     cleanup:
     agent.close()
@@ -387,7 +386,7 @@ class DDAgentWriterTest extends DDSpecification {
     writer.start()
 
     then:
-    1 * monitor.onStart(writer)
+    1 * monitor.onStart(writer.getDisruptorCapacity())
 
     when:
     writer.write(minimalTrace)
@@ -396,14 +395,14 @@ class DDAgentWriterTest extends DDSpecification {
     then:
     // if we know there's no agent, we'll drop the traces before serialising them
     // but we also know that there's nowhere to send health metrics to
-    1 * monitor.onPublish(writer, _)
-    1 * monitor.onFlush(writer, false)
+    1 * monitor.onPublish(_)
+    1 * monitor.onFlush(false)
 
     when:
     writer.close()
 
     then:
-    1 * monitor.onShutdown(writer, true)
+    1 * monitor.onShutdown(true)
 
     where:
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
@@ -440,19 +439,19 @@ class DDAgentWriterTest extends DDSpecification {
 
     // This test focuses just on failed publish, so not verifying every callback
     def monitor = Stub(Monitor) {
-      onPublish(_, _) >> {
+      onPublish(_) >> {
         numPublished.incrementAndGet()
       }
-      onFailedPublish(_, _) >> {
+      onFailedPublish(_) >> {
         numFailedPublish.incrementAndGet()
       }
-      onFlush(_, _) >> {
+      onFlush(_) >> {
         numFlushes.incrementAndGet()
       }
-      onSend(_, _, _, _) >> {
+      onSend(_, _, _) >> {
         numRequests.incrementAndGet()
       }
-      onFailedPublish(_, _, _, _) >> {
+      onFailedPublish(_, _, _) >> {
         numFailedRequests.incrementAndGet()
       }
     }
@@ -539,13 +538,13 @@ class DDAgentWriterTest extends DDSpecification {
 
     // This test focuses just on failed publish, so not verifying every callback
     def monitor = Stub(Monitor) {
-      onPublish(_, _) >> {
+      onPublish(_) >> {
         numPublished.incrementAndGet()
       }
-      onFailedPublish(_, _) >> {
+      onFailedPublish(_) >> {
         numFailedPublish.incrementAndGet()
       }
-      onSend(_, _, _, _) >> { writer, repCount, sizeInBytes, response ->
+      onSend(_, _, _) >> { repCount, sizeInBytes, response ->
         numRepSent.addAndGet(repCount)
       }
     }

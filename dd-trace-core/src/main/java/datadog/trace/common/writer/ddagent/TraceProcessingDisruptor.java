@@ -9,7 +9,6 @@ import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.common.exec.DaemonThreadFactory;
-import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
@@ -46,7 +45,6 @@ public class TraceProcessingDisruptor implements AutoCloseable {
   public TraceProcessingDisruptor(
       final int disruptorSize,
       final Monitor monitor,
-      final DDAgentWriter writer,
       final DDAgentApi api,
       final long flushInterval,
       final TimeUnit timeUnit,
@@ -60,8 +58,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
             // using blocking wait strategy because the processor will
             // spend some time doing IO anyway
             new BlockingWaitStrategy());
-    disruptor.handleEventsWith(
-        new TraceSerializingHandler(monitor, writer, flushInterval, timeUnit, api));
+    disruptor.handleEventsWith(new TraceSerializingHandler(monitor, flushInterval, timeUnit, api));
     this.dataTranslator = new DisruptorEvent.DataTranslator<>();
     this.flushTranslator = new DisruptorEvent.FlushTranslator<>();
     this.doHeartbeat = heartbeat;
@@ -117,7 +114,6 @@ public class TraceProcessingDisruptor implements AutoCloseable {
 
     private final TraceProcessor processor = new TraceProcessor();
     private final Monitor monitor;
-    private final DDAgentWriter writer;
     private final long flushIntervalMillis;
     private final boolean doTimeFlush;
     private final DDAgentApi api;
@@ -129,12 +125,10 @@ public class TraceProcessingDisruptor implements AutoCloseable {
 
     public TraceSerializingHandler(
         final Monitor monitor,
-        final DDAgentWriter writer,
         final long flushInterval,
         final TimeUnit timeUnit,
         final DDAgentApi api) {
       this.monitor = monitor;
-      this.writer = writer;
       this.doTimeFlush = flushInterval > 0;
       this.api = api;
       if (doTimeFlush) {
@@ -176,7 +170,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
         if (log.isDebugEnabled()) {
           log.debug("Error while serializing trace", e);
         }
-        monitor.onFailedSerialize(writer, event.data, e);
+        monitor.onFailedSerialize(event.data, e);
       } finally {
         event.reset();
       }
@@ -229,7 +223,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
           if (log.isDebugEnabled()) {
             log.debug("Successfully sent {} traces to the API", messageCount);
           }
-          monitor.onSend(writer, representativeCount, sizeInBytes, response);
+          monitor.onSend(representativeCount, sizeInBytes, response);
         } else {
           if (log.isDebugEnabled()) {
             log.debug(
@@ -238,7 +232,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
                 representativeCount,
                 sizeInBytes);
           }
-          monitor.onFailedSend(writer, representativeCount, sizeInBytes, response);
+          monitor.onFailedSend(representativeCount, sizeInBytes, response);
         }
         this.representativeCount = 0;
       }

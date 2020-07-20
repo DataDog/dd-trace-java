@@ -75,7 +75,6 @@ public class DDAgentWriter implements Writer {
         new TraceProcessingDisruptor(
             traceBufferSize,
             monitor,
-            this,
             api,
             flushFrequencySeconds,
             TimeUnit.SECONDS,
@@ -112,23 +111,23 @@ public class DDAgentWriter implements Writer {
       }
       final boolean published = traceProcessingDisruptor.publish(trace, representativeCount);
       if (published) {
-        monitor.onPublish(DDAgentWriter.this, trace);
+        monitor.onPublish(trace);
       } else {
         // We're discarding the trace, but we still want to count it.
         traceCount.addAndGet(representativeCount);
         log.debug("Trace written to overfilled buffer. Counted but dropping trace: {}", trace);
-        monitor.onFailedPublish(this, trace);
+        monitor.onFailedPublish(trace);
       }
     } else {
       log.debug("Trace written after shutdown. Ignoring trace: {}", trace);
-      monitor.onFailedPublish(this, trace);
+      monitor.onFailedPublish(trace);
     }
   }
 
   public boolean flush() {
     if (!closed) { // give up after a second
       if (traceProcessingDisruptor.flush(1, TimeUnit.SECONDS)) {
-        monitor.onFlush(this, false);
+        monitor.onFlush(false);
         return true;
       }
     }
@@ -148,7 +147,7 @@ public class DDAgentWriter implements Writer {
   public void start() {
     if (!closed) {
       traceProcessingDisruptor.start();
-      monitor.onStart(this);
+      monitor.onStart((int) getDisruptorCapacity());
     }
   }
 
@@ -157,6 +156,6 @@ public class DDAgentWriter implements Writer {
     final boolean flushed = flush();
     closed = true;
     traceProcessingDisruptor.close();
-    monitor.onShutdown(this, flushed);
+    monitor.onShutdown(flushed);
   }
 }
