@@ -355,12 +355,15 @@ public class Config {
   private static Properties propertiesFromConfigFile;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
-  // Visible for testing
-  Config() {
+  private Config() {
+    this(INSTANCE != null ? INSTANCE.runtimeId : UUID.randomUUID().toString());
+  }
+
+  private Config(final String runtimeId) {
     propertiesFromConfigFile = loadConfigurationFile();
     configFile = findConfigurationFile();
 
-    runtimeId = UUID.randomUUID().toString();
+    this.runtimeId = runtimeId;
 
     // Note: We do not want APiKey to be loaded from property for security reasons
     // Note: we do not use defined default here

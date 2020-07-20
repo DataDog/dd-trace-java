@@ -139,7 +139,6 @@ class KafkaClientTest extends AgentTestRunner {
   }
 
 
-
   def "test pass through tombstone"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
