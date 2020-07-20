@@ -98,6 +98,8 @@ public class OtelContextPropagators implements ContextPropagators {
 
     @Override
     public void forEachKey(C carrier, AgentPropagation.KeyClassifier classifier) {
+      // TODO: Otel doesn't expose the keys, so we have to rely on hard coded keys.
+      // https://github.com/open-telemetry/opentelemetry-specification/issues/433
       for (String key : KEYS) {
         if (!classifier.accept(key, getter.get(carrier, key))) {
           return;

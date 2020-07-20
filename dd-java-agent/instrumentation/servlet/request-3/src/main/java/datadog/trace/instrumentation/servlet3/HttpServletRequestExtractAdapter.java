@@ -16,10 +16,13 @@ public class HttpServletRequestExtractAdapter
     while (headerNames.hasMoreElements()) {
       String header = headerNames.nextElement();
       if (!classifier.accept(header, carrier.getHeader(header))) {
-        return;
+        break;
       }
     }
-    // TODO collapse these into one method with a lambda when JDK7 is dropped
+    /*
+     * Read from the attributes and override the headers.
+     * This is used by ServletRequestSetter when a request is async-dispatched.
+     */
     Enumeration<String> attributeNames = carrier.getAttributeNames();
     while (attributeNames.hasMoreElements()) {
       String name = attributeNames.nextElement();
