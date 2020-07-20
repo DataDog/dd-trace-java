@@ -12,7 +12,7 @@ public class MessageInjectAdapter implements AgentPropagation.Setter<Message> {
 
   @Override
   public void set(final Message carrier, final String key, final String value) {
-    final String propName = key.replace('-', '$');
+    final String propName = key.replace("-", "__dash__");
     try {
       carrier.setStringProperty(propName, value);
     } catch (final JMSException e) {
