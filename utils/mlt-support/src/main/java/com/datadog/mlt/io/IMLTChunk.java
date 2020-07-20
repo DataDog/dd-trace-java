@@ -25,6 +25,9 @@ public interface IMLTChunk {
   /** @return associated thread name */
   String getThreadName();
 
+  /** @return the base {@linkplain FrameSequence} */
+  FrameSequence baseFrameSequence();
+
   /** @return the contained {@linkplain FrameSequence}s as an object stream */
   Stream<FrameSequence> frameSequences();
 
