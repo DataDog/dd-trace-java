@@ -2,6 +2,7 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
+import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Shared
 
@@ -40,7 +41,7 @@ class HttpExtractorTest extends DDSpecification {
     }
 
     when:
-    final TagContext context = extractor.extract(actual, MapGetter.INSTANCE)
+    final TagContext context = extractor.extract(actual, ContextVisitors.stringValuesMap())
 
     then:
     if (tagContext) {

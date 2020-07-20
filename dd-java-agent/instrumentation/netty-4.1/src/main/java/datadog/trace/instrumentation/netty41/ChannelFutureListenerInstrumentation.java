@@ -56,7 +56,6 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Default {
       packageName + ".client.HttpClientTracingHandler",
       // server helpers
       packageName + ".server.NettyHttpServerDecorator",
-      packageName + ".server.NettyRequestExtractAdapter",
       packageName + ".server.HttpServerRequestTracingHandler",
       packageName + ".server.HttpServerResponseTracingHandler",
       packageName + ".server.HttpServerTracingHandler"

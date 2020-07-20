@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.opentracing31;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.instrumentation.opentracing.DefaultLogHandler;
 import io.opentracing.References;
@@ -56,8 +57,7 @@ public class OTTracer implements Tracer {
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMap) {
       final AgentSpan.Context tagContext =
-          tracer.extract(
-              (TextMap) carrier, new OTPropagation.TextMapExtractGetter((TextMap) carrier));
+          tracer.extract((TextMap) carrier, ContextVisitors.<TextMap>stringValuesEntrySet());
 
       return converter.toSpanContext(tagContext);
     } else {

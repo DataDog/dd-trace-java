@@ -1,23 +1,23 @@
 package datadog.trace.instrumentation.jetty8;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import java.util.Collections;
-import java.util.List;
+import java.util.Enumeration;
 import javax.servlet.http.HttpServletRequest;
 
 public class HttpServletRequestExtractAdapter
-    implements AgentPropagation.Getter<HttpServletRequest> {
+    implements AgentPropagation.ContextVisitor<HttpServletRequest> {
 
   public static final HttpServletRequestExtractAdapter GETTER =
       new HttpServletRequestExtractAdapter();
 
   @Override
-  public List<String> keys(final HttpServletRequest carrier) {
-    return Collections.list(carrier.getHeaderNames());
-  }
-
-  @Override
-  public String get(final HttpServletRequest carrier, final String key) {
-    return carrier.getHeader(key);
+  public void forEachKey(HttpServletRequest carrier, AgentPropagation.KeyClassifier classifier) {
+    Enumeration<String> headerNames = carrier.getHeaderNames();
+    while (headerNames.hasMoreElements()) {
+      String header = headerNames.nextElement();
+      if (!classifier.accept(header, carrier.getHeader(header))) {
+        return;
+      }
+    }
   }
 }

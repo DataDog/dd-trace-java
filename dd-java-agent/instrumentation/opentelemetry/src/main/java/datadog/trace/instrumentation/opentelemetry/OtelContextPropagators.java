@@ -63,7 +63,7 @@ public class OtelContextPropagators implements ContextPropagators {
     }
   }
 
-  private static class OtelGetter<C> implements AgentPropagation.Getter<C> {
+  private static class OtelGetter<C> implements AgentPropagation.ContextVisitor<C> {
     private static final String DD_TRACE_ID_KEY = "x-datadog-trace-id";
     private static final String DD_SPAN_ID_KEY = "x-datadog-parent-id";
     private static final String DD_SAMPLING_PRIORITY_KEY = "x-datadog-sampling-priority";
@@ -97,15 +97,14 @@ public class OtelContextPropagators implements ContextPropagators {
     }
 
     @Override
-    public Iterable<String> keys(final C carrier) {
+    public void forEachKey(C carrier, AgentPropagation.KeyClassifier classifier) {
       // TODO: Otel doesn't expose the keys, so we have to rely on hard coded keys.
       // https://github.com/open-telemetry/opentelemetry-specification/issues/433
-      return KEYS;
-    }
-
-    @Override
-    public String get(final C carrier, final String key) {
-      return getter.get(carrier, key);
+      for (String key : KEYS) {
+        if (!classifier.accept(key, getter.get(carrier, key))) {
+          return;
+        }
+      }
     }
   }
 }

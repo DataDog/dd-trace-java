@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.api;
+package datadog.trace.core.util;
 
 /**
  * This is a fixed size cache that only has one operation <code>computeIfAbsent</code>, that is used
@@ -10,6 +10,9 @@ package datadog.trace.bootstrap.instrumentation.api;
  * <p>The cache is thread safe, and assumes that the <code>Creator</code> passed into <code>
  * computeIfAbsent</code> is idempotent or otherwise you might not get back the value you expect
  * from a cache lookup.
+ *
+ * <p>Duplicated from agent-bootstrap to avoid a dependency on that module until there is a better
+ * place for this class to go.
  *
  * @param <K> key type
  * @param <V> value type
