@@ -11,6 +11,9 @@ package datadog.trace.core.util;
  * computeIfAbsent</code> is idempotent or otherwise you might not get back the value you expect
  * from a cache lookup.
  *
+ * <p>Duplicated from agent-bootstrap to avoid a dependency on that module until there is a better
+ * place for this class to go.
+ *
  * @param <K> key type
  * @param <V> value type
  */
