@@ -61,6 +61,7 @@ class HaystackHttpInjectorTest extends DDSpecification {
     1 * carrier.put(DD_SPAN_ID_BAGGAGE_KEY, spanId.toString())
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k1", "v1")
     1 * carrier.put(OT_BAGGAGE_PREFIX + "k2", "v2")
+    1 * carrier.put(DD_PARENT_ID_BAGGAGE_KEY, "0")
 
     where:
     traceId               | spanId                | samplingPriority              | origin | traceUuid                              | spanUuid
