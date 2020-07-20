@@ -33,6 +33,14 @@ public class FixedSizeCache<K, V> {
     }
   }
 
+  public static class LowerCase implements Creator<String, String> {
+
+    @Override
+    public String create(String key) {
+      return key.toLowerCase();
+    }
+  }
+
   static final int MAXIMUM_CAPACITY = 1 << 30;
 
   private static final class Node<K, V> {

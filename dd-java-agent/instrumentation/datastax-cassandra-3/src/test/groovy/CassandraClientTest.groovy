@@ -8,6 +8,9 @@ import datadog.trace.core.DDSpan
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper
 import spock.lang.Shared
 
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+
 import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -19,6 +22,9 @@ class CassandraClientTest extends AgentTestRunner {
   Cluster cluster
   @Shared
   int port = 9142
+
+  @Shared
+  def executor = Executors.newCachedThreadPool()
 
   def setupSpec() {
     /*
@@ -76,15 +82,22 @@ class CassandraClientTest extends AgentTestRunner {
 
   def "test async"() {
     setup:
+    def callbackExecuted = new AtomicBoolean()
     Session session = cluster.connect(keyspace)
     runUnderTrace("parent") {
       withConfigOverride(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
-        session.executeAsync(statement)
+        def future = session.executeAsync(statement)
+        future.addListener({ ->
+//          runUnderTrace("callbackListener") {
+          callbackExecuted.set(true)
+//          }
+        }, executor)
       }
       blockUntilChildSpansFinished(1)
     }
 
     expect:
+    callbackExecuted.get()
     assertTraces(keyspace ? 2 : 1) {
       if (keyspace) {
         trace(0, 1) {
@@ -93,6 +106,7 @@ class CassandraClientTest extends AgentTestRunner {
       }
       trace(keyspace ? 1 : 0, 2) {
         basicSpan(it, 0, "parent")
+//        basicSpan(it, 1, "callbackListener", span(0))
         cassandraSpan(it, 1, statement, keyspace, renameService, span(0))
       }
     }

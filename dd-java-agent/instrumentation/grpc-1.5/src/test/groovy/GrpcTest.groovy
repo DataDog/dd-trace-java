@@ -1,6 +1,7 @@
 import datadog.common.exec.CommonTaskExecutor
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.grpc.server.GrpcExtractAdapter
 import example.GreeterGrpc
@@ -305,7 +306,15 @@ class GrpcTest extends AgentTestRunner {
     meta.put(Metadata.Key.<byte[]> of("test-bin", Metadata.BINARY_BYTE_MARSHALLER), "bin-val".bytes)
 
     when:
-    def keys = GrpcExtractAdapter.GETTER.keys(meta)
+    def keys = new ArrayList()
+    GrpcExtractAdapter.GETTER.forEachKey(meta, new AgentPropagation.KeyClassifier() {
+
+      @Override
+      boolean accept(String key, String value) {
+        keys.add(key.toLowerCase())
+        return true
+      }
+    })
 
     then:
     keys == ["test"]

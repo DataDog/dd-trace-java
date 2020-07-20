@@ -9,6 +9,7 @@ import datadog.trace.agent.tooling.AgentInstaller;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.agent.tooling.bytebuddy.matcher.AdditionalLibraryIgnoresMatcher;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.common.writer.ListWriter;
@@ -95,6 +96,9 @@ public abstract class AgentTestRunner extends DDSpecification {
   private static volatile ClassFileTransformer activeTransformer = null;
 
   static {
+    // If this fails, it's likely the result of another test loading Config before it can be
+    // injected into the bootstrap classpath.
+    assert Config.class.getClassLoader() == null : "Config must load on the bootstrap classpath.";
     INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
 
     ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.WARN);

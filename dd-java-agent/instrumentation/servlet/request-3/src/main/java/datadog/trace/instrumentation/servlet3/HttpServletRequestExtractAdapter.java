@@ -1,33 +1,35 @@
 package datadog.trace.instrumentation.servlet3;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import java.util.Collections;
-import java.util.List;
+import java.util.Enumeration;
 import javax.servlet.http.HttpServletRequest;
 
 public class HttpServletRequestExtractAdapter
-    implements AgentPropagation.Getter<HttpServletRequest> {
+    implements AgentPropagation.ContextVisitor<HttpServletRequest> {
 
   public static final HttpServletRequestExtractAdapter GETTER =
       new HttpServletRequestExtractAdapter();
 
   @Override
-  public List<String> keys(final HttpServletRequest carrier) {
-    final List<String> keys = Collections.list(carrier.getHeaderNames());
-    keys.addAll(Collections.list(carrier.getAttributeNames()));
-    return keys;
-  }
-
-  @Override
-  public String get(final HttpServletRequest carrier, final String key) {
+  public void forEachKey(HttpServletRequest carrier, AgentPropagation.KeyClassifier classifier) {
+    Enumeration<String> headerNames = carrier.getHeaderNames();
+    while (headerNames.hasMoreElements()) {
+      String header = headerNames.nextElement();
+      if (!classifier.accept(header, carrier.getHeader(header))) {
+        break;
+      }
+    }
     /*
      * Read from the attributes and override the headers.
-     * This is used by HttpServletRequestSetter when a request is async-dispatched.
+     * This is used by ServletRequestSetter when a request is async-dispatched.
      */
-    final Object attribute = carrier.getAttribute(key);
-    if (attribute instanceof String) {
-      return (String) attribute;
+    Enumeration<String> attributeNames = carrier.getAttributeNames();
+    while (attributeNames.hasMoreElements()) {
+      String name = attributeNames.nextElement();
+      Object attribute = carrier.getAttribute(name);
+      if (attribute instanceof String && !classifier.accept(name, (String) attribute)) {
+        return;
+      }
     }
-    return carrier.getHeader(key);
   }
 }

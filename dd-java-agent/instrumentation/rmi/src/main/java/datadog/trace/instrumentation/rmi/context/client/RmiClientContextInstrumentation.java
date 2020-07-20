@@ -64,7 +64,6 @@ public class RmiClientContextInstrumentation extends Instrumenter.Default {
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.instrumentation.rmi.context.ContextPayload$InjectAdapter",
-      "datadog.trace.instrumentation.rmi.context.ContextPayload$ExtractAdapter",
       "datadog.trace.instrumentation.rmi.context.ContextPayload",
       "datadog.trace.instrumentation.rmi.context.ContextPropagator"
     };

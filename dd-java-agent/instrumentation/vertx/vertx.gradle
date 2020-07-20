@@ -13,9 +13,6 @@ testSets {
   }
 }
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
-
 dependencies {
   //  compileOnly group: 'io.vertx', name: 'vertx-web', version: '3.5.0'
 

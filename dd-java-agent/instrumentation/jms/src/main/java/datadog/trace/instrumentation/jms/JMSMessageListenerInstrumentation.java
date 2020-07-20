@@ -48,6 +48,7 @@ public final class JMSMessageListenerInstrumentation extends Instrumenter.Defaul
     return new String[] {
       packageName + ".JMSDecorator",
       packageName + ".MessageExtractAdapter",
+      packageName + ".MessageExtractAdapter$1",
       packageName + ".MessageInjectAdapter"
     };
   }

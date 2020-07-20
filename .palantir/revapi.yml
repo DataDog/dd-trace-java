@@ -514,13 +514,6 @@ acceptedBreaks:
     - code: "java.class.removed"
       old: "interface datadog.trace.common.writer.ddagent.TraceBuffer"
       justification: "internal api"
-    - code: "java.method.removed"
-      old: "method datadog.trace.common.writer.DDAgentWriter.DDAgentWriterBuilder\
-        \ datadog.trace.common.writer.DDAgentWriter.DDAgentWriterBuilder::serializer(datadog.trace.common.writer.ddagent.StatefulSerializer)"
-      justification: "internal api"
-    - code: "java.method.removed"
-      old: "method void datadog.trace.common.writer.ddagent.Monitor::onBackedUpTraceBuffer()"
-      justification: "internal api"
     - code: "java.field.removedWithConstant"
       old: "field datadog.trace.bootstrap.instrumentation.api.Tags.DD_ENV"
       justification: "reverting log changes"
@@ -530,3 +523,19 @@ acceptedBreaks:
     - code: "java.field.removedWithConstant"
       old: "field datadog.trace.bootstrap.instrumentation.api.Tags.DD_VERSION"
       justification: "reverting log changes"
+    - code: "java.method.removed"
+      old: "method datadog.trace.common.writer.DDAgentWriter.DDAgentWriterBuilder\
+        \ datadog.trace.common.writer.DDAgentWriter.DDAgentWriterBuilder::serializer(datadog.trace.common.writer.ddagent.StatefulSerializer)"
+      justification: "internal api"
+    - code: "java.method.removed"
+      old: "method void datadog.trace.common.writer.ddagent.Monitor::onBackedUpTraceBuffer()"
+      justification: "internal api"
+  "0.58.0":
+    com.datadoghq:dd-trace-ot:
+    - code: "java.class.removed"
+      old: "class datadog.trace.core.propagation.HaystackHttpCodec.Extractor"
+      justification: "internal api"
+    - code: "java.class.removed"
+      old: "interface datadog.trace.bootstrap.instrumentation.api.AgentPropagation.Getter<C\
+        \ extends java.lang.Object>"
+      justification: "internal api"

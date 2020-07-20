@@ -1,7 +1,7 @@
 package datadog.trace.agent.test.server.http;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import java.util.Collections;
+import java.util.Enumeration;
 import javax.servlet.http.HttpServletRequest;
 
 /**
@@ -11,18 +11,20 @@ import javax.servlet.http.HttpServletRequest;
  */
 // FIXME:  This code is duplicated in several places.  Extract to a common dependency.
 public class HttpServletRequestExtractAdapter
-    implements AgentPropagation.Getter<HttpServletRequest> {
+    implements AgentPropagation.ContextVisitor<HttpServletRequest> {
 
   public static final HttpServletRequestExtractAdapter GETTER =
       new HttpServletRequestExtractAdapter();
 
   @Override
-  public Iterable<String> keys(final HttpServletRequest carrier) {
-    return Collections.list(carrier.getHeaderNames());
-  }
-
-  @Override
-  public String get(final HttpServletRequest carrier, final String key) {
-    return carrier.getHeader(key);
+  public void forEachKey(
+      final HttpServletRequest carrier, final AgentPropagation.KeyClassifier classifier) {
+    Enumeration<String> headerNames = carrier.getHeaderNames();
+    while (headerNames.hasMoreElements()) {
+      final String header = headerNames.nextElement();
+      if (!classifier.accept(header, carrier.getHeader(header))) {
+        return;
+      }
+    }
   }
 }

@@ -4,6 +4,11 @@ import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Timeout
 
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 import java.util.concurrent.Phaser
 import java.util.concurrent.TimeUnit
 
@@ -119,5 +124,78 @@ class DatadogClassLoaderTest extends Specification {
 
     then:
     thrown ClassNotFoundException
+  }
+
+  def "test parent classloader successfully loads classes concurrently"() {
+    given:
+    assumeFalse(System.getProperty("java.version").startsWith("1.7"))
+    DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy = new DatadogClassLoader.BootstrapClassLoaderProxy()
+
+    DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
+    parent.findLoadedClass(_) >> null
+
+    DatadogClassLoader.DelegateClassLoader child = new DatadogClassLoader.DelegateClassLoader(testJarLocation,
+      "child", bootstrapProxy, null, parent)
+
+    when:
+    ExecutorService executorService = Executors.newCachedThreadPool()
+    List<Future<Void>> futures = new ArrayList<>()
+
+    for (int i = 0; i < 100; i++) {
+      futures.add(executorService.submit(new Callable<Void>() {
+        Void call() {
+          child.loadClass("a.A")
+          return null
+        }
+      }))
+    }
+
+    for (Future<Void> callable : futures) {
+      try {
+        callable.get()
+      } catch (ExecutionException ex) {
+        throw ex.getCause()
+      }
+    }
+
+    then:
+    noExceptionThrown()
+
+  }
+
+  def "test delegate classloader successfully loads classes concurrently"() {
+    given:
+    assumeFalse(System.getProperty("java.version").startsWith("1.7"))
+    DatadogClassLoader.BootstrapClassLoaderProxy bootstrapProxy = new DatadogClassLoader.BootstrapClassLoaderProxy()
+    DatadogClassLoader parent = new DatadogClassLoader(testJarLocation, "parent", bootstrapProxy, null)
+
+    DatadogClassLoader.DelegateClassLoader child = new DatadogClassLoader.DelegateClassLoader(testJarLocation,
+      "child", bootstrapProxy, null, parent)
+    child.findLoadedClass(_) >> null
+
+    ExecutorService executorService = Executors.newCachedThreadPool()
+    List<Future<Void>> futures = new ArrayList<>()
+
+    when:
+    for (int i = 0; i < 100; i++) {
+      futures.add(executorService.submit(new Callable<Void>() {
+        Void call() {
+          child.loadClass("x.X")
+          return null
+        }
+      }))
+    }
+
+    for (Future<Void> callable : futures) {
+      try {
+        callable.get()
+      } catch (ExecutionException ex) {
+        throw ex.getCause()
+      }
+    }
+
+    then:
+    noExceptionThrown()
+
   }
 }
