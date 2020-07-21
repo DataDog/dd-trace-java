@@ -59,6 +59,9 @@ final class ScopeStackCollector implements IMLTChunk {
     this.threadStacktraceCollector = threadStacktraceCollector;
     this.startTime = startTimeEpoch;
     this.startTimeNs = startTimeNs;
+
+    // Capture the base stacktrace:
+    collect(new Throwable().getStackTrace());
   }
 
   public void collect(StackTraceElement[] stackTrace) {
@@ -124,9 +127,15 @@ final class ScopeStackCollector implements IMLTChunk {
   }
 
   @Override
+  public FrameSequence baseFrameSequence() {
+    return stackPool.get(stacks.getInt(0));
+  }
+
+  @Override
   public Stream<FrameSequence> frameSequences() {
     // stack pointer stream is internally compressed - needs to be decompressed first
-    return IMLTChunk.decompressStackPtrs(frameSequenceCpIndexes()).mapToObj(stackPool::get);
+    // Skip over the base stacktrace.
+    return IMLTChunk.decompressStackPtrs(frameSequenceCpIndexes().skip(1)).mapToObj(stackPool::get);
   }
 
   @Override

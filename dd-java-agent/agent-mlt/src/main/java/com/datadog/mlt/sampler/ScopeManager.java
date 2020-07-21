@@ -55,6 +55,7 @@ public final class ScopeManager {
 
   IMLTChunk endScope(ScopeStackCollector target) {
     ScopeStackCollector scopeStackCollector = scopeCollectorQueue.removeLast();
+    // FIXME: this seems dangerous:
     while (scopeStackCollector != null && !target.equals(scopeStackCollector)) {
       scopeCollectorQueue.removeLast();
     }

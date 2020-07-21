@@ -36,10 +36,16 @@ public final class MLTChunk implements IMLTChunk {
     return !stacks.isEmpty();
   }
 
+  @Override
+  public FrameSequence baseFrameSequence() {
+    return stacks.get(0);
+  }
+
   @Generated // disable jacoco check; the method is trivial
   @Override
   public Stream<FrameSequence> frameSequences() {
-    return stacks.stream();
+    // Skip the "base" FrameSequence
+    return stacks.stream().skip(1);
   }
 
   // disable jacoco check; the method is trivial
