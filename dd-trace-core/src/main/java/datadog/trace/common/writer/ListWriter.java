@@ -1,7 +1,7 @@
 package datadog.trace.common.writer;
 
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.interceptor.TraceStatsCollector;
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import datadog.trace.core.processor.TraceProcessor;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,8 +13,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /** List writer used by tests mostly */
 public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Writer {
-  private final TraceStatsCollector collector = new TraceStatsCollector();
-  private final TraceProcessor processor = new TraceProcessor(collector);
+  private final TraceHeuristicsEvaluator traceHeuristicsEvaluator = new TraceHeuristicsEvaluator();
+  private final TraceProcessor processor = new TraceProcessor(traceHeuristicsEvaluator);
   private final List<CountDownLatch> latches = new ArrayList<>();
   private final AtomicInteger traceCount = new AtomicInteger();
 
@@ -58,8 +58,8 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   }
 
   @Override
-  public TraceStatsCollector getTraceStatsCollector() {
-    return collector;
+  public TraceHeuristicsEvaluator getTraceHeuristicsEvaluator() {
+    return traceHeuristicsEvaluator;
   }
 
   @Override

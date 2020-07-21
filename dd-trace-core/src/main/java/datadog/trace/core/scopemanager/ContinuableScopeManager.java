@@ -9,7 +9,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
-import datadog.trace.core.interceptor.TraceStatsCollector;
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -40,14 +40,14 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       final int depthLimit,
       final Double methodTraceSampleRate,
       final DDScopeEventFactory scopeEventFactory,
-      final TraceStatsCollector traceStatsCollector,
+      final TraceHeuristicsEvaluator traceHeuristicsEvaluator,
       final StatsDClient statsDClient,
       final boolean strictMode) {
     this(
         depthLimit,
         methodTraceSampleRate,
         scopeEventFactory,
-        traceStatsCollector,
+        traceHeuristicsEvaluator,
         statsDClient,
         strictMode,
         new CopyOnWriteArrayList<ScopeListener>());
@@ -58,7 +58,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       final int depthLimit,
       final Double methodTraceSampleRate,
       final DDScopeEventFactory scopeEventFactory,
-      final TraceStatsCollector traceStatsCollector,
+      final TraceHeuristicsEvaluator traceHeuristicsEvaluator,
       final StatsDClient statsDClient,
       final boolean strictMode,
       final List<ScopeListener> scopeListeners) {
@@ -67,7 +67,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
             scopeEventFactory,
             TraceProfilingScopeInterceptor.create(
                 methodTraceSampleRate,
-                traceStatsCollector,
+                traceHeuristicsEvaluator,
                 statsDClient,
                 new ListenerScopeInterceptor(scopeListeners, null))));
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;

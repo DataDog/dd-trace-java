@@ -2,7 +2,7 @@ package datadog.trace.core.processor;
 
 import datadog.trace.api.Config;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.interceptor.TraceStatsCollector;
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import datadog.trace.core.processor.rule.AnalyticsSampleRateRule;
 import datadog.trace.core.processor.rule.DBStatementRule;
 import datadog.trace.core.processor.rule.ErrorRule;
@@ -34,10 +34,10 @@ public class TraceProcessor {
 
   private final List<Rule> rules;
 
-  private final TraceStatsCollector statsCollector;
+  private final TraceHeuristicsEvaluator traceHeuristicsEvaluator;
 
-  public TraceProcessor(final TraceStatsCollector statsCollector) {
-    this.statsCollector = statsCollector;
+  public TraceProcessor(final TraceHeuristicsEvaluator traceHeuristicsEvaluator) {
+    this.traceHeuristicsEvaluator = traceHeuristicsEvaluator;
 
     rules = new ArrayList<>(DEFAULT_RULES.length);
     for (final Rule rule : DEFAULT_RULES) {
@@ -69,7 +69,7 @@ public class TraceProcessor {
      * collect stats before applying rules because this is more realistic of what the trace will
      * look like when comparing data before completion.
      */
-    statsCollector.onTraceComplete(trace);
+    traceHeuristicsEvaluator.onTraceComplete(trace);
 
     for (final DDSpan span : trace) {
       applyRules(span);
@@ -83,9 +83,5 @@ public class TraceProcessor {
     for (final Rule rule : rules) {
       rule.processSpan(span);
     }
-  }
-
-  public TraceStatsCollector getTraceStatsCollector() {
-    return statsCollector;
   }
 }

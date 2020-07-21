@@ -4,19 +4,18 @@ import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
-import datadog.trace.core.interceptor.TraceStatsCollector
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator
 import datadog.trace.mlt.MethodLevelTracer
 import datadog.trace.mlt.Session
 import datadog.trace.mlt.SessionFactory
 import datadog.trace.util.test.DDSpecification
-import org.HdrHistogram.Histogram
 
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 
 class TraceProfilingScopeInterceptorTest extends DDSpecification {
   def delegate = Mock(ScopeInterceptor)
   def delegateScope = Mock(ScopeInterceptor.Scope)
-  def statsCollector = Mock(TraceStatsCollector)
+  def traceEvaluator = Mock(TraceHeuristicsEvaluator)
   def statsDClient = Mock(StatsDClient)
   def span = Mock(AgentSpan)
   def factory = Mock(SessionFactory)
@@ -33,7 +32,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
 
   def "validate Percentage scope lifecycle"() {
     setup:
-    def interceptor = TraceProfilingScopeInterceptor.create(rate, statsCollector, statsDClient, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(rate, traceEvaluator, statsDClient, delegate)
 
     when:
     def scope = interceptor.handleSpan(span)
@@ -93,9 +92,9 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     traceId = DDId.from(tid.longValue())
   }
 
-  def "validate Heuristical scope lifecycle with no histogram"() {
+  def "validate Heuristical scope lifecycle"() {
     setup:
-    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, statsDClient, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(null, traceEvaluator, statsDClient, delegate)
 
     when:
     def scope = interceptor.handleSpan(span)
@@ -103,50 +102,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     then:
     1 * delegate.handleSpan(_) >> delegateScope
     1 * span.getLocalRootSpan() >> span
-    1 * statsCollector.getTraceStats(span) >> null
-    0 * _
-
-    when:
-    scope.afterActivated()
-
-    then:
-    1 * delegateScope.afterActivated()
-    0 * _
-
-    when:
-    scope.close()
-
-    then:
-    1 * delegateScope.close()
-    0 * _
-  }
-
-  def "validate Heuristical scope lifecycle with histogram"() {
-    setup:
-    Histogram overall = new Histogram(1)
-    Histogram traceStats = new Histogram(1)
-    for (int i = 0; i < overallCount; i++) {
-      overall.recordValue(overallVal)
-    }
-    for (int i = 0; i < traceCount; i++) {
-      traceStats.recordValue(traceVal)
-    }
-
-    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, statsDClient, delegate)
-    if (simulateDelay) {
-      (interceptor as TraceProfilingScopeInterceptor.Heuristical).lastProfileTimestamp =
-        (interceptor as TraceProfilingScopeInterceptor.Heuristical).lastProfileTimestamp -
-          (TraceProfilingScopeInterceptor.MAX_NANOSECONDS_BETWEEN_ACTIVATIONS * 2)
-    }
-
-    when:
-    def scope = interceptor.handleSpan(span)
-
-    then:
-    1 * delegate.handleSpan(_) >> delegateScope
-    1 * span.getLocalRootSpan() >> span
-    1 * statsCollector.getTraceStats(span) >> traceStats
-    1 * statsCollector.getOverallStats() >> overall
+    1 * traceEvaluator.isDistinctive(span) >> isProfiling
     if (isProfiling) {
       1 * span.getTraceId() >> DDId.from(5)
       1 * factory.createSession("5", _) >> session
@@ -188,29 +144,12 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     0 * _
 
     where:
-    overallVal | overallCount | traceVal | traceCount | simulateDelay | isProfiling
-    0          | 0            | 0        | 0          | false         | false
-    0          | 0            | 0        | 0          | true          | true
-    1          | 100          | 1        | 1          | false         | false
-    1          | 100          | 1        | 3          | false         | false
-    1          | 100          | 1        | 90         | false         | false
-    1          | 100          | 1        | 4          | false         | true
-    50         | 1            | 50       | 1          | false         | false
-    50         | 1            | 80       | 1          | false         | true
+    isProfiling << [true, false]
   }
 
   def "validate Heuristical rate limiting"() {
     setup:
-    Histogram overall = new Histogram(1)
-    Histogram traceStats = new Histogram(1)
-    for (int i = 0; i < overallCount; i++) {
-      overall.recordValue(overallVal)
-    }
-    for (int i = 0; i < traceCount; i++) {
-      traceStats.recordValue(traceVal)
-    }
-
-    def interceptor = TraceProfilingScopeInterceptor.create(null, statsCollector, statsDClient, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(null, traceEvaluator, statsDClient, delegate)
 
     when:
     def activations = 0
@@ -228,8 +167,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     activations < TraceProfilingScopeInterceptor.ACTIVATIONS_PER_SECOND * 3
     _ * delegate.handleSpan(_) >> delegateScope
     _ * span.getLocalRootSpan() >> span
-    _ * statsCollector.getTraceStats(span) >> traceStats
-    _ * statsCollector.getOverallStats() >> overall
+    _ * traceEvaluator.isDistinctive(span) >> true
     _ * span.getTraceId() >> DDId.from(5)
     _ * factory.createSession("5", _) >> session
     _ * delegateScope.close()

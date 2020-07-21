@@ -11,7 +11,7 @@ import datadog.common.exec.CommonTaskExecutor;
 import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.interceptor.TraceStatsCollector;
+import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import datadog.trace.core.processor.TraceProcessor;
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
 import datadog.trace.core.serialization.msgpack.Packer;
@@ -46,14 +46,14 @@ public class TraceProcessingDisruptor implements AutoCloseable {
 
   public TraceProcessingDisruptor(
       final int disruptorSize,
-      final TraceStatsCollector statsCollector,
+      final TraceHeuristicsEvaluator heuristicsEvaluator,
       final Monitor monitor,
       final DDAgentWriter writer,
       final DDAgentApi api,
       final long flushInterval,
       final TimeUnit timeUnit,
       final boolean heartbeat) {
-    traceProcessor = new TraceProcessor(statsCollector);
+    traceProcessor = new TraceProcessor(heuristicsEvaluator);
 
     disruptor =
         DisruptorUtils.create(
