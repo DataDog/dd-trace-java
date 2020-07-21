@@ -2,11 +2,12 @@ package datadog.trace.core.propagation
 
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
+import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Shared
 
-import static datadog.trace.api.Config.PropagationStyle.B3
-import static datadog.trace.api.Config.PropagationStyle.DATADOG
+import static datadog.trace.api.PropagationStyle.B3
+import static datadog.trace.api.PropagationStyle.DATADOG
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 
 class HttpExtractorTest extends DDSpecification {
@@ -40,7 +41,7 @@ class HttpExtractorTest extends DDSpecification {
     }
 
     when:
-    final TagContext context = extractor.extract(actual, MapGetter.INSTANCE)
+    final TagContext context = extractor.extract(actual, ContextVisitors.stringValuesMap())
 
     then:
     if (tagContext) {

@@ -1,14 +1,13 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 
-public class TextMapExtractAdapter implements AgentPropagation.Getter<Headers> {
+public class TextMapExtractAdapter implements AgentPropagation.ContextVisitor<Headers> {
 
   public static final TextMapExtractAdapter GETTER =
       new TextMapExtractAdapter(Config.get().isKafkaClientBase64DecodingEnabled());
@@ -22,26 +21,19 @@ public class TextMapExtractAdapter implements AgentPropagation.Getter<Headers> {
   }
 
   @Override
-  public Iterable<String> keys(final Headers headers) {
-    final List<String> keys = new ArrayList<>();
-    for (final Header header : headers) {
-      keys.add(header.key());
+  public void forEachKey(Headers carrier, AgentPropagation.KeyClassifier classifier) {
+    for (Header header : carrier) {
+      String key = header.key();
+      byte[] value = header.value();
+      if (null != value) {
+        String string =
+            base64DecodeHeaders
+                ? new String(base64.decode(header.value()), UTF_8)
+                : new String(header.value(), UTF_8);
+        if (!classifier.accept(key, string)) {
+          return;
+        }
+      }
     }
-    return keys;
-  }
-
-  @Override
-  public String get(final Headers headers, final String key) {
-    final Header header = headers.lastHeader(key);
-    if (header == null) {
-      return null;
-    }
-    if (header.value() == null) {
-      return null;
-    }
-    if (base64DecodeHeaders) {
-      return new String(base64.decode(header.value()), StandardCharsets.UTF_8);
-    }
-    return new String(header.value(), StandardCharsets.UTF_8);
   }
 }

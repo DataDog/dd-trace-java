@@ -11,7 +11,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.PRODUCER_DECORATE;
-import static datadog.trace.instrumentation.rabbitmq.amqp.TextMapExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.rabbitmq.amqp.TextMapInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.canThrow;
 import static net.bytebuddy.matcher.ElementMatchers.isGetter;
@@ -37,6 +36,7 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
@@ -72,7 +72,6 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
     return new String[] {
       packageName + ".RabbitDecorator",
       packageName + ".TextMapInjectAdapter",
-      packageName + ".TextMapExtractAdapter",
       packageName + ".TracedDelegatingConsumer",
       "datadog.trace.core.util.Clock"
     };
@@ -226,7 +225,10 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       if (response != null && response.getProps() != null) {
         final Map<String, Object> headers = response.getProps().getHeaders();
 
-        parentContext = headers == null ? null : propagate().extract(headers, GETTER);
+        parentContext =
+            headers == null
+                ? null
+                : propagate().extract(headers, ContextVisitors.objectValuesMap());
       }
 
       if (parentContext == null) {

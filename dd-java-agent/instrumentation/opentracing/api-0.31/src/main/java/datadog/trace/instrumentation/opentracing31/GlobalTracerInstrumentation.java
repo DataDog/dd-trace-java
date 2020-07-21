@@ -44,7 +44,6 @@ public class GlobalTracerInstrumentation extends Instrumenter.Default {
       packageName + ".OTTracer",
       packageName + ".OTTracer$OTSpanBuilder",
       packageName + ".OTPropagation$TextMapInjectSetter",
-      packageName + ".OTPropagation$TextMapExtractGetter",
       packageName + ".OTScopeManager",
       packageName + ".OTScopeManager$OTScope",
       packageName + ".OTScopeManager$OTTraceScope",
