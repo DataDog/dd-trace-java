@@ -19,9 +19,10 @@ import org.springframework.web.reactive.function.client.ExchangeFunction;
 import reactor.core.publisher.Mono;
 
 public class WebClientTracingFilter implements ExchangeFilterFunction {
+  private static final WebClientTracingFilter INSTANCE = new WebClientTracingFilter();
 
   public static void addFilter(final List<ExchangeFilterFunction> exchangeFilterFunctions) {
-    exchangeFilterFunctions.add(0, new WebClientTracingFilter());
+    exchangeFilterFunctions.add(0, INSTANCE);
   }
 
   @Override
