@@ -9,7 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * The {@code CapturedEnvironment} instance keeps those {@code Config} values which are platform
- * dependant.
+ * dependant. Notice that this class must be consider internal. You should not depend on it
+ * directly.
  */
 @Slf4j
 public class CapturedEnvironment {
