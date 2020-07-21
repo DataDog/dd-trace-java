@@ -18,6 +18,10 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 
+/**
+ * None of the methods in this controller should be called because they are intercepted
+ * by the filter
+ */
 @Controller
 class TestController {
 
@@ -25,7 +29,7 @@ class TestController {
   @ResponseBody
   String success() {
     HttpServerTest.controller(SUCCESS) {
-      SUCCESS.body
+      throw new Exception("This should not be called")
     }
   }
 
@@ -33,7 +37,7 @@ class TestController {
   @ResponseBody
   String query_param(@RequestParam("some") String param) {
     HttpServerTest.controller(QUERY_PARAM) {
-      "some=$param"
+      throw new Exception("This should not be called")
     }
   }
 
@@ -41,7 +45,7 @@ class TestController {
   @ResponseBody
   String path_param(@PathVariable Integer id) {
     HttpServerTest.controller(PATH_PARAM) {
-      "$id"
+      throw new Exception("This should not be called")
     }
   }
 
@@ -49,21 +53,21 @@ class TestController {
   @ResponseBody
   RedirectView redirect() {
     HttpServerTest.controller(REDIRECT) {
-      new RedirectView(REDIRECT.body)
+      throw new Exception("This should not be called")
     }
   }
 
   @RequestMapping("/error-status")
   ResponseEntity error() {
     HttpServerTest.controller(ERROR) {
-      new ResponseEntity(ERROR.body, HttpStatus.valueOf(ERROR.status))
+      throw new Exception("This should not be called")
     }
   }
 
   @RequestMapping("/exception")
   ResponseEntity exception() {
     HttpServerTest.controller(EXCEPTION) {
-      throw new Exception(EXCEPTION.body)
+      throw new Exception("This should not be called")
     }
   }
 
