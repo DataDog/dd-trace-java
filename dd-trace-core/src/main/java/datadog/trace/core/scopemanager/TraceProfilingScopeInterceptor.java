@@ -2,6 +2,7 @@ package datadog.trace.core.scopemanager;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.timgroup.statsd.StatsDClient;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -143,6 +144,10 @@ public abstract class TraceProfilingScopeInterceptor
       if (samplingData != null) {
         statsDClient.incrementCounter("mlt.count");
         statsDClient.count("mlt.bytes", samplingData.length);
+        if (span().getSamplingPriority() == null) {
+          // if priority not set, let's increase priority to improve chance this is kept.
+          span().setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
+        }
         span().setTag(InstrumentationTags.DD_MLT, samplingData);
       }
     }
