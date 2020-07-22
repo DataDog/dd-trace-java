@@ -85,9 +85,6 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
 
     startTimeNano = Clock.currentNanoTime();
     startNanoTicks = Clock.currentNanoTicks();
-    if (log.isDebugEnabled()) {
-      log.debug("dd.timestamps t_id={} stn={}ns snt={}ns", traceId, startTimeNano, startNanoTicks);
-    }
   }
 
   /**
