@@ -1,7 +1,3 @@
-plugins {
-  id "com.github.johnrengelman.shadow"
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 
 // We have some general logging paths that are hard to test
@@ -23,9 +19,7 @@ dependencies {
   testCompile deps.junit5
   testCompile deps.guava
   testCompile deps.mockito
-  testCompile deps.jmc
   testCompile group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
-  testCompile group: 'nl.jqno.equalsverifier', name: 'equalsverifier', version: '3.3'
 }
 
 sourceCompatibility = JavaVersion.VERSION_1_8

@@ -1,7 +1,6 @@
 package datadog.trace.core.processor.rule;
 
 import com.google.common.io.BaseEncoding;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.processor.TraceProcessor;
@@ -19,8 +18,6 @@ public class MethodLevelTracingDataRule implements TraceProcessor.Rule {
   // Guava encoder because the built-in Base64 encoder wasn't added until JDK8
   private static final BaseEncoding ENCODER = BaseEncoding.base64();
 
-  private static final boolean ENCODE_DATA = Config.get().isMethodTraceEncodeData();
-
   @Override
   public String[] aliases() {
     return new String[0];
@@ -32,23 +29,19 @@ public class MethodLevelTracingDataRule implements TraceProcessor.Rule {
 
     if (mltDataObject instanceof byte[]) {
       final byte[] mltData = (byte[]) mltDataObject;
-      if (ENCODE_DATA) {
-        int tagIndex = 0;
-        int dataOffset = 0;
+      int tagIndex = 0;
+      int dataOffset = 0;
 
-        while (dataOffset < mltData.length) {
-          final int dataLength = Math.min(mltData.length - dataOffset, BYTES_LIMIT_PER_TAG);
+      while (dataOffset < mltData.length) {
+        final int dataLength = Math.min(mltData.length - dataOffset, BYTES_LIMIT_PER_TAG);
 
-          final String tag = TAG_PREFIX + tagIndex;
-          final String value = ENCODER.encode(mltData, dataOffset, dataLength);
+        final String tag = TAG_PREFIX + tagIndex;
+        final String value = ENCODER.encode(mltData, dataOffset, dataLength);
 
-          span.setTag(tag, value);
+        span.setTag(tag, value);
 
-          tagIndex++;
-          dataOffset += dataLength;
-        }
-      } else {
-        span.setBinaryData(mltData);
+        tagIndex++;
+        dataOffset += dataLength;
       }
     }
   }

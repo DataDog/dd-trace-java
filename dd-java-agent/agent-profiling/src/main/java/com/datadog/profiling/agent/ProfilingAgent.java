@@ -48,6 +48,7 @@ public class ProfilingAgent {
 
       try {
         final Controller controller = ControllerFactory.createController(config);
+
         final ProfileUploader uploader = new ProfileUploader(config);
 
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());
