@@ -112,7 +112,8 @@ public abstract class TraceProfilingScopeInterceptor
         return true;
       }
 
-      if (span.getSamplingPriority() == PrioritySampling.USER_KEEP) {
+      Integer samplingPriority = span.getSamplingPriority();
+      if (samplingPriority != null && samplingPriority == PrioritySampling.USER_KEEP) {
         // The trace was manually identified as important, so more likely interesting.
         return true;
       }
