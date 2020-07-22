@@ -89,7 +89,10 @@ public final class MLTWriter {
                   if (stack.getSubsequenceCpIndex() == -1) {
                     writer.writeByte((byte) 2);
                     writer.writeInt(stack.length());
-                    stack.frames().map(FrameElement::getCpIndex).forEachOrdered(writer::writeInt);
+                    stack
+                        .framesFromLeaves()
+                        .map(FrameElement::getCpIndex)
+                        .forEachOrdered(writer::writeInt);
                   } else {
                     int cutoff = 5;
                     int depth = stack.length();
