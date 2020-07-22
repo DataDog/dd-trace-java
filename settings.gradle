@@ -40,9 +40,10 @@ include ':dd-java-agent:agent-profiling:profiling-testing'
 
 // misc
 include ':dd-java-agent:testing'
+include ':utils:container-utils'
+include ':utils:mlt-support'
 include ':utils:test-utils'
 include ':utils:thread-utils'
-include ':utils:container-utils'
 
 // smoke tests
 include ':dd-smoke-tests:cli'

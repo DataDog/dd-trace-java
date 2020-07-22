@@ -1,0 +1,42 @@
+plugins {
+  id "com.github.johnrengelman.shadow" version "5.2.0"
+}
+
+ext {
+  enableJunitPlatform = true
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/publish.gradle"
+
+description = "dd mlt binary format support"
+
+dependencies {
+  compile deps.slf4j
+  compile 'it.unimi.dsi:fastutil:8.2.1'
+
+  testCompile deps.junit5
+  testCompile group: 'nl.jqno.equalsverifier', name: 'equalsverifier', version: '3.3'
+}
+
+//tasks.withType(Test).configureEach {
+//  useJUnitPlatform()
+//}
+
+// TODO temporarily lowering the coverage limits - the support classes are additionally tested in mlt-agent project
+minimumInstructionCoverage = 0.5
+minimumBranchCoverage = 0.5
+
+excludedClassesCoverage += [
+  // MLTReader and MLTWriter are exercised in mlt-agent project tests
+  'com.datadog.mlt.io.MLTWriter',
+  'com.datadog.mlt.io.MLTReader',
+  'com.datadog.mlt.io.MLTConstants',
+  'com.datadog.mlt.io.LEB128ByteArrayWriter',
+  'com.datadog.mlt.io.LEB128WriterFactory',
+  'com.datadog.mlt.io.MLTChunkCollector',
+]
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
