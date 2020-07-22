@@ -70,7 +70,6 @@ class OpenTracing32Test extends AgentTestRunner {
           } else {
             parent()
           }
-          hasServiceName()
           operationName "some name"
           if (tagSpan) {
             resourceName "other resource"

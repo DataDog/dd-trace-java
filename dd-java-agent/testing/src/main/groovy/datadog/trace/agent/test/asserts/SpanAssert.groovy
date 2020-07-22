@@ -131,6 +131,7 @@ class SpanAssert {
     if (!checked.errored) {
       errored(false)
     }
+    hasServiceName()
   }
 
   void tags(@ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TagsAssert'])

@@ -48,7 +48,6 @@ class SpringWebfluxHttpClientTest extends HttpClientTest {
     if (!exception) {
       trace.span(index + 1) {
         childOf(trace.span(index))
-        hasServiceName()
         if (renameService) {
           serviceName("localhost")
         }

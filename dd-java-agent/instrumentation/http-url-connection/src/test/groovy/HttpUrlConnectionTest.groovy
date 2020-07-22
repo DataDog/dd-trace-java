@@ -93,7 +93,6 @@ class HttpUrlConnectionTest extends HttpClientTest {
           }
         }
         span(1) {
-          hasServiceName()
           if (renameService) {
             serviceName "localhost"
           }
@@ -114,7 +113,6 @@ class HttpUrlConnectionTest extends HttpClientTest {
           }
         }
         span(2) {
-          hasServiceName()
           if (renameService) {
             serviceName "localhost"
           }
@@ -184,7 +182,6 @@ class HttpUrlConnectionTest extends HttpClientTest {
           }
         }
         span(1) {
-          hasServiceName()
           if (renameService) {
             serviceName "localhost"
           }
@@ -205,7 +202,6 @@ class HttpUrlConnectionTest extends HttpClientTest {
           }
         }
         span(2) {
-          hasServiceName()
           if (renameService) {
             serviceName "localhost"
           }
@@ -260,7 +256,6 @@ class HttpUrlConnectionTest extends HttpClientTest {
           }
         }
         span(1) {
-          hasServiceName()
           if (renameService) {
             serviceName "localhost"
           }
@@ -331,7 +326,6 @@ class HttpUrlConnectionTest extends HttpClientTest {
           }
         }
         span(1) {
-          hasServiceName()
           if (renameService) {
             serviceName "localhost"
           }

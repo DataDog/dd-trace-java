@@ -41,7 +41,6 @@ class UrlConnectionTest extends AgentTestRunner {
           }
         }
         span(1) {
-          hasServiceName()
           if (renameService) {
             serviceName "localhost"
           }
@@ -99,7 +98,6 @@ class UrlConnectionTest extends AgentTestRunner {
           }
         }
         span(1) {
-          hasServiceName()
           operationName "file.request"
           resourceName "file:$url.path"
           spanType DDSpanTypes.HTTP_CLIENT

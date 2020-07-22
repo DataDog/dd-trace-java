@@ -445,7 +445,6 @@ abstract class HttpClientTest extends AgentTestRunner {
       } else {
         childOf((DDSpan) parentSpan)
       }
-      hasServiceName()
       if (renameService) {
         serviceName uri.host
       }

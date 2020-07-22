@@ -113,7 +113,6 @@ class GrpcStreamingTest extends AgentTestRunner {
     assertTraces(2) {
       trace(0, clientMessageCount + 1) {
         span(0) {
-          hasServiceName()
           operationName "grpc.server"
           resourceName "example.Greeter/Conversation"
           spanType DDSpanTypes.RPC
@@ -128,7 +127,6 @@ class GrpcStreamingTest extends AgentTestRunner {
         }
         clientRange.each {
           span(it) {
-            hasServiceName()
             operationName "grpc.message"
             resourceName "grpc.message"
             spanType DDSpanTypes.RPC
@@ -145,7 +143,6 @@ class GrpcStreamingTest extends AgentTestRunner {
       }
       trace(1, (clientMessageCount * serverMessageCount) + 1) {
         span(0) {
-          hasServiceName()
           operationName "grpc.client"
           resourceName "example.Greeter/Conversation"
           spanType DDSpanTypes.RPC
@@ -160,7 +157,6 @@ class GrpcStreamingTest extends AgentTestRunner {
         }
         (1..(clientMessageCount * serverMessageCount)).each {
           span(it) {
-            hasServiceName()
             operationName "grpc.message"
             resourceName "grpc.message"
             spanType DDSpanTypes.RPC

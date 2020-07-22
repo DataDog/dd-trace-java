@@ -48,7 +48,6 @@ class HystrixTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 3) {
         span(0) {
-          hasServiceName()
           operationName "parent"
           resourceName "parent"
           spanType null
@@ -59,7 +58,6 @@ class HystrixTest extends AgentTestRunner {
           }
         }
         span(1) {
-          hasServiceName()
           operationName "hystrix.cmd"
           resourceName "ExampleGroup.HystrixTest\$1.execute"
           spanType null
@@ -74,7 +72,6 @@ class HystrixTest extends AgentTestRunner {
           }
         }
         span(2) {
-          hasServiceName()
           operationName "trace.annotation"
           resourceName "HystrixTest\$1.tracedMethod"
           spanType null
@@ -130,7 +127,6 @@ class HystrixTest extends AgentTestRunner {
     assertTraces(1) {
       trace(0, 3) {
         span(0) {
-          hasServiceName()
           operationName "parent"
           resourceName "parent"
           spanType null
@@ -141,7 +137,6 @@ class HystrixTest extends AgentTestRunner {
           }
         }
         span(1) {
-          hasServiceName()
           operationName "hystrix.cmd"
           resourceName "ExampleGroup.HystrixTest\$2.execute"
           spanType null
@@ -157,7 +152,6 @@ class HystrixTest extends AgentTestRunner {
           }
         }
         span(2) {
-          hasServiceName()
           operationName "hystrix.cmd"
           resourceName "ExampleGroup.HystrixTest\$2.fallback"
           spanType null
