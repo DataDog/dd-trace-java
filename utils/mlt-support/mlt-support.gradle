@@ -34,7 +34,8 @@ excludedClassesCoverage += [
   'com.datadog.mlt.io.MLTReader',
   'com.datadog.mlt.io.MLTConstants',
   'com.datadog.mlt.io.LEB128ByteArrayWriter',
-  'com.datadog.mlt.io.LEB128WriterFactory'
+  'com.datadog.mlt.io.LEB128WriterFactory',
+  'com.datadog.mlt.io.MLTChunkCollector',
 ]
 
 sourceCompatibility = JavaVersion.VERSION_1_8

@@ -74,10 +74,13 @@ class ScopeManagerTest {
           FrameElement[] origFrames =
               collectedChunk
                   .frameSequences()
-                  .flatMap(FrameSequence::frames)
+                  .flatMap(FrameSequence::framesFromLeaves)
                   .toArray(FrameElement[]::new);
           FrameElement[] restoredFrames =
-              chunk.frameSequences().flatMap(FrameSequence::frames).toArray(FrameElement[]::new);
+              chunk
+                  .frameSequences()
+                  .flatMap(FrameSequence::framesFromLeaves)
+                  .toArray(FrameElement[]::new);
           assertArrayEquals(origFrames, restoredFrames);
           return null;
         });

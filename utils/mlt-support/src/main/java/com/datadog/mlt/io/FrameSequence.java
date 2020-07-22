@@ -69,8 +69,12 @@ public final class FrameSequence {
    *
    * @return the sequence {@linkplain FrameElement} instances iterated in-order as a stream
    */
-  public Stream<FrameElement> frames() {
-    return frameCpIndexes().mapToObj(framePool::get);
+  public Stream<FrameElement> framesFromLeaves() {
+    return frameCpIndexesFromLeafs().mapToObj(framePool::get);
+  }
+
+  public Stream<FrameElement> framesFromRoot() {
+    return frameCpIndexesFromRoot().mapToObj(framePool::get);
   }
 
   public int length() {
@@ -113,7 +117,7 @@ public final class FrameSequence {
     return frameCpIndexes.length <= 0 || subsequenceCpIndex == -1;
   }
 
-  private IntStream frameCpIndexes() {
+  private IntStream frameCpIndexesFromLeafs() {
     if (isEmpty()) {
       return IntStream.empty();
     }
@@ -123,7 +127,23 @@ public final class FrameSequence {
     }
 
     return subsequenceCpIndex != -1
-        ? IntStream.concat(frameStream, stackPool.get(subsequenceCpIndex).frameCpIndexes())
+        ? IntStream.concat(frameStream, stackPool.get(subsequenceCpIndex).frameCpIndexesFromLeafs())
+        : frameStream;
+  }
+
+  private IntStream frameCpIndexesFromRoot() {
+    if (isEmpty()) {
+      return IntStream.empty();
+    }
+    int length = frameCpIndexes.length - 1;
+    // Reverse iterate through the array:
+    IntStream frameStream = IntStream.rangeClosed(0, length).map(i -> frameCpIndexes[length - i]);
+    if (isLeaf()) {
+      return frameStream;
+    }
+
+    return subsequenceCpIndex != -1
+        ? IntStream.concat(stackPool.get(subsequenceCpIndex).frameCpIndexesFromRoot(), frameStream)
         : frameStream;
   }
 
@@ -158,6 +178,6 @@ public final class FrameSequence {
   @Generated // exclude from jacoco
   @Override
   public String toString() {
-    return frames().map(FrameElement::toString).collect(Collectors.joining(","));
+    return framesFromLeaves().map(FrameElement::toString).collect(Collectors.joining(","));
   }
 }

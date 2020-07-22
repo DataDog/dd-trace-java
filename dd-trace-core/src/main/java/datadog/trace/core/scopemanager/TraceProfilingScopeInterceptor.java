@@ -2,6 +2,7 @@ package datadog.trace.core.scopemanager;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.timgroup.statsd.StatsDClient;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
@@ -15,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 public abstract class TraceProfilingScopeInterceptor
     extends ScopeInterceptor.DelegatingInterceptor {
   private static final long MAX_NANOSECONDS_BETWEEN_ACTIVATIONS = TimeUnit.SECONDS.toNanos(1);
-  private static final double ACTIVATIONS_PER_SECOND = 5;
+  private static final double ACTIVATIONS_PER_SECOND = 50;
   private static final ThreadLocal<Boolean> IS_THREAD_PROFILING =
       new ThreadLocal<Boolean>() {
         @Override
@@ -111,6 +112,12 @@ public abstract class TraceProfilingScopeInterceptor
         return true;
       }
 
+      Integer samplingPriority = span.getSamplingPriority();
+      if (samplingPriority != null && samplingPriority == PrioritySampling.USER_KEEP) {
+        // The trace was manually identified as important, so more likely interesting.
+        return true;
+      }
+
       if (lastProfileTimestamp + MAX_NANOSECONDS_BETWEEN_ACTIVATIONS < System.nanoTime()) {
         // It's been a while since we last profiled, so lets take one now.
         // Due to the multi-threaded nature here, we will likely have multiple threads enter here
@@ -143,7 +150,12 @@ public abstract class TraceProfilingScopeInterceptor
       if (samplingData != null) {
         statsDClient.incrementCounter("mlt.count");
         statsDClient.count("mlt.bytes", samplingData.length);
-        span().setTag(InstrumentationTags.DD_MLT, samplingData);
+        AgentSpan span = span();
+        span.setTag(InstrumentationTags.DD_MLT, samplingData);
+        if (span.getSamplingPriority() == null) {
+          // if priority not set, let's increase priority to improve chance this is kept.
+          span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
+        }
       }
     }
   }

@@ -2,6 +2,7 @@ package datadog.trace.core.scopemanager
 
 import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.DDId
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.core.interceptor.TraceHeuristicsEvaluator
@@ -79,6 +80,8 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
       1 * statsDClient.count('mlt.bytes', 0)
       1 * delegateScope.span() >> span
       1 * span.setTag(InstrumentationTags.DD_MLT, new byte[0])
+      1 * span.getSamplingPriority()
+      1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
     }
     0 * _
 
@@ -102,7 +105,10 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     then:
     1 * delegate.handleSpan(_) >> delegateScope
     1 * span.getLocalRootSpan() >> span
-    1 * traceEvaluator.isDistinctive(span) >> isProfiling
+    1 * traceEvaluator.isDistinctive(span) >> distinctive
+    if (!distinctive) {
+      1 * span.getSamplingPriority() >> priority
+    }
     if (isProfiling) {
       1 * span.getTraceId() >> DDId.from(5)
       1 * factory.createSession("5", _) >> session
@@ -140,11 +146,18 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
       1 * statsDClient.count("mlt.bytes", 0)
       1 * delegateScope.span() >> span
       1 * span.setTag(InstrumentationTags.DD_MLT, new byte[0])
+      1 * span.getSamplingPriority() >> priority
+      if (priority == null) {
+        1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
+      }
     }
     0 * _
 
     where:
-    isProfiling << [true, false]
+    distinctive | priority                      | isProfiling
+    true        | null                          | true
+    false       | PrioritySampling.SAMPLER_KEEP | false
+    false       | PrioritySampling.USER_KEEP    | true
   }
 
   def "validate Heuristical rate limiting"() {
@@ -153,8 +166,8 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
 
     when:
     def activations = 0
-    for (int i = 0; i < 25; i++) {
-      Thread.sleep(100) // Slow it down a bit
+    for (int i = 0; i < 100; i++) {
+      Thread.sleep(10) // Slow it down a bit
       def scope = interceptor.handleSpan(span)
       if (scope instanceof TraceProfilingScopeInterceptor.TraceProfilingScope) {
         activations++

@@ -30,6 +30,9 @@ excludedClassesCoverage += [
   'com.datadog.mlt.sampler.NoneThreadStackProvider',
   'com.datadog.mlt.sampler.ThreadStackProvider'
 ]
+excludedClassesBranchCoverage += [
+  'com.datadog.mlt.sampler.ScopeStackCollector',
+]
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8

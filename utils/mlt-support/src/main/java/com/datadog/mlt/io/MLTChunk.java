@@ -33,7 +33,8 @@ public final class MLTChunk implements IMLTChunk {
   @Generated // disable jacoco check; the method is trivial
   @Override
   public boolean hasStacks() {
-    return !stacks.isEmpty();
+    // Base stack doesn't count.
+    return stacks.size() > 1;
   }
 
   @Override
