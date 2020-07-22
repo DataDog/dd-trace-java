@@ -59,6 +59,7 @@ import datadog.trace.api.config.JmxFetchConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.env.CapturedEnvironment;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -92,7 +93,8 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Config reads values with the following priority: 1) system properties, 2) environment variables,
- * 3) optional configuration file. It also includes default values to ensure a valid config.
+ * 3) optional configuration file, 4) platform dependant properties. It also includes default values
+ * to ensure a valid config.
  *
  * <p>
  *
@@ -354,6 +356,9 @@ public class Config {
   // Values from an optionally provided properties file
   private static Properties propertiesFromConfigFile;
 
+  // Values extracted from the environment. These properties are platform dependant.
+  private static Properties propertiesFromCapturedEnv;
+
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
     this(INSTANCE != null ? INSTANCE.runtimeId : UUID.randomUUID().toString());
@@ -361,8 +366,8 @@ public class Config {
 
   private Config(final String runtimeId) {
     propertiesFromConfigFile = loadConfigurationFile();
+    propertiesFromCapturedEnv = loadCapturedEnvironment();
     configFile = findConfigurationFile();
-
     this.runtimeId = runtimeId;
 
     // Note: We do not want APiKey to be loaded from property for security reasons
@@ -1042,7 +1047,8 @@ public class Config {
    * Helper method that takes the name, adds a "dd." prefix then checks for System Properties of
    * that name. If none found, the name is converted to an Environment Variable and used to check
    * the env. If none of the above returns a value, then an optional properties file if checked. If
-   * setting is not configured in either location, <code>defaultValue</code> is returned.
+   * none found, then platform dependant properties are checked. If setting is not configured in
+   * either location, <code>defaultValue</code> is returned.
    *
    * @param name
    * @param defaultValue
@@ -1067,6 +1073,12 @@ public class Config {
 
     // If value is not defined yet, we look at properties optionally defined in a properties file
     value = propertiesFromConfigFile.getProperty(systemPropertyName);
+    if (null != value) {
+      return value;
+    }
+
+    // If value is not defined yet, we look at properties dependant of the platform.
+    value = propertiesFromCapturedEnv.getProperty(name);
     if (null != value) {
       return value;
     }
@@ -1491,6 +1503,18 @@ public class Config {
     return "no config file present";
   }
 
+  private static Properties loadCapturedEnvironment() {
+    final CapturedEnvironment capturedEnvironment = CapturedEnvironment.get();
+    final Properties properties = new Properties();
+    for (final Map.Entry<String, String> entry : capturedEnvironment.getProperties().entrySet()) {
+      if (entry.getKey() != null && entry.getValue() != null) {
+        properties.put(entry.getKey(), entry.getValue());
+      }
+    }
+
+    return properties;
+  }
+
   /** Returns the detected hostname. First tries locally, then using DNS */
   private static String getHostName() {
     String possibleHostname;
@@ -1546,8 +1570,8 @@ public class Config {
    *   DDTracer.builder().withProperties(new Properties()).build()
    * </pre>
    *
-   * Config keys for use in Properties instance construction can be found in {@link GeneralConfig}
-   * and {@link TracerConfig}.
+   * <p>Config keys for use in Properties instance construction can be found in {@link
+   * GeneralConfig} and {@link TracerConfig}.
    *
    * @deprecated
    */

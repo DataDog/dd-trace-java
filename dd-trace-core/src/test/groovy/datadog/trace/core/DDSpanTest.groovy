@@ -11,8 +11,6 @@ import datadog.trace.util.test.DDSpecification
 
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
-
 class DDSpanTest extends DDSpecification {
 
   def writer = new ListWriter()
@@ -87,7 +85,7 @@ class DDSpanTest extends DDSpecification {
     span = tracer.buildSpan(opName).start()
     then:
     span.getResourceName() == opName
-    span.getServiceName() == DEFAULT_SERVICE_NAME
+    span.getServiceName() != ""
 
     when:
     final String resourceName = "fake"

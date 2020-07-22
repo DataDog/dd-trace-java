@@ -11,7 +11,6 @@ import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.LoggingWriter
-
 import datadog.trace.core.propagation.DatadogHttpCodec
 import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.util.test.DDSpecification
@@ -43,7 +42,7 @@ class CoreTracerTest extends DDSpecification {
     def tracer = CoreTracer.builder().build()
 
     then:
-    tracer.serviceName == "unnamed-java-app"
+    tracer.serviceName != ""
     tracer.sampler instanceof RateByServiceSampler
     tracer.writer instanceof DDAgentWriter
     tracer.statsDClient instanceof NoOpStatsDClient

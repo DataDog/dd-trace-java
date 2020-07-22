@@ -130,7 +130,7 @@ class TraceInterceptorTest extends DDSpecification {
     def span = trace[0]
 
     span.context().operationName == "modifiedON-test"
-    span.serviceName == "modifiedSN-unnamed-java-app"
+    span.serviceName.startsWith("modifiedSN-")
     span.resourceName == "modifiedRN-modifiedON-test"
     span.type == "modifiedST-null"
     span.context().getErrorFlag()

@@ -48,7 +48,9 @@ class SpringWebfluxHttpClientTest extends HttpClientTest {
     if (!exception) {
       trace.span(index + 1) {
         childOf(trace.span(index))
-        serviceName renameService ? "localhost" : "unnamed-java-app"
+        if (renameService) {
+          serviceName("localhost")
+        }
         operationName "netty.client.request"
         resourceName "$method $uri.path"
         spanType DDSpanTypes.HTTP_CLIENT
