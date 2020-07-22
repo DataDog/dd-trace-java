@@ -36,7 +36,8 @@ public class DefaultLogHandler implements LogHandler {
   }
 
   private boolean isErrorSpan(final Map<String, ?> map, final AgentSpan span) {
-    return (map.get(EVENT) instanceof String && map.get(EVENT).equals("error")) || span.isError();
+    final String event = map.get(EVENT) instanceof String ? (String) map.get(EVENT) : "";
+    return span.isError() || event.equalsIgnoreCase("error");
   }
 
   private void extractError(final Map<String, ?> map, final AgentSpan span) {
