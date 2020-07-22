@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.api.Config.PREFIX
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
@@ -57,7 +56,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
     get(CorrelationIdentifier.getSpanIdKey()) == CorrelationIdentifier.getSpanId()
     get("foo") == "bar"
-    get(Tags.DD_SERVICE) == DEFAULT_SERVICE_NAME
+    get(Tags.DD_SERVICE) != ""
     get(Tags.DD_VERSION) == TEST_VERSION
     get(Tags.DD_ENV) == TEST_ENV
 
@@ -69,7 +68,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
     get(CorrelationIdentifier.getSpanIdKey()) == CorrelationIdentifier.getSpanId()
     get("foo") == "bar"
-    get(Tags.DD_SERVICE) == DEFAULT_SERVICE_NAME
+    get(Tags.DD_SERVICE) != ""
     get(Tags.DD_VERSION) == TEST_VERSION
     get(Tags.DD_ENV) == TEST_ENV
 
@@ -81,7 +80,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     get(CorrelationIdentifier.getTraceIdKey()) == CorrelationIdentifier.getTraceId()
     get(CorrelationIdentifier.getSpanIdKey()) == CorrelationIdentifier.getSpanId()
     get("foo") == "bar"
-    get(Tags.DD_SERVICE) == DEFAULT_SERVICE_NAME
+    get(Tags.DD_SERVICE) != ""
     get(Tags.DD_VERSION) == TEST_VERSION
     get(Tags.DD_ENV) == TEST_ENV
 
@@ -93,7 +92,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     get(CorrelationIdentifier.getTraceIdKey()) == null
     get(CorrelationIdentifier.getSpanIdKey()) == null
     get("foo") == "bar"
-    get(Tags.DD_SERVICE) == DEFAULT_SERVICE_NAME
+    get(Tags.DD_SERVICE) != ""
     get(Tags.DD_VERSION) == TEST_VERSION
     get(Tags.DD_ENV) == TEST_ENV
   }
@@ -155,7 +154,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     thread1TraceId.get() == null
     thread2TraceId.get() != null
     thread2TraceId.get() != mainThreadTraceId
-    get(Tags.DD_SERVICE) == DEFAULT_SERVICE_NAME
+    get(Tags.DD_SERVICE) != ""
     get(Tags.DD_VERSION) == TEST_VERSION
     get(Tags.DD_ENV) == TEST_ENV
     t1VersionBeg == TEST_VERSION
@@ -193,7 +192,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
         t1threadNameBeg = get("threadName")
         remove("threadName")
 
-        t1threadNameEnd =  get("threadName")
+        t1threadNameEnd = get("threadName")
         t1VersionEnd = get(Tags.DD_VERSION)
         t1EnvEnd = get(Tags.DD_ENV)
 
@@ -212,7 +211,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
 
     expect:
     mainThreadVersion == get(Tags.DD_VERSION)
-    get(Tags.DD_SERVICE) == DEFAULT_SERVICE_NAME
+    get(Tags.DD_SERVICE) != ""
     get(Tags.DD_VERSION) == TEST_VERSION
     get(Tags.DD_ENV) == TEST_ENV
     t1VersionBeg == TEST_VERSION
