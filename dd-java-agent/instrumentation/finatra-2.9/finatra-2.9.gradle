@@ -9,10 +9,12 @@ apply from: "$rootDir/gradle/test-with-scala.gradle"
 apply plugin: 'org.unbroken-dome.test-sets'
 
 testSets {
-
-  latestDepTest {
+  // Up to 20.7 where the server structure changes
+  latestPre207Test {
     dirName = 'test'
   }
+
+  latestDepTest
 }
 
 muzzle {
@@ -40,11 +42,20 @@ dependencies {
   // Required for older versions of finatra on JDKs >= 11
   testCompile group: 'com.sun.activation', name: 'javax.activation', version: '1.2.0'
 
+  latestPre207TestCompile group: 'com.twitter', name: 'finatra-http_2.11', version: '[,20.7.0)'
+
   latestDepTestCompile group: 'com.twitter', name: 'finatra-http_2.11', version: '+'
-  latestDepTestCompile(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.0')
+  latestDepTestCompile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.0'
 }
 
 compileLatestDepTestGroovy {
   classpath = classpath.plus(files(compileLatestDepTestScala.destinationDir))
   dependsOn compileLatestDepTestScala
 }
+
+compileLatestPre207TestGroovy {
+  classpath = classpath.plus(files(compileLatestPre207TestScala.destinationDir))
+  dependsOn compileLatestPre207TestScala
+}
+
+latestDepTest.finalizedBy latestPre207Test
