@@ -71,8 +71,7 @@ public final class ConfigDefaults {
   static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
   static final double DEFAULT_TRACE_RATE_LIMIT = 100;
 
-  // TODO: change to false before merging to master...
-  static final boolean DEFAULT_METHOD_TRACE_ENABLED = true;
+  static final boolean DEFAULT_METHOD_TRACE_ENABLED = false;
 
   private ConfigDefaults() {}
 }

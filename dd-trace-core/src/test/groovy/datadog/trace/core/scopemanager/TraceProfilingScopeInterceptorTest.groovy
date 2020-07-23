@@ -1,6 +1,7 @@
 package datadog.trace.core.scopemanager
 
 import com.timgroup.statsd.StatsDClient
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -23,6 +24,18 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
   def span = Mock(AgentSpan)
   def factory = Mock(SessionFactory)
   def session = Mock(Session)
+
+  def setupSpec() {
+    ConfigUtils.updateConfig {
+      System.setProperty("dd.method.trace.enabled", "true")
+    }
+  }
+
+  def cleanupSpec() {
+    ConfigUtils.updateConfig {
+      System.clearProperty("dd.method.trace.enabled")
+    }
+  }
 
   def setup() {
     assert !TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.get()
