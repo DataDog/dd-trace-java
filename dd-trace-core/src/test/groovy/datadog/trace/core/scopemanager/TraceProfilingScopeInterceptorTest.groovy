@@ -39,6 +39,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     def scope = interceptor.handleSpan(span)
 
     then:
+    TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.get() == isProfiling
     scope instanceof TraceProfilingScopeInterceptor.TraceProfilingScope == isProfiling
     1 * delegate.handleSpan(span) >> delegateScope
     if (isProfiling) {
@@ -73,6 +74,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     scope.close()
 
     then:
+    !TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.get()
     1 * delegateScope.close()
     if (isProfiling) {
       1 * session.close() >> new byte[0]
@@ -103,6 +105,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     def scope = interceptor.handleSpan(span)
 
     then:
+    TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.get() == isProfiling
     1 * delegate.handleSpan(_) >> delegateScope
     1 * span.getLocalRootSpan() >> span
     1 * traceEvaluator.isDistinctive(span) >> distinctive
@@ -139,6 +142,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     scope.close()
 
     then:
+    !TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.get()
     1 * delegateScope.close()
     if (isProfiling) {
       1 * session.close() >> new byte[0]
@@ -158,6 +162,50 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     true        | null                          | true
     false       | PrioritySampling.SAMPLER_KEEP | false
     false       | PrioritySampling.USER_KEEP    | true
+  }
+
+  def "validate threadlocal triggered profiling"() {
+    setup:
+    TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.set(true)
+    def interceptor = TraceProfilingScopeInterceptor.create(rate, traceEvaluator, statsDClient, delegate)
+
+    when:
+    def scope = interceptor.handleSpan(span)
+
+    then:
+    TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.get()
+    1 * delegate.handleSpan(_) >> delegateScope
+    1 * span.getTraceId() >> DDId.from(5)
+    1 * factory.createSession("5", _) >> session
+    0 * _
+
+    when:
+    scope.afterActivated()
+
+    then:
+    TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.get()
+    1 * delegateScope.afterActivated()
+    0 * _
+
+    when:
+    scope.close()
+
+    then:
+    TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.get()
+    1 * delegateScope.close()
+    1 * session.close() >> new byte[0]
+    1 * statsDClient.incrementCounter('mlt.count')
+    1 * statsDClient.count("mlt.bytes", 0)
+    1 * delegateScope.span() >> span
+    1 * span.setTag(InstrumentationTags.DD_MLT, new byte[0])
+    1 * span.getSamplingPriority() >> null
+    1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
+    0 * _
+
+    where:
+    rate | _
+    null | _
+    0.0  | _
   }
 
   def "validate Heuristical rate limiting"() {

@@ -134,16 +134,22 @@ public abstract class TraceProfilingScopeInterceptor
 
   private class TraceProfilingScope extends DelegatingScope {
     private final Session session;
+    private final boolean rootScope;
 
     private TraceProfilingScope(final AgentSpan span, final Scope delegate) {
       super(delegate);
-      IS_THREAD_PROFILING.set(true);
+      rootScope = !IS_THREAD_PROFILING.get();
+      if (rootScope) {
+        IS_THREAD_PROFILING.set(true);
+      }
       session = MethodLevelTracer.startProfiling(span.getTraceId().toString());
     }
 
     @Override
     public void close() {
-      IS_THREAD_PROFILING.set(false);
+      if (rootScope) {
+        IS_THREAD_PROFILING.set(false);
+      }
       delegate.close();
       final byte[] samplingData = session.close();
 
