@@ -1,6 +1,7 @@
 package datadog.trace.core.processor;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import datadog.trace.core.processor.rule.AnalyticsSampleRateRule;
@@ -34,10 +35,14 @@ public class TraceProcessor {
 
   private final List<Rule> rules;
 
-  private final TraceHeuristicsEvaluator traceHeuristicsEvaluator;
+  private final TraceInterceptor traceHeuristicsEvaluator;
 
   public TraceProcessor(final TraceHeuristicsEvaluator traceHeuristicsEvaluator) {
-    this.traceHeuristicsEvaluator = traceHeuristicsEvaluator;
+    if (Config.get().isMethodTraceEnabled() && Config.get().getMethodTraceSampleRate() == null) {
+      this.traceHeuristicsEvaluator = traceHeuristicsEvaluator;
+    } else {
+      this.traceHeuristicsEvaluator = null;
+    }
 
     rules = new ArrayList<>(DEFAULT_RULES.length);
     for (final Rule rule : DEFAULT_RULES) {
@@ -69,7 +74,10 @@ public class TraceProcessor {
      * collect stats before applying rules because this is more realistic of what the trace will
      * look like when comparing data before completion.
      */
-    traceHeuristicsEvaluator.onTraceComplete(trace);
+    if (traceHeuristicsEvaluator != null) {
+      // null == disabled...
+      traceHeuristicsEvaluator.onTraceComplete(trace);
+    }
 
     for (final DDSpan span : trace) {
       applyRules(span);

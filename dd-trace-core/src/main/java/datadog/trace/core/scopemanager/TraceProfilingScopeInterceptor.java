@@ -2,6 +2,7 @@ package datadog.trace.core.scopemanager;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.timgroup.statsd.StatsDClient;
+import datadog.trace.api.Config;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -35,11 +36,14 @@ public abstract class TraceProfilingScopeInterceptor
     this.statsDClient = statsDClient;
   }
 
-  public static TraceProfilingScopeInterceptor create(
+  public static ScopeInterceptor create(
       final Double methodTraceSampleRate,
       final TraceHeuristicsEvaluator traceHeuristicsEvaluator,
       final StatsDClient statsDClient,
       final ScopeInterceptor delegate) {
+    if (!Config.get().isMethodTraceEnabled()) {
+      return delegate;
+    }
     if (methodTraceSampleRate != null) {
       return new Percentage(methodTraceSampleRate, statsDClient, delegate);
     }
@@ -140,7 +144,10 @@ public abstract class TraceProfilingScopeInterceptor
       super(delegate);
       rootScope = !IS_THREAD_PROFILING.get();
       if (rootScope) {
+        statsDClient.incrementCounter("mlt.scope", "scope:root");
         IS_THREAD_PROFILING.set(true);
+      } else {
+        statsDClient.incrementCounter("mlt.scope", "scope:child");
       }
       session = MethodLevelTracer.startProfiling(span.getTraceId().toString());
     }

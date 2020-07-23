@@ -301,7 +301,7 @@ public class Agent {
       }
       // install global method-level tracer
       final Class<?> tracerInstallerClass =
-          MLT_CLASSLOADER.loadClass("datadog.trace.agent.mlt.TracerInstaller");
+          MLT_CLASSLOADER.loadClass("datadog.trace.agent.mlt.MethodLevelTracerInstaller");
       final Method tracerInstallerMethod = tracerInstallerClass.getMethod("install");
       tracerInstallerMethod.invoke(null);
     } catch (final ClassFormatError ex) {

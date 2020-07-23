@@ -16,6 +16,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METHOD_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
@@ -148,6 +149,7 @@ public class Config {
       TracerConfig.TRACE_SAMPLING_OPERATION_RULES;
   public static final String TRACE_SAMPLE_RATE = TracerConfig.TRACE_SAMPLE_RATE;
   public static final String TRACE_RATE_LIMIT = TracerConfig.TRACE_RATE_LIMIT;
+  public static final String METHOD_TRACE_ENABLED = TracerConfig.METHOD_TRACE_ENABLED;
   public static final String METHOD_TRACE_SAMPLE_RATE = TracerConfig.METHOD_TRACE_SAMPLE_RATE;
   public static final String TRACE_REPORT_HOSTNAME = TracerConfig.TRACE_REPORT_HOSTNAME;
   public static final String HEADER_TAGS = TracerConfig.HEADER_TAGS;
@@ -329,6 +331,7 @@ public class Config {
   @Getter private final Double traceSampleRate;
   @Getter private final Double traceRateLimit;
 
+  @Getter private final boolean methodTraceEnabled;
   @Getter private final Double methodTraceSampleRate;
 
   @Getter private final boolean profilingEnabled;
@@ -506,6 +509,8 @@ public class Config {
     traceSampleRate = getDoubleSettingFromEnvironment(TRACE_SAMPLE_RATE, null);
     traceRateLimit = getDoubleSettingFromEnvironment(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
+    methodTraceEnabled =
+        getBooleanSettingFromEnvironment(METHOD_TRACE_ENABLED, DEFAULT_METHOD_TRACE_ENABLED);
     methodTraceSampleRate = getDoubleSettingFromEnvironment(METHOD_TRACE_SAMPLE_RATE, null);
 
     profilingEnabled =
@@ -740,6 +745,8 @@ public class Config {
     traceSampleRate = getPropertyDoubleValue(properties, TRACE_SAMPLE_RATE, parent.traceSampleRate);
     traceRateLimit = getPropertyDoubleValue(properties, TRACE_RATE_LIMIT, parent.traceRateLimit);
 
+    methodTraceEnabled =
+        getPropertyBooleanValue(properties, METHOD_TRACE_ENABLED, parent.methodTraceEnabled);
     methodTraceSampleRate =
         getPropertyDoubleValue(properties, METHOD_TRACE_SAMPLE_RATE, parent.methodTraceSampleRate);
 

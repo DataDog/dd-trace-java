@@ -11,10 +11,12 @@ import datadog.trace.mlt.Session
 import datadog.trace.mlt.SessionFactory
 import datadog.trace.util.test.DDSpecification
 
+import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
+import static datadog.trace.api.config.TracerConfig.METHOD_TRACE_ENABLED
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 
 class TraceProfilingScopeInterceptorTest extends DDSpecification {
-  def delegate = Mock(ScopeInterceptor)
+  def delegateInterceptor = Mock(ScopeInterceptor)
   def delegateScope = Mock(ScopeInterceptor.Scope)
   def traceEvaluator = Mock(TraceHeuristicsEvaluator)
   def statsDClient = Mock(StatsDClient)
@@ -31,9 +33,19 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.set(false)
   }
 
+  def "interceptor can be disabled"() {
+    when:
+    def interceptor = withConfigOverride(METHOD_TRACE_ENABLED, "false") {
+      TraceProfilingScopeInterceptor.create(null, traceEvaluator, statsDClient, delegateInterceptor)
+    }
+
+    then:
+    interceptor == delegateInterceptor
+  }
+
   def "validate Percentage scope lifecycle"() {
     setup:
-    def interceptor = TraceProfilingScopeInterceptor.create(rate, traceEvaluator, statsDClient, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(rate, traceEvaluator, statsDClient, delegateInterceptor)
 
     when:
     def scope = interceptor.handleSpan(span)
@@ -41,10 +53,11 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     then:
     TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.get() == isProfiling
     scope instanceof TraceProfilingScopeInterceptor.TraceProfilingScope == isProfiling
-    1 * delegate.handleSpan(span) >> delegateScope
+    1 * delegateInterceptor.handleSpan(span) >> delegateScope
     if (isProfiling) {
       2 * span.getTraceId() >> traceId
       1 * factory.createSession("$traceId", _) >> session
+      1 * statsDClient.incrementCounter('mlt.scope', 'scope:root')
     } else {
       1 * span.getTraceId() >> traceId
     }
@@ -64,9 +77,10 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
 
     then: "nested interaction is permitted"
     if (isProfiling) {
-      1 * delegate.handleSpan(span) >> delegateScope
+      1 * delegateInterceptor.handleSpan(span) >> delegateScope
       1 * span.getTraceId() >> traceId
       1 * factory.createSession("$traceId", _) >> session
+      1 * statsDClient.incrementCounter('mlt.scope', 'scope:child')
       0 * _
     }
 
@@ -99,14 +113,14 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
 
   def "validate Heuristical scope lifecycle"() {
     setup:
-    def interceptor = TraceProfilingScopeInterceptor.create(null, traceEvaluator, statsDClient, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(null, traceEvaluator, statsDClient, delegateInterceptor)
 
     when:
     def scope = interceptor.handleSpan(span)
 
     then:
     TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.get() == isProfiling
-    1 * delegate.handleSpan(_) >> delegateScope
+    1 * delegateInterceptor.handleSpan(_) >> delegateScope
     1 * span.getLocalRootSpan() >> span
     1 * traceEvaluator.isDistinctive(span) >> distinctive
     if (!distinctive) {
@@ -115,6 +129,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     if (isProfiling) {
       1 * span.getTraceId() >> DDId.from(5)
       1 * factory.createSession("5", _) >> session
+      1 * statsDClient.incrementCounter('mlt.scope', 'scope:root')
     }
     0 * _
 
@@ -132,9 +147,10 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
 
     then: "nested interaction is permitted"
     if (isProfiling) {
-      1 * delegate.handleSpan(_) >> delegateScope
+      1 * delegateInterceptor.handleSpan(_) >> delegateScope
       1 * span.getTraceId() >> DDId.from(5)
       1 * factory.createSession("5", _) >> session
+      1 * statsDClient.incrementCounter('mlt.scope', 'scope:child')
       0 * _
     }
 
@@ -167,16 +183,17 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
   def "validate threadlocal triggered profiling"() {
     setup:
     TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.set(true)
-    def interceptor = TraceProfilingScopeInterceptor.create(rate, traceEvaluator, statsDClient, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(rate, traceEvaluator, statsDClient, delegateInterceptor)
 
     when:
     def scope = interceptor.handleSpan(span)
 
     then:
     TraceProfilingScopeInterceptor.IS_THREAD_PROFILING.get()
-    1 * delegate.handleSpan(_) >> delegateScope
+    1 * delegateInterceptor.handleSpan(_) >> delegateScope
     1 * span.getTraceId() >> DDId.from(5)
     1 * factory.createSession("5", _) >> session
+    1 * statsDClient.incrementCounter('mlt.scope', 'scope:child')
     0 * _
 
     when:
@@ -210,7 +227,7 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
 
   def "validate Heuristical rate limiting"() {
     setup:
-    def interceptor = TraceProfilingScopeInterceptor.create(null, traceEvaluator, statsDClient, delegate)
+    def interceptor = TraceProfilingScopeInterceptor.create(null, traceEvaluator, statsDClient, delegateInterceptor)
 
     when:
     def activations = 0
@@ -226,11 +243,12 @@ class TraceProfilingScopeInterceptorTest extends DDSpecification {
     then:
     TraceProfilingScopeInterceptor.ACTIVATIONS_PER_SECOND < activations
     activations < TraceProfilingScopeInterceptor.ACTIVATIONS_PER_SECOND * 3
-    _ * delegate.handleSpan(_) >> delegateScope
+    _ * delegateInterceptor.handleSpan(_) >> delegateScope
     _ * span.getLocalRootSpan() >> span
     _ * traceEvaluator.isDistinctive(span) >> true
     _ * span.getTraceId() >> DDId.from(5)
     _ * factory.createSession("5", _) >> session
+    _ * statsDClient.incrementCounter('mlt.scope', 'scope:root')
     _ * delegateScope.close()
     _ * session.close()
     0 * _
