@@ -10,8 +10,6 @@ public interface AgentSpan extends MutableSpan {
 
   DDId getSpanId();
 
-  DDId getParentId();
-
   @Override
   AgentSpan setTag(String key, boolean value);
 

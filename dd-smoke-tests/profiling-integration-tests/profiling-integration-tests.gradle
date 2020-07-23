@@ -31,9 +31,3 @@ tasks.withType(Test).configureEach {
 
   jvmArgs "-Ddatadog.smoketest.profiling.shadowJar.path=${tasks.shadowJar.archivePath}"
 }
-
-shadowJar {
-  dependencies {
-    include(dependency('org.slf4j::'))
-  }
-}

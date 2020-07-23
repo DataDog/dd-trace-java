@@ -37,18 +37,6 @@ shadowJar {
     exclude(project(':dd-trace-api'))
     exclude(dependency('org.slf4j::'))
   }
-  /*
-   * Apparently 'minimize()' will mess up the agent.
-   * But we still want to exclude the unused JMC client classes - must do it manually.
-   */
-  exclude 'org/openjdk/jmc/common/*.class'
-  exclude 'org/openjdk/jmc/common/collection/**'
-  exclude 'org/openjdk/jmc/common/io/UnsupportedFormatException.class'
-  exclude 'org/openjdk/jmc/common/io/ValidatingObjectInputStream.class'
-  exclude 'org/openjdk/jmc/common/item/**'
-  exclude 'org/openjdk/jmc/common/unit/**'
-  exclude 'org/openjdk/jmc/common/util/**'
-  exclude 'org/openjdk/jmc/common/version/**'
 }
 
 jar {

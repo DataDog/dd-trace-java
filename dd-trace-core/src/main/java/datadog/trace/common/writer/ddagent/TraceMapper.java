@@ -1,6 +1,5 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.core.StringTables.BLOB;
 import static datadog.trace.core.StringTables.DURATION;
 import static datadog.trace.core.StringTables.ERROR;
 import static datadog.trace.core.StringTables.META;
@@ -28,10 +27,8 @@ public final class TraceMapper implements Mapper<List<DDSpan>> {
   @Override
   public void map(List<DDSpan> trace, Writable writable) {
     writable.startArray(trace.size());
-    for (final DDSpan span : trace) {
-      final boolean hasBlob = span.getBinaryData() != null;
-
-      writable.startMap(hasBlob ? 13 : 12);
+    for (DDSpan span : trace) {
+      writable.startMap(12);
       /* 1  */
       writable.writeUTF8(SERVICE);
       writable.writeString(span.getServiceName(), CONSTANT_TAGS);
@@ -90,13 +87,6 @@ public final class TraceMapper implements Mapper<List<DDSpan>> {
         } else {
           writable.writeString(String.valueOf(entry.getValue()), NO_CACHING);
         }
-      }
-
-      if (hasBlob) {
-        /* 13 */
-        final byte[] binaryData = span.getBinaryData();
-        writable.writeUTF8(BLOB);
-        writable.writeBinary(binaryData, 0, binaryData.length);
       }
     }
   }
