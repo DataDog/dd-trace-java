@@ -28,6 +28,7 @@ public final class TracerConfig {
   public static final String TRACE_SAMPLING_OPERATION_RULES = "trace.sampling.operation.rules";
   public static final String TRACE_SAMPLE_RATE = "trace.sample.rate";
   public static final String TRACE_RATE_LIMIT = "trace.rate.limit";
+  public static final String METHOD_TRACE_ENABLED = "method.trace.enabled";
   public static final String METHOD_TRACE_SAMPLE_RATE = "method.trace.sample.rate";
 
   public static final String TRACE_REPORT_HOSTNAME = "trace.report-hostname";

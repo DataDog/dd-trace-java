@@ -15,9 +15,7 @@ excludedClassesCoverage += [
   'datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory',
   'datadog.trace.core.scopemanager.ScopeInterceptor.DelegatingScope',
   'datadog.trace.core.StatusLogger',
-  'datadog.trace.core.scopemanager.TraceProfilingScopeManager',
-  // temporary...
-  'datadog.trace.core.scopemanager.TraceProfilingScopeManager.*', // temporary...
+  'datadog.trace.core.interceptor.TraceHeuristicsEvaluator', // FIXME: temporary...
 ]
 
 apply plugin: 'org.unbroken-dome.test-sets'

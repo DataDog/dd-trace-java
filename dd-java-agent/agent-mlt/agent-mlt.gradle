@@ -25,7 +25,7 @@ minimumBranchCoverage = 0.5
 
 excludedClassesCoverage += [
   // MLT trace installer is a simple forwarding shell for MethodLevelTracer.initialize()
-  'datadog.trace.agent.mlt.TracerInstaller',
+  'datadog.trace.agent.mlt.MethodLevelTracerInstaller',
   'com.datadog.mlt.sampler.JmxThreadStackProvider',
   'com.datadog.mlt.sampler.NoneThreadStackProvider',
   'com.datadog.mlt.sampler.ThreadStackProvider'
