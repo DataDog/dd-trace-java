@@ -2,6 +2,9 @@ package datadog.trace.instrumentation.springwebflux.client;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.net.URI;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.reactive.function.client.ClientRequest;
@@ -10,6 +13,8 @@ import org.springframework.web.reactive.function.client.ClientResponse;
 @Slf4j
 public class SpringWebfluxHttpClientDecorator
     extends HttpClientDecorator<ClientRequest, ClientResponse> {
+
+  private static final MethodHandle RAW_STATUS_CODE = findRawStatusCode();
 
   public static final SpringWebfluxHttpClientDecorator DECORATE =
       new SpringWebfluxHttpClientDecorator();
@@ -41,6 +46,21 @@ public class SpringWebfluxHttpClientDecorator
 
   @Override
   protected Integer status(final ClientResponse httpResponse) {
+    if (null != RAW_STATUS_CODE) {
+      try {
+        return (int) RAW_STATUS_CODE.invokeExact(httpResponse);
+      } catch (Throwable ignored) {
+      }
+    }
     return httpResponse.statusCode().value();
+  }
+
+  private static MethodHandle findRawStatusCode() {
+    try {
+      return MethodHandles.publicLookup()
+          .findVirtual(ClientResponse.class, "rawStatusCode", MethodType.methodType(int.class));
+    } catch (IllegalAccessException | NoSuchMethodException e) {
+      return null;
+    }
   }
 }
