@@ -3,6 +3,7 @@ package datadog.trace.core;
 import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
+import datadog.common.container.ServerlessInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -500,8 +501,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     if (!WriterConstants.DD_AGENT_WRITER_TYPE.equals(configuredType)) {
       log.warn(
-          "Writer type not configured correctly: Type {} not recognized. Defaulting to DDAgentWriter.",
-          configuredType);
+          "Writer type not configured correctly: Type {} not recognized. Ignoring", configuredType);
+    }
+
+    if (config.isAgentConfiguredUsingDefault()
+        && ServerlessInfo.isRunningInServerlessEnvironment()) {
+      return new PrintingWriter(System.out, true);
     }
 
     final DDAgentApi ddAgentApi =
