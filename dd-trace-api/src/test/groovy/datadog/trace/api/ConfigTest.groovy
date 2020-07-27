@@ -1561,7 +1561,7 @@ class ConfigTest extends DDSpecification {
                              'service.version': 'my-svc-vers']
   }
 
-  def "detect if agent configured using default with system properties"() {
+  def "detect if agent is configured using default values"() {
     setup:
     if (host != null) {
       System.setProperty(PREFIX + AGENT_HOST, host)
@@ -1600,17 +1600,18 @@ class ConfigTest extends DDSpecification {
     childConfig.isAgentConfiguredUsingDefault() == childConfiguredUsingDefault
 
     where:
-    host      | socket    | port | legacyPort | propertyHost | propertySocket | propertyPort | configuredUsingDefault | childConfiguredUsingDefault
-    null      | null      | null | null       | null         | null           | null         | true                   | true
-    "example" | null      | null | null       | null         | null           | null         | false                  | false
-    null      | "example" | null | null       | null         | null           | null         | false                  | false
-    null      | null      | "1"  | null       | null         | null           | null         | false                  | false
-    null      | null      | null | "1"        | null         | null           | null         | false                  | false
-    "example" | "example" | null | null       | null         | null           | null         | false                  | false
-    null      | null      | null | null       | "example"    | null           | null         | true                   | false
-    null      | null      | null | null       | null         | "example"      | null         | true                   | false
-    null      | null      | null | null       | null         | null           | "1"          | true                   | false
-    "example" | "example" | null | null       | "example"    | null           | null         | false                  | false
+    host                              | socket    | port | legacyPort | propertyHost | propertySocket | propertyPort | configuredUsingDefault | childConfiguredUsingDefault
+    null                              | null      | null | null       | null         | null           | null         | true                   | true
+    "example"                         | null      | null | null       | null         | null           | null         | false                  | false
+    ConfigDefaults.DEFAULT_AGENT_HOST | null      | null | null       | null         | null           | null         | false                  | false
+    null                              | "example" | null | null       | null         | null           | null         | false                  | false
+    null                              | null      | "1"  | null       | null         | null           | null         | false                  | false
+    null                              | null      | null | "1"        | null         | null           | null         | false                  | false
+    "example"                         | "example" | null | null       | null         | null           | null         | false                  | false
+    null                              | null      | null | null       | "example"    | null           | null         | true                   | false
+    null                              | null      | null | null       | null         | "example"      | null         | true                   | false
+    null                              | null      | null | null       | null         | null           | "1"          | true                   | false
+    "example"                         | "example" | null | null       | "example"    | null           | null         | false                  | false
   }
 
   // Static methods test:
