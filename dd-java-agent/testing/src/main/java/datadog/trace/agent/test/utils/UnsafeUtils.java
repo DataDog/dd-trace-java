@@ -21,9 +21,11 @@ public class UnsafeUtils {
     unsafeField.setAccessible(true);
     final sun.misc.Unsafe unsafe = (sun.misc.Unsafe) unsafeField.get(null);
 
+    unsafe.ensureClassInitialized(field.getDeclaringClass());
+
     final Object staticFieldBase = unsafe.staticFieldBase(field);
     final long staticFieldOffset = unsafe.staticFieldOffset(field);
-    unsafe.putObject(staticFieldBase, staticFieldOffset, newValue);
+    unsafe.putObjectVolatile(staticFieldBase, staticFieldOffset, newValue);
   }
 
   private static void setStaticFieldViaReflection(final Field field, final Object newValue)
