@@ -21,7 +21,7 @@ public abstract class MLTChunkCollector implements IMLTChunk {
    * Base stacktrace to add the first time collect is called. This is done to avoid the cost of
    * converting in the main thread (especially if no additional stacktraces are collected).
    */
-  private StackTraceElement[] baseStack;
+  private volatile StackTraceElement[] baseStack;
 
   @Getter protected final ConstantPool<FrameElement> framePool;
   @Getter protected final ConstantPool<FrameSequence> stackPool;
