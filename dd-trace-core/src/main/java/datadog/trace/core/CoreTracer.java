@@ -4,7 +4,9 @@ import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.Config;
+import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDId;
+import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -501,11 +503,20 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           configuredType);
     }
 
+    String unixDomainSocket = config.getAgentUnixDomainSocket();
+    if (unixDomainSocket != ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET && isWindows()) {
+      log.warn(
+          "{} setting not supported on {}.  Reverting to the default.",
+          TracerConfig.AGENT_UNIX_DOMAIN_SOCKET,
+          System.getProperty("os.name"));
+      unixDomainSocket = ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
+    }
+
     final DDAgentApi ddAgentApi =
         new DDAgentApi(
             config.getAgentHost(),
             config.getAgentPort(),
-            config.getAgentUnixDomainSocket(),
+            unixDomainSocket,
             TimeUnit.SECONDS.toMillis(config.getAgentTimeout()));
 
     final DDAgentWriter ddAgentWriter =
@@ -516,6 +527,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     return ddAgentWriter;
+  }
+
+  private static boolean isWindows() {
+    // https://mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
+    String os = System.getProperty("os.name").toLowerCase();
+    return os.contains("win");
   }
 
   private static StatsDClient createStatsDClient(final Config config) {

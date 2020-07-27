@@ -21,8 +21,10 @@ import spock.lang.Timeout
 
 import java.nio.ByteBuffer
 
+import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
+import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING
@@ -64,7 +66,6 @@ class CoreTracerTest extends DDSpecification {
     tracer.statsDClient instanceof NonBlockingStatsDClient
   }
 
-
   def "verify overriding sampler"() {
     setup:
     System.setProperty(PREFIX + PRIORITY_SAMPLING, "false")
@@ -83,6 +84,27 @@ class CoreTracerTest extends DDSpecification {
 
     then:
     tracer.writer instanceof LoggingWriter
+  }
+
+  def "verify uds+windows"() {
+    setup:
+    def osName = System.getProperty("os.name")
+    System.setProperty("os.name", "Windows ME")
+
+    when:
+    def tracer = withConfigOverride(AGENT_UNIX_DOMAIN_SOCKET, uds) {
+      CoreTracer.builder().build()
+    }
+
+    then:
+    tracer.writer instanceof DDAgentWriter
+    tracer.writer.api.unixDomainSocketPath == null
+
+    cleanup:
+    System.setProperty("os.name", osName)
+
+    where:
+    uds = "asdf"
   }
 
   def "verify mapping configs on tracer"() {
