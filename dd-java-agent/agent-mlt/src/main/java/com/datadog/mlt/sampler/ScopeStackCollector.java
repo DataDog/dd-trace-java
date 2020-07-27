@@ -34,7 +34,7 @@ final class ScopeStackCollector extends MLTChunkCollector {
       ConstantPool<String> stringPool,
       ConstantPool<FrameElement> framePool,
       ConstantPool<FrameSequence> stackPool) {
-    // TODO: for now we are providing empty stacktraces because it's damn too expensive to collect
+    // TODO: for now we are providing empty stacktraces because it's too damn expensive to collect
     // TODO: it on the critical path
     super(EMPTY_STACKTRACE, stringPool, framePool, stackPool);
     this.scopeId = scopeId;
