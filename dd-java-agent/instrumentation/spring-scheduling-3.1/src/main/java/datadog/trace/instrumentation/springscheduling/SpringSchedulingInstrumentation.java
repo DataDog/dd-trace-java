@@ -28,7 +28,7 @@ public final class SpringSchedulingInstrumentation extends Instrumenter.Default 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SpringSchedulingDecorator", packageName + "SpringSchedulingRunnableWrapper",
+      packageName + ".SpringSchedulingDecorator", packageName + ".SpringSchedulingRunnableWrapper",
     };
   }
 
