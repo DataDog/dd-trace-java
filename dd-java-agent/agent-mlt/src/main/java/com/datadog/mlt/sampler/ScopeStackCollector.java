@@ -15,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 final class ScopeStackCollector extends MLTChunkCollector {
 
+  private static final StackTraceElement[] EMPTY_STACKTRACE = new StackTraceElement[0];
+
   private static final byte VERSION = (byte) 0;
 
   private final ScopeManager threadStacktraceCollector;
@@ -32,7 +34,9 @@ final class ScopeStackCollector extends MLTChunkCollector {
       ConstantPool<String> stringPool,
       ConstantPool<FrameElement> framePool,
       ConstantPool<FrameSequence> stackPool) {
-    super(new Throwable().getStackTrace(), stringPool, framePool, stackPool);
+    // TODO: for now we are providing empty stacktraces because it's damn too expensive to collect
+    // TODO: it on the critical path
+    super(EMPTY_STACKTRACE, stringPool, framePool, stackPool);
     this.scopeId = scopeId;
     this.threadStacktraceCollector = threadStacktraceCollector;
     startTime = startTimeEpoch;
