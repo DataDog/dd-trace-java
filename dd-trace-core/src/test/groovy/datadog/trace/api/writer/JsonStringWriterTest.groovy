@@ -12,7 +12,7 @@ class JsonStringWriterTest extends DDSpecification {
   def tracer = Mock(CoreTracer)
   def sampleTrace = [SpanFactory.newSpanOf(tracer), SpanFactory.newSpanOf(tracer)]
 
-  def adapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(List.class, Map.class))
+  def adapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(List, Map))
 
   def "test printing regular ids"() {
     given:
