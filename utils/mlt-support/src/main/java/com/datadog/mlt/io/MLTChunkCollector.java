@@ -17,6 +17,12 @@ public abstract class MLTChunkCollector implements IMLTChunk {
   private static final boolean USE_SUBTREE_COMPRESSION =
       Boolean.getBoolean("mlt.subtree_compression");
 
+  /**
+   * Base stacktrace to add the first time collect is called. This is done to avoid the cost of
+   * converting in the main thread (especially if no additional stacktraces are collected).
+   */
+  private StackTraceElement[] baseStack;
+
   @Getter protected final ConstantPool<FrameElement> framePool;
   @Getter protected final ConstantPool<FrameSequence> stackPool;
   @Getter protected final ConstantPool<String> stringPool;
@@ -30,15 +36,25 @@ public abstract class MLTChunkCollector implements IMLTChunk {
       ConstantPool<String> stringPool,
       ConstantPool<FrameElement> framePool,
       ConstantPool<FrameSequence> stackPool) {
+    this.baseStack = baseStack;
     this.framePool = framePool;
     this.stackPool = stackPool;
     this.stringPool = stringPool;
-    collect(baseStack);
   }
 
+  /**
+   * Not thread safe. Must not call from multiple threads.
+   *
+   * @param stackTrace
+   */
   public void collect(StackTraceElement[] stackTrace) {
     if (stackTrace.length == 0) {
       return;
+    }
+    if (baseStack != null) {
+      StackTraceElement[] base = baseStack;
+      baseStack = null;
+      collect(base); // recursive call to add base as first element.
     }
     FrameSequence tree = null;
     if (USE_SUBTREE_COMPRESSION) {
