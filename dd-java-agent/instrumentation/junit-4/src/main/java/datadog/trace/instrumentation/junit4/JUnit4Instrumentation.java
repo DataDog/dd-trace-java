@@ -128,8 +128,7 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
       } else {
         // If @Ignore annotation is kept at class level, the instrumentation
         // reports every method annotated with @Test as skipped test.
-        final ClassLoader cl = description.getClass().getClassLoader();
-        testNames.addAll(DECORATE.testNames(description.getClassName(), cl, Test.class));
+        testNames.addAll(DECORATE.testNames(description.getTestClass(), Test.class));
       }
 
       for (final String testName : testNames) {

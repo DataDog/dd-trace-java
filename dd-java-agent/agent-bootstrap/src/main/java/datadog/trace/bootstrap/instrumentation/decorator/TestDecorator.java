@@ -47,19 +47,6 @@ public abstract class TestDecorator extends BaseDecorator {
   }
 
   public List<String> testNames(
-      final String testClassName,
-      final ClassLoader cl,
-      final Class<? extends Annotation> testAnnotation) {
-    try {
-      final Class<?> testClass = cl.loadClass(testClassName);
-      return testNames(testClass, testAnnotation);
-    } catch (final ClassNotFoundException ex) {
-      log.error("Unable to load {}", testClassName, ex);
-      return new ArrayList<>();
-    }
-  }
-
-  public List<String> testNames(
       final Class<?> testClass, final Class<? extends Annotation> testAnnotation) {
     final List<String> testNames = new ArrayList<>();
 
