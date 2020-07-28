@@ -60,12 +60,16 @@ public class Packer implements Writable, MessageFormatter {
     this.codec = codec;
     this.sink = sink;
     this.buffer = buffer;
-    this.buffer.position(MAX_ARRAY_HEADER_SIZE);
-    buffer.mark();
+    initBuffer();
   }
 
   public Packer(ByteBufferConsumer sink, ByteBuffer buffer) {
     this(Codec.INSTANCE, sink, buffer);
+  }
+
+  private void initBuffer() {
+    this.buffer.position(MAX_ARRAY_HEADER_SIZE);
+    buffer.mark();
   }
 
   @Override
@@ -118,7 +122,7 @@ public class Packer implements Writable, MessageFormatter {
     writeArrayHeader(messageCount);
     buffer.position(pos);
     sink.accept(messageCount, buffer.slice());
-    buffer.position(MAX_ARRAY_HEADER_SIZE);
+    initBuffer();
     buffer.limit(buffer.capacity());
     messageCount = 0;
   }

@@ -74,16 +74,6 @@ public class DDSpan implements MutableSpan, AgentSpan {
       // Timestamp have come from an external clock, so use startTimeNano as a flag
       startTimeNano = 0;
     }
-    if (log.isDebugEnabled()) {
-      log.debug(
-          "dd.timestamps t_id={} s_id={} stm={}us up={} stn={}ns diff={}ns",
-          context.getTraceId(),
-          context.getSpanId(),
-          startTimeMicro,
-          timestampMicro > 0,
-          startTimeNano,
-          (startTimeMicro * 1000) - startTimeNano);
-    }
   }
 
   public boolean isFinished() {
@@ -97,17 +87,6 @@ public class DDSpan implements MutableSpan, AgentSpan {
       context.getTrace().addSpan(this);
     } else {
       log.debug("Already finished: {}", this);
-    }
-    if (log.isDebugEnabled()) {
-      log.debug(
-          "dd.timestamps t_id={} s_id={} stm={}us up={} stn={}ns diff={}ns, duration={}ns",
-          context.getTraceId(),
-          context.getSpanId(),
-          startTimeMicro,
-          startTimeNano == 0,
-          startTimeNano,
-          (startTimeMicro * 1000) - startTimeNano,
-          durationNano);
     }
   }
 

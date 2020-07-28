@@ -3,6 +3,7 @@ package muzzle
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.tooling.muzzle.Reference
 import datadog.trace.agent.tooling.muzzle.ReferenceCreator
+import spock.lang.Ignore
 
 import static muzzle.TestClasses.InstanceofAdvice
 import static muzzle.TestClasses.LdcAdvice
@@ -72,6 +73,17 @@ class ReferenceCreatorTest extends AgentTestRunner {
 
     expect:
     references.get('muzzle.TestClasses$MethodBodyAdvice$A') != null
+  }
+
+  // TODO: remove ignore when we drop java 7 support.
+  @Ignore
+  def "invokedynamic creates references"() {
+    setup:
+    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(TestClasses.InDyAdvice.getName(), this.getClass().getClassLoader())
+
+    expect:
+    references.get('muzzle.TestClasses$MethodBodyAdvice$SomeImplementation') != null
+    references.get('muzzle.TestClasses$MethodBodyAdvice$B') != null
   }
 
   private static Reference.Method findMethod(Set<Reference.Method> methods, String methodName, String methodDesc) {

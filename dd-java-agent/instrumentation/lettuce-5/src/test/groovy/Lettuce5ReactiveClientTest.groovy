@@ -339,7 +339,6 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     sortAndAssertTraces(1) {
       trace(0, 3) {
         span(0) {
-          serviceName "unnamed-java-app"
           operationName "test-parent"
           resourceName "test-parent"
           errored false
@@ -394,7 +393,6 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     sortAndAssertTraces(1) {
       trace(0, 3) {
         span(0) {
-          serviceName "unnamed-java-app"
           operationName "test-parent"
           resourceName "test-parent"
           errored false
@@ -450,7 +448,6 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     sortAndAssertTraces(1) {
       trace(0, 3) {
         span(0) {
-          serviceName "unnamed-java-app"
           operationName "test-parent"
           resourceName "test-parent"
           errored false
