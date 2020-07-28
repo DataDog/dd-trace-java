@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 public abstract class TraceProfilingScopeInterceptor
     extends ScopeInterceptor.DelegatingInterceptor {
   private static final long MAX_NANOSECONDS_BETWEEN_ACTIVATIONS = TimeUnit.SECONDS.toNanos(1);
-  private static final double ACTIVATIONS_PER_SECOND = 50;
+  private static final double ACTIVATIONS_PER_SECOND = 5;
   private static final ThreadLocal<Boolean> IS_THREAD_PROFILING =
       new ThreadLocal<Boolean>() {
         @Override

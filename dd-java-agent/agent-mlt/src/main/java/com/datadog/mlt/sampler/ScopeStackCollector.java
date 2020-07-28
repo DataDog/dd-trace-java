@@ -32,7 +32,7 @@ final class ScopeStackCollector extends MLTChunkCollector {
       ConstantPool<String> stringPool,
       ConstantPool<FrameElement> framePool,
       ConstantPool<FrameSequence> stackPool) {
-    super(new Throwable().getStackTrace(), stringPool, framePool, stackPool);
+    super(new Throwable(), stringPool, framePool, stackPool);
     this.scopeId = scopeId;
     this.threadStacktraceCollector = threadStacktraceCollector;
     startTime = startTimeEpoch;
