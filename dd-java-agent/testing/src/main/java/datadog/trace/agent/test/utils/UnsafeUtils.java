@@ -15,7 +15,7 @@ public class UnsafeUtils {
     return Integer.parseInt(javaVersion.substring(beg, end));
   }
 
-  private static void setStaticFieldViaUnsafe(final Field field, final Object newValue)
+  private static void setStaticBooleanFieldViaUnsafe(final Field field, final boolean newValue)
       throws Exception {
     final Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
     unsafeField.setAccessible(true);
@@ -25,7 +25,7 @@ public class UnsafeUtils {
 
     final Object staticFieldBase = unsafe.staticFieldBase(field);
     final long staticFieldOffset = unsafe.staticFieldOffset(field);
-    unsafe.putObjectVolatile(staticFieldBase, staticFieldOffset, newValue);
+    unsafe.putBooleanVolatile(staticFieldBase, staticFieldOffset, newValue);
   }
 
   private static void setStaticFieldViaReflection(final Field field, final Object newValue)
@@ -39,12 +39,13 @@ public class UnsafeUtils {
     modifiersField.setInt(field, origModifiers);
   }
 
-  public static void setStaticField(final Field field, final Object newValue) throws Exception {
+  public static void setStaticBooleanField(final Field field, final boolean newValue)
+      throws Exception {
     if (JAVA_VERSION < 12) {
       setStaticFieldViaReflection(field, newValue);
     } else {
       // since 12 we can't use reflection: http://hg.openjdk.java.net/jdk/jdk/rev/f55a4bc91ef4
-      setStaticFieldViaUnsafe(field, newValue);
+      setStaticBooleanFieldViaUnsafe(field, newValue);
     }
   }
 }
