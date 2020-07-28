@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.DisableTestTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -64,7 +63,7 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
   public static class TestStartedAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void startTest(@Advice.Argument(0) final Description description) {
-      if (description.getAnnotation(DisableTestTrace.class) != null) {
+      if (DECORATE.skipTrace(description)) {
         return;
       }
 
@@ -80,7 +79,7 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
   public static class TestFinishedAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void finishTest(@Advice.Argument(0) final Description description) {
-      if (description.getAnnotation(DisableTestTrace.class) != null) {
+      if (DECORATE.skipTrace(description)) {
         return;
       }
 
@@ -103,7 +102,7 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
   public static class TestFailureAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void failureTest(@Advice.Argument(0) final Failure failure) {
-      if (failure.getDescription().getAnnotation(DisableTestTrace.class) != null) {
+      if (DECORATE.skipTrace(failure.getDescription())) {
         return;
       }
 
@@ -119,7 +118,7 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
   public static class TestIgnoredAdvice {
     @Advice.OnMethodExit
     public static void ignoreTest(@Advice.Argument(0) final Description description) {
-      if (description.getAnnotation(DisableTestTrace.class) != null) {
+      if (DECORATE.skipTrace(description)) {
         return;
       }
 

@@ -5,12 +5,12 @@ import datadog.trace.instrumentation.junit4.JUnit4Decorator
 import org.junit.runner.JUnitCore
 import spock.lang.Shared
 
+@DisableTestTrace(reason = "avoid self-tracing")
 class JUnit4Test extends TestFrameworkTest {
 
   @Shared
   def runner = new JUnitCore()
 
-  @DisableTestTrace(reason = "avoid self-tracing")
   def "test success generates spans"() {
     setup:
     runner.run(TestSucceed)
@@ -23,7 +23,6 @@ class JUnit4Test extends TestFrameworkTest {
     }
   }
 
-  @DisableTestTrace(reason = "avoid self-tracing")
   def "test failed generates spans"() {
     setup:
     try {
@@ -43,7 +42,6 @@ class JUnit4Test extends TestFrameworkTest {
     exception = new AssertionError()
   }
 
-  @DisableTestTrace(reason = "avoid self-tracing")
   def "test error generates spans"() {
     setup:
     try {
@@ -63,7 +61,6 @@ class JUnit4Test extends TestFrameworkTest {
     exception = new IllegalArgumentException("This exception is an example")
   }
 
-  @DisableTestTrace(reason = "avoid self-tracing")
   def "test skipped generates spans"() {
     setup:
     runner.run(TestSkipped)
@@ -76,7 +73,6 @@ class JUnit4Test extends TestFrameworkTest {
     }
   }
 
-  @DisableTestTrace(reason = "avoid self-tracing")
   def "test class skipped generated spans"() {
     setup:
     runner.run(TestSkippedClass)

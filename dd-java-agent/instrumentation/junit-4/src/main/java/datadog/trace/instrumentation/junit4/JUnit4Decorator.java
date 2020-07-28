@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit4;
 
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DisableTestTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,11 @@ public class JUnit4Decorator extends TestDecorator {
   @Override
   public String component() {
     return "junit";
+  }
+
+  public boolean skipTrace(final Description description) {
+    return description.getAnnotation(DisableTestTrace.class) != null
+        || description.getTestClass().getAnnotation(DisableTestTrace.class) != null;
   }
 
   public void onTestStart(final AgentSpan span, final Description description) {
