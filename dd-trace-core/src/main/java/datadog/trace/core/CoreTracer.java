@@ -3,6 +3,7 @@ package datadog.trace.core;
 import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
+import datadog.common.container.ServerlessInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDId;
@@ -21,6 +22,7 @@ import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.LoggingWriter;
+import datadog.trace.common.writer.PrintingWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
@@ -495,12 +497,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     if (WriterConstants.LOGGING_WRITER_TYPE.equals(configuredType)) {
       return new LoggingWriter();
+    } else if (WriterConstants.PRINTING_WRITER_TYPE.equals(configuredType)) {
+      return new PrintingWriter(System.out, true);
     }
 
     if (!WriterConstants.DD_AGENT_WRITER_TYPE.equals(configuredType)) {
       log.warn(
-          "Writer type not configured correctly: Type {} not recognized. Defaulting to DDAgentWriter.",
-          configuredType);
+          "Writer type not configured correctly: Type {} not recognized. Ignoring", configuredType);
+    }
+
+    if (config.isAgentConfiguredUsingDefault()
+        && ServerlessInfo.get().isRunningInServerlessEnvironment()) {
+      return new PrintingWriter(System.out, true);
     }
 
     String unixDomainSocket = config.getAgentUnixDomainSocket();

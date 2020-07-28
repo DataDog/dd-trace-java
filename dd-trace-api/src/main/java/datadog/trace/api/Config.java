@@ -273,6 +273,7 @@ public class Config {
   @Getter private final boolean traceEnabled;
   @Getter private final boolean integrationsEnabled;
   @Getter private final String writerType;
+  @Getter private final boolean agentConfiguredUsingDefault;
   @Getter private final String agentHost;
   @Getter private final int agentPort;
   @Getter private final String agentUnixDomainSocket;
@@ -392,13 +393,38 @@ public class Config {
     integrationsEnabled =
         getBooleanSettingFromEnvironment(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
     writerType = getSettingFromEnvironment(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
-    agentHost = getSettingFromEnvironment(AGENT_HOST, DEFAULT_AGENT_HOST);
+
+    // The extra code is to detect when defaults are used for agent configuration
+    final boolean agentHostConfiguredUsingDefault;
+    final String agentHostFromEnvironment = getSettingFromEnvironment(AGENT_HOST, null);
+    if (agentHostFromEnvironment == null) {
+      agentHost = DEFAULT_AGENT_HOST;
+      agentHostConfiguredUsingDefault = true;
+    } else {
+      agentHost = agentHostFromEnvironment;
+      agentHostConfiguredUsingDefault = false;
+    }
+
+    final boolean socketConfiguredUsingDefault;
+    final String unixDomainFromEnv = getSettingFromEnvironment(AGENT_UNIX_DOMAIN_SOCKET, null);
+    if (unixDomainFromEnv == null) {
+      agentUnixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
+      socketConfiguredUsingDefault = true;
+    } else {
+      agentUnixDomainSocket = unixDomainFromEnv;
+      socketConfiguredUsingDefault = false;
+    }
+
     agentPort =
         getIntegerSettingFromEnvironment(
             TRACE_AGENT_PORT,
             getIntegerSettingFromEnvironment(AGENT_PORT_LEGACY, DEFAULT_TRACE_AGENT_PORT));
-    agentUnixDomainSocket =
-        getSettingFromEnvironment(AGENT_UNIX_DOMAIN_SOCKET, DEFAULT_AGENT_UNIX_DOMAIN_SOCKET);
+
+    agentConfiguredUsingDefault =
+        agentHostConfiguredUsingDefault
+            && socketConfiguredUsingDefault
+            && agentPort == DEFAULT_TRACE_AGENT_PORT;
+
     agentTimeout = getIntegerSettingFromEnvironment(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
     prioritySamplingEnabled =
         getBooleanSettingFromEnvironment(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
@@ -616,6 +642,12 @@ public class Config {
             getPropertyIntegerValue(properties, AGENT_PORT_LEGACY, parent.agentPort));
     agentUnixDomainSocket =
         properties.getProperty(AGENT_UNIX_DOMAIN_SOCKET, parent.agentUnixDomainSocket);
+    agentConfiguredUsingDefault =
+        !properties.containsKey(AGENT_HOST)
+            && !properties.containsKey(AGENT_UNIX_DOMAIN_SOCKET)
+            && !properties.containsKey(TRACE_AGENT_PORT)
+            && !properties.containsKey(AGENT_PORT_LEGACY)
+            && parent.agentConfiguredUsingDefault;
     agentTimeout = getPropertyIntegerValue(properties, AGENT_TIMEOUT, parent.agentTimeout);
     prioritySamplingEnabled =
         getPropertyBooleanValue(properties, PRIORITY_SAMPLING, parent.prioritySamplingEnabled);
