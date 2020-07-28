@@ -17,10 +17,12 @@ public abstract class TestDecorator extends BaseDecorator {
   public static final String TEST_FAIL = "FAIL";
   public static final String TEST_SKIP = "SKIP";
 
+  private static final String SERVICE = Config.get().getServiceName() + ".test";
+
   protected abstract String testFramework();
 
   protected String service() {
-    return Config.get().getServiceName() + ".test";
+    return SERVICE;
   }
 
   protected String spanKind() {
@@ -35,11 +37,7 @@ public abstract class TestDecorator extends BaseDecorator {
   @Override
   public AgentSpan afterStart(final AgentSpan span) {
     assert span != null;
-    if (service() != null) {
-      span.setTag(DDTags.SERVICE_NAME, service());
-    } else {
-      span.setTag(DDTags.SERVICE_NAME, Config.get().getServiceName() + ".test");
-    }
+    span.setTag(DDTags.SERVICE_NAME, service());
     span.setTag(Tags.SPAN_KIND, spanKind());
     span.setTag(DDTags.SPAN_TYPE, spanType());
     span.setTag(DDTags.TEST_FRAMEWORK, testFramework());
