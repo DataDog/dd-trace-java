@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.junit4;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.junit4.JUnit4Decorator.DECORATE;
@@ -34,11 +33,6 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return named("org.junit.runner.notification.RunNotifier");
-  }
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("org.junit.runner.notification.RunNotifier");
   }
 
   @Override
