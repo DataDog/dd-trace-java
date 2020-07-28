@@ -62,7 +62,7 @@ class DefaultLogHandlerTest extends DDSpecification {
     underTest.log(fields, span)
 
     then:
-    span.getTags().get(DDTags.ERROR_MSG) == errorMessage
+    span.getTags().get(DDTags.ERROR_MSG) is null
   }
 
   def "handles correctly the message passed in the fields when called with timestamp"() {
@@ -71,6 +71,70 @@ class DefaultLogHandlerTest extends DDSpecification {
     final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
     final String errorMessage = "errorMessage"
     final Map<String, ?> fields = new HashMap<>()
+    fields.put(Fields.MESSAGE, errorMessage)
+
+    when:
+    underTest.log(System.currentTimeMillis(), fields, span)
+
+    then:
+    span.getTags().get(DDTags.ERROR_MSG) is null
+  }
+
+  def "handles correctly the message passed in the fields when the span is error"() {
+    setup:
+    final LogHandler underTest = new DefaultLogHandler()
+    final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
+    final String errorMessage = "errorMessage"
+    final Map<String, ?> fields = new HashMap<>()
+    span.setError(true)
+    fields.put(Fields.MESSAGE, errorMessage)
+
+    when:
+    underTest.log(fields, span)
+
+    then:
+    span.getTags().get(DDTags.ERROR_MSG) == errorMessage
+  }
+
+  def "handles correctly the message passed in the fields when called with timestamp when the span is error"() {
+    setup:
+    final LogHandler underTest = new DefaultLogHandler()
+    final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
+    final String errorMessage = "errorMessage"
+    final Map<String, ?> fields = new HashMap<>()
+    span.setError(true)
+    fields.put(Fields.MESSAGE, errorMessage)
+
+    when:
+    underTest.log(System.currentTimeMillis(), fields, span)
+
+    then:
+    span.getTags().get(DDTags.ERROR_MSG) == errorMessage
+  }
+
+  def "handles correctly the message passed in the fields when the event is error"() {
+    setup:
+    final LogHandler underTest = new DefaultLogHandler()
+    final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
+    final String errorMessage = "errorMessage"
+    final Map<String, ?> fields = new HashMap<>()
+    fields.put(Fields.EVENT, "error")
+    fields.put(Fields.MESSAGE, errorMessage)
+
+    when:
+    underTest.log(fields, span)
+
+    then:
+    span.getTags().get(DDTags.ERROR_MSG) == errorMessage
+  }
+
+  def "handles correctly the message passed in the fields when called with timestampwhen the event is error"() {
+    setup:
+    final LogHandler underTest = new DefaultLogHandler()
+    final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
+    final String errorMessage = "errorMessage"
+    final Map<String, ?> fields = new HashMap<>()
+    fields.put(Fields.EVENT, "error")
     fields.put(Fields.MESSAGE, errorMessage)
 
     when:
