@@ -40,8 +40,9 @@ public class JUnit4Decorator extends TestDecorator {
       final AgentSpan span, final Description description, final String testNameArg) {
     final String testSuite = description.getClassName();
     final String testName = (testNameArg != null) ? testNameArg : description.getMethodName();
+    final String resourceName = spanNameForMethod(description.getTestClass(), testName);
 
-    span.setTag(DDTags.RESOURCE_NAME, testSuite + "." + testName);
+    span.setTag(DDTags.RESOURCE_NAME, resourceName);
     span.setTag(DDTags.TEST_SUITE, testSuite);
     span.setTag(DDTags.TEST_NAME, testName);
     span.setTag(DDTags.TEST_STATUS, TEST_PASS);
