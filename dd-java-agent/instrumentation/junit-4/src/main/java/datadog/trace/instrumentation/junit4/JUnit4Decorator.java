@@ -44,6 +44,9 @@ public class JUnit4Decorator extends TestDecorator {
     span.setTag(DDTags.RESOURCE_NAME, testSuite + "." + testName);
     span.setTag(DDTags.TEST_SUITE, testSuite);
     span.setTag(DDTags.TEST_NAME, testName);
+    // We cannot set TEST_PASS status in onTestFinish(...) method because that method
+    // is executed always after onTestFailure. For that reason, TEST_PASS status is preset
+    // in onTestStart.
     span.setTag(DDTags.TEST_STATUS, TEST_PASS);
   }
 
