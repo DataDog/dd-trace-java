@@ -10,15 +10,12 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
   def "test afterStart"() {
     setup:
-    def decorator = newDecorator((String) serviceName)
+    def decorator = newDecorator()
 
     when:
     decorator.afterStart(span)
 
     then:
-    if (serviceName != null) {
-      1 * span.setTag(DDTags.SERVICE_NAME, serviceName)
-    }
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
     1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
@@ -34,27 +31,19 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
   def "test beforeFinish"() {
     when:
-    newDecorator("test-service").beforeFinish(span)
+    newDecorator().beforeFinish(span)
 
     then:
     0 * _
   }
 
+
   @Override
   def newDecorator() {
-    return newDecorator("test-service")
-  }
-
-  def newDecorator(String serviceName) {
     return new TestDecorator() {
       @Override
       protected String testFramework() {
         return "test-framework"
-      }
-
-      @Override
-      protected String service() {
-        return serviceName
       }
 
       @Override
