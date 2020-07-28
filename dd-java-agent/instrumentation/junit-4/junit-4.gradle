@@ -4,10 +4,11 @@ muzzle {
   pass {
     group = 'junit'
     module = 'junit'
-    versions = '(,)'
+    versions = '[4.7,)'
+    assertInverse = true
   }
 }
 
 dependencies {
-  compileOnly group: 'junit', name: 'junit', version: '4.12'
+  compileOnly group: 'junit', name: 'junit', version: '4.7'
 }
