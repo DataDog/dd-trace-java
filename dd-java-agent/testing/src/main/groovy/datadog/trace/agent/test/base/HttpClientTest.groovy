@@ -324,7 +324,7 @@ abstract class HttpClientTest extends AgentTestRunner {
     def uri = server.address.resolve("/to-secured")
 
     when:
-    def status = doRequest(method, uri, [(BASIC_AUTH_KEY) : BASIC_AUTH_VAL])
+    def status = doRequest(method, uri, [(BASIC_AUTH_KEY): BASIC_AUTH_VAL])
 
     then:
     status == 200
@@ -445,7 +445,9 @@ abstract class HttpClientTest extends AgentTestRunner {
       } else {
         childOf((DDSpan) parentSpan)
       }
-      serviceName renameService ? uri.host : "unnamed-java-app"
+      if (renameService) {
+        serviceName uri.host
+      }
       operationName expectedOperationName()
       resourceName "$method $uri.path"
       spanType DDSpanTypes.HTTP_CLIENT

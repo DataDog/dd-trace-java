@@ -53,7 +53,6 @@ class OpenTelemetryTest extends AgentTestRunner {
       trace(0, 1) {
         span(0) {
           parent()
-          serviceName "unnamed-java-app"
           operationName "test-inst"
           if (tagSpan) {
             resourceName "other resource"
@@ -115,7 +114,6 @@ class OpenTelemetryTest extends AgentTestRunner {
       trace(0, 1) {
         span(0) {
           parent()
-          serviceName "unnamed-java-app"
           operationName "test-inst"
           resourceName "some name"
           errored true
@@ -163,7 +161,6 @@ class OpenTelemetryTest extends AgentTestRunner {
           } else {
             parent()
           }
-          serviceName "unnamed-java-app"
           operationName "test-inst"
           resourceName "some name"
           errored false

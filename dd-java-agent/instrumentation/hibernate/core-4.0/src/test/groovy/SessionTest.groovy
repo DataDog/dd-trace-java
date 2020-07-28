@@ -491,7 +491,6 @@ class SessionTest extends AbstractHibernateTest {
     assertTraces(1) {
       trace(0, 12) {
         span(0) {
-          serviceName "unnamed-java-app"
           operationName "overlapping Sessions"
           tags {
             defaultTags()

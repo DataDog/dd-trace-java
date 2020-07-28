@@ -169,7 +169,6 @@ class SpringWebfluxTest extends AgentTestRunner {
           }
         }
         span(2) {
-          serviceName "unnamed-java-app"
           if (annotatedMethod == null) {
             // Functional API
             resourceName "SpringWebFluxTestApplication.tracedMethod"
