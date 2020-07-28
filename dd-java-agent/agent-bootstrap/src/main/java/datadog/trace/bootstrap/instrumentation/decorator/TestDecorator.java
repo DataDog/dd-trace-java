@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -17,13 +16,7 @@ public abstract class TestDecorator extends BaseDecorator {
   public static final String TEST_FAIL = "FAIL";
   public static final String TEST_SKIP = "SKIP";
 
-  private static final String SERVICE = Config.get().getServiceName() + ".test";
-
   protected abstract String testFramework();
-
-  protected String service() {
-    return SERVICE;
-  }
 
   protected String spanKind() {
     return Tags.SPAN_KIND_TEST;
@@ -37,7 +30,6 @@ public abstract class TestDecorator extends BaseDecorator {
   @Override
   public AgentSpan afterStart(final AgentSpan span) {
     assert span != null;
-    span.setTag(DDTags.SERVICE_NAME, service());
     span.setTag(Tags.SPAN_KIND, spanKind());
     span.setTag(DDTags.SPAN_TYPE, spanType());
     span.setTag(DDTags.TEST_FRAMEWORK, testFramework());
