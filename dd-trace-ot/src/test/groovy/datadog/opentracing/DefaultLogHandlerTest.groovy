@@ -50,7 +50,7 @@ class DefaultLogHandlerTest extends DDSpecification {
     span.getTags().get(DDTags.ERROR_TYPE) == throwable.getClass().getName()
   }
 
-  def "handles correctly the message passed in the fields"() {
+  def "handles correctly the message passed in the fields but the span is not an error"() {
     setup:
     final LogHandler underTest = new DefaultLogHandler()
     final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
@@ -65,7 +65,7 @@ class DefaultLogHandlerTest extends DDSpecification {
     span.getTags().get(DDTags.ERROR_MSG) is null
   }
 
-  def "handles correctly the message passed in the fields when called with timestamp"() {
+  def "handles correctly the message passed in the fields when called with timestamp but the span is not an error"() {
     setup:
     final LogHandler underTest = new DefaultLogHandler()
     final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
