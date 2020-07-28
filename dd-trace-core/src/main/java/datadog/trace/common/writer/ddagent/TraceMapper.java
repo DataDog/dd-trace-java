@@ -66,10 +66,22 @@ public final class TraceMapper implements Mapper<List<DDSpan>> {
       writable.writeUTF8(META);
       Map<String, String> baggage = span.context().getBaggageItems();
       Map<String, Object> tags = span.context().getTags();
-      writable.startMap(baggage.size() + tags.size());
+      // since tags can "override" baggage, we need to count the non overlapping ones
+      int size = tags.size();
+      boolean overlap = false;
+      if (baggage.size() > 0) {
+        for (String key : baggage.keySet()) {
+          if (!tags.containsKey(key)) {
+            size++;
+          } else {
+            overlap = true;
+          }
+        }
+      }
+      writable.startMap(size);
       for (Map.Entry<String, String> entry : baggage.entrySet()) {
         // tags and baggage may intersect, but tags take priority
-        if (!tags.containsKey(entry.getKey())) {
+        if (!overlap || !tags.containsKey(entry.getKey())) {
           writable.writeString(entry.getKey(), CONSTANT_KEYS);
           writable.writeObject(entry.getValue(), NO_CACHING);
         }
