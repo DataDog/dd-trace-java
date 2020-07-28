@@ -327,6 +327,7 @@ for (def env : System.getenv().entrySet()) {
       exclude "**/TestError*"
       exclude "**/TestSkipped*"
       exclude "**/TestSkippedClass*"
+      exclude "**/TestInheritance*", "**/BaseTestInheritance*"
     }
 
     //if (name.endsWith("Generated")) {
