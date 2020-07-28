@@ -23,6 +23,18 @@ class JUnit4Test extends TestFrameworkTest {
     }
   }
 
+  def "test inheritance generates spans"() {
+    setup:
+    runner.run(TestInheritance)
+
+    expect:
+    assertTraces(1) {
+      trace(0, 1) {
+        testSpan(it, 0, "TestInheritance", "test_succeed", TestDecorator.TEST_PASS, null)
+      }
+    }
+  }
+
   def "test failed generates spans"() {
     setup:
     try {
