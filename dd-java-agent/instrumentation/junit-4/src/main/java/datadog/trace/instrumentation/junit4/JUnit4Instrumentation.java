@@ -20,6 +20,7 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
 
@@ -132,6 +133,11 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
         DECORATE.beforeFinish(span);
         span.finish(span.getStartTime());
       }
+    }
+
+    // JUnit 4.10 and above
+    public static void muzzleCheck(final RuleChain ruleChain) {
+      ruleChain.apply(null, null);
     }
   }
 }
