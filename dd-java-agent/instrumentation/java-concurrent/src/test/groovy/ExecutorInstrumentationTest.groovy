@@ -164,8 +164,8 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     expect:
     TEST_WRITER.size() == 1
     TEST_WRITER.get(0).size() == 2
-    TEST_WRITER.get(0).get(0).operationName == "parent"
-    TEST_WRITER.get(0).get(1).operationName == "asyncChild"
+    TEST_WRITER.get(0).get(1).operationName == "parent"
+    TEST_WRITER.get(0).get(0).operationName == "asyncChild"
 
     cleanup:
     pool?.shutdown()
