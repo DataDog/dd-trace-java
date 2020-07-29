@@ -278,7 +278,7 @@ def isJdkForced(String javaName) {
 }
 
 def isTestingInstrumentation(Project project) {
-  return project.name == "junit-4"
+  return project.name == "junit-4.10"
 }
 
 // Disable default test tasks if current JVM doesn't match version requirements
