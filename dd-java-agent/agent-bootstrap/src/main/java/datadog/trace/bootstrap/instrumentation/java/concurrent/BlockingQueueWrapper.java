@@ -1,15 +1,16 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 public class BlockingQueueWrapper implements BlockingQueue<Runnable> {
   private final BlockingQueue<Runnable> delegate;
 
-  private final HashMap<Runnable, RunnableWrapper> runnableWrappers = new HashMap<>();
+  private final Map<Runnable, RunnableWrapper> runnableWrappers = new ConcurrentHashMap<>();
 
   public BlockingQueueWrapper(final BlockingQueue<Runnable> delegate) {
     this.delegate = delegate;
