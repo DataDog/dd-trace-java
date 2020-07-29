@@ -68,6 +68,7 @@ public final class ConfigDefaults {
   static final String DEFAULT_TRACE_EXECUTORS = "";
   static final String DEFAULT_TRACE_METHODS = null;
   static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
+  static final boolean DEFAULT_TRACE_TESTS_ENABLED = false;
   static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
   static final double DEFAULT_TRACE_RATE_LIMIT = 100;
 

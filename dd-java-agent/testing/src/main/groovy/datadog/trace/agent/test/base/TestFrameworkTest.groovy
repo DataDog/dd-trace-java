@@ -2,6 +2,7 @@ package datadog.trace.agent.test.base
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -11,9 +12,15 @@ import spock.lang.Unroll
 @Unroll
 abstract class TestFrameworkTest extends AgentTestRunner {
 
+  static {
+    ConfigUtils.updateConfig {
+      System.setProperty("dd.trace.tests.enabled", "true")
+    }
+  }
+
   void testSpan(TraceAssert trace, int index, final String testSuite, final String testName, final String testStatus, final Throwable exception = null) {
     def testFramework = expectedTestFramework()
-    
+
     trace.span(index) {
       parent()
       operationName expectedOperationName()

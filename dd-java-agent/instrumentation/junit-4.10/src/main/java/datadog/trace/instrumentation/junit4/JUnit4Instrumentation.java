@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -53,6 +54,11 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
     transformers.put(
         named("fireTestIgnored"), JUnit4Instrumentation.class.getName() + "$TestIgnoredAdvice");
     return transformers;
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return Config.get().isTraceTestsEnabled();
   }
 
   public static class TestStartedAdvice {
