@@ -21,7 +21,7 @@ public abstract class MLTChunkCollector implements IMLTChunk {
    * Base stacktrace to add the first time collect is called. This is done to avoid the cost of
    * converting in the main thread (especially if no additional stacktraces are collected).
    */
-  private volatile StackTraceElement[] baseStack;
+  private volatile Throwable baseStack;
 
   @Getter protected final ConstantPool<FrameElement> framePool;
   @Getter protected final ConstantPool<FrameSequence> stackPool;
@@ -32,7 +32,7 @@ public abstract class MLTChunkCollector implements IMLTChunk {
   private final MLTWriter chunkWriter = new MLTWriter();
 
   public MLTChunkCollector(
-      StackTraceElement[] baseStack,
+      Throwable baseStack,
       ConstantPool<String> stringPool,
       ConstantPool<FrameElement> framePool,
       ConstantPool<FrameSequence> stackPool) {
@@ -52,7 +52,7 @@ public abstract class MLTChunkCollector implements IMLTChunk {
       return;
     }
     if (baseStack != null) {
-      StackTraceElement[] base = baseStack;
+      StackTraceElement[] base = baseStack.getStackTrace();
       baseStack = null;
       collect(base); // recursive call to add base as first element.
     }
