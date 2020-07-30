@@ -1,11 +1,13 @@
 package datadog.trace.core;
 
+import com.google.common.collect.ImmutableMap;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.taginterceptor.AbstractTagInterceptor;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -44,8 +46,16 @@ public class DDSpanContext implements AgentSpan.Context {
   private final DDId spanId;
   private final DDId parentId;
 
-  /** Tags are associated to the current span, they will not propagate to the children span */
-  private final Map<String, Object> tags;
+  /**
+   * Tags are associated to the current span, they will not propagate to the children span.
+   *
+   * <p>The underlying assumption for using a normal Map with synchronized access instead of a
+   * ConcurrentHashMap is that even though the tags can be accessed and modified from multiple
+   * threads, they will rarely, if ever, be read and modified concurrently by multiple threads but
+   * rather read and accessed in a serial fashion on thread after thread. The synchronization can
+   * then be wrapped around bulk operations to minimize the costly atomic operations.
+   */
+  private final Map<String, Object> unsafeTags;
 
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
@@ -106,10 +116,10 @@ public class DDSpanContext implements AgentSpan.Context {
       this.baggageItems = new ConcurrentHashMap<>(baggageItems);
     }
 
-    // Three is the magic number from the tags below that we set at the end,
+    // The +3 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
     int capacity = ((tagsSize <= 0 ? 3 : tagsSize + 3) * 4) / 3;
-    this.tags = new ConcurrentHashMap<>(capacity);
+    this.unsafeTags = new HashMap<>(capacity);
 
     this.serviceNameMappings = serviceNameMappings;
     setServiceName(serviceName);
@@ -124,12 +134,12 @@ public class DDSpanContext implements AgentSpan.Context {
     }
 
     if (origin != null) {
-      this.tags.put(ORIGIN_KEY, origin);
+      this.unsafeTags.put(ORIGIN_KEY, origin);
     }
     // Additional Metadata
     Thread current = Thread.currentThread();
-    this.tags.put(DDTags.THREAD_NAME, current.getName());
-    this.tags.put(DDTags.THREAD_ID, current.getId());
+    this.unsafeTags.put(DDTags.THREAD_NAME, current.getName());
+    this.unsafeTags.put(DDTags.THREAD_ID, current.getId());
   }
 
   @Override
@@ -164,7 +174,7 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   public boolean hasResourceName() {
-    return isResourceNameSet() || tags.containsKey(DDTags.RESOURCE_NAME);
+    return isResourceNameSet() || getTag(DDTags.RESOURCE_NAME) != null;
   }
 
   public void setResourceName(final CharSequence resourceName) {
@@ -322,17 +332,17 @@ public class DDSpanContext implements AgentSpan.Context {
    * @param value the value of the tag. tags with null values are ignored.
    */
   public void setTag(final String tag, final Object value) {
-    synchronized (tags) {
+    synchronized (unsafeTags) {
       internalSetTag(tag, value);
     }
   }
 
   void setAllTags(final Map<String, ? extends Object> map) {
-    if (map == null) {
+    if (map == null || map.isEmpty()) {
       return;
     }
 
-    synchronized (tags) {
+    synchronized (unsafeTags) {
       for (final Map.Entry<String, ? extends Object> tag : map.entrySet()) {
         internalSetTag(tag.getKey(), tag.getValue());
       }
@@ -341,7 +351,7 @@ public class DDSpanContext implements AgentSpan.Context {
 
   private void internalSetTag(final String tag, final Object value) {
     if (value == null || (value instanceof String && ((String) value).isEmpty())) {
-      tags.remove(tag);
+      unsafeTags.remove(tag);
       return;
     }
 
@@ -363,20 +373,36 @@ public class DDSpanContext implements AgentSpan.Context {
     }
 
     if (addTag) {
-      tags.put(tag, value);
+      unsafeTags.put(tag, value);
     }
   }
 
   Object getTag(final String key) {
-    return tags.get(key);
+    synchronized (unsafeTags) {
+      return unsafeTags.get(key);
+    }
   }
 
   Object getAndRemoveTag(final String tag) {
-    return tags.remove(tag);
+    synchronized (unsafeTags) {
+      return unsafeTags.remove(tag);
+    }
   }
 
   public Map<String, Object> getTags() {
-    return tags;
+    synchronized (unsafeTags) {
+      return ImmutableMap.copyOf(unsafeTags);
+    }
+  }
+
+  public abstract static class TagsAndBaggageConsumer {
+    public abstract void accept(Map<String, Object> tags, Map<String, String> baggage);
+  }
+
+  public void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {
+    synchronized (unsafeTags) {
+      consumer.accept(unsafeTags, baggageItems);
+    }
   }
 
   @Override
@@ -401,7 +427,9 @@ public class DDSpanContext implements AgentSpan.Context {
       s.append(" *errored*");
     }
 
-    s.append(" tags=").append(new TreeMap<>(tags));
+    synchronized (unsafeTags) {
+      s.append(" tags=").append(new TreeMap<>(unsafeTags));
+    }
     return s.toString();
   }
 }

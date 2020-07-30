@@ -9,7 +9,6 @@ import datadog.trace.core.util.Clock;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.ref.WeakReference;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -352,7 +351,8 @@ public class DDSpan implements MutableSpan, AgentSpan {
 
   @Override
   public Map<String, Object> getTags() {
-    return Collections.unmodifiableMap(context.getTags());
+    // This is an imutable copy of the tags
+    return context.getTags();
   }
 
   public String getType() {
