@@ -14,7 +14,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
 
   static {
     ConfigUtils.updateConfig {
-      System.setProperty("dd.trace.tests.enabled", "true")
+      System.setProperty("dd.integration.junit.enabled", "true")
     }
   }
 
