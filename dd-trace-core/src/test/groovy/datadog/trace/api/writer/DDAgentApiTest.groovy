@@ -296,7 +296,7 @@ class DDAgentApiTest extends DDSpecification {
     // all the tested traces are empty (why?) and it just so happens that
     // arrays and maps take the same amount of space in messagepack, so
     // all the sizes match, except in v0.5 where there is 1 byte for a
-    // 2 element array header and 1 byte for a dictionary containing 1 byte
+    // 2 element array header and 1 byte for an empty dictionary
     where:
     agentVersion   |       expectedLength | traces
     "v0.4/traces"  | 1                    | []
@@ -305,12 +305,12 @@ class DDAgentApiTest extends DDSpecification {
     "v0.4/traces"  | 19                   | (1..16).collect { [] }
     "v0.4/traces"  | 65538                | (1..((1 << 16) - 1)).collect { [] }
     "v0.4/traces"  | 65541                | (1..(1 << 16)).collect { [] }
-    "v0.5/traces"  | 1 + 1 + 2            | []
-    "v0.5/traces"  | 3 + 1 + 2            | [[], []]
-    "v0.5/traces"  | 16 + 1 + 2           | (1..15).collect { [] }
-    "v0.5/traces"  | 19 + 1 + 2           | (1..16).collect { [] }
-    "v0.5/traces"  | 65538 + 1 + 2        | (1..((1 << 16) - 1)).collect { [] }
-    "v0.5/traces"  | 65541 + 1 + 2        | (1..(1 << 16)).collect { [] }
+    "v0.5/traces"  | 1 + 1 + 1            | []
+    "v0.5/traces"  | 3 + 1 + 1            | [[], []]
+    "v0.5/traces"  | 16 + 1 + 1           | (1..15).collect { [] }
+    "v0.5/traces"  | 19 + 1 + 1           | (1..16).collect { [] }
+    "v0.5/traces"  | 65538 + 1 + 1        | (1..((1 << 16) - 1)).collect { [] }
+    "v0.5/traces"  | 65541 + 1 + 1        | (1..(1 << 16)).collect { [] }
   }
 
   static List<List<TreeMap<String, Object>>> convertList(String agentVersion, byte[] bytes) {

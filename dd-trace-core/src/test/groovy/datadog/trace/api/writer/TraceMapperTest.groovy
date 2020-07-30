@@ -30,8 +30,7 @@ class TraceMapperTest extends DDSpecification {
     MessageUnpacker dictionaryUnpacker = MessagePack.newDefaultUnpacker(dictionaryBytes)
     int dictionaryLength = dictionaryUnpacker.unpackArrayHeader()
     String[] dictionary = new String[dictionaryLength]
-    dictionaryUnpacker.unpackNil()
-    for (int i = 1; i < dictionary.length; ++i) {
+    for (int i = 0; i < dictionary.length; ++i) {
       dictionary[i] = dictionaryUnpacker.unpackString()
     }
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(sink.captured)

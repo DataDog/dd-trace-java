@@ -42,7 +42,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
           true);
   private final DictionaryMapper dictionaryMapper = new DictionaryMapper();
   private final Map<Object, Integer> encoding = new HashMap<>();
-  private int code = 1;
+  private int code = 0;
 
   public TraceMapperV0_5() {
     reset();
@@ -113,18 +113,15 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   private void writeDictionaryEncoded(Writable writable, Object value) {
-    if (null == value) {
-      writable.writeInt(0);
+    Object target = null == value ? "" : value;
+    Integer encoded = encoding.get(target);
+    if (null == encoded) {
+      dictionaryWriter.format(target, dictionaryMapper);
+      encoding.put(target, code);
+      writable.writeInt(code);
+      ++code;
     } else {
-      Integer encoded = encoding.get(value);
-      if (null == encoded) {
-        dictionaryWriter.format(value, dictionaryMapper);
-        encoding.put(value, code);
-        writable.writeInt(code);
-        ++code;
-      } else {
-        writable.writeInt(encoded);
-      }
+      writable.writeInt(encoded);
     }
   }
 
@@ -144,8 +141,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
   public void reset() {
     dictionaryWriter.reset();
     dictionary[0] = null;
-    dictionaryWriter.format(null, dictionaryMapper);
-    code = 1;
+    code = 0;
     encoding.clear();
   }
 
@@ -155,13 +151,12 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
     @Override
     public void map(Object data, Writable packer) {
-      if (null == data) {
-        packer.writeNull();
-      } else if (data instanceof UTF8BytesString) {
+      if (data instanceof UTF8BytesString) {
         packer.writeUTF8(((UTF8BytesString) data).getUtf8Bytes());
       } else if (data instanceof Long || data instanceof Integer) {
         writeLongAsString(((Number) data).longValue(), packer, numberByteArray);
       } else {
+        assert null != data : "enclosing mapper should not provide null values";
         String string = String.valueOf(data);
         byte[] utf8 = StringTables.getKeyBytesUTF8(string);
         if (null == utf8) {
