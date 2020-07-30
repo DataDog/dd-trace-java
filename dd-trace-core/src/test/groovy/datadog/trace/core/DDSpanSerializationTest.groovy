@@ -123,7 +123,7 @@ class DDSpanSerializationTest extends DDSpecification {
     DDId.from("${2G.pow(64).subtract(1G)}")                         | "some-type"
   }
 
-  def "serialize trace with baggage and tags correctly"() {
+  def "serialize trace with baggage and tags correctly v0.4"() {
     setup:
     def writer = new ListWriter()
     def tracer = CoreTracer.builder().writer(writer).build()
@@ -182,6 +182,75 @@ class DDSpanSerializationTest extends DDSpecification {
           unpacker.unpackValue()
       }
     }
+
+    where:
+    baggage       | tags           | expected
+    [:]           | [:]            | [:]
+    [foo: "bbar"] | [:]            | [foo: "bbar"]
+    [foo: "bbar"] | [bar: "tfoo"]  | [foo: "bbar", bar: "tfoo"]
+    [foo: "bbar"] | [foo: "tbar"]  | [foo: "tbar"]
+  }
+
+
+  def "serialize trace with baggage and tags correctly v0.5"() {
+    setup:
+    def writer = new ListWriter()
+    def tracer = CoreTracer.builder().writer(writer).build()
+    def context = new DDSpanContext(
+      DDId.ONE,
+      DDId.ONE,
+      DDId.ZERO,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      baggage,
+      false,
+      null,
+      tags,
+      PendingTrace.create(tracer, DDId.ONE),
+      tracer,
+      [:])
+    def span = DDSpan.create(0, context)
+    def buffer = ByteBuffer.allocate(1024)
+    CaptureBuffer capture = new CaptureBuffer()
+    def packer = new Packer(capture, buffer)
+    def mapper = new TraceMapperV0_5()
+    packer.format(Collections.singletonList(span), mapper)
+    packer.flush()
+    def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
+    int traceCount = unpacker.unpackArrayHeader()
+    int spanCount = unpacker.unpackArrayHeader()
+    int size = unpacker.unpackArrayHeader()
+    def dictionaryUnpacker = MessagePack.newDefaultUnpacker(mapper.getDictionary())
+    String[] dictionary = new String[dictionaryUnpacker.unpackArrayHeader()]
+    dictionaryUnpacker.unpackNil()
+    for (int i = 1; i < dictionary.length; ++i) {
+      dictionary[i] = dictionaryUnpacker.unpackString()
+    }
+
+    expect:
+    traceCount == 1
+    spanCount == 1
+    size == 12
+    for (int i = 0; i < 9; ++i) {
+      unpacker.skipValue()
+    }
+
+    int packedSize = unpacker.unpackMapHeader()
+    int expectedSize = expected.size()
+    // filter out "thread.name" and "thread.id"
+    assert packedSize - 2 == expectedSize
+    Map<String, String> unpackedMeta = [:]
+    for (int j = 0; j < packedSize; j++) {
+      def k = dictionary[unpacker.unpackInt()]
+      def v = dictionary[unpacker.unpackInt()]
+      if (k != "thread.name" && k != "thread.id") {
+        unpackedMeta.put(k, v)
+      }
+    }
+    assert unpackedMeta == expected
 
     where:
     baggage       | tags           | expected
