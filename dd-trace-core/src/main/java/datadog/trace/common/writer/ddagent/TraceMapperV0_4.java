@@ -18,8 +18,8 @@ import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies
 import static datadog.trace.core.serialization.msgpack.Util.writeLongAsString;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.DDSpanData;
+import datadog.trace.core.TagsAndBaggageConsumer;
 import datadog.trace.core.serialization.msgpack.Writable;
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
@@ -30,9 +30,9 @@ public final class TraceMapperV0_4 implements TraceMapper {
   private final byte[] numberByteArray = new byte[20]; // this is max long digits and sign
 
   @Override
-  public void map(List<DDSpan> trace, final Writable writable) {
+  public void map(List<? extends DDSpanData> trace, final Writable writable) {
     writable.startArray(trace.size());
-    for (DDSpan span : trace) {
+    for (DDSpanData span : trace) {
       writable.startMap(12);
       /* 1  */
       writable.writeUTF8(SERVICE);
@@ -69,9 +69,8 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeMap(span.getMetrics(), CONSTANT_KEYS);
       /* 12 */
       writable.writeUTF8(META);
-      span.context()
-          .processTagsAndBaggage(
-              new DDSpanContext.TagsAndBaggageConsumer() {
+      span.processTagsAndBaggage(
+              new TagsAndBaggageConsumer() {
                 @Override
                 public void accept(Map<String, Object> tags, Map<String, String> baggage) {
                   // since tags can "override" baggage, we need to count the non overlapping ones

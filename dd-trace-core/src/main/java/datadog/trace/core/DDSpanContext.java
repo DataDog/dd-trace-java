@@ -411,10 +411,6 @@ public class DDSpanContext implements AgentSpan.Context {
     }
   }
 
-  public abstract static class TagsAndBaggageConsumer {
-    public abstract void accept(Map<String, Object> tags, Map<String, String> baggage);
-  }
-
   public void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {
     synchronized (unsafeTags) {
       consumer.accept(unsafeTags, baggageItems);

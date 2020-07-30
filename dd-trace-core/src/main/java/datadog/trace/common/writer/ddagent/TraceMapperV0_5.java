@@ -1,11 +1,13 @@
 package datadog.trace.common.writer.ddagent;
 
+import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.CONSTANT_KEYS;
 import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.NO_CACHING;
 import static datadog.trace.core.serialization.msgpack.Util.writeLongAsString;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.DDSpan;
+import datadog.trace.core.DDSpanData;
 import datadog.trace.core.StringTables;
+import datadog.trace.core.TagsAndBaggageConsumer;
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
 import datadog.trace.core.serialization.msgpack.Mapper;
 import datadog.trace.core.serialization.msgpack.Packer;
@@ -49,14 +51,14 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   @Override
-  public void map(List<DDSpan> trace, Writable writable) {
+  public void map(List<? extends DDSpanData> trace, final Writable writable) {
     if (dictionary[0] != null) {
       // signal the need for a flush because the string table filled up
       // faster than the message content
       throw DICTIONARY_FULL;
     }
     writable.startArray(trace.size());
-    for (DDSpan span : trace) {
+    for (DDSpanData span : trace) {
       writable.startArray(12);
       /* 1  */
       writeDictionaryEncoded(writable, span.getServiceName());
@@ -77,30 +79,34 @@ public final class TraceMapperV0_5 implements TraceMapper {
       /* 9  */
       writable.writeInt(span.getError());
       /* 10  */
-      Map<String, Object> tags = span.context().getTags();
-      Map<String, String> baggage = span.context().getBaggageItems();
-      // since tags can "override" baggage, we need to count the non overlapping ones
-      int size = tags.size();
-      boolean overlap = false;
-      for (String key : baggage.keySet()) {
-        if (!tags.containsKey(key)) {
-          size++;
-        } else {
-          overlap = true;
-        }
-      }
-      writable.startMap(size);
-      for (Map.Entry<String, String> entry : baggage.entrySet()) {
-        // tags and baggage may intersect, but tags take priority
-        if (!overlap || !tags.containsKey(entry.getKey())) {
-          writeDictionaryEncoded(writable, entry.getKey());
-          writeDictionaryEncoded(writable, entry.getValue());
-        }
-      }
-      for (Map.Entry<String, Object> entry : tags.entrySet()) {
-        writeDictionaryEncoded(writable, entry.getKey());
-        writeDictionaryEncoded(writable, entry.getValue());
-      }
+      span.processTagsAndBaggage(
+        new TagsAndBaggageConsumer() {
+          @Override
+          public void accept(Map<String, Object> tags, Map<String, String> baggage) {
+            // since tags can "override" baggage, we need to count the non overlapping ones
+            int size = tags.size();
+            boolean overlap = false;
+            for (String key : baggage.keySet()) {
+              if (!tags.containsKey(key)) {
+                size++;
+              } else {
+                overlap = true;
+              }
+            }
+            writable.startMap(size);
+            for (Map.Entry<String, String> entry : baggage.entrySet()) {
+              // tags and baggage may intersect, but tags take priority
+              if (!overlap || !tags.containsKey(entry.getKey())) {
+                writeDictionaryEncoded(writable, entry.getKey());
+                writeDictionaryEncoded(writable, entry.getValue());
+              }
+            }
+            for (Map.Entry<String, Object> entry : tags.entrySet()) {
+              writeDictionaryEncoded(writable, entry.getKey());
+              writeDictionaryEncoded(writable, entry.getValue());
+            }
+          }
+        });
       /* 11  */
       writable.startMap(span.getMetrics().size());
       for (Map.Entry<String, Number> entry : span.getMetrics().entrySet()) {

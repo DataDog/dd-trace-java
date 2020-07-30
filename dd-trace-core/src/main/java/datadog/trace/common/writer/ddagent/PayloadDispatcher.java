@@ -1,6 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
-import datadog.trace.core.DDSpan;
+import datadog.trace.core.DDSpanData;
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
 import datadog.trace.core.serialization.msgpack.Packer;
 import java.nio.ByteBuffer;
@@ -29,7 +29,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     }
   }
 
-  void addTrace(List<DDSpan> trace) {
+  void addTrace(List<? extends DDSpanData> trace) {
     selectTraceMapper();
     // the call below is blocking and will trigger IO if a flush is necessary
     // there are alternative approaches to avoid blocking here, such as
