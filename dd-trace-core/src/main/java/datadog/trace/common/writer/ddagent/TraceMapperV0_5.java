@@ -32,31 +32,31 @@ public final class TraceMapperV0_5 implements TraceMapper {
   private static final DictionaryFull DICTIONARY_FULL = new DictionaryFull();
 
   private final ByteBuffer[] dictionary = new ByteBuffer[1];
-  private final Packer dictionaryWriter =
-      new Packer(
-          new ByteBufferConsumer() {
-            @Override
-            public void accept(int messageCount, ByteBuffer buffer) {
-              dictionary[0] = buffer;
-            }
-          },
-          ByteBuffer.allocate(2 << 20),
-          true);
+  private final Packer dictionaryWriter;
   private final DictionaryMapper dictionaryMapper = new DictionaryMapper();
   private final Map<Object, Integer> encoding = new HashMap<>();
   private int code = 0;
 
   public TraceMapperV0_5() {
+    this(2 << 20);
+  }
+
+  public TraceMapperV0_5(int bufferSize) {
+    this.dictionaryWriter =
+        new Packer(
+            new ByteBufferConsumer() {
+              @Override
+              public void accept(int messageCount, ByteBuffer buffer) {
+                dictionary[0] = buffer;
+              }
+            },
+            ByteBuffer.allocate(bufferSize),
+            true);
     reset();
   }
 
   @Override
   public void map(List<? extends DDSpanData> trace, final Writable writable) {
-    if (dictionary[0] != null) {
-      // signal the need for a flush because the string table filled up
-      // faster than the message content
-      throw DICTIONARY_FULL;
-    }
     writable.startArray(trace.size());
     for (DDSpanData span : trace) {
       writable.startArray(12);
@@ -122,7 +122,12 @@ public final class TraceMapperV0_5 implements TraceMapper {
     Object target = null == value ? "" : value;
     Integer encoded = encoding.get(target);
     if (null == encoded) {
-      dictionaryWriter.format(target, dictionaryMapper);
+      if (!dictionaryWriter.format(target, dictionaryMapper)) {
+        dictionaryWriter.flush();
+        // signal the need for a flush because the string table filled up
+        // faster than the message content
+        throw DICTIONARY_FULL;
+      }
       encoding.put(target, code);
       writable.writeInt(code);
       ++code;
@@ -146,8 +151,8 @@ public final class TraceMapperV0_5 implements TraceMapper {
   @Override
   public void reset() {
     dictionaryWriter.reset();
-    dictionary[0] = null;
     code = 0;
+    dictionary[0] = null;
     encoding.clear();
   }
 
@@ -193,7 +198,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
 
     @Override
-    void writeTo(WritableByteChannel channel) throws IOException {
+    public void writeTo(WritableByteChannel channel) throws IOException {
       writeBufferToChannel(header, channel);
       writeBufferToChannel(dictionary, channel);
       writeBufferToChannel(body, channel);

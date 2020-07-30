@@ -31,7 +31,7 @@ public abstract class Payload {
 
   abstract int sizeInBytes();
 
-  abstract void writeTo(WritableByteChannel channel) throws IOException;
+  public abstract void writeTo(WritableByteChannel channel) throws IOException;
 
   protected static int sizeInBytes(ByteBuffer buffer) {
     return null == buffer ? 0 : buffer.limit() - buffer.position();

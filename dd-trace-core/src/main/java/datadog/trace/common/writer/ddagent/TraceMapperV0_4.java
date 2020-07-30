@@ -129,7 +129,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
     }
 
     @Override
-    void writeTo(WritableByteChannel channel) throws IOException {
+    public void writeTo(WritableByteChannel channel) throws IOException {
       writeBufferToChannel(body, channel);
     }
   }

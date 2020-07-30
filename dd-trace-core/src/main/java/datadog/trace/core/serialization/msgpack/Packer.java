@@ -83,7 +83,7 @@ public class Packer implements Writable, MessageFormatter {
   }
 
   @Override
-  public <T> void format(T message, Mapper<T> mapper) {
+  public <T> boolean format(T message, Mapper<T> mapper) {
     try {
       mapper.map(message, this);
       // What happens here is when an entire message is put into the buffer
@@ -108,14 +108,19 @@ public class Packer implements Writable, MessageFormatter {
       //    overflow into the now reset buffer, doing the serialisation work again.
       buffer.mark();
       ++messageCount;
+      return true;
     } catch (BufferOverflowException e) {
       // go back to the last successfully written message
       buffer.reset();
-      if (buffer.position() == MAX_ARRAY_HEADER_SIZE) {
-        throw e;
+      if (!manualReset) {
+        if (buffer.position() == MAX_ARRAY_HEADER_SIZE) {
+          throw e;
+        }
+        flush();
+        return format(message, mapper);
+      } else {
+        return false;
       }
-      flush();
-      format(message, mapper);
     }
   }
 
