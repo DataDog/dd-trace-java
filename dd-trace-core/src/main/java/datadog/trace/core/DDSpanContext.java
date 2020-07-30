@@ -81,6 +81,8 @@ public class DDSpanContext implements AgentSpan.Context {
 
   private final Map<String, String> serviceNameMappings;
 
+  private final ExclusiveSpan exclusiveSpan;
+
   public DDSpanContext(
       final DDId traceId,
       final DDId spanId,
@@ -140,6 +142,11 @@ public class DDSpanContext implements AgentSpan.Context {
     Thread current = Thread.currentThread();
     this.unsafeTags.put(DDTags.THREAD_NAME, current.getName());
     this.unsafeTags.put(DDTags.THREAD_ID, current.getId());
+
+    // It is safe that we let `this` escape into the ExclusiveSpan constructor,
+    // since ExclusiveSpan is only a wrapper and the instance can only be accessed from
+    // this DDSpanContext.
+    this.exclusiveSpan = new ExclusiveSpan(this);
   }
 
   @Override
@@ -333,7 +340,7 @@ public class DDSpanContext implements AgentSpan.Context {
    */
   public void setTag(final String tag, final Object value) {
     synchronized (unsafeTags) {
-      internalSetTag(tag, value);
+      unsafeSetTag(tag, value);
     }
   }
 
@@ -344,12 +351,12 @@ public class DDSpanContext implements AgentSpan.Context {
 
     synchronized (unsafeTags) {
       for (final Map.Entry<String, ? extends Object> tag : map.entrySet()) {
-        internalSetTag(tag.getKey(), tag.getValue());
+        unsafeSetTag(tag.getKey(), tag.getValue());
       }
     }
   }
 
-  private void internalSetTag(final String tag, final Object value) {
+  void unsafeSetTag(final String tag, final Object value) {
     if (value == null || (value instanceof String && ((String) value).isEmpty())) {
       unsafeTags.remove(tag);
       return;
@@ -360,9 +367,10 @@ public class DDSpanContext implements AgentSpan.Context {
     // Call interceptors
     final List<AbstractTagInterceptor> interceptors = tracer.getSpanTagInterceptors(tag);
     if (interceptors != null) {
+      ExclusiveSpan span = exclusiveSpan;
       for (final AbstractTagInterceptor interceptor : interceptors) {
         try {
-          addTag &= interceptor.shouldSetTag(this, tag, value);
+          addTag &= interceptor.shouldSetTag(span, tag, value);
         } catch (final Throwable ex) {
           log.debug(
               "Could not intercept the span interceptor={}: {}",
@@ -379,14 +387,22 @@ public class DDSpanContext implements AgentSpan.Context {
 
   Object getTag(final String key) {
     synchronized (unsafeTags) {
-      return unsafeTags.get(key);
+      return unsafeGetTag(key);
     }
+  }
+
+  Object unsafeGetTag(final String tag) {
+    return unsafeTags.get(tag);
   }
 
   Object getAndRemoveTag(final String tag) {
     synchronized (unsafeTags) {
-      return unsafeTags.remove(tag);
+      return unsafeGetAndRemoveTag(tag);
     }
+  }
+
+  Object unsafeGetAndRemoveTag(final String tag) {
+    return unsafeTags.remove(tag);
   }
 
   public Map<String, Object> getTags() {
@@ -402,6 +418,12 @@ public class DDSpanContext implements AgentSpan.Context {
   public void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {
     synchronized (unsafeTags) {
       consumer.accept(unsafeTags, baggageItems);
+    }
+  }
+
+  public void processExclusiveSpan(ExclusiveSpan.Consumer consumer) {
+    synchronized (unsafeTags) {
+      consumer.accept(exclusiveSpan);
     }
   }
 

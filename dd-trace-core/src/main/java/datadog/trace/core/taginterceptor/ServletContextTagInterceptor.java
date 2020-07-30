@@ -4,7 +4,7 @@ import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.ExclusiveSpan;
 
 class ServletContextTagInterceptor extends AbstractTagInterceptor {
 
@@ -13,14 +13,13 @@ class ServletContextTagInterceptor extends AbstractTagInterceptor {
   }
 
   @Override
-  public boolean shouldSetTag(final DDSpanContext context, final String tag, final Object value) {
+  public boolean shouldSetTag(final ExclusiveSpan span, final String tag, final Object value) {
     String contextName = String.valueOf(value).trim();
     if (contextName.equals("/")
-        || (!context.getServiceName().equals(ConfigDefaults.DEFAULT_SERVICE_NAME)
-            && !context
-                .getServiceName()
+        || (!span.getServiceName().equals(ConfigDefaults.DEFAULT_SERVICE_NAME)
+            && !span.getServiceName()
                 .equals(CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME))
-            && !context.getServiceName().isEmpty())) {
+            && !span.getServiceName().isEmpty())) {
       return true;
     }
     if (contextName.startsWith("/")) {
@@ -29,7 +28,7 @@ class ServletContextTagInterceptor extends AbstractTagInterceptor {
       }
     }
     if (!contextName.isEmpty()) {
-      context.setServiceName(contextName);
+      span.setServiceName(contextName);
     }
     return true;
   }

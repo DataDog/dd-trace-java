@@ -42,6 +42,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,6 @@ import java.util.Properties;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.SortedSet;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.TimeUnit;
 import lombok.Builder;
@@ -100,9 +100,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    */
   private final Thread shutdownCallback;
 
-  /** Span tag interceptors */
-  private final Map<String, List<AbstractTagInterceptor>> spanTagInterceptors =
-      new ConcurrentHashMap<>();
+  /**
+   * Span tag interceptors. This Map is only ever added to during initialization, so it doesn't need
+   * to be concurrent.
+   */
+  private final Map<String, List<AbstractTagInterceptor>> spanTagInterceptors = new HashMap<>();
 
   private final SortedSet<TraceInterceptor> interceptors =
       new ConcurrentSkipListSet<>(
