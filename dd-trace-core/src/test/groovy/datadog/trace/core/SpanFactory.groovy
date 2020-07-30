@@ -23,7 +23,7 @@ class SpanFactory {
       Collections.emptyMap(),
       false,
       "fakeType",
-      Collections.emptyMap(),
+      0,
       PendingTrace.create(tracer, DDId.ONE),
       tracer, [:])
     Thread.currentThread().setName(currentThreadName)
@@ -43,7 +43,7 @@ class SpanFactory {
       Collections.emptyMap(),
       false,
       "fakeType",
-      Collections.emptyMap(),
+      0,
       PendingTrace.create(tracer, DDId.ONE),
       tracer, [:])
     return DDSpan.create(1, context)
@@ -62,7 +62,7 @@ class SpanFactory {
       Collections.emptyMap(),
       false,
       "fakeType",
-      Collections.emptyMap(),
+      0,
       trace,
       trace.tracer, [:])
     return DDSpan.create(1, context)
@@ -83,7 +83,7 @@ class SpanFactory {
       Collections.emptyMap(),
       false,
       "fakeType",
-      Collections.emptyMap(),
+      0,
       PendingTrace.create(tracer, DDId.ONE),
       tracer,
       [:])

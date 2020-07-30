@@ -45,7 +45,7 @@ public class DDSpanContext implements AgentSpan.Context {
   private final DDId parentId;
 
   /** Tags are associated to the current span, they will not propagate to the children span */
-  private final Map<String, Object> tags = new ConcurrentHashMap<>();
+  private final Map<String, Object> tags;
 
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
@@ -69,10 +69,6 @@ public class DDSpanContext implements AgentSpan.Context {
   /** Metrics on the span */
   private final AtomicReference<Map<String, Number>> metrics = new AtomicReference<>();
 
-  // Additional Metadata
-  private final String threadName = Thread.currentThread().getName();
-  private final long threadId = Thread.currentThread().getId();
-
   private final Map<String, String> serviceNameMappings;
 
   public DDSpanContext(
@@ -87,7 +83,7 @@ public class DDSpanContext implements AgentSpan.Context {
       final Map<String, String> baggageItems,
       final boolean errorFlag,
       final String spanType,
-      final Map<String, Object> tags,
+      final int tagsSize,
       final PendingTrace trace,
       final CoreTracer tracer,
       final Map<String, String> serviceNameMappings) {
@@ -110,9 +106,10 @@ public class DDSpanContext implements AgentSpan.Context {
       this.baggageItems = new ConcurrentHashMap<>(baggageItems);
     }
 
-    if (tags != null) {
-      this.tags.putAll(tags);
-    }
+    // Three is the magic number from the tags below that we set at the end,
+    // and "* 4 / 3" is to make sure that we don't resize immediately
+    int capacity = ((tagsSize <= 0 ? 3 : tagsSize + 3) * 4) / 3;
+    this.tags = new ConcurrentHashMap<>(capacity);
 
     this.serviceNameMappings = serviceNameMappings;
     setServiceName(serviceName);
@@ -129,8 +126,10 @@ public class DDSpanContext implements AgentSpan.Context {
     if (origin != null) {
       this.tags.put(ORIGIN_KEY, origin);
     }
-    this.tags.put(DDTags.THREAD_NAME, threadName);
-    this.tags.put(DDTags.THREAD_ID, threadId);
+    // Additional Metadata
+    Thread current = Thread.currentThread();
+    this.tags.put(DDTags.THREAD_NAME, current.getName());
+    this.tags.put(DDTags.THREAD_ID, current.getId());
   }
 
   @Override
@@ -322,7 +321,25 @@ public class DDSpanContext implements AgentSpan.Context {
    * @param tag the tag-name
    * @param value the value of the tag. tags with null values are ignored.
    */
-  public synchronized void setTag(final String tag, final Object value) {
+  public void setTag(final String tag, final Object value) {
+    synchronized (tags) {
+      internalSetTag(tag, value);
+    }
+  }
+
+  void setAllTags(final Map<String, ? extends Object> map) {
+    if (map == null) {
+      return;
+    }
+
+    synchronized (tags) {
+      for (final Map.Entry<String, ? extends Object> tag : map.entrySet()) {
+        internalSetTag(tag.getKey(), tag.getValue());
+      }
+    }
+  }
+
+  private void internalSetTag(final String tag, final Object value) {
     if (value == null || (value instanceof String && ((String) value).isEmpty())) {
       tags.remove(tag);
       return;
@@ -348,6 +365,14 @@ public class DDSpanContext implements AgentSpan.Context {
     if (addTag) {
       tags.put(tag, value);
     }
+  }
+
+  Object getTag(final String key) {
+    return tags.get(key);
+  }
+
+  Object getAndRemoveTag(final String tag) {
+    return tags.remove(tag);
   }
 
   public Map<String, Object> getTags() {

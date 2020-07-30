@@ -212,12 +212,12 @@ public class DDSpan implements MutableSpan, AgentSpan {
   }
 
   public Object getAndRemoveTag(final String tag) {
-    return context.getTags().remove(tag);
+    return context.getAndRemoveTag(tag);
   }
 
   @Override
   public Object getTag(final String tag) {
-    return context.getTags().get(tag);
+    return context.getTag(tag);
   }
 
   @Override

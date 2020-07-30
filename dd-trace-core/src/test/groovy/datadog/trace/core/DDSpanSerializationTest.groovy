@@ -32,7 +32,7 @@ class DDSpanSerializationTest extends DDSpecification {
       Collections.emptyMap(),
       false,
       spanType,
-      Collections.emptyMap(),
+      0,
       PendingTrace.create(tracer, DDId.ONE),
       tracer,
       [:])
