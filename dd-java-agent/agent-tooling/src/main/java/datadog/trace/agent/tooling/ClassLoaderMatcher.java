@@ -49,6 +49,9 @@ public final class ClassLoaderMatcher {
         // Don't skip bootstrap loader
         return false;
       }
+      if (shouldSkipClass(cl)) {
+        return true;
+      }
       Boolean v = skipCache.getIfPresent(cl);
       if (v != null) {
         return v;
@@ -61,7 +64,7 @@ public final class ClassLoaderMatcher {
       // and we don't want to introduce the concept of the tooling code depending on whether or not
       // a particular instrumentation is active (mainly because this particular use case doesn't
       // seem to justify introducing either of these new concepts)
-      v = shouldSkipClass(cl) || !delegatesToBootstrap(cl);
+      v = !delegatesToBootstrap(cl);
       skipCache.put(cl, v);
       return v;
     }
