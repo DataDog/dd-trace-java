@@ -2,15 +2,14 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 public class BlockingQueueWrapper implements BlockingQueue<Runnable> {
   private final BlockingQueue<Runnable> delegate;
 
-  private final Map<Runnable, RunnableWrapper> runnableWrappers = new ConcurrentHashMap<>();
+  private final BlockingQueue<RunnableWrapper> runnableWrappers = new LinkedBlockingQueue<>();
 
   public BlockingQueueWrapper(final BlockingQueue<Runnable> delegate) {
     this.delegate = delegate;
@@ -18,42 +17,53 @@ public class BlockingQueueWrapper implements BlockingQueue<Runnable> {
 
   @Override
   public boolean add(final Runnable runnable) {
-    try {
-      return delegate.add(unwrap(runnable));
-    } catch (final Exception e) {
-      runnableWrappers.remove(unwrap(runnable));
-      throw e;
+    if (runnable instanceof RunnableWrapper) {
+      synchronized (runnableWrappers) {
+        final boolean added = delegate.add(((RunnableWrapper) runnable).unwrap());
+        runnableWrappers.add((RunnableWrapper) runnable);
+        return added;
+      }
+    } else {
+      return delegate.add(runnable);
     }
   }
 
   @Override
   public boolean offer(final Runnable runnable) {
-    try {
-      return delegate.offer(unwrap(runnable));
-    } catch (final Exception e) {
-      runnableWrappers.remove(unwrap(runnable));
-      throw e;
+    if (runnable instanceof RunnableWrapper) {
+      synchronized (runnableWrappers) {
+        final boolean added = delegate.offer(((RunnableWrapper) runnable).unwrap());
+        runnableWrappers.offer((RunnableWrapper) runnable);
+        return added;
+      }
+    } else {
+      return delegate.offer(runnable);
     }
   }
 
   @Override
   public void put(final Runnable runnable) throws InterruptedException {
-    try {
-      delegate.put(unwrap(runnable));
-    } catch (final Exception e) {
-      runnableWrappers.remove(unwrap(runnable));
-      throw e;
+    if (runnable instanceof RunnableWrapper) {
+      synchronized (runnableWrappers) {
+        delegate.put(((RunnableWrapper) runnable).unwrap());
+        runnableWrappers.put((RunnableWrapper) runnable);
+      }
+    } else {
+      delegate.put(runnable);
     }
   }
 
   @Override
   public boolean offer(final Runnable runnable, final long timeout, final TimeUnit unit)
       throws InterruptedException {
-    try {
-      return delegate.offer(unwrap(runnable), timeout, unit);
-    } catch (final Exception e) {
-      runnableWrappers.remove(unwrap(runnable));
-      throw e;
+    if (runnable instanceof RunnableWrapper) {
+      synchronized (runnableWrappers) {
+        final boolean added = delegate.offer(((RunnableWrapper) runnable).unwrap(), timeout, unit);
+        runnableWrappers.offer((RunnableWrapper) runnable);
+        return added;
+      }
+    } else {
+      return delegate.offer(runnable, timeout, unit);
     }
   }
 
@@ -68,19 +78,11 @@ public class BlockingQueueWrapper implements BlockingQueue<Runnable> {
     return modified;
   }
 
-  private Runnable unwrap(final Runnable runnable) {
-    if (runnable instanceof RunnableWrapper) {
-      runnableWrappers.put(((RunnableWrapper) runnable).unwrap(), (RunnableWrapper) runnable);
-      return ((RunnableWrapper) runnable).unwrap();
-    }
-    return runnable;
-  }
-
   @Override
   public Runnable remove() {
     final Runnable runnable = delegate.remove();
-    if (runnableWrappers.containsKey(runnable)) {
-      return runnableWrappers.get(runnable);
+    if (runnableWrappers.peek() != null && runnableWrappers.peek().unwrap() == runnable) {
+      return runnableWrappers.remove();
     }
     return runnable;
   }
@@ -88,8 +90,8 @@ public class BlockingQueueWrapper implements BlockingQueue<Runnable> {
   @Override
   public Runnable poll() {
     final Runnable runnable = delegate.poll();
-    if (runnableWrappers.containsKey(runnable)) {
-      return runnableWrappers.get(runnable);
+    if (runnableWrappers.peek() != null && runnableWrappers.peek().unwrap() == runnable) {
+      return runnableWrappers.poll();
     }
     return runnable;
   }
@@ -97,8 +99,8 @@ public class BlockingQueueWrapper implements BlockingQueue<Runnable> {
   @Override
   public Runnable element() {
     final Runnable runnable = delegate.element();
-    if (runnableWrappers.containsKey(runnable)) {
-      return runnableWrappers.get(runnable);
+    if (runnableWrappers.peek() != null && runnableWrappers.peek().unwrap() == runnable) {
+      return runnableWrappers.element();
     }
     return runnable;
   }
@@ -106,8 +108,8 @@ public class BlockingQueueWrapper implements BlockingQueue<Runnable> {
   @Override
   public Runnable peek() {
     final Runnable runnable = delegate.peek();
-    if (runnableWrappers.containsKey(runnable)) {
-      return runnableWrappers.get(runnable);
+    if (runnableWrappers.peek() != null && runnableWrappers.peek().unwrap() == runnable) {
+      return runnableWrappers.peek();
     }
     return runnable;
   }
@@ -115,8 +117,8 @@ public class BlockingQueueWrapper implements BlockingQueue<Runnable> {
   @Override
   public Runnable take() throws InterruptedException {
     final Runnable runnable = delegate.take();
-    if (runnableWrappers.containsKey(runnable)) {
-      return runnableWrappers.get(runnable);
+    if (runnableWrappers.peek() != null && runnableWrappers.peek().unwrap() == runnable) {
+      return runnableWrappers.take();
     }
     return runnable;
   }
@@ -124,8 +126,8 @@ public class BlockingQueueWrapper implements BlockingQueue<Runnable> {
   @Override
   public Runnable poll(final long timeout, final TimeUnit unit) throws InterruptedException {
     final Runnable runnable = delegate.poll(timeout, unit);
-    if (runnableWrappers.containsKey(runnable)) {
-      return runnableWrappers.get(runnable);
+    if (runnableWrappers.peek() != null && runnableWrappers.peek().unwrap() == runnable) {
+      return runnableWrappers.poll();
     }
     return runnable;
   }
@@ -161,7 +163,10 @@ public class BlockingQueueWrapper implements BlockingQueue<Runnable> {
 
   @Override
   public void clear() {
-    delegate.clear();
+    synchronized (runnableWrappers) {
+      delegate.clear();
+      runnableWrappers.clear();
+    }
   }
 
   @Override

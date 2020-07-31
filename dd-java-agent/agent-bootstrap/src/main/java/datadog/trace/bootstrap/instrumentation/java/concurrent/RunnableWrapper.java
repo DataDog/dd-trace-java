@@ -20,7 +20,7 @@ public final class RunnableWrapper implements Runnable {
     runnable.run();
   }
 
-  public Runnable unwrap() {
+  Runnable unwrap() {
     return runnable;
   }
 
