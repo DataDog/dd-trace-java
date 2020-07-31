@@ -46,7 +46,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_REPORT_HOSTNAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RESOLVER_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_TESTS_ENABLED;
 import static datadog.trace.api.DDTags.HOST_TAG;
 import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
@@ -54,7 +53,6 @@ import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_TESTS_ENABLED;
 
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.JmxFetchConfig;
@@ -333,8 +331,6 @@ public class Config {
   @Getter private final Double traceSampleRate;
   @Getter private final Double traceRateLimit;
 
-  @Getter private final boolean traceTestsEnabled;
-
   @Getter private final boolean profilingEnabled;
   @Deprecated private final String profilingUrl;
   private final Map<String, String> profilingTags;
@@ -537,9 +533,6 @@ public class Config {
         getMapSettingFromEnvironment(TRACE_SAMPLING_OPERATION_RULES, null);
     traceSampleRate = getDoubleSettingFromEnvironment(TRACE_SAMPLE_RATE, null);
     traceRateLimit = getDoubleSettingFromEnvironment(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
-
-    traceTestsEnabled =
-        getBooleanSettingFromEnvironment(TRACE_TESTS_ENABLED, DEFAULT_TRACE_TESTS_ENABLED);
 
     profilingEnabled =
         getBooleanSettingFromEnvironment(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
@@ -778,8 +771,6 @@ public class Config {
             properties, TRACE_SAMPLING_OPERATION_RULES, parent.traceSamplingOperationRules);
     traceSampleRate = getPropertyDoubleValue(properties, TRACE_SAMPLE_RATE, parent.traceSampleRate);
     traceRateLimit = getPropertyDoubleValue(properties, TRACE_RATE_LIMIT, parent.traceRateLimit);
-    traceTestsEnabled =
-        getPropertyBooleanValue(properties, TRACE_TESTS_ENABLED, parent.traceTestsEnabled);
 
     profilingEnabled =
         getPropertyBooleanValue(properties, PROFILING_ENABLED, parent.profilingEnabled);
