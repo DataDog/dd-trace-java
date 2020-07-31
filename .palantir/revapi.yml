@@ -533,6 +533,12 @@ acceptedBreaks:
   "0.58.0":
     com.datadoghq:dd-trace-ot:
     - code: "java.class.removed"
+      old: "class datadog.trace.common.writer.ddagent.Monitor"
+      justification: "moving classes around"
+    - code: "java.class.removed"
+      old: "class datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory"
+      justification: "moving classes around"
+    - code: "java.class.removed"
       old: "class datadog.trace.core.propagation.HaystackHttpCodec.Extractor"
       justification: "internal api"
     - code: "java.class.removed"

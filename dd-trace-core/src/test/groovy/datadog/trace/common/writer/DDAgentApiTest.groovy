@@ -1,4 +1,4 @@
-package datadog.trace.api.writer
+package datadog.trace.common.writer
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -76,10 +76,10 @@ class DDAgentApiTest extends DDSpecification {
     agent.close()
 
     where:
-    version          |   expected
-    "v0.5/traces"    |   TraceMapperV0_5
-    "v0.4/traces"    |   TraceMapperV0_4
-    "v0.3/traces"    |   TraceMapperV0_4
+    version       | expected
+    "v0.5/traces" | TraceMapperV0_5
+    "v0.4/traces" | TraceMapperV0_4
+    "v0.3/traces" | TraceMapperV0_4
   }
 
   def "non-200 response"() {
@@ -298,19 +298,19 @@ class DDAgentApiTest extends DDSpecification {
     // all the sizes match, except in v0.5 where there is 1 byte for a
     // 2 element array header and 1 byte for an empty dictionary
     where:
-    agentVersion   |       expectedLength | traces
-    "v0.4/traces"  | 1                    | []
-    "v0.4/traces"  | 3                    | [[], []]
-    "v0.4/traces"  | 16                   | (1..15).collect { [] }
-    "v0.4/traces"  | 19                   | (1..16).collect { [] }
-    "v0.4/traces"  | 65538                | (1..((1 << 16) - 1)).collect { [] }
-    "v0.4/traces"  | 65541                | (1..(1 << 16)).collect { [] }
-    "v0.5/traces"  | 1 + 1 + 1            | []
-    "v0.5/traces"  | 3 + 1 + 1            | [[], []]
-    "v0.5/traces"  | 16 + 1 + 1           | (1..15).collect { [] }
-    "v0.5/traces"  | 19 + 1 + 1           | (1..16).collect { [] }
-    "v0.5/traces"  | 65538 + 1 + 1        | (1..((1 << 16) - 1)).collect { [] }
-    "v0.5/traces"  | 65541 + 1 + 1        | (1..(1 << 16)).collect { [] }
+    agentVersion  | expectedLength | traces
+    "v0.4/traces" | 1              | []
+    "v0.4/traces" | 3              | [[], []]
+    "v0.4/traces" | 16             | (1..15).collect { [] }
+    "v0.4/traces" | 19             | (1..16).collect { [] }
+    "v0.4/traces" | 65538          | (1..((1 << 16) - 1)).collect { [] }
+    "v0.4/traces" | 65541          | (1..(1 << 16)).collect { [] }
+    "v0.5/traces" | 1 + 1 + 1      | []
+    "v0.5/traces" | 3 + 1 + 1      | [[], []]
+    "v0.5/traces" | 16 + 1 + 1     | (1..15).collect { [] }
+    "v0.5/traces" | 19 + 1 + 1     | (1..16).collect { [] }
+    "v0.5/traces" | 65538 + 1 + 1  | (1..((1 << 16) - 1)).collect { [] }
+    "v0.5/traces" | 65541 + 1 + 1  | (1..(1 << 16)).collect { [] }
   }
 
   static List<List<TreeMap<String, Object>>> convertList(String agentVersion, byte[] bytes) {
