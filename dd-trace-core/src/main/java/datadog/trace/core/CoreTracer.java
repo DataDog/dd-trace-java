@@ -508,6 +508,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     if (config.isAgentConfiguredUsingDefault()
         && ServerlessInfo.get().isRunningInServerlessEnvironment()) {
+      log.info("Detected serverless environment.  Using PrintingWriter");
       return new PrintingWriter(System.out, true);
     }
 

@@ -1,25 +1,44 @@
 package datadog.trace.common.writer;
 
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonWriter;
+import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import datadog.trace.core.DDSpan;
-import java.io.PrintStream;
+import datadog.trace.core.processor.TraceProcessor;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import okio.Okio;
 
-public class PrintingWriter extends JsonStringWriter {
-  private final PrintStream printStream;
+public class PrintingWriter implements Writer {
+  private final TraceProcessor processor = new TraceProcessor();
+  private final JsonWriter jsonWriter;
+  private final JsonAdapter<Map<String, List<DDSpan>>> jsonAdapter;
 
-  public PrintingWriter(final PrintStream printStream, final boolean hexIds) {
-    super(hexIds);
-    this.printStream = printStream;
+  public PrintingWriter(final OutputStream outputStream, final boolean hexIds) {
+    jsonWriter = JsonWriter.of(Okio.buffer(Okio.sink(outputStream)));
+
+    this.jsonAdapter =
+        new Moshi.Builder()
+            .add(DDSpanJsonAdapter.buildFactory(hexIds))
+            .build()
+            .adapter(
+                Types.newParameterizedType(
+                    Map.class, String.class, Types.newParameterizedType(List.class, DDSpan.class)));
   }
 
   @Override
-  protected void writeJson(final String json) {
-    printStream.println(json);
-  }
-
-  @Override
-  protected void writeException(final List<DDSpan> trace, final Exception e) {
-    // do nothing
+  public void write(final List<DDSpan> trace) {
+    final List<DDSpan> processedTrace = processor.onTraceComplete(trace);
+    try {
+      jsonAdapter.toJson(jsonWriter, Collections.singletonMap("traces", processedTrace));
+      jsonWriter.flush();
+    } catch (final IOException e) {
+      // do nothing
+    }
   }
 
   @Override
