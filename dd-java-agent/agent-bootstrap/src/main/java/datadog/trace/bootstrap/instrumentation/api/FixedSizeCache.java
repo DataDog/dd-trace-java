@@ -33,6 +33,19 @@ public final class FixedSizeCache<K, V> {
     }
   }
 
+  public static final class Prefix implements Creator<String, String> {
+    private final String prefix;
+
+    public Prefix(String prefix) {
+      this.prefix = prefix;
+    }
+
+    @Override
+    public String create(String key) {
+      return prefix + key;
+    }
+  }
+
   public static final class LowerCase implements Creator<String, String> {
 
     @Override
