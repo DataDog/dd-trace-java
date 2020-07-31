@@ -1,7 +1,7 @@
 package datadog.trace.core.processor.rule;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.core.DDSpan;
+import datadog.trace.core.ExclusiveSpan;
 import datadog.trace.core.processor.TraceProcessor;
 
 /**
@@ -15,7 +15,7 @@ public class DBStatementRule implements TraceProcessor.Rule {
   }
 
   @Override
-  public void processSpan(final DDSpan span) {
+  public void processSpan(final ExclusiveSpan span) {
     // Special case: Mongo
     // Skip the decorators
     if (!"java-mongo".equals(span.getTag(Tags.COMPONENT))) {

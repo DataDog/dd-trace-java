@@ -3,7 +3,7 @@ package datadog.trace.core.processor.rule;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.core.DDSpan;
+import datadog.trace.core.ExclusiveSpan;
 import datadog.trace.core.processor.TraceProcessor;
 
 public class HttpStatusErrorRule implements TraceProcessor.Rule {
@@ -13,9 +13,9 @@ public class HttpStatusErrorRule implements TraceProcessor.Rule {
   }
 
   @Override
-  public void processSpan(final DDSpan span) {
+  public void processSpan(final ExclusiveSpan span) {
     final Object value = span.getTag(Tags.HTTP_STATUS);
-    if (value != null && !span.context().getErrorFlag()) {
+    if (value != null && !span.isError()) {
       try {
         final int status =
             value instanceof Integer ? (int) value : Integer.parseInt(value.toString());

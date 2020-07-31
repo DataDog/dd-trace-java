@@ -42,6 +42,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,6 @@ import java.util.Properties;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import java.util.SortedSet;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.TimeUnit;
 import lombok.Builder;
@@ -100,9 +100,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    */
   private final Thread shutdownCallback;
 
-  /** Span tag interceptors */
-  private final Map<String, List<AbstractTagInterceptor>> spanTagInterceptors =
-      new ConcurrentHashMap<>();
+  /**
+   * Span tag interceptors. This Map is only ever added to during initialization, so it doesn't need
+   * to be concurrent.
+   */
+  private final Map<String, List<AbstractTagInterceptor>> spanTagInterceptors = new HashMap<>();
 
   private final SortedSet<TraceInterceptor> interceptors =
       new ConcurrentSkipListSet<>(
@@ -582,7 +584,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private final String operationName;
 
     // Builder attributes
-    private final Map<String, Object> tags = new LinkedHashMap<String, Object>(defaultSpanTags);
+    private Map<String, Object> tags;
     private long timestampMicro;
     private Object parent;
     private String serviceName;
@@ -669,10 +671,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public CoreSpanBuilder withTag(final String tag, final Object value) {
+      Map<String, Object> tagMap = this.tags;
+      if (tagMap == null) {
+        tags = tagMap = new LinkedHashMap<>(); // Insertion order is important
+      }
       if (value == null || (value instanceof String && ((String) value).isEmpty())) {
-        tags.remove(tag);
+        tagMap.remove(tag);
       } else {
-        tags.put(tag, value);
+        tagMap.put(tag, value);
       }
       return this;
     }
@@ -691,6 +697,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final PendingTrace parentTrace;
       final int samplingPriority;
       final String origin;
+      final Map<String, String> coreTags;
+      final Map<String, String> rootSpanTags;
 
       final DDSpanContext context;
 
@@ -716,6 +724,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         parentTrace = ddsc.getTrace();
         samplingPriority = PrioritySampling.UNSET;
         origin = null;
+        coreTags = null;
+        rootSpanTags = null;
         if (serviceName == null) {
           serviceName = ddsc.getServiceName();
         }
@@ -738,13 +748,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
         // Get header tags and set origin whether propagating or not.
         if (parentContext instanceof TagContext) {
-          tags.putAll(((TagContext) parentContext).getTags());
+          coreTags = ((TagContext) parentContext).getTags();
           origin = ((TagContext) parentContext).getOrigin();
         } else {
+          coreTags = null;
           origin = null;
         }
 
-        tags.putAll(localRootSpanTags);
+        rootSpanTags = localRootSpanTags;
 
         parentTrace = PendingTrace.create(CoreTracer.this, traceId);
       }
@@ -755,6 +766,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       final String operationName = this.operationName != null ? this.operationName : resourceName;
 
+      int tagsSize =
+          (null == tags ? 0 : tags.size())
+              + defaultSpanTags.size()
+              + (null == coreTags ? 0 : coreTags.size())
+              + (null == rootSpanTags ? 0 : rootSpanTags.size());
       // some attributes are inherited from the parent
       context =
           new DDSpanContext(
@@ -769,40 +785,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               baggage,
               errorFlag,
               spanType,
-              tags,
+              tagsSize,
               parentTrace,
               CoreTracer.this,
               serviceNameMappings);
 
-      // Apply Decorators to handle any tags that may have been set via the builder.
-      for (final Map.Entry<String, Object> tag : tags.entrySet()) {
-        if (tag.getValue() == null) {
-          context.setTag(tag.getKey(), null);
-          continue;
-        }
-
-        boolean addTag = true;
-
-        // Call interceptors
-        final List<AbstractTagInterceptor> interceptors = getSpanTagInterceptors(tag.getKey());
-        if (interceptors != null) {
-          for (final AbstractTagInterceptor interceptor : interceptors) {
-            try {
-              addTag &= interceptor.shouldSetTag(context, tag.getKey(), tag.getValue());
-            } catch (final Throwable ex) {
-              log.debug(
-                  "Could not intercept the span interceptor={}: {}",
-                  interceptor.getClass().getSimpleName(),
-                  ex.getMessage());
-            }
-          }
-        }
-
-        if (!addTag) {
-          context.setTag(tag.getKey(), null);
-        }
-      }
-
+      // By setting the tags on the context we apply decorators to any tags that have been set via
+      // the builder. This is the order that the tags were added previously, but maybe the `tags`
+      // set in the builder should come last, so that they override other tags.
+      context.setAllTags(defaultSpanTags);
+      context.setAllTags(tags);
+      context.setAllTags(coreTags);
+      context.setAllTags(rootSpanTags);
       return context;
     }
   }

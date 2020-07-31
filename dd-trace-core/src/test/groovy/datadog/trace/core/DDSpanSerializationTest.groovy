@@ -32,7 +32,7 @@ class DDSpanSerializationTest extends DDSpecification {
       Collections.emptyMap(),
       false,
       spanType,
-      Collections.emptyMap(),
+      0,
       PendingTrace.create(tracer, DDId.ONE),
       tracer,
       [:])
@@ -96,10 +96,11 @@ class DDSpanSerializationTest extends DDSpecification {
       baggage,
       false,
       null,
-      tags,
+      tags.size(),
       PendingTrace.create(tracer, DDId.ONE),
       tracer,
       [:])
+    context.setAllTags(tags)
     def span = DDSpan.create(0, context)
     def buffer = ByteBuffer.allocate(1024)
     CaptureBuffer capture = new CaptureBuffer()
