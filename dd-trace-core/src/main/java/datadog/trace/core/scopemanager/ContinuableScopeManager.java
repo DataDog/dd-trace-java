@@ -12,6 +12,7 @@ import datadog.trace.context.TraceScope;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.Stack;
@@ -215,21 +216,27 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
   }
 
   private static final class ScopeStack {
-    final Stack<ContinuableScope> stack = new Stack<>();
+    final List<ContinuableScope> stack = new ArrayList<>(32);
 
     final ContinuableScope top() {
-      if ( stack.isEmpty() ) return null;
+      int size = stack.size();
+      if ( size == 0 ) return null;
 
-      return stack.peek();
+      return stack.get(size - 1);
     }
 
     final void push(ContinuableScope scope) {
-      stack.push(scope);
+      stack.add(scope);
     }
 
     boolean tryPop(ContinuableScope expectedScope) {
-      boolean isTop = expectedScope.equals(top());
-      if ( isTop ) stack.pop();
+      int size = stack.size();
+      if ( size == 0 ) return false;
+
+      int topIndex = size - 1;
+      ContinuableScope topScope = stack.get(topIndex);
+      boolean isTop = topScope.equals(expectedScope);
+      if ( isTop ) stack.remove(topIndex);
       return isTop;
     }
   }
