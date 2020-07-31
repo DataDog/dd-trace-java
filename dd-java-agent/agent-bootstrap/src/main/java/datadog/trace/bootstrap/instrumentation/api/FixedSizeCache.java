@@ -14,7 +14,7 @@ package datadog.trace.bootstrap.instrumentation.api;
  * @param <K> key type
  * @param <V> value type
  */
-public class FixedSizeCache<K, V> {
+public final class FixedSizeCache<K, V> {
 
   public interface Creator<K, V> {
     V create(K key);
@@ -33,11 +33,19 @@ public class FixedSizeCache<K, V> {
     }
   }
 
-  public static class LowerCase implements Creator<String, String> {
+  public static final class LowerCase implements Creator<String, String> {
 
     @Override
     public String create(String key) {
       return key.toLowerCase();
+    }
+  }
+
+  public static final class ToString<T> implements Creator<T, String> {
+
+    @Override
+    public String create(T key) {
+      return key.toString();
     }
   }
 
