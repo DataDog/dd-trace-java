@@ -49,7 +49,7 @@ public final class ClassLoaderMatcher {
         // Don't skip bootstrap loader
         return false;
       }
-      if (shouldSkipClass(cl)) {
+      if (canSkipClassLoaderByName(cl)) {
         return true;
       }
       Boolean v = skipCache.getIfPresent(cl);
@@ -69,7 +69,7 @@ public final class ClassLoaderMatcher {
       return v;
     }
 
-    private static boolean shouldSkipClass(final ClassLoader loader) {
+    private static boolean canSkipClassLoaderByName(final ClassLoader loader) {
       switch (loader.getClass().getName()) {
         case "org.codehaus.groovy.runtime.callsite.CallSiteClassLoader":
         case "sun.reflect.DelegatingClassLoader":
