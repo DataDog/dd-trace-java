@@ -80,4 +80,13 @@ public class TestClasses {
       return a instanceof MethodBodyAdvice.A;
     }
   }
+
+  // Can't test this until java 7 is dropped.
+  public static class InDyAdvice {
+    //    public static MethodBodyAdvice.SomeInterface indyMethod(
+    //        final MethodBodyAdvice.SomeImplementation a) {
+    //      Runnable aStaticMethod = MethodBodyAdvice.B::aStaticMethod;
+    //      return a::someMethod;
+    //    }
+  }
 }

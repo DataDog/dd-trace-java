@@ -1,5 +1,7 @@
 package datadog.trace.api
 
+
+import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.util.test.DDSpecification
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
@@ -87,6 +89,8 @@ class ConfigTest extends DDSpecification {
   public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
   @Rule
   public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
+  @Rule
+  public final FixedCapturedEnvironment fixedCapturedEnvironment = new FixedCapturedEnvironment()
 
   private static final DD_API_KEY_ENV = "DD_API_KEY"
   private static final DD_SERVICE_NAME_ENV = "DD_SERVICE_NAME"
@@ -643,6 +647,65 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == "unnamed-java-app"
     config.writerType == "DDAgentWriter"
+  }
+
+  def "captured env props override default props"() {
+    setup:
+    def capturedEnv = new HashMap<String, String>()
+    capturedEnv.put(SERVICE_NAME, "automatic service name")
+    fixedCapturedEnvironment.load(capturedEnv)
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "automatic service name"
+  }
+
+  def "specify props override captured env props"() {
+    setup:
+    def prop = new Properties()
+    prop.setProperty(SERVICE_NAME, "what actually wants")
+
+    def capturedEnv = new HashMap<String, String>()
+    capturedEnv.put(SERVICE_NAME, "something else")
+    fixedCapturedEnvironment.load(capturedEnv)
+
+    when:
+    def config = Config.get(prop)
+
+    then:
+    config.serviceName == "what actually wants"
+  }
+
+  def "sys props override captured env props"() {
+    setup:
+    System.setProperty(PREFIX + SERVICE_NAME, "what actually wants")
+
+    def capturedEnv = new HashMap<String, String>()
+    capturedEnv.put(SERVICE_NAME, "something else")
+    fixedCapturedEnvironment.load(capturedEnv)
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "what actually wants"
+  }
+
+  def "env vars override captured env props"() {
+    setup:
+    environmentVariables.set(DD_SERVICE_NAME_ENV, "what actually wants")
+
+    def capturedEnv = new HashMap<String, String>()
+    capturedEnv.put(SERVICE_NAME, "something else")
+    fixedCapturedEnvironment.load(capturedEnv)
+
+    when:
+    def config = new Config()
+
+    then:
+    config.serviceName == "what actually wants"
   }
 
   def "verify integration config"() {
@@ -1496,6 +1559,59 @@ class ConfigTest extends DDSpecification {
     config.mergedSpanTags == [service: 'service-tag-in-dd-trace-global-tags-java-property', 'service.version': 'my-svc-vers']
     config.mergedJmxTags == [(RUNTIME_ID_TAG) : config.getRuntimeId(), (SERVICE_TAG): config.serviceName,
                              'service.version': 'my-svc-vers']
+  }
+
+  def "detect if agent is configured using default values"() {
+    setup:
+    if (host != null) {
+      System.setProperty(PREFIX + AGENT_HOST, host)
+    }
+    if (socket != null) {
+      System.setProperty(PREFIX + AGENT_UNIX_DOMAIN_SOCKET, socket)
+    }
+    if (port != null) {
+      System.setProperty(PREFIX + TRACE_AGENT_PORT, port)
+    }
+    if (legacyPort != null) {
+      System.setProperty(PREFIX + AGENT_PORT_LEGACY, legacyPort)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.isAgentConfiguredUsingDefault() == configuredUsingDefault
+
+    when:
+    Properties properties = new Properties()
+    if (propertyHost != null) {
+      properties.setProperty(AGENT_HOST, propertyHost)
+    }
+    if (propertySocket != null) {
+      properties.setProperty(AGENT_UNIX_DOMAIN_SOCKET, propertySocket)
+    }
+    if (propertyPort != null) {
+      properties.setProperty(TRACE_AGENT_PORT, propertyPort)
+    }
+
+    def childConfig = new Config(properties, config)
+
+    then:
+    childConfig.isAgentConfiguredUsingDefault() == childConfiguredUsingDefault
+
+    where:
+    host                              | socket    | port | legacyPort | propertyHost | propertySocket | propertyPort | configuredUsingDefault | childConfiguredUsingDefault
+    null                              | null      | null | null       | null         | null           | null         | true                   | true
+    "example"                         | null      | null | null       | null         | null           | null         | false                  | false
+    ConfigDefaults.DEFAULT_AGENT_HOST | null      | null | null       | null         | null           | null         | false                  | false
+    null                              | "example" | null | null       | null         | null           | null         | false                  | false
+    null                              | null      | "1"  | null       | null         | null           | null         | false                  | false
+    null                              | null      | null | "1"        | null         | null           | null         | false                  | false
+    "example"                         | "example" | null | null       | null         | null           | null         | false                  | false
+    null                              | null      | null | null       | "example"    | null           | null         | true                   | false
+    null                              | null      | null | null       | null         | "example"      | null         | true                   | false
+    null                              | null      | null | null       | null         | null           | "1"          | true                   | false
+    "example"                         | "example" | null | null       | "example"    | null           | null         | false                  | false
   }
 
   // Static methods test:

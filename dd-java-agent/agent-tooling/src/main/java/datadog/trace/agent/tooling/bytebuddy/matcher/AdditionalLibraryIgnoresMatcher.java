@@ -203,6 +203,10 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
       if (name.equals("ch.qos.logback.core.AsyncAppenderBase$Worker")) {
         return false;
       }
+      // for inserting service, env, version in MDC of every thread
+      if (name.equals("ch.qos.logback.classic.util.LogbackMDCAdapter")) {
+        return false;
+      }
 
       return true;
     }

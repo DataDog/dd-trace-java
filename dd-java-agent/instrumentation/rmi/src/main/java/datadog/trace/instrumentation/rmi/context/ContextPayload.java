@@ -16,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ContextPayload {
   @Getter private final Map<String, String> context;
-  public static final ExtractAdapter GETTER = new ExtractAdapter();
   public static final InjectAdapter SETTER = new InjectAdapter();
 
   public ContextPayload() {
@@ -48,18 +47,6 @@ public class ContextPayload {
 
   public void write(final ObjectOutput out) throws IOException {
     out.writeObject(context);
-  }
-
-  public static class ExtractAdapter implements AgentPropagation.Getter<ContextPayload> {
-    @Override
-    public Iterable<String> keys(final ContextPayload carrier) {
-      return carrier.getContext().keySet();
-    }
-
-    @Override
-    public String get(final ContextPayload carrier, final String key) {
-      return carrier.getContext().get(key);
-    }
   }
 
   public static class InjectAdapter implements AgentPropagation.Setter<ContextPayload> {

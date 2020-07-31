@@ -41,7 +41,6 @@ public class RabbitCommandInstrumentation extends Instrumenter.Default {
     return new String[] {
       packageName + ".RabbitDecorator",
       // These are only used by muzzleCheck:
-      packageName + ".TextMapExtractAdapter",
       packageName + ".TracedDelegatingConsumer"
     };
   }

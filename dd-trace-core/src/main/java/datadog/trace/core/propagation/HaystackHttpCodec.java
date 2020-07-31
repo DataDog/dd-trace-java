@@ -6,9 +6,8 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.core.DDSpanContext;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -96,76 +95,105 @@ public class HaystackHttpCodec {
     }
   }
 
-  public static class Extractor implements HttpCodec.Extractor {
-    private final Map<String, String> taggedHeaders;
+  public static HttpCodec.Extractor newExtractor(final Map<String, String> tagMapping) {
+    return new TagContextExtractor(
+        tagMapping,
+        new ContextInterpreter.Factory() {
+          @Override
+          protected ContextInterpreter construct(Map<String, String> mapping) {
+            return new HaystackContextInterpreter(mapping);
+          }
+        });
+  }
 
-    /** Creates Header Extractor using Haystack propagation. */
-    public Extractor(final Map<String, String> taggedHeaders) {
-      this.taggedHeaders = new HashMap<>();
-      for (final Map.Entry<String, String> mapping : taggedHeaders.entrySet()) {
-        this.taggedHeaders.put(mapping.getKey().trim().toLowerCase(), mapping.getValue());
-      }
+  private static class HaystackContextInterpreter extends ContextInterpreter {
+
+    private static final String BAGGAGE_PREFIX_LC = "baggage-";
+
+    private static final int TRACE_ID = 0;
+    private static final int SPAN_ID = 1;
+    private static final int TAGS = 2;
+    private static final int BAGGAGE = 3;
+    private static final int IGNORE = -1;
+
+    private HaystackContextInterpreter(Map<String, String> taggedHeaders) {
+      super(taggedHeaders);
     }
 
     @Override
-    public <C> TagContext extract(final C carrier, final AgentPropagation.Getter<C> getter) {
-      try {
-        Map<String, String> baggage = Collections.emptyMap();
-        Map<String, String> tags = Collections.emptyMap();
-        DDId traceId = DDId.ZERO;
-        DDId spanId = DDId.ZERO;
-        final int samplingPriority = PrioritySampling.SAMPLER_KEEP;
-        final String origin = null; // Always null
-
-        for (final String uncasedKey : getter.keys(carrier)) {
-          final String key = uncasedKey.toLowerCase();
-          final String value = firstHeaderValue(getter.get(carrier, uncasedKey));
-
-          if (value == null) {
-            continue;
-          }
-
-          // We are preserving the original UUID values as baggage to be able to loop them through
-          // the 2 systems
-          if (baggage.isEmpty()) {
-            baggage = new HashMap<>();
-          }
+    public boolean accept(String key, String value) {
+      char first = Character.toLowerCase(key.charAt(0));
+      String lowerCaseKey = null;
+      int classification = IGNORE;
+      switch (first) {
+        case 't':
           if (TRACE_ID_KEY.equalsIgnoreCase(key)) {
-            traceId = convertUUIDToBigInt(value);
-            baggage.put(HAYSTACK_TRACE_ID_BAGGAGE_KEY, HttpCodec.decode(value));
-          } else if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
-            spanId = convertUUIDToBigInt(value);
-            baggage.put(HAYSTACK_SPAN_ID_BAGGAGE_KEY, HttpCodec.decode(value));
-          } else if (PARENT_ID_KEY.equalsIgnoreCase(key)) {
-            baggage.put(HAYSTACK_PARENT_ID_BAGGAGE_KEY, HttpCodec.decode(value));
-          } else if (key.startsWith(OT_BAGGAGE_PREFIX.toLowerCase())) {
-            baggage.put(key.replace(OT_BAGGAGE_PREFIX.toLowerCase(), ""), HttpCodec.decode(value));
+            classification = TRACE_ID;
           }
-
-          if (taggedHeaders.containsKey(key)) {
-            if (tags.isEmpty()) {
-              tags = new HashMap<>();
-            }
-            tags.put(taggedHeaders.get(key), HttpCodec.decode(value));
+          break;
+        case 's':
+          if (SPAN_ID_KEY.equalsIgnoreCase(key)) {
+            classification = SPAN_ID;
           }
-        }
-
-        if (!DDId.ZERO.equals(traceId)) {
-          final ExtractedContext context =
-              new ExtractedContext(traceId, spanId, samplingPriority, origin, baggage, tags);
-          context.lockSamplingPriority();
-
-          log.debug("{} - Parent context extracted", context.getTraceId());
-          return context;
-        } else if (origin != null || !tags.isEmpty()) {
-          log.debug("Tags context extracted");
-          return new TagContext(origin, tags);
-        }
-      } catch (final RuntimeException e) {
-        log.debug("Exception when extracting context", e);
+          break;
+        case 'b':
+          lowerCaseKey = toLowerCase(key);
+          if (lowerCaseKey.startsWith(BAGGAGE_PREFIX_LC)) {
+            classification = BAGGAGE;
+          }
+        default:
       }
+      if (!taggedHeaders.isEmpty() && classification == IGNORE) {
+        lowerCaseKey = toLowerCase(key);
+        if (taggedHeaders.containsKey(lowerCaseKey)) {
+          classification = TAGS;
+        }
+      }
+      if (IGNORE != classification) {
+        try {
+          String firstValue = firstHeaderValue(value);
+          if (null != firstValue) {
+            switch (classification) {
+              case TRACE_ID:
+                traceId = DDId.from(firstValue);
+                break;
+              case SPAN_ID:
+                spanId = DDId.from(firstValue);
+                break;
+              case TAGS:
+                {
+                  String mappedKey = taggedHeaders.get(lowerCaseKey);
+                  if (null != mappedKey) {
+                    if (tags.isEmpty()) {
+                      tags = new TreeMap<>();
+                    }
+                    tags.put(mappedKey, HttpCodec.decode(value));
+                  }
+                  break;
+                }
+              case BAGGAGE:
+                {
+                  if (baggage.isEmpty()) {
+                    baggage = new TreeMap<>();
+                  }
+                  baggage.put(
+                      lowerCaseKey.substring(BAGGAGE_PREFIX_LC.length()), HttpCodec.decode(value));
+                  break;
+                }
+            }
+          }
+        } catch (RuntimeException e) {
+          invalidateContext();
+          log.error("Exception when extracting context", e);
+          return false;
+        }
+      }
+      return true;
+    }
 
-      return null;
+    @Override
+    protected int defaultSamplingPriority() {
+      return PrioritySampling.SAMPLER_KEEP;
     }
   }
 

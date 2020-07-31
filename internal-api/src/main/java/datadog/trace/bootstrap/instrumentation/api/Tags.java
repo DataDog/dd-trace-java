@@ -7,6 +7,7 @@ public class Tags {
   public static final String SPAN_KIND_CLIENT = "client";
   public static final String SPAN_KIND_PRODUCER = "producer";
   public static final String SPAN_KIND_CONSUMER = "consumer";
+  public static final String SPAN_KIND_TEST = "test";
 
   public static final String HTTP_URL = "http.url";
   public static final String HTTP_STATUS = "http.status_code";
@@ -25,4 +26,8 @@ public class Tags {
   public static final String DB_USER = "db.user";
   public static final String DB_STATEMENT = "db.statement";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
+
+  public static final String DD_SERVICE = "dd.service";
+  public static final String DD_VERSION = "dd.version";
+  public static final String DD_ENV = "dd.env";
 }

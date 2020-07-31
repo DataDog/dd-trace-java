@@ -41,6 +41,10 @@ class SpanAssert {
     }
   }
 
+  def hasServiceName() {
+    assert span.serviceName != null && !span.serviceName.isEmpty()
+  }
+
   def serviceName(String name) {
     assert span.serviceName == name
     checked.serviceName = true
@@ -127,6 +131,7 @@ class SpanAssert {
     if (!checked.errored) {
       errored(false)
     }
+    hasServiceName()
   }
 
   void tags(@ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TagsAssert'])

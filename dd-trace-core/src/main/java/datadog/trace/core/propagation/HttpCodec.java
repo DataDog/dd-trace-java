@@ -20,7 +20,7 @@ public class HttpCodec {
   }
 
   public interface Extractor {
-    <C> TagContext extract(final C carrier, final AgentPropagation.Getter<C> getter);
+    <C> TagContext extract(final C carrier, final AgentPropagation.ContextVisitor<C> getter);
   }
 
   public static Injector createInjector(final Config config) {
@@ -47,19 +47,19 @@ public class HttpCodec {
       final Config config, final Map<String, String> taggedHeaders) {
     final List<Extractor> extractors = new ArrayList<>();
     for (final PropagationStyle style : config.getPropagationStylesToExtract()) {
-      if (style == PropagationStyle.DATADOG) {
-        extractors.add(new DatadogHttpCodec.Extractor(taggedHeaders));
-        continue;
+      switch (style) {
+        case DATADOG:
+          extractors.add(DatadogHttpCodec.newExtractor(taggedHeaders));
+          break;
+        case HAYSTACK:
+          extractors.add(HaystackHttpCodec.newExtractor(taggedHeaders));
+          break;
+        case B3:
+          extractors.add(B3HttpCodec.newExtractor(taggedHeaders));
+          break;
+        default:
+          log.debug("No implementation found to extract propagation style: {}", style);
       }
-      if (style == PropagationStyle.B3) {
-        extractors.add(new B3HttpCodec.Extractor(taggedHeaders));
-        continue;
-      }
-      if (style == PropagationStyle.HAYSTACK) {
-        extractors.add(new HaystackHttpCodec.Extractor(taggedHeaders));
-        continue;
-      }
-      log.debug("No implementation found to extract propagation style: {}", style);
     }
     return new CompoundExtractor(extractors);
   }
@@ -90,7 +90,8 @@ public class HttpCodec {
     }
 
     @Override
-    public <C> TagContext extract(final C carrier, final AgentPropagation.Getter<C> setter) {
+    public <C> TagContext extract(
+        final C carrier, final AgentPropagation.ContextVisitor<C> setter) {
       TagContext context = null;
       for (final Extractor extractor : extractors) {
         context = extractor.extract(carrier, setter);

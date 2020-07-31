@@ -10,17 +10,3 @@ class MapSetter implements AgentPropagation.Setter<Map<String, String>> {
     carrier.put(key, value)
   }
 }
-
-class MapGetter implements AgentPropagation.Getter<Map<String, String>> {
-  static final INSTANCE = new MapGetter()
-  
-  @Override
-  Iterable<String> keys(Map<String, String> carrier) {
-    return carrier.keySet()
-  }
-
-  @Override
-  String get(Map<String, String> carrier, String key) {
-    return carrier.get(key)
-  }
-}

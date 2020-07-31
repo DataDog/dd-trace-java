@@ -59,6 +59,7 @@ import datadog.trace.api.config.JmxFetchConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
+import datadog.trace.api.env.CapturedEnvironment;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -92,7 +93,8 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Config reads values with the following priority: 1) system properties, 2) environment variables,
- * 3) optional configuration file. It also includes default values to ensure a valid config.
+ * 3) optional configuration file, 4) platform dependant properties. It also includes default values
+ * to ensure a valid config.
  *
  * <p>
  *
@@ -271,6 +273,7 @@ public class Config {
   @Getter private final boolean traceEnabled;
   @Getter private final boolean integrationsEnabled;
   @Getter private final String writerType;
+  @Getter private final boolean agentConfiguredUsingDefault;
   @Getter private final String agentHost;
   @Getter private final int agentPort;
   @Getter private final String agentUnixDomainSocket;
@@ -354,13 +357,19 @@ public class Config {
   // Values from an optionally provided properties file
   private static Properties propertiesFromConfigFile;
 
-  // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
-  // Visible for testing
-  Config() {
-    propertiesFromConfigFile = loadConfigurationFile();
-    configFile = findConfigurationFile();
+  // Values extracted from the environment. These properties are platform dependant.
+  private static Properties propertiesFromCapturedEnv;
 
-    runtimeId = UUID.randomUUID().toString();
+  // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
+  private Config() {
+    this(INSTANCE != null ? INSTANCE.runtimeId : UUID.randomUUID().toString());
+  }
+
+  private Config(final String runtimeId) {
+    propertiesFromConfigFile = loadConfigurationFile();
+    propertiesFromCapturedEnv = loadCapturedEnvironment();
+    configFile = findConfigurationFile();
+    this.runtimeId = runtimeId;
 
     // Note: We do not want APiKey to be loaded from property for security reasons
     // Note: we do not use defined default here
@@ -384,13 +393,38 @@ public class Config {
     integrationsEnabled =
         getBooleanSettingFromEnvironment(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
     writerType = getSettingFromEnvironment(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
-    agentHost = getSettingFromEnvironment(AGENT_HOST, DEFAULT_AGENT_HOST);
+
+    // The extra code is to detect when defaults are used for agent configuration
+    final boolean agentHostConfiguredUsingDefault;
+    final String agentHostFromEnvironment = getSettingFromEnvironment(AGENT_HOST, null);
+    if (agentHostFromEnvironment == null) {
+      agentHost = DEFAULT_AGENT_HOST;
+      agentHostConfiguredUsingDefault = true;
+    } else {
+      agentHost = agentHostFromEnvironment;
+      agentHostConfiguredUsingDefault = false;
+    }
+
+    final boolean socketConfiguredUsingDefault;
+    final String unixDomainFromEnv = getSettingFromEnvironment(AGENT_UNIX_DOMAIN_SOCKET, null);
+    if (unixDomainFromEnv == null) {
+      agentUnixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
+      socketConfiguredUsingDefault = true;
+    } else {
+      agentUnixDomainSocket = unixDomainFromEnv;
+      socketConfiguredUsingDefault = false;
+    }
+
     agentPort =
         getIntegerSettingFromEnvironment(
             TRACE_AGENT_PORT,
             getIntegerSettingFromEnvironment(AGENT_PORT_LEGACY, DEFAULT_TRACE_AGENT_PORT));
-    agentUnixDomainSocket =
-        getSettingFromEnvironment(AGENT_UNIX_DOMAIN_SOCKET, DEFAULT_AGENT_UNIX_DOMAIN_SOCKET);
+
+    agentConfiguredUsingDefault =
+        agentHostConfiguredUsingDefault
+            && socketConfiguredUsingDefault
+            && agentPort == DEFAULT_TRACE_AGENT_PORT;
+
     agentTimeout = getIntegerSettingFromEnvironment(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
     prioritySamplingEnabled =
         getBooleanSettingFromEnvironment(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
@@ -608,6 +642,12 @@ public class Config {
             getPropertyIntegerValue(properties, AGENT_PORT_LEGACY, parent.agentPort));
     agentUnixDomainSocket =
         properties.getProperty(AGENT_UNIX_DOMAIN_SOCKET, parent.agentUnixDomainSocket);
+    agentConfiguredUsingDefault =
+        !properties.containsKey(AGENT_HOST)
+            && !properties.containsKey(AGENT_UNIX_DOMAIN_SOCKET)
+            && !properties.containsKey(TRACE_AGENT_PORT)
+            && !properties.containsKey(AGENT_PORT_LEGACY)
+            && parent.agentConfiguredUsingDefault;
     agentTimeout = getPropertyIntegerValue(properties, AGENT_TIMEOUT, parent.agentTimeout);
     prioritySamplingEnabled =
         getPropertyBooleanValue(properties, PRIORITY_SAMPLING, parent.prioritySamplingEnabled);
@@ -1039,7 +1079,8 @@ public class Config {
    * Helper method that takes the name, adds a "dd." prefix then checks for System Properties of
    * that name. If none found, the name is converted to an Environment Variable and used to check
    * the env. If none of the above returns a value, then an optional properties file if checked. If
-   * setting is not configured in either location, <code>defaultValue</code> is returned.
+   * none found, then platform dependant properties are checked. If setting is not configured in
+   * either location, <code>defaultValue</code> is returned.
    *
    * @param name
    * @param defaultValue
@@ -1064,6 +1105,12 @@ public class Config {
 
     // If value is not defined yet, we look at properties optionally defined in a properties file
     value = propertiesFromConfigFile.getProperty(systemPropertyName);
+    if (null != value) {
+      return value;
+    }
+
+    // If value is not defined yet, we look at properties dependant of the platform.
+    value = propertiesFromCapturedEnv.getProperty(name);
     if (null != value) {
       return value;
     }
@@ -1488,6 +1535,18 @@ public class Config {
     return "no config file present";
   }
 
+  private static Properties loadCapturedEnvironment() {
+    final CapturedEnvironment capturedEnvironment = CapturedEnvironment.get();
+    final Properties properties = new Properties();
+    for (final Map.Entry<String, String> entry : capturedEnvironment.getProperties().entrySet()) {
+      if (entry.getKey() != null && entry.getValue() != null) {
+        properties.put(entry.getKey(), entry.getValue());
+      }
+    }
+
+    return properties;
+  }
+
   /** Returns the detected hostname. First tries locally, then using DNS */
   private static String getHostName() {
     String possibleHostname;
@@ -1543,8 +1602,8 @@ public class Config {
    *   DDTracer.builder().withProperties(new Properties()).build()
    * </pre>
    *
-   * Config keys for use in Properties instance construction can be found in {@link GeneralConfig}
-   * and {@link TracerConfig}.
+   * <p>Config keys for use in Properties instance construction can be found in {@link
+   * GeneralConfig} and {@link TracerConfig}.
    *
    * @deprecated
    */

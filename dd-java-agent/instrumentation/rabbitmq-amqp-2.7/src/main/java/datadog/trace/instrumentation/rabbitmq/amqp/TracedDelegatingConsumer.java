@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RE
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SPAN_ORIGIN_TYPE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
-import static datadog.trace.instrumentation.rabbitmq.amqp.TextMapExtractAdapter.GETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -22,6 +21,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
+import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import java.io.IOException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -78,7 +78,8 @@ public class TracedDelegatingConsumer implements Consumer {
     AgentScope scope = null;
     try {
       final Map<String, Object> headers = properties.getHeaders();
-      final Context context = headers == null ? null : propagate().extract(headers, GETTER);
+      final Context context =
+          headers == null ? null : propagate().extract(headers, ContextVisitors.objectValuesMap());
 
       final AgentSpan span =
           startSpan(AMQP_COMMAND, context)

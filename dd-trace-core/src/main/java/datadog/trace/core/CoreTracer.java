@@ -3,8 +3,11 @@ package datadog.trace.core;
 import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
+import datadog.common.container.ServerlessInfo;
 import datadog.trace.api.Config;
+import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDId;
+import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -19,6 +22,7 @@ import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.LoggingWriter;
+import datadog.trace.common.writer.PrintingWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
@@ -365,7 +369,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public <C> AgentSpan.Context extract(final C carrier, final Getter<C> getter) {
+  public <C> AgentSpan.Context extract(final C carrier, final ContextVisitor<C> getter) {
     return extractor.extract(carrier, getter);
   }
 
@@ -493,19 +497,34 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     if (WriterConstants.LOGGING_WRITER_TYPE.equals(configuredType)) {
       return new LoggingWriter();
+    } else if (WriterConstants.PRINTING_WRITER_TYPE.equals(configuredType)) {
+      return new PrintingWriter(System.out, true);
     }
 
     if (!WriterConstants.DD_AGENT_WRITER_TYPE.equals(configuredType)) {
       log.warn(
-          "Writer type not configured correctly: Type {} not recognized. Defaulting to DDAgentWriter.",
-          configuredType);
+          "Writer type not configured correctly: Type {} not recognized. Ignoring", configuredType);
+    }
+
+    if (config.isAgentConfiguredUsingDefault()
+        && ServerlessInfo.get().isRunningInServerlessEnvironment()) {
+      return new PrintingWriter(System.out, true);
+    }
+
+    String unixDomainSocket = config.getAgentUnixDomainSocket();
+    if (unixDomainSocket != ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET && isWindows()) {
+      log.warn(
+          "{} setting not supported on {}.  Reverting to the default.",
+          TracerConfig.AGENT_UNIX_DOMAIN_SOCKET,
+          System.getProperty("os.name"));
+      unixDomainSocket = ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
     }
 
     final DDAgentApi ddAgentApi =
         new DDAgentApi(
             config.getAgentHost(),
             config.getAgentPort(),
-            config.getAgentUnixDomainSocket(),
+            unixDomainSocket,
             TimeUnit.SECONDS.toMillis(config.getAgentTimeout()));
 
     final DDAgentWriter ddAgentWriter =
@@ -516,6 +535,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     return ddAgentWriter;
+  }
+
+  private static boolean isWindows() {
+    // https://mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
+    String os = System.getProperty("os.name").toLowerCase();
+    return os.contains("win");
   }
 
   private static StatsDClient createStatsDClient(final Config config) {

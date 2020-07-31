@@ -14,6 +14,7 @@ import java.util.Set;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.FieldVisitor;
+import net.bytebuddy.jar.asm.Handle;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
@@ -375,6 +376,36 @@ public class ReferenceCreator extends ClassVisitor {
               .withFlag(computeMinimumClassAccess(refSourceType, Type.getObjectType(type)))
               .build());
       super.visitTypeInsn(opcode, type);
+    }
+
+    @Override
+    public void visitInvokeDynamicInsn(
+        String name,
+        String descriptor,
+        Handle bootstrapMethodHandle,
+        Object... bootstrapMethodArguments) {
+      // This part might be unnecessary...
+      addReference(
+          new Reference.Builder(bootstrapMethodHandle.getOwner())
+              .withSource(refSourceClassName, currentLineNumber)
+              .withFlag(
+                  computeMinimumClassAccess(
+                      refSourceType, Type.getObjectType(bootstrapMethodHandle.getOwner())))
+              .build());
+      for (Object arg : bootstrapMethodArguments) {
+        if (arg instanceof Handle) {
+          Handle handle = (Handle) arg;
+          addReference(
+              new Reference.Builder(handle.getOwner())
+                  .withSource(refSourceClassName, currentLineNumber)
+                  .withFlag(
+                      computeMinimumClassAccess(
+                          refSourceType, Type.getObjectType(handle.getOwner())))
+                  .build());
+        }
+      }
+      super.visitInvokeDynamicInsn(
+          name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
     }
 
     @Override

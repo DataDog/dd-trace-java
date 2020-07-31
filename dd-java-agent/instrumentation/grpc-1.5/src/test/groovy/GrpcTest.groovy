@@ -1,6 +1,7 @@
 import datadog.common.exec.CommonTaskExecutor
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.grpc.server.GrpcExtractAdapter
 import example.GreeterGrpc
@@ -56,7 +57,6 @@ class GrpcTest extends AgentTestRunner {
     assertTraces(2) {
       trace(0, 2) {
         span(0) {
-          serviceName "unnamed-java-app"
           operationName "grpc.server"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
@@ -70,7 +70,6 @@ class GrpcTest extends AgentTestRunner {
           }
         }
         span(1) {
-          serviceName "unnamed-java-app"
           operationName "grpc.message"
           resourceName "grpc.message"
           spanType DDSpanTypes.RPC
@@ -87,7 +86,6 @@ class GrpcTest extends AgentTestRunner {
       trace(1, 3) {
         basicSpan(it, 0, "parent")
         span(1) {
-          serviceName "unnamed-java-app"
           operationName "grpc.client"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
@@ -101,7 +99,6 @@ class GrpcTest extends AgentTestRunner {
           }
         }
         span(2) {
-          serviceName "unnamed-java-app"
           operationName "grpc.message"
           resourceName "grpc.message"
           spanType DDSpanTypes.RPC
@@ -149,7 +146,6 @@ class GrpcTest extends AgentTestRunner {
     assertTraces(2) {
       trace(0, 2) {
         span(0) {
-          serviceName "unnamed-java-app"
           operationName "grpc.server"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
@@ -167,7 +163,6 @@ class GrpcTest extends AgentTestRunner {
           }
         }
         span(1) {
-          serviceName "unnamed-java-app"
           operationName "grpc.message"
           resourceName "grpc.message"
           spanType DDSpanTypes.RPC
@@ -183,7 +178,6 @@ class GrpcTest extends AgentTestRunner {
       }
       trace(1, 1) {
         span(0) {
-          serviceName "unnamed-java-app"
           operationName "grpc.client"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
@@ -238,7 +232,6 @@ class GrpcTest extends AgentTestRunner {
     assertTraces(2) {
       trace(0, 2) {
         span(0) {
-          serviceName "unnamed-java-app"
           operationName "grpc.server"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
@@ -252,7 +245,6 @@ class GrpcTest extends AgentTestRunner {
           }
         }
         span(1) {
-          serviceName "unnamed-java-app"
           operationName "grpc.message"
           resourceName "grpc.message"
           spanType DDSpanTypes.RPC
@@ -268,7 +260,6 @@ class GrpcTest extends AgentTestRunner {
       }
       trace(1, 1) {
         span(0) {
-          serviceName "unnamed-java-app"
           operationName "grpc.client"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
@@ -305,7 +296,15 @@ class GrpcTest extends AgentTestRunner {
     meta.put(Metadata.Key.<byte[]> of("test-bin", Metadata.BINARY_BYTE_MARSHALLER), "bin-val".bytes)
 
     when:
-    def keys = GrpcExtractAdapter.GETTER.keys(meta)
+    def keys = new ArrayList()
+    GrpcExtractAdapter.GETTER.forEachKey(meta, new AgentPropagation.KeyClassifier() {
+
+      @Override
+      boolean accept(String key, String value) {
+        keys.add(key.toLowerCase())
+        return true
+      }
+    })
 
     then:
     keys == ["test"]

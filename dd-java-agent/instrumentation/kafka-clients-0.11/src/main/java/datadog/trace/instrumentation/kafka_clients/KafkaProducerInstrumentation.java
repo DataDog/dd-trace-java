@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
@@ -67,11 +68,12 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
         @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
+      final AgentSpan parent = activeSpan();
       final AgentSpan span = startSpan("kafka.produce");
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, record);
 
-      callback = new ProducerCallback(callback, span);
+      callback = new ProducerCallback(callback, parent, span);
 
       boolean isTombstone = record.value() == null && !record.headers().iterator().hasNext();
       if (isTombstone) {
@@ -121,24 +123,28 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
 
   public static class ProducerCallback implements Callback {
     private final Callback callback;
+    private final AgentSpan parent;
     private final AgentSpan span;
 
-    public ProducerCallback(final Callback callback, final AgentSpan span) {
+    public ProducerCallback(final Callback callback, final AgentSpan parent, final AgentSpan span) {
       this.callback = callback;
+      this.parent = parent;
       this.span = span;
     }
 
     @Override
     public void onCompletion(final RecordMetadata metadata, final Exception exception) {
-      try (final AgentScope scope = activateSpan(span)) {
-        PRODUCER_DECORATE.onError(span, exception);
-        try {
-          if (callback != null) {
+      PRODUCER_DECORATE.onError(span, exception);
+      PRODUCER_DECORATE.beforeFinish(span);
+      span.finish();
+      if (callback != null) {
+        if (parent != null) {
+          try (final AgentScope scope = activateSpan(parent)) {
+            scope.setAsyncPropagation(true);
             callback.onCompletion(metadata, exception);
           }
-        } finally {
-          PRODUCER_DECORATE.beforeFinish(span);
-          span.finish();
+        } else {
+          callback.onCompletion(metadata, exception);
         }
       }
     }

@@ -204,6 +204,9 @@ public class HelperInjector implements Transformer {
     final boolean deleted = file.delete();
     if (!deleted) {
       file.deleteOnExit();
+      log.debug("file '{}' added to shutdown delete hook", file);
+    } else {
+      log.debug("file '{}' deleted", file);
     }
   }
 }
