@@ -276,15 +276,10 @@ public class Agent {
               "com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory");
       final Method registerMethod = deadlockFactoryClass.getMethod("registerEvents");
       registerMethod.invoke(null);
+    } catch (final NoClassDefFoundError | ClassNotFoundException e) {
+      log.info("JMX deadlock detection not supported");
     } catch (final Throwable ex) {
-      String msg = "Unable to initialize JMX thread deadlock detector";
-      if (log.isDebugEnabled()) {
-        // in debug level we want to see also the throwable and stacktrace
-        log.info(msg, ex);
-      } else {
-        // in non-debug level do not scare the user with the throwable and stacktrace
-        log.info(msg);
-      }
+      log.error("Unable to initialize JMX thread deadlock detector", ex);
     }
   }
 
@@ -339,8 +334,7 @@ public class Agent {
       Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
       (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
       */
-      log.error("Profiling requires OpenJDK 8 or above - skipping");
-      log.debug("Cannot start profiling agent ", e);
+      log.info("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting profiling agent", ex);
     } finally {
