@@ -4,7 +4,6 @@ package datadog.trace.core
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer

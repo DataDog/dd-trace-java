@@ -70,46 +70,46 @@ public final class TraceMapperV0_4 implements TraceMapper {
       /* 12 */
       writable.writeUTF8(META);
       span.processTagsAndBaggage(
-              new TagsAndBaggageConsumer() {
-                @Override
-                public void accept(Map<String, Object> tags, Map<String, String> baggage) {
-                  // since tags can "override" baggage, we need to count the non overlapping ones
-                  int size = tags.size();
-                  boolean overlap = false;
-                  if (baggage.size() > 0) {
-                    for (String key : baggage.keySet()) {
-                      if (!tags.containsKey(key)) {
-                        size++;
-                      } else {
-                        overlap = true;
-                      }
-                    }
-                  }
-                  writable.startMap(size);
-                  for (Map.Entry<String, String> entry : baggage.entrySet()) {
-                    // tags and baggage may intersect, but tags take priority
-                    if (!overlap || !tags.containsKey(entry.getKey())) {
-                      writable.writeString(entry.getKey(), CONSTANT_KEYS);
-                      writable.writeObject(entry.getValue(), NO_CACHING);
-                    }
-                  }
-                  for (Map.Entry<String, Object> entry : tags.entrySet()) {
-                    writable.writeString(entry.getKey(), CONSTANT_KEYS);
-                    if (entry.getValue() instanceof Long || entry.getValue() instanceof Integer) {
-                      // TODO it would be nice not to need to do this, either because
-                      //  the agent would accept variably typed tag values, or numeric
-                      //  tags get moved to the metrics
-                      writeLongAsString(
-                          ((Number) entry.getValue()).longValue(), writable, numberByteArray);
-                    } else if (entry.getValue() instanceof UTF8BytesString) {
-                      // TODO assess whether this is still worth it
-                      writable.writeObject(entry.getValue(), NO_CACHING);
-                    } else {
-                      writable.writeString(String.valueOf(entry.getValue()), NO_CACHING);
-                    }
+          new TagsAndBaggageConsumer() {
+            @Override
+            public void accept(Map<String, Object> tags, Map<String, String> baggage) {
+              // since tags can "override" baggage, we need to count the non overlapping ones
+              int size = tags.size();
+              boolean overlap = false;
+              if (baggage.size() > 0) {
+                for (String key : baggage.keySet()) {
+                  if (!tags.containsKey(key)) {
+                    size++;
+                  } else {
+                    overlap = true;
                   }
                 }
-              });
+              }
+              writable.startMap(size);
+              for (Map.Entry<String, String> entry : baggage.entrySet()) {
+                // tags and baggage may intersect, but tags take priority
+                if (!overlap || !tags.containsKey(entry.getKey())) {
+                  writable.writeString(entry.getKey(), CONSTANT_KEYS);
+                  writable.writeObject(entry.getValue(), NO_CACHING);
+                }
+              }
+              for (Map.Entry<String, Object> entry : tags.entrySet()) {
+                writable.writeString(entry.getKey(), CONSTANT_KEYS);
+                if (entry.getValue() instanceof Long || entry.getValue() instanceof Integer) {
+                  // TODO it would be nice not to need to do this, either because
+                  //  the agent would accept variably typed tag values, or numeric
+                  //  tags get moved to the metrics
+                  writeLongAsString(
+                      ((Number) entry.getValue()).longValue(), writable, numberByteArray);
+                } else if (entry.getValue() instanceof UTF8BytesString) {
+                  // TODO assess whether this is still worth it
+                  writable.writeObject(entry.getValue(), NO_CACHING);
+                } else {
+                  writable.writeString(String.valueOf(entry.getValue()), NO_CACHING);
+                }
+              }
+            }
+          });
     }
   }
 

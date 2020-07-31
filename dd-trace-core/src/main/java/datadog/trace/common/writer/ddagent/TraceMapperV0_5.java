@@ -1,6 +1,5 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.CONSTANT_KEYS;
 import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.NO_CACHING;
 import static datadog.trace.core.serialization.msgpack.Util.writeLongAsString;
 
@@ -80,33 +79,33 @@ public final class TraceMapperV0_5 implements TraceMapper {
       writable.writeInt(span.getError());
       /* 10  */
       span.processTagsAndBaggage(
-        new TagsAndBaggageConsumer() {
-          @Override
-          public void accept(Map<String, Object> tags, Map<String, String> baggage) {
-            // since tags can "override" baggage, we need to count the non overlapping ones
-            int size = tags.size();
-            boolean overlap = false;
-            for (String key : baggage.keySet()) {
-              if (!tags.containsKey(key)) {
-                size++;
-              } else {
-                overlap = true;
+          new TagsAndBaggageConsumer() {
+            @Override
+            public void accept(Map<String, Object> tags, Map<String, String> baggage) {
+              // since tags can "override" baggage, we need to count the non overlapping ones
+              int size = tags.size();
+              boolean overlap = false;
+              for (String key : baggage.keySet()) {
+                if (!tags.containsKey(key)) {
+                  size++;
+                } else {
+                  overlap = true;
+                }
               }
-            }
-            writable.startMap(size);
-            for (Map.Entry<String, String> entry : baggage.entrySet()) {
-              // tags and baggage may intersect, but tags take priority
-              if (!overlap || !tags.containsKey(entry.getKey())) {
+              writable.startMap(size);
+              for (Map.Entry<String, String> entry : baggage.entrySet()) {
+                // tags and baggage may intersect, but tags take priority
+                if (!overlap || !tags.containsKey(entry.getKey())) {
+                  writeDictionaryEncoded(writable, entry.getKey());
+                  writeDictionaryEncoded(writable, entry.getValue());
+                }
+              }
+              for (Map.Entry<String, Object> entry : tags.entrySet()) {
                 writeDictionaryEncoded(writable, entry.getKey());
                 writeDictionaryEncoded(writable, entry.getValue());
               }
             }
-            for (Map.Entry<String, Object> entry : tags.entrySet()) {
-              writeDictionaryEncoded(writable, entry.getKey());
-              writeDictionaryEncoded(writable, entry.getValue());
-            }
-          }
-        });
+          });
       /* 11  */
       writable.startMap(span.getMetrics().size());
       for (Map.Entry<String, Number> entry : span.getMetrics().entrySet()) {
