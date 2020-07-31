@@ -42,7 +42,7 @@ class ScopeManagerTest extends DDSpecification {
   }
 
   def cleanup() {
-    ContinuableScopeManager.tlsScope.remove()
+    scopeManager.tlsScopeStack.get().clear()
   }
 
   def "non-ddspan activation results in a continuable scope"() {
@@ -313,21 +313,21 @@ class ScopeManagerTest extends DDSpecification {
     scope.setAsyncPropagation(true)
 
     expect:
-    scopeManager.tlsScope.get() == scope
+    scopeManager.active() == scope
 
     when:
     def cont = scope.capture()
     scope.close()
 
     then:
-    scopeManager.tlsScope.get() == null
+    scopeManager.active() == null
 
     when:
     def newScope = cont.activate()
 
     then:
     newScope != scope
-    scopeManager.tlsScope.get() == newScope
+    scopeManager.active() == newScope
   }
 
   def "test activating same scope multiple times"() {

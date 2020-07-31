@@ -14,6 +14,7 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.Set;
+import java.util.Stack;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -28,7 +29,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ContinuableScopeManager extends ScopeInterceptor.DelegatingInterceptor
     implements AgentScopeManager {
-  static final ThreadLocal<ContinuableScope> tlsScope = new ThreadLocal<>();
+  // static final ThreadLocal<ContinuableScope> tlsScope = new ThreadLocal<>();
+  final ThreadLocal<ScopeStack> tlsScopeStack = new ThreadLocal<ScopeStack>() {
+    @Override
+    protected final ScopeStack initialValue() {
+      return new ScopeStack();
+    }
+  };
 
   private final List<ScopeListener> scopeListeners;
   private final int depthLimit;
@@ -66,15 +73,17 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
   @Override
   public AgentScope activate(final AgentSpan span, final ScopeSource source) {
-    final ContinuableScope active = tlsScope.get();
+    final ContinuableScope active = tlsScopeStack.get().top();
+
     if (active != null && active.span().equals(span)) {
-      return active.incrementReferences();
+      active.incrementReferences();
+      return active;
     }
-    final int currentDepth = active == null ? 0 : active.depth();
-    if (depthLimit <= currentDepth) {
-      log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-      return AgentTracer.NoopAgentScope.INSTANCE;
-    }
+//    final int currentDepth = active == null ? 0 : active.depth();
+//    if (depthLimit <= currentDepth) {
+//      log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
+//      return AgentTracer.NoopAgentScope.INSTANCE;
+//    }
     return handleSpan(null, span, source);
   }
 
@@ -87,19 +96,19 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       final Continuation continuation, final AgentSpan span, final ScopeSource source) {
     final ContinuableScope scope =
         new ContinuableScope(this, continuation, delegate.handleSpan(span), source);
-    tlsScope.set(scope);
+    tlsScopeStack.get().push(scope);
     scope.afterActivated();
     return scope;
   }
 
   @Override
   public TraceScope active() {
-    return tlsScope.get();
+    return tlsScopeStack.get().top();
   }
 
   @Override
   public AgentSpan activeSpan() {
-    final Scope active = tlsScope.get();
+    final Scope active = tlsScopeStack.get().top();
     return active == null ? null : active.span();
   }
 
@@ -112,13 +121,12 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     private final ContinuableScopeManager scopeManager;
 
     /** Scope to placed in the thread local after close. May be null. */
-    private final ContinuableScope toRestore;
+    // private final ContinuableScope toRestore;
+
     /** Continuation that created this scope. May be null. */
     private final ContinuableScopeManager.Continuation continuation;
     /** Flag to propagate this scope across async boundaries. */
     private final AtomicBoolean isAsyncPropagating = new AtomicBoolean(false);
-    /** depth of scope on thread */
-    private final int depth;
 
     private final ScopeSource source;
 
@@ -133,19 +141,22 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       assert delegate.span() != null;
       this.scopeManager = scopeManager;
       this.continuation = continuation;
-      toRestore = tlsScope.get();
-      depth = toRestore == null ? 0 : toRestore.depth() + 1;
       this.source = source;
     }
 
     @Override
     public void close() {
+      //
       if (referenceCount.decrementAndGet() > 0) {
         return;
       }
 
-      if (tlsScope.get() != this) {
-        log.debug("Tried to close {} scope when {} is on top. Ignoring!", this, tlsScope.get());
+      boolean compliant = scopeManager.tlsScopeStack.get().tryPop(this);
+
+      if (!compliant) {
+        if ( log.isDebugEnabled() ) {
+          log.debug("Tried to close {} scope when not on top. Ignoring!", this, scopeManager.tlsScopeStack.get().top());
+        }
 
         scopeManager.statsDClient.incrementCounter("scope.close.error");
 
@@ -163,18 +174,12 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       if (null != continuation) {
         span().context().getTrace().cancelContinuation(continuation);
       }
-      tlsScope.set(toRestore);
 
       super.close();
     }
 
-    public int depth() {
-      return depth;
-    }
-
-    public Scope incrementReferences() {
+    final void incrementReferences() {
       referenceCount.incrementAndGet();
-      return this;
     }
 
     @Override
@@ -206,6 +211,26 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     @Override
     public String toString() {
       return super.toString() + "->" + span();
+    }
+  }
+
+  private static final class ScopeStack {
+    final Stack<ContinuableScope> stack = new Stack<>();
+
+    final ContinuableScope top() {
+      if ( stack.isEmpty() ) return null;
+
+      return stack.peek();
+    }
+
+    final void push(ContinuableScope scope) {
+      stack.push(scope);
+    }
+
+    boolean tryPop(ContinuableScope expectedScope) {
+      boolean isTop = expectedScope.equals(top());
+      if ( isTop ) stack.pop();
+      return isTop;
     }
   }
 
