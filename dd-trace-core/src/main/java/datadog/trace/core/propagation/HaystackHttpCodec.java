@@ -112,8 +112,9 @@ public class HaystackHttpCodec {
 
     private static final int TRACE_ID = 0;
     private static final int SPAN_ID = 1;
-    private static final int TAGS = 2;
-    private static final int BAGGAGE = 3;
+    private static final int PARENT_ID = 2;
+    private static final int TAGS = 3;
+    private static final int BAGGAGE = 4;
     private static final int IGNORE = -1;
 
     private HaystackContextInterpreter(Map<String, String> taggedHeaders) {
@@ -136,6 +137,11 @@ public class HaystackHttpCodec {
             classification = SPAN_ID;
           }
           break;
+        case 'p':
+          if (PARENT_ID_KEY.equalsIgnoreCase(key)) {
+            classification = PARENT_ID;
+          }
+          break;
         case 'b':
           lowerCaseKey = toLowerCase(key);
           if (lowerCaseKey.startsWith(BAGGAGE_PREFIX_LC)) {
@@ -155,10 +161,15 @@ public class HaystackHttpCodec {
           if (null != firstValue) {
             switch (classification) {
               case TRACE_ID:
-                traceId = DDId.from(firstValue);
+                traceId = convertUUIDToBigInt(value);
+                addBaggageItem(HAYSTACK_TRACE_ID_BAGGAGE_KEY, HttpCodec.decode(value));
                 break;
               case SPAN_ID:
-                spanId = DDId.from(firstValue);
+                spanId = convertUUIDToBigInt(value);
+                addBaggageItem(HAYSTACK_SPAN_ID_BAGGAGE_KEY, HttpCodec.decode(value));
+                break;
+              case PARENT_ID:
+                addBaggageItem(HAYSTACK_PARENT_ID_BAGGAGE_KEY, HttpCodec.decode(value));
                 break;
               case TAGS:
                 {
@@ -173,10 +184,7 @@ public class HaystackHttpCodec {
                 }
               case BAGGAGE:
                 {
-                  if (baggage.isEmpty()) {
-                    baggage = new TreeMap<>();
-                  }
-                  baggage.put(
+                  addBaggageItem(
                       lowerCaseKey.substring(BAGGAGE_PREFIX_LC.length()), HttpCodec.decode(value));
                   break;
                 }
@@ -189,6 +197,13 @@ public class HaystackHttpCodec {
         }
       }
       return true;
+    }
+
+    private void addBaggageItem(String key, String value) {
+      if (baggage.isEmpty()) {
+        baggage = new TreeMap<>();
+      }
+      baggage.put(key, HttpCodec.decode(value));
     }
 
     @Override
