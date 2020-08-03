@@ -56,7 +56,10 @@ public final class DropwizardViewInstrumentation extends Instrumenter.Default {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.This final Object obj, @Advice.Argument(0) final View view) {
+        @Advice.This final Object obj,
+        @Advice.Argument(0) final View view,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       if (activeSpan() == null) {
         return null;
       }
@@ -65,7 +68,7 @@ public final class DropwizardViewInstrumentation extends Instrumenter.Default {
               .setTag(DDTags.RESOURCE_NAME, "View " + view.getTemplateName())
               .setTag(Tags.COMPONENT, "dropwizard-view")
               .setTag("span.origin.type", obj.getClass().getSimpleName());
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

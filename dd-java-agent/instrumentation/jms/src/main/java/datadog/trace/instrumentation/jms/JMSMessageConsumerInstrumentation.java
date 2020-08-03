@@ -16,7 +16,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -78,7 +77,9 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Defaul
     public static void stopSpan(
         @Advice.This final MessageConsumer consumer,
         @Advice.Enter final long startTime,
-        @Advice.Origin final Method method,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod,
+        @Advice.Origin("JMS #m") final String resourceName,
         @Advice.Return final Message message,
         @Advice.Thrown final Throwable throwable) {
       final AgentSpan span;
@@ -91,10 +92,10 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Defaul
       }
       span.setTag("span.origin.type", consumer.getClass().getName());
 
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final AgentScope scope = activateSpan(span, originType, originMethod)) {
         CONSUMER_DECORATE.afterStart(span);
         if (message == null) {
-          CONSUMER_DECORATE.onReceive(span, method);
+          CONSUMER_DECORATE.onReceive(span, resourceName);
         } else {
           CONSUMER_DECORATE.onConsume(span, message);
         }

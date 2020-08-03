@@ -17,7 +17,9 @@ public class HandlerAdapterAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope methodEnter(
       @Advice.Argument(0) final ServerWebExchange exchange,
-      @Advice.Argument(1) final Object handler) {
+      @Advice.Argument(1) final Object handler,
+      @Advice.Origin("#t") final String originType,
+      @Advice.Origin("#m") final String originMethod) {
 
     AgentScope scope = null;
     final AgentSpan span = exchange.getAttribute(AdviceUtils.SPAN_ATTRIBUTE);
@@ -38,7 +40,7 @@ public class HandlerAdapterAdvice {
       span.setSpanName(operationName);
       span.setTag("handler.type", handlerType);
 
-      scope = activateSpan(span);
+      scope = activateSpan(span, originType, originMethod);
       scope.setAsyncPropagation(true);
     }
 

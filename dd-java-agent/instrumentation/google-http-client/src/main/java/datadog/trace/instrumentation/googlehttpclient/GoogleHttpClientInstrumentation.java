@@ -77,7 +77,10 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
 
   public static class GoogleHttpClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void methodEnter(@Advice.This final HttpRequest request) {
+    public static void methodEnter(
+        @Advice.This final HttpRequest request,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
 
       final ContextStore<HttpRequest, RequestState> contextStore =
           InstrumentationContext.get(HttpRequest.class, RequestState.class);
@@ -92,7 +95,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
       final AgentSpan span = state.getSpan();
       span.setTag(InstrumentationTags.DD_MEASURED, true);
 
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final AgentScope scope = activateSpan(span, originType, originMethod)) {
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, request);
         propagate().inject(span, request, SETTER);
@@ -103,7 +106,9 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
     public static void methodExit(
         @Advice.This final HttpRequest request,
         @Advice.Return final HttpResponse response,
-        @Advice.Thrown final Throwable throwable) {
+        @Advice.Thrown final Throwable throwable,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
 
       final ContextStore<HttpRequest, RequestState> contextStore =
           InstrumentationContext.get(HttpRequest.class, RequestState.class);
@@ -112,7 +117,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
       if (state != null) {
         final AgentSpan span = state.getSpan();
 
-        try (final AgentScope scope = activateSpan(span)) {
+        try (final AgentScope scope = activateSpan(span, originType, originMethod)) {
           DECORATE.onResponse(span, response);
           DECORATE.onError(span, throwable);
 
@@ -145,7 +150,10 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.This final HttpRequest request, @Advice.Thrown final Throwable throwable) {
+        @Advice.This final HttpRequest request,
+        @Advice.Thrown final Throwable throwable,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
 
       if (throwable != null) {
 
@@ -156,7 +164,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
         if (state != null) {
           final AgentSpan span = state.getSpan();
 
-          try (final AgentScope scope = activateSpan(span)) {
+          try (final AgentScope scope = activateSpan(span, originType, originMethod)) {
             DECORATE.onError(span, throwable);
 
             DECORATE.beforeFinish(span);

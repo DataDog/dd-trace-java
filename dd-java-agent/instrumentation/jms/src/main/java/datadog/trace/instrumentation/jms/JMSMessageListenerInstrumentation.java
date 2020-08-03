@@ -64,7 +64,10 @@ public final class JMSMessageListenerInstrumentation extends Instrumenter.Defaul
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.Argument(0) final Message message, @Advice.This final MessageListener listener) {
+        @Advice.Argument(0) final Message message,
+        @Advice.This final MessageListener listener,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
 
       final Context extractedContext = propagate().extract(message, GETTER);
 
@@ -74,7 +77,7 @@ public final class JMSMessageListenerInstrumentation extends Instrumenter.Defaul
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onReceive(span, message);
 
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateSpan(span, originType, originMethod);
       scope.setAsyncPropagation(true);
       return scope;
     }

@@ -19,10 +19,12 @@ public class ClientResponseAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
       @Advice.This final AsyncCompletionHandler<?> handler,
-      @Advice.Argument(0) final Response response) {
-    ContextStore<AsyncHandler, Pair> contextStore =
+      @Advice.Argument(0) final Response response,
+      @Advice.Origin("#t") final String originType,
+      @Advice.Origin("#m") final String originMethod) {
+    final ContextStore<AsyncHandler, Pair> contextStore =
         InstrumentationContext.get(AsyncHandler.class, Pair.class);
-    Pair<AgentSpan, AgentSpan> spanWithParent = contextStore.get(handler);
+    final Pair<AgentSpan, AgentSpan> spanWithParent = contextStore.get(handler);
     if (null != spanWithParent) {
       contextStore.put(handler, null);
     }
@@ -31,7 +33,9 @@ public class ClientResponseAdvice {
       DECORATE.beforeFinish(spanWithParent.getRight());
       spanWithParent.getRight().finish();
     }
-    return spanWithParent.hasLeft() ? activateSpan(spanWithParent.getLeft()) : null;
+    return spanWithParent.hasLeft()
+        ? activateSpan(spanWithParent.getLeft(), originType, originMethod)
+        : null;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -17,7 +17,9 @@ public abstract class HttpServerTestAdvice {
    */
   public static class ServerEntryAdvice {
     @Advice.OnMethodEnter
-    public static AgentScope methodEnter() {
+    public static AgentScope methodEnter(
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       if (!HttpServerTest.ENABLE_TEST_ADVICE.get()) {
         // Skip if not running the HttpServerTest.
         return null;
@@ -26,7 +28,7 @@ public abstract class HttpServerTestAdvice {
         return null;
       } else {
         final AgentSpan span = startSpan("TEST_SPAN").setTag(DDTags.RESOURCE_NAME, "ServerEntry");
-        final AgentScope scope = activateSpan(span);
+        final AgentScope scope = activateSpan(span, originType, originMethod);
         scope.setAsyncPropagation(true);
         return scope;
       }

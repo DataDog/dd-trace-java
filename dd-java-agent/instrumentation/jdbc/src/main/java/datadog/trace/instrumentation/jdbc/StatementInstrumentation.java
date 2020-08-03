@@ -60,7 +60,10 @@ public final class StatementInstrumentation extends Instrumenter.Default {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.Argument(0) final String sql, @Advice.This final Statement statement) {
+        @Advice.Argument(0) final String sql,
+        @Advice.This final Statement statement,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final Connection connection = connectionFromStatement(statement);
       if (connection == null) {
         return null;
@@ -76,7 +79,7 @@ public final class StatementInstrumentation extends Instrumenter.Default {
       DECORATE.onConnection(span, connection);
       DECORATE.onStatement(span, sql);
       span.setTag("span.origin.type", statement.getClass().getName());
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

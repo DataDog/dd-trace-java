@@ -62,13 +62,16 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
 
   public static class TestStartedAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void startTest(@Advice.Argument(0) final Description description) {
+    public static void startTest(
+        @Advice.Argument(0) final Description description,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       if (DECORATE.skipTrace(description)) {
         return;
       }
 
       final AgentSpan span = startSpan("junit.test");
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateSpan(span, originType, originMethod);
       scope.setAsyncPropagation(true);
 
       DECORATE.afterStart(span);

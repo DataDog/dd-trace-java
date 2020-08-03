@@ -51,7 +51,10 @@ public final class DataSourceInstrumentation extends Instrumenter.Default {
   public static class GetConnectionAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope start(@Advice.This final DataSource ds) {
+    public static AgentScope start(
+        @Advice.This final DataSource ds,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       if (activeSpan() == null) {
         // Don't want to generate a new top-level span
         return null;
@@ -62,7 +65,7 @@ public final class DataSourceInstrumentation extends Instrumenter.Default {
 
       span.setTag(DDTags.RESOURCE_NAME, ds.getClass().getSimpleName() + ".getConnection");
 
-      final AgentScope agentScope = activateSpan(span);
+      final AgentScope agentScope = activateSpan(span, originType, originMethod);
       agentScope.setAsyncPropagation(true);
       return agentScope;
     }

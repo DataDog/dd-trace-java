@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
-import java.lang.reflect.Method;
 import javax.jms.Destination;
 import javax.jms.Message;
 import javax.jms.Queue;
@@ -24,7 +23,7 @@ public final class JMSDecorator extends ClientDecorator {
   public static final JMSDecorator CONSUMER_DECORATE =
       new JMSDecorator(Tags.SPAN_KIND_CONSUMER, DDSpanTypes.MESSAGE_CONSUMER);
 
-  public JMSDecorator(String spanKind, String spanType) {
+  public JMSDecorator(final String spanKind, final String spanType) {
     this.spanKind = spanKind;
     this.spanType = spanType;
   }
@@ -59,8 +58,8 @@ public final class JMSDecorator extends ClientDecorator {
     span.setTag(InstrumentationTags.DD_MEASURED, true);
   }
 
-  public void onReceive(final AgentSpan span, final Method method) {
-    span.setTag(DDTags.RESOURCE_NAME, "JMS " + method.getName());
+  public void onReceive(final AgentSpan span, final String method) {
+    span.setTag(DDTags.RESOURCE_NAME, method);
   }
 
   public void onReceive(final AgentSpan span, final Message message) {

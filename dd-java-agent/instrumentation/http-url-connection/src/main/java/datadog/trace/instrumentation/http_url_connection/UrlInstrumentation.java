@@ -52,6 +52,8 @@ public class UrlInstrumentation extends Instrumenter.Default {
     public static void errorSpan(
         @Advice.This final URL url,
         @Advice.Thrown final Throwable throwable,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod,
         @Advice.FieldValue("handler") final URLStreamHandler handler) {
       if (throwable != null) {
         // Various agent components end up calling `openConnection` indirectly
@@ -70,7 +72,7 @@ public class UrlInstrumentation extends Instrumenter.Default {
                 .setTag(DDTags.SPAN_TYPE, DDSpanTypes.HTTP_CLIENT)
                 .setTag(Tags.COMPONENT, COMPONENT);
 
-        try (final AgentScope scope = activateSpan(span)) {
+        try (final AgentScope scope = activateSpan(span, originType, originMethod)) {
           span.setTag(Tags.HTTP_URL, url.toString());
           span.setTag(Tags.PEER_PORT, url.getPort() == -1 ? 80 : url.getPort());
           span.setTag(Tags.PEER_HOSTNAME, url.getHost());

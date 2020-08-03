@@ -64,11 +64,14 @@ public final class JedisInstrumentation extends Instrumenter.Default {
   public static class JedisAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(1) final Command command) {
+    public static AgentScope onEnter(
+        @Advice.Argument(1) final Command command,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final AgentSpan span = startSpan("redis.command");
       DECORATE.afterStart(span);
       DECORATE.onStatement(span, command.name());
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

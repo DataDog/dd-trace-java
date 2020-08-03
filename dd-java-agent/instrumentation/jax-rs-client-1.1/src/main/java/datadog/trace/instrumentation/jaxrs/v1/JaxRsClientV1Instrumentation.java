@@ -15,7 +15,6 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
-import com.sun.jersey.api.client.ClientHandler;
 import com.sun.jersey.api.client.ClientRequest;
 import com.sun.jersey.api.client.ClientResponse;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -67,7 +66,8 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Default {
     @Advice.OnMethodEnter
     public static AgentScope onEnter(
         @Advice.Argument(value = 0) final ClientRequest request,
-        @Advice.This final ClientHandler thisObj) {
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
 
       // WARNING: this might be a chain...so we only have to trace the first in the chain.
       final boolean isRootClientHandler = null == request.getProperties().get(DD_SPAN_ATTRIBUTE);
@@ -79,7 +79,7 @@ public final class JaxRsClientV1Instrumentation extends Instrumenter.Default {
         request.getProperties().put(DD_SPAN_ATTRIBUTE, span);
 
         propagate().inject(span, request.getHeaders(), SETTER);
-        return activateSpan(span);
+        return activateSpan(span, originType, originMethod);
       }
       return null;
     }

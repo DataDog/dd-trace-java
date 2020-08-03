@@ -29,8 +29,9 @@ public class Servlet2Advice {
   public static AgentScope onEnter(
       @Advice.This final Object servlet,
       @Advice.Argument(0) final ServletRequest request,
-      @Advice.Argument(value = 1, typing = Assigner.Typing.DYNAMIC)
-          final ServletResponse response) {
+      @Advice.Argument(value = 1, typing = Assigner.Typing.DYNAMIC) final ServletResponse response,
+      @Advice.Origin("#t") final String originType,
+      @Advice.Origin("#m") final String originMethod) {
 
     final boolean hasServletTrace = request.getAttribute(DD_SPAN_ATTRIBUTE) instanceof AgentSpan;
     final boolean invalidRequest = !(request instanceof HttpServletRequest);
@@ -61,7 +62,7 @@ public class Servlet2Advice {
     DECORATE.onConnection(span, httpServletRequest);
     DECORATE.onRequest(span, httpServletRequest);
 
-    final AgentScope scope = activateSpan(span);
+    final AgentScope scope = activateSpan(span, originType, originMethod);
     scope.setAsyncPropagation(true);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);

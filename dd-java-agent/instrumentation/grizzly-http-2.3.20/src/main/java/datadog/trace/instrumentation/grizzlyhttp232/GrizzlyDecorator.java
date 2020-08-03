@@ -63,26 +63,30 @@ public class GrizzlyDecorator
   }
 
   public static void onHttpServerFilterPrepareResponseExit(
-      FilterChainContext ctx, HttpResponsePacket responsePacket) {
-    AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
+      final FilterChainContext ctx, final HttpResponsePacket responsePacket) {
+    final AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
     DECORATE.onResponse(span, responsePacket);
     span.finish();
     ctx.getAttributes().removeAttribute(DD_SPAN_ATTRIBUTE);
     ctx.getAttributes().removeAttribute(DD_RESPONSE_ATTRIBUTE);
   }
 
-  public static void onHttpCodecFilterExit(FilterChainContext ctx, HttpHeader httpHeader) {
+  public static void onHttpCodecFilterExit(
+      final FilterChainContext ctx,
+      final HttpHeader httpHeader,
+      final String originType,
+      final String originMethod) {
     // only create a span if there isn't another one attached to the current ctx
     // and if the httpHeader has been parsed into a HttpRequestPacket
     if (ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE) != null
         || !(httpHeader instanceof HttpRequestPacket)) {
       return;
     }
-    HttpRequestPacket httpRequest = (HttpRequestPacket) httpHeader;
-    HttpResponsePacket httpResponse = httpRequest.getResponse();
-    AgentSpan span =
+    final HttpRequestPacket httpRequest = (HttpRequestPacket) httpHeader;
+    final HttpResponsePacket httpResponse = httpRequest.getResponse();
+    final AgentSpan span =
         startSpan(GRIZZLY_REQUEST, propagate().extract(httpHeader, ExtractAdapter.GETTER));
-    AgentScope scope = activateSpan(span);
+    final AgentScope scope = activateSpan(span, originType, originMethod);
     scope.setAsyncPropagation(true);
     DECORATE.afterStart(span);
     ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);
@@ -92,8 +96,8 @@ public class GrizzlyDecorator
     scope.close();
   }
 
-  public static void onFilterChainFail(FilterChainContext ctx, Throwable throwable) {
-    AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
+  public static void onFilterChainFail(final FilterChainContext ctx, final Throwable throwable) {
+    final AgentSpan span = (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE);
     if (null != span) {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span).finish();

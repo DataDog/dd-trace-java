@@ -67,7 +67,10 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Default {
   public static class HandleAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(@Advice.Argument(0) final Request request) {
+    public static AgentScope methodEnter(
+        @Advice.Argument(0) final Request request,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       if (request.getAttribute(DD_SPAN_ATTRIBUTE) != null) {
         return null;
       }
@@ -79,7 +82,7 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Default {
       DECORATE.onConnection(span, request);
       DECORATE.onRequest(span, request);
 
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateSpan(span, originType, originMethod);
       scope.setAsyncPropagation(true);
 
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);

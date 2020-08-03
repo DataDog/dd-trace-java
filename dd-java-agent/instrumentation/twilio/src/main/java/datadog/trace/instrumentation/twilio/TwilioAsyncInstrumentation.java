@@ -89,7 +89,10 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Default {
     /** Method entry instrumentation. */
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
-        @Advice.This final Object that, @Advice.Origin("#m") final String methodName) {
+        @Advice.This final Object that,
+        @Advice.Origin("#m") final String methodName,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
 
       // Ensure that we only create a span for the top-level Twilio client method; except in the
       // case of async operations where we want visibility into how long the task was delayed from
@@ -105,7 +108,7 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Default {
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateSpan(span, originType, originMethod);
       // Enable async propagation, so the newly spawned task will be associated back with this
       // original trace.
       scope.setAsyncPropagation(true);

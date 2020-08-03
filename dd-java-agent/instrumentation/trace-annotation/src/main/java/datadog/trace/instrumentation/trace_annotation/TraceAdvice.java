@@ -31,7 +31,8 @@ public class TraceAdvice {
     span.setTag(DDTags.RESOURCE_NAME, resourceName);
     DECORATE.afterStart(span);
 
-    final AgentScope scope = activateSpan(span);
+    final AgentScope scope =
+        activateSpan(span, method.getDeclaringClass().getName(), method.getName());
     scope.setAsyncPropagation(true);
     return scope;
   }

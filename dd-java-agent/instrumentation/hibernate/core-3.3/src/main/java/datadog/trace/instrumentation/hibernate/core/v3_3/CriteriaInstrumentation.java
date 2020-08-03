@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.lang.reflect.Method;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -47,13 +46,14 @@ public class CriteriaInstrumentation extends AbstractHibernateInstrumentation {
     public static SessionState startMethod(
         @Advice.This final Criteria criteria,
         @Advice.Origin("hibernate.criteria.#m") final String operationName,
-        @Advice.Origin final Method origin) {
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
 
       final ContextStore<Criteria, SessionState> contextStore =
           InstrumentationContext.get(Criteria.class, SessionState.class);
 
       return SessionMethodUtils.startScopeFrom(
-          contextStore, criteria, origin, operationName, null, true);
+          contextStore, criteria, originType, originMethod, operationName, null, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -54,7 +54,10 @@ public final class JedisInstrumentation extends Instrumenter.Default {
   public static class JedisAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(1) final ProtocolCommand command) {
+    public static AgentScope onEnter(
+        @Advice.Argument(1) final ProtocolCommand command,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final AgentSpan span = startSpan("redis.command");
       DECORATE.afterStart(span);
       if (command instanceof Protocol.Command) {
@@ -64,7 +67,7 @@ public final class JedisInstrumentation extends Instrumenter.Default {
         // us if that changes
         DECORATE.onStatement(span, new String(command.getRaw()));
       }
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -64,7 +64,7 @@ public final class RmiServerInstrumentation extends Instrumenter.Default {
           .setTag("span.origin.type", thiz.getClass().getCanonicalName());
 
       DECORATE.afterStart(span);
-      return activateSpan(span);
+      return activateSpan(span, method.getDeclaringClass().getName(), method.getName());
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

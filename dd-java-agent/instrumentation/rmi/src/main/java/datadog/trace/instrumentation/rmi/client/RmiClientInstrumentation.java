@@ -51,7 +51,10 @@ public final class RmiClientInstrumentation extends Instrumenter.Default {
 
   public static class RmiClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(value = 1) final Method method) {
+    public static AgentScope onEnter(
+        @Advice.Argument(value = 1) final Method method,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       if (activeSpan() == null) {
         return null;
       }
@@ -61,7 +64,7 @@ public final class RmiClientInstrumentation extends Instrumenter.Default {
               .setTag("span.origin.type", method.getDeclaringClass().getCanonicalName());
 
       DECORATE.afterStart(span);
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

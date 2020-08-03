@@ -41,6 +41,11 @@ public class AgentTracer {
     return get().activateSpan(span, ScopeSource.INSTRUMENTATION);
   }
 
+  public static AgentScope activateSpan(
+      final AgentSpan span, final String originType, final String originMethod) {
+    return get().activateSpan(span, ScopeSource.INSTRUMENTATION);
+  }
+
   public static AgentSpan activeSpan() {
     return get().activeSpan();
   }

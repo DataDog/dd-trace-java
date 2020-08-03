@@ -5,7 +5,6 @@ import static datadog.trace.instrumentation.couchbase.client.CouchbaseClientDeco
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.rxjava.TracedOnSubscribe;
-import java.lang.reflect.Method;
 import rx.Observable;
 
 public class CouchbaseOnSubscribe extends TracedOnSubscribe {
@@ -13,13 +12,14 @@ public class CouchbaseOnSubscribe extends TracedOnSubscribe {
   private final String bucket;
 
   public CouchbaseOnSubscribe(
-      final Observable originalObservable, final Method method, final String bucket) {
+      final Observable originalObservable,
+      final String originType,
+      final String originMethod,
+      final String bucket) {
     super(originalObservable, "couchbase.call", DECORATE);
 
-    final Class<?> declaringClass = method.getDeclaringClass();
-    final String className =
-        declaringClass.getSimpleName().replace("CouchbaseAsync", "").replace("DefaultAsync", "");
-    resourceName = className + "." + method.getName();
+    final String className = originType.replace("CouchbaseAsync", "").replace("DefaultAsync", "");
+    resourceName = className + "." + originMethod;
     this.bucket = bucket;
   }
 

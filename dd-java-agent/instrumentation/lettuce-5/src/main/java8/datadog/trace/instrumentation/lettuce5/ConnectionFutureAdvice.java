@@ -13,11 +13,14 @@ import net.bytebuddy.asm.Advice;
 public class ConnectionFutureAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(@Advice.Argument(1) final RedisURI redisUri) {
+  public static AgentScope onEnter(
+      @Advice.Argument(1) final RedisURI redisUri,
+      @Advice.Origin("#t") final String originType,
+      @Advice.Origin("#m") final String originMethod) {
     final AgentSpan span = startSpan("redis.query");
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, redisUri);
-    return activateSpan(span);
+    return activateSpan(span, originType, originMethod);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

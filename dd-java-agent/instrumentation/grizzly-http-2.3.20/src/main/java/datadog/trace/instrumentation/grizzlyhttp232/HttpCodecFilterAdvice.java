@@ -11,7 +11,9 @@ public class HttpCodecFilterAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void onExit(
       @Advice.Argument(0) final FilterChainContext ctx,
-      @Advice.Argument(1) final HttpHeader httpHeader) {
-    onHttpCodecFilterExit(ctx, httpHeader);
+      @Advice.Argument(1) final HttpHeader httpHeader,
+      @Advice.Origin("#t") final String originType,
+      @Advice.Origin("#m") final String originMethod) {
+    onHttpCodecFilterExit(ctx, httpHeader, originType, originMethod);
   }
 }

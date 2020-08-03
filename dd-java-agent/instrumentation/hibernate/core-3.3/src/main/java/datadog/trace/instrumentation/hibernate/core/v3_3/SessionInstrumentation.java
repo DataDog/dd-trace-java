@@ -18,7 +18,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -145,22 +144,35 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startMethod(
         @Advice.This final Object session,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod,
         @Advice.Origin("hibernate.#m") final String operationName,
-        @Advice.Origin final Method origin,
         @Advice.Argument(0) final Object entity,
         @Advice.Local("startSpan") boolean startSpan) {
 
-      startSpan = !SCOPE_ONLY_METHODS.contains(origin.getName());
+      startSpan = !SCOPE_ONLY_METHODS.contains(originMethod);
       if (session instanceof Session) {
         final ContextStore<Session, SessionState> contextStore =
             InstrumentationContext.get(Session.class, SessionState.class);
         return SessionMethodUtils.startScopeFrom(
-            contextStore, (Session) session, origin, operationName, entity, startSpan);
+            contextStore,
+            (Session) session,
+            originType,
+            originMethod,
+            operationName,
+            entity,
+            startSpan);
       } else if (session instanceof StatelessSession) {
         final ContextStore<StatelessSession, SessionState> contextStore =
             InstrumentationContext.get(StatelessSession.class, SessionState.class);
         return SessionMethodUtils.startScopeFrom(
-            contextStore, (StatelessSession) session, origin, operationName, entity, startSpan);
+            contextStore,
+            (StatelessSession) session,
+            originType,
+            originMethod,
+            operationName,
+            entity,
+            startSpan);
       }
       return null;
     }

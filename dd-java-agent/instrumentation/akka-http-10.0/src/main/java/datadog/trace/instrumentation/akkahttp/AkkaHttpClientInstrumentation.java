@@ -69,7 +69,9 @@ public final class AkkaHttpClientInstrumentation extends Instrumenter.Default {
   public static class SingleRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
-        @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+        @Advice.Argument(value = 0, readOnly = false) HttpRequest request,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       /*
       Versions 10.0 and 10.1 have slightly different structure that is hard to distinguish so here
       we cast 'wider net' and avoid instrumenting twice.
@@ -92,7 +94,7 @@ public final class AkkaHttpClientInstrumentation extends Instrumenter.Default {
         // Request is immutable, so we have to assign new value once we update headers
         request = headers.getRequest();
       }
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

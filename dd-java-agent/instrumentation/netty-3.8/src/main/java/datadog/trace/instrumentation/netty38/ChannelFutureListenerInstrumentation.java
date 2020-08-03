@@ -74,7 +74,10 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Default {
 
   public static class OperationCompleteAdvice extends AbstractNettyAdvice {
     @Advice.OnMethodEnter
-    public static TraceScope activateScope(@Advice.Argument(0) final ChannelFuture future) {
+    public static TraceScope activateScope(
+        @Advice.Argument(0) final ChannelFuture future,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       /*
       Idea here is:
        - To return scope only if we have captured it.
@@ -99,7 +102,7 @@ public class ChannelFutureListenerInstrumentation extends Instrumenter.Default {
       final TraceScope parentScope = continuation.activate();
 
       final AgentSpan errorSpan = startSpan("netty.connect").setTag(Tags.COMPONENT, "netty");
-      try (final AgentScope scope = activateSpan(errorSpan)) {
+      try (final AgentScope scope = activateSpan(errorSpan, originType, originMethod)) {
         DECORATE.onError(errorSpan, cause);
         DECORATE.beforeFinish(errorSpan);
         errorSpan.finish();

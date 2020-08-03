@@ -66,7 +66,9 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope nameResourceAndStartSpan(
         @Advice.Argument(0) final HttpServletRequest request,
-        @Advice.Argument(2) final Object handler) {
+        @Advice.Argument(2) final Object handler,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       // Name the parent span based on the matching pattern
       final Object parentSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
       if (parentSpan instanceof AgentSpan) {
@@ -84,7 +86,7 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Default {
       DECORATE.afterStart(span);
       DECORATE.onHandle(span, handler);
 
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateSpan(span, originType, originMethod);
       scope.setAsyncPropagation(true);
       return scope;
     }
