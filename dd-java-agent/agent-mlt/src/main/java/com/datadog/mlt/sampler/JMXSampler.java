@@ -99,6 +99,9 @@ class JMXSampler {
       final ThreadInfo[] threadInfos = provider.getThreadInfo(tmpArray);
       // dispatch to Scopes
       for (ThreadInfo threadInfo : threadInfos) {
+        if (threadInfo == null) {
+          continue;
+        }
         ScopeManager scopeManager = threadScopeMapper.forThread(threadInfo.getThreadId());
         if (scopeManager == null) {
           continue;
