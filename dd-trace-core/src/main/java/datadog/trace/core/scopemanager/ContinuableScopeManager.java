@@ -1,7 +1,12 @@
 package datadog.trace.core.scopemanager;
 
 import com.timgroup.statsd.StatsDClient;
-import datadog.trace.bootstrap.instrumentation.api.*;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.jfr.DDScopeEventFactory;
