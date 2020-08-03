@@ -47,15 +47,18 @@ public class MLTSerializationTest {
   @Test
   public void checkConsumerWriter() {
     AtomicReference<ByteBuffer> ref = new AtomicReference<>();
-    MLTWriter.writeChunk(
+    try {
+      MLTWriter.writeChunk(
         getMltChunk(),
         bb -> {
           ref.set(bb);
         });
-    ByteBuffer bb = ref.get();
+      ByteBuffer bb = ref.get();
 
-    assertNotNull(bb);
-    LEB128ByteBufferWriter.discardBuffer();
+      assertNotNull(bb);
+    } finally {
+      LEB128ByteBufferWriter.discardBuffer();
+    }
   }
 
   @Test
