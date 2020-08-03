@@ -258,6 +258,10 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     ContinuableScope[] stack = new ContinuableScope[16];
     int topPos = -1;
 
+    /**
+     * top - accesses the top of the ScopeStack making sure the Scope on-top is still active
+     * If the top scope isn't active, then the stack is popped back to the top-most active Scope
+     */
     final ContinuableScope top() {
       int priorTopPos = this.topPos;
       if (priorTopPos == -1) return null;
@@ -297,12 +301,22 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       return null;
     }
 
+    /**
+     * Similar to top but without the fix-up behavior that skips over any closed Scopes
+     * Mostly useful in logging to avoid side effects, but could be used in other places with caution.
+     */
     final ContinuableScope noFixupTop() {
       if (topPos == -1) return null;
       return stack[topPos];
     }
 
-    final void push(ContinuableScope scope) {
+    /**
+     * Pushes a new scope unto the stack
+     * Currently, the new scope is pushed onto the stack without any stack fix-up.
+     * This works under the assumption that stack fix-up has typically already been performed as part
+     * of accessing the active scope to get the parent span.
+     */
+    final void push(final ContinuableScope scope) {
       // no proactive stack cleaning in push
       // In most cases, the span construction will have asked for the activeScope
       // and done any necessary stack clean-up
@@ -316,21 +330,31 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       stack[topPos] = scope;
     }
 
+    /**
+     * Fast check to see if the expectedScope is on top the stack -- this is done with any fix-up
+     */
     boolean checkTop(ContinuableScope expectedScope) {
       if (topPos == -1) return false;
 
       return stack[topPos].equals(expectedScope);
     }
 
+    /**
+     * Blind pop of the top stack entry
+     * This is done without fix-up, checking the stack top, or even a depth check
+     */
     void blindPop() {
       stack[topPos--] = null;
     }
 
+    /**
+     * Returns the current stack depth
+     */
     int depth() {
       return topPos + 1;
     }
 
-    // DQH - regretably needed for pre-existing tests
+    // DQH - regrettably needed for pre-existing tests
     void clear() {
       topPos = -1;
       Arrays.fill(stack, null);
