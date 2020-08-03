@@ -20,10 +20,6 @@ dependencies {
   testCompile group: 'nl.jqno.equalsverifier', name: 'equalsverifier', version: '3.3'
 }
 
-//tasks.withType(Test).configureEach {
-//  useJUnitPlatform()
-//}
-
 // TODO temporarily lowering the coverage limits - the support classes are additionally tested in mlt-agent project
 minimumInstructionCoverage = 0.5
 minimumBranchCoverage = 0.5

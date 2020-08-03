@@ -7,7 +7,7 @@ class MLTChunkTest {
   @Test
   public void equalsContract() {
     EqualsVerifier.forClass(MLTChunk.class)
-        .withIgnoredFields("stringPool", "framePool", "stackPool", "writer")
+        .withIgnoredFields("stringPool", "framePool", "stackPool", "size")
         .verify();
   }
 }

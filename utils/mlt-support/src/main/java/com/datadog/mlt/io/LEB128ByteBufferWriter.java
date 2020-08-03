@@ -130,6 +130,8 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
 
   @Override
   public void export(Consumer<ByteBuffer> consumer) {
+    ByteBuffer bb = getBuffer();
+    int limit = bb.limit();
     consumer.accept(getBuffer());
   }
 

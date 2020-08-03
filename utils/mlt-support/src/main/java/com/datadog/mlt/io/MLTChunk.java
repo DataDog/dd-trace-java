@@ -17,7 +17,8 @@ import lombok.ToString;
 @Data
 public final class MLTChunk implements IMLTChunk {
   private final byte version;
-  private final int size;
+  @EqualsAndHashCode.Exclude
+  private int size;
   private final long startTime;
   private final long duration;
   private final long threadId;
@@ -28,7 +29,23 @@ public final class MLTChunk implements IMLTChunk {
 
   private final List<FrameSequence> stacks;
 
-  @ToString.Exclude @EqualsAndHashCode.Exclude private final MLTWriter writer = new MLTWriter();
+  public MLTChunk(byte version, int size, long startTime, long duration, long threadId, String threadName, ConstantPool<String> stringPool, ConstantPool<FrameElement> framePool, ConstantPool<FrameSequence> stackPool, List<FrameSequence> stacks) {
+    this.version = version;
+    this.size = size;
+    this.startTime = startTime;
+    this.duration = duration;
+    this.threadId = threadId;
+    this.threadName = threadName;
+    this.stringPool = stringPool;
+    this.framePool = framePool;
+    this.stackPool = stackPool;
+    this.stacks = stacks;
+  }
+
+  MLTChunk(long startTime, long duration, long threadId, String threadName, ConstantPool<String> stringPool, ConstantPool<FrameElement> framePool, ConstantPool<FrameSequence> stackPool, List<FrameSequence> stacks) {
+    this(MLTConstants.VERSION, -1, startTime, duration, threadId, threadName, stringPool, framePool, stackPool, stacks);
+    stringPool.insert(0, threadName);
+  }
 
   @Generated // disable jacoco check; the method is trivial
   @Override
@@ -58,11 +75,15 @@ public final class MLTChunk implements IMLTChunk {
   // disable jacoco check; the method is trivial
   @Override
   public byte[] serialize() {
-    return writer.writeChunk(this);
+    return MLTWriter.writeChunk(this);
   }
 
   @Override
   public void serialize(Consumer<ByteBuffer> consumer) {
-    writer.writeChunk(this, consumer);
+    MLTWriter.writeChunk(this, consumer);
+  }
+
+  void adjustSize(int newSize) {
+    this.size = newSize;
   }
 }

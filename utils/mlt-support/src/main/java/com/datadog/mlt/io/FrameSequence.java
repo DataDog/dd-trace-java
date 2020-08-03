@@ -178,6 +178,6 @@ public final class FrameSequence {
   @Generated // exclude from jacoco
   @Override
   public String toString() {
-    return framesFromLeaves().map(FrameElement::toString).collect(Collectors.joining(","));
+    return framesFromLeaves().map(FrameElement::toString).collect(Collectors.joining("->"));
   }
 }

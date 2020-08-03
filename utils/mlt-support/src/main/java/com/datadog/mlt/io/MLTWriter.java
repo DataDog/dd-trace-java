@@ -2,6 +2,8 @@ package com.datadog.mlt.io;
 
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
+import lombok.NonNull;
+
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
@@ -15,7 +17,7 @@ public final class MLTWriter {
    * @param chunk the chunk
    * @return chunk in its MLT binary format
    */
-  public static byte[] writeChunk(IMLTChunk chunk) {
+  public static byte[] writeChunk(@NonNull IMLTChunk chunk) {
     if (!chunk.hasStacks()) {
       return null;
     }
@@ -26,7 +28,15 @@ public final class MLTWriter {
     return data;
   }
 
-  public static void writeChunk(IMLTChunk chunk, Consumer<ByteBuffer> dataConsumer) {
+  /**
+   * Write out the provided chunk to the given {@linkplain ByteBuffer} consumer.
+   * The consumer can assume it is the only party accessing the buffer at the given time
+   * and <b>MUST</b> properly manage the buffer by eg. resetting the position and limit once
+   * done reading the data.
+   * @param chunk the chunk to write out
+   * @param dataConsumer the consumer receiving the {@linkplain ByteBuffer} instance containing the chunk data
+   */
+  public static void writeChunk(@NonNull IMLTChunk chunk, @NonNull Consumer<ByteBuffer> dataConsumer) {
     LEB128Writer chunkWriter = LEB128Writer.getInstance();
     writeChunk(chunk, chunkWriter);
     chunkWriter.export(dataConsumer);
@@ -73,7 +83,11 @@ public final class MLTWriter {
     writeStringPool(chunk, writer, stringConstants);
     writeFramePool(chunk, writer, frameConstants);
     writeStackPool(chunk, writer, stackConstants);
-    writer.writeIntRaw(MLTConstants.CHUNK_SIZE_OFFSET, writer.position()); // write the chunk size
+    int size = writer.position();
+    writer.writeIntRaw(MLTConstants.CHUNK_SIZE_OFFSET, size); // write the chunk size
+    if (chunk instanceof MLTChunk) {
+      ((MLTChunk)chunk).adjustSize(size);
+    }
   }
 
   private static void writeStackPool(IMLTChunk chunk, LEB128Writer writer, IntSet stackConstants) {

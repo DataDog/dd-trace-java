@@ -7,4 +7,5 @@ final class MLTConstants {
   static final byte[] MAGIC = {'D', 'D', 0, 9};
   static final int EVENT_REPEAT_FLAG = 0x80000000;
   static final int EVENT_REPEAT_MASK = 0x7fffffff;
+  static final byte VERSION = 1;
 }

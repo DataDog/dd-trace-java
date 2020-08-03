@@ -1,5 +1,7 @@
 package com.datadog.mlt.io;
 
+import lombok.NonNull;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -12,9 +14,9 @@ public final class MLTReader {
    * @param data the MLT binary format data
    * @return the list of all chunks contained in the input data in order of appearance
    */
-  public static List<MLTChunk> readMLTChunks(byte[] data) {
+  public static List<IMLTChunk> readMLTChunks(@NonNull byte[] data) {
     LEB128ByteArrayReader r = new LEB128ByteArrayReader(data);
-    List<MLTChunk> chunks = new ArrayList<>();
+    List<IMLTChunk> chunks = new ArrayList<>();
     while (r.hasMore()) {
       chunks.add(readMLTChunk(r));
     }

@@ -17,7 +17,7 @@ public final class ConstantPool<T> {
 
   private int offset;
 
-  public ConstantPool() {
+  ConstantPool() {
     this(0);
   }
 
@@ -26,7 +26,7 @@ public final class ConstantPool<T> {
    *
    * @param startingIndex the index of the first inserted constant value
    */
-  public ConstantPool(int startingIndex) {
+  ConstantPool(int startingIndex) {
     this.offset = startingIndex;
   }
 
