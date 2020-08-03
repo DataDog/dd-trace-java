@@ -3,10 +3,7 @@ package com.datadog.mlt.io;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A support class for fluently building {@linkplain FrameSequence} instances.
- * Not thread-safe.
- */
+/** A support class for fluently building {@linkplain FrameSequence} instances. Not thread-safe. */
 public final class FrameSequenceBuilder {
   private final ConstantPool<String> stringConstantPool;
   private final ConstantPool<FrameElement> frameConstantPool;
@@ -17,7 +14,11 @@ public final class FrameSequenceBuilder {
 
   private boolean isBuilt;
 
-  public FrameSequenceBuilder(MLTChunkBuilder parent, ConstantPool<String> stringConstantPool, ConstantPool<FrameElement> frameConstantPool, ConstantPool<FrameSequence> stackConstantPool) {
+  public FrameSequenceBuilder(
+      MLTChunkBuilder parent,
+      ConstantPool<String> stringConstantPool,
+      ConstantPool<FrameElement> frameConstantPool,
+      ConstantPool<FrameSequence> stackConstantPool) {
     this.parent = parent;
     this.stringConstantPool = stringConstantPool;
     this.frameConstantPool = frameConstantPool;

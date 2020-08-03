@@ -2,12 +2,11 @@ package com.datadog.mlt.io;
 
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
-import lombok.NonNull;
-
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import lombok.NonNull;
 
 /** The MLT binary format writer */
 public final class MLTWriter {
@@ -29,14 +28,16 @@ public final class MLTWriter {
   }
 
   /**
-   * Write out the provided chunk to the given {@linkplain ByteBuffer} consumer.
-   * The consumer can assume it is the only party accessing the buffer at the given time
-   * and <b>MUST</b> properly manage the buffer by eg. resetting the position and limit once
-   * done reading the data.
+   * Write out the provided chunk to the given {@linkplain ByteBuffer} consumer. The consumer can
+   * assume it is the only party accessing the buffer at the given time and <b>MUST</b> properly
+   * manage the buffer by eg. resetting the position and limit once done reading the data.
+   *
    * @param chunk the chunk to write out
-   * @param dataConsumer the consumer receiving the {@linkplain ByteBuffer} instance containing the chunk data
+   * @param dataConsumer the consumer receiving the {@linkplain ByteBuffer} instance containing the
+   *     chunk data
    */
-  public static void writeChunk(@NonNull IMLTChunk chunk, @NonNull Consumer<ByteBuffer> dataConsumer) {
+  public static void writeChunk(
+      @NonNull IMLTChunk chunk, @NonNull Consumer<ByteBuffer> dataConsumer) {
     LEB128Writer chunkWriter = LEB128Writer.getInstance();
     writeChunk(chunk, chunkWriter);
     chunkWriter.export(dataConsumer);
@@ -86,7 +87,7 @@ public final class MLTWriter {
     int size = writer.position();
     writer.writeIntRaw(MLTConstants.CHUNK_SIZE_OFFSET, size); // write the chunk size
     if (chunk instanceof MLTChunk) {
-      ((MLTChunk)chunk).adjustSize(size);
+      ((MLTChunk) chunk).adjustSize(size);
     }
   }
 
@@ -151,7 +152,8 @@ public final class MLTWriter {
                 });
   }
 
-  private static void writeStringPool(IMLTChunk chunk, LEB128Writer writer, IntSet stringConstants) {
+  private static void writeStringPool(
+      IMLTChunk chunk, LEB128Writer writer, IntSet stringConstants) {
     // write constant pool array
     writer.writeInt(stringConstants.size() + 1);
     byte[] threadNameUtf = chunk.getThreadName().getBytes(StandardCharsets.UTF_8);

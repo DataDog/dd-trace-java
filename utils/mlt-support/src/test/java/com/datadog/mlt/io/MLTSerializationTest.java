@@ -1,20 +1,15 @@
 package com.datadog.mlt.io;
 
-import lombok.NonNull;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.Exchanger;
-import java.util.concurrent.Phaser;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
+import lombok.NonNull;
+import org.junit.jupiter.api.Test;
 
 public class MLTSerializationTest {
   @Test
@@ -51,10 +46,12 @@ public class MLTSerializationTest {
   @Test
   public void checkConsumerWriter() {
     AtomicReference<ByteBuffer> ref = new AtomicReference<>();
-    MLTWriter.writeChunk(getMltChunk(), bb -> {
-      bb.position(0); // reset the position
-      ref.set(bb);
-    });
+    MLTWriter.writeChunk(
+        getMltChunk(),
+        bb -> {
+          bb.position(0); // reset the position
+          ref.set(bb);
+        });
     ByteBuffer bb = ref.get();
 
     assertNotNull(bb);
@@ -78,17 +75,20 @@ public class MLTSerializationTest {
   @NonNull
   private MLTChunk getMltChunk() {
     MLTChunkBuilder builder = new MLTChunkBuilder(System.currentTimeMillis(), 1, "main");
-    MLTChunk chunk = builder
-      .addStack()
-        .addFrame("ClassA", "main", -1)
-        .addFrame("ClassA", "m1", -1)
-        .addFrame("ClassC", "m1", -1).build()
-      .addStack()
-        .addFrame("ClassB", "main", -1)
-        .addFrame("ClassA", "m2", -1)
-        .addFrame("ClassC", "m4", -1)
-        .addFrame("ClassD", "m1", -1).build()
-      .build(10000);
+    MLTChunk chunk =
+        builder
+            .addStack()
+            .addFrame("ClassA", "main", -1)
+            .addFrame("ClassA", "m1", -1)
+            .addFrame("ClassC", "m1", -1)
+            .build()
+            .addStack()
+            .addFrame("ClassB", "main", -1)
+            .addFrame("ClassA", "m2", -1)
+            .addFrame("ClassC", "m4", -1)
+            .addFrame("ClassD", "m1", -1)
+            .build()
+            .build(10000);
     return chunk;
   }
 }

@@ -3,10 +3,7 @@ package com.datadog.mlt.io;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A support class for fluently building {@linkplain IMLTChunk} instances.
- * Not thread-safe.
- */
+/** A support class for fluently building {@linkplain IMLTChunk} instances. Not thread-safe. */
 public final class MLTChunkBuilder {
   private final ConstantPool<String> stringConstantPool = new ConstantPool<>(1);
   private final ConstantPool<FrameElement> frameConstantPool = new ConstantPool<>();
@@ -36,7 +33,15 @@ public final class MLTChunkBuilder {
 
   public MLTChunk build(long duration) {
     try {
-      return new MLTChunk(startTs, duration, threadId, threadName, stringConstantPool, frameConstantPool, stackConstantPool, stacks);
+      return new MLTChunk(
+          startTs,
+          duration,
+          threadId,
+          threadName,
+          stringConstantPool,
+          frameConstantPool,
+          stackConstantPool,
+          stacks);
     } finally {
       isBuilt = true;
     }

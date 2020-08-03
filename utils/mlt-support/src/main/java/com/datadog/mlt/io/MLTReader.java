@@ -1,10 +1,9 @@
 package com.datadog.mlt.io;
 
-import lombok.NonNull;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import lombok.NonNull;
 
 /** The MLT binary format reader */
 public final class MLTReader {
