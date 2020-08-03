@@ -239,14 +239,7 @@ class OpenTracing31Test extends AgentTestRunner {
     secondScope.close()
 
     then:
-    tracer.scopeManager().active().delegate == firstScope.delegate
-    0 * _
-
-    when:
-    firstScope.close()
-
-    then:
-    0 * _
+    assert tracer.scopeManager().active() == null
   }
 
   def "test inject extract"() {
