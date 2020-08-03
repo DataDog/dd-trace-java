@@ -21,11 +21,15 @@ class JMXSampler {
           });
   private final AtomicReference<long[]> threadIds = new AtomicReference<>();
   private boolean providerFirstAccess = true;
+  private long exceptionCountBeforeLog;
+  private long exceptionCount;
 
   public JMXSampler(ThreadScopeMapper threadScopeMapper) {
     this.threadScopeMapper = threadScopeMapper;
     // TODO period as parameter
     long samplerPeriod = Long.getLong("mlt.sampler.ms", 10);
+    // rate limiting exception logging to 1 per minute
+    exceptionCountBeforeLog = samplerPeriod != 0 ? 60 * 1000 / samplerPeriod : 60 * 1000;
     executor.scheduleAtFixedRate(this::sample, 0, samplerPeriod, TimeUnit.MILLISECONDS);
   }
 
@@ -113,7 +117,10 @@ class JMXSampler {
         scopeStackCollector.collect(threadInfo.getStackTrace());
       }
     } catch (Exception ex) {
-      log.info("Exception thrown during JMX sampling:", ex);
+      if (exceptionCount % exceptionCountBeforeLog == 0) {
+        log.info("Exception thrown during JMX sampling:", ex);
+      }
+      exceptionCount++;
     }
   }
 }
