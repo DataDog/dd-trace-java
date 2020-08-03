@@ -10,20 +10,11 @@ import java.util.stream.Stream;
 import lombok.Getter;
 
 public abstract class MLTChunkCollector implements IMLTChunk {
-  /*
-   * TODO seems like subtree compression is worse than plain full-tree deduplication
-   *  when the subtree compression is finally removed this flag should go as well + subtree support in FrameSequence
-   */
-  private static final boolean USE_SUBTREE_COMPRESSION =
-      Boolean.getBoolean("mlt.subtree_compression");
-
   @Getter protected final ConstantPool<FrameElement> framePool;
   @Getter protected final ConstantPool<FrameSequence> stackPool;
   @Getter protected final ConstantPool<String> stringPool;
 
   private final IntList stacks = new IntArrayList();
-
-  private final MLTWriter chunkWriter = new MLTWriter();
 
   public MLTChunkCollector(
       StackTraceElement[] baseStack,
@@ -40,35 +31,20 @@ public abstract class MLTChunkCollector implements IMLTChunk {
     if (stackTrace.length == 0) {
       return;
     }
-    FrameSequence tree = null;
-    if (USE_SUBTREE_COMPRESSION) {
-      for (int i = stackTrace.length - 1; i >= 0; i--) {
-        StackTraceElement element = stackTrace[i];
-        tree =
-            newTree(
-                new FrameElement(
-                    element.getClassName(),
-                    element.getMethodName(),
-                    element.getLineNumber(),
-                    stringPool,
-                    framePool),
-                tree);
-      }
-    } else {
-      int[] framePtrs = new int[stackTrace.length];
-      for (int i = 0; i < stackTrace.length; i++) {
-        StackTraceElement element = stackTrace[i];
-        framePtrs[i] =
-            framePool.getOrInsert(
-                new FrameElement(
-                    element.getClassName(),
-                    element.getMethodName(),
-                    element.getLineNumber(),
-                    stringPool,
-                    framePool));
-      }
-      tree = new FrameSequence(framePtrs, framePool, stackPool);
+    FrameSequence tree;
+    int[] framePtrs = new int[stackTrace.length];
+    for (int i = 0; i < stackTrace.length; i++) {
+      StackTraceElement element = stackTrace[i];
+      framePtrs[i] =
+          framePool.getOrInsert(
+              new FrameElement(
+                  element.getClassName(),
+                  element.getMethodName(),
+                  element.getLineNumber(),
+                  stringPool,
+                  framePool));
     }
+    tree = new FrameSequence(framePtrs, framePool, stackPool);
 
     addCompressedStackptr(tree.getCpIndex());
   }
@@ -100,12 +76,12 @@ public abstract class MLTChunkCollector implements IMLTChunk {
 
   @Override
   public byte[] serialize() {
-    return chunkWriter.writeChunk(this);
+    return MLTWriter.writeChunk(this);
   }
 
   @Override
   public void serialize(Consumer<ByteBuffer> consumer) {
-    chunkWriter.writeChunk(this, consumer);
+    MLTWriter.writeChunk(this, consumer);
   }
 
   void addCompressedStackptr(int stackptr) {
@@ -142,9 +118,5 @@ public abstract class MLTChunkCollector implements IMLTChunk {
       stacks.add(topItem);
     }
     stacks.add(stackptr);
-  }
-
-  private FrameSequence newTree(FrameElement frame, FrameSequence subtree) {
-    return new FrameSequence(frame, subtree, framePool, stackPool);
   }
 }
