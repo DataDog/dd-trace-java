@@ -14,6 +14,7 @@ class PrintingWriterTest extends DDSpecification {
 
   def tracer = Mock(CoreTracer)
   def sampleTrace = [SpanFactory.newSpanOf(tracer), SpanFactory.newSpanOf(tracer)]
+  def secondTrace = [SpanFactory.newSpanOf(tracer)]
 
   def adapter = new Moshi.Builder().build().adapter(Types.newParameterizedType(Map, String, Types.newParameterizedType(List, Map)))
 
@@ -28,6 +29,27 @@ class PrintingWriterTest extends DDSpecification {
 
     then:
     result["traces"].size() == sampleTrace.size()
+    result["traces"].each {
+      assert it["service"] == "fakeService"
+      assert it["name"] == "fakeOperation"
+      assert it["resource"] == "fakeResource"
+      assert it["type"] == "fakeType"
+      assert it["trace_id"] instanceof Number
+      assert it["span_id"] instanceof Number
+      assert it["parent_id"] instanceof Number
+      assert it["start"] instanceof Number
+      assert it["duration"] instanceof Number
+      assert it["error"] == 0
+      assert it["metrics"] instanceof Map
+      assert it["meta"] instanceof Map
+    }
+
+    when:
+    writer.write(secondTrace)
+    result = adapter.fromJson(buffer.readString(StandardCharsets.UTF_8))
+
+    then:
+    result["traces"].size() == secondTrace.size()
     result["traces"].each {
       assert it["service"] == "fakeService"
       assert it["name"] == "fakeOperation"
