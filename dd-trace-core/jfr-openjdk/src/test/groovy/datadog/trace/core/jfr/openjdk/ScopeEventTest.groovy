@@ -40,7 +40,7 @@ class ScopeEventTest extends DDSpecification {
       [:],
       false,
       "fakeType",
-      null,
+      0,
       new PendingTrace(tracer, DDId.from(123)),
       tracer,
       [:])

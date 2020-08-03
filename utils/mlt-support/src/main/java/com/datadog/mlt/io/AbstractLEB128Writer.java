@@ -10,7 +10,7 @@ abstract class AbstractLEB128Writer implements LEB128Writer {
   }
 
   @Override
-  public final long writeChar(long offset, char data) {
+  public final int writeChar(int offset, char data) {
     return writeLong(offset, data & 0x000000000000ffffL);
   }
 
@@ -21,7 +21,7 @@ abstract class AbstractLEB128Writer implements LEB128Writer {
   }
 
   @Override
-  public final long writeShort(long offset, short data) {
+  public final int writeShort(int offset, short data) {
     return writeLong(offset, data & 0x000000000000ffffL);
   }
 
@@ -32,7 +32,7 @@ abstract class AbstractLEB128Writer implements LEB128Writer {
   }
 
   @Override
-  public final long writeInt(long offset, int data) {
+  public final int writeInt(int offset, int data) {
     return writeLong(offset, data & 0x00000000ffffffffL);
   }
 
@@ -43,7 +43,7 @@ abstract class AbstractLEB128Writer implements LEB128Writer {
   }
 
   @Override
-  public final long writeLong(long offset, long data) {
+  public final int writeLong(int offset, long data) {
     if ((data & LEB128Writer.COMPRESSED_INT_MASK) == 0) {
       return writeByte(offset, (byte) (data & 0xff));
     }
@@ -105,7 +105,7 @@ abstract class AbstractLEB128Writer implements LEB128Writer {
   }
 
   @Override
-  public final long writeBoolean(long offset, boolean data) {
+  public final int writeBoolean(int offset, boolean data) {
     return writeByte(offset, data ? (byte) 1 : (byte) 0);
   }
 
@@ -134,14 +134,14 @@ abstract class AbstractLEB128Writer implements LEB128Writer {
   }
 
   @Override
-  public final long writeUTF(long offset, String data) {
+  public final int writeUTF(int offset, String data) {
     return writeUTF(offset, data == null ? null : data.getBytes(StandardCharsets.UTF_8));
   }
 
   @Override
-  public final long writeUTF(long offset, byte[] data) {
+  public final int writeUTF(int offset, byte[] data) {
     int len = data == null ? 0 : data.length;
-    long pos = writeInt(offset, len);
+    int pos = writeInt(offset, len);
     if (len > 0) {
       pos = writeBytes(pos, data);
     }
@@ -161,21 +161,21 @@ abstract class AbstractLEB128Writer implements LEB128Writer {
   }
 
   @Override
-  public final long writeCompactUTF(long offset, byte[] data) {
+  public final int writeCompactUTF(int offset, byte[] data) {
     if (data == null) {
       return writeByte(offset, (byte) 0); // special NULL encoding
     }
     if (data.length == 0) {
       return writeByte(offset, (byte) 1); // special empty string encoding
     }
-    long pos = writeByte(offset, (byte) 3); // UTF-8 string
+    int pos = writeByte(offset, (byte) 3); // UTF-8 string
     pos = writeInt(pos, data.length);
     pos = writeBytes(pos, data);
     return pos;
   }
 
   @Override
-  public final long writeCompactUTF(long offset, String data) {
+  public final int writeCompactUTF(int offset, String data) {
     return writeCompactUTF(offset, data.getBytes(StandardCharsets.UTF_8));
   }
 

@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.CoreTracer
-import datadog.trace.core.DDSpanContext
+import datadog.trace.core.ExclusiveSpan
 import datadog.trace.core.SpanFactory
 import datadog.trace.util.test.DDSpecification
 
@@ -34,8 +34,8 @@ class TagInterceptorTest extends DDSpecification {
   def "adding span personalisation using Decorators"() {
     setup:
     def decorator = new AbstractTagInterceptor("foo") {
-      boolean shouldSetTag(DDSpanContext context, String tag, Object value) {
-        context.setTag("newFoo", value)
+      boolean shouldSetTag(ExclusiveSpan span, String tag, Object value) {
+        span.setTag("newFoo", value)
         return false
       }
     }

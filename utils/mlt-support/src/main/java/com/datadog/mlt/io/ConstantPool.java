@@ -6,7 +6,8 @@ import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 /**
- * A generic constant pool implementation.
+ * A generic constant pool implementation. Not thread-safe - should be used as a TLS instance or
+ * care must be taken to provide proper synchronization.
  *
  * @param <T> constant type
  */

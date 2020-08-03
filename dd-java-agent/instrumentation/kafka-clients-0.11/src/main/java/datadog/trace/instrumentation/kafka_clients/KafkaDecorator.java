@@ -11,6 +11,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
@@ -22,6 +23,15 @@ public class KafkaDecorator extends ClientDecorator {
 
   private final String spanKind;
   private final String spanType;
+
+  private static final FixedSizeCache<String, String> PRODUCER_RESOURCE_NAME_CACHE =
+      new FixedSizeCache<>(32);
+  private static final FixedSizeCache.Prefix PRODUCER_PREFIX =
+      new FixedSizeCache.Prefix("Produce Topic ");
+  private static final FixedSizeCache<String, String> CONSUMER_RESOURCE_NAME_CACHE =
+      new FixedSizeCache<>(32);
+  private static final FixedSizeCache.Prefix CONSUMER_PREFIX =
+      new FixedSizeCache.Prefix("Consume Topic ");
 
   public static final KafkaDecorator PRODUCER_DECORATE =
       new KafkaDecorator(Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);
@@ -62,7 +72,9 @@ public class KafkaDecorator extends ClientDecorator {
   public void onConsume(final AgentSpan span, final ConsumerRecord record) {
     if (record != null) {
       final String topic = record.topic() == null ? "kafka" : record.topic();
-      span.setTag(DDTags.RESOURCE_NAME, "Consume Topic " + topic);
+      span.setTag(
+          DDTags.RESOURCE_NAME,
+          CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, CONSUMER_PREFIX));
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
       span.setTag(InstrumentationTags.DD_MEASURED, true);
@@ -101,12 +113,13 @@ public class KafkaDecorator extends ClientDecorator {
 
   public void onProduce(final AgentSpan span, final ProducerRecord record) {
     if (record != null) {
-
-      final String topic = record.topic() == null ? "kafka" : record.topic();
       if (record.partition() != null) {
         span.setTag(PARTITION, record.partition());
       }
-      span.setTag(DDTags.RESOURCE_NAME, "Produce Topic " + topic);
+      final String topic = record.topic() == null ? "kafka" : record.topic();
+      span.setTag(
+          DDTags.RESOURCE_NAME,
+          PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));
       span.setTag(InstrumentationTags.DD_MEASURED, true);
     }
   }

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.opentracing;
 
 import static datadog.trace.api.DDTags.ERROR_MSG;
 import static io.opentracing.log.Fields.ERROR_OBJECT;
+import static io.opentracing.log.Fields.EVENT;
 import static io.opentracing.log.Fields.MESSAGE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -34,11 +35,16 @@ public class DefaultLogHandler implements LogHandler {
     log.debug("`log` method is not implemented. Provided log: {}", event);
   }
 
+  private boolean isErrorSpan(final Map<String, ?> map, final AgentSpan span) {
+    final String event = map.get(EVENT) instanceof String ? (String) map.get(EVENT) : "";
+    return span.isError() || event.equalsIgnoreCase("error");
+  }
+
   private void extractError(final Map<String, ?> map, final AgentSpan span) {
     if (map.get(ERROR_OBJECT) instanceof Throwable) {
       final Throwable error = (Throwable) map.get(ERROR_OBJECT);
       span.addThrowable(error);
-    } else if (map.get(MESSAGE) instanceof String) {
+    } else if (isErrorSpan(map, span) && map.get(MESSAGE) instanceof String) {
       span.setTag(ERROR_MSG, (String) map.get(MESSAGE));
     }
   }

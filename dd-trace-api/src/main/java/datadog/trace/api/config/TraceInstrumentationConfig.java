@@ -17,6 +17,7 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_EXECUTORS = "trace.executors";
   public static final String TRACE_METHODS = "trace.methods";
   public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
+  public static final String TRACE_TESTS_ENABLED = "trace.tests.enabled";
 
   public static final String HTTP_SERVER_TAG_QUERY_STRING = "http.server.tag.query-string";
   public static final String HTTP_CLIENT_TAG_QUERY_STRING = "http.client.tag.query-string";

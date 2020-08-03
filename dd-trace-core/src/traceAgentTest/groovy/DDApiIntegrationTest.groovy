@@ -39,7 +39,7 @@ class DDApiIntegrationTest extends DDSpecification {
     [:],
     false,
     "fakeType",
-    [:],
+    0,
     new PendingTrace(TRACER, DDId.ONE),
     TRACER,
     [:])

@@ -2,7 +2,7 @@ package datadog.trace.core.processor.rule;
 
 import com.google.common.io.BaseEncoding;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import datadog.trace.core.DDSpan;
+import datadog.trace.core.ExclusiveSpan;
 import datadog.trace.core.processor.TraceProcessor;
 
 public class MethodLevelTracingDataRule implements TraceProcessor.Rule {
@@ -24,7 +24,7 @@ public class MethodLevelTracingDataRule implements TraceProcessor.Rule {
   }
 
   @Override
-  public void processSpan(final DDSpan span) {
+  public void processSpan(final ExclusiveSpan span) {
     final Object mltDataObject = span.getAndRemoveTag(InstrumentationTags.DD_MLT);
 
     if (mltDataObject instanceof byte[]) {
