@@ -12,7 +12,7 @@ public final class MLTReader {
    * @param data the MLT binary format data
    * @return the list of all chunks contained in the input data in order of appearance
    */
-  public List<MLTChunk> readMLTChunks(byte[] data) {
+  public static List<MLTChunk> readMLTChunks(byte[] data) {
     LEB128ByteArrayReader r = new LEB128ByteArrayReader(data);
     List<MLTChunk> chunks = new ArrayList<>();
     while (r.hasMore()) {
@@ -21,7 +21,7 @@ public final class MLTReader {
     return chunks;
   }
 
-  private MLTChunk readMLTChunk(LEB128ByteArrayReader r) {
+  private static MLTChunk readMLTChunk(LEB128ByteArrayReader r) {
     int chunkBase = r.position();
     byte[] magic = r.readBytes(4);
     if (!Arrays.equals(MLTConstants.MAGIC, magic)) {
@@ -61,7 +61,7 @@ public final class MLTReader {
     return chunk;
   }
 
-  private List<FrameSequence> readStackEvents(
+  private static List<FrameSequence> readStackEvents(
       LEB128ByteArrayReader r, ConstantPool<FrameSequence> stackPool) {
     int eventCount = r.readInt();
     int ptr = 0;
@@ -85,7 +85,7 @@ public final class MLTReader {
     return stackElements;
   }
 
-  private ConstantPool<FrameSequence> readStackConstantPool(
+  private static ConstantPool<FrameSequence> readStackConstantPool(
       LEB128ByteArrayReader r, ConstantPool<FrameElement> framePool) {
     int cpSize;
     ConstantPool<FrameSequence> stackPool = new ConstantPool<>();
@@ -122,7 +122,7 @@ public final class MLTReader {
     return stackPool;
   }
 
-  private ConstantPool<FrameElement> readFrameConstantPool(
+  private static ConstantPool<FrameElement> readFrameConstantPool(
       LEB128ByteArrayReader r, ConstantPool<String> stringPool) {
     int cpSize;
     ConstantPool<FrameElement> framePool = new ConstantPool<>();
@@ -139,7 +139,7 @@ public final class MLTReader {
     return framePool;
   }
 
-  private ConstantPool<String> readStringConstantPool(LEB128ByteArrayReader r) {
+  private static ConstantPool<String> readStringConstantPool(LEB128ByteArrayReader r) {
     ConstantPool<String> stringPool = new ConstantPool<>();
     int cpSize = r.readInt();
     for (int i = 0; i < cpSize; i++) {

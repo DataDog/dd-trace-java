@@ -15,7 +15,7 @@ public final class MLTWriter {
    * @param chunk the chunk
    * @return chunk in its MLT binary format
    */
-  public byte[] writeChunk(IMLTChunk chunk) {
+  public static byte[] writeChunk(IMLTChunk chunk) {
     if (!chunk.hasStacks()) {
       return null;
     }
@@ -26,13 +26,13 @@ public final class MLTWriter {
     return data;
   }
 
-  public void writeChunk(IMLTChunk chunk, Consumer<ByteBuffer> dataConsumer) {
+  public static void writeChunk(IMLTChunk chunk, Consumer<ByteBuffer> dataConsumer) {
     LEB128Writer chunkWriter = LEB128Writer.getInstance();
     writeChunk(chunk, chunkWriter);
     chunkWriter.export(dataConsumer);
   }
 
-  private void writeChunk(IMLTChunk chunk, LEB128Writer writer) {
+  private static void writeChunk(IMLTChunk chunk, LEB128Writer writer) {
     writer
         .writeBytes(MLTConstants.MAGIC) // MAGIC
         .writeByte(chunk.getVersion()) // version
@@ -76,7 +76,7 @@ public final class MLTWriter {
     writer.writeIntRaw(MLTConstants.CHUNK_SIZE_OFFSET, writer.position()); // write the chunk size
   }
 
-  private void writeStackPool(IMLTChunk chunk, LEB128Writer writer, IntSet stackConstants) {
+  private static void writeStackPool(IMLTChunk chunk, LEB128Writer writer, IntSet stackConstants) {
     // write stack pool array
     writer.writeInt(stackConstants.size());
     stackConstants
@@ -120,7 +120,7 @@ public final class MLTWriter {
                 });
   }
 
-  private void writeFramePool(IMLTChunk chunk, LEB128Writer writer, IntSet frameConstants) {
+  private static void writeFramePool(IMLTChunk chunk, LEB128Writer writer, IntSet frameConstants) {
     // write frame pool array
     writer.writeInt(frameConstants.size());
     frameConstants
@@ -137,7 +137,7 @@ public final class MLTWriter {
                 });
   }
 
-  private void writeStringPool(IMLTChunk chunk, LEB128Writer writer, IntSet stringConstants) {
+  private static void writeStringPool(IMLTChunk chunk, LEB128Writer writer, IntSet stringConstants) {
     // write constant pool array
     writer.writeInt(stringConstants.size() + 1);
     byte[] threadNameUtf = chunk.getThreadName().getBytes(StandardCharsets.UTF_8);
@@ -156,7 +156,7 @@ public final class MLTWriter {
                 });
   }
 
-  private void collectStackPtrUsage(
+  private static void collectStackPtrUsage(
       int ptr,
       IntSet stringConstants,
       IntSet frameConstants,
@@ -182,7 +182,7 @@ public final class MLTWriter {
     }
   }
 
-  private void collectFramePtrUsage(
+  private static void collectFramePtrUsage(
       int ptr,
       IntSet stringConstants,
       IntSet frameConstants,
