@@ -110,7 +110,7 @@ class JMXSampler {
         scopeStackCollector.collect(threadInfo.getStackTrace());
       }
     } catch (Exception ex) {
-      log.warn("Exception thrown during JMX sampling:", ex);
+      log.info("Exception thrown during JMX sampling:", ex);
     }
   }
 }
