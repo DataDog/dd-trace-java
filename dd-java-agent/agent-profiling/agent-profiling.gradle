@@ -14,7 +14,7 @@ apply from: "$rootDir/gradle/version.gradle"
 
 dependencies {
   compile deps.slf4j
-  compile project(':dd-trace-api')
+  compile project(':internal-api')
 
   compile project(':dd-java-agent:agent-profiling:profiling-uploader')
   compile project(':dd-java-agent:agent-profiling:profiling-controller')
@@ -35,6 +35,7 @@ shadowJar {
   dependencies {
     exclude(project(':dd-java-agent:agent-bootstrap'))
     exclude(project(':dd-trace-api'))
+    exclude(project(':internal-api'))
     exclude(dependency('org.slf4j::'))
   }
 }
