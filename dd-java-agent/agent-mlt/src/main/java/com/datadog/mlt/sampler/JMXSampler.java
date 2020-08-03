@@ -86,27 +86,31 @@ class JMXSampler {
   }
 
   private void sample() {
-    long[] tmpArray = threadIds.get();
-    if (tmpArray == null || tmpArray.length == 0) {
-      return;
-    }
-    ThreadStackProvider provider = ThreadStackAccess.getCurrentThreadStackProvider();
-    if (provider instanceof NoneThreadStackProvider && providerFirstAccess) {
-      log.warn("ThreadStack provider is no op. It will not provide thread stacks.");
-      providerFirstAccess = false;
-    }
-    final ThreadInfo[] threadInfos = provider.getThreadInfo(tmpArray);
-    // dispatch to Scopes
-    for (ThreadInfo threadInfo : threadInfos) {
-      ScopeManager scopeManager = threadScopeMapper.forThread(threadInfo.getThreadId());
-      if (scopeManager == null) {
-        continue;
+    try {
+      long[] tmpArray = threadIds.get();
+      if (tmpArray == null || tmpArray.length == 0) {
+        return;
       }
-      ScopeStackCollector scopeStackCollector = scopeManager.getCurrentScope();
-      if (scopeStackCollector == null) {
-        continue;
+      ThreadStackProvider provider = ThreadStackAccess.getCurrentThreadStackProvider();
+      if (provider instanceof NoneThreadStackProvider && providerFirstAccess) {
+        log.warn("ThreadStack provider is no op. It will not provide thread stacks.");
+        providerFirstAccess = false;
       }
-      scopeStackCollector.collect(threadInfo.getStackTrace());
+      final ThreadInfo[] threadInfos = provider.getThreadInfo(tmpArray);
+      // dispatch to Scopes
+      for (ThreadInfo threadInfo : threadInfos) {
+        ScopeManager scopeManager = threadScopeMapper.forThread(threadInfo.getThreadId());
+        if (scopeManager == null) {
+          continue;
+        }
+        ScopeStackCollector scopeStackCollector = scopeManager.getCurrentScope();
+        if (scopeStackCollector == null) {
+          continue;
+        }
+        scopeStackCollector.collect(threadInfo.getStackTrace());
+      }
+    } catch (Exception ex) {
+      log.warn("Exception thrown during JMX sampling:", ex);
     }
   }
 }
