@@ -1,21 +1,15 @@
 package datadog.trace.core.scopemanager;
 
 import com.timgroup.statsd.StatsDClient;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.*;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import java.util.Stack;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,12 +25,13 @@ import lombok.extern.slf4j.Slf4j;
 public class ContinuableScopeManager extends ScopeInterceptor.DelegatingInterceptor
     implements AgentScopeManager {
   // static final ThreadLocal<ContinuableScope> tlsScope = new ThreadLocal<>();
-  final ThreadLocal<ScopeStack> tlsScopeStack = new ThreadLocal<ScopeStack>() {
-    @Override
-    protected final ScopeStack initialValue() {
-      return new ScopeStack();
-    }
-  };
+  final ThreadLocal<ScopeStack> tlsScopeStack =
+      new ThreadLocal<ScopeStack>() {
+        @Override
+        protected final ScopeStack initialValue() {
+          return new ScopeStack();
+        }
+      };
 
   private final List<ScopeListener> scopeListeners;
   private final int depthLimit;
@@ -74,17 +69,21 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
   @Override
   public AgentScope activate(final AgentSpan span, final ScopeSource source) {
-    final ContinuableScope active = tlsScopeStack.get().top();
+    ScopeStack scopeStack = scopeStack();
 
+    final ContinuableScope active = scopeStack.top();
     if (active != null && active.span().equals(span)) {
       active.incrementReferences();
       return active;
     }
-//    final int currentDepth = active == null ? 0 : active.depth();
-//    if (depthLimit <= currentDepth) {
-//      log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-//      return AgentTracer.NoopAgentScope.INSTANCE;
-//    }
+
+    // DQH - This check could go before the check above, since depth limit checking is fast
+    final int currentDepth = scopeStack.depth();
+    if (depthLimit <= currentDepth) {
+      log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
+      return AgentTracer.NoopAgentScope.INSTANCE;
+    }
+
     return handleSpan(null, span, source);
   }
 
@@ -97,25 +96,29 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       final Continuation continuation, final AgentSpan span, final ScopeSource source) {
     final ContinuableScope scope =
         new ContinuableScope(this, continuation, delegate.handleSpan(span), source);
-    tlsScopeStack.get().push(scope);
+    scopeStack().push(scope);
     scope.afterActivated();
     return scope;
   }
 
   @Override
   public TraceScope active() {
-    return tlsScopeStack.get().top();
+    return scopeStack().top();
   }
 
   @Override
   public AgentSpan activeSpan() {
-    final Scope active = tlsScopeStack.get().top();
+    final Scope active = scopeStack().top();
     return active == null ? null : active.span();
   }
 
   /** Attach a listener to scope activation events */
   public void addScopeListener(final ScopeListener listener) {
     scopeListeners.add(listener);
+  }
+
+  protected ScopeStack scopeStack() {
+    return this.tlsScopeStack.get();
   }
 
   private static final class ContinuableScope extends DelegatingScope implements Scope {
@@ -147,16 +150,25 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
     @Override
     public void close() {
-      //
-      if (referenceCount.decrementAndGet() > 0) {
-        return;
-      }
+      ScopeStack scopeStack = scopeManager.scopeStack();
 
-      boolean compliant = scopeManager.tlsScopeStack.get().tryPop(this);
+      // DQH - Aug 2020 - Preserving our broken reference counting semantics for the
+      // first round of out-of-order handling.
+      // When reference counts are being used, we don't check the stack top --
+      // so potentially we undercount errors
+      // Also we don't report closed until the reference count == 0 which seems
+      // incorrect given the OpenTracing semantics
+      // Both these issues should be corrected at a later date
 
-      if (!compliant) {
-        if ( log.isDebugEnabled() ) {
-          log.debug("Tried to close {} scope when not on top. Ignoring!", this, scopeManager.tlsScopeStack.get().top());
+      boolean alive = decrementReferences();
+      if (alive) return;
+
+      boolean onTop = scopeStack.checkTop(this);
+      if (!onTop) {
+        if (log.isDebugEnabled()) {
+          // Using noFixupTop because I don't want to have code with side effects in logging code
+          log.debug(
+              "Tried to close {} scope when not on top. Ignoring!", this, scopeStack.noFixupTop());
         }
 
         scopeManager.statsDClient.incrementCounter("scope.close.error");
@@ -175,12 +187,35 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       if (null != continuation) {
         span().context().getTrace().cancelContinuation(continuation);
       }
+      if (onTop) scopeStack.blindPop();
 
+      // DQH - As covered above, I feel our close notification semantics are incorrect with
+      // especially where reference counting is concerned.  Unfortunately, sorting out the
+      // semantics will also require sorting out the tests which have codified the ill-behavior.
+      onProperClose();
+    }
+
+    /*
+     * Exists to allow stack unwinding to do a delayed call to close when the close is
+     * finished properly.  e.g. When the scope is back on the top of the stack.
+     *
+     * DQH - If we clean-up the delegation code & notification semantics at later time,
+     * I would hope this becomes unnecessary.
+     */
+    final void onProperClose() {
       super.close();
     }
 
     final void incrementReferences() {
       referenceCount.incrementAndGet();
+    }
+
+    final boolean decrementReferences() {
+      return (referenceCount.decrementAndGet() > 0);
+    }
+
+    final boolean alive() {
+      return (referenceCount.get() != 0);
     }
 
     @Override
@@ -215,29 +250,86 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     }
   }
 
-  private static final class ScopeStack {
-    final List<ContinuableScope> stack = new ArrayList<>(32);
+  static final class ScopeStack {
+    ContinuableScope[] stack = new ContinuableScope[16];
+    int topPos = -1;
 
     final ContinuableScope top() {
-      int size = stack.size();
-      if ( size == 0 ) return null;
+      int priorTopPos = this.topPos;
+      if (priorTopPos == -1) return null;
 
-      return stack.get(size - 1);
+      // localizing & clamping stackPos to enable ArrayBoundsCheck elimination
+      // only bothering to do this here because of the loop below
+      ContinuableScope[] stackRef = this.stack;
+      priorTopPos = Math.min(priorTopPos, stack.length);
+
+      // Peel first iteration
+      ContinuableScope topScope = stack[priorTopPos];
+      if (topScope.alive()) return topScope;
+
+      // null out top position, it is no longer alive
+      stack[topPos] = null;
+
+      for (int curPos = topPos - 1; curPos >= 0; --curPos) {
+        ContinuableScope curScope = stack[curPos];
+        if (curScope.alive()) {
+          // save the position for next time
+          topPos = curPos;
+
+          if (topPos < stack.length >> 2) {
+            stack = Arrays.copyOf(stack, stack.length >> 1);
+          }
+
+          return curScope;
+        }
+
+        // no longer alive -- trigger listener & null out
+        curScope.onProperClose();
+        stack[curPos] = null;
+      }
+
+      // empty stack -- save topPos for next time
+      topPos = -1;
+      return null;
+    }
+
+    final ContinuableScope noFixupTop() {
+      if (topPos == -1) return null;
+      return stack[topPos];
     }
 
     final void push(ContinuableScope scope) {
-      stack.add(scope);
+      // no proactive stack cleaning in push
+      // In most cases, the span construction will have asked for the activeScope
+      // and done any necessary stack clean-up
+
+      ++topPos;
+      if (topPos == stack.length) {
+        // Could scan the stack for dead activations and compact before expansion.
+        // Probably not worth it
+        stack = Arrays.copyOf(stack, stack.length << 1);
+      }
+      stack[topPos] = scope;
     }
 
-    boolean tryPop(ContinuableScope expectedScope) {
-      int size = stack.size();
-      if ( size == 0 ) return false;
+    boolean checkTop(ContinuableScope expectedScope) {
+      if (topPos == -1) return false;
 
-      int topIndex = size - 1;
-      ContinuableScope topScope = stack.get(topIndex);
-      boolean isTop = topScope.equals(expectedScope);
-      if ( isTop ) stack.remove(topIndex);
-      return isTop;
+      return stack[topPos].equals(expectedScope);
+    }
+
+    void blindPop() {
+      stack[topPos--] = null;
+    }
+
+    int depth() {
+      return topPos + 1;
+    }
+
+    // DQH - regretably needed for pre-existing tests
+    void clear() {
+      topPos = -1;
+      Arrays.fill(stack, null);
     }
   }
 
@@ -256,10 +348,9 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     private final AtomicBoolean used = new AtomicBoolean(false);
 
     private Continuation(
-      final ContinuableScopeManager scopeManager,
-      final AgentSpan spanUnderScope,
-      final ScopeSource source)
-    {
+        final ContinuableScopeManager scopeManager,
+        final AgentSpan spanUnderScope,
+        final ScopeSource source) {
       this.scopeManager = scopeManager;
       this.spanUnderScope = spanUnderScope;
       this.source = source;

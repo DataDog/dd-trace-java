@@ -411,6 +411,9 @@ class ScopeManagerTest extends DDSpecification {
   }
 
   def "scope not closed when not on top"() {
+    // DQH: This test has been left unchanged from before the change to
+    // make sure all listener behavior is approximately the same.
+
     setup:
     def eventCountingLister = new EventCountingListener()
     AtomicInteger activatedCount = eventCountingLister.activatedCount
@@ -450,6 +453,52 @@ class ScopeManagerTest extends DDSpecification {
     activatedCount.get() == 2
     closedCount.get() == 2
     0 * _
+  }
+
+  def "scope closed out of order 2"() {
+    when:
+    AgentSpan firstSpan = tracer.buildSpan("foo").start()
+    AgentScope firstScope = tracer.activateSpan(firstSpan)
+
+    then:
+    tracer.activeSpan() == firstSpan
+    tracer.activeScope() == firstScope
+
+    when:
+    AgentSpan secondSpan = tracer.buildSpan("bar").start()
+    AgentScope secondScope = tracer.activateSpan(secondSpan)
+
+    then:
+    tracer.activeSpan() == secondSpan
+    tracer.activeScope() == secondScope
+
+    when:
+    AgentSpan thirdSpan = tracer.buildSpan("quux").start()
+    AgentScope thirdScope = tracer.activateSpan(thirdSpan)
+
+    then:
+    tracer.activeSpan() == thirdSpan
+    tracer.activeScope() == thirdScope
+
+    when:
+    secondScope.close()
+
+    then:
+    tracer.activeSpan() == thirdSpan
+    tracer.activeScope() == thirdScope
+
+    when:
+    thirdScope.close()
+
+    then:
+    tracer.activeSpan() == firstSpan
+    tracer.activeScope() == firstScope
+
+    when:
+    firstScope.close()
+
+    then:
+    tracer.activeScope() == null
   }
 
   boolean spanFinished(AgentSpan span) {
