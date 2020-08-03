@@ -214,12 +214,18 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       referenceCount.incrementAndGet();
     }
 
+    /**
+     * Decrements ref count -- returns true if the scope is still alive
+     */
     final boolean decrementReferences() {
       return (referenceCount.decrementAndGet() > 0);
     }
 
+    /**
+     * Returns true if the scope is still alive (non-zero ref count)
+     */
     final boolean alive() {
-      return (referenceCount.get() != 0);
+      return (referenceCount.get() > 0);
     }
 
     @Override
@@ -268,7 +274,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
       // localizing & clamping stackPos to enable ArrayBoundsCheck elimination
       // only bothering to do this here because of the loop below
-      ContinuableScope[] stackRef = this.stack;
+      ContinuableScope[] stack = this.stack;
       priorTopPos = Math.min(priorTopPos, stack.length);
 
       // Peel first iteration
@@ -313,8 +319,10 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     /**
      * Pushes a new scope unto the stack
      * Currently, the new scope is pushed onto the stack without any stack fix-up.
-     * This works under the assumption that stack fix-up has typically already been performed as part
-     * of accessing the active scope to get the parent span.
+     * This works under two assumptions...
+     * 1 - Normally, the stack doesn't need fix-up because the stack is proactively clean by Scope.close
+     * 2 - If the stack does need fix-up, it has probably already been done by calling active to get the
+     * parent scope
      */
     final void push(final ContinuableScope scope) {
       // no proactive stack cleaning in push
@@ -333,7 +341,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     /**
      * Fast check to see if the expectedScope is on top the stack -- this is done with any fix-up
      */
-    boolean checkTop(ContinuableScope expectedScope) {
+    final boolean checkTop(ContinuableScope expectedScope) {
       if (topPos == -1) return false;
 
       return stack[topPos].equals(expectedScope);
@@ -342,20 +350,22 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     /**
      * Blind pop of the top stack entry
      * This is done without fix-up, checking the stack top, or even a depth check
+     * Responsibility lies with the caller to do the diligence of calling depth or checkTop
+     * ahead of calling blindPop.
      */
-    void blindPop() {
+    final void blindPop() {
       stack[topPos--] = null;
     }
 
     /**
      * Returns the current stack depth
      */
-    int depth() {
+    final int depth() {
       return topPos + 1;
     }
 
     // DQH - regrettably needed for pre-existing tests
-    void clear() {
+    final void clear() {
       topPos = -1;
       Arrays.fill(stack, null);
     }
