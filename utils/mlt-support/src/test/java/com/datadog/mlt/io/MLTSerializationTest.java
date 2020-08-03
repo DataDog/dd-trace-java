@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
@@ -63,6 +64,8 @@ public class MLTSerializationTest {
 
     byte[] data = MLTWriter.writeChunk(chunk);
     assertNotNull(data);
+
+    System.out.println("Chunk data: " + Arrays.toString(data));
 
     List<IMLTChunk> restoredChunks = MLTReader.readMLTChunks(data);
     assertNotNull(restoredChunks);
