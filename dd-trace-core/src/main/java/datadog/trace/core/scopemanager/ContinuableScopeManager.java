@@ -29,7 +29,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ContinuableScopeManager extends ScopeInterceptor.DelegatingInterceptor
     implements AgentScopeManager {
-  // static final ThreadLocal<ContinuableScope> tlsScope = new ThreadLocal<>();
   final ThreadLocal<ScopeStack> tlsScopeStack =
       new ThreadLocal<ScopeStack>() {
         @Override
