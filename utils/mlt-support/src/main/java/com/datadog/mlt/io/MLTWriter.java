@@ -10,6 +10,8 @@ import lombok.NonNull;
 
 /** The MLT binary format writer */
 public final class MLTWriter {
+  private MLTWriter() {}
+
   /**
    * Write a single chunk to its binary format
    *

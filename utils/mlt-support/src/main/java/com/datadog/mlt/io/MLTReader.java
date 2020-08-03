@@ -7,6 +7,8 @@ import lombok.NonNull;
 
 /** The MLT binary format reader */
 public final class MLTReader {
+  private MLTReader() {}
+
   /**
    * Read all subsequent MLT chunks from the given data
    *
