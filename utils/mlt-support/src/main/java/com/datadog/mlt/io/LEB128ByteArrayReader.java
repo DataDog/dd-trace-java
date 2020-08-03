@@ -3,7 +3,7 @@ package com.datadog.mlt.io;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-/** Byte-array writer with default support for LEB128 encoded integer types */
+/** Byte-array reader with default support for LEB128 encoded integer types */
 final class LEB128ByteArrayReader {
   private static final int EXT_BIT = 0x80;
   private static final long COMPRESSED_INT_MASK = 0x7f;

@@ -34,7 +34,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeChar(long offset, char data);
+  int writeChar(int offset, char data);
 
   /**
    * Write {@linkplain Short} data in LEB128 encoding
@@ -51,7 +51,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeShort(long offset, short data);
+  int writeShort(int offset, short data);
 
   /**
    * Write {@linkplain Integer} data in LEB128 encoding
@@ -68,7 +68,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeInt(long offset, int data);
+  int writeInt(int offset, int data);
 
   /**
    * Write {@linkplain Long} data in LEB128 encoding
@@ -85,7 +85,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeLong(long offset, long data);
+  int writeLong(int offset, long data);
 
   /**
    * Write {@linkplain Float} data in default Java encoding
@@ -102,7 +102,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeFloat(long offset, float data);
+  int writeFloat(int offset, float data);
 
   /**
    * Write {@linkplain Double} data in default Java encoding
@@ -119,7 +119,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeDouble(long offset, double data);
+  int writeDouble(int offset, double data);
 
   /**
    * Write {@linkplain Boolean} data in default Java encoding
@@ -136,7 +136,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeBoolean(long offset, boolean data);
+  int writeBoolean(int offset, boolean data);
 
   /**
    * Write {@linkplain Byte} data
@@ -153,7 +153,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeByte(long offset, byte data);
+  int writeByte(int offset, byte data);
 
   /**
    * Write an array of {@linkplain Byte} elements
@@ -170,7 +170,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeBytes(long offset, byte... data);
+  int writeBytes(int offset, byte... data);
 
   /**
    * Write {@linkplain String} as a sequence of bytes representing UTF8 encoded string. The sequence
@@ -200,7 +200,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeUTF(long offset, String data);
+  int writeUTF(int offset, String data);
 
   /**
    * Write {@linkplain String} byte array data at the given offset. The sequence starts with LEB128
@@ -210,7 +210,7 @@ public interface LEB128Writer {
    * @param utf8Data the byte array representation of an UTF8 string
    * @return the writer position after the data has been written
    */
-  long writeUTF(long offset, byte[] utf8Data);
+  int writeUTF(int offset, byte[] utf8Data);
 
   /**
    * Write {@linkplain String} byte array data in special encoding. The string will translate to
@@ -232,7 +232,7 @@ public interface LEB128Writer {
    * @param utf8Data the byte array representation of an UTF8 string
    * @return the writer position after the data has been written
    */
-  long writeCompactUTF(long offset, byte[] utf8Data);
+  int writeCompactUTF(int offset, byte[] utf8Data);
 
   /**
    * Write {@linkplain String} in special encoding. The string will translate to (byte)0 for
@@ -255,7 +255,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeCompactUTF(long offset, String data);
+  int writeCompactUTF(int offset, String data);
 
   /**
    * Write {@linkplain Short} data in default Java encoding
@@ -272,7 +272,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeShortRaw(long offset, short data);
+  int writeShortRaw(int offset, short data);
 
   /**
    * Write {@linkplain Integer} data in default Java encoding
@@ -289,7 +289,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeIntRaw(long offset, int data);
+  int writeIntRaw(int offset, int data);
 
   /**
    * Write {@linkplain Long} data in default Java encoding
@@ -306,7 +306,7 @@ public interface LEB128Writer {
    * @param data the data
    * @return the writer position after the data has been written
    */
-  long writeLongRaw(long offset, long data);
+  int writeLongRaw(int offset, long data);
 
   /**
    * Transfer the written data to a byte array
