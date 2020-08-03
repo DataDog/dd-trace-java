@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
@@ -47,18 +46,14 @@ public class MLTSerializationTest {
   @Test
   public void checkConsumerWriter() {
     AtomicReference<ByteBuffer> ref = new AtomicReference<>();
-    try {
-      MLTWriter.writeChunk(
-          getMltChunk(),
-          bb -> {
-            ref.set(bb);
-          });
-      ByteBuffer bb = ref.get();
+    MLTWriter.writeChunk(
+        getMltChunk(),
+        bb -> {
+          ref.set(bb);
+        });
+    ByteBuffer bb = ref.get();
 
-      assertNotNull(bb);
-    } finally {
-      LEB128ByteBufferWriter.discardBuffer();
-    }
+    assertNotNull(bb);
   }
 
   @Test
@@ -67,8 +62,6 @@ public class MLTSerializationTest {
 
     byte[] data = MLTWriter.writeChunk(chunk);
     assertNotNull(data);
-
-    System.out.println("Chunk data: " + Arrays.toString(data));
 
     List<IMLTChunk> restoredChunks = MLTReader.readMLTChunks(data);
     assertNotNull(restoredChunks);

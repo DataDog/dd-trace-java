@@ -23,10 +23,12 @@ public final class MLTWriter {
       return null;
     }
     LEB128Writer chunkWriter = LEB128Writer.getInstance();
-    writeChunk(chunk, chunkWriter);
-    byte[] data = chunkWriter.export();
-    chunkWriter.reset();
-    return data;
+    try {
+      writeChunk(chunk, chunkWriter);
+      return chunkWriter.export();
+    } finally {
+      chunkWriter.reset();
+    }
   }
 
   /**
@@ -41,8 +43,12 @@ public final class MLTWriter {
   public static void writeChunk(
       @NonNull IMLTChunk chunk, @NonNull Consumer<ByteBuffer> dataConsumer) {
     LEB128Writer chunkWriter = LEB128Writer.getInstance();
-    writeChunk(chunk, chunkWriter);
-    chunkWriter.export(dataConsumer);
+    try {
+      writeChunk(chunk, chunkWriter);
+      chunkWriter.export(dataConsumer);
+    } finally {
+      chunkWriter.reset();
+    }
   }
 
   private static void writeChunk(IMLTChunk chunk, LEB128Writer writer) {

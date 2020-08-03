@@ -19,12 +19,7 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
   private static final ThreadLocal<SoftReference<ByteBuffer>> BUFFER_REF;
 
   static {
-    BUFFER_REF =
-        ThreadLocal.withInitial(
-            () -> {
-              System.out.println(">>> recreating TLS LEB128 ByteBuffer");
-              return new SoftReference<>(allocateBuffer(64 * 1024));
-            });
+    BUFFER_REF = ThreadLocal.withInitial(() -> new SoftReference<>(allocateBuffer(64 * 1024)));
   }
 
   private final int offset;
@@ -34,11 +29,6 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
     ByteBuffer buffer = getBuffer();
     offset = buffer.position();
     limit = buffer.limit();
-  }
-
-  // for test purposes only - allows discarding the buffer without actually reading the data
-  static void discardBuffer() {
-    BUFFER_REF.remove();
   }
 
   @Override
@@ -140,8 +130,6 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
 
   @Override
   public void export(Consumer<ByteBuffer> consumer) {
-    ByteBuffer bb = getBuffer();
-    int limit = bb.limit();
     consumer.accept(getBuffer());
   }
 
