@@ -31,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class TraceProcessingDisruptor implements AutoCloseable {
 
-  static final int DEFAULT_BUFFER_SIZE = 2 << 20; // 2MB
+  static final int DEFAULT_BUFFER_SIZE = 5 << 20; // 5MB
 
   private final Disruptor<DisruptorEvent<List<DDSpan>>> disruptor;
   private final DisruptorEvent.DataTranslator<List<DDSpan>> dataTranslator;
