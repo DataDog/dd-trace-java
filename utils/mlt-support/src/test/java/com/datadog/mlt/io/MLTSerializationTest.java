@@ -49,10 +49,10 @@ public class MLTSerializationTest {
     AtomicReference<ByteBuffer> ref = new AtomicReference<>();
     try {
       MLTWriter.writeChunk(
-        getMltChunk(),
-        bb -> {
-          ref.set(bb);
-        });
+          getMltChunk(),
+          bb -> {
+            ref.set(bb);
+          });
       ByteBuffer bb = ref.get();
 
       assertNotNull(bb);

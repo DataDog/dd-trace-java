@@ -19,10 +19,12 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
   private static final ThreadLocal<SoftReference<ByteBuffer>> BUFFER_REF;
 
   static {
-    BUFFER_REF = ThreadLocal.withInitial(() -> {
-      System.out.println(">>> recreating TLS LEB128 ByteBuffer");
-      return new SoftReference<>(allocateBuffer(64 * 1024));
-    });
+    BUFFER_REF =
+        ThreadLocal.withInitial(
+            () -> {
+              System.out.println(">>> recreating TLS LEB128 ByteBuffer");
+              return new SoftReference<>(allocateBuffer(64 * 1024));
+            });
   }
 
   private final int offset;
