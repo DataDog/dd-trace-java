@@ -49,12 +49,12 @@ public class MLTSerializationTest {
     MLTWriter.writeChunk(
         getMltChunk(),
         bb -> {
-          bb.position(0); // reset the position
           ref.set(bb);
         });
     ByteBuffer bb = ref.get();
 
     assertNotNull(bb);
+    LEB128ByteBufferWriter.discardBuffer();
   }
 
   @Test

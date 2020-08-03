@@ -31,6 +31,11 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
     limit = buffer.limit();
   }
 
+  // for test purposes only - allows discarding the buffer without actually reading the data
+  static void discardBuffer() {
+    BUFFER_REF.remove();
+  }
+
   @Override
   public void reset() {
     getBuffer().position(offset);
