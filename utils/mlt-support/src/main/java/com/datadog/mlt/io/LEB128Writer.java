@@ -2,18 +2,40 @@ package com.datadog.mlt.io;
 
 import java.nio.ByteBuffer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public interface LEB128Writer {
   int EXT_BIT = 0x80;
   long COMPRESSED_INT_MASK = -EXT_BIT;
 
   /**
-   * Get a default {@linkplain LEB128Writer} instance
+   * Execute the given code within the context of a new {@linkplain LEB128Writer} instance
    *
-   * @return a new instance of {@linkplain LEB128Writer}
+   * @param code the code to execute within the writer context
    */
-  static LEB128Writer getInstance() {
-    return new LEB128ByteBufferWriter();
+  static void execute(Consumer<LEB128Writer> code) {
+    LEB128ByteBufferWriter writer = new LEB128ByteBufferWriter();
+    try {
+      code.accept(writer);
+    } finally {
+      writer.reset();
+    }
+  }
+
+  /**
+   * Execute the given code within the context of a new {@linkplain LEB128Writer} instance
+   *
+   * @param code the code to execute within the writer context
+   * @param <R> the return value type
+   * @return the code execution result
+   */
+  static <R> R execute(Function<LEB128Writer, R> code) {
+    LEB128ByteBufferWriter writer = new LEB128ByteBufferWriter();
+    try {
+      return code.apply(writer);
+    } finally {
+      writer.reset();
+    }
   }
 
   /** Reset the writer. Discard any collected data and set position to 0. */

@@ -49,6 +49,7 @@ public class MLTSerializationTest {
     MLTWriter.writeChunk(
         getMltChunk(),
         bb -> {
+          System.out.println(">>> " + bb.position() + ", " + bb.limit());
           ref.set(bb);
         });
     ByteBuffer bb = ref.get();

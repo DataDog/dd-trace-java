@@ -22,13 +22,11 @@ public final class MLTWriter {
     if (!chunk.hasStacks()) {
       return null;
     }
-    LEB128Writer chunkWriter = LEB128Writer.getInstance();
-    try {
-      writeChunk(chunk, chunkWriter);
-      return chunkWriter.export();
-    } finally {
-      chunkWriter.reset();
-    }
+    return LEB128Writer.execute(
+        chunkWriter -> {
+          writeChunk(chunk, chunkWriter);
+          return chunkWriter.export();
+        });
   }
 
   /**
@@ -42,13 +40,11 @@ public final class MLTWriter {
    */
   public static void writeChunk(
       @NonNull IMLTChunk chunk, @NonNull Consumer<ByteBuffer> dataConsumer) {
-    LEB128Writer chunkWriter = LEB128Writer.getInstance();
-    try {
-      writeChunk(chunk, chunkWriter);
-      chunkWriter.export(dataConsumer);
-    } finally {
-      chunkWriter.reset();
-    }
+    LEB128Writer.execute(
+        chunkWriter -> {
+          writeChunk(chunk, chunkWriter);
+          chunkWriter.export(dataConsumer);
+        });
   }
 
   private static void writeChunk(IMLTChunk chunk, LEB128Writer writer) {
