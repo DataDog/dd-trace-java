@@ -68,7 +68,7 @@ public class DatadogClassLoader extends URLClassLoader {
 
   Class<?> loadFromPackage(String packageName, String name) throws ClassNotFoundException {
     if (internalJarURLHandler.getPackages().contains(packageName)) {
-      synchronized (this) {
+      synchronized (getClassLoadingLock(name)) {
         Class<?> loaded = findLoadedClass(name);
         return null == loaded ? findClass(name) : loaded;
       }
@@ -159,7 +159,7 @@ public class DatadogClassLoader extends URLClassLoader {
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
       String packageName = shared.getPackageName(name);
       if (internalJarURLHandler.getPackages().contains(packageName)) {
-        synchronized (this) {
+        synchronized (getClassLoadingLock(name)) {
           Class<?> loaded = findLoadedClass(name);
           return null == loaded ? findClass(name) : loaded;
         }
