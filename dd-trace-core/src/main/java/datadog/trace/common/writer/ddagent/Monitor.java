@@ -1,7 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
 import com.timgroup.statsd.StatsDClient;
-import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
 import java.util.List;
 
@@ -24,26 +23,26 @@ public class Monitor {
     this.statsd = statsd;
   }
 
-  public void onStart(final DDAgentWriter agentWriter) {
-    statsd.recordGaugeValue("queue.max_length", agentWriter.getDisruptorCapacity());
+  public void onStart(final int queueCapacity) {
+    statsd.recordGaugeValue("queue.max_length", queueCapacity);
   }
 
-  public void onShutdown(final DDAgentWriter agentWriter, final boolean flushSuccess) {}
+  public void onShutdown(final boolean flushSuccess) {}
 
-  public void onPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {
+  public void onPublish(final List<DDSpan> trace) {
     statsd.incrementCounter("queue.accepted");
     statsd.count("queue.accepted_lengths", trace.size());
   }
 
-  public void onFailedPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {
+  public void onFailedPublish(final List<DDSpan> trace) {
     statsd.incrementCounter("queue.dropped");
   }
 
-  public void onScheduleFlush(final DDAgentWriter agentWriter, final boolean previousIncomplete) {
+  public void onScheduleFlush(final boolean previousIncomplete) {
     // not recorded
   }
 
-  public void onFlush(final DDAgentWriter agentWriter, final boolean early) {}
+  public void onFlush(final boolean early) {}
 
   public void onSerialize(final int serializedSizeInBytes) {
     // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
@@ -51,33 +50,23 @@ public class Monitor {
     statsd.count("queue.accepted_size", serializedSizeInBytes);
   }
 
-  public void onFailedSerialize(
-      final DDAgentWriter agentWriter, final List<DDSpan> trace, final Throwable optionalCause) {
+  public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
     // TODO - DQH - make a new stat for serialization failure -- or maybe count this towards
     // api.errors???
   }
 
   public void onSend(
-      final DDAgentWriter agentWriter,
-      final int representativeCount,
-      final int sizeInBytes,
-      final DDAgentApi.Response response) {
-    onSendAttempt(agentWriter, representativeCount, sizeInBytes, response);
+      final int representativeCount, final int sizeInBytes, final DDAgentApi.Response response) {
+    onSendAttempt(representativeCount, sizeInBytes, response);
   }
 
   public void onFailedSend(
-      final DDAgentWriter agentWriter,
-      final int representativeCount,
-      final int sizeInBytes,
-      final DDAgentApi.Response response) {
-    onSendAttempt(agentWriter, representativeCount, sizeInBytes, response);
+      final int representativeCount, final int sizeInBytes, final DDAgentApi.Response response) {
+    onSendAttempt(representativeCount, sizeInBytes, response);
   }
 
   private void onSendAttempt(
-      final DDAgentWriter agentWriter,
-      final int representativeCount,
-      final int sizeInBytes,
-      final DDAgentApi.Response response) {
+      final int representativeCount, final int sizeInBytes, final DDAgentApi.Response response) {
     statsd.incrementCounter("api.requests");
     statsd.recordGaugeValue("queue.length", representativeCount);
     // TODO: missing queue.spans (# of spans being sent)

@@ -52,6 +52,13 @@ abstract class AbstractSmokeTest extends Specification {
         traceRequests.add(request)
         response.status(200).send()
       }
+      // TODO once this version if the agent is released
+      //  and it becomes the common case we should think about
+      //  bumping this
+      prefix("/v0.5/traces") {
+        traceRequests.add(request)
+        response.status(404).send()
+      }
       all {
         response.status(200).send()
       }
