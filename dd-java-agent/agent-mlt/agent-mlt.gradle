@@ -9,6 +9,8 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+minimumBranchCoverage = 0.4
+
 dependencies {
   compile deps.slf4j
   compile project(':internal-api')
