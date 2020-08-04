@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Config
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -33,7 +34,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 
 class KafkaClientTest extends AgentTestRunner {
   static {
-    System.setProperty("dd.kafka.e2e.duration.enabled", "true")
+    ConfigUtils.updateConfig {
+      System.setProperty("dd.kafka.e2e.duration.enabled", "true")
+    }
   }
 
   static final SHARED_TOPIC = "shared.topic"

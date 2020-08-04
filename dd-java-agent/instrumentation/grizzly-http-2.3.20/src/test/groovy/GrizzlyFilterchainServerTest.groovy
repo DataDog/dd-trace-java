@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.bootstrap.instrumentation.api.DDSpanNames
 import datadog.trace.instrumentation.grizzlyhttp232.GrizzlyDecorator
 import org.glassfish.grizzly.filterchain.BaseFilter
@@ -37,7 +38,9 @@ import static org.glassfish.grizzly.memory.Buffers.wrap
 class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
 
   static {
-    System.setProperty("dd.integration.grizzly-filterchain.enabled", "true")
+    ConfigUtils.updateConfig {
+      System.setProperty("dd.integration.grizzly-filterchain.enabled", "true")
+    }
   }
 
   private TCPNIOTransport transport

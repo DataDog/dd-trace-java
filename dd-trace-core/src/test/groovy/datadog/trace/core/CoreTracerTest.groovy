@@ -2,6 +2,7 @@ package datadog.trace.core
 
 import com.timgroup.statsd.NoOpStatsDClient
 import com.timgroup.statsd.NonBlockingStatsDClient
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Config
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
@@ -170,7 +171,9 @@ class CoreTracerTest extends DDSpecification {
 
   def "Shares TraceCount with DDApi with #key = #value"() {
     setup:
-    System.setProperty(PREFIX + key, value)
+    ConfigUtils.updateConfig {
+      System.setProperty(PREFIX + key, value)
+    }
     final CoreTracer tracer = CoreTracer.builder().build()
 
     expect:

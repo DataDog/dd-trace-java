@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -24,7 +25,9 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 class JettyHandlerTest extends HttpServerTest<Server> {
 
   static {
-    System.setProperty("dd.integration.jetty.enabled", "true")
+    ConfigUtils.updateConfig {
+      System.setProperty("dd.integration.jetty.enabled", "true")
+    }
   }
 
   static errorHandler = new ErrorHandler() {

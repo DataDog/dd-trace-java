@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.bootstrap.instrumentation.api.DDSpanNames
 import datadog.trace.instrumentation.grizzlyhttp232.GrizzlyDecorator
 import org.glassfish.grizzly.http.server.HttpServer
@@ -21,7 +22,9 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 class GrizzlyTest extends HttpServerTest<HttpServer> {
 
   static {
-    System.setProperty("dd.integration.grizzly-filterchain.enabled", "true")
+    ConfigUtils.updateConfig {
+      System.setProperty("dd.integration.grizzly-filterchain.enabled", "true")
+    }
   }
 
   @Override

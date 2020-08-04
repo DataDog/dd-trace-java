@@ -9,6 +9,7 @@ import com.rabbitmq.client.Envelope
 import com.rabbitmq.client.GetResponse
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -33,7 +34,9 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 class RabbitMQTest extends AgentTestRunner {
 
   static {
-    System.setProperty("dd.amqp.e2e.duration.enabled", "true")
+    ConfigUtils.updateConfig {
+      System.setProperty("dd.amqp.e2e.duration.enabled", "true")
+    }
   }
 
   /*

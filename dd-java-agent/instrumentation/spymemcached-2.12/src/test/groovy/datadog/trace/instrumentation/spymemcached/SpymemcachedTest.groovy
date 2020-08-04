@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.spymemcached
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import net.spy.memcached.CASResponse
@@ -75,7 +76,9 @@ class SpymemcachedTest extends AgentTestRunner {
     }
 
     // This setting should have no effect since decorator returns null for the instance.
-    System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
+    ConfigUtils.updateConfig {
+      System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
+    }
   }
 
   def cleanupSpec() {

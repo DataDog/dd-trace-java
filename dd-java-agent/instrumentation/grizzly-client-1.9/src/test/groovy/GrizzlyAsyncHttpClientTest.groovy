@@ -7,6 +7,7 @@ import com.ning.http.client.RequestBuilder
 import com.ning.http.client.Response
 import com.ning.http.client.uri.Uri
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.instrumentation.grizzly.client.ClientDecorator
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -14,7 +15,9 @@ import spock.lang.Shared
 class GrizzlyAsyncHttpClientTest extends HttpClientTest {
 
   static {
-    System.setProperty("dd.integration.grizzly-client.enabled", "true")
+    ConfigUtils.updateConfig {
+      System.setProperty("dd.integration.grizzly-client.enabled", "true")
+    }
   }
 
   @AutoCleanup

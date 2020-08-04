@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
 import datadog.trace.api.interceptor.MutableSpan
@@ -16,7 +17,9 @@ import spock.lang.Subject
 
 class OpenTelemetryTest extends AgentTestRunner {
   static {
-    System.setProperty("dd.integration.opentelemetry-beta.enabled", "true")
+    ConfigUtils.updateConfig {
+      System.setProperty("dd.integration.opentelemetry-beta.enabled", "true")
+    }
   }
 
   @Subject

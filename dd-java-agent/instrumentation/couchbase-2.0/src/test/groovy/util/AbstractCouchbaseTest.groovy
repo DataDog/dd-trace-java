@@ -13,6 +13,7 @@ import com.couchbase.mock.http.query.QueryServer
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -68,7 +69,9 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
     mock.createBucket(convert(bucketMemcache))
 
     // This setting should have no effect since decorator returns null for the instance.
-    System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
+    ConfigUtils.updateConfig {
+      System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
+    }
   }
 
   private static BucketConfiguration convert(BucketSettings bucketSettings) {

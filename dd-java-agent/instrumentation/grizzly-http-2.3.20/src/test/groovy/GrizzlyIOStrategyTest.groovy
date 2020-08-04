@@ -1,3 +1,4 @@
+import datadog.trace.agent.test.utils.ConfigUtils
 import org.glassfish.grizzly.IOStrategy
 import org.glassfish.grizzly.http.server.HttpServer
 import org.glassfish.grizzly.strategies.LeaderFollowerNIOStrategy
@@ -9,7 +10,9 @@ import org.glassfish.jersey.server.ResourceConfig
 abstract class GrizzlyIOStrategyTest extends GrizzlyTest {
 
   static {
-    System.setProperty("dd.integration.grizzly-http.enabled", "true")
+    ConfigUtils.updateConfig {
+      System.setProperty("dd.integration.grizzly-http.enabled", "true")
+    }
   }
 
   @Override
