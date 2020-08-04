@@ -351,6 +351,8 @@ public class Config {
   @Getter private final boolean kafkaClientPropagationEnabled;
   @Getter private final boolean kafkaClientBase64DecodingEnabled;
 
+  @Getter private final boolean hystrixTagsEnabled;
+
   @Getter private final boolean debugEnabled;
   @Getter private final String configFile;
 
@@ -611,6 +613,9 @@ public class Config {
     kafkaClientBase64DecodingEnabled =
         getBooleanSettingFromEnvironment(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
 
+    hystrixTagsEnabled =
+        getBooleanSettingFromEnvironment(TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED, false);
+
     debugEnabled = isDebugMode();
 
     // Setting this last because we have a few places where this can come from
@@ -817,6 +822,10 @@ public class Config {
     kafkaClientPropagationEnabled =
         getPropertyBooleanValue(
             properties, KAFKA_CLIENT_PROPAGATION_ENABLED, parent.kafkaClientPropagationEnabled);
+
+    hystrixTagsEnabled =
+        getBooleanSettingFromEnvironment(
+            TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED, parent.hystrixTagsEnabled);
 
     debugEnabled = parent.debugEnabled || isDebugMode();
 

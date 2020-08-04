@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.HY
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.HYSTRIX_GROUP;
 
 import com.netflix.hystrix.HystrixInvokableInfo;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
@@ -13,6 +14,16 @@ import java.util.Objects;
 
 public class HystrixDecorator extends BaseDecorator {
   public static HystrixDecorator DECORATE = new HystrixDecorator();
+
+  private final boolean extraTags;
+
+  private HystrixDecorator(boolean extraTags) {
+    this.extraTags = extraTags;
+  }
+
+  private HystrixDecorator() {
+    this(Config.get().isHystrixTagsEnabled());
+  }
 
   private static final FixedSizeCache<ResourceNameCacheKey, String> RESOURCE_NAME_CACHE =
       new FixedSizeCache<>(64);
@@ -69,9 +80,11 @@ public class HystrixDecorator extends BaseDecorator {
   public void onCommand(
       final AgentSpan span, final HystrixInvokableInfo<?> command, final String methodName) {
     if (command != null) {
-      span.setTag(HYSTRIX_COMMAND, command.getCommandKey().name());
-      span.setTag(HYSTRIX_GROUP, command.getCommandGroup().name());
-      span.setTag(HYSTRIX_CIRCUIT_OPEN, command.isCircuitBreakerOpen());
+      if (extraTags) {
+        span.setTag(HYSTRIX_COMMAND, command.getCommandKey().name());
+        span.setTag(HYSTRIX_GROUP, command.getCommandGroup().name());
+        span.setTag(HYSTRIX_CIRCUIT_OPEN, command.isCircuitBreakerOpen());
+      }
       span.setTag(
           DDTags.RESOURCE_NAME,
           RESOURCE_NAME_CACHE.computeIfAbsent(
