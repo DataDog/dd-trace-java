@@ -128,9 +128,6 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
   private static final class ContinuableScope extends DelegatingScope implements Scope {
     private final ContinuableScopeManager scopeManager;
 
-    /** Scope to placed in the thread local after close. May be null. */
-    // private final ContinuableScope toRestore;
-
     /** Continuation that created this scope. May be null. */
     private final ContinuableScopeManager.Continuation continuation;
     /** Flag to propagate this scope across async boundaries. */
@@ -171,8 +168,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       if (!onTop) {
         if (log.isDebugEnabled()) {
           // Using noFixupTop because I don't want to have code with side effects in logging code
-          log.debug(
-              "Tried to close {} scope when not on top. Ignoring!", this, scopeStack.noFixupTop());
+          log.debug("Tried to close {} scope when not on top. Ignoring!", scopeStack.noFixupTop());
         }
 
         scopeManager.statsDClient.incrementCounter("scope.close.error");
@@ -191,7 +187,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       if (null != continuation) {
         span().context().getTrace().cancelContinuation(continuation);
       }
-      if (onTop) scopeStack.blindPop();
+      scopeStack.blindPop();
 
       // DQH - As covered above, I feel our close notification semantics are incorrect with
       // especially where reference counting is concerned.  Unfortunately, sorting out the
@@ -216,12 +212,12 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
     /** Decrements ref count -- returns true if the scope is still alive */
     final boolean decrementReferences() {
-      return (referenceCount.decrementAndGet() > 0);
+      return referenceCount.decrementAndGet() > 0;
     }
 
     /** Returns true if the scope is still alive (non-zero ref count) */
     final boolean alive() {
-      return (referenceCount.get() > 0);
+      return referenceCount.get() > 0;
     }
 
     @Override
@@ -258,7 +254,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
   static final class ScopeStack {
     ContinuableScope[] stack = new ContinuableScope[16];
-    int topPos = -1;
+    int topPos = 0;
 
     /**
      * top - accesses the top of the ScopeStack making sure the Scope on-top is still active If the
@@ -266,7 +262,9 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
      */
     final ContinuableScope top() {
       int priorTopPos = this.topPos;
-      if (priorTopPos == -1) return null;
+      if (priorTopPos == 0) {
+        return null;
+      }
 
       // localizing & clamping stackPos to enable ArrayBoundsCheck elimination
       // only bothering to do this here because of the loop below
@@ -275,19 +273,21 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
       // Peel first iteration
       ContinuableScope topScope = stack[priorTopPos];
-      if (topScope.alive()) return topScope;
+      if (topScope.alive()) {
+        return topScope;
+      }
 
       // null out top position, it is no longer alive
       stack[topPos] = null;
 
-      for (int curPos = topPos - 1; curPos >= 0; --curPos) {
+      for (int curPos = topPos - 1; curPos > 0; --curPos) {
         ContinuableScope curScope = stack[curPos];
         if (curScope.alive()) {
           // save the position for next time
           topPos = curPos;
 
-          if (topPos < stack.length >> 2) {
-            stack = Arrays.copyOf(stack, stack.length >> 1);
+          if (topPos < stack.length / 4) {
+            this.stack = Arrays.copyOf(stack, stack.length / 2);
           }
 
           return curScope;
@@ -299,7 +299,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       }
 
       // empty stack -- save topPos for next time
-      topPos = -1;
+      topPos = 0;
       return null;
     }
 
@@ -308,7 +308,6 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
      * useful in logging to avoid side effects, but could be used in other places with caution.
      */
     final ContinuableScope noFixupTop() {
-      if (topPos == -1) return null;
       return stack[topPos];
     }
 
@@ -327,7 +326,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       if (topPos == stack.length) {
         // Could scan the stack for dead activations and compact before expansion.
         // Probably not worth it
-        stack = Arrays.copyOf(stack, stack.length << 1);
+        stack = Arrays.copyOf(stack, stack.length * 2);
       }
       stack[topPos] = scope;
     }
@@ -336,9 +335,7 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
      * Fast check to see if the expectedScope is on top the stack -- this is done with any fix-up
      */
     final boolean checkTop(ContinuableScope expectedScope) {
-      if (topPos == -1) return false;
-
-      return stack[topPos].equals(expectedScope);
+      return expectedScope.equals(stack[topPos]);
     }
 
     /**
@@ -352,12 +349,12 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
 
     /** Returns the current stack depth */
     final int depth() {
-      return topPos + 1;
+      return topPos;
     }
 
     // DQH - regrettably needed for pre-existing tests
     final void clear() {
-      topPos = -1;
+      topPos = 0;
       Arrays.fill(stack, null);
     }
   }
