@@ -214,16 +214,12 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
       referenceCount.incrementAndGet();
     }
 
-    /**
-     * Decrements ref count -- returns true if the scope is still alive
-     */
+    /** Decrements ref count -- returns true if the scope is still alive */
     final boolean decrementReferences() {
       return (referenceCount.decrementAndGet() > 0);
     }
 
-    /**
-     * Returns true if the scope is still alive (non-zero ref count)
-     */
+    /** Returns true if the scope is still alive (non-zero ref count) */
     final boolean alive() {
       return (referenceCount.get() > 0);
     }
@@ -265,8 +261,8 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     int topPos = -1;
 
     /**
-     * top - accesses the top of the ScopeStack making sure the Scope on-top is still active
-     * If the top scope isn't active, then the stack is popped back to the top-most active Scope
+     * top - accesses the top of the ScopeStack making sure the Scope on-top is still active If the
+     * top scope isn't active, then the stack is popped back to the top-most active Scope
      */
     final ContinuableScope top() {
       int priorTopPos = this.topPos;
@@ -308,8 +304,8 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     }
 
     /**
-     * Similar to top but without the fix-up behavior that skips over any closed Scopes
-     * Mostly useful in logging to avoid side effects, but could be used in other places with caution.
+     * Similar to top but without the fix-up behavior that skips over any closed Scopes Mostly
+     * useful in logging to avoid side effects, but could be used in other places with caution.
      */
     final ContinuableScope noFixupTop() {
       if (topPos == -1) return null;
@@ -317,12 +313,10 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     }
 
     /**
-     * Pushes a new scope unto the stack
-     * Currently, the new scope is pushed onto the stack without any stack fix-up.
-     * This works under two assumptions...
-     * 1 - Normally, the stack doesn't need fix-up because the stack is proactively clean by Scope.close
-     * 2 - If the stack does need fix-up, it has probably already been done by calling active to get the
-     * parent scope
+     * Pushes a new scope unto the stack Currently, the new scope is pushed onto the stack without
+     * any stack fix-up. This works under two assumptions... 1 - Normally, the stack doesn't need
+     * fix-up because the stack is proactively clean by Scope.close 2 - If the stack does need
+     * fix-up, it has probably already been done by calling active to get the parent scope
      */
     final void push(final ContinuableScope scope) {
       // no proactive stack cleaning in push
@@ -348,18 +342,15 @@ public class ContinuableScopeManager extends ScopeInterceptor.DelegatingIntercep
     }
 
     /**
-     * Blind pop of the top stack entry
-     * This is done without fix-up, checking the stack top, or even a depth check
-     * Responsibility lies with the caller to do the diligence of calling depth or checkTop
-     * ahead of calling blindPop.
+     * Blind pop of the top stack entry This is done without fix-up, checking the stack top, or even
+     * a depth check Responsibility lies with the caller to do the diligence of calling depth or
+     * checkTop ahead of calling blindPop.
      */
     final void blindPop() {
       stack[topPos--] = null;
     }
 
-    /**
-     * Returns the current stack depth
-     */
+    /** Returns the current stack depth */
     final int depth() {
       return topPos + 1;
     }
