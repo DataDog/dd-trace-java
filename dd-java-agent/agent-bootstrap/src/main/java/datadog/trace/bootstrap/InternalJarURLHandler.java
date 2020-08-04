@@ -12,8 +12,8 @@ import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.security.Permission;
 import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ public class InternalJarURLHandler extends URLStreamHandler {
 
   private final String name;
   private final FileNotInInternalJar notFound;
-  private final Set<String> packages = new HashSet<>();
+  private final Map<String, Object> packages = new HashMap<>();
   private final JarFile bootstrapJarFile;
 
   private static final ThreadLocal<StringBuilder> JAR_ENTRY_QUERY =
@@ -56,7 +56,7 @@ public class InternalJarURLHandler extends URLStreamHandler {
               if (name.length() > prefix) {
                 String dir = name.substring(prefix, name.length() - 1);
                 String currentPackage = dir.replace('/', '.');
-                packages.add(currentPackage);
+                packages.put(currentPackage, new Object());
               }
             }
           }
@@ -72,8 +72,12 @@ public class InternalJarURLHandler extends URLStreamHandler {
     this.bootstrapJarFile = jarFile;
   }
 
-  Set<String> getPackages() {
+  Map<String, Object> getPackages() {
     return packages;
+  }
+
+  Object getPackageLock(String packageName) {
+    return packages.get(packageName);
   }
 
   @Override

@@ -13,7 +13,7 @@ class InternalJarURLHandlerTest extends DDSpecification {
     setup:
     InternalJarURLHandler handler = new InternalJarURLHandler(dir, testJarLocation)
     expect:
-    packages == handler.getPackages()
+    packages == handler.getPackages().keySet()
 
     where:
     dir      | packages
