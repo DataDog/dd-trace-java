@@ -1,6 +1,6 @@
 package datadog.trace.core.taginterceptor;
 
-import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.ExclusiveSpan;
 
 /**
  * Span decorators are called when new tags are written and proceed to various remappings and
@@ -15,7 +15,7 @@ public abstract class AbstractTagInterceptor {
   }
 
   public abstract boolean shouldSetTag(
-      final DDSpanContext context, final String tag, final Object value);
+      final ExclusiveSpan span, final String tag, final Object value);
 
   public String getMatchingTag() {
     return matchingTag;

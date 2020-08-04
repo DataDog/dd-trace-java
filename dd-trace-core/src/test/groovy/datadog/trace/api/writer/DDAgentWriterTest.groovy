@@ -181,7 +181,7 @@ class DDAgentWriterTest extends DDSpecification {
       [:],
       false,
       "",
-      [:],
+      0,
       Mock(PendingTrace),
       Mock(CoreTracer),
       [:])
@@ -227,7 +227,7 @@ class DDAgentWriterTest extends DDSpecification {
       [:],
       false,
       "",
-      [:],
+      0,
       Mock(PendingTrace),
       Mock(CoreTracer),
       [:])

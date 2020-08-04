@@ -1,7 +1,7 @@
 package datadog.trace.core.taginterceptor;
 
 import datadog.trace.api.DDTags;
-import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.ExclusiveSpan;
 
 class ServiceNameTagInterceptor extends AbstractTagInterceptor {
 
@@ -17,8 +17,8 @@ class ServiceNameTagInterceptor extends AbstractTagInterceptor {
   }
 
   @Override
-  public boolean shouldSetTag(final DDSpanContext context, final String tag, final Object value) {
-    context.setServiceName(String.valueOf(value));
+  public boolean shouldSetTag(final ExclusiveSpan span, final String tag, final Object value) {
+    span.setServiceName(String.valueOf(value));
     return setTag;
   }
 }

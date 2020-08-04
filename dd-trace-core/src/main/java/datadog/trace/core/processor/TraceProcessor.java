@@ -3,6 +3,7 @@ package datadog.trace.core.processor;
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.ExclusiveSpan;
 import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import datadog.trace.core.processor.rule.AnalyticsSampleRateRule;
 import datadog.trace.core.processor.rule.DBStatementRule;
@@ -66,7 +67,7 @@ public class TraceProcessor {
   public interface Rule {
     String[] aliases();
 
-    void processSpan(DDSpan span);
+    void processSpan(ExclusiveSpan span);
   }
 
   public List<DDSpan> onTraceComplete(final List<DDSpan> trace) {
@@ -88,8 +89,17 @@ public class TraceProcessor {
   }
 
   private void applyRules(final DDSpan span) {
-    for (final Rule rule : rules) {
-      rule.processSpan(span);
+    if (rules.size() > 0) {
+      span.context()
+          .processExclusiveSpan(
+              new ExclusiveSpan.Consumer() {
+                @Override
+                public void accept(ExclusiveSpan span) {
+                  for (final Rule rule : rules) {
+                    rule.processSpan(span);
+                  }
+                }
+              });
     }
   }
 }

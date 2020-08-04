@@ -38,7 +38,7 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
   }
 
   @Override
-  public long writeFloat(long offset, float data) {
+  public int writeFloat(int offset, float data) {
     offset += this.offset;
     ByteBuffer buffer = ensureCapacity((int) offset, 4);
     int originalPosition = buffer.position();
@@ -51,7 +51,7 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
   }
 
   @Override
-  public long writeDouble(long offset, double data) {
+  public int writeDouble(int offset, double data) {
     offset += this.offset;
     ByteBuffer buffer = ensureCapacity((int) offset, 8);
     int originalPosition = buffer.position();
@@ -64,7 +64,7 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
   }
 
   @Override
-  public long writeByte(long offset, byte data) {
+  public int writeByte(int offset, byte data) {
     offset += this.offset;
     ByteBuffer buffer = ensureCapacity((int) offset, 1);
     int originalPosition = buffer.position();
@@ -77,7 +77,7 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
   }
 
   @Override
-  public long writeBytes(long offset, byte... data) {
+  public int writeBytes(int offset, byte... data) {
     offset += this.offset;
     ByteBuffer buffer = ensureCapacity((int) offset, data.length);
     int originalPosition = buffer.position();
@@ -90,7 +90,7 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
   }
 
   @Override
-  public long writeShortRaw(long offset, short data) {
+  public int writeShortRaw(int offset, short data) {
     offset += this.offset;
     ByteBuffer buffer = ensureCapacity((int) offset, 2);
     int originalPosition = buffer.position();
@@ -103,7 +103,7 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
   }
 
   @Override
-  public long writeIntRaw(long offset, int data) {
+  public int writeIntRaw(int offset, int data) {
     offset += this.offset;
     ByteBuffer buffer = ensureCapacity((int) offset, 4);
     int originalPosition = buffer.position();
@@ -116,7 +116,7 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
   }
 
   @Override
-  public long writeLongRaw(long offset, long data) {
+  public int writeLongRaw(int offset, long data) {
     offset += this.offset;
     ByteBuffer buffer = ensureCapacity((int) offset, 8);
     int originalPosition = buffer.position();

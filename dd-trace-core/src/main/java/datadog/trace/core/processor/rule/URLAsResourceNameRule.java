@@ -1,8 +1,7 @@
 package datadog.trace.core.processor.rule;
 
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.core.DDSpan;
-import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.ExclusiveSpan;
 import datadog.trace.core.processor.TraceProcessor;
 
 public class URLAsResourceNameRule implements TraceProcessor.Rule {
@@ -23,9 +22,8 @@ public class URLAsResourceNameRule implements TraceProcessor.Rule {
   }
 
   @Override
-  public void processSpan(final DDSpan span) {
-    final DDSpanContext context = span.context();
-    if (context.isResourceNameSet()) {
+  public void processSpan(final ExclusiveSpan span) {
+    if (span.isResourceNameSet()) {
       return;
     }
     final Object httpStatus = span.getTag(Tags.HTTP_STATUS);

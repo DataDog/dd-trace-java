@@ -6,33 +6,48 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import lombok.NonNull;
 
 /** The MLT binary format writer */
 public final class MLTWriter {
+  private MLTWriter() {}
+
   /**
    * Write a single chunk to its binary format
    *
    * @param chunk the chunk
    * @return chunk in its MLT binary format
    */
-  public byte[] writeChunk(IMLTChunk chunk) {
+  public static byte[] writeChunk(@NonNull IMLTChunk chunk) {
     if (!chunk.hasStacks()) {
       return null;
     }
-    LEB128Writer chunkWriter = LEB128Writer.getInstance();
-    writeChunk(chunk, chunkWriter);
-    byte[] data = chunkWriter.export();
-    chunkWriter.reset();
-    return data;
+    return LEB128Writer.execute(
+        chunkWriter -> {
+          writeChunk(chunk, chunkWriter);
+          return chunkWriter.export();
+        });
   }
 
-  public void writeChunk(IMLTChunk chunk, Consumer<ByteBuffer> dataConsumer) {
-    LEB128Writer chunkWriter = LEB128Writer.getInstance();
-    writeChunk(chunk, chunkWriter);
-    chunkWriter.export(dataConsumer);
+  /**
+   * Write out the provided chunk to the given {@linkplain ByteBuffer} consumer. The consumer can
+   * assume it is the only party accessing the buffer at the given time and <b>MUST</b> properly
+   * manage the buffer by eg. resetting the position and limit once done reading the data.
+   *
+   * @param chunk the chunk to write out
+   * @param dataConsumer the consumer receiving the {@linkplain ByteBuffer} instance containing the
+   *     chunk data
+   */
+  public static void writeChunk(
+      @NonNull IMLTChunk chunk, @NonNull Consumer<ByteBuffer> dataConsumer) {
+    LEB128Writer.execute(
+        chunkWriter -> {
+          writeChunk(chunk, chunkWriter);
+          chunkWriter.export(dataConsumer);
+        });
   }
 
-  private void writeChunk(IMLTChunk chunk, LEB128Writer writer) {
+  private static void writeChunk(IMLTChunk chunk, LEB128Writer writer) {
     writer
         .writeBytes(MLTConstants.MAGIC) // MAGIC
         .writeByte(chunk.getVersion()) // version
@@ -73,10 +88,14 @@ public final class MLTWriter {
     writeStringPool(chunk, writer, stringConstants);
     writeFramePool(chunk, writer, frameConstants);
     writeStackPool(chunk, writer, stackConstants);
-    writer.writeIntRaw(MLTConstants.CHUNK_SIZE_OFFSET, writer.position()); // write the chunk size
+    int size = writer.position();
+    writer.writeIntRaw(MLTConstants.CHUNK_SIZE_OFFSET, size); // write the chunk size
+    if (chunk instanceof MLTChunk) {
+      ((MLTChunk) chunk).adjustSize(size);
+    }
   }
 
-  private void writeStackPool(IMLTChunk chunk, LEB128Writer writer, IntSet stackConstants) {
+  private static void writeStackPool(IMLTChunk chunk, LEB128Writer writer, IntSet stackConstants) {
     // write stack pool array
     writer.writeInt(stackConstants.size());
     stackConstants
@@ -120,7 +139,7 @@ public final class MLTWriter {
                 });
   }
 
-  private void writeFramePool(IMLTChunk chunk, LEB128Writer writer, IntSet frameConstants) {
+  private static void writeFramePool(IMLTChunk chunk, LEB128Writer writer, IntSet frameConstants) {
     // write frame pool array
     writer.writeInt(frameConstants.size());
     frameConstants
@@ -137,7 +156,8 @@ public final class MLTWriter {
                 });
   }
 
-  private void writeStringPool(IMLTChunk chunk, LEB128Writer writer, IntSet stringConstants) {
+  private static void writeStringPool(
+      IMLTChunk chunk, LEB128Writer writer, IntSet stringConstants) {
     // write constant pool array
     writer.writeInt(stringConstants.size() + 1);
     byte[] threadNameUtf = chunk.getThreadName().getBytes(StandardCharsets.UTF_8);
@@ -156,7 +176,7 @@ public final class MLTWriter {
                 });
   }
 
-  private void collectStackPtrUsage(
+  private static void collectStackPtrUsage(
       int ptr,
       IntSet stringConstants,
       IntSet frameConstants,
@@ -182,7 +202,7 @@ public final class MLTWriter {
     }
   }
 
-  private void collectFramePtrUsage(
+  private static void collectFramePtrUsage(
       int ptr,
       IntSet stringConstants,
       IntSet frameConstants,

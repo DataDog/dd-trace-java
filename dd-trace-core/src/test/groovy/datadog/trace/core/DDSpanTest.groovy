@@ -32,7 +32,7 @@ class DDSpanTest extends DDSpecification {
         Collections.<String, String> emptyMap(),
         false,
         "fakeType",
-        null,
+        0,
         PendingTrace.create(tracer, DDId.ONE),
         tracer,
         [:])

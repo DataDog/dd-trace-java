@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.datadog.mlt.io.FrameElement;
 import com.datadog.mlt.io.FrameSequence;
-import com.datadog.mlt.io.MLTChunk;
+import com.datadog.mlt.io.IMLTChunk;
 import com.datadog.mlt.io.MLTReader;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
@@ -53,11 +53,11 @@ class ScopeManagerTest {
     sampler.end(
         collectedChunk -> {
           byte[] serializedChunk = collectedChunk.serialize();
-          List<MLTChunk> chunks = new MLTReader().readMLTChunks(serializedChunk);
+          List<IMLTChunk> chunks = MLTReader.readMLTChunks(serializedChunk);
           assertFalse(chunks.isEmpty());
           assertEquals(1, chunks.size());
 
-          MLTChunk chunk = chunks.get(0);
+          IMLTChunk chunk = chunks.get(0);
           assertEquals(collectedChunk.getVersion(), chunk.getVersion());
           assertEquals(collectedChunk.getStartTime(), chunk.getStartTime());
           assertEquals(collectedChunk.getThreadId(), chunk.getThreadId());

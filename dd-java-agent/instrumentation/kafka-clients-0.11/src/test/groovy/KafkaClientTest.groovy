@@ -6,8 +6,10 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.Producer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
@@ -24,7 +26,10 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 
 class KafkaClientTest extends AgentTestRunner {
   static {
@@ -40,6 +45,115 @@ class KafkaClientTest extends AgentTestRunner {
   boolean expectE2EDuration = Boolean.valueOf(System.getProperty("dd.kafka.e2e.duration.enabled"))
 
   def "test kafka produce and consume"() {
+    setup:
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    Producer<String, String> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+
+    // set up the Kafka consumer properties
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+
+    // create a Kafka consumer factory
+    def consumerFactory = new DefaultKafkaConsumerFactory<String, String>(consumerProperties)
+
+    // set the topic that needs to be consumed
+    def containerProperties = containerProperties()
+
+    // create a Kafka MessageListenerContainer
+    def container = new KafkaMessageListenerContainer<>(consumerFactory, containerProperties)
+
+    // create a thread safe queue to store the received message
+    def records = new LinkedBlockingQueue<ConsumerRecord<String, String>>()
+
+    // setup a Kafka message listener
+    container.setupMessageListener(new MessageListener<String, String>() {
+      @Override
+      void onMessage(ConsumerRecord<String, String> record) {
+        TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
+        records.add(record)
+      }
+    })
+
+    // start the container and underlying message listener
+    container.start()
+
+    // wait until the container has the required number of assigned partitions
+    ContainerTestUtils.waitForAssignment(container, embeddedKafka.getPartitionsPerTopic())
+
+    when:
+    String greeting = "Hello Spring Kafka Sender!"
+    runUnderTrace("parent") {
+      producer.send(new ProducerRecord(SHARED_TOPIC, greeting)) { meta, ex ->
+        assert activeScope().isAsyncPropagating()
+        if (ex == null) {
+          runUnderTrace("producer callback") {}
+        } else {
+          runUnderTrace("producer exception: " + ex) {}
+        }
+      }
+      blockUntilChildSpansFinished(2)
+    }
+
+
+    then:
+    // check that the message was received
+    def received = records.poll(5, TimeUnit.SECONDS)
+    received.value() == greeting
+    received.key() == null
+
+    assertTraces(2) {
+      trace(0, 3) {
+        basicSpan(it, 0, "parent")
+        basicSpan(it, 1, "producer callback", span(0))
+        span(2) {
+          serviceName "kafka"
+          operationName "kafka.produce"
+          resourceName "Produce Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          childOf span(0)
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
+            defaultTags()
+          }
+        }
+      }
+      trace(1, 1) {
+        // CONSUMER span 0
+        span(0) {
+          serviceName "kafka"
+          operationName "kafka.consume"
+          resourceName "Consume Topic $SHARED_TOPIC"
+          spanType "queue"
+          errored false
+          childOf TEST_WRITER[0][2]
+          tags {
+            "$Tags.COMPONENT" "java-kafka"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" 0
+            "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
+            // TODO - test with and without feature enabled once Config is easier to control
+            if (expectE2EDuration) {
+              "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            }
+            defaultTags(true)
+          }
+        }
+      }
+    }
+
+    def headers = received.headers()
+    headers.iterator().hasNext()
+    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
+    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
+
+    cleanup:
+    producer.close()
+    container?.stop()
+  }
+
+  def "test spring kafka template produce and consume"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
     def producerFactory = new DefaultKafkaProducerFactory<String, String>(senderProps)
@@ -77,7 +191,14 @@ class KafkaClientTest extends AgentTestRunner {
 
     when:
     String greeting = "Hello Spring Kafka Sender!"
-    kafkaTemplate.send(SHARED_TOPIC, greeting)
+    runUnderTrace("parent") {
+      kafkaTemplate.send(SHARED_TOPIC, greeting).addCallback({
+        runUnderTrace("producer callback") {}
+      }, { ex ->
+        runUnderTrace("producer exception: " + ex) {}
+      })
+      blockUntilChildSpansFinished(2)
+    }
 
 
     then:
@@ -87,15 +208,16 @@ class KafkaClientTest extends AgentTestRunner {
     received.key() == null
 
     assertTraces(2) {
-      trace(0, 1) {
-        // PRODUCER span 0
-        span(0) {
+      trace(0, 3) {
+        basicSpan(it, 0, "parent")
+        basicSpan(it, 1, "producer callback", span(0))
+        span(2) {
           serviceName "kafka"
           operationName "kafka.produce"
           resourceName "Produce Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
-          parent()
+          childOf span(0)
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
@@ -111,7 +233,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
-          childOf TEST_WRITER[0][0]
+          childOf TEST_WRITER[0][2]
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -130,8 +252,8 @@ class KafkaClientTest extends AgentTestRunner {
 
     def headers = received.headers()
     headers.iterator().hasNext()
-    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][0].traceId}"
-    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][0].spanId}"
+    new String(headers.headers("x-datadog-trace-id").iterator().next().value()) == "${TEST_WRITER[0][2].traceId}"
+    new String(headers.headers("x-datadog-parent-id").iterator().next().value()) == "${TEST_WRITER[0][2].spanId}"
 
     cleanup:
     producerFactory.stop()

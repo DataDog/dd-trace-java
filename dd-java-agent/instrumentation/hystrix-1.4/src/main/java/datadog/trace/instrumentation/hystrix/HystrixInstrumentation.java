@@ -50,6 +50,8 @@ public class HystrixInstrumentation extends Instrumenter.Default {
       "datadog.trace.instrumentation.rxjava.TracedSubscriber",
       "datadog.trace.instrumentation.rxjava.TracedOnSubscribe",
       packageName + ".HystrixDecorator",
+      packageName + ".HystrixDecorator$1",
+      packageName + ".HystrixDecorator$ResourceNameCacheKey",
       packageName + ".HystrixInstrumentation$HystrixOnSubscribe",
     };
   }
