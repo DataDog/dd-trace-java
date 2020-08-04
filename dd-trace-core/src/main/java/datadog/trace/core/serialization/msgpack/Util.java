@@ -2,6 +2,11 @@ package datadog.trace.core.serialization.msgpack;
 
 public class Util {
 
+  public static byte[] integerToStringBuffer() {
+    // 20 is max long digits and sign
+    return new byte[20];
+  }
+
   private static final byte[] DIGIT_TENS = {
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '1', '1', '1', '1', '1', '1', '1', '1', '1', '1',

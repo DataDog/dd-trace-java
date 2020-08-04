@@ -15,6 +15,7 @@ import static datadog.trace.core.StringTables.TYPE;
 import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.CONSTANT_KEYS;
 import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.CONSTANT_TAGS;
 import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.NO_CACHING;
+import static datadog.trace.core.serialization.msgpack.Util.integerToStringBuffer;
 import static datadog.trace.core.serialization.msgpack.Util.writeLongAsString;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -27,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 public final class TraceMapperV0_4 implements TraceMapper {
-  private final byte[] numberByteArray = new byte[20]; // this is max long digits and sign
+  private final byte[] numberByteArray = integerToStringBuffer();
 
   @Override
   public void map(List<? extends DDSpanData> trace, final Writable writable) {

@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.NO_CACHING;
+import static datadog.trace.core.serialization.msgpack.Util.integerToStringBuffer;
 import static datadog.trace.core.serialization.msgpack.Util.writeLongAsString;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -147,6 +148,8 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   private ByteBuffer getDictionary() {
     if (dictionary[0] == null) {
+      // this has the side effect of populating the dictionary array
+      // (this is a prime candidate for refactoring)
       dictionaryWriter.flush();
     }
     return dictionary[0];
@@ -162,7 +165,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   private static class DictionaryMapper implements Mapper<Object> {
 
-    private final byte[] numberByteArray = new byte[20]; // this is max long digits and sign
+    private final byte[] numberByteArray = integerToStringBuffer();
 
     @Override
     public void map(Object data, Writable packer) {

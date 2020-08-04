@@ -55,13 +55,13 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     // the packer calls this when the buffer is full,
     // or when the packer is flushed at a heartbeat
     if (messageCount > 0) {
-      final int sizeInBytes = buffer.limit() - buffer.position();
-      monitor.onSerialize(sizeInBytes);
       Payload payload =
           traceMapper
               .newPayload()
               .withRepresentativeCount(representativeCount)
               .withBody(messageCount, buffer);
+      final int sizeInBytes = payload.sizeInBytes();
+      monitor.onSerialize(sizeInBytes);
       DDAgentApi.Response response = api.sendSerializedTraces(payload);
       traceMapper.reset();
       if (response.success()) {
