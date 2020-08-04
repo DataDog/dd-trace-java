@@ -140,6 +140,11 @@ public final class TraceMapperV0_5 implements TraceMapper {
     return new PayloadV0_5(getDictionary());
   }
 
+  @Override
+  public int messageBufferSize() {
+    return 2 << 20; // 2MB
+  }
+
   private ByteBuffer getDictionary() {
     if (dictionary[0] == null) {
       dictionaryWriter.flush();

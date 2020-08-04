@@ -6,7 +6,6 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.Monitor
-import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
@@ -179,7 +178,7 @@ class DDAgentWriterTest extends DDSpecification {
     when:
     def mapper = agentVersion.equals("v0.5/traces") ? new TraceMapperV0_5() : new TraceMapperV0_4()
     int traceSize = calculateSize(minimalTrace, mapper)
-    int maxedPayloadTraceCount = ((int) ((PayloadDispatcher.DEFAULT_BUFFER_SIZE - 5) / traceSize))
+    int maxedPayloadTraceCount = ((int) ((mapper.messageBufferSize() - 5) / traceSize))
     (0..maxedPayloadTraceCount).each {
       writer.write(minimalTrace)
       def start = System.nanoTime()

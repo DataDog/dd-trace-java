@@ -10,8 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PayloadDispatcher implements ByteBufferConsumer {
 
-  static final int DEFAULT_BUFFER_SIZE = 2 << 20; // 2MB
-
   private final DDAgentApi api;
   private int representativeCount;
   private TraceMapper traceMapper;
@@ -47,7 +45,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     if (null == traceMapper) {
       this.traceMapper = api.selectTraceMapper();
       if (null == packer) {
-        this.packer = new Packer(this, ByteBuffer.allocate(DEFAULT_BUFFER_SIZE));
+        this.packer = new Packer(this, ByteBuffer.allocate(traceMapper.messageBufferSize()));
       }
     }
   }

@@ -119,6 +119,11 @@ public final class TraceMapperV0_4 implements TraceMapper {
   }
 
   @Override
+  public int messageBufferSize() {
+    return 5 << 20; // 5MB
+  }
+
+  @Override
   public void reset() {}
 
   private static class PayloadV0_4 extends Payload {

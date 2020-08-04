@@ -8,5 +8,7 @@ public interface TraceMapper extends Mapper<List<? extends DDSpanData>> {
 
   Payload newPayload();
 
+  int messageBufferSize();
+
   void reset();
 }
