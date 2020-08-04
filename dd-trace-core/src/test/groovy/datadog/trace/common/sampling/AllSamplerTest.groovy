@@ -1,6 +1,5 @@
 package datadog.trace.common.sampling
 
-import datadog.trace.common.sampling.AllSampler
 import datadog.trace.core.DDSpan
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Subject

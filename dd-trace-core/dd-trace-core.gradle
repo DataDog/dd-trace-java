@@ -6,13 +6,15 @@ apply from: "$rootDir/gradle/version.gradle"
 minimumBranchCoverage = 0.5
 minimumInstructionCoverage = 0.6
 excludedClassesCoverage += [
+  'datadog.trace.common.writer.ListWriter',
   'datadog.trace.common.writer.DDAgentWriter.DDAgentWriterBuilder',
   'datadog.trace.common.sampling.PrioritySampling',
   // This code is copied from okHttp samples and we have integration tests to verify that it works.
   'datadog.trace.common.writer.ddagent.unixdomainsockets.TunnelingUnixSocket',
   'datadog.trace.common.writer.ddagent.unixdomainsockets.UnixDomainSocketFactory',
   'datadog.trace.core.scopemanager.ScopeInterceptor.DelegatingScope',
-  'datadog.trace.core.StatusLogger'
+  'datadog.trace.core.jfr.DDNoopScopeEventFactory',
+  'datadog.trace.core.StatusLogger',
 ]
 
 apply plugin: 'org.unbroken-dome.test-sets'
