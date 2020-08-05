@@ -75,8 +75,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
 
       callback = new ProducerCallback(callback, parent, span);
 
-      boolean isTombstone = record.value() == null && !record.headers().iterator().hasNext();
-      if (isTombstone) {
+      if (record.value() == null) {
         span.setTag(InstrumentationTags.TOMBSTONE, true);
       }
 
@@ -88,9 +87,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
       // headers attempt to read messages that were produced by clients > 0.11 and the magic
       // value of the broker(s) is >= 2
       if (apiVersions.maxUsableProduceMagic() >= RecordBatch.MAGIC_VALUE_V2
-          && Config.get().isKafkaClientPropagationEnabled()
-          // Must not interfere with tombstones
-          && !isTombstone) {
+          && Config.get().isKafkaClientPropagationEnabled()) {
         try {
           propagate().inject(span, record.headers(), SETTER);
         } catch (final IllegalStateException e) {
