@@ -31,6 +31,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
   static {
     ConfigUtils.updateConfig {
       System.setProperty("dd.trace.executors", "ExecutorInstrumentationTest\$CustomThreadPoolExecutor")
+      System.setProperty("dd.integration.thread-pool-executor.enabled", "false")
     }
   }
 
