@@ -1,0 +1,9 @@
+version: "3.5"
+
+services:
+  hibernate-5.4: 
+    build:
+      context: ./
+      args:
+        SOURCE: https://github.com/hibernate/hibernate-orm/archive/5.4.10.tar.gz
+
