@@ -12,3 +12,6 @@ RUN set -xe; \
     curl -o source.tar -L ${SOURCE}; \
     tar xf source.tar --strip-components=${TAR_STRIP_COMPONENTS}; \
     rm -rf source.tar
+WORKDIR /target
+RUN ./gradlew assemble
+  
