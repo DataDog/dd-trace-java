@@ -192,10 +192,7 @@ jobs:
 workflows:
   build_test_deploy:
     jobs:
-      - build:
-          filters:
-            tags:
-              only: /.*/
+      - build
       - hlal:
           requires: [build]
 
