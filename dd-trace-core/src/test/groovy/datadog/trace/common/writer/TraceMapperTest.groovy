@@ -1,4 +1,4 @@
-package datadog.trace.api.writer
+package datadog.trace.common.writer
 
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
@@ -14,7 +14,7 @@ import java.nio.ByteBuffer
 
 class TraceMapperTest extends DDSpecification {
 
-  def "test trace mapper v0.5" () {
+  def "test trace mapper v0.5"() {
     when:
     TraceMapper traceMapper = new TraceMapperV0_5()
     List<DDSpan> spans = trace
@@ -40,7 +40,7 @@ class TraceMapperTest extends DDSpecification {
     for (int i = 0; i < traceCount; ++i) {
       int arrayLength = unpacker.unpackArrayHeader()
       arrayLength == 12
-      String serviceName =  dictionary[unpacker.unpackInt()]
+      String serviceName = dictionary[unpacker.unpackInt()]
       serviceName == "my-service"
       String operationName = dictionary[unpacker.unpackInt()] // operation name null
       operationName == null
@@ -80,7 +80,7 @@ class TraceMapperTest extends DDSpecification {
       [SpanFactory.newSpanOf(1L)
          .setOperationName(null)
          .setTag("service.name", "my-service")
-          .setTag("elasticsearch.version", "7.0")
+         .setTag("elasticsearch.version", "7.0")
          .setBaggageItem("baggage", "item")]
     ]
   }

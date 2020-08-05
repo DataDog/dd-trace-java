@@ -5,7 +5,7 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.common.container.ContainerInfo;
 import datadog.common.exec.CommonTaskExecutor;
-import datadog.trace.common.writer.unixdomainsockets.UnixDomainSocketFactory;
+import datadog.trace.common.writer.ddagent.unixdomainsockets.UnixDomainSocketFactory;
 import datadog.trace.core.DDTraceCoreInfo;
 import java.io.File;
 import java.io.IOException;

@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import datadog.trace.core.DDSpanData;
+import datadog.trace.core.monitor.Monitor;
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
 import datadog.trace.core.serialization.msgpack.Packer;
 import java.nio.ByteBuffer;

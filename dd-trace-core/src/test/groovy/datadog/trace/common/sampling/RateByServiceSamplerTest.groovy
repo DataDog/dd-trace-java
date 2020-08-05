@@ -1,7 +1,6 @@
-package datadog.trace.api.sampling
+package datadog.trace.common.sampling
 
 import datadog.trace.api.DDTags
-import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.core.CoreTracer

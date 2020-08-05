@@ -1,17 +1,16 @@
-package datadog.trace.api.writer
+package datadog.trace.common.writer
 
 import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.trace.common.writer.ddagent.Monitor
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
+import datadog.trace.core.monitor.Monitor
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.Mapper
 import datadog.trace.core.serialization.msgpack.Packer
@@ -31,9 +30,10 @@ import static datadog.trace.core.SpanFactory.newSpanOf
 
 @Retry
 @Timeout(10)
-class DDAgentWriterTest extends DDSpecification {
+class DDAgentWriterCombinedTest extends DDSpecification {
 
   def phaser = new Phaser()
+
   def apiWithVersion(String version) {
     def api = Mock(DDAgentApi)
     api.detectEndpointAndBuildClient() >> version
@@ -48,7 +48,7 @@ class DDAgentWriterTest extends DDSpecification {
     phaser.register()
   }
 
-  def "no interactions because of initial flush" () {
+  def "no interactions because of initial flush"() {
     setup:
     def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
@@ -85,7 +85,7 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
-    1 * api.selectTraceMapper()  >> { callRealMethod() }
+    1 * api.selectTraceMapper() >> { callRealMethod() }
     1 * api.sendSerializedTraces({ it.traceCount() == 2 && it.representativeCount() == 2 }) >> DDAgentApi.Response.success(200)
     0 * _
 
@@ -115,7 +115,7 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
-    1 * api.selectTraceMapper()  >> { callRealMethod() }
+    1 * api.selectTraceMapper() >> { callRealMethod() }
     1 * api.sendSerializedTraces({ it.traceCount() <= traceCount && it.representativeCount() <= traceCount }) >> DDAgentApi.Response.success(200)
     0 * _
 
@@ -147,9 +147,9 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
-    1 * api.selectTraceMapper()  >> { callRealMethod() }
+    1 * api.selectTraceMapper() >> { callRealMethod() }
     1 * monitor.onSerialize(_)
-    1 * api.sendSerializedTraces({it.traceCount() == 5 && it.representativeCount() == 5 }) >> DDAgentApi.Response.success(200)
+    1 * api.sendSerializedTraces({ it.traceCount() == 5 && it.representativeCount() == 5 }) >> DDAgentApi.Response.success(200)
     _ * monitor.onPublish(_)
     1 * monitor.onSend(_, _, _) >> {
       phaser.arrive()
@@ -191,7 +191,7 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
-    1 * api.selectTraceMapper()  >> { callRealMethod() }
+    1 * api.selectTraceMapper() >> { callRealMethod() }
     1 * api.sendSerializedTraces({ it.traceCount() == maxedPayloadTraceCount && it.representativeCount() == maxedPayloadTraceCount }) >> DDAgentApi.Response.success(200)
     1 * api.sendSerializedTraces({ it.traceCount() == 1 && it.representativeCount() == 1 }) >> DDAgentApi.Response.success(200)
     0 * _

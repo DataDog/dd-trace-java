@@ -10,6 +10,7 @@ import com.lmax.disruptor.dsl.ProducerType;
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.monitor.Monitor;
 import datadog.trace.core.processor.TraceProcessor;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;

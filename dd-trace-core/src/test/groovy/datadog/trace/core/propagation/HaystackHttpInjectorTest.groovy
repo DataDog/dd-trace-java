@@ -1,21 +1,21 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
-import datadog.trace.api.DDId
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.util.test.DDSpecification
 
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
+import static datadog.trace.core.propagation.HaystackHttpCodec.DD_PARENT_ID_BAGGAGE_KEY
+import static datadog.trace.core.propagation.HaystackHttpCodec.DD_SPAN_ID_BAGGAGE_KEY
+import static datadog.trace.core.propagation.HaystackHttpCodec.DD_TRACE_ID_BAGGAGE_KEY
+import static datadog.trace.core.propagation.HaystackHttpCodec.HAYSTACK_TRACE_ID_BAGGAGE_KEY
 import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY
-import static datadog.trace.core.propagation.HaystackHttpCodec.DD_TRACE_ID_BAGGAGE_KEY
-import static datadog.trace.core.propagation.HaystackHttpCodec.DD_SPAN_ID_BAGGAGE_KEY
-import static datadog.trace.core.propagation.HaystackHttpCodec.DD_PARENT_ID_BAGGAGE_KEY
-import static datadog.trace.core.propagation.HaystackHttpCodec.HAYSTACK_TRACE_ID_BAGGAGE_KEY
 
 class HaystackHttpInjectorTest extends DDSpecification {
 
@@ -95,7 +95,7 @@ class HaystackHttpInjectorTest extends DDSpecification {
         },
         false,
         "fakeType",
-        null,
+        0,
         new PendingTrace(tracer, DDId.ONE),
         tracer,
         [:])

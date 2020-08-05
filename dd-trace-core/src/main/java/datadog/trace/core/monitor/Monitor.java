@@ -1,6 +1,7 @@
-package datadog.trace.common.writer.ddagent;
+package datadog.trace.core.monitor;
 
 import com.timgroup.statsd.StatsDClient;
+import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.DDSpan;
 import java.util.List;
 

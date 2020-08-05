@@ -293,9 +293,9 @@ public class Config {
   @Getter private final boolean httpClientSplitByDomain;
   @Getter private final boolean dbClientSplitByInstance;
   @Getter private final Set<String> splitByTags;
-  @Getter private final Integer scopeDepthLimit;
+  @Getter private final int scopeDepthLimit;
   @Getter private final boolean scopeStrictMode;
-  @Getter private final Integer partialFlushMinSpans;
+  @Getter private final int partialFlushMinSpans;
   @Getter private final boolean runtimeContextFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
   @Getter private final Set<PropagationStyle> propagationStylesToInject;

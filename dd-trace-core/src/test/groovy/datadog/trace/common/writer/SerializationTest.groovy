@@ -1,4 +1,4 @@
-package datadog.trace.api.writer
+package datadog.trace.common.writer
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper

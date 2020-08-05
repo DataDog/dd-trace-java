@@ -8,9 +8,9 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import com.timgroup.statsd.NoOpStatsDClient;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
-import datadog.trace.common.writer.ddagent.Monitor;
 import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.monitor.Monitor;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -79,6 +79,15 @@ public class DDAgentWriter implements Writer {
             flushFrequencySeconds,
             TimeUnit.SECONDS,
             flushFrequencySeconds > 0);
+  }
+
+  private DDAgentWriter(
+      final DDAgentApi agentApi,
+      final Monitor monitor,
+      final TraceProcessingDisruptor traceProcessingDisruptor) {
+    api = agentApi;
+    this.monitor = monitor;
+    this.traceProcessingDisruptor = traceProcessingDisruptor;
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
