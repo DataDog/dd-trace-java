@@ -4,6 +4,7 @@ import com.timgroup.statsd.StatsDClient;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.core.DDSpan;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Callback for monitoring the health of the DDAgentWriter. Provides hooks for major lifecycle
@@ -17,6 +18,7 @@ import java.util.List;
  *   <li>sending to agent
  * </ul>
  */
+@Slf4j
 public class Monitor {
   private final StatsDClient statsd;
 
@@ -33,6 +35,14 @@ public class Monitor {
   public void onPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {
     statsd.incrementCounter("queue.accepted");
     statsd.count("queue.accepted_lengths", trace.size());
+    StringBuilder sb = new StringBuilder();
+    for (DDSpan span : trace) {
+      if (sb.length() > 0) {
+        sb.append(',');
+      }
+      sb.append(span.getSpanId());
+    }
+    log.info("Publishing trace with spans={}", sb.toString());
   }
 
   public void onFailedPublish(final DDAgentWriter agentWriter, final List<DDSpan> trace) {

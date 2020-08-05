@@ -171,9 +171,10 @@ public abstract class TraceProfilingScopeInterceptor
         statsDClient.count("mlt.bytes", samplingData.length);
         AgentSpan span = span();
         log.info(
-            "Session closed span[id={},name={}] data size: {}",
+            "Session closed span[id={},name={},traceid={}] data size: {}",
             span.getSpanId(),
             span.getSpanName(),
+            span.getTraceId(),
             samplingData.length);
         span.setTag(InstrumentationTags.DD_MLT, samplingData);
         if (span.getSamplingPriority() == null) {
