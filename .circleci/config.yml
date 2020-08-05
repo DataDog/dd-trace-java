@@ -184,7 +184,9 @@ jobs:
     <<: *defaults
     steps:
       - setup_code
-      - setup_remote_docker
+      - setup_remote_docker:
+          version: "19.03.12"
+          docker_layer_caching: true
       - run:
           name: hlal
           command: make -f tooling/tests/Makefile all
@@ -192,7 +194,10 @@ jobs:
 workflows:
   build_test_deploy:
     jobs:
-      - build
+      - build:
+          filters:
+            tags:
+              only: /.*/
       - hlal:
           requires: [build]
 
