@@ -180,6 +180,15 @@ jobs:
             << pipeline.parameters.gradle_flags >>
             --max-workers=16
 
+  hlal:
+    <<: *defaults
+    steps:
+      - setup_code
+      - setup_remote_docker
+      - run:
+          name: hlal
+          command: make -f tooling/tests/Makefile all
+
 workflows:
   build_test_deploy:
     jobs:
@@ -187,55 +196,58 @@ workflows:
           filters:
             tags:
               only: /.*/
+      - hlal:
+          requires: [build]
 
-      - default_test_job:
-          requires:
-            - build
-          prefixTestTask: true
-          name: test_<< matrix.testTask >>
-          matrix:
-            parameters:
-              testTask: ["7", "IBM8", "ZULU8", "11", "ZULU11", "12", "13", "ZULU13", "14", "ZULU14" ]
-          filters:
-            tags:
-              only: /.*/
 
-      - default_test_job:
-          requires:
-            - build
-          name: test_8
-          testTask: test jacocoTestReport jacocoTestCoverageVerification
-          filters:
-            tags:
-              only: /.*/
+      # - default_test_job:
+      #     requires:
+      #       - build
+      #     prefixTestTask: true
+      #     name: test_<< matrix.testTask >>
+      #     matrix:
+      #       parameters:
+      #         testTask: ["7", "IBM8", "ZULU8", "11", "ZULU11", "12", "13", "ZULU13", "14", "ZULU14" ]
+      #     filters:
+      #       tags:
+      #         only: /.*/
 
-      - default_test_job:
-          requires:
-            - build
-          name: test_latest8
-          testTask: latestDepTest
-          filters:
-            tags:
-              only: /.*/
+      # - default_test_job:
+      #     requires:
+      #       - build
+      #     name: test_8
+      #     testTask: test jacocoTestReport jacocoTestCoverageVerification
+      #     filters:
+      #       tags:
+      #         only: /.*/
 
-      - agent_integration_tests:
-          requires:
-            - build
-          testTask: traceAgentTest
-          filters:
-            tags:
-              only: /.*/
+      # - default_test_job:
+      #     requires:
+      #       - build
+      #     name: test_latest8
+      #     testTask: latestDepTest
+      #     filters:
+      #       tags:
+      #         only: /.*/
 
-      - check:
-          requires:
-            - build
-          filters:
-            tags:
-              only: /.*/
+      # - agent_integration_tests:
+      #     requires:
+      #       - build
+      #     testTask: traceAgentTest
+      #     filters:
+      #       tags:
+      #         only: /.*/
 
-      - muzzle:
-          requires:
-            - build
-          filters:
-            branches:
-              ignore: master
+      # - check:
+      #     requires:
+      #       - build
+      #     filters:
+      #       tags:
+      #         only: /.*/
+
+      # - muzzle:
+      #     requires:
+      #       - build
+      #     filters:
+      #       branches:
+      #         ignore: master

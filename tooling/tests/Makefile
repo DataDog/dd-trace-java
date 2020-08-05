@@ -3,7 +3,7 @@ DOCKER_COMPOSE_FILE:=$(addprefix ${ROOT_DIR}/, docker-compose.yaml )
 
 TARGETS=$(shell docker-compose -f ${DOCKER_COMPOSE_FILE} config --services)
 
-.PHONY: ${TARGETS} list
+.PHONY: ${TARGETS} list all
 
 list:
 	@echo All targets:
@@ -14,4 +14,5 @@ ${TARGETS}: export DOCKER_BUILDKIT=1
 ${TARGETS}:
 	@docker-compose -f ${DOCKER_COMPOSE_FILE} build --force-rm $@ 
 	@docker-compose -f ${DOCKER_COMPOSE_FILE} run --rm $@
-	
+
+all: ${TARGETS}
