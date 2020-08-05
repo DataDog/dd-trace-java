@@ -13,7 +13,9 @@ import datadog.trace.mlt.MethodLevelTracer;
 import datadog.trace.mlt.Session;
 import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public abstract class TraceProfilingScopeInterceptor
     extends ScopeInterceptor.DelegatingInterceptor {
   private static final long MAX_NANOSECONDS_BETWEEN_ACTIVATIONS = TimeUnit.SECONDS.toNanos(1);
@@ -149,6 +151,10 @@ public abstract class TraceProfilingScopeInterceptor
       } else {
         statsDClient.incrementCounter("mlt.scope", "scope:child");
       }
+      log.info(
+          "Starting profiling session for span[id={},name={}]",
+          span.getSpanId(),
+          span.getSpanName());
       session = MethodLevelTracer.startProfiling(span.getTraceId().toString());
     }
 
@@ -164,6 +170,11 @@ public abstract class TraceProfilingScopeInterceptor
         statsDClient.incrementCounter("mlt.count");
         statsDClient.count("mlt.bytes", samplingData.length);
         AgentSpan span = span();
+        log.info(
+            "Session closed span[id={},name={}] data size: {}",
+            span.getSpanId(),
+            span.getSpanName(),
+            samplingData.length);
         span.setTag(InstrumentationTags.DD_MLT, samplingData);
         if (span.getSamplingPriority() == null) {
           // if priority not set, let's increase priority to improve chance this is kept.
