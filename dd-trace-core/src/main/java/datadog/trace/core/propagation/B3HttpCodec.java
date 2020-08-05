@@ -36,7 +36,8 @@ class B3HttpCodec {
     public <C> void inject(
         final DDSpanContext context, final C carrier, final AgentPropagation.Setter<C> setter) {
       try {
-        setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toHexString().toLowerCase());
+        String injectedTraceId = context.getTraceId().toHexString().toLowerCase();
+        setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
         setter.set(carrier, SPAN_ID_KEY, context.getSpanId().toHexString().toLowerCase());
 
         if (context.lockSamplingPriority()) {
@@ -45,7 +46,7 @@ class B3HttpCodec {
               SAMPLING_PRIORITY_KEY,
               convertSamplingPriority(context.getSamplingPriority()));
         }
-        log.debug("{} - B3 parent context injected", context.getTraceId());
+        log.debug("{} - B3 parent context injected - {}", context.getTraceId(), injectedTraceId);
       } catch (final NumberFormatException e) {
         if (log.isDebugEnabled()) {
           log.debug(
