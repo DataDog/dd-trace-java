@@ -19,14 +19,14 @@ class ScopeManagerDepthTest extends DDSpecification {
 
     when: "fill up the scope stack"
     AgentScope scope = null
-    for (int i = 0; i <= depth; i++) {
+    for (int i = 0; i < depth; i++) {
       def span = tracer.buildSpan("test").start()
       scope = tracer.activateSpan(span)
       assert scope instanceof ContinuableScopeManager.ContinuableScope
     }
 
     then: "last scope is still valid"
-    (scope as ContinuableScopeManager.ContinuableScope).depth() == depth
+    scopeManager.scopeStack().depth() == depth
 
     when: "activate span over limit"
     def span = tracer.buildSpan("test").start()
@@ -42,10 +42,10 @@ class ScopeManagerDepthTest extends DDSpecification {
     scope instanceof NoopAgentScope
 
     and: "scope stack not effected."
-    (scopeManager.active() as ContinuableScopeManager.ContinuableScope).depth() == depth
+    scopeManager.scopeStack().depth() == depth
 
     cleanup:
-    scopeManager.tlsScope.remove()
+    scopeManager.scopeStack().clear()
 
     where:
     depth = 100  // Using ConfigDefaults here causes classloading issues
@@ -61,14 +61,14 @@ class ScopeManagerDepthTest extends DDSpecification {
 
     when: "fill up the scope stack"
     AgentScope scope = null
-    for (int i = 0; i <= defaultLimit; i++) {
+    for (int i = 0; i < defaultLimit; i++) {
       def span = tracer.buildSpan("test").start()
       scope = tracer.activateSpan(span)
       assert scope instanceof ContinuableScopeManager.ContinuableScope
     }
 
     then: "last scope is still valid"
-    (scope as ContinuableScopeManager.ContinuableScope).depth() == defaultLimit
+    scopeManager.scopeStack().depth() == defaultLimit
 
     when: "activate a scope"
     def span = tracer.buildSpan("test").start()
@@ -76,7 +76,7 @@ class ScopeManagerDepthTest extends DDSpecification {
 
     then: "a real scope is returned"
     !(scope instanceof NoopAgentScope)
-    (scopeManager.active() as ContinuableScopeManager.ContinuableScope).depth() == defaultLimit + 1
+    scopeManager.scopeStack().depth() == defaultLimit + 1
 
     when: "activate a noop span"
     scope = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.MANUAL)
@@ -85,10 +85,10 @@ class ScopeManagerDepthTest extends DDSpecification {
     !(scope instanceof NoopAgentScope)
 
     and: "scope stack not effected."
-    (scopeManager.active() as ContinuableScopeManager.ContinuableScope).depth() == defaultLimit + 2
+    scopeManager.scopeStack().depth() == defaultLimit + 2
 
     cleanup:
-    scopeManager.tlsScope.remove()
+    scopeManager.scopeStack().clear()
 
     where:
     defaultLimit = 100 // Using ConfigDefaults here causes classloading issues
