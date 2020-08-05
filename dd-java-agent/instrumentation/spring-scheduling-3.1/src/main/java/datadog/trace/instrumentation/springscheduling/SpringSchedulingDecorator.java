@@ -34,9 +34,7 @@ public class SpringSchedulingDecorator extends BaseDecorator {
         final ScheduledMethodRunnable scheduledMethodRunnable = (ScheduledMethodRunnable) runnable;
         resourceName = spanNameForMethod(scheduledMethodRunnable.getMethod());
       } else {
-        final String className = spanNameForClass(runnable.getClass());
-        final String methodName = "run";
-        resourceName = className + "." + methodName;
+        resourceName = spanNameForMethod(runnable.getClass(), "run");
       }
       span.setTag(DDTags.RESOURCE_NAME, resourceName);
     }
