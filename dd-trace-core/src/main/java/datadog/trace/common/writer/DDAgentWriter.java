@@ -8,10 +8,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import com.timgroup.statsd.NoOpStatsDClient;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
-import datadog.trace.common.writer.ddagent.Monitor;
 import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
+import datadog.trace.core.monitor.Monitor;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -78,11 +78,19 @@ public class DDAgentWriter implements Writer {
             traceBufferSize,
             traceHeuristicsEvaluator,
             monitor,
-            this,
             api,
             flushFrequencySeconds,
             TimeUnit.SECONDS,
             flushFrequencySeconds > 0);
+  }
+
+  private DDAgentWriter(
+      final DDAgentApi agentApi,
+      final Monitor monitor,
+      final TraceProcessingDisruptor traceProcessingDisruptor) {
+    api = agentApi;
+    this.monitor = monitor;
+    this.traceProcessingDisruptor = traceProcessingDisruptor;
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -115,23 +123,23 @@ public class DDAgentWriter implements Writer {
       }
       final boolean published = traceProcessingDisruptor.publish(trace, representativeCount);
       if (published) {
-        monitor.onPublish(DDAgentWriter.this, trace);
+        monitor.onPublish(trace);
       } else {
         // We're discarding the trace, but we still want to count it.
         traceCount.addAndGet(representativeCount);
         log.debug("Trace written to overfilled buffer. Counted but dropping trace: {}", trace);
-        monitor.onFailedPublish(this, trace);
+        monitor.onFailedPublish(trace);
       }
     } else {
       log.debug("Trace written after shutdown. Ignoring trace: {}", trace);
-      monitor.onFailedPublish(this, trace);
+      monitor.onFailedPublish(trace);
     }
   }
 
   public boolean flush() {
     if (!closed) { // give up after a second
       if (traceProcessingDisruptor.flush(1, TimeUnit.SECONDS)) {
-        monitor.onFlush(this, false);
+        monitor.onFlush(false);
         return true;
       }
     }
@@ -156,7 +164,7 @@ public class DDAgentWriter implements Writer {
   public void start() {
     if (!closed) {
       traceProcessingDisruptor.start();
-      monitor.onStart(this);
+      monitor.onStart((int) getDisruptorCapacity());
     }
   }
 
@@ -165,6 +173,6 @@ public class DDAgentWriter implements Writer {
     final boolean flushed = flush();
     closed = true;
     traceProcessingDisruptor.close();
-    monitor.onShutdown(this, flushed);
+    monitor.onShutdown(flushed);
   }
 }

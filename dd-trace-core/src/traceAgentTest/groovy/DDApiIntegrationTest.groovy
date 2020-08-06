@@ -2,7 +2,8 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
-import datadog.trace.common.writer.ddagent.TraceMapper
+import datadog.trace.common.writer.ddagent.Payload
+import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.core.CoreTracer
 import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
@@ -124,12 +125,12 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def "Sending traces succeeds (test #test)"() {
     expect:
-    api.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
+    api.sendSerializedTraces(payload)
     assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
-    request                                                                                             | test
+    payload                                                                                             | test
     prepareRequest([])                                                                                  | 1
     prepareRequest([[], []])                                                                            | 2
     prepareRequest([[new DDSpan(1, CONTEXT)]])                                                          | 3
@@ -143,12 +144,12 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def "Sending traces to unix domain socket succeeds (test #test)"() {
     expect:
-    unixDomainSocketApi.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
+    unixDomainSocketApi.sendSerializedTraces(payload)
     assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/v0.4/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
-    request                                                                                             | test
+    payload                                                                                             | test
     prepareRequest([])                                                                                  | 1
     prepareRequest([[], []])                                                                            | 2
     prepareRequest([[new DDSpan(1, CONTEXT)]])                                                          | 3
@@ -169,15 +170,17 @@ class DDApiIntegrationTest extends DDSpecification {
     }
   }
 
-  Traces prepareRequest(List<List<DDSpan>> traces) {
+  Payload prepareRequest(List<List<DDSpan>> traces) {
     ByteBuffer buffer = ByteBuffer.allocate(1 << 20)
-    Traces tracesToSend = new Traces()
-    def packer = new Packer(tracesToSend, buffer)
-    def traceMapper = new TraceMapper()
+    Traces traceCapture = new Traces()
+    def packer = new Packer(traceCapture, buffer)
+    def traceMapper = new TraceMapperV0_4()
     for (trace in traces) {
       packer.format(trace, traceMapper)
     }
     packer.flush()
-    return tracesToSend
+    return traceMapper.newPayload()
+      .withBody(traceCapture.traceCount, traceCapture.buffer)
+      .withRepresentativeCount(traceCapture.representativeCount)
   }
 }

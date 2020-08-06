@@ -325,9 +325,7 @@ class KafkaClientTest extends AgentTestRunner {
           }
         }
       }
-      // when a user consumes a tombstone a new trace is started
-      // because context can't be propagated safely
-      trace(1, 1) {
+      trace (1, 1) {
         // CONSUMER span 0
         span(0) {
           serviceName "kafka"
@@ -335,7 +333,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
-          notChildOf TEST_WRITER[0][0]
+          childOf TEST_WRITER[0][0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -343,14 +341,15 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.TOMBSTONE" true
+            // TODO - test with and without feature enabled once Config is easier to control
+            if (expectE2EDuration) {
+              "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            }
             defaultTags(true)
           }
         }
       }
     }
-
-    def headers = received.headers()
-    !headers.iterator().hasNext()
 
     cleanup:
     producerFactory.stop()

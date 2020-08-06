@@ -10,7 +10,6 @@ dependencies {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
   compile deps.slf4j
-  compile project(':dd-trace-api')
   compile project(':internal-api')
 }
 

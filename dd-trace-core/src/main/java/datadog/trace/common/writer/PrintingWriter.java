@@ -1,7 +1,6 @@
 package datadog.trace.common.writer;
 
 import com.squareup.moshi.JsonAdapter;
-import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.core.DDSpan;
@@ -12,18 +11,19 @@ import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import okio.BufferedSink;
 import okio.Okio;
 
 public class PrintingWriter implements Writer {
   private final TraceHeuristicsEvaluator collector = new TraceHeuristicsEvaluator();
   private final TraceProcessor processor = new TraceProcessor(collector);
-  private final JsonWriter jsonWriter;
+  private final BufferedSink sink;
   private final JsonAdapter<Map<String, List<DDSpan>>> jsonAdapter;
 
   public PrintingWriter(final OutputStream outputStream, final boolean hexIds) {
-    jsonWriter = JsonWriter.of(Okio.buffer(Okio.sink(outputStream)));
+    sink = Okio.buffer(Okio.sink(outputStream));
 
-    this.jsonAdapter =
+    jsonAdapter =
         new Moshi.Builder()
             .add(DDSpanJsonAdapter.buildFactory(hexIds))
             .build()
@@ -36,8 +36,10 @@ public class PrintingWriter implements Writer {
   public void write(final List<DDSpan> trace) {
     final List<DDSpan> processedTrace = processor.onTraceComplete(trace);
     try {
-      jsonAdapter.toJson(jsonWriter, Collections.singletonMap("traces", processedTrace));
-      jsonWriter.flush();
+      synchronized (sink) {
+        jsonAdapter.toJson(sink, Collections.singletonMap("traces", processedTrace));
+        sink.flush();
+      }
     } catch (final IOException e) {
       // do nothing
     }

@@ -9,6 +9,7 @@ import datadog.trace.core.util.Clock;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.ref.WeakReference;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -21,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
  * according to the DD agent.
  */
 @Slf4j
-public class DDSpan implements MutableSpan, AgentSpan {
+public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
 
   static DDSpan create(final long timestampMicro, final DDSpanContext context) {
     final DDSpan span = new DDSpan(timestampMicro, context);
@@ -361,12 +362,22 @@ public class DDSpan implements MutableSpan, AgentSpan {
   }
 
   @Override
+  public void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {
+    context.processTagsAndBaggage(consumer);
+  }
+
+  @Override
   public Boolean isError() {
     return context.getErrorFlag();
   }
 
   public int getError() {
     return context.getErrorFlag() ? 1 : 0;
+  }
+
+  @Override
+  public Map<String, String> getBaggage() {
+    return Collections.unmodifiableMap(context.getBaggageItems());
   }
 
   @Override

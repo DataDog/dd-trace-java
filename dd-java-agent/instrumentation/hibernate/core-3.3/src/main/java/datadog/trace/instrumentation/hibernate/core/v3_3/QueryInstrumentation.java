@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
+import java.lang.reflect.Method;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -46,15 +47,16 @@ public class QueryInstrumentation extends AbstractHibernateInstrumentation {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startMethod(
-        @Advice.This final Query query, @Advice.Origin("#m") final String name) {
+        @Advice.This final Query query,
+        @Advice.Origin("hibernate.query.#m") final String operationName,
+        @Advice.Origin final Method origin) {
 
       final ContextStore<Query, SessionState> contextStore =
           InstrumentationContext.get(Query.class, SessionState.class);
 
       // Note: We don't know what the entity is until the method is returning.
       final SessionState state =
-          SessionMethodUtils.startScopeFrom(
-              contextStore, query, "hibernate.query." + name, null, true);
+          SessionMethodUtils.startScopeFrom(contextStore, query, origin, operationName, null, true);
       if (state != null) {
         DECORATOR.onStatement(state.getMethodScope().span(), query.getQueryString());
       }
