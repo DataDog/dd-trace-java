@@ -42,7 +42,7 @@ class ScopeManagerTest extends DDSpecification {
   }
 
   def cleanup() {
-    ContinuableScopeManager.tlsScope.remove()
+    scopeManager.tlsScopeStack.get().clear()
   }
 
   def "non-ddspan activation results in a continuable scope"() {
@@ -313,21 +313,21 @@ class ScopeManagerTest extends DDSpecification {
     scope.setAsyncPropagation(true)
 
     expect:
-    scopeManager.tlsScope.get() == scope
+    scopeManager.active() == scope
 
     when:
     def cont = scope.capture()
     scope.close()
 
     then:
-    scopeManager.tlsScope.get() == null
+    scopeManager.active() == null
 
     when:
     def newScope = cont.activate()
 
     then:
     newScope != scope
-    scopeManager.tlsScope.get() == newScope
+    scopeManager.active() == newScope
   }
 
   def "test activating same scope multiple times"() {
@@ -411,6 +411,9 @@ class ScopeManagerTest extends DDSpecification {
   }
 
   def "scope not closed when not on top"() {
+    // DQH: This test has been left unchanged from before the change to
+    // make sure all listener behavior is approximately the same.
+
     setup:
     def eventCountingLister = new EventCountingListener()
     AtomicInteger activatedCount = eventCountingLister.activatedCount
@@ -450,6 +453,52 @@ class ScopeManagerTest extends DDSpecification {
     activatedCount.get() == 2
     closedCount.get() == 2
     0 * _
+  }
+
+  def "scope closed out of order 2"() {
+    when:
+    AgentSpan firstSpan = tracer.buildSpan("foo").start()
+    AgentScope firstScope = tracer.activateSpan(firstSpan)
+
+    then:
+    tracer.activeSpan() == firstSpan
+    tracer.activeScope() == firstScope
+
+    when:
+    AgentSpan secondSpan = tracer.buildSpan("bar").start()
+    AgentScope secondScope = tracer.activateSpan(secondSpan)
+
+    then:
+    tracer.activeSpan() == secondSpan
+    tracer.activeScope() == secondScope
+
+    when:
+    AgentSpan thirdSpan = tracer.buildSpan("quux").start()
+    AgentScope thirdScope = tracer.activateSpan(thirdSpan)
+
+    then:
+    tracer.activeSpan() == thirdSpan
+    tracer.activeScope() == thirdScope
+
+    when:
+    secondScope.close()
+
+    then:
+    tracer.activeSpan() == thirdSpan
+    tracer.activeScope() == thirdScope
+
+    when:
+    thirdScope.close()
+
+    then:
+    tracer.activeSpan() == firstSpan
+    tracer.activeScope() == firstScope
+
+    when:
+    firstScope.close()
+
+    then:
+    tracer.activeScope() == null
   }
 
   boolean spanFinished(AgentSpan span) {

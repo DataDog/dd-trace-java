@@ -296,9 +296,9 @@ public class Config {
   @Getter private final boolean httpClientSplitByDomain;
   @Getter private final boolean dbClientSplitByInstance;
   @Getter private final Set<String> splitByTags;
-  @Getter private final Integer scopeDepthLimit;
+  @Getter private final int scopeDepthLimit;
   @Getter private final boolean scopeStrictMode;
-  @Getter private final Integer partialFlushMinSpans;
+  @Getter private final int partialFlushMinSpans;
   @Getter private final boolean runtimeContextFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
   @Getter private final Set<PropagationStyle> propagationStylesToInject;
@@ -356,6 +356,8 @@ public class Config {
 
   @Getter private final boolean kafkaClientPropagationEnabled;
   @Getter private final boolean kafkaClientBase64DecodingEnabled;
+
+  @Getter private final boolean hystrixTagsEnabled;
 
   @Getter private final boolean debugEnabled;
   @Getter private final String configFile;
@@ -621,6 +623,9 @@ public class Config {
     kafkaClientBase64DecodingEnabled =
         getBooleanSettingFromEnvironment(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
 
+    hystrixTagsEnabled =
+        getBooleanSettingFromEnvironment(TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED, false);
+
     debugEnabled = isDebugMode();
 
     // Setting this last because we have a few places where this can come from
@@ -833,6 +838,10 @@ public class Config {
         getPropertyBooleanValue(
             properties, KAFKA_CLIENT_PROPAGATION_ENABLED, parent.kafkaClientPropagationEnabled);
 
+    hystrixTagsEnabled =
+        getBooleanSettingFromEnvironment(
+            TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED, parent.hystrixTagsEnabled);
+
     debugEnabled = parent.debugEnabled || isDebugMode();
 
     kafkaClientBase64DecodingEnabled =
@@ -955,37 +964,12 @@ public class Config {
 
   public boolean isIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
-    return integrationEnabled(integrationNames, defaultEnabled);
-  }
-
-  /**
-   * @param integrationNames
-   * @param defaultEnabled
-   * @return
-   * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isIntegrationEnabled(SortedSet, boolean)}.
-   */
-  @Deprecated
-  private static boolean integrationEnabled(
-      final SortedSet<String> integrationNames, final boolean defaultEnabled) {
-    // If default is enabled, we want to enable individually,
-    // if default is disabled, we want to disable individually.
-    boolean anyEnabled = defaultEnabled;
-    for (final String name : integrationNames) {
-      final boolean configEnabled =
-          getBooleanSettingFromEnvironment("integration." + name + ".enabled", defaultEnabled);
-      if (defaultEnabled) {
-        anyEnabled &= configEnabled;
-      } else {
-        anyEnabled |= configEnabled;
-      }
-    }
-    return anyEnabled;
+    return isEnabled(integrationNames, "integration.", ".enabled", defaultEnabled);
   }
 
   public boolean isJmxFetchIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
-    return jmxFetchIntegrationEnabled(integrationNames, defaultEnabled);
+    return isEnabled(integrationNames, "jmxfetch.", ".enabled", defaultEnabled);
   }
 
   public boolean isRuleEnabled(final String name) {
@@ -1002,34 +986,22 @@ public class Config {
    */
   public static boolean jmxFetchIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
-    // If default is enabled, we want to enable individually,
-    // if default is disabled, we want to disable individually.
-    boolean anyEnabled = defaultEnabled;
-    for (final String name : integrationNames) {
-      final boolean configEnabled =
-          getBooleanSettingFromEnvironment("jmxfetch." + name + ".enabled", defaultEnabled);
-      if (defaultEnabled) {
-        anyEnabled &= configEnabled;
-      } else {
-        anyEnabled |= configEnabled;
-      }
-    }
-    return anyEnabled;
+    return Config.get().isJmxFetchIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
   public boolean isEndToEndDurationEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
-    return isEnabled(integrationNames, ".e2e.duration.enabled", defaultEnabled);
+    return isEnabled(Arrays.asList(integrationNames), "", ".e2e.duration.enabled", defaultEnabled);
   }
 
   public boolean isTraceAnalyticsIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
-    return traceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled);
+    return isEnabled(integrationNames, "", ".analytics.enabled", defaultEnabled);
   }
 
   public boolean isTraceAnalyticsIntegrationEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
-    return isEnabled(integrationNames, ".analytics.enabled", defaultEnabled);
+    return isEnabled(Arrays.asList(integrationNames), "", ".analytics.enabled", defaultEnabled);
   }
 
   private static boolean isDebugMode() {
@@ -1058,29 +1030,20 @@ public class Config {
    */
   public static boolean traceAnalyticsIntegrationEnabled(
       final SortedSet<String> integrationNames, final boolean defaultEnabled) {
-    // If default is enabled, we want to enable individually,
-    // if default is disabled, we want to disable individually.
-    boolean anyEnabled = defaultEnabled;
-    for (final String name : integrationNames) {
-      final boolean configEnabled =
-          getBooleanSettingFromEnvironment(name + ".analytics.enabled", defaultEnabled);
-      if (defaultEnabled) {
-        anyEnabled &= configEnabled;
-      } else {
-        anyEnabled |= configEnabled;
-      }
-    }
-    return anyEnabled;
+    return Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
   private static boolean isEnabled(
-      final String[] integrationNames, final String settingSuffix, final boolean defaultEnabled) {
+      final Iterable<String> integrationNames,
+      final String settingPrefix,
+      final String settingSuffix,
+      final boolean defaultEnabled) {
     // If default is enabled, we want to enable individually,
     // if default is disabled, we want to disable individually.
     boolean anyEnabled = defaultEnabled;
     for (final String name : integrationNames) {
       final boolean configEnabled =
-          getBooleanSettingFromEnvironment(name + settingSuffix, defaultEnabled);
+          getBooleanSettingFromEnvironment(settingPrefix + name + settingSuffix, defaultEnabled);
       if (defaultEnabled) {
         anyEnabled &= configEnabled;
       } else {

@@ -223,14 +223,9 @@ class OpenTelemetryTest extends AgentTestRunner {
     secondScope.close()
 
     then:
-    tracer.currentSpan.delegate == firstScope.delegate.span()
+    tracer.currentSpan == null
     0 * _
 
-    when:
-    firstScope.close()
-
-    then:
-    0 * _
   }
 
   def "test continuation"() {

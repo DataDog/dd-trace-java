@@ -1,8 +1,7 @@
-package datadog.trace.api.sampling
+package datadog.trace.common.sampling
 
 import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
-import datadog.trace.common.sampling.DeterministicSampler
 import datadog.trace.util.test.DDSpecification
 
 class DeterministicSamplerTest extends DDSpecification {

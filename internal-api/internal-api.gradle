@@ -1,5 +1,7 @@
 apply from: "$rootDir/gradle/java.gradle"
 
+minimumBranchCoverage = 0.8
+
 excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.Tags",
   "datadog.trace.bootstrap.instrumentation.api.CommonTagValues",

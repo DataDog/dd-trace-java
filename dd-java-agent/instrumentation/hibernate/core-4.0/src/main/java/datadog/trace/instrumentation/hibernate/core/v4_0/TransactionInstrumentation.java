@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
+import java.lang.reflect.Method;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -42,13 +43,14 @@ public class TransactionInstrumentation extends AbstractHibernateInstrumentation
   public static class TransactionCommitAdvice extends V4Advice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static SessionState startCommit(@Advice.This final Transaction transaction) {
+    public static SessionState startCommit(
+        @Advice.This final Transaction transaction, @Advice.Origin final Method origin) {
 
       final ContextStore<Transaction, SessionState> contextStore =
           InstrumentationContext.get(Transaction.class, SessionState.class);
 
       return SessionMethodUtils.startScopeFrom(
-          contextStore, transaction, "hibernate.transaction.commit", null, true);
+          contextStore, transaction, origin, "hibernate.transaction.commit", null, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

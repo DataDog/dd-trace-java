@@ -1,9 +1,5 @@
-package datadog.trace.api.sampling
+package datadog.trace.common.sampling
 
-import datadog.trace.common.sampling.PrioritySampler
-import datadog.trace.common.sampling.RateByServiceSampler
-import datadog.trace.common.sampling.RuleBasedSampler
-import datadog.trace.common.sampling.Sampler
 import datadog.trace.core.DDSpan
 import datadog.trace.core.SpanFactory
 import datadog.trace.util.test.DDSpecification

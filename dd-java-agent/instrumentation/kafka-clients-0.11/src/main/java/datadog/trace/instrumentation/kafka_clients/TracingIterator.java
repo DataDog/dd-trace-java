@@ -55,9 +55,7 @@ public class TracingIterator implements Iterator<ConsumerRecord> {
       if (next != null) {
         final Context spanContext = propagate().extract(next.headers(), GETTER);
         final AgentSpan span = startSpan(operationName, spanContext);
-        // tombstone checking logic here because it can only be inferred
-        // from the record itself
-        if (next.value() == null && !next.headers().iterator().hasNext()) {
+        if (next.value() == null) {
           span.setTag(InstrumentationTags.TOMBSTONE, true);
         }
         decorator.afterStart(span);

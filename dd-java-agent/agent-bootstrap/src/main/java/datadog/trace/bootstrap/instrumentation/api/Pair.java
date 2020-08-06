@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import lombok.EqualsAndHashCode;
+
+@EqualsAndHashCode
 public final class Pair<T, U> {
 
   public static <T, U> Pair<T, U> of(T left, U right) {

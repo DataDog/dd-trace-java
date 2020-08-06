@@ -48,11 +48,9 @@ abstract class AbstractSmokeTest extends Specification {
   @AutoCleanup
   protected TestHttpServer server = httpServer {
     handlers {
-      prefix("/v0.4/traces") {
+      prefix("/v0.3/traces") {
+        println("Received traces: " + request.getHeader("X-Datadog-Trace-Count"))
         traceRequests.add(request)
-        response.status(200).send()
-      }
-      all {
         response.status(200).send()
       }
     }
@@ -68,6 +66,7 @@ abstract class AbstractSmokeTest extends Specification {
     }
 
     startServer()
+    System.out.println("Mock agent started at " + server.address)
 
     defaultJavaProperties = [
       "-javaagent:${shadowJarPath}",
@@ -103,7 +102,7 @@ abstract class AbstractSmokeTest extends Specification {
     stopServer()
   }
 
-   def getProfilingUrl() {
+  def getProfilingUrl() {
     if (profilingPort == -1) {
       profilingPort = PortUtils.randomOpenPort()
     }
