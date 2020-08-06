@@ -14,7 +14,7 @@ import static org.junit.Assume.assumeTrue
 class ThreadPoolExecutorInstrumentationTest extends AgentTestRunner {
   static {
     ConfigUtils.updateConfig {
-      System.setProperty("dd.integration.thread-pool-executor.enabled", "false")
+//      System.setProperty("dd.integration.thread-pool-executor.enabled", "false")
     }
   }
 
