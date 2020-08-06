@@ -105,6 +105,7 @@ include ':dd-java-agent:instrumentation:jax-rs-client-2.0:connection-error-handl
 include ':dd-java-agent:instrumentation:jax-rs-client-2.0:connection-error-handling-resteasy'
 include ':dd-java-agent:instrumentation:java-concurrent'
 include ':dd-java-agent:instrumentation:java-concurrent:java-completablefuture'
+include ':dd-java-agent:instrumentation:java-concurrent:java-threadpoolexecutor'
 include ':dd-java-agent:instrumentation:java-concurrent:kotlin-testing'
 include ':dd-java-agent:instrumentation:jdbc'
 include ':dd-java-agent:instrumentation:jedis-1.4'
