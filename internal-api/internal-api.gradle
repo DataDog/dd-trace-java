@@ -1,3 +1,7 @@
+ext {
+  enableJunitPlatform = true
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 excludedClassesCoverage += [
@@ -19,9 +23,64 @@ excludedClassesCoverage += [
   "datadog.trace.mlt.MethodLevelTracer.NoSession",
 ]
 
+sourceSets {
+  main {
+    java {
+      srcDirs = ["src/main/java"]
+    }
+  }
+  /*
+   * can't be main_java9 as the global java.gradle adds some magic souce
+   * to all main_* source roots and that will mess up the dependency order
+   */
+  java9Impl {
+    java {
+      srcDirs = ["src/main/java9Impl"]
+    }
+  }
+}
+
 dependencies {
   // references TraceScope and Continuation from public api
   compile project(':dd-trace-api')
 
+  java9ImplCompile sourceSets.main.output
+  java9ImplCompile deps.slf4j
+  java9ImplCompileOnly "org.projectlombok:lombok:${project.lombok.version}" transitive false
+  java9ImplAnnotationProcessor "org.projectlombok:lombok:${project.lombok.version}" transitive false
+
   testCompile project(":utils:test-utils")
+  testRuntime sourceSets.java9Impl.output
+}
+
+compileJava9ImplJava {
+  sourceCompatibility = 9
+  targetCompatibility = 9
+  options.fork = true
+  options.forkOptions.javaHome = file(System.env.JAVA_11_HOME)
+}
+
+testClasses {
+  dependsOn java9ImplClasses
+}
+
+//tasks.withType(Test).configureEach {
+//  if (!name.endsWith("Generated")) {
+//    return
+//  }
+//
+//  if (!name.contains("8")) {
+//    dependsOn java9ImplClasses
+//  }
+//  filter {
+//    include "InvocationTest"
+//  }
+//}
+
+jar {
+  // need to include the custom Java 9+ impl classes
+  from(sourceSets.java9Impl.output) {
+    include '**/*.class'
+  }
+  dependsOn java9ImplClasses
 }
