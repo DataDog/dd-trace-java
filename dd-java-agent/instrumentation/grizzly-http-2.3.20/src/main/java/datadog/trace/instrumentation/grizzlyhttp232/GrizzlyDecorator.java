@@ -30,21 +30,21 @@ public class GrizzlyDecorator
   protected URI url(final HttpRequestPacket httpRequest) throws URISyntaxException {
     return new URI(
         (httpRequest.isSecure() ? "https://" : "http://")
-            + httpRequest.getRemoteHost()
+            + httpRequest.serverName()
             + ":"
-            + httpRequest.getLocalPort()
+            + httpRequest.getServerPort()
             + httpRequest.getRequestURI()
             + (httpRequest.getQueryString() != null ? "?" + httpRequest.getQueryString() : ""));
   }
 
   @Override
   protected String peerHostIP(final HttpRequestPacket httpRequest) {
-    return httpRequest.getLocalHost();
+    return httpRequest.getRemoteAddress();
   }
 
   @Override
   protected Integer peerPort(final HttpRequestPacket httpRequest) {
-    return httpRequest.getLocalPort();
+    return httpRequest.getRemotePort();
   }
 
   @Override
