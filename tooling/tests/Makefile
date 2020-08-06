@@ -1,18 +1,17 @@
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 DOCKER_COMPOSE_FILE:=$(addprefix ${ROOT_DIR}/, docker-compose.yaml )
+BUILD_DIR:=$(ROOT_DIR)/build
 
-TARGETS=$(shell docker-compose -f ${DOCKER_COMPOSE_FILE} config --services)
+TARGETS=$(subst ${ROOT_DIR}/,,$(patsubst %.sh, %, $(wildcard ${ROOT_DIR}/*.sh)))
+.PHONY: list ${TARGETS}
 
-.PHONY: ${TARGETS} list all
-
+INIT_TARGETS=$(addprefix ${BUILD_DIR}/, ${TARGETS})
 list:
-	@echo All targets:
-	@echo "  "${TARGETS}
+	@echo ${TARGETS}
 
-${TARGETS}: export COMPOSE_DOCKER_CLI_BUILD=1 
-${TARGETS}: export DOCKER_BUILDKIT=1
-${TARGETS}:
-	@docker-compose -f ${DOCKER_COMPOSE_FILE} build --force-rm $@ 
-	@docker-compose -f ${DOCKER_COMPOSE_FILE} run --rm $@
+${TARGETS}: ${INIT_TARGETS}
+
+${INIT_TARGETS}: 
+	@bash -c "source $(subst ${BUILD_DIR},${ROOT_DIR},$@).sh; TARGET=$@ init"
 
 all: ${TARGETS}

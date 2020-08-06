@@ -7,4 +7,11 @@ services:
       args:
         SOURCE: https://github.com/hibernate/hibernate-orm/archive/5.4.10.tar.gz
     command: ./gradlew check
+  rx-java-2: 
+    build:
+      context: ./
+      args:
+        SOURCE: https://github.com/ReactiveX/RxJava/archive/v2.2.17.tar.gz
+    command: ./gradlew check
+
 

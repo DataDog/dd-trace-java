@@ -7,11 +7,12 @@ ARG SOURCE
 ARG TAR_STRIP_COMPONENTS=1
 
 RUN set -xe; \
-    mkdir /target; \
-    cd /target; \
-    curl -o source.tar -L ${SOURCE}; \
-    tar xf source.tar --strip-components=${TAR_STRIP_COMPONENTS}; \
-    rm -rf source.tar
+  mkdir /target; \
+  cd /target; \
+  curl -o source.tar -L ${SOURCE}; \
+  tar xf source.tar --strip-components=${TAR_STRIP_COMPONENTS}; \
+  rm -rf source.tar
 WORKDIR /target
-RUN ./gradlew assemble
-  
+RUN set -xe; \
+  ./gradlew assemble; \
+  ./gradlew dependencies
