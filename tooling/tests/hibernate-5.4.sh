@@ -1,5 +1,6 @@
 #!/bin/bash
 TARGET=hibernate-5.4
+RESULTS=results
 
 function init {
   bash lib/init_http.sh $TARGET https://github.com/hibernate/hibernate-orm/archive/5.4.10.tar.gz
@@ -14,5 +15,5 @@ function tests {
 }
 
 function collect {
-  echo 2
+  find $TARGET -type f -iwholename "*/test-results/*" -name "*.xml" | xargs -n 1 -J % cp % $RESULTS
 }
