@@ -180,17 +180,18 @@ jobs:
             << pipeline.parameters.gradle_flags >>
             --max-workers=16
 
-  hlal:
+  wip:
     <<: *defaults
     steps:
       - setup_code
-      - setup_remote_docker:
-          version: "19.03.12"
-          docker_layer_caching: true
+      # - setup_remote_docker:
+      #     version: "19.03.12"
+      #     docker_layer_caching: true
       - run:
-          name: hlal
+          name: wip
           command: make -f tooling/tests/Makefile all
-
+      - store_test_results:
+          path: tooling/tests/results
 workflows:
   build_test_deploy:
     jobs:
@@ -198,7 +199,7 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - hlal:
+      - wip:
           requires: [build]
 
 
