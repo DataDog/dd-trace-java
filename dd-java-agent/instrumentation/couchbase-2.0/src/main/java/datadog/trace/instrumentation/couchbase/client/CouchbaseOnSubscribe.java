@@ -13,12 +13,13 @@ public class CouchbaseOnSubscribe extends TracedOnSubscribe {
 
   public CouchbaseOnSubscribe(
       final Observable originalObservable,
-      final String originType,
+      final Class<?> originType,
       final String originMethod,
       final String bucket) {
     super(originalObservable, "couchbase.call", DECORATE);
 
-    final String className = originType.replace("CouchbaseAsync", "").replace("DefaultAsync", "");
+    final String className =
+        originType.getSimpleName().replace("CouchbaseAsync", "").replace("DefaultAsync", "");
     resourceName = className + "." + originMethod;
     this.bucket = bucket;
   }

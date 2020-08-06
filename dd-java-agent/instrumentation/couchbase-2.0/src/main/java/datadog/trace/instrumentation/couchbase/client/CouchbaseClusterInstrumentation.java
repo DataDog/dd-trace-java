@@ -62,7 +62,7 @@ public class CouchbaseClusterInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void subscribeResult(
         @Advice.Enter final int callDepth,
-        @Advice.Origin("#t") final String originType,
+        @Advice.Origin final Class<?> originType,
         @Advice.Origin("#m") final String originMethod,
         @Advice.Return(readOnly = false) Observable result) {
       if (callDepth > 0) {
