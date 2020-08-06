@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Trace
+import datadog.trace.core.DDSpan
 import spock.lang.Shared
 
 import java.util.concurrent.ArrayBlockingQueue
@@ -52,14 +53,15 @@ class ThreadPoolExecutorInstrumentationTest extends AgentTestRunner {
       }
     }.run()
 
-    TEST_WRITER.waitForTraces(2)
+    TEST_WRITER.waitForTraces(1)
+    List<DDSpan> trace = TEST_WRITER.get(0)
 
     expect:
-    TEST_WRITER.size() == 2
-    TEST_WRITER.get(0).size() == 1
-    TEST_WRITER.get(0).get(0).operationName == "parent"
-    TEST_WRITER.get(1).size() == 1
-    TEST_WRITER.get(1).get(0).operationName == "asyncChild"
+    TEST_WRITER.size() == 1
+    trace.size() == 2
+    trace.get(0).operationName == "parent"
+    trace.get(1).operationName == "asyncChild"
+    trace.get(1).parentId == trace.get(0).spanId
 
     cleanup:
     if (pool?.hasProperty("shutdown")) {
