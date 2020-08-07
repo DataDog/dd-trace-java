@@ -25,4 +25,4 @@ ${RESULTS_DIR}/%: ${BUILD_DIR}/%
 all: ${TARGETS}
 
 ci:
-	@echo ${TARGETS} | xargs make -f ${ROOT_DIR}/Makefile
+	@echo ${TARGETS} | circleci tests split | xargs make -f ${ROOT_DIR}/Makefile

@@ -189,7 +189,7 @@ jobs:
       #     docker_layer_caching: true
       - run:
           name: wip
-          command: make -f tooling/tests/Makefile all
+          command: make -f tooling/tests/Makefile ci
       - store_test_results:
           path: tooling/tests/results
 workflows:
@@ -199,8 +199,8 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - wip:
-          requires: [build]
+      - wip: {}
+          # requires: [build]
 
 
       # - default_test_job:
