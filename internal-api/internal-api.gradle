@@ -17,6 +17,7 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
   "datadog.trace.mlt.MethodLevelTracer",
   "datadog.trace.mlt.MethodLevelTracer.NoSession",
+  "datadog.trace.mlt.Invocation.Caller",
 ]
 
 sourceSets {
