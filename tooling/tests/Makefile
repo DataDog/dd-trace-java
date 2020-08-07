@@ -18,7 +18,7 @@ ${BUILD_DIR}/%:
 
 ${RESULTS_DIR}/%: ${BUILD_DIR}/%
 	@mkdir -p "$@-tmp"
-	@echo bash -c "cd ${ROOT_DIR}; source ./$*.sh; TARGET=${BUILD_DIR}/$* tests"
+	@bash -c "cd ${ROOT_DIR}; source ./$*.sh; TARGET=${BUILD_DIR}/$* tests"
 	@bash -c "cd ${ROOT_DIR}; source ./$*.sh; TARGET=${BUILD_DIR}/$* RESULTS=$@-tmp collect"
 	@mv "$@-tmp" "$@"
 
