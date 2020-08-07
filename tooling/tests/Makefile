@@ -4,6 +4,8 @@ BUILD_DIR:=$(ROOT_DIR)/build
 RESULTS_DIR:=$(ROOT_DIR)/results
 
 TARGETS=$(subst ${ROOT_DIR}/,,$(patsubst %.sh, %, $(wildcard ${ROOT_DIR}/*.sh)))
+BUILD_TARGETS=$(addprefix ${BUILD_DIR}/, $(TARGETS))
+RESULT_TARGETS=$(addprefix ${RESULTS_DIR}/, $(TARGETS))
 .PHONY: list ${TARGETS}
 
 list:
@@ -11,11 +13,13 @@ list:
 
 ${TARGETS}: % : ${RESULTS_DIR}/%
 
+$(BUILD_TARGETS):
 ${BUILD_DIR}/%: 
 	@mkdir -p "$@-tmp"
-	@bash -c "cd ${ROOT_DIR}; source ./$*.sh; TARGET=$@-tmp init"
-	@mv "$@-tmp" "$@"
+	@bash -c "cd ${ROOT_DIR}; source ./$*.sh; TARGET="$@-tmp" init"
+	@mv -f "$@-tmp" "$@"
 
+$(RESULT_TARGETS):
 ${RESULTS_DIR}/%: ${BUILD_DIR}/%
 	@mkdir -p "$@-tmp"
 	@bash -c "cd ${ROOT_DIR}; source ./$*.sh; TARGET=${BUILD_DIR}/$* tests"
