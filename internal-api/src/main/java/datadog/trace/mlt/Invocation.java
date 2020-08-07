@@ -61,7 +61,7 @@ public final class Invocation {
     try {
       Runtime.class.getMethod("version");
       Constructor<?> constructor =
-          Class.forName(Invocation.class.getPackage().getName() + ".InvocationImpl9")
+          Class.forName(Invocation.class.getPackage().getName() + ".InvocationImplStackWalker")
               .getDeclaredConstructor();
       constructor.setAccessible(true);
       rtImpl = (Invocation.Impl) constructor.newInstance();
@@ -82,8 +82,7 @@ public final class Invocation {
    *
    * @param offset the offset to adjust the caller stackframe by
    * @return the {@linkplain Caller} located {@literal offset} stackframes above the called method;
-   *     if the offset is bigger than the current stack depth the callstack root will be returned
-   *     instead
+   *     {@literal null} if the offset is bigger than the current stack depth
    */
   public static Caller getCaller(int offset) {
     return impl.getCaller(offset);
@@ -96,6 +95,7 @@ public final class Invocation {
    * @return the caller chain in the form of a list starting at the immediate caller and ending at
    *     the callstack root
    */
+  @NonNull
   public static List<Caller> getCallers() {
     return impl.getCallers();
   }

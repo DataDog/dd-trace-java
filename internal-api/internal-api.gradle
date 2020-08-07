@@ -64,19 +64,6 @@ testClasses {
   dependsOn java9ImplClasses
 }
 
-//tasks.withType(Test).configureEach {
-//  if (!name.endsWith("Generated")) {
-//    return
-//  }
-//
-//  if (!name.contains("8")) {
-//    dependsOn java9ImplClasses
-//  }
-//  filter {
-//    include "InvocationTest"
-//  }
-//}
-
 jar {
   // need to include the custom Java 9+ impl classes
   from(sourceSets.java9Impl.output) {

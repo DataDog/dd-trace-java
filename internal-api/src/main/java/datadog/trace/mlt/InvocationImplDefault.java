@@ -2,7 +2,7 @@ package datadog.trace.mlt;
 
 import static datadog.trace.mlt.Invocation.INVOCATION_OFFSET;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
@@ -46,11 +46,11 @@ final class InvocationImplDefault implements Invocation.Impl {
   public List<Invocation.Caller> getCallers() {
     Class<?>[] list = ACCESSOR.getClassContext();
     int callerLength = Math.max(list.length - INVOCATION_OFFSET, 0);
-    Invocation.Caller[] callers = new Invocation.Caller[callerLength];
+    List<Invocation.Caller> callers = new ArrayList<>(callerLength);
 
-    for (int i = 0; i < callers.length; i++) {
-      callers[i] = new Invocation.Caller(list[i + INVOCATION_OFFSET].getName(), null);
+    for (int i = INVOCATION_OFFSET; i < list.length; i++) {
+      callers.add(new Invocation.Caller(list[i].getName(), null));
     }
-    return Arrays.asList(callers);
+    return callers;
   }
 }
