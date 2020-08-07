@@ -367,7 +367,7 @@ class TagInterceptorTest extends DDSpecification {
     span.finish()
 
     then:
-    span.resourceName == "some-statement"
+    span.resourceName.toString() == "some-statement"
   }
 
   def "disable decorator via config"() {
