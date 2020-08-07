@@ -15,5 +15,5 @@ function tests {
 }
 
 function collect {
-  find $TARGET -type f -iwholename "*/test-results/*" -name "*.xml" | xargs -n 1 -J % cp % $RESULTS
+  find $TARGET -type f -iwholename "*/test-results/*" -name "*.xml" | xargs -n 1 -I % cp % $RESULTS
 }
