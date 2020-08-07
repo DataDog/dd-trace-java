@@ -182,6 +182,7 @@ jobs:
 
   wip:
     <<: *defaults
+    parallelism: 2
     steps:
       - setup_code
       # - setup_remote_docker:
