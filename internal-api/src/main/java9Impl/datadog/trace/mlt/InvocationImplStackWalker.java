@@ -26,6 +26,7 @@ final class InvocationImplStackWalker implements Invocation.Impl {
       return frame;
     }
   }
+
   @Override
   public Invocation.Caller getCaller(int offset) {
     if (offset < 0) {
