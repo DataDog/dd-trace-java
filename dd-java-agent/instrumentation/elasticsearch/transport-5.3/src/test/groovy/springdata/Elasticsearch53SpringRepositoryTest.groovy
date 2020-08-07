@@ -114,7 +114,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     and:
     waitForTracesAndSortSpans(2)
     // need to normalize trace ordering since they are finished by different threads
-    if (TEST_WRITER[1][0].resourceName == "PutMappingAction") {
+    if (TEST_WRITER[1][0].resourceName.toString() == "PutMappingAction") {
       def tmp = TEST_WRITER[1]
       TEST_WRITER[1] = TEST_WRITER[0]
       TEST_WRITER[0] = tmp

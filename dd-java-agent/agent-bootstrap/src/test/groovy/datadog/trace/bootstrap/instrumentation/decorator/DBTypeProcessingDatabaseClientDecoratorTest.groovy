@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.decorator
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 
 class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
 
@@ -23,7 +24,7 @@ class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
     1 * span.setTag(Tags.SPAN_KIND, "client")
     1 * span.setTag(DDTags.SPAN_TYPE, "test-type")
     1 * span.setServiceName("test-db")
-    1 * span.setOperationName("test-db.query")
+    1 * span.setOperationName(UTF8BytesString.create("test-db.query"))
     1 * span.setTag("db.type", "test-db") // is this really necessary or a waste of space and cycles?
     1 * span.setTag(DDTags.ANALYTICS_SAMPLE_RATE, 1.0)
     0 * _

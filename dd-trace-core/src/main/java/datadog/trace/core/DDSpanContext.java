@@ -62,7 +62,7 @@ public class DDSpanContext implements AgentSpan.Context {
   /** The resource associated to the service (server_web, database, etc.) */
   private volatile CharSequence resourceName;
   /** Each span have an operation name describing the current span */
-  private volatile String operationName;
+  private volatile CharSequence operationName;
   /** The type of the span. If null, the Datadog Agent will report as a custom */
   private volatile String spanType;
   /** True indicates that the span reports an error */
@@ -188,11 +188,11 @@ public class DDSpanContext implements AgentSpan.Context {
     this.resourceName = resourceName;
   }
 
-  public String getOperationName() {
+  public CharSequence getOperationName() {
     return operationName;
   }
 
-  public void setOperationName(final String operationName) {
+  public void setOperationName(final CharSequence operationName) {
     this.operationName = operationName;
   }
 

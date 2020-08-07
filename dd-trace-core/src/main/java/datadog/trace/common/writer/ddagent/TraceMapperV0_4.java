@@ -40,7 +40,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeString(span.getServiceName(), CONSTANT_TAGS);
       /* 2  */
       writable.writeUTF8(NAME);
-      writable.writeString(span.getOperationName(), CONSTANT_TAGS);
+      writable.writeObject(span.getOperationName(), NO_CACHING);
       /* 3  */
       writable.writeUTF8(RESOURCE);
       writable.writeObject(span.getResourceName(), NO_CACHING);

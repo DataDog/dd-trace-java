@@ -283,7 +283,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     }
 
     @Override
-    String getOperationName() {
+    CharSequence getOperationName() {
       return operationName
     }
 

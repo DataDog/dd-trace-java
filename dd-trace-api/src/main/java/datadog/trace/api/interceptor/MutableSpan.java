@@ -10,9 +10,9 @@ public interface MutableSpan {
   /** @return Duration with nanosecond scale. */
   long getDurationNano();
 
-  String getOperationName();
+  CharSequence getOperationName();
 
-  MutableSpan setOperationName(final String serviceName);
+  MutableSpan setOperationName(final CharSequence serviceName);
 
   String getServiceName();
 

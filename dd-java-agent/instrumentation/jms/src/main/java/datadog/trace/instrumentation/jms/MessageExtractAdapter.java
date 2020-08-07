@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jms;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
+import datadog.trace.bootstrap.instrumentation.api.Function;
 import java.util.Enumeration;
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -10,10 +11,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Message> {
 
-  private static final FixedSizeCache.Creator<String, String> KEY_MAPPER =
-      new FixedSizeCache.Creator<String, String>() {
+  private static final Function<String, String> KEY_MAPPER =
+      new Function<String, String>() {
         @Override
-        public String create(String key) {
+        public String apply(String key) {
           return key.replace('$', '-')
               // true story \/
               .replace("__dash__", "-")

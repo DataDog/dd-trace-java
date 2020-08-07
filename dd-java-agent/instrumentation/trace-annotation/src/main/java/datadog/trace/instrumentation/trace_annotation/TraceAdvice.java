@@ -24,8 +24,8 @@ public class TraceAdvice {
 
     final AgentSpan span = startSpan(operationName);
 
-    String resourceName = traceAnnotation == null ? null : traceAnnotation.resourceName();
-    if (resourceName == null || resourceName.isEmpty()) {
+    CharSequence resourceName = traceAnnotation == null ? null : traceAnnotation.resourceName();
+    if (resourceName == null || resourceName.length() == 0) {
       resourceName = DECORATE.spanNameForMethod(method);
     }
     span.setTag(DDTags.RESOURCE_NAME, resourceName);

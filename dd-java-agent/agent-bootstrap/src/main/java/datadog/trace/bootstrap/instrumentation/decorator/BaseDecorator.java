@@ -6,24 +6,34 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Function;
+import datadog.trace.bootstrap.instrumentation.api.Functions;
+import datadog.trace.bootstrap.instrumentation.api.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.reflect.Method;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 public abstract class BaseDecorator {
 
-  private static final ClassValue<ClassName> CLASS_NAMES =
-      new ClassValue<ClassName>() {
-        @Override
-        protected ClassName computeValue(Class<?> type) {
-          return new ClassName(getClassName(type));
-        }
-      };
+  private static final QualifiedClassNameCache CLASS_NAMES =
+      new QualifiedClassNameCache(
+          new Function<Class<?>, CharSequence>() {
+            @Override
+            public String apply(Class<?> clazz) {
+              String simpleName = clazz.getSimpleName();
+              if (simpleName.isEmpty()) {
+                String name = clazz.getName();
+                int start = name.lastIndexOf('.');
+                return name.substring(start + 1);
+              }
+              return simpleName;
+            }
+          },
+          Functions.PrefixJoin.of("."));
 
   protected final boolean endToEndDurationsEnabled;
   protected final boolean traceAnalyticsEnabled;
@@ -133,7 +143,7 @@ public abstract class BaseDecorator {
    * @param method
    * @return
    */
-  public String spanNameForMethod(final Method method) {
+  public CharSequence spanNameForMethod(final Method method) {
     return spanNameForMethod(method.getDeclaringClass(), method);
   }
 
@@ -144,8 +154,11 @@ public abstract class BaseDecorator {
    * @param method the method to get the name from, nullable
    * @return the span name from the class and method
    */
-  public String spanNameForMethod(final Class<?> clazz, final Method method) {
-    return spanNameForMethod(clazz, null == method ? null : method.getName());
+  public CharSequence spanNameForMethod(final Class<?> clazz, final Method method) {
+    if (null == method) {
+      return CLASS_NAMES.getClassName(clazz);
+    }
+    return CLASS_NAMES.getQualifiedName(clazz, method.getName());
   }
 
   /**
@@ -155,9 +168,8 @@ public abstract class BaseDecorator {
    * @param methodName the name of the method to get the name from, nullable
    * @return the span name from the class and method
    */
-  public String spanNameForMethod(final Class<?> clazz, final String methodName) {
-    ClassName cn = CLASS_NAMES.get(clazz);
-    return null == methodName ? cn.getName() : cn.getMethodName(methodName);
+  public CharSequence spanNameForMethod(final Class<?> clazz, final String methodName) {
+    return CLASS_NAMES.getQualifiedName(clazz, methodName);
   }
 
   /**
@@ -167,43 +179,8 @@ public abstract class BaseDecorator {
    * @param clazz
    * @return
    */
-  public String spanNameForClass(final Class<?> clazz) {
+  public CharSequence spanNameForClass(final Class<?> clazz) {
     String simpleName = clazz.getSimpleName();
-    return simpleName.isEmpty() ? CLASS_NAMES.get(clazz).getName() : simpleName;
-  }
-
-  private static class ClassName {
-    private final String className;
-    private final ConcurrentHashMap<String, String> methodNames = new ConcurrentHashMap<>(1);
-
-    private ClassName(String className) {
-      this.className = className;
-    }
-
-    public String getName() {
-      return className;
-    }
-
-    public String getMethodName(String method) {
-      String methodName = methodNames.get(method);
-      if (null == methodName) {
-        methodName = className + "." + method;
-        String prev = methodNames.putIfAbsent(method, methodName);
-        if (null != prev) {
-          methodName = prev;
-        }
-      }
-      return methodName;
-    }
-  }
-
-  private static String getClassName(Class<?> clazz) {
-    String simpleName = clazz.getSimpleName();
-    if (simpleName.isEmpty()) {
-      String name = clazz.getName();
-      int start = name.lastIndexOf('.');
-      return name.substring(start + 1);
-    }
-    return simpleName;
+    return simpleName.isEmpty() ? CLASS_NAMES.getClassName(clazz) : simpleName;
   }
 }

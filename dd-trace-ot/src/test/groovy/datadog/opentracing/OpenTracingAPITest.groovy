@@ -137,7 +137,7 @@ class OpenTracingAPITest extends DDSpecification {
       trace(0, 1) {
         span(0) {
           serviceName "someService"
-          operationName "someOtherOperation"
+          operationName("someOtherOperation")
           resourceName "someOtherOperation"
           tags {
             "$datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT" "test-component"
