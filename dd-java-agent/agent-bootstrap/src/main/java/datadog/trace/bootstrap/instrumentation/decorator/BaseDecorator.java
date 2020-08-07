@@ -21,7 +21,7 @@ public abstract class BaseDecorator {
 
   private static final QualifiedClassNameCache CLASS_NAMES =
       new QualifiedClassNameCache(
-          new Function<Class<?>, String>() {
+          new Function<Class<?>, CharSequence>() {
             @Override
             public String apply(Class<?> clazz) {
               String simpleName = clazz.getSimpleName();
@@ -143,7 +143,7 @@ public abstract class BaseDecorator {
    * @param method
    * @return
    */
-  public String spanNameForMethod(final Method method) {
+  public CharSequence spanNameForMethod(final Method method) {
     return spanNameForMethod(method.getDeclaringClass(), method);
   }
 
@@ -154,7 +154,7 @@ public abstract class BaseDecorator {
    * @param method the method to get the name from, nullable
    * @return the span name from the class and method
    */
-  public String spanNameForMethod(final Class<?> clazz, final Method method) {
+  public CharSequence spanNameForMethod(final Class<?> clazz, final Method method) {
     if (null == method) {
       return CLASS_NAMES.getClassName(clazz);
     }
@@ -168,7 +168,7 @@ public abstract class BaseDecorator {
    * @param methodName the name of the method to get the name from, nullable
    * @return the span name from the class and method
    */
-  public String spanNameForMethod(final Class<?> clazz, final String methodName) {
+  public CharSequence spanNameForMethod(final Class<?> clazz, final String methodName) {
     return CLASS_NAMES.getQualifiedName(clazz, methodName);
   }
 
@@ -179,7 +179,7 @@ public abstract class BaseDecorator {
    * @param clazz
    * @return
    */
-  public String spanNameForClass(final Class<?> clazz) {
+  public CharSequence spanNameForClass(final Class<?> clazz) {
     String simpleName = clazz.getSimpleName();
     return simpleName.isEmpty() ? CLASS_NAMES.getClassName(clazz) : simpleName;
   }

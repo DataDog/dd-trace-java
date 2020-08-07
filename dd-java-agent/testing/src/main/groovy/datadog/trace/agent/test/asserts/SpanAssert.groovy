@@ -37,7 +37,7 @@ class SpanAssert {
 
   def assertSpanNameContains(String spanName, String... shouldContainArr) {
     for (String shouldContain : shouldContainArr) {
-      assert spanName.contains(shouldContain)
+      assert spanName.toString().contains(shouldContain)
     }
   }
 
@@ -51,12 +51,12 @@ class SpanAssert {
   }
 
   def operationName(String name) {
-    assert span.operationName == name
+    assert span.operationName.toString() == name
     checked.operationName = true
   }
 
   def operationNameContains(String... operationNameParts) {
-    assertSpanNameContains(span.operationName, operationNameParts)
+    assertSpanNameContains(span.operationName.toString(), operationNameParts)
     checked.operationName = true
   }
 

@@ -13,7 +13,7 @@ import org.apache.kafka.streams.processor.internals.StampedRecord;
 public class KafkaStreamsDecorator extends ClientDecorator {
   public static final KafkaStreamsDecorator CONSUMER_DECORATE = new KafkaStreamsDecorator();
 
-  private static final FixedSizeCache<String, String> RESOURCE_NAME_CACHE =
+  private static final FixedSizeCache<CharSequence, CharSequence> RESOURCE_NAME_CACHE =
       new FixedSizeCache<>(32);
   private static final Functions.Prefix PREFIX = new Functions.Prefix("Consume Topic ");
 

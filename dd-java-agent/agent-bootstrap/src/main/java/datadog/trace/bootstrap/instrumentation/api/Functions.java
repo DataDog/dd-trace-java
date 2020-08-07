@@ -20,118 +20,124 @@ public final class Functions {
     return (Zero<T>) ZERO;
   }
 
-  public abstract static class Concatenate implements TwoArgFunction<String, String, String> {
+  public abstract static class Concatenate
+      implements TwoArgFunction<CharSequence, CharSequence, CharSequence> {
 
     @Override
-    public String apply(String left, String right) {
-      return left + right;
+    public CharSequence apply(CharSequence left, CharSequence right) {
+      return UTF8BytesString.create(String.valueOf(left) + right);
     }
   }
 
-  public static final class Suffix extends Concatenate implements Function<String, String> {
-    private final String suffix;
-    private final Function<String, String> transformer;
+  public static final class Suffix extends Concatenate
+      implements Function<CharSequence, CharSequence> {
+    private final CharSequence suffix;
+    private final Function<CharSequence, CharSequence> transformer;
 
-    public Suffix(String suffix, Function<String, String> transformer) {
+    public Suffix(CharSequence suffix, Function<CharSequence, CharSequence> transformer) {
       this.suffix = suffix;
       this.transformer = transformer;
     }
 
     public Suffix(String suffix) {
-      this(suffix, Functions.<String>zero());
+      this(suffix, Functions.<CharSequence>zero());
     }
 
     @Override
-    public String apply(String key) {
+    public CharSequence apply(CharSequence key) {
       return apply(transformer.apply(key), suffix);
     }
 
     @Override
-    public Function<String, String> curry(String suffix) {
+    public Function<CharSequence, CharSequence> curry(CharSequence suffix) {
       return new Suffix(suffix, transformer);
     }
 
-    public static final Suffix ZERO = new Suffix("", Functions.<String>zero());
+    public static final Suffix ZERO = new Suffix("", Functions.<CharSequence>zero());
   }
 
-  public static final class Prefix extends Concatenate implements Function<String, String> {
-    private final String prefix;
-    private final Function<String, String> transformer;
+  public static final class Prefix extends Concatenate
+      implements Function<CharSequence, CharSequence> {
+    private final CharSequence prefix;
+    private final Function<CharSequence, CharSequence> transformer;
 
-    public Prefix(String prefix, Function<String, String> transformer) {
+    public Prefix(CharSequence prefix, Function<CharSequence, CharSequence> transformer) {
       this.prefix = prefix;
       this.transformer = transformer;
     }
 
-    public Prefix(String prefix) {
-      this(prefix, Functions.<String>zero());
+    public Prefix(CharSequence prefix) {
+      this(prefix, Functions.<CharSequence>zero());
     }
 
     @Override
-    public String apply(String key) {
+    public CharSequence apply(CharSequence key) {
       return apply(prefix, transformer.apply(key));
     }
 
     @Override
-    public Function<String, String> curry(String prefix) {
+    public Function<CharSequence, CharSequence> curry(CharSequence prefix) {
       return new Prefix(prefix, transformer);
     }
 
-    public static final Prefix ZERO = new Prefix("", Functions.<String>zero());
+    public static final Prefix ZERO = new Prefix("", Functions.<CharSequence>zero());
   }
 
-  public abstract static class Join implements TwoArgFunction<String, String, String> {
-    protected final String joiner;
-    protected final Function<String, String> transformer;
+  public abstract static class Join
+      implements TwoArgFunction<CharSequence, CharSequence, CharSequence> {
+    protected final CharSequence joiner;
+    protected final Function<CharSequence, CharSequence> transformer;
 
-    protected Join(String joiner, Function<String, String> transformer) {
+    protected Join(CharSequence joiner, Function<CharSequence, CharSequence> transformer) {
       this.joiner = joiner;
       this.transformer = transformer;
     }
 
     @Override
-    public String apply(String left, String right) {
-      return left + joiner + right;
+    public CharSequence apply(CharSequence left, CharSequence right) {
+      return UTF8BytesString.create(String.valueOf(left) + joiner + right);
     }
   }
 
   public static class PrefixJoin extends Join {
 
-    public PrefixJoin(String joiner, Function<String, String> transformer) {
+    public PrefixJoin(CharSequence joiner, Function<CharSequence, CharSequence> transformer) {
       super(joiner, transformer);
     }
 
     @Override
-    public Function<String, String> curry(String specialisation) {
-      return new Prefix(specialisation + joiner, transformer);
+    public Function<CharSequence, CharSequence> curry(CharSequence specialisation) {
+      return new Prefix(String.valueOf(specialisation) + joiner, transformer);
     }
 
-    public static PrefixJoin of(String joiner, Function<String, String> transformer) {
+    public static PrefixJoin of(
+        CharSequence joiner, Function<CharSequence, CharSequence> transformer) {
       return new PrefixJoin(joiner, transformer);
     }
 
     public static PrefixJoin of(String joiner) {
-      return of(joiner, Functions.<String>zero());
+      return of(joiner, Functions.<CharSequence>zero());
     }
   }
 
   public static class SuffixJoin extends Join {
 
-    public SuffixJoin(String joiner, Function<String, String> transformer) {
+    public SuffixJoin(CharSequence joiner, Function<CharSequence, CharSequence> transformer) {
       super(joiner, transformer);
     }
 
     @Override
-    public Function<String, String> curry(String specialisation) {
-      return new Suffix(joiner + specialisation, transformer);
+    public Function<CharSequence, CharSequence> curry(CharSequence specialisation) {
+      return new Suffix(String.valueOf(joiner) + specialisation, transformer);
     }
 
-    public static SuffixJoin of(String joiner, Function<String, String> transformer) {
+    public static SuffixJoin of(
+        CharSequence joiner, Function<CharSequence, CharSequence> transformer) {
       return new SuffixJoin(joiner, transformer);
     }
 
-    public static SuffixJoin of(String joiner) {
-      return of(joiner, Functions.<String>zero());
+    public static SuffixJoin of(CharSequence joiner) {
+      return of(joiner, Functions.<CharSequence>zero());
     }
   }
 

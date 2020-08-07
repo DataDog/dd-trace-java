@@ -26,7 +26,9 @@ public class AdviceUtils {
       "datadog.trace.instrumentation.springwebflux.ParentSpan";
 
   public static String parseOperationName(final Object handler) {
-    final String className = DECORATE.spanNameForClass(handler.getClass());
+    // TODO standardise this logic (we don't want lambda names in resource names) and make it
+    // cacheable
+    final String className = String.valueOf(DECORATE.spanNameForClass(handler.getClass()));
     final String operationName;
     final int lambdaIdx = className.indexOf("$$Lambda$");
 

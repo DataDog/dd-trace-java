@@ -46,9 +46,9 @@ public interface AgentSpan extends MutableSpan {
 
   void finish(long finishMicros);
 
-  String getSpanName();
+  CharSequence getSpanName();
 
-  void setSpanName(String spanName);
+  void setSpanName(CharSequence spanName);
 
   boolean hasResourceName();
 

@@ -194,7 +194,7 @@ class BaseDecoratorTest extends DDSpecification {
     def result = decorator.spanNameForMethod(method)
 
     then:
-    result == "${name}.run"
+    result.toString() == "${name}.run"
 
     where:
     target                         | name

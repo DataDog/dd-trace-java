@@ -20,7 +20,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   private final QualifiedClassNameCache cache =
       new QualifiedClassNameCache(
-          new Function<Class<?>, String>() {
+          new Function<Class<?>, CharSequence>() {
             @Override
             public String apply(Class<?> input) {
               return input.getSimpleName().replace("Request", "");
@@ -28,10 +28,10 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
           },
           Functions.SuffixJoin.of(
               ".",
-              new Function<String, String>() {
+              new Function<CharSequence, CharSequence>() {
                 @Override
-                public String apply(String serviceName) {
-                  return serviceName.replace("Amazon", "").trim();
+                public CharSequence apply(CharSequence serviceName) {
+                  return String.valueOf(serviceName).replace("Amazon", "").trim();
                 }
               }));
 

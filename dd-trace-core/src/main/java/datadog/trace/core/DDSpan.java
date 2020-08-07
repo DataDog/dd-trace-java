@@ -237,7 +237,7 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
   }
 
   @Override
-  public final DDSpan setOperationName(final String operationName) {
+  public final DDSpan setOperationName(final CharSequence operationName) {
     context.setOperationName(operationName);
     return this;
   }
@@ -316,17 +316,17 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
   }
 
   @Override
-  public String getOperationName() {
+  public CharSequence getOperationName() {
     return context.getOperationName();
   }
 
   @Override
-  public String getSpanName() {
+  public CharSequence getSpanName() {
     return context.getOperationName();
   }
 
   @Override
-  public void setSpanName(final String spanName) {
+  public void setSpanName(final CharSequence spanName) {
     context.setOperationName(spanName);
   }
 

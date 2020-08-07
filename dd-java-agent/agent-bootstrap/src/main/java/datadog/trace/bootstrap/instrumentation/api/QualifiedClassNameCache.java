@@ -5,26 +5,27 @@ public class QualifiedClassNameCache {
   private final Root root;
 
   public QualifiedClassNameCache(
-      Function<Class<?>, String> formatter, TwoArgFunction<String, String, String> joiner) {
+      Function<Class<?>, CharSequence> formatter,
+      TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner) {
     this(formatter, joiner, 16);
   }
 
   public QualifiedClassNameCache(
-      Function<Class<?>, String> formatter,
-      TwoArgFunction<String, String, String> joiner,
+      Function<Class<?>, CharSequence> formatter,
+      TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner,
       int leafSize) {
     this.root = new Root(formatter, joiner, leafSize);
   }
 
   private static final class Root extends ClassValue<Leaf> {
 
-    private final Function<Class<?>, String> formatter;
-    private final TwoArgFunction<String, String, String> joiner;
+    private final Function<Class<?>, CharSequence> formatter;
+    private final TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner;
     private final int leafSize;
 
     private Root(
-        Function<Class<?>, String> formatter,
-        TwoArgFunction<String, String, String> joiner,
+        Function<Class<?>, CharSequence> formatter,
+        TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner,
         int leafSize) {
       this.formatter = formatter;
       this.joiner = joiner;
@@ -39,32 +40,34 @@ public class QualifiedClassNameCache {
 
   private static class Leaf {
 
-    private final String name;
+    private final CharSequence name;
 
-    private final FixedSizeCache<String, String> cache;
-    private final Function<String, String> joiner;
+    private final FixedSizeCache<CharSequence, CharSequence> cache;
+    private final Function<CharSequence, CharSequence> joiner;
 
-    private Leaf(String name, TwoArgFunction<String, String, String> joiner, int leafSize) {
-      ;
+    private Leaf(
+        CharSequence name,
+        TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner,
+        int leafSize) {
       this.name = name;
       this.cache = new FixedSizeCache<>(leafSize);
       this.joiner = joiner.curry(name);
     }
 
-    String get(String name) {
+    CharSequence get(CharSequence name) {
       return cache.computeIfAbsent(name, joiner);
     }
 
-    String getName() {
+    CharSequence getName() {
       return name;
     }
   }
 
-  public String getClassName(Class<?> klass) {
+  public CharSequence getClassName(Class<?> klass) {
     return root.get(klass).getName();
   }
 
-  public String getQualifiedName(Class<?> klass, String qualifier) {
+  public CharSequence getQualifiedName(Class<?> klass, String qualifier) {
     return root.get(klass).get(qualifier);
   }
 }

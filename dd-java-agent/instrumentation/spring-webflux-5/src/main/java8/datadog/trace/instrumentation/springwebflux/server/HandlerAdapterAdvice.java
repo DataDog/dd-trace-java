@@ -23,7 +23,7 @@ public class HandlerAdapterAdvice {
     final AgentSpan span = exchange.getAttribute(AdviceUtils.SPAN_ATTRIBUTE);
     if (handler != null && span != null) {
       final String handlerType;
-      final String operationName;
+      final CharSequence operationName;
 
       if (handler instanceof HandlerMethod) {
         // Special case for requests mapped with annotations

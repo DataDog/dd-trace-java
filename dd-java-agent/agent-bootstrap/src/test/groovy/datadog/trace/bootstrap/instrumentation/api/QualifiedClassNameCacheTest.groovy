@@ -28,9 +28,9 @@ class QualifiedClassNameCacheTest extends DDSpecification {
 
   def "test get cached class name"() {
     when:
-    QualifiedClassNameCache cache = new QualifiedClassNameCache(new Function<Class<?>, String>() {
+    QualifiedClassNameCache cache = new QualifiedClassNameCache(new Function<Class<?>, CharSequence>() {
       @Override
-      String apply(Class<?> input) {
+      CharSequence apply(Class<?> input) {
         return input.getSimpleName()
       }
     }, Functions.Prefix.ZERO)
