@@ -4,6 +4,7 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
+import datadog.trace.bootstrap.instrumentation.api.Functions;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
@@ -14,7 +15,7 @@ public class KafkaStreamsDecorator extends ClientDecorator {
 
   private static final FixedSizeCache<String, String> RESOURCE_NAME_CACHE =
       new FixedSizeCache<>(32);
-  private static final FixedSizeCache.Prefix PREFIX = new FixedSizeCache.Prefix("Consume Topic ");
+  private static final Functions.Prefix PREFIX = new Functions.Prefix("Consume Topic ");
 
   @Override
   protected String[] instrumentationNames() {

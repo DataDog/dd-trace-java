@@ -9,6 +9,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
+import datadog.trace.bootstrap.instrumentation.api.Functions;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.Objects;
 
@@ -28,8 +29,8 @@ public class HystrixDecorator extends BaseDecorator {
   private static final FixedSizeCache<ResourceNameCacheKey, String> RESOURCE_NAME_CACHE =
       new FixedSizeCache<>(64);
 
-  private static final FixedSizeCache.ToString<ResourceNameCacheKey> TO_STRING =
-      new FixedSizeCache.ToString<>();
+  private static final Functions.ToString<ResourceNameCacheKey> TO_STRING =
+      new Functions.ToString<>();
 
   private static final class ResourceNameCacheKey {
     private final String group;
