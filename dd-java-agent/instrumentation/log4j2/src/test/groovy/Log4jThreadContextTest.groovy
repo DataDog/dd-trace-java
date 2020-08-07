@@ -22,4 +22,9 @@ class Log4jThreadContextTest extends LogContextInjectionTestBase {
   def clear() {
     return ThreadContext.clearAll()
   }
+
+  @Override
+  def getMap() {
+    return ThreadContext.getImmutableContext()
+  }
 }

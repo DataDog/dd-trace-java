@@ -39,6 +39,8 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
 
   abstract clear()
 
+  abstract getMap()
+
   static {
     ConfigUtils.updateConfig {
       System.setProperty("dd.logs.injection", "true")
@@ -240,4 +242,12 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
     expect:
     t1A == "a thread1"
   }
+
+  def "test getCopyOfContextMap"() {
+    final context = getMap()
+
+    expect:
+    context == getMap()
+  }
+
 }
