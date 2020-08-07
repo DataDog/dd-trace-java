@@ -13,7 +13,7 @@ ${TARGETS}: % : ${RESULTS_DIR}/%
 
 ${BUILD_DIR}/%: 
 	@mkdir -p "$@-tmp"
-	@bash -c "source ${ROOT_DIR}/$*.sh; TARGET=$@-tmp init"
+	@bash -c "cd ${ROOT_DIR}; source $*.sh; TARGET=$@-tmp init"
 	@mv "$@-tmp" "$@"
 
 ${RESULTS_DIR}/%: ${BUILD_DIR}/%
@@ -23,3 +23,6 @@ ${RESULTS_DIR}/%: ${BUILD_DIR}/%
 	@mv "$@-tmp" "$@"
 
 all: ${TARGETS}
+
+ci:
+	@echo ${TARGETS} | xargs make -f ${ROOT_DIR}/Makefile
