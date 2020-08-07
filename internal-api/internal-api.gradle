@@ -18,6 +18,7 @@ excludedClassesCoverage += [
   "datadog.trace.mlt.MethodLevelTracer",
   "datadog.trace.mlt.MethodLevelTracer.NoSession",
   "datadog.trace.mlt.Invocation.Caller",
+  "datadog.trace.mlt.Invocation",
 ]
 
 sourceSets {
