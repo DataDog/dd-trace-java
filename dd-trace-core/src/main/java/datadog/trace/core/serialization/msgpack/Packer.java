@@ -696,6 +696,10 @@ public class Packer implements Writable, MessageFormatter {
     }
   }
 
+  ByteBuffer getBuffer() {
+    return buffer;
+  }
+
   void writeBinaryHeader(int length) {
     if (length < 0x100) {
       buffer.put(BIN8);

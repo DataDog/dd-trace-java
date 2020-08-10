@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -36,21 +37,23 @@ public final class UTF8BytesString implements CharSequence {
     this.string = string;
   }
 
-  /**
-   * Returns a <code>byte[]</code> representing the UTF8 encoding of the wrapped {@code String}.
-   * Please note that the same <code>byte[]</code> will be returned on each call, and the caller is
-   * bound by honor, and the fear of purgatory, to not modify the <code>byte[]</code>.
-   *
-   * @return the byte array of the UTF8 encode string
-   */
-  public byte[] getUtf8Bytes() {
-    byte[] bytes = this.utf8Bytes;
+  /** Writes the UTF8 encoding of the wrapped {@code String}. */
+  public void transferTo(ByteBuffer buffer) {
+    ensureBytesNotNull();
+    buffer.put(utf8Bytes);
+  }
+
+  public int encodedLength() {
+    ensureBytesNotNull();
+    return utf8Bytes.length;
+  }
+
+  private void ensureBytesNotNull() {
     // This race condition is intentional and benign.
     // The worst that can happen is that an identical value is produced and written into the field.
-    if (bytes == null) {
-      this.utf8Bytes = bytes = this.string.getBytes(StandardCharsets.UTF_8);
+    if (utf8Bytes == null) {
+      this.utf8Bytes = this.string.getBytes(StandardCharsets.UTF_8);
     }
-    return bytes;
   }
 
   @Override

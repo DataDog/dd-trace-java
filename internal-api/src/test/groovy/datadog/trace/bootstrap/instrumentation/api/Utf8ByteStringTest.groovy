@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api
 
 import datadog.trace.util.test.DDSpecification
 
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
 class Utf8ByteStringTest extends DDSpecification {
@@ -15,12 +16,10 @@ class Utf8ByteStringTest extends DDSpecification {
       utf8String.toString() == str
       utf8String.hashCode() == str.hashCode()
       def bytes = str.getBytes(StandardCharsets.UTF_8)
-      def utf8Bytes = utf8String.getUtf8Bytes()
-      utf8Bytes == bytes
+      def utf8Bytes = ByteBuffer.allocate(bytes.length)
+      utf8String.transferTo(utf8Bytes)
+      utf8Bytes.array() == bytes
       // check that we get back the same byte array
-      utf8String.getUtf8Bytes().is(utf8Bytes)
-      utf8String.equals(utf8String)
-      utf8String == UTF8BytesString.create(str)
       !utf8String.equals(null)
       utf8String != str
       utf8String != UTF8BytesString.create("somethingcompletelydifferent")
