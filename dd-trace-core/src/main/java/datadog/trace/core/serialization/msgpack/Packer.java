@@ -7,7 +7,6 @@ import java.util.Map;
 /** Not thread-safe (use one per thread). */
 public class Packer implements Writable, MessageFormatter {
 
-  private static final int UTF8_BUFFER_SIZE = 8;
   private static final int MAX_ARRAY_HEADER_SIZE = 5;
 
   // see https://github.com/msgpack/msgpack/blob/master/spec.md
@@ -54,8 +53,6 @@ public class Packer implements Writable, MessageFormatter {
   private final ByteBuffer buffer;
   private final boolean manualReset;
   private int messageCount = 0;
-
-  private final byte[] utf8Buffer = new byte[UTF8_BUFFER_SIZE * 4];
 
   public Packer(Codec codec, ByteBufferConsumer sink, ByteBuffer buffer, boolean manualReset) {
     this.codec = codec;
@@ -185,23 +182,14 @@ public class Packer implements Writable, MessageFormatter {
     if (null == s) {
       writeNull();
     } else {
-      byte[] utf8 = null == encodingCache ? null : encodingCache.encode(s);
-      if (null == utf8) {
-        if (s.length() < UTF8_BUFFER_SIZE) {
-          utf8EncodeWithArray(s);
-        } else {
-          utf8Encode(s);
-        }
-      } else {
-        writeUTF8(utf8, 0, utf8.length);
-      }
+      writeUTF8String(s);
     }
   }
 
-  private void utf8EncodeWithArray(CharSequence s) {
+  private void writeUTF8String(CharSequence s) {
     int mark = buffer.position();
     writeStringHeader(s.length());
-    int actualLength = utf8EncodeViaArray(s, 0);
+    int actualLength = utf8Encode(s);
     if (actualLength > s.length()) {
       int lengthWritten = stringLength(s.length());
       int lengthRequired = stringLength(actualLength);
@@ -209,137 +197,55 @@ public class Packer implements Writable, MessageFormatter {
         // could shift the string itself to the right but just do it again
         buffer.position(mark);
         writeStringHeader(actualLength);
-        utf8EncodeViaArray(s, 0);
+        utf8Encode(s);
       } else { // just go back and fix it
         fixStringHeaderInPlace(mark, lengthRequired, actualLength);
       }
     }
   }
 
-  private int utf8EncodeViaArray(CharSequence s, int in) {
-    byte[] buffer = utf8Buffer;
-    int out = 0;
-    for (; in < s.length() && out < buffer.length; ++in) {
-      char c = s.charAt(in);
+  private int utf8Encode(CharSequence s) {
+    return allocationFreeUTF8Encode(s);
+  }
+
+  private int allocationFreeUTF8Encode(CharSequence s) {
+    int written = 0;
+    for (int i = 0; i < s.length(); ++i) {
+      char c = s.charAt(i);
       if (c < 0x80) {
-        buffer[out++] = ((byte) c);
+        buffer.put((byte) c);
+        written++;
       } else if (c < 0x800) {
-        buffer[out++] = ((byte) (0xC0 | (c >> 6)));
-        buffer[out++] = ((byte) (0x80 | (c & 0x3F)));
+        buffer.putChar((char) (((0xC0 | (c >> 6)) << 8) | (0x80 | (c & 0x3F))));
+        written += 2;
       } else if (Character.isSurrogate(c)) {
         if (!Character.isHighSurrogate(c)) {
-          buffer[out++] = ((byte) '?');
-        } else if (++in == s.length()) {
-          buffer[out++] = ((byte) '?');
+          buffer.put((byte) '?');
+          written++;
+        } else if (++i == s.length()) {
+          buffer.put((byte) '?');
+          written++;
         } else {
-          char next = s.charAt(in);
+          char next = s.charAt(i);
           if (!Character.isLowSurrogate(next)) {
-            buffer[out++] = ((byte) '?');
-            buffer[out++] = (Character.isHighSurrogate(next) ? (byte) '?' : (byte) next);
+            buffer.put((byte) '?');
+            buffer.put(Character.isHighSurrogate(next) ? (byte) '?' : (byte) next);
+            written += 2;
           } else {
             int codePoint = Character.toCodePoint(c, next);
-            buffer[out++] = ((byte) (0xF0 | (codePoint >> 18)));
-            buffer[out++] = ((byte) (0x80 | ((codePoint >> 12) & 0x3F)));
-            buffer[out++] = ((byte) (0x80 | ((codePoint >> 6) & 0x3F)));
-            buffer[out++] = ((byte) (0x80 | (codePoint & 0x3F)));
+            buffer.putInt(
+                ((0xF0 | (codePoint >> 18)) << 24)
+                    | ((0x80 | ((codePoint >> 12) & 0x3F)) << 16)
+                    | ((0x80 | ((codePoint >> 6) & 0x3F)) << 8)
+                    | ((0x80 | (codePoint & 0x3F))));
+            written += 4;
           }
         }
       } else {
-        buffer[out++] = (byte) (0xE0 | c >> 12);
-        buffer[out++] = (byte) (0x80 | c >> 6 & 0x3F);
-        buffer[out++] = (byte) (0x80 | c & 0x3F);
+        buffer.putChar((char) (((0xE0 | c >> 12) << 8) | (0x80 | c >> 6 & 0x3F)));
+        buffer.put((byte) (0x80 | c & 0x3F));
+        written += 3;
       }
-    }
-    this.buffer.put(buffer, 0, out);
-    if (in < s.length()) {
-      return out + utf8EncodeViaArray(s, in);
-    }
-    return out;
-  }
-
-  private void utf8Encode(CharSequence s) {
-    int mark = buffer.position();
-    writeStringHeader(s.length());
-    int actualLength = utf8EncodeSWAR(s);
-    if (actualLength > s.length()) {
-      int lengthWritten = stringLength(s.length());
-      int lengthRequired = stringLength(actualLength);
-      if (lengthRequired != lengthWritten) {
-        // could shift the string itself to the right but just do it again
-        buffer.position(mark);
-        writeStringHeader(actualLength);
-        utf8EncodeSWAR(s);
-      } else { // just go back and fix it
-        fixStringHeaderInPlace(mark, lengthRequired, actualLength);
-      }
-    }
-  }
-
-  private int utf8EncodeSWAR(CharSequence s) {
-    int i = 0;
-    int written = 0;
-    long word;
-    while (i + 7 < s.length()) {
-      // bounds check elimination:
-      // latin 1 text will never use more than 7 bits per character,
-      // we can detect non latin 1 and revert to a slow path by
-      // merging the chars and checking every 8th bit is empty
-      word = s.charAt(i);
-      word = (word << 8 | s.charAt(i + 1));
-      word = (word << 8 | s.charAt(i + 2));
-      word = (word << 8 | s.charAt(i + 3));
-      word = (word << 8 | s.charAt(i + 4));
-      word = (word << 8 | s.charAt(i + 5));
-      word = (word << 8 | s.charAt(i + 6));
-      word = (word << 8 | s.charAt(i + 7));
-      if ((word & 0x7F7F7F7F7F7F7F7FL) == word) {
-        buffer.putLong(word);
-        written += 8;
-        i += 8;
-      } else { // redo some work, wasteful but careful
-        int j = i;
-        for (; j < i + 8; ++j) {
-          char c = s.charAt(j);
-          if (c < 0x80) {
-            buffer.put((byte) c);
-            written++;
-          } else if (c < 0x800) {
-            buffer.putChar((char) (((0xC0 | (c >> 6)) << 8) | (0x80 | (c & 0x3F))));
-            written += 2;
-          } else if (Character.isSurrogate(c)) {
-            if (!Character.isHighSurrogate(c)) {
-              buffer.put((byte) '?');
-              written++;
-            } else if (++j == s.length()) {
-              buffer.put((byte) '?');
-              written++;
-            } else {
-              char next = s.charAt(j);
-              if (!Character.isLowSurrogate(next)) {
-                buffer.put((byte) '?');
-                buffer.put(Character.isHighSurrogate(next) ? (byte) '?' : (byte) next);
-                written += 2;
-              } else {
-                int codePoint = Character.toCodePoint(c, next);
-                buffer.putInt(
-                    ((0xF0 | (codePoint >> 18)) << 24)
-                        | ((0x80 | ((codePoint >> 12) & 0x3F)) << 16)
-                        | ((0x80 | ((codePoint >> 6) & 0x3F)) << 8)
-                        | ((0x80 | (codePoint & 0x3F))));
-                written += 4;
-              }
-            }
-          } else {
-            buffer.putChar((char) (((0xE0 | c >> 12) << 8) | (0x80 | c >> 6 & 0x3F)));
-            buffer.put((byte) (0x80 | c & 0x3F));
-            written += 3;
-          }
-        }
-        i = j;
-      }
-    }
-    if (i < s.length()) {
-      written += utf8EncodeViaArray(s, i);
     }
     return written;
   }
