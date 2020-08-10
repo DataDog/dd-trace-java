@@ -10,6 +10,7 @@ import datadog.trace.core.DDTraceCoreInfo;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -296,6 +297,7 @@ public class DDAgentApi {
       builder = builder.socketFactory(new UnixDomainSocketFactory(new File(unixDomainSocketPath)));
     }
     return builder
+        .proxy(Proxy.NO_PROXY)
         .connectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .writeTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
         .readTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
