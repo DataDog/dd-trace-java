@@ -1,11 +1,16 @@
 package datadog.trace.core.serialization.msgpack;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
 /** Not thread-safe (use one per thread). */
 public class Packer implements Writable, MessageFormatter {
+
+  private static final boolean IS_JVM_9_OR_LATER =
+      !System.getProperty("java.version").startsWith("1.");
 
   private static final int MAX_ARRAY_HEADER_SIZE = 5;
 
@@ -205,6 +210,14 @@ public class Packer implements Writable, MessageFormatter {
   }
 
   private int utf8Encode(CharSequence s) {
+    if (IS_JVM_9_OR_LATER && s.length() < 64 && s instanceof String) {
+      // this allocates less with JDK9+ and is a lot faster than
+      // doing it yourself (avoids lots of bounds checks).
+      // Using UTF8ByteString wherever possible should make this rare anyway.
+      byte[] utf8 = ((String) s).getBytes(UTF_8);
+      buffer.put(utf8);
+      return utf8.length;
+    }
     return allocationFreeUTF8Encode(s);
   }
 
