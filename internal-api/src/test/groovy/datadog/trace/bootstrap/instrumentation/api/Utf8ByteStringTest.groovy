@@ -46,4 +46,11 @@ class Utf8ByteStringTest extends DDSpecification {
     where:
     chars << [null, "foo", new StringBuffer("bar"), new StringBuffer("someotherlongstring"), UTF8BytesString.create("utf8string")]
   }
+
+  def "has max size" () {
+    when:
+    UTF8BytesString.create(new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]))
+    then:
+    thrown IllegalArgumentException
+  }
 }

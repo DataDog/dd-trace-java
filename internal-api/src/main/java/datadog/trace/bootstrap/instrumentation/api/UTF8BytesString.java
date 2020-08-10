@@ -95,7 +95,7 @@ public final class UTF8BytesString implements CharSequence {
 
   private static class Allocator {
 
-    private static final int PAGE_SIZE = 8192;
+    private static final int PAGE_SIZE = 16384;
 
     private final List<byte[]> pages;
     private int currentPage = -1;
@@ -130,7 +130,7 @@ public final class UTF8BytesString implements CharSequence {
     }
 
     private void newPage() {
-      this.pages.add(new byte[0x10000]);
+      this.pages.add(new byte[PAGE_SIZE]);
       ++currentPage;
       currentPosition = 0;
     }
