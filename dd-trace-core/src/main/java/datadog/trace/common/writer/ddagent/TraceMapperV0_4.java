@@ -23,11 +23,15 @@ import datadog.trace.core.DDSpanData;
 import datadog.trace.core.TagsAndBaggageConsumer;
 import datadog.trace.core.serialization.msgpack.Writable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
 import java.util.Map;
 
 public final class TraceMapperV0_4 implements TraceMapper {
+
+  static final byte[] EMPTY = ByteBuffer.allocate(1).put((byte) 0x90).array();
+
   private final byte[] numberByteArray = integerToStringBuffer();
 
   @Override

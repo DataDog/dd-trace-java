@@ -13,6 +13,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -63,6 +64,16 @@ public class DDAgentApi {
                   String.class,
                   Types.newParameterizedType(Map.class, String.class, Double.class)));
   private static final MediaType MSGPACK = MediaType.get("application/msgpack");
+
+  private static final Map<String, RequestBody> ENDPOINT_SNIFF_REQUESTS;
+
+  static {
+    Map<String, RequestBody> requests = new HashMap<>();
+    requests.put(V5_ENDPOINT, RequestBody.create(MSGPACK, TraceMapperV0_5.EMPTY));
+    requests.put(V4_ENDPOINT, RequestBody.create(MSGPACK, TraceMapperV0_4.EMPTY));
+    requests.put(V3_ENDPOINT, RequestBody.create(MSGPACK, TraceMapperV0_4.EMPTY));
+    ENDPOINT_SNIFF_REQUESTS = Collections.unmodifiableMap(requests);
+  }
 
   private final String host;
   private final int port;
@@ -261,13 +272,16 @@ public class DDAgentApi {
   private static final byte[] EMPTY_LIST = new byte[] {(byte) 0x90};
 
   private static OkHttpClient buildClientIfAvailable(
-      final HttpUrl url, final String unixDomainSocketPath, final long timeoutMillis) {
+      final String endpoint,
+      final HttpUrl url,
+      final String unixDomainSocketPath,
+      final long timeoutMillis) {
     final OkHttpClient client = buildHttpClient(unixDomainSocketPath, timeoutMillis);
     try {
-      return validateClient(client, url);
+      return validateClient(endpoint, client, url);
     } catch (final IOException e) {
       try {
-        return validateClient(client, url);
+        return validateClient(endpoint, client, url);
       } catch (IOException ignored) {
         log.debug("No connectivity to {}: {}", url, ignored.getMessage());
       }
@@ -275,9 +289,11 @@ public class DDAgentApi {
     return null;
   }
 
-  private static OkHttpClient validateClient(OkHttpClient client, HttpUrl url) throws IOException {
-    final RequestBody body = RequestBody.create(MSGPACK, EMPTY_LIST);
-    final Request request = prepareRequest(url).put(body).build();
+  private static OkHttpClient validateClient(String endpoint, OkHttpClient client, HttpUrl url)
+      throws IOException {
+    final RequestBody body = ENDPOINT_SNIFF_REQUESTS.get(endpoint);
+    final Request request =
+        prepareRequest(url).header(X_DATADOG_TRACE_COUNT, "0").put(body).build();
     try (final okhttp3.Response response = client.newCall(request).execute()) {
       if (response.code() == 200) {
         log.debug("connectivity to {} validated", url);
@@ -343,7 +359,8 @@ public class DDAgentApi {
       //  able to detect an endpoint without an open socket...
       for (String candidate : ENDPOINTS) {
         tracesUrl = getUrl(host, port, candidate);
-        this.httpClient = buildClientIfAvailable(tracesUrl, unixDomainSocketPath, timeoutMillis);
+        this.httpClient =
+            buildClientIfAvailable(candidate, tracesUrl, unixDomainSocketPath, timeoutMillis);
         if (null != httpClient) {
           detectedVersion = candidate;
           log.debug("connected to agent {}", candidate);

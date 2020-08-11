@@ -22,6 +22,9 @@ import java.util.Map;
 
 public final class TraceMapperV0_5 implements TraceMapper {
 
+  static final byte[] EMPTY =
+      ByteBuffer.allocate(3).put((byte) 0x92).put((byte) 0x90).put((byte) 0x90).array();
+
   private static final class DictionaryFull extends BufferOverflowException {
     @Override
     public synchronized Throwable fillInStackTrace() {
