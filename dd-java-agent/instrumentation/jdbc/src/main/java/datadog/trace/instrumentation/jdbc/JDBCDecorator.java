@@ -16,11 +16,11 @@ import java.sql.SQLException;
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
 
-  private static final UTF8BytesString DB_QUERY = UTF8BytesString.create("DB Query");
+  private static final UTF8BytesString DB_QUERY = UTF8BytesString.createConstant("DB Query");
   private static final UTF8BytesString JDBC_STATEMENT =
-      UTF8BytesString.create("java-jdbc-statement");
+      UTF8BytesString.createConstant("java-jdbc-statement");
   private static final UTF8BytesString JDBC_PREPARED_STATEMENT =
-      UTF8BytesString.create("java-jdbc-prepared_statement");
+      UTF8BytesString.createConstant("java-jdbc-prepared_statement");
 
   @Override
   protected String[] instrumentationNames() {

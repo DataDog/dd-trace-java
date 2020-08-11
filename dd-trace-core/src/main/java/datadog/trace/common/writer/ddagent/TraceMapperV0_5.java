@@ -170,7 +170,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     @Override
     public void map(Object data, Writable packer) {
       if (data instanceof UTF8BytesString) {
-        packer.writeUTF8(((UTF8BytesString) data).getUtf8Bytes());
+        packer.writeObject(data, NO_CACHING);
       } else if (data instanceof Long || data instanceof Integer) {
         writeLongAsString(((Number) data).longValue(), packer, numberByteArray);
       } else {

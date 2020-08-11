@@ -276,7 +276,8 @@ public final class Codec extends ClassValue<Writer<?>> {
 
     @Override
     public void write(UTF8BytesString value, Packer writable, EncodingCache encodingCache) {
-      writable.writeUTF8(value.getUtf8Bytes());
+      writable.writeBinaryHeader(value.encodedLength());
+      value.transferTo(writable.getBuffer());
     }
   }
 
