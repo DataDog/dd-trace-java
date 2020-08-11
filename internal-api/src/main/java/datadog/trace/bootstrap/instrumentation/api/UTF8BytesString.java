@@ -9,43 +9,54 @@ import java.util.List;
 /**
  * Class that wraps a {@code String} and caches the UTF8 byte representation. Implements {@code
  * CharSequence} so that it can be mixed with normal{@code String} instances.
- *
- * <p>This class should be used judiciously for strings known not to vary much in the application's
- * lifecycle, such as constants and effective constant (e.g. resource names)
  */
 public final class UTF8BytesString implements CharSequence {
-  public static UTF8BytesString create(String string) {
-    if (string == null) {
-      return null;
-    } else {
-      // To make sure that we don't get an infinite circle in weak caches that are indexed on this
-      // very String, we create a new wrapper String that we hold on to instead.
-      return new UTF8BytesString(string);
-    }
+
+  /*
+   * This method should be used judiciously for strings known not to vary much in the application's
+   * lifecycle, such as constants and effective constant (e.g. resource names)
+   */
+  public static UTF8BytesString createConstant(CharSequence string) {
+    return create(string, true);
   }
 
   public static UTF8BytesString create(CharSequence chars) {
-    if (chars == null) {
+    return create(chars, false);
+  }
+
+  private static UTF8BytesString create(CharSequence sequence, boolean constant) {
+    if (null == sequence) {
       return null;
-    } else if (chars instanceof UTF8BytesString) {
-      return (UTF8BytesString) chars;
-    } else if (chars instanceof String) {
-      return create((String) chars);
+    } else if (sequence instanceof UTF8BytesString) {
+      return (UTF8BytesString) sequence;
     } else {
-      return new UTF8BytesString(String.valueOf(chars));
+      return new UTF8BytesString(sequence, constant);
     }
   }
 
   private static final Allocator ALLOCATOR = new Allocator();
 
   private final String string;
-  private byte[] utf8Bytes = null;
-  private int offset;
-  private int length;
+  private final byte[] utf8Bytes;
+  private final int offset;
+  private final int length;
 
-  private UTF8BytesString(String string) {
-    this.string = string;
-    ALLOCATOR.allocate(string, this);
+  private UTF8BytesString(CharSequence chars, boolean constant) {
+    // To make sure that we don't get an infinite circle in weak caches that are indexed on this
+    // very String, we create a new wrapper String that we hold on to instead.
+    this.string = chars instanceof String ? new String((String) chars) : String.valueOf(chars);
+    byte[] utf8Bytes = string.getBytes(UTF_8);
+    this.length = utf8Bytes.length;
+    if (constant) {
+      Allocator.Allocation allocation = ALLOCATOR.allocate(utf8Bytes);
+      if (null != allocation) {
+        this.offset = allocation.position;
+        this.utf8Bytes = allocation.page;
+        return;
+      }
+    }
+    this.offset = 0;
+    this.utf8Bytes = utf8Bytes;
   }
 
   /** Writes the UTF8 encoding of the wrapped {@code String}. */
@@ -95,7 +106,17 @@ public final class UTF8BytesString implements CharSequence {
 
   private static class Allocator {
 
-    private static final int PAGE_SIZE = 16384;
+    private static final class Allocation {
+      final int position;
+      final byte[] page;
+
+      private Allocation(int position, byte[] page) {
+        this.position = position;
+        this.page = page;
+      }
+    }
+
+    private static final int PAGE_SIZE = 8192;
 
     private final List<byte[]> pages;
     private int currentPage = -1;
@@ -105,19 +126,19 @@ public final class UTF8BytesString implements CharSequence {
       this.pages = new ArrayList<>();
     }
 
-    synchronized void allocate(String s, UTF8BytesString target) {
-      byte[] utf8 = s.getBytes(UTF_8);
+    synchronized Allocation allocate(byte[] utf8) {
       byte[] page = getPageWithCapacity(utf8.length);
+      if (null == page) { // too big
+        return null;
+      }
       System.arraycopy(utf8, 0, page, currentPosition, utf8.length);
-      target.utf8Bytes = page;
-      target.offset = currentPosition;
-      target.length = utf8.length;
       currentPosition += utf8.length;
+      return new Allocation(currentPosition - utf8.length, page);
     }
 
     private byte[] getPageWithCapacity(int length) {
       if (length >= PAGE_SIZE) {
-        throw new IllegalArgumentException("String too long: " + length);
+        return null;
       }
       if (currentPage < 0) {
         newPage();

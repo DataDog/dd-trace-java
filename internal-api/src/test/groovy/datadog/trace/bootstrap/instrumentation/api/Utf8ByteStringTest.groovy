@@ -9,7 +9,9 @@ import java.nio.charset.StandardCharsets
 class Utf8ByteStringTest extends DDSpecification {
   def "wrap String and produce the right bytes and String"() {
     when:
-    final utf8String = UTF8BytesString.create((String) str)
+    final utf8String = constant
+      ? UTF8BytesString.createConstant((String) str)
+      : UTF8BytesString.create((String) str)
 
     then:
     if (utf8String != null) {
@@ -26,12 +28,23 @@ class Utf8ByteStringTest extends DDSpecification {
     }
 
     where:
-    str << [null, "foo", "bar", "alongerstring"]
+    str               |      constant
+    null              |   false
+    "foo"             |   false
+    "bar"             |   false
+    "alongerstring"   |   false
+    new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | false
+    null              |   true
+    "foo"             |   true
+    "bar"             |   true
+    "alongerstring"   |   true
+    new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | true
   }
 
   def "behave like a proper CharSequence"() {
     when:
-    final utf8String = UTF8BytesString.create((CharSequence) chars)
+    final utf8String = constant ? UTF8BytesString.createConstant((CharSequence) chars)
+      : UTF8BytesString.create((CharSequence) chars)
 
     then:
     if (utf8String != null) {
@@ -44,13 +57,18 @@ class Utf8ByteStringTest extends DDSpecification {
     }
 
     where:
-    chars << [null, "foo", new StringBuffer("bar"), new StringBuffer("someotherlongstring"), UTF8BytesString.create("utf8string")]
-  }
-
-  def "has max size" () {
-    when:
-    UTF8BytesString.create(new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]))
-    then:
-    thrown IllegalArgumentException
+    chars                                          |   constant
+    null                                           | true
+    "foo"                                          | true
+    new StringBuffer("bar")                        | true
+    new StringBuffer("someotherlongstring")        | true
+    UTF8BytesString.create("utf8string")           | true
+    new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | true
+    null                                           | false
+    "foo"                                          | false
+    new StringBuffer("bar")                        | false
+    new StringBuffer("someotherlongstring")        | false
+    UTF8BytesString.create("utf8string")           | false
+    new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | false
   }
 }
