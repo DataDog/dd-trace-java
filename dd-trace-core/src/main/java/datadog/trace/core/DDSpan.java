@@ -5,6 +5,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SubTrace;
 import datadog.trace.core.util.Clock;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -142,6 +143,11 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
     }
 
     return false;
+  }
+
+  @Override
+  public void merge(final SubTrace subTrace) {
+    context.merge(subTrace);
   }
 
   @Override

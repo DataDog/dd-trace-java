@@ -9,6 +9,8 @@ import java.util.Set;
 public interface AgentScope extends TraceScope, Closeable {
   AgentSpan span();
 
+  SubTrace.Context subTraceContext();
+
   @Override
   void setAsyncPropagation(boolean value);
 

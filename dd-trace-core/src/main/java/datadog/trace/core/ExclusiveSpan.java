@@ -1,5 +1,9 @@
 package datadog.trace.core;
 
+import datadog.trace.bootstrap.instrumentation.api.Pair;
+import datadog.trace.bootstrap.instrumentation.api.SubTrace;
+import java.util.concurrent.ConcurrentHashMap;
+
 /** Internal API for a span where the holder has exclusive access to the resources exposed. */
 public final class ExclusiveSpan {
   private final DDSpanContext context;
@@ -60,6 +64,10 @@ public final class ExclusiveSpan {
 
   public void setType(final String type) {
     context.setSpanType(type);
+  }
+
+  public ConcurrentHashMap<Pair<Class, String>, SubTrace> getSubTraces() {
+    return context.getSubTraces();
   }
 
   /** @return if sampling priority was set by this method invocation */

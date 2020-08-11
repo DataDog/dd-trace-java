@@ -4,6 +4,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.SubTrace;
 import datadog.trace.context.TraceScope;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
@@ -66,6 +67,14 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
     @Override
     public AgentSpan span() {
       return converter.toAgentSpan(delegate.span());
+    }
+
+    @Override
+    public SubTrace.Context subTraceContext() {
+      if (delegate instanceof AgentScope) {
+        return ((AgentScope) delegate).subTraceContext();
+      }
+      return null;
     }
 
     @Override

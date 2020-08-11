@@ -5,6 +5,8 @@ import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Pair;
+import datadog.trace.bootstrap.instrumentation.api.SubTrace;
 import datadog.trace.core.taginterceptor.AbstractTagInterceptor;
 import java.util.Collections;
 import java.util.HashMap;
@@ -80,6 +82,9 @@ public class DDSpanContext implements AgentSpan.Context {
   private final AtomicReference<Map<String, Number>> metrics = new AtomicReference<>();
 
   private final Map<String, String> serviceNameMappings;
+
+  private final ConcurrentHashMap<Pair<Class, String>, SubTrace> subTraces =
+      new ConcurrentHashMap<>();
 
   private final ExclusiveSpan exclusiveSpan;
 
@@ -317,6 +322,10 @@ public class DDSpanContext implements AgentSpan.Context {
     return tracer;
   }
 
+  public ConcurrentHashMap<Pair<Class, String>, SubTrace> getSubTraces() {
+    return subTraces;
+  }
+
   public Map<String, Number> getMetrics() {
     final Map<String, Number> metrics = this.metrics.get();
     return metrics == null ? EMPTY_METRICS : metrics;
@@ -403,6 +412,13 @@ public class DDSpanContext implements AgentSpan.Context {
 
   Object unsafeGetAndRemoveTag(final String tag) {
     return unsafeTags.remove(tag);
+  }
+
+  public void merge(final SubTrace subTrace) {
+    final SubTrace existing = subTraces.putIfAbsent(subTrace.getKey(), subTrace);
+    if (existing != null) {
+      existing.merge(subTrace);
+    }
   }
 
   public Map<String, Object> getTags() {

@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.SubTrace;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
@@ -338,6 +339,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public TraceScope activeScope() {
     return scopeManager.active();
+  }
+
+  @Override
+  public SubTrace.Context subTraceContext() {
+    final TraceScope active = scopeManager.active();
+    if (active instanceof AgentScope) {
+      return ((AgentScope) active).subTraceContext();
+    }
+    return null;
   }
 
   @Override

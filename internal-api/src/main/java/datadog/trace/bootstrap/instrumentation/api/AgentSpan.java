@@ -36,6 +36,8 @@ public interface AgentSpan extends MutableSpan {
 
   boolean isSameTrace(AgentSpan otherSpan);
 
+  void merge(SubTrace subTrace);
+
   Context context();
 
   String getBaggageItem(String key);

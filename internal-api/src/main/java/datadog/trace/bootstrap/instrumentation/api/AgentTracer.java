@@ -51,6 +51,10 @@ public class AgentTracer {
     return get().activeScope();
   }
 
+  public static SubTrace.Context subTraceContext() {
+    return get().subTraceContext();
+  }
+
   public static AgentPropagation propagate() {
     return get().propagate();
   }
@@ -94,6 +98,8 @@ public class AgentTracer {
     AgentSpan activeSpan();
 
     TraceScope activeScope();
+
+    SubTrace.Context subTraceContext();
 
     AgentPropagation propagate();
 
@@ -167,6 +173,11 @@ public class AgentTracer {
 
     @Override
     public TraceScope activeScope() {
+      return null;
+    }
+
+    @Override
+    public SubTrace.Context subTraceContext() {
       return null;
     }
 
@@ -374,6 +385,9 @@ public class AgentTracer {
     }
 
     @Override
+    public void merge(final SubTrace subTrace) {}
+
+    @Override
     public Context context() {
       return NoopContext.INSTANCE;
     }
@@ -414,6 +428,11 @@ public class AgentTracer {
     @Override
     public AgentSpan span() {
       return NoopAgentSpan.INSTANCE;
+    }
+
+    @Override
+    public SubTrace.Context subTraceContext() {
+      return null;
     }
 
     @Override

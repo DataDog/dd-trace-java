@@ -2,6 +2,7 @@ package datadog.trace.core.scopemanager;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SubTrace;
 import datadog.trace.context.TraceScope;
 
 /**
@@ -76,6 +77,11 @@ interface ScopeInterceptor {
     public boolean isAsyncPropagating() {
       return delegate.isAsyncPropagating();
     }
+
+    @Override
+    public SubTrace.Context subTraceContext() {
+      return delegate.subTraceContext();
+    }
   }
 
   /** This class is intended to be the final scope in the chain. */
@@ -91,9 +97,11 @@ interface ScopeInterceptor {
      */
     private static class TerminalScope implements Scope {
       private final AgentSpan span;
+      private final SubTrace.Context subTraceContext;
 
       TerminalScope(final AgentSpan span) {
         this.span = span;
+        subTraceContext = new SubTrace.Context(span);
       }
 
       @Override
@@ -105,6 +113,11 @@ interface ScopeInterceptor {
       }
 
       @Override
+      public SubTrace.Context subTraceContext() {
+        return subTraceContext;
+      }
+
+      @Override
       public void setAsyncPropagation(final boolean value) {}
 
       @Override
@@ -113,7 +126,9 @@ interface ScopeInterceptor {
       }
 
       @Override
-      public void close() {}
+      public void close() {
+        subTraceContext.close();
+      }
 
       @Override
       public boolean isAsyncPropagating() {
