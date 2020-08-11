@@ -3,7 +3,8 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
 import datadog.trace.common.writer.ddagent.Payload
-import datadog.trace.common.writer.ddagent.TraceMapperV0_4
+import datadog.trace.common.writer.ddagent.TraceMapper
+import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
 import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
@@ -66,6 +67,8 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def api
   def unixDomainSocketApi
+  TraceMapper mapper
+  String version
 
   def endpoint = new AtomicReference<String>(null)
   def agentResponse = new AtomicReference<Map<String, Map<String, Number>>>(null)
@@ -83,12 +86,12 @@ class DDApiIntegrationTest extends DDSpecification {
       and we use 'testcontainers' for this.
      */
     if ("true" != System.getenv("CI")) {
-      agentContainer = new GenericContainer("datadog/docker-dd-agent:latest")
+      agentContainer = new GenericContainer("datadog/agent:7.22.0-rc.1")
         .withEnv(["DD_APM_ENABLED": "true",
                   "DD_BIND_HOST"  : "0.0.0.0",
                   "DD_API_KEY"    : "invalid_key_but_this_is_fine",
                   "DD_LOGS_STDOUT": "yes"])
-        .withExposedPorts(datadog.trace.api.Config.DEFAULT_TRACE_AGENT_PORT)
+        .withExposedPorts(datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT)
         .withStartupTimeout(Duration.ofSeconds(120))
       // Apparently we need to sleep for a bit so agent's response `{"service:,env:":1}` in rate_by_service.
       // This is clearly a race-condition and maybe we should avoid verifying complete response
@@ -98,7 +101,7 @@ class DDApiIntegrationTest extends DDSpecification {
       //      }
       agentContainer.start()
       agentContainerHost = agentContainer.containerIpAddress
-      agentContainerPort = agentContainer.getMappedPort(datadog.trace.api.Config.DEFAULT_TRACE_AGENT_PORT)
+      agentContainerPort = agentContainer.getMappedPort(datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT)
     }
 
     File tmpDir = File.createTempDir()
@@ -118,42 +121,42 @@ class DDApiIntegrationTest extends DDSpecification {
   def setup() {
     api = new DDAgentApi(agentContainerHost, agentContainerPort, null, 5000)
     api.addResponseListener(responseListener)
-
+    mapper = api.selectTraceMapper()
+    version = mapper instanceof TraceMapperV0_5 ? "v0.5" : "v0.4"
     unixDomainSocketApi = new DDAgentApi(SOMEHOST, SOMEPORT, socketPath.toString(), 5000)
     unixDomainSocketApi.addResponseListener(responseListener)
   }
 
   def "Sending traces succeeds (test #test)"() {
     expect:
-    api.sendSerializedTraces(payload)
-    assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
+    api.sendSerializedTraces(prepareRequest(traces, mapper))
+    assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/${version}/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
-    payload                                                                                             | test
-    prepareRequest([])                                                                                  | 1
-    prepareRequest([[], []])                                                                            | 2
-    prepareRequest([[new DDSpan(1, CONTEXT)]])                                                          | 3
-    prepareRequest([[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]]) | 4
-    prepareRequest((1..15).collect { [] })                                                              | 5
-    prepareRequest((1..16).collect { [] })                                                              | 6
-    // Larger traces take more than 1 second to send to the agent and get a timeout exception:
-//      (1..((1 << 16) - 1)).collect { [] }                                                 | 7
-//      (1..(1 << 16)).collect { [] }                                                       | 8
+    traces                                                                              | test
+    []                                                                                  | 1
+    [[], []]                                                                            | 2
+    [[new DDSpan(1, CONTEXT)]]                                                          | 3
+    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4
+    (1..15).collect { [] }                                                              | 5
+    (1..16).collect { [] }                                                              | 6
   }
 
   def "Sending traces to unix domain socket succeeds (test #test)"() {
+    setup:
+    TraceMapper mapper = api.selectTraceMapper()
     expect:
-    unixDomainSocketApi.sendSerializedTraces(payload)
-    assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/v0.4/traces"
+    unixDomainSocketApi.sendSerializedTraces(prepareRequest(traces, mapper))
+    assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/${version}/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
-    payload                                                                                             | test
-    prepareRequest([])                                                                                  | 1
-    prepareRequest([[], []])                                                                            | 2
-    prepareRequest([[new DDSpan(1, CONTEXT)]])                                                          | 3
-    prepareRequest([[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]]) | 4
+    traces                                                                              | test
+    []                                                                                  | 1
+    [[], []]                                                                            | 2
+    [[new DDSpan(1, CONTEXT)]]                                                          | 3
+    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4
   }
 
 
@@ -170,11 +173,10 @@ class DDApiIntegrationTest extends DDSpecification {
     }
   }
 
-  Payload prepareRequest(List<List<DDSpan>> traces) {
+  Payload prepareRequest(List<List<DDSpan>> traces, TraceMapper traceMapper) {
     ByteBuffer buffer = ByteBuffer.allocate(1 << 20)
     Traces traceCapture = new Traces()
     def packer = new Packer(traceCapture, buffer)
-    def traceMapper = new TraceMapperV0_4()
     for (trace in traces) {
       packer.format(trace, traceMapper)
     }
