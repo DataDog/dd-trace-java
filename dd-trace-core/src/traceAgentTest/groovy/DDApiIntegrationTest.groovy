@@ -130,6 +130,7 @@ class DDApiIntegrationTest extends DDSpecification {
   def "Sending traces succeeds (test #test)"() {
     expect:
     DDAgentApi.Response response = api.sendSerializedTraces(prepareRequest(traces, mapper))
+    assert !response.response().isEmpty()
     assert null == response.exception()
     assert 200 == response.status()
     assert response.success()
@@ -152,6 +153,7 @@ class DDApiIntegrationTest extends DDSpecification {
     TraceMapper mapper = api.selectTraceMapper()
     expect:
     DDAgentApi.Response response = unixDomainSocketApi.sendSerializedTraces(prepareRequest(traces, mapper))
+    assert !response.response().isEmpty()
     assert null == response.exception()
     assert 200 == response.status()
     assert response.success()
