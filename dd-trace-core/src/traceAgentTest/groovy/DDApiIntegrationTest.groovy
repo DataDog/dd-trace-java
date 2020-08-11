@@ -129,7 +129,10 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def "Sending traces succeeds (test #test)"() {
     expect:
-    api.sendSerializedTraces(prepareRequest(traces, mapper))
+    DDAgentApi.Response response = api.sendSerializedTraces(prepareRequest(traces, mapper))
+    assert null == response.exception()
+    assert 200 == response.status()
+    assert response.success()
     assert api.detectedVersion == "${version}/traces"
     assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/${version}/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
@@ -148,7 +151,10 @@ class DDApiIntegrationTest extends DDSpecification {
     setup:
     TraceMapper mapper = api.selectTraceMapper()
     expect:
-    unixDomainSocketApi.sendSerializedTraces(prepareRequest(traces, mapper))
+    DDAgentApi.Response response = unixDomainSocketApi.sendSerializedTraces(prepareRequest(traces, mapper))
+    assert null == response.exception()
+    assert 200 == response.status()
+    assert response.success()
     assert api.detectedVersion == "${version}/traces"
     assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/${version}/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
