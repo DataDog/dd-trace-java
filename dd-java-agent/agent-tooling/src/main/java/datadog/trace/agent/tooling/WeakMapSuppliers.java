@@ -59,10 +59,14 @@ class WeakMapSuppliers {
     }
 
     private static class Adapter<K, V> implements WeakMap<K, V> {
+      private final Object[] locks = new Object[16];
       private final WeakConcurrentMap<K, V> map;
 
       private Adapter(final WeakConcurrentMap<K, V> map) {
         this.map = map;
+        for (int i = 0; i < locks.length; ++i) {
+          locks[i] = new Object();
+        }
       }
 
       @Override
@@ -92,20 +96,17 @@ class WeakMapSuppliers {
 
       @Override
       public V computeIfAbsent(final K key, final ValueSupplier<? super K, ? extends V> supplier) {
-        if (map.containsKey(key)) {
-          return map.get(key);
-        }
-
-        synchronized (this) {
-          if (map.containsKey(key)) {
-            return map.get(key);
-          } else {
-            final V value = supplier.get(key);
-
-            map.put(key, value);
-            return value;
+        V value = map.get(key);
+        if (null == value) {
+          synchronized (locks[key.hashCode() & (locks.length - 1)]) {
+            value = map.get(key);
+            if (null == value) {
+              value = supplier.get(key);
+              map.put(key, value);
+            }
           }
         }
+        return value;
       }
     }
 
