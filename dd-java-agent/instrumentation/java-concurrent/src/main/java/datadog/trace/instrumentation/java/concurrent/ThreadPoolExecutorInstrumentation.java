@@ -52,7 +52,7 @@ public class ThreadPoolExecutorInstrumentation extends Instrumenter.Default {
     public static void disableIfQueueWrongType(
         @Advice.This final ThreadPoolExecutor executor,
         @Advice.Argument(4) final BlockingQueue<Runnable> queue) {
-      if (!Config.get().isRuleEnabled("thread_pool_executor_wrapped_tasks")) {
+      if (!Config.get().isRuleEnabled("thread_pool_executor.wrapped_runnables")) {
         ExecutorInstrumentationUtils.disableExecutorForWrappedTasks(executor);
       } else {
         if (queue.isEmpty()) {

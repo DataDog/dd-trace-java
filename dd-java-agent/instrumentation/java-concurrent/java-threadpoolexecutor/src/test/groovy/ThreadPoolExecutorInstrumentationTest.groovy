@@ -14,7 +14,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 class ThreadPoolExecutorInstrumentationTest extends AgentTestRunner {
   static {
     ConfigUtils.updateConfig {
-      System.setProperty("dd.trace.thread_pool_executor_wrapped_tasks.enabled", "false")
+      System.setProperty("dd.trace.thread_pool_executor.wrapped_runnables.enabled", "false")
     }
   }
 
