@@ -67,10 +67,14 @@ public interface WeakMap<K, V> {
   }
 
   class MapAdapter<K, V> implements WeakMap<K, V> {
+    private final Object[] locks = new Object[16];
     private final Map<K, V> map;
 
     public MapAdapter(final Map<K, V> map) {
       this.map = map;
+      for (int i = 0; i < locks.length; ++i) {
+        locks[i] = new Object();
+      }
     }
 
     @Override
@@ -98,7 +102,7 @@ public interface WeakMap<K, V> {
       // We can't use putIfAbsent since it was added in 1.8.
       // As a result, we must use double check locking.
       if (!map.containsKey(key)) {
-        synchronized (this) {
+        synchronized (locks[key.hashCode() & (locks.length - 1)]) {
           if (!map.containsKey(key)) {
             map.put(key, value);
           }
@@ -109,20 +113,17 @@ public interface WeakMap<K, V> {
     @Override
     public V computeIfAbsent(final K key, final ValueSupplier<? super K, ? extends V> supplier) {
       // We can't use computeIfAbsent since it was added in 1.8.
-      if (map.containsKey(key)) {
-        return map.get(key);
-      }
-
-      synchronized (this) {
-        if (map.containsKey(key)) {
-          return map.get(key);
-        } else {
-          final V value = supplier.get(key);
-
-          map.put(key, value);
-          return value;
+      V value = map.get(key);
+      if (null == value) {
+        synchronized (locks[key.hashCode() & (locks.length - 1)]) {
+          value = map.get(key);
+          if (null == value) {
+            value = supplier.get(key);
+            map.put(key, value);
+          }
         }
       }
+      return value;
     }
 
     @Override
