@@ -66,7 +66,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
       // This provides a steady stream of events to enable flushing with a low throughput.
       heartbeat =
           CommonTaskExecutor.INSTANCE.scheduleAtFixedRate(
-              new HeartbeatTask(), this, 100, 100, MILLISECONDS, "disruptor heartbeat");
+              new HeartbeatTask(), this, 1000, 1000, MILLISECONDS, "disruptor heartbeat");
     }
     disruptor.start();
   }
@@ -95,7 +95,10 @@ public class TraceProcessingDisruptor implements AutoCloseable {
   }
 
   void heartbeat() {
-    disruptor.getRingBuffer().tryPublishEvent(heartbeatTranslator);
+    // if we don't insist on publishing a heartbeat, they might get starved out
+    // if traces are very small, it might take quite a long time to fill the buffer,
+    // without regular heartbeats
+    disruptor.getRingBuffer().publishEvent(heartbeatTranslator);
   }
 
   public int getDisruptorCapacity() {
