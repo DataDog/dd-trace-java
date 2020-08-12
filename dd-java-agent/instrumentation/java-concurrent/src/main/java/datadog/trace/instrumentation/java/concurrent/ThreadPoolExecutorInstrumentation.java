@@ -52,8 +52,8 @@ public class ThreadPoolExecutorInstrumentation extends Instrumenter.Default {
     public static void disableIfQueueWrongType(
         @Advice.This final ThreadPoolExecutor executor,
         @Advice.Argument(4) final BlockingQueue<Runnable> queue) {
-      // We disabable this way because this instrumentation is only used to call
-      // disableExecutorForWrappedTasks. Therefore disabling the instrumentation explictly will not
+      // We disable this way because this instrumentation is only used to call
+      // disableExecutorForWrappedTasks. Therefore disabling the instrumentation explicitly will not
       // work, for this instrumentation disabling for all executors is more of the intention
       if (!Config.get().isRuleEnabled("thread_pool_executor.wrapped_runnables")) {
         ExecutorInstrumentationUtils.disableExecutorForWrappedTasks(executor);
