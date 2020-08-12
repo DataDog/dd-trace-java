@@ -18,6 +18,10 @@ class ThreadPoolExecutorInstrumentationTest extends AgentTestRunner {
     }
   }
 
+  def cleanupSpec() {
+    System.clearProperty("dd.trace.thread_pool_executor.wrapped_runnables.enabled")
+  }
+
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
   @Shared
@@ -53,9 +57,9 @@ class ThreadPoolExecutorInstrumentationTest extends AgentTestRunner {
     expect:
     TEST_WRITER.size() == 2
     TEST_WRITER.get(0).size() == 1
-    TEST_WRITER.get(0).get(0).operationName == "parent"
+    TEST_WRITER.get(0).get(0).operationName.toString() == "parent"
     TEST_WRITER.get(1).size() == 1
-    TEST_WRITER.get(1).get(0).operationName == "asyncChild"
+    TEST_WRITER.get(1).get(0).operationName.toString() == "asyncChild"
 
     cleanup:
     pool?.shutdown()
