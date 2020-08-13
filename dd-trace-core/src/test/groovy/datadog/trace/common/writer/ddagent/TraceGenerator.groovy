@@ -31,7 +31,7 @@ class TraceGenerator {
     Map<String, String> baggage = new HashMap<>()
     baggage.put("baggage-key", lowCardinality ? "x" : UUID.randomUUID().toString())
     if (ThreadLocalRandom.current().nextBoolean()) {
-      baggage.put("tag.1", "bar");
+      baggage.put("tag.1", "bar")
     }
     Map<String, Object> tags = new HashMap<>()
     tags.put("tag.1", ThreadLocalRandom.current().nextBoolean() ? "foo" : new String(new char[2000]))
