@@ -218,7 +218,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
     if (null == expected) {
       assertEquals("", actual)
     } else {
-      assertEquals(expected, actual)
+      assertEquals(expected.toString(), actual.toString())
     }
   }
 }

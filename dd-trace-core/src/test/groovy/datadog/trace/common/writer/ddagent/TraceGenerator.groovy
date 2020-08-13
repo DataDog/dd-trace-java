@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent
 
 import datadog.trace.api.DDId
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.DDSpanData
 import datadog.trace.core.TagsAndBaggageConsumer
 
@@ -56,8 +57,8 @@ class TraceGenerator {
 
   static class PojoSpan implements DDSpanData {
 
-    private final String serviceName
-    private final String operationName
+    private final CharSequence serviceName
+    private final CharSequence operationName
     private final CharSequence resourceName
     private final DDId traceId
     private final DDId spanId
@@ -84,9 +85,9 @@ class TraceGenerator {
       Map<String, String> baggage,
       Map<String, Object> tags,
       String type) {
-      this.serviceName = serviceName
-      this.operationName = operationName
-      this.resourceName = resourceName
+      this.serviceName = UTF8BytesString.create(serviceName)
+      this.operationName = UTF8BytesString.create(operationName)
+      this.resourceName = UTF8BytesString.create(resourceName)
       this.traceId = traceId
       this.spanId = spanId
       this.parentId = parentId
