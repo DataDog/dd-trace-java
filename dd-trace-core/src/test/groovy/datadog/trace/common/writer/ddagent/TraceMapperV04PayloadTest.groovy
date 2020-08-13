@@ -28,12 +28,12 @@ import static org.msgpack.core.MessageFormat.UINT32
 import static org.msgpack.core.MessageFormat.UINT64
 import static org.msgpack.core.MessageFormat.UINT8
 
-class TraceMapperV05PayloadTest extends DDSpecification {
+class TraceMapperV04PayloadTest extends DDSpecification {
 
   def "test dictionary compressed traces written correctly" () {
     setup:
     List<List<DDSpanData>> traces = generateRandomTraces(traceCount, lowCardinality)
-    TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize)
+    TraceMapperV0_4 traceMapper = new TraceMapperV0_4()
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
     Packer packer = new Packer(verifier, ByteBuffer.allocate(bufferSize))
     when:
@@ -46,51 +46,38 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     verifier.verifyTracesConsumed()
 
     where:
-    bufferSize    | dictionarySize |   traceCount   | lowCardinality
-    10 << 10      |   10 << 10     |       0        | true
-    10 << 10      |   10 << 10     |       1        | true
-    10 << 10      |   10 << 10     |       10       | true
-    10 << 10      |   10 << 10     |       100      | true
-    10 << 10      |   10 << 10     |       10000    | true
-    10 << 10      |   100 << 10    |       1        | true
-    10 << 10      |   100 << 10    |       10       | true
-    10 << 10      |   100 << 10    |       100      | true
-    10 << 10      |   10 << 10     |       0        | false
-    10 << 10      |   10 << 10     |       1        | false
-    10 << 10      |   10 << 10     |       10       | false
-    10 << 10      |   10 << 10     |       100      | false
-    10 << 10      |   10 << 10     |       10000    | false
-    10 << 10      |   100 << 10    |       1        | false
-    10 << 10      |   100 << 10    |       10       | false
-    10 << 10      |   100 << 10    |       100      | false
-    100 << 10     |   10 << 10     |       0        | true
-    100 << 10     |   10 << 10     |       1        | true
-    100 << 10     |   10 << 10     |       10       | true
-    100 << 10     |   10 << 10     |       100      | true
-    100 << 10     |   10 << 10     |       10000    | true
-    100 << 10     |   100 << 10    |       1        | true
-    100 << 10     |   100 << 10    |       10       | true
-    100 << 10     |   100 << 10    |       100      | true
-    100 << 10     |   10 << 10     |       0        | false
-    100 << 10     |   10 << 10     |       1        | false
-    100 << 10     |   10 << 10     |       10       | false
-    100 << 10     |   10 << 10     |       100      | false
-    100 << 10     |   10 << 10     |       10000    | false
-    100 << 10     |   100 << 10    |       1        | false
-    100 << 10     |   100 << 10    |       10       | false
-    100 << 10     |   100 << 10    |       100      | false
-    100 << 10     |   100 << 10    |       10000    | false
+    bufferSize    |   traceCount   | lowCardinality
+    10 << 10      |       0        | true
+    10 << 10      |       1        | true
+    10 << 10      |       10       | true
+    10 << 10      |       100      | true
+    10 << 10      |       10000    | true
+    10 << 10      |       0        | false
+    10 << 10      |       1        | false
+    10 << 10      |       10       | false
+    10 << 10      |       100      | false
+    10 << 10      |       10000    | false
+    100 << 10     |       0        | true
+    100 << 10     |       1        | true
+    100 << 10     |       10       | true
+    100 << 10     |       100      | true
+    100 << 10     |       10000    | true
+    100 << 10     |       0        | false
+    100 << 10     |       1        | false
+    100 << 10     |       10       | false
+    100 << 10     |       100      | false
+    100 << 10     |       10000    | false
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
     private final List<List<DDSpanData>> expectedTraces
-    private final TraceMapperV0_5 mapper
+    private final TraceMapperV0_4 mapper
     private final ByteBuffer captured = ByteBuffer.allocate(200 << 10)
 
     private int position = 0
 
-    private PayloadVerifier(List<List<DDSpanData>> traces, TraceMapperV0_5 mapper) {
+    private PayloadVerifier(List<List<DDSpanData>> traces, TraceMapperV0_4 mapper) {
       this.expectedTraces = traces
       this.mapper = mapper
     }
@@ -102,13 +89,6 @@ class TraceMapperV05PayloadTest extends DDSpecification {
         payload.writeTo(this)
         captured.flip()
         MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured)
-        int header = unpacker.unpackArrayHeader()
-        assertEquals(2, header)
-        int dictionarySize = unpacker.unpackArrayHeader()
-        String[] dictionary = new String[dictionarySize]
-        for (int i = 0; i < dictionary.length; ++i) {
-          dictionary[i] = unpacker.unpackString()
-        }
         int traceCount = unpacker.unpackArrayHeader()
         for (int i = 0; i < traceCount; ++i) {
           List<DDSpanData> expectedTrace = expectedTraces.get(position++)
@@ -116,43 +96,43 @@ class TraceMapperV05PayloadTest extends DDSpecification {
           assertEquals(expectedTrace.size(), spanCount)
           for (int k = 0; k < spanCount; ++k) {
             DDSpanData expectedSpan = expectedTrace.get(k)
-            int elementCount = unpacker.unpackArrayHeader()
+            int elementCount = unpacker.unpackMapHeader()
             assertEquals(12, elementCount)
-            String serviceName = dictionary[unpacker.unpackInt()]
+            assertEquals("service", unpacker.unpackString())
+            String serviceName = unpacker.unpackString()
             assertEqualsWithNullAsEmpty(expectedSpan.getServiceName(), serviceName)
-            String operationName = dictionary[unpacker.unpackInt()]
+            assertEquals("name", unpacker.unpackString())
+            String operationName = unpacker.unpackString()
             assertEqualsWithNullAsEmpty(expectedSpan.getOperationName(), operationName)
-            String resourceName = dictionary[unpacker.unpackInt()]
+            assertEquals("resource", unpacker.unpackString())
+            String resourceName = unpacker.unpackString()
             assertEqualsWithNullAsEmpty(expectedSpan.getResourceName(), resourceName)
+            assertEquals("trace_id", unpacker.unpackString())
             long traceId = unpacker.unpackLong()
             assertEquals(expectedSpan.getTraceId().toLong(), traceId)
+            assertEquals("span_id", unpacker.unpackString())
             long spanId = unpacker.unpackLong()
             assertEquals(expectedSpan.getSpanId().toLong(), spanId)
+            assertEquals("parent_id", unpacker.unpackString())
             long parentId = unpacker.unpackLong()
             assertEquals(expectedSpan.getParentId().toLong(), parentId)
+            assertEquals("start", unpacker.unpackString())
             long startTime = unpacker.unpackLong()
             assertEquals(expectedSpan.getStartTime(), startTime)
+            assertEquals("duration", unpacker.unpackString())
             long duration = unpacker.unpackLong()
             assertEquals(expectedSpan.getDurationNano(), duration)
+            assertEquals("type", unpacker.unpackString())
+            String type = unpacker.unpackString()
+            assertEquals(expectedSpan.getType(), type)
+            assertEquals("error", unpacker.unpackString())
             int error = unpacker.unpackInt()
             assertEquals(expectedSpan.getError(), error)
-            int metaSize = unpacker.unpackMapHeader()
-            HashMap<String, String> meta = new HashMap<>()
-            for (int j = 0; j < metaSize; ++j) {
-              meta.put(dictionary[unpacker.unpackInt()], dictionary[unpacker.unpackInt()])
-            }
-            for (Map.Entry<String, String> entry : meta.entrySet()) {
-              Object tag = expectedSpan.getTags().get(entry.getKey())
-              if (null != tag) {
-                assertEquals(String.valueOf(tag), entry.getValue())
-              } else {
-                assertEquals(expectedSpan.getBaggage().get(entry.getKey()), entry.getValue())
-              }
-            }
+            assertEquals("metrics", unpacker.unpackString())
             int metricsSize = unpacker.unpackMapHeader()
             HashMap<String, Number> metrics = new HashMap<>()
             for (int j = 0; j < metricsSize; ++j) {
-              String key = dictionary[unpacker.unpackInt()]
+              String key = unpacker.unpackString()
               Number n = null
               MessageFormat format = unpacker.getNextFormat()
               switch (format) {
@@ -184,8 +164,20 @@ class TraceMapperV05PayloadTest extends DDSpecification {
             for (Map.Entry<String, Number> metric : metrics.entrySet()) {
               assertEquals(expectedSpan.getMetrics().get(metric.getKey()), metric.getValue())
             }
-            String type = dictionary[unpacker.unpackInt()]
-            assertEquals(expectedSpan.getType(), type)
+            assertEquals("meta", unpacker.unpackString())
+            int metaSize = unpacker.unpackMapHeader()
+            HashMap<String, String> meta = new HashMap<>()
+            for (int j = 0; j < metaSize; ++j) {
+              meta.put(unpacker.unpackString(), unpacker.unpackString())
+            }
+            for (Map.Entry<String, String> entry : meta.entrySet()) {
+              Object tag = expectedSpan.getTags().get(entry.getKey())
+              if (null != tag) {
+                assertEquals(String.valueOf(tag), entry.getValue())
+              } else {
+                assertEquals(expectedSpan.getBaggage().get(entry.getKey()), entry.getValue())
+              }
+            }
           }
         }
       } catch (IOException e) {
