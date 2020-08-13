@@ -16,22 +16,11 @@ import java.nio.channels.WritableByteChannel
 
 import static datadog.trace.common.writer.ddagent.TraceGenerator.generateRandomTraces
 import static org.junit.Assert.assertEquals
-import static org.msgpack.core.MessageFormat.FLOAT32
-import static org.msgpack.core.MessageFormat.FLOAT64
-import static org.msgpack.core.MessageFormat.INT16
-import static org.msgpack.core.MessageFormat.INT32
-import static org.msgpack.core.MessageFormat.INT64
-import static org.msgpack.core.MessageFormat.INT8
-import static org.msgpack.core.MessageFormat.NEGFIXINT
-import static org.msgpack.core.MessageFormat.POSFIXINT
-import static org.msgpack.core.MessageFormat.UINT16
-import static org.msgpack.core.MessageFormat.UINT32
-import static org.msgpack.core.MessageFormat.UINT64
-import static org.msgpack.core.MessageFormat.UINT8
+import static org.msgpack.core.MessageFormat.*
 
 class TraceMapperV04PayloadTest extends DDSpecification {
 
-  def "test dictionary compressed traces written correctly" () {
+  def "test traces written correctly" () {
     setup:
     List<List<DDSpanData>> traces = generateRandomTraces(traceCount, lowCardinality)
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4()
