@@ -143,17 +143,13 @@ class DDApiIntegrationTest extends DDSpecification {
     where:
     traces                                                                              | test  | enableV05
     []                                                                                  | 1     |  true
-    [[], []]                                                                            | 2     |  true
-    [[new DDSpan(1, CONTEXT)]]                                                          | 3     |  true
-    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4     |  true
-    (1..15).collect { [] }                                                              | 5     |  true
-    (1..16).collect { [] }                                                              | 6     |  true
-    []                                                                                  | 7     |  false
-    [[], []]                                                                            | 8     |  false
-    [[new DDSpan(1, CONTEXT)]]                                                          | 9     |  false
-    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 10    |  false
-    (1..15).collect { [] }                                                              | 11    |  false
-    (1..16).collect { [] }                                                              | 12    |  false
+    [[new DDSpan(1, CONTEXT)]]                                                          | 2     |  true
+    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 3     |  true
+    (1..16).collect { [] }                                                              | 4     |  true
+    []                                                                                  | 5     |  false
+    [[new DDSpan(1, CONTEXT)]]                                                          | 6     |  false
+    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 7     |  false
+    (1..16).collect { [] }                                                              | 8     |  false
   }
 
   def "Sending traces to unix domain socket succeeds (test #test)"() {
@@ -172,13 +168,9 @@ class DDApiIntegrationTest extends DDSpecification {
     where:
     traces                                                                              | test   | enableV05
     []                                                                                  | 1      | true
-    [[], []]                                                                            | 2      | true
-    [[new DDSpan(1, CONTEXT)]]                                                          | 3      | true
-    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4      | true
-    []                                                                                  | 5      | false
-    [[], []]                                                                            | 6      | false
-    [[new DDSpan(1, CONTEXT)]]                                                          | 7      | false
-    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 8      | false
+    [[new DDSpan(1, CONTEXT)]]                                                          | 2      | true
+    []                                                                                  | 3      | false
+    [[new DDSpan(1, CONTEXT)]]                                                          | 4      | false
   }
 
 
