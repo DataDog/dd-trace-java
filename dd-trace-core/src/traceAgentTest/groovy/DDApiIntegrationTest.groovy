@@ -118,16 +118,18 @@ class DDApiIntegrationTest extends DDSpecification {
     process.destroy()
   }
 
-  def setup() {
-    api = new DDAgentApi(agentContainerHost, agentContainerPort, null, 5000)
+  def beforeTest(boolean enableV05) {
+    api = new DDAgentApi(agentContainerHost, agentContainerPort, null, 5000, enableV05)
     api.addResponseListener(responseListener)
     mapper = api.selectTraceMapper()
     version = mapper instanceof TraceMapperV0_5 ? "v0.5" : "v0.4"
-    unixDomainSocketApi = new DDAgentApi(SOMEHOST, SOMEPORT, socketPath.toString(), 5000)
+    unixDomainSocketApi = new DDAgentApi(SOMEHOST, SOMEPORT, socketPath.toString(), 5000, enableV05)
     unixDomainSocketApi.addResponseListener(responseListener)
   }
 
   def "Sending traces succeeds (test #test)"() {
+    setup:
+    beforeTest(enableV05)
     expect:
     DDAgentApi.Response response = api.sendSerializedTraces(prepareRequest(traces, mapper))
     assert !response.response().isEmpty()
@@ -139,18 +141,24 @@ class DDApiIntegrationTest extends DDSpecification {
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
-    traces                                                                              | test
-    []                                                                                  | 1
-    [[], []]                                                                            | 2
-    [[new DDSpan(1, CONTEXT)]]                                                          | 3
-    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4
-    (1..15).collect { [] }                                                              | 5
-    (1..16).collect { [] }                                                              | 6
+    traces                                                                              | test  | enableV05
+    []                                                                                  | 1     |  true
+    [[], []]                                                                            | 2     |  true
+    [[new DDSpan(1, CONTEXT)]]                                                          | 3     |  true
+    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4     |  true
+    (1..15).collect { [] }                                                              | 5     |  true
+    (1..16).collect { [] }                                                              | 6     |  true
+    []                                                                                  | 7     |  false
+    [[], []]                                                                            | 8     |  false
+    [[new DDSpan(1, CONTEXT)]]                                                          | 9     |  false
+    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 10    |  false
+    (1..15).collect { [] }                                                              | 11    |  false
+    (1..16).collect { [] }                                                              | 12    |  false
   }
 
   def "Sending traces to unix domain socket succeeds (test #test)"() {
     setup:
-    TraceMapper mapper = api.selectTraceMapper()
+    beforeTest(enableV05)
     expect:
     DDAgentApi.Response response = unixDomainSocketApi.sendSerializedTraces(prepareRequest(traces, mapper))
     assert !response.response().isEmpty()
@@ -162,11 +170,15 @@ class DDApiIntegrationTest extends DDSpecification {
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
-    traces                                                                              | test
-    []                                                                                  | 1
-    [[], []]                                                                            | 2
-    [[new DDSpan(1, CONTEXT)]]                                                          | 3
-    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4
+    traces                                                                              | test   | enableV05
+    []                                                                                  | 1      | true
+    [[], []]                                                                            | 2      | true
+    [[new DDSpan(1, CONTEXT)]]                                                          | 3      | true
+    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 4      | true
+    []                                                                                  | 5      | false
+    [[], []]                                                                            | 6      | false
+    [[new DDSpan(1, CONTEXT)]]                                                          | 7      | false
+    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 8      | false
   }
 
 

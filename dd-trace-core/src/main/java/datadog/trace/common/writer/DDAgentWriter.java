@@ -6,6 +6,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 
 import com.timgroup.statsd.NoOpStatsDClient;
+import datadog.trace.api.Config;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor;
@@ -68,7 +69,13 @@ public class DDAgentWriter implements Writer {
     if (agentApi != null) {
       api = agentApi;
     } else {
-      api = new DDAgentApi(agentHost, traceAgentPort, unixDomainSocket, timeoutMillis);
+      api =
+          new DDAgentApi(
+              agentHost,
+              traceAgentPort,
+              unixDomainSocket,
+              timeoutMillis,
+              Config.get().isTraceAgentV05Enabled());
     }
     this.monitor = monitor;
     traceProcessingDisruptor =

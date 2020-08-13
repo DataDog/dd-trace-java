@@ -42,11 +42,11 @@ public class DDAgentApi {
   private static final String V3_ENDPOINT = "v0.3/traces";
   private static final String V4_ENDPOINT = "v0.4/traces";
   private static final String V5_ENDPOINT = "v0.5/traces";
-  private static final String[] ENDPOINTS = new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT};
   private static final long NANOSECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toNanos(5);
   private static final String WILL_NOT_LOG_FOR_MESSAGE = "(Will not log errors for 5 minutes)";
 
   private final List<DDAgentResponseListener> responseListeners = new ArrayList<>();
+  private final String[] endpoints;
 
   private long previousErrorLogNanos = System.nanoTime() - NANOSECONDS_BETWEEN_ERROR_LOG;
   private boolean logNextSuccess = false;
@@ -88,11 +88,24 @@ public class DDAgentApi {
       final String host,
       final int port,
       final String unixDomainSocketPath,
-      final long timeoutMillis) {
+      final long timeoutMillis,
+      final boolean enableV05Endpoint) {
     this.host = host;
     this.port = port;
     this.unixDomainSocketPath = unixDomainSocketPath;
     this.timeoutMillis = timeoutMillis;
+    this.endpoints =
+        enableV05Endpoint
+            ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
+            : new String[] {V4_ENDPOINT, V3_ENDPOINT};
+  }
+
+  public DDAgentApi(
+      final String host,
+      final int port,
+      final String unixDomainSocketPath,
+      final long timeoutMillis) {
+    this(host, port, unixDomainSocketPath, timeoutMillis, true);
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -366,7 +379,7 @@ public class DDAgentApi {
       this.agentRunning = isAgentRunning();
       // TODO should check agentRunning, but CoreTracerTest depends on being
       //  able to detect an endpoint without an open socket...
-      for (String candidate : ENDPOINTS) {
+      for (String candidate : endpoints) {
         tracesUrl = getUrl(host, port, candidate);
         this.httpClient =
             buildClientIfAvailable(candidate, tracesUrl, unixDomainSocketPath, timeoutMillis);
@@ -385,7 +398,7 @@ public class DDAgentApi {
       log.warn("No connectivity to datadog agent");
     }
     if (null == detectedVersion) {
-      log.debug("Tried all of {}, no connectivity to datadog agent", ENDPOINTS);
+      log.debug("Tried all of {}, no connectivity to datadog agent", endpoints);
     }
     return detectedVersion;
   }

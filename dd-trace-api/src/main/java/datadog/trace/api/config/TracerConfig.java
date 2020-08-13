@@ -41,5 +41,7 @@ public final class TracerConfig {
   public static final String PROPAGATION_STYLE_EXTRACT = "propagation.style.extract";
   public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
 
+  public static final String ENABLE_TRACE_AGENT_V05 = "trace.agent.v0.5.enabled";
+
   private TracerConfig() {}
 }
