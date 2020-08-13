@@ -126,6 +126,10 @@ public class Packer implements Writable, MessageFormatter {
     }
   }
 
+  public int messageCount() {
+    return messageCount;
+  }
+
   public void reset() {
     buffer.position(MAX_ARRAY_HEADER_SIZE);
     initBuffer();

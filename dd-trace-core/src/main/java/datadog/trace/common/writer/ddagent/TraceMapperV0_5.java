@@ -126,14 +126,18 @@ public final class TraceMapperV0_5 implements TraceMapper {
     Integer encoded = encoding.get(target);
     if (null == encoded) {
       if (!dictionaryWriter.format(target, dictionaryMapper)) {
+        assert code == dictionaryWriter.messageCount()
+            : "wrong number of elements in the dictionary";
         dictionaryWriter.flush();
         // signal the need for a flush because the string table filled up
         // faster than the message content
         throw DICTIONARY_FULL;
       }
-      encoding.put(target, code);
-      writable.writeInt(code);
-      ++code;
+      int dictionaryCode = code++;
+      encoding.put(target, dictionaryCode);
+      // this call can fail, but the dictionary has been written to now
+      // so should make sure dictionary state is consistent first
+      writable.writeInt(dictionaryCode);
     } else {
       writable.writeInt(encoded);
     }
