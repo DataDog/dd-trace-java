@@ -24,11 +24,10 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
   def "test dictionary compressed traces written correctly" () {
     setup:
-    List<List<DDSpanData>> traces = generateRandomTraces(traceCount)
-    TraceMapperV0_5 traceMapper = new TraceMapperV0_5(100 << 10)
+    List<List<DDSpanData>> traces = generateRandomTraces(traceCount, lowCardinality)
+    TraceMapperV0_5 traceMapper = new TraceMapperV0_5(10 << 10)
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
     Packer packer = new Packer(verifier, ByteBuffer.allocate(bufferSize))
-
     when:
     for (List<DDSpanData> trace : traces) {
       packer.format(trace, traceMapper)
@@ -39,14 +38,41 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     verifier.verifyTracesConsumed()
 
     where:
-    bufferSize    |   traceCount
-    100 << 10     |       0
-    100 << 10     |       1
-    100 << 10     |       10
-    100 << 10     |       100
+    bufferSize    | dictionarySize |   traceCount   | lowCardinality
+    10 << 10      |   10 << 10     |       0        | true
+    10 << 10      |   10 << 10     |       1        | true
+    10 << 10      |   10 << 10     |       10       | true
+    10 << 10      |   10 << 10     |       100      | true
+    10 << 10      |   10 << 10     |       10000    | true
+    10 << 10      |   100 << 10    |       1        | true
+    10 << 10      |   100 << 10    |       10       | true
+    10 << 10      |   100 << 10    |       100      | true
+    10 << 10      |   10 << 10     |       0        | false
+    10 << 10      |   10 << 10     |       1        | false
+    10 << 10      |   10 << 10     |       10       | false
+    10 << 10      |   10 << 10     |       100      | false
+    10 << 10      |   10 << 10     |       10000    | false
+    10 << 10      |   100 << 10    |       1        | false
+    10 << 10      |   100 << 10    |       10       | false
+    10 << 10      |   100 << 10    |       100      | false
+    100 << 10     |   10 << 10     |       0        | true
+    100 << 10     |   10 << 10     |       1        | true
+    100 << 10     |   10 << 10     |       10       | true
+    100 << 10     |   10 << 10     |       100      | true
+    100 << 10     |   10 << 10     |       10000    | true
+    100 << 10     |   100 << 10    |       1        | true
+    100 << 10     |   100 << 10    |       10       | true
+    100 << 10     |   100 << 10    |       100      | true
+    100 << 10     |   10 << 10     |       0        | false
+    100 << 10     |   10 << 10     |       1        | false
+    100 << 10     |   10 << 10     |       10       | false
+    100 << 10     |   10 << 10     |       100      | false
+    100 << 10     |   10 << 10     |       10000    | false
+    100 << 10     |   100 << 10    |       1        | false
+    100 << 10     |   100 << 10    |       10       | false
+    100 << 10     |   100 << 10    |       100      | false
+    100 << 10     |   100 << 10    |       10000    | false
   }
-
-
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
@@ -190,36 +216,36 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     }
   }
 
-  private static List<List<DDSpanData>> generateRandomTraces(int howMany) {
+  private static List<List<DDSpanData>> generateRandomTraces(int howMany, boolean lowCardinality) {
     List<List<DDSpanData>> traces = new ArrayList<>(howMany)
     for (int i = 0; i < howMany; ++i) {
       int traceSize = ThreadLocalRandom.current().nextInt(2, 20)
-      traces.add(generateRandomTrace(traceSize))
+      traces.add(generateRandomTrace(traceSize, lowCardinality))
     }
     return traces
   }
 
-  private static List<DDSpanData> generateRandomTrace(int size) {
+  private static List<DDSpanData> generateRandomTrace(int size, boolean lowCardinality) {
     List<DDSpanData> trace = new ArrayList<>(size)
     long traceId = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE)
     for (int i = 0; i < size; ++i) {
-      trace.add(randomSpan(traceId))
+      trace.add(randomSpan(traceId, lowCardinality))
     }
     return trace
   }
 
-  private static DDSpanData randomSpan(long traceId) {
+  private static DDSpanData randomSpan(long traceId, boolean lowCardinality) {
     Map<String, String> baggage = new HashMap<>()
-    baggage.put("baggage-key", UUID.randomUUID().toString())
+    baggage.put("baggage-key", lowCardinality ? "x" : UUID.randomUUID().toString())
     Map<String, Object> tags = new HashMap<>()
     tags.put("tag.1", "foo")
-    tags.put("tag.2", UUID.randomUUID())
+    tags.put("tag.2", lowCardinality ? "y" : UUID.randomUUID())
     Map<String, Number> metrics = new HashMap<>()
     metrics.put("metric.1", ThreadLocalRandom.current().nextInt())
     return new PojoSpan(
-      "service-" + ThreadLocalRandom.current().nextInt(10),
-      "operation-" + ThreadLocalRandom.current().nextInt(100),
-      "resource-" + ThreadLocalRandom.current().nextInt(100),
+      "service-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 10),
+      "operation-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 100),
+      "resource-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 100),
       DDId.from(traceId),
       DDId.generate(),
       DDId.ZERO,
@@ -229,7 +255,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       metrics,
       baggage,
       tags,
-      "type-" + ThreadLocalRandom.current().nextInt(100))
+      "type-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 100))
   }
 
   static class PojoSpan implements DDSpanData {
