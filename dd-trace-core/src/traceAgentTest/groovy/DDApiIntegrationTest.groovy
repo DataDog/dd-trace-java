@@ -63,7 +63,7 @@ class DDApiIntegrationTest extends DDSpecification {
   @Shared
   File socketPath
 
-  def api
+  DDAgentApi api
   def unixDomainSocketApi
 
   def endpoint = new AtomicReference<String>(null)
@@ -123,10 +123,14 @@ class DDApiIntegrationTest extends DDSpecification {
   }
 
   def "Sending traces succeeds (test #test)"() {
-    expect:
-    api.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
-    assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
-    assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
+    when:
+    DDAgentApi.Response response = api.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
+    then:
+    api.tracesUrl.toString() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
+    response.status() == 200
+    !response.response().isEmpty()
+    endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
+    agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
     request                                                                                             | test
@@ -142,10 +146,14 @@ class DDApiIntegrationTest extends DDSpecification {
   }
 
   def "Sending traces to unix domain socket succeeds (test #test)"() {
-    expect:
-    unixDomainSocketApi.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
-    assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/v0.4/traces"
-    assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
+    when:
+    DDAgentApi.Response response = unixDomainSocketApi.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
+    then:
+    unixDomainSocketApi.tracesUrl.toString() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
+    response.status() == 200
+    !response.response().isEmpty()
+    endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/v0.4/traces"
+    agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
     request                                                                                             | test
