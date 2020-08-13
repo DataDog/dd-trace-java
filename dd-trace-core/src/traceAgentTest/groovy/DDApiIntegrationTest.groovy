@@ -63,7 +63,7 @@ class DDApiIntegrationTest extends DDSpecification {
   @Shared
   File socketPath
 
-  def api
+  DDAgentApi api
   def unixDomainSocketApi
 
   def endpoint = new AtomicReference<String>(null)
@@ -87,7 +87,7 @@ class DDApiIntegrationTest extends DDSpecification {
                   "DD_BIND_HOST"  : "0.0.0.0",
                   "DD_API_KEY"    : "invalid_key_but_this_is_fine",
                   "DD_LOGS_STDOUT": "yes"])
-        .withExposedPorts(datadog.trace.api.Config.DEFAULT_TRACE_AGENT_PORT)
+        .withExposedPorts(datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT)
         .withStartupTimeout(Duration.ofSeconds(120))
       // Apparently we need to sleep for a bit so agent's response `{"service:,env:":1}` in rate_by_service.
       // This is clearly a race-condition and maybe we should avoid verifying complete response
@@ -97,7 +97,7 @@ class DDApiIntegrationTest extends DDSpecification {
       //      }
       agentContainer.start()
       agentContainerHost = agentContainer.containerIpAddress
-      agentContainerPort = agentContainer.getMappedPort(datadog.trace.api.Config.DEFAULT_TRACE_AGENT_PORT)
+      agentContainerPort = agentContainer.getMappedPort(datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT)
     }
 
     File tmpDir = File.createTempDir()
@@ -123,10 +123,14 @@ class DDApiIntegrationTest extends DDSpecification {
   }
 
   def "Sending traces succeeds (test #test)"() {
-    expect:
-    api.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
-    assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
-    assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
+    when:
+    DDAgentApi.Response response = api.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
+    then:
+    api.tracesUrl.toString() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
+    response.status() == 200
+    !response.response().isEmpty()
+    endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
+    agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
     request                                                                                             | test
@@ -142,10 +146,14 @@ class DDApiIntegrationTest extends DDSpecification {
   }
 
   def "Sending traces to unix domain socket succeeds (test #test)"() {
-    expect:
-    unixDomainSocketApi.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
-    assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/v0.4/traces"
-    assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
+    when:
+    DDAgentApi.Response response = unixDomainSocketApi.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
+    then:
+    unixDomainSocketApi.tracesUrl.toString() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
+    response.status() == 200
+    !response.response().isEmpty()
+    endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/v0.4/traces"
+    agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
     request                                                                                             | test

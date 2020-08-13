@@ -117,7 +117,7 @@ public class DDAgentApi {
               listener.onResponse(endpoint, parsedResponse);
             }
           }
-          return Response.success(response.code());
+          return Response.success(response.code(), responseString);
         } catch (final IOException e) {
           log.debug("Failed to parse DD agent response: {}", responseString, e);
           return Response.success(response.code(), e);
@@ -332,33 +332,35 @@ public class DDAgentApi {
    */
   public static final class Response {
     /** Factory method for a successful request with a trivial response body */
-    public static Response success(final int status) {
-      return new Response(true, status, null);
+    public static Response success(final int status, final String response) {
+      return new Response(true, status, null, response);
     }
 
     /** Factory method for a successful request will a malformed response body */
     public static Response success(final int status, final Throwable exception) {
-      return new Response(true, status, exception);
+      return new Response(true, status, exception, null);
     }
 
     /** Factory method for a request that receive an error status in response */
     public static Response failed(final int status) {
-      return new Response(false, status, null);
+      return new Response(false, status, null, null);
     }
 
     /** Factory method for a failed communication attempt */
     public static Response failed(final Throwable exception) {
-      return new Response(false, null, exception);
+      return new Response(false, null, exception, null);
     }
 
     private final boolean success;
     private final Integer status;
     private final Throwable exception;
+    private final String response;
 
-    private Response(final boolean success, final Integer status, final Throwable exception) {
+    private Response(final boolean success, final Integer status, final Throwable exception, final String response) {
       this.success = success;
       this.status = status;
       this.exception = exception;
+      this.response = response;
     }
 
     public final boolean success() {
@@ -373,6 +375,10 @@ public class DDAgentApi {
     // TODO: DQH - In Java 8, switch to Optional<Throwable>?
     public final Throwable exception() {
       return exception;
+    }
+
+    public final String response() {
+      return response;
     }
   }
 
