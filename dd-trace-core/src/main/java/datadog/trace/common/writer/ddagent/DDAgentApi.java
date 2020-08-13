@@ -141,7 +141,7 @@ public class DDAgentApi {
         countAndLogSuccessfulSend(payload.traceCount(), payload.representativeCount(), sizeInBytes);
         String responseString = null;
         try {
-          responseString = response.body().string().trim();
+          responseString = getResponseBody(response);
           if (!"".equals(responseString) && !"OK".equalsIgnoreCase(responseString)) {
             final Map<String, Map<String, Number>> parsedResponse =
                 RESPONSE_ADAPTER.fromJson(responseString);
@@ -186,28 +186,26 @@ public class DDAgentApi {
       final IOException outer) {
     // count the failed traces
     this.failedTraces += traceCount;
-
     // these are used to catch and log if there is a failure in debug logging the response body
-    IOException exception = outer;
     boolean hasLogged = false;
-
+    String agentError = getResponseBody(response);
     if (log.isDebugEnabled()) {
       String sendErrorString =
-          createSendLogMessage(traceCount, representativeCount, sizeInBytes, "Error");
+          createSendLogMessage(
+              traceCount,
+              representativeCount,
+              sizeInBytes,
+              agentError.isEmpty() ? "Error" : agentError);
       if (response != null) {
-        try {
-          log.debug(
-              "{} Status: {}, Response: {}, Body: {}",
-              sendErrorString,
-              response.code(),
-              response.message(),
-              response.body().string().trim());
-          hasLogged = true;
-        } catch (IOException inner) {
-          exception = inner;
-        }
-      } else if (exception != null) {
-        log.debug(sendErrorString, exception);
+        log.debug(
+            "{} Status: {}, Response: {}, Body: {}",
+            sendErrorString,
+            response.code(),
+            response.message(),
+            agentError);
+        hasLogged = true;
+      } else if (outer != null) {
+        log.debug(sendErrorString, outer);
         hasLogged = true;
       } else {
         log.debug(sendErrorString);
@@ -220,7 +218,11 @@ public class DDAgentApi {
         this.previousErrorLogNanos = now;
         this.logNextSuccess = true;
         String sendErrorString =
-            createSendLogMessage(traceCount, representativeCount, sizeInBytes, "Error");
+            createSendLogMessage(
+                traceCount,
+                representativeCount,
+                sizeInBytes,
+                agentError.isEmpty() ? "Error" : agentError);
         if (response != null) {
           log.warn(
               "{} Status: {} {} {}",
@@ -228,18 +230,28 @@ public class DDAgentApi {
               response.code(),
               response.message(),
               WILL_NOT_LOG_FOR_MESSAGE);
-        } else if (exception != null) {
+        } else if (outer != null) {
           log.warn(
               "{} {}: {} {}",
               sendErrorString,
-              exception.getClass().getName(),
-              exception.getMessage(),
+              outer.getClass().getName(),
+              outer.getMessage(),
               WILL_NOT_LOG_FOR_MESSAGE);
         } else {
           log.warn("{} {}", sendErrorString, WILL_NOT_LOG_FOR_MESSAGE);
         }
       }
     }
+  }
+
+  private static String getResponseBody(okhttp3.Response response) {
+    if (response != null) {
+      try {
+        return response.body().string().trim();
+      } catch (NullPointerException | IOException ignored) {
+      }
+    }
+    return "";
   }
 
   private String createSendLogMessage(
