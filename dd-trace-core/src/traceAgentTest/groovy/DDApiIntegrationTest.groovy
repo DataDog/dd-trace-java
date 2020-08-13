@@ -63,7 +63,7 @@ class DDApiIntegrationTest extends DDSpecification {
   @Shared
   File socketPath
 
-  def api
+  DDAgentApi api
   def unixDomainSocketApi
 
   def endpoint = new AtomicReference<String>(null)
@@ -124,7 +124,10 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def "Sending traces succeeds (test #test)"() {
     expect:
-    api.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
+    DDAgentApi.Response response = api.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
+    assert api.tracesUrl.toString() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
+    assert response.status() == 200
+    assert !response.response().isEmpty()
     assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
@@ -143,7 +146,10 @@ class DDApiIntegrationTest extends DDSpecification {
 
   def "Sending traces to unix domain socket succeeds (test #test)"() {
     expect:
-    unixDomainSocketApi.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
+    DDAgentApi.Response response = unixDomainSocketApi.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
+    assert unixDomainSocketApi.tracesUrl.toString() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
+    assert response.status() == 200
+    assert !response.response().isEmpty()
     assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/v0.4/traces"
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
