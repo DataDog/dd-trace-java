@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.GenericRunnable;
 import java.util.Map;
@@ -51,18 +52,24 @@ public class ThreadPoolExecutorInstrumentation extends Instrumenter.Default {
     public static void disableIfQueueWrongType(
         @Advice.This final ThreadPoolExecutor executor,
         @Advice.Argument(4) final BlockingQueue<Runnable> queue) {
-
-      if (queue.isEmpty()) {
-        try {
-          queue.offer(new GenericRunnable());
-          queue.clear(); // Remove the Runnable we just added.
-        } catch (final ClassCastException | IllegalArgumentException e) {
-          // These errors indicate the queue is fundamentally incompatible with wrapped runnables.
-          // We must disable the executor instance to avoid passing wrapped runnables later.
-          ExecutorInstrumentationUtils.disableExecutorForWrappedTasks(executor);
-        } catch (final Exception e) {
-          // Other errors might indicate the queue is not fully initialized.
-          // We might want to disable for those too, but for now just ignore.
+      // We disable this way because this instrumentation is only used to call
+      // disableExecutorForWrappedTasks. Therefore disabling the instrumentation explicitly will not
+      // work, for this instrumentation disabling for all executors is more of the intention
+      if (!Config.get().isRuleEnabled("thread_pool_executor.wrapped_runnables")) {
+        ExecutorInstrumentationUtils.disableExecutorForWrappedTasks(executor);
+      } else {
+        if (queue.isEmpty()) {
+          try {
+            queue.offer(new GenericRunnable());
+            queue.clear(); // Remove the Runnable we just added.
+          } catch (final ClassCastException | IllegalArgumentException e) {
+            // These errors indicate the queue is fundamentally incompatible with wrapped runnables.
+            // We must disable the executor instance to avoid passing wrapped runnables later.
+            ExecutorInstrumentationUtils.disableExecutorForWrappedTasks(executor);
+          } catch (final Exception e) {
+            // Other errors might indicate the queue is not fully initialized.
+            // We might want to disable for those too, but for now just ignore.
+          }
         }
       }
     }
