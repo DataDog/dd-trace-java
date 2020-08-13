@@ -29,9 +29,16 @@ import net.bytebuddy.utility.JavaModule;
 public class AgentInstaller {
   private static final Map<String, List<Runnable>> CLASS_LOAD_CALLBACKS = new HashMap<>();
   private static volatile Instrumentation INSTRUMENTATION;
+  private static volatile AgentBuilder BUILDER;
+  private static volatile ResettableClassFileTransformer TRANSFORMER;
 
   public static Instrumentation getInstrumentation() {
     return INSTRUMENTATION;
+  }
+
+  // TODO Use a separate builder for a patchable transformer
+  public static AgentBuilder getBuilder() {
+    return BUILDER;
   }
 
   static {
@@ -41,7 +48,7 @@ public class AgentInstaller {
 
   public static void installBytebuddyAgent(final Instrumentation inst) {
     if (Config.get().isTraceEnabled()) {
-      installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
+      TRANSFORMER = installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
     } else {
       log.debug("Tracing is disabled, not installing instrumentations.");
     }
@@ -107,7 +114,18 @@ public class AgentInstaller {
     }
     log.debug("Installed {} instrumenter(s)", numInstrumenters);
 
-    return agentBuilder.installOn(inst);
+    return install(agentBuilder);
+  }
+
+  public static ResettableClassFileTransformer install(final AgentBuilder agentBuilder) {
+    BUILDER = agentBuilder;
+    TRANSFORMER = agentBuilder.installOn(INSTRUMENTATION);
+    return TRANSFORMER;
+  }
+
+  public static ResettableClassFileTransformer patch(final AgentBuilder agentBuilder) {
+    TRANSFORMER = agentBuilder.patchOn(INSTRUMENTATION, TRANSFORMER);
+    return TRANSFORMER;
   }
 
   private static void addByteBuddyRawSetting() {
@@ -130,8 +148,8 @@ public class AgentInstaller {
   private static ElementMatcher.Junction<Object> matchesConfiguredExcludes() {
     final List<String> excludedClasses = Config.get().getExcludedClasses();
     ElementMatcher.Junction matcher = none();
-    List<String> literals = new ArrayList<>();
-    List<String> prefixes = new ArrayList<>();
+    final List<String> literals = new ArrayList<>();
+    final List<String> prefixes = new ArrayList<>();
     // first accumulate by operation because a lot of work can be aggregated
     for (String excludedClass : excludedClasses) {
       excludedClass = excludedClass.trim();
@@ -145,7 +163,7 @@ public class AgentInstaller {
     if (!literals.isEmpty()) {
       matcher = matcher.or(namedOneOf(literals));
     }
-    for (String prefix : prefixes) {
+    for (final String prefix : prefixes) {
       // TODO - with a prefix tree this matching logic can be handled by a
       // single longest common prefix query
       matcher = matcher.or(nameStartsWith(prefix));

@@ -9,7 +9,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class SubTraceRule implements TraceProcessor.Rule {
-  private static final int LIMIT = 10;
+  private static final int LIMIT = 5;
 
   @Override
   public String[] aliases() {
@@ -24,7 +24,10 @@ public class SubTraceRule implements TraceProcessor.Rule {
     Collections.sort(sorted);
     for (int i = 0; i < Math.min(LIMIT, sorted.size()); i++) {
       final SubTrace subTrace = sorted.get(i);
-      span.setTag("subtrace." + i + "." + subTrace.tagKey(), subTrace.tagValue());
+      // The UI currently does funky things with periods in keys, so trying something else...
+      // replace period with a "HALFWIDTH IDEOGRAPHIC PERIOD"
+      final String periodSwapped = subTrace.tagKey().replace('.', '\uFF61');
+      span.setTag("subtrace." + i + "." + periodSwapped, subTrace.tagValue());
     }
   }
 }

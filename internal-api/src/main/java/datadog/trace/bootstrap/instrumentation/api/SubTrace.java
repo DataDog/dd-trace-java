@@ -43,9 +43,9 @@ public class SubTrace implements Comparable<SubTrace> {
 
   @Override
   public int compareTo(final SubTrace o) {
-    int compare = Long.compare(exclusiveDurationSum, o.exclusiveDurationSum);
+    int compare = Long.compare(o.exclusiveDurationSum, exclusiveDurationSum);
     if (compare == 0) {
-      compare = Integer.compare(count, o.count);
+      compare = Integer.compare(o.count, count);
     }
     return compare;
   }
@@ -55,6 +55,7 @@ public class SubTrace implements Comparable<SubTrace> {
     return key.getLeft().getName() + "." + key.getRight();
   }
 
+  // TODO: remove me when we don't set as tag anymore
   public String tagValue() {
     return "exclusiveDuration:"
         + exclusiveDurationSum
@@ -74,6 +75,10 @@ public class SubTrace implements Comparable<SubTrace> {
 
     public Context(final AgentSpan span) {
       this.span = span;
+    }
+
+    public long getRunningDuration() {
+      return runningDuration;
     }
 
     public void collect(
@@ -100,10 +105,6 @@ public class SubTrace implements Comparable<SubTrace> {
         subTrace.closed = true;
         span.merge(subTrace);
       }
-    }
-
-    public long getRunningDuration() {
-      return runningDuration;
     }
   }
 }

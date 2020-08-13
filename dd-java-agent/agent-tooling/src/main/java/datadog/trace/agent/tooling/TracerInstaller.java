@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.profiler.StackSource;
 import datadog.trace.core.CoreTracer;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,6 +24,7 @@ public class TracerInstaller {
 
   public static void installGlobalTracer(final CoreTracer tracer) {
     try {
+      tracer.addScopeListener(StackSource.LISTENER);
       GlobalTracer.registerIfAbsent(tracer);
       AgentTracer.registerIfAbsent(tracer);
     } catch (final RuntimeException re) {

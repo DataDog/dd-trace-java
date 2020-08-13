@@ -1,74 +1,78 @@
 package datadog.trace.instrumentation.subtrace;
 
-import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
-import static net.bytebuddy.matcher.ElementMatchers.isBridge;
-import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-import static net.bytebuddy.matcher.ElementMatchers.isEquals;
-import static net.bytebuddy.matcher.ElementMatchers.isGetter;
-import static net.bytebuddy.matcher.ElementMatchers.isHashCode;
-import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-import static net.bytebuddy.matcher.ElementMatchers.isSetter;
-import static net.bytebuddy.matcher.ElementMatchers.isToString;
-import static net.bytebuddy.matcher.ElementMatchers.not;
+import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.AgentInstaller;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.Utils;
+import datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers;
+import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.Consumer;
+import datadog.trace.bootstrap.instrumentation.api.Pair;
+import datadog.trace.bootstrap.instrumentation.profiler.StackSource;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import lombok.extern.slf4j.Slf4j;
+import net.bytebuddy.agent.builder.AgentBuilder;
 import net.bytebuddy.description.method.MethodDescription;
-import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
+// TODO: write instrumentation to apply advice to native blocking calls.
+// https://github.com/reactor/BlockHound/blob/master/agent/src/main/java/reactor/blockhound/NativeWrappingClassFileTransformer.java
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class SubTraceInstrumentation extends Instrumenter.Default {
-  private static final int CUTOFF = 5;
+public final class SubTraceInstrumentation
+    implements Instrumenter, Consumer<Set<Pair<String, String>>> {
 
-  public SubTraceInstrumentation() {
-    super("subtrace");
+  @Override
+  public AgentBuilder instrument(final AgentBuilder agentBuilder) {
+    if (Config.get().isIntegrationEnabled(new TreeSet<>(Arrays.asList("subtrace")), true)) {
+      StackSource.INSTANCE.addConsumer(this);
+    }
+    return agentBuilder;
   }
 
   @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    return new ElementMatcher<TypeDescription>() {
-      @Override
-      public boolean matches(final TypeDescription target) {
-        if (target.getActualName().startsWith("java")
-            || target.getActualName().startsWith("jdk")
-            || target.getActualName().startsWith("sun")) {
-          return false;
-        }
-        // This is probably a horrible idea, but it's an easy way to get started.
-        final String name = target.getActualName();
-        final int hash = Math.abs(name.hashCode());
-        final int value = hash % 10;
-        return CUTOFF < value;
+  public void accept(final Set<Pair<String, String>> identifiedTargets) {
+    AgentBuilder builder = AgentInstaller.getBuilder();
+    if (builder == null) {
+      return;
+    }
+    final Map<String, ElementMatcher.Junction<? super MethodDescription>> classMethodsMatchers =
+        new HashMap<>();
+    for (final Pair<String, String> target : identifiedTargets) {
+      final String className = target.getLeft();
+      final String methodName = target.getRight();
+      final ElementMatcher.Junction<? super MethodDescription> matcher =
+          classMethodsMatchers.get(className);
+
+      if (matcher == null) {
+        classMethodsMatchers.put(className, named(methodName));
+      } else {
+        classMethodsMatchers.put(className, matcher.<MethodDescription>or(named(methodName)));
       }
-    };
-  }
-
-  @Override
-  public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
-        isPublic()
-            .and(
-                not(
-                    isBridge()
-                        .or(isAbstract())
-                        .or(isConstructor())
-                        .or(isToString())
-                        .or(isGetter())
-                        .or(isSetter())
-                        .or(isHashCode())
-                        .or(isEquals())))
-            .and(
-                new ElementMatcher<MethodDescription>() {
-                  @Override
-                  public boolean matches(final MethodDescription target) {
-                    return true;
-                  }
-                }),
-        packageName + ".SubTraceAdvice");
+    }
+    for (final Map.Entry<String, ElementMatcher.Junction<? super MethodDescription>> entry :
+        classMethodsMatchers.entrySet()) {
+      builder =
+          builder
+              .type(named(entry.getKey()))
+              .transform(
+                  new AgentBuilder.Transformer.ForAdvice()
+                      .include(Utils.getBootstrapProxy(), Utils.getAgentClassLoader())
+                      .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
+                      .advice(
+                          entry.getValue(),
+                          "datadog.trace.instrumentation.subtrace.SubTraceAdvice"));
+    }
+    log.info(
+        "Applying subtrace advice to {} classes and {} methods",
+        classMethodsMatchers.size(),
+        identifiedTargets.size());
+    AgentInstaller.patch(builder);
   }
 }
