@@ -123,13 +123,14 @@ class DDApiIntegrationTest extends DDSpecification {
   }
 
   def "Sending traces succeeds (test #test)"() {
-    expect:
+    when:
     DDAgentApi.Response response = api.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
-    assert api.tracesUrl.toString() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
-    assert response.status() == 200
-    assert !response.response().isEmpty()
-    assert endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
-    assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
+    then:
+    api.tracesUrl.toString() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
+    response.status() == 200
+    !response.response().isEmpty()
+    endpoint.get() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
+    agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
     request                                                                                             | test
@@ -145,13 +146,14 @@ class DDApiIntegrationTest extends DDSpecification {
   }
 
   def "Sending traces to unix domain socket succeeds (test #test)"() {
-    expect:
+    when:
     DDAgentApi.Response response = unixDomainSocketApi.sendSerializedTraces(request.traceCount, request.representativeCount, request.buffer)
-    assert unixDomainSocketApi.tracesUrl.toString() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
-    assert response.status() == 200
-    assert !response.response().isEmpty()
-    assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/v0.4/traces"
-    assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
+    then:
+    unixDomainSocketApi.tracesUrl.toString() == "http://${agentContainerHost}:${agentContainerPort}/v0.4/traces"
+    response.status() == 200
+    !response.response().isEmpty()
+    endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/v0.4/traces"
+    agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
     request                                                                                             | test
