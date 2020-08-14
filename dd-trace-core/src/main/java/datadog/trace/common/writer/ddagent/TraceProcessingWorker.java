@@ -59,8 +59,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       final boolean heartbeat) {
     this.doHeartbeat = heartbeat;
     int parallelism = Runtime.getRuntime().availableProcessors();
-    this.primaryQueue =
-        new MpscCompoundQueue<>(Math.max(capacity, parallelism), parallelism);
+    this.primaryQueue = new MpscCompoundQueue<>(Math.max(capacity, parallelism), parallelism);
     this.serializingHandler =
         new TraceSerializingHandler(
             primaryQueue, monitor, processor, flushInterval, timeUnit, dispatcher);
