@@ -1,7 +1,7 @@
 package datadog.trace.common.writer
 
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor
+import datadog.trace.common.writer.ddagent.TraceProcessingWorker
 import datadog.trace.core.monitor.Monitor
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Subject
@@ -14,7 +14,7 @@ class DDAgentWriterTest extends DDSpecification {
 
   def api = Mock(DDAgentApi)
   def monitor = Mock(Monitor)
-  def disruptor = Mock(TraceProcessingDisruptor)
+  def disruptor = Mock(TraceProcessingWorker)
 
   @Subject
   def writer = new DDAgentWriter(api, monitor, disruptor)
@@ -29,7 +29,7 @@ class DDAgentWriterTest extends DDSpecification {
 
     then:
     1 * disruptor.start()
-    1 * disruptor.getDisruptorCapacity() >> capacity
+    1 * disruptor.getCapacity() >> capacity
     1 * monitor.onStart(capacity)
     0 * _
 

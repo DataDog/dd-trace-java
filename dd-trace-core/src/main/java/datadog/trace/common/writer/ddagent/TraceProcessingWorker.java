@@ -19,14 +19,14 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Disruptor that takes completed traces and applies processing to them. Upon completion, the
- * serialized trace is published to the Datadog Agent}.
+ * Worker which applies rules to traces and serializes the results. Upon completion, the serialized
+ * traces are published in batches to the Datadog Agent}.
  *
  * <p>publishing to the buffer will not block the calling thread, but instead will return false if
  * the buffer is full. This is to avoid impacting an application thread.
  */
 @Slf4j
-public class TraceProcessingDisruptor implements AutoCloseable {
+public class TraceProcessingWorker implements AutoCloseable {
 
   private final Disruptor<DisruptorEvent<List<DDSpan>>> disruptor;
   private final DisruptorEvent.DataTranslator<List<DDSpan>> dataTranslator;
@@ -37,8 +37,8 @@ public class TraceProcessingDisruptor implements AutoCloseable {
 
   private volatile ScheduledFuture<?> heartbeat;
 
-  public TraceProcessingDisruptor(
-      final int disruptorSize,
+  public TraceProcessingWorker(
+      final int capacity,
       final Monitor monitor,
       final DDAgentApi api,
       final long flushInterval,
@@ -47,7 +47,7 @@ public class TraceProcessingDisruptor implements AutoCloseable {
     this.disruptor =
         DisruptorUtils.create(
             new DisruptorEvent.Factory<List<DDSpan>>(),
-            disruptorSize,
+            capacity,
             DaemonThreadFactory.TRACE_PROCESSOR,
             ProducerType.MULTI,
             // using blocking wait strategy because the processor will
@@ -101,11 +101,11 @@ public class TraceProcessingDisruptor implements AutoCloseable {
     disruptor.getRingBuffer().publishEvent(heartbeatTranslator);
   }
 
-  public int getDisruptorCapacity() {
+  public int getCapacity() {
     return disruptor.getRingBuffer().getBufferSize();
   }
 
-  public long getDisruptorRemainingCapacity() {
+  public long getRemainingCapacity() {
     return disruptor.getRingBuffer().remainingCapacity();
   }
 
@@ -178,9 +178,9 @@ public class TraceProcessingDisruptor implements AutoCloseable {
 
   // Important to use explicit class to avoid implicit hard references to TraceProcessingDisruptor
   private static final class HeartbeatTask
-      implements CommonTaskExecutor.Task<TraceProcessingDisruptor> {
+      implements CommonTaskExecutor.Task<TraceProcessingWorker> {
     @Override
-    public void run(final TraceProcessingDisruptor traceProcessor) {
+    public void run(final TraceProcessingWorker traceProcessor) {
       traceProcessor.heartbeat();
     }
   }

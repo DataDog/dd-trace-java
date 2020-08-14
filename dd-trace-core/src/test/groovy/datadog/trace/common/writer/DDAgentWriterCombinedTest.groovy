@@ -484,7 +484,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     when:
     // send many traces to fill the sender queue...
     //   loop until outstanding requests > finished requests
-    while (writer.traceProcessingDisruptor.getDisruptorRemainingCapacity() > 0 || numFailedPublish.get() == 0) {
+    while (writer.traceProcessingWorker.getRemainingCapacity() > 0 || numFailedPublish.get() == 0) {
       writer.write(minimalTrace)
       numWritten += 1
     }

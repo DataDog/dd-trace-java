@@ -8,7 +8,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import com.timgroup.statsd.NoOpStatsDClient;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
-import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor;
+import datadog.trace.common.writer.ddagent.TraceProcessingWorker;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.Monitor;
 import java.util.List;
@@ -36,7 +36,7 @@ public class DDAgentWriter implements Writer {
   private static final int DISRUPTOR_BUFFER_SIZE = 1024;
 
   private final DDAgentApi api;
-  private final TraceProcessingDisruptor traceProcessingDisruptor;
+  private final TraceProcessingWorker traceProcessingWorker;
 
   private final AtomicInteger traceCount = new AtomicInteger(0);
   private volatile boolean closed;
@@ -71,8 +71,8 @@ public class DDAgentWriter implements Writer {
       api = new DDAgentApi(agentHost, traceAgentPort, unixDomainSocket, timeoutMillis);
     }
     this.monitor = monitor;
-    traceProcessingDisruptor =
-        new TraceProcessingDisruptor(
+    traceProcessingWorker =
+        new TraceProcessingWorker(
             traceBufferSize,
             monitor,
             api,
@@ -84,10 +84,10 @@ public class DDAgentWriter implements Writer {
   private DDAgentWriter(
       final DDAgentApi agentApi,
       final Monitor monitor,
-      final TraceProcessingDisruptor traceProcessingDisruptor) {
+      final TraceProcessingWorker traceProcessingWorker) {
     api = agentApi;
     this.monitor = monitor;
-    this.traceProcessingDisruptor = traceProcessingDisruptor;
+    this.traceProcessingWorker = traceProcessingWorker;
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -96,7 +96,7 @@ public class DDAgentWriter implements Writer {
 
   // Exposing some statistics for consumption by monitors
   public final long getDisruptorCapacity() {
-    return traceProcessingDisruptor.getDisruptorCapacity();
+    return traceProcessingWorker.getCapacity();
   }
 
   public final long getDisruptorUtilizedCapacity() {
@@ -104,7 +104,7 @@ public class DDAgentWriter implements Writer {
   }
 
   public final long getDisruptorRemainingCapacity() {
-    return traceProcessingDisruptor.getDisruptorRemainingCapacity();
+    return traceProcessingWorker.getRemainingCapacity();
   }
 
   @Override
@@ -118,7 +118,7 @@ public class DDAgentWriter implements Writer {
       } else {
         representativeCount = traceCount.getAndSet(0) + 1;
       }
-      final boolean published = traceProcessingDisruptor.publish(trace, representativeCount);
+      final boolean published = traceProcessingWorker.publish(trace, representativeCount);
       if (published) {
         monitor.onPublish(trace);
       } else {
@@ -135,7 +135,7 @@ public class DDAgentWriter implements Writer {
 
   public boolean flush() {
     if (!closed) { // give up after a second
-      if (traceProcessingDisruptor.flush(1, TimeUnit.SECONDS)) {
+      if (traceProcessingWorker.flush(1, TimeUnit.SECONDS)) {
         monitor.onFlush(false);
         return true;
       }
@@ -155,7 +155,7 @@ public class DDAgentWriter implements Writer {
   @Override
   public void start() {
     if (!closed) {
-      traceProcessingDisruptor.start();
+      traceProcessingWorker.start();
       monitor.onStart((int) getDisruptorCapacity());
     }
   }
@@ -164,7 +164,7 @@ public class DDAgentWriter implements Writer {
   public void close() {
     final boolean flushed = flush();
     closed = true;
-    traceProcessingDisruptor.close();
+    traceProcessingWorker.close();
     monitor.onShutdown(flushed);
   }
 }

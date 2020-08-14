@@ -4,7 +4,7 @@ import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
-import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor
+import datadog.trace.common.writer.ddagent.TraceProcessingWorker
 import datadog.trace.core.DDSpan
 import datadog.trace.core.monitor.Monitor
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
@@ -23,7 +23,7 @@ import static java.util.concurrent.TimeUnit.SECONDS
 
 @Retry
 // TODO: these tests should be reworked with the latest "Payload" changes.
-class TraceProcessingDisruptorTest extends DDSpecification {
+class TraceProcessingWorkerTest extends DDSpecification {
 
   def phaser = new Phaser()
   def api = Mock(DDAgentApi) {
@@ -41,7 +41,7 @@ class TraceProcessingDisruptorTest extends DDSpecification {
 
   def "test happy path"() {
     setup:
-    def disruptor = new TraceProcessingDisruptor(
+    def disruptor = new TraceProcessingWorker(
       2,
       monitor,
       api,
@@ -86,7 +86,7 @@ class TraceProcessingDisruptorTest extends DDSpecification {
 
   def "test agent error response"() {
     setup:
-    def disruptor = new TraceProcessingDisruptor(
+    def disruptor = new TraceProcessingWorker(
       2,
       monitor,
       api,
@@ -131,7 +131,7 @@ class TraceProcessingDisruptorTest extends DDSpecification {
 
   def "test flood of traces"() {
     setup:
-    def disruptor = new TraceProcessingDisruptor(
+    def disruptor = new TraceProcessingWorker(
       disruptorSize,
       monitor,
       api,
@@ -173,7 +173,7 @@ class TraceProcessingDisruptorTest extends DDSpecification {
 
   def "test flush by time"() {
     setup:
-    def disruptor = new TraceProcessingDisruptor(
+    def disruptor = new TraceProcessingWorker(
       DISRUPTOR_BUFFER_SIZE,
       monitor,
       api,
@@ -218,7 +218,7 @@ class TraceProcessingDisruptorTest extends DDSpecification {
   @Ignore
   def "test default buffer size"() {
     setup:
-    def disruptor = new TraceProcessingDisruptor(
+    def disruptor = new TraceProcessingWorker(
       DISRUPTOR_BUFFER_SIZE,
       monitor,
       api,
@@ -229,7 +229,7 @@ class TraceProcessingDisruptorTest extends DDSpecification {
 
     when:
     (0..maxedPayloadTraceCount).each {
-      while (disruptor.getDisruptorRemainingCapacity() <= 1) {
+      while (disruptor.getRemainingCapacity() <= 1) {
 //        println("waiting...")
         Thread.sleep(1)
         // Busywait because we don't want to fill up the ring buffer
@@ -258,7 +258,7 @@ class TraceProcessingDisruptorTest extends DDSpecification {
     where:
     minimalTrace = [newSpanOf(0, "")]
     traceSize = calculateSize(minimalTrace)
-    maxedPayloadTraceCount = ((int) (TraceProcessingDisruptor.DEFAULT_BUFFER_SIZE / traceSize))
+    maxedPayloadTraceCount = ((int) (TraceProcessingWorker.DEFAULT_BUFFER_SIZE / traceSize))
     response = DDAgentApi.Response.success(200)
   }
 
@@ -266,7 +266,7 @@ class TraceProcessingDisruptorTest extends DDSpecification {
   // This doesn't seem to apply anymore.  (events can be added after close.)
   def "check that are no interactions after close"() {
     setup:
-    def disruptor = new TraceProcessingDisruptor(
+    def disruptor = new TraceProcessingWorker(
       DISRUPTOR_BUFFER_SIZE,
       monitor,
       api,
