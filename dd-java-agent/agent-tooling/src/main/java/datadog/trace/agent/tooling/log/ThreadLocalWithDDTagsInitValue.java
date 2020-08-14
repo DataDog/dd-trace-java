@@ -71,9 +71,10 @@ public class ThreadLocalWithDDTagsInitValue<T> extends ThreadLocal<T> {
 
   public static <T> ThreadLocal<T> create(T origThreadLocalValue)
       throws InvocationTargetException, IllegalAccessException {
-    if (origThreadLocalValue instanceof Map) {
-      ((Map) origThreadLocalValue).putAll(LogContextScopeListener.LOG_CONTEXT_DD_TAGS);
-    } else {
+    // eg logback implementation uses synchronization on old instance of the map:
+    // https://github.com/qos-ch/logback/blob/a6356170acfa6ce6e2383477bf80e6cae8a82d80/logback-classic/src/main/java/ch/qos/logback/classic/util/LogbackMDCAdapter.java#L77
+    // here we try to follow this contract:
+    synchronized (origThreadLocalValue) {
       putToMap(origThreadLocalValue, LogContextScopeListener.LOG_CONTEXT_DD_TAGS);
     }
     return new ThreadLocalWithDDTagsInitValue<>(origThreadLocalValue);
