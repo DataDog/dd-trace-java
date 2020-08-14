@@ -8,7 +8,6 @@ ext {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/publish.gradle"
 
 description = "dd mlt binary format support"
 
