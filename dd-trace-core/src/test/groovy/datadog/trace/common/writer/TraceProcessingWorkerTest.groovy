@@ -1,300 +1,221 @@
 package datadog.trace.common.writer
 
-import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.trace.common.writer.ddagent.Payload
-import datadog.trace.common.writer.ddagent.TraceMapper
-import datadog.trace.common.writer.ddagent.TraceMapperV0_4
+import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker
 import datadog.trace.core.DDSpan
 import datadog.trace.core.monitor.Monitor
-import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
-import datadog.trace.core.serialization.msgpack.Packer
+import datadog.trace.core.processor.TraceProcessor
 import datadog.trace.util.test.DDSpecification
-import spock.lang.Ignore
-import spock.lang.Retry
+import spock.util.concurrent.PollingConditions
 
-import java.nio.ByteBuffer
-import java.util.concurrent.Phaser
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-import static datadog.trace.common.writer.DDAgentWriter.DISRUPTOR_BUFFER_SIZE
-import static datadog.trace.core.SpanFactory.newSpanOf
-import static java.util.concurrent.TimeUnit.SECONDS
-
-@Retry
-// TODO: these tests should be reworked with the latest "Payload" changes.
 class TraceProcessingWorkerTest extends DDSpecification {
 
-  def phaser = new Phaser()
-  def api = Mock(DDAgentApi) {
-    sendSerializedTraces(_, _, _) >> DDAgentApi.Response.success(200)
-  }
-  def traceMapper = Mock(TraceMapper)
-  def payload = Mock(Payload)
-  def monitor = Mock(Monitor)
+  def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
 
-  def setup() {
-    // Register for two threads.
-    phaser.register()
-    phaser.register()
-  }
-
-  def "test happy path"() {
-    setup:
-    def disruptor = new TraceProcessingWorker(
-      2,
-      monitor,
-      api,
-      -1,
-      SECONDS,
-      false)
-    disruptor.start()
-
-    when:
-    disruptor.flush(1, SECONDS)
-
-    then:
-    0 * _
-
-    when:
-    assert disruptor.publish(trace, 1)
-    assert disruptor.publish(trace, 1)
-    assert disruptor.flush(1, SECONDS)
-
-    then:
-    1 * api.selectTraceMapper() >> traceMapper
-    1 * traceMapper.messageBufferSize() >> (5 << 20)
-    2 * traceMapper.map(trace, _)
-    1 * traceMapper.newPayload() >> payload
-    1 * payload.withRepresentativeCount(2) >> payload
-    1 * payload.withBody(2, _) >> payload
-    1 * payload.sizeInBytes() >> payloadSize
-    1 * api.sendSerializedTraces(payload) >> response
-    1 * monitor.onSerialize(payloadSize)
-    1 * monitor.onSend(2, payloadSize, response)
-    1 * traceMapper.reset()
-    0 * _
-
-    cleanup:
-    disruptor.close()
-
-    where:
-    trace = [newSpanOf(0, "fixed-thread-name")]
-    response = DDAgentApi.Response.success(200)
-    payloadSize = 1000
-  }
-
-  def "test agent error response"() {
-    setup:
-    def disruptor = new TraceProcessingWorker(
-      2,
-      monitor,
-      api,
-      -1,
-      SECONDS,
-      false)
-    disruptor.start()
-
-    when:
-    disruptor.flush(1, SECONDS)
-
-    then:
-    0 * _
-
-    when:
-    assert disruptor.publish(trace, 1)
-    assert disruptor.publish(trace, 1)
-    assert disruptor.flush(1, SECONDS)
-
-    then:
-    1 * api.selectTraceMapper() >> traceMapper
-    1 * traceMapper.messageBufferSize() >> (5 << 20)
-    2 * traceMapper.map(trace, _)
-    1 * traceMapper.newPayload() >> payload
-    1 * payload.withRepresentativeCount(2) >> payload
-    1 * payload.withBody(2, _) >> payload
-    1 * payload.sizeInBytes() >> payloadSize
-    1 * api.sendSerializedTraces(payload) >> response
-    1 * monitor.onSerialize(payloadSize)
-    1 * monitor.onFailedSend(2, payloadSize, response)
-    1 * traceMapper.reset()
-    0 * _
-
-    cleanup:
-    disruptor.close()
-
-    where:
-    trace = [newSpanOf(0, "fixed-thread-name")]
-    response << [DDAgentApi.Response.failed(500), DDAgentApi.Response.failed(new Throwable())]
-    payloadSize = 1000
-  }
-
-  def "test flood of traces"() {
-    setup:
-    def disruptor = new TraceProcessingWorker(
-      disruptorSize,
-      monitor,
-      api,
-      -1,
-      SECONDS,
-      false)
-    disruptor.start()
-
-    when:
-    (1..traceCount).each {
-      disruptor.publish(trace, 1)
+  def flushCountingPayloadDispatcher(AtomicInteger flushCounter) {
+    PayloadDispatcher dispatcher = Mock(PayloadDispatcher)
+    dispatcher.flush() >> {
+      flushCounter.incrementAndGet()
     }
-    disruptor.flush(1, SECONDS)
-
-    then:
-    1 * api.selectTraceMapper() >> traceMapper
-    1 * traceMapper.messageBufferSize() >> (5 << 20)
-    _ * traceMapper.map(trace, _)
-    1 * traceMapper.newPayload() >> payload
-    1 * payload.withRepresentativeCount({ it > 10 }) >> payload
-    1 * payload.withBody({ it > 10 }, _) >> payload
-    1 * payload.sizeInBytes() >> payloadSize
-    1 * api.sendSerializedTraces(payload) >> response
-    1 * monitor.onSerialize(payloadSize)
-    1 * monitor.onSend({ it > 10 }, payloadSize, response)
-    1 * traceMapper.reset()
-    0 * _
-
-    cleanup:
-    disruptor.close()
-
-    where:
-    trace = [newSpanOf(0, "fixed-thread-name")]
-    response = DDAgentApi.Response.success(200)
-    disruptorSize = 10
-    traceCount = 100 // Shouldn't trigger payload, but bigger than the disruptor size.
-    payloadSize = 1000
+    return dispatcher
   }
 
-  def "test flush by time"() {
+  def "heartbeats should trigger flushes"() {
     setup:
-    def disruptor = new TraceProcessingWorker(
-      DISRUPTOR_BUFFER_SIZE,
-      monitor,
-      api,
+    AtomicInteger flushCount = new AtomicInteger()
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
+      flushCountingPayloadDispatcher(flushCount),
       1,
-      SECONDS,
-      true)
-    disruptor.start()
+      TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
+      false) // prevent scheduled heartbeats from interfering with the test
 
-    when:
-    (1..5).each {
-      disruptor.publish(trace, 1)
+    when: "do ${heartbeatCount} heartbeats"
+    worker.start()
+    for (int i = 0; i < heartbeatCount; ++i) {
+      worker.heartbeat()
     }
-    phaser.awaitAdvanceInterruptibly(phaser.arriveAndDeregister())
 
     then:
-    1 * api.selectTraceMapper() >> traceMapper
-    1 * traceMapper.messageBufferSize() >> (5 << 20)
-    5 * traceMapper.map(trace, _)
-    1 * traceMapper.newPayload() >> payload
-    1 * payload.withRepresentativeCount(5) >> payload
-    1 * payload.withBody(5, _) >> payload
-    1 * payload.sizeInBytes() >> payloadSize
-    1 * api.sendSerializedTraces(payload) >> response
-    1 * monitor.onSerialize(payloadSize)
-    1 * monitor.onSend(_, _, _) >> {
-      phaser.arrive()
+    "${heartbeatCount} flushes must be triggered"
+    conditions.eventually {
+      heartbeatCount == flushCount.get()
     }
-    1 * traceMapper.reset()
-    0 * _
 
     cleanup:
-    disruptor.close()
+    worker.close()
 
     where:
-    span = newSpanOf(0, "fixed-thread-name")
-    trace = (1..10).collect { span }
-    response = DDAgentApi.Response.success(200)
-    payloadSize = 1000
+    heartbeatCount << [1, 2, 10]
   }
 
-  // not currently working
-  @Ignore
-  def "test default buffer size"() {
+  def "heartbeats should be triggered automatically when enabled"() {
     setup:
-    def disruptor = new TraceProcessingWorker(
-      DISRUPTOR_BUFFER_SIZE,
-      monitor,
-      api,
-      -1,
-      SECONDS,
-      false)
-    disruptor.start()
-
-    when:
-    (0..maxedPayloadTraceCount).each {
-      while (disruptor.getRemainingCapacity() <= 1) {
-//        println("waiting...")
-        Thread.sleep(1)
-        // Busywait because we don't want to fill up the ring buffer
-      }
-      disruptor.publish(minimalTrace, 1)
-    }
-
-    then:
-//    1 * api.sendSerializedTraces(_, _, _) >> response
-    1 * monitor.onSerialize({ it > 1000 })
-//    1 * monitor.onSend(maxedPayloadTraceCount, _, response)
-    0 * _
-
-    when:
-    disruptor.flush(1, SECONDS)
-
-    then:
-    1 * api.sendSerializedTraces({ it == 1 }, { it == 1 }, _) >> response
-    1 * monitor.onSerialize({ it > 100 })
-    1 * monitor.onSend(1, _, response)
-    0 * _
-
-    cleanup:
-    disruptor.close()
-
-    where:
-    minimalTrace = [newSpanOf(0, "")]
-    traceSize = calculateSize(minimalTrace)
-    maxedPayloadTraceCount = ((int) (TraceProcessingWorker.DEFAULT_BUFFER_SIZE / traceSize))
-    response = DDAgentApi.Response.success(200)
-  }
-
-  @Ignore
-  // This doesn't seem to apply anymore.  (events can be added after close.)
-  def "check that are no interactions after close"() {
-    setup:
-    def disruptor = new TraceProcessingWorker(
-      DISRUPTOR_BUFFER_SIZE,
-      monitor,
-      api,
+    AtomicInteger flushCount = new AtomicInteger()
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
+      flushCountingPayloadDispatcher(flushCount),
       1,
-      SECONDS,
+      TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
       true)
-    disruptor.start()
 
-    when:
-    disruptor.close()
-    disruptor.publish([], 1)
-    disruptor.flush(1, SECONDS)
+    when: "processor is started"
+    worker.start()
 
-    then:
-    0 * _
+    then: "heartbeat occurs automatically"
+    conditions.eventually {
+      flushCount.get() > 0
+    }
+
+    cleanup:
+    worker.close()
   }
 
-  static int calculateSize(List<DDSpan> trace) {
-    ByteBuffer buffer = ByteBuffer.allocate(1024)
-    AtomicInteger size = new AtomicInteger()
-    def packer = new Packer(new ByteBufferConsumer() {
-      @Override
-      void accept(int messageCount, ByteBuffer buffy) {
-        size.set(buffy.limit() - buffy.position() - 1)
-      }
-    }, buffer)
-    packer.format(trace, new TraceMapperV0_4())
-    packer.flush()
-    return size.get()
+  def "heartbeats should occur approximately once per second when not throttled"() {
+    setup:
+    AtomicInteger flushCount = new AtomicInteger()
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
+      flushCountingPayloadDispatcher(flushCount),
+      1,
+      TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
+      true)
+    def timeConditions = new PollingConditions(timeout: 4, initialDelay: 3, factor: 1.25)
+
+    when: "processor is started"
+    worker.start()
+
+    then: "heartbeat occurs automatically approximately once per second"
+    timeConditions.eventually {
+      flushCount.get() > 3
+    }
+
+    cleanup:
+    worker.close()
   }
+
+  def "a flush should clear the primary queue"() {
+    setup:
+    AtomicInteger flushCount = new AtomicInteger()
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
+      flushCountingPayloadDispatcher(flushCount), 100, TimeUnit.SECONDS,
+      false) // prevent heartbeats from helping the flush happen
+
+    when: "there is pending work it is completed before a flush"
+    // processing this span will throw an exception, but it should be caught
+    // and not disrupt the flush
+    worker.primaryQueue.offer([Mock(DDSpan)])
+    worker.start()
+    boolean flushed = worker.flush(10, TimeUnit.SECONDS)
+
+    then: "the flush succeeds, triggers a dispatch, and the queue is empty"
+    flushed
+    worker.primaryQueue.isEmpty()
+
+    cleanup:
+    worker.close()
+  }
+
+  def "should report failure if rules can't be applied to trace" () {
+    setup:
+    Throwable theError = new IllegalStateException("thrown by test")
+    TraceProcessor throwingTraceProcessor = Mock(TraceProcessor)
+    throwingTraceProcessor.onTraceComplete(_) >> {
+      throw theError
+    }
+    AtomicInteger errorReported = new AtomicInteger()
+    Monitor monitor = Mock(Monitor)
+    monitor.onFailedSerialize(_, theError) >> {
+      // do this manually with a counter, despite spock's
+      // lovely syntactical sugar so we don't have a race
+      // condition induced flaky test. All we care about
+      // is that an error was reported and that it was the
+      // right one
+      errorReported.incrementAndGet()
+    }
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
+      Mock(PayloadDispatcher), throwingTraceProcessor, 100, TimeUnit.SECONDS,
+      false) // prevent heartbeats from helping the flush happen
+    worker.start()
+
+    when: "a trace is processed but rules can't be applied"
+    worker.publish([Mock(DDSpan)])
+
+    then: "the error is reported to the monitor"
+    conditions.eventually {
+      1 == errorReported.get()
+    }
+
+    cleanup: worker.close()
+  }
+
+
+  def "should report failure if serialization fails" () {
+    setup:
+    Throwable theError = new IllegalStateException("thrown by test")
+    PayloadDispatcher throwingDispatcher = Mock(PayloadDispatcher)
+    throwingDispatcher.addTrace(_) >> {
+      throw theError
+    }
+    AtomicInteger errorReported = new AtomicInteger()
+    Monitor monitor = Mock(Monitor)
+    monitor.onFailedSerialize(_, theError) >> {
+      // do this manually with a counter, despite spock's
+      // lovely syntactical sugar so we don't have a race
+      // condition induced flaky test. All we care about
+      // is that an error was reported and that it was the
+      // right one
+      errorReported.incrementAndGet()
+    }
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
+      throwingDispatcher, Stub(TraceProcessor), 100, TimeUnit.SECONDS,
+      false) // prevent heartbeats from helping the flush happen
+    worker.start()
+
+    when: "a trace is processed but can't be passed on"
+    worker.publish([Mock(DDSpan)])
+
+    then: "the error is reported to the monitor"
+    conditions.eventually {
+      1 == errorReported.get()
+    }
+
+    cleanup: worker.close()
+  }
+
+  def "traces should be processed"() {
+    setup:
+    AtomicInteger acceptedCount = new AtomicInteger()
+    PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
+    countingDispatcher.addTrace(_) >> {
+      acceptedCount.getAndIncrement()
+    }
+    Monitor monitor = Mock(Monitor)
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
+      countingDispatcher, Stub(TraceProcessor), 100, TimeUnit.SECONDS,
+      false) // prevent heartbeats from helping the flush happen
+    worker.start()
+
+    when: "traces are submitted"
+    int submitted = 0
+    for (int i = 0; i < traceCount; ++i) {
+      submitted += worker.publish([Mock(DDSpan)]) ? 1 : 0
+    }
+
+    then: "traces are passed through unless rejected on submission"
+    0 * monitor.onFailedSerialize(_, _)
+    conditions.eventually {
+      submitted == acceptedCount.get()
+    }
+
+    cleanup:
+    worker.close()
+
+
+    where:
+
+    traceCount << [1, 10, 20, 100]
+
+  }
+
 }

@@ -6,18 +6,20 @@ import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
 import datadog.trace.core.serialization.msgpack.Packer;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PayloadDispatcher implements ByteBufferConsumer {
 
+  private final AtomicInteger droppedCount = new AtomicInteger();
   private final DDAgentApi api;
-  private int representativeCount;
-  private TraceMapper traceMapper;
-  private Packer packer;
   private final Monitor monitor;
 
-  PayloadDispatcher(DDAgentApi api, Monitor monitor) {
+  private TraceMapper traceMapper;
+  private Packer packer;
+
+  public PayloadDispatcher(DDAgentApi api, Monitor monitor) {
     this.api = api;
     this.monitor = monitor;
   }
@@ -26,6 +28,10 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     if (null != packer) {
       packer.flush();
     }
+  }
+
+  public void onTraceDropped() {
+    droppedCount.incrementAndGet();
   }
 
   void addTrace(List<? extends DDSpanData> trace) {
@@ -37,15 +43,15 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     if (null != traceMapper) {
       packer.format(trace, traceMapper);
     } else { // if the mapper is null, then there's no agent running, so we should drop
+      onTraceDropped();
       log.debug("dropping {} traces because no agent was detected", 1);
     }
-    ++representativeCount;
   }
 
   private void selectTraceMapper() {
     if (null == traceMapper) {
       this.traceMapper = api.selectTraceMapper();
-      if (null == packer) {
+      if (null != traceMapper && null == packer) {
         this.packer = new Packer(this, ByteBuffer.allocate(traceMapper.messageBufferSize()));
       }
     }
@@ -56,6 +62,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     // the packer calls this when the buffer is full,
     // or when the packer is flushed at a heartbeat
     if (messageCount > 0) {
+      final int representativeCount = this.droppedCount.getAndSet(0) + messageCount;
       Payload payload =
           traceMapper
               .newPayload()
@@ -80,7 +87,6 @@ public class PayloadDispatcher implements ByteBufferConsumer {
         }
         monitor.onFailedSend(representativeCount, sizeInBytes, response);
       }
-      this.representativeCount = 0;
     }
   }
 }

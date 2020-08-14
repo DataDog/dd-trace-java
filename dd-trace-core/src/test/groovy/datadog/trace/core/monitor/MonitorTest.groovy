@@ -25,7 +25,7 @@ class MonitorTest extends DDSpecification {
     monitor.onStart(writer)
 
     then:
-    1 * writer.getDisruptorCapacity() >> capacity
+    1 * writer.getCapacity() >> capacity
     0 * _
 
     where:
