@@ -42,11 +42,11 @@ public class DDAgentApi {
   private static final String V3_ENDPOINT = "v0.3/traces";
   private static final String V4_ENDPOINT = "v0.4/traces";
   private static final String V5_ENDPOINT = "v0.5/traces";
-  private static final String[] ENDPOINTS = new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT};
   private static final long NANOSECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toNanos(5);
   private static final String WILL_NOT_LOG_FOR_MESSAGE = "(Will not log errors for 5 minutes)";
 
   private final List<DDAgentResponseListener> responseListeners = new ArrayList<>();
+  private final String[] endpoints;
 
   private long previousErrorLogNanos = System.nanoTime() - NANOSECONDS_BETWEEN_ERROR_LOG;
   private boolean logNextSuccess = false;
@@ -88,11 +88,24 @@ public class DDAgentApi {
       final String host,
       final int port,
       final String unixDomainSocketPath,
-      final long timeoutMillis) {
+      final long timeoutMillis,
+      final boolean enableV05Endpoint) {
     this.host = host;
     this.port = port;
     this.unixDomainSocketPath = unixDomainSocketPath;
     this.timeoutMillis = timeoutMillis;
+    this.endpoints =
+        enableV05Endpoint
+            ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
+            : new String[] {V4_ENDPOINT, V3_ENDPOINT};
+  }
+
+  public DDAgentApi(
+      final String host,
+      final int port,
+      final String unixDomainSocketPath,
+      final long timeoutMillis) {
+    this(host, port, unixDomainSocketPath, timeoutMillis, true);
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -141,7 +154,7 @@ public class DDAgentApi {
         countAndLogSuccessfulSend(payload.traceCount(), payload.representativeCount(), sizeInBytes);
         String responseString = null;
         try {
-          responseString = response.body().string().trim();
+          responseString = getResponseBody(response);
           if (!"".equals(responseString) && !"OK".equalsIgnoreCase(responseString)) {
             final Map<String, Map<String, Number>> parsedResponse =
                 RESPONSE_ADAPTER.fromJson(responseString);
@@ -150,7 +163,7 @@ public class DDAgentApi {
               listener.onResponse(endpoint, parsedResponse);
             }
           }
-          return Response.success(response.code());
+          return Response.success(response.code(), responseString);
         } catch (final IOException e) {
           log.debug("Failed to parse DD agent response: {}", responseString, e);
           return Response.success(response.code(), e);
@@ -186,28 +199,26 @@ public class DDAgentApi {
       final IOException outer) {
     // count the failed traces
     this.failedTraces += traceCount;
-
     // these are used to catch and log if there is a failure in debug logging the response body
-    IOException exception = outer;
     boolean hasLogged = false;
-
+    String agentError = getResponseBody(response);
     if (log.isDebugEnabled()) {
       String sendErrorString =
-          createSendLogMessage(traceCount, representativeCount, sizeInBytes, "Error");
+          createSendLogMessage(
+              traceCount,
+              representativeCount,
+              sizeInBytes,
+              agentError.isEmpty() ? "Error" : agentError);
       if (response != null) {
-        try {
-          log.debug(
-              "{} Status: {}, Response: {}, Body: {}",
-              sendErrorString,
-              response.code(),
-              response.message(),
-              response.body().string().trim());
-          hasLogged = true;
-        } catch (IOException inner) {
-          exception = inner;
-        }
-      } else if (exception != null) {
-        log.debug(sendErrorString, exception);
+        log.debug(
+            "{} Status: {}, Response: {}, Body: {}",
+            sendErrorString,
+            response.code(),
+            response.message(),
+            agentError);
+        hasLogged = true;
+      } else if (outer != null) {
+        log.debug(sendErrorString, outer);
         hasLogged = true;
       } else {
         log.debug(sendErrorString);
@@ -220,7 +231,11 @@ public class DDAgentApi {
         this.previousErrorLogNanos = now;
         this.logNextSuccess = true;
         String sendErrorString =
-            createSendLogMessage(traceCount, representativeCount, sizeInBytes, "Error");
+            createSendLogMessage(
+                traceCount,
+                representativeCount,
+                sizeInBytes,
+                agentError.isEmpty() ? "Error" : agentError);
         if (response != null) {
           log.warn(
               "{} Status: {} {} {}",
@@ -228,18 +243,28 @@ public class DDAgentApi {
               response.code(),
               response.message(),
               WILL_NOT_LOG_FOR_MESSAGE);
-        } else if (exception != null) {
+        } else if (outer != null) {
           log.warn(
               "{} {}: {} {}",
               sendErrorString,
-              exception.getClass().getName(),
-              exception.getMessage(),
+              outer.getClass().getName(),
+              outer.getMessage(),
               WILL_NOT_LOG_FOR_MESSAGE);
         } else {
           log.warn("{} {}", sendErrorString, WILL_NOT_LOG_FOR_MESSAGE);
         }
       }
     }
+  }
+
+  private static String getResponseBody(okhttp3.Response response) {
+    if (response != null) {
+      try {
+        return response.body().string().trim();
+      } catch (NullPointerException | IOException ignored) {
+      }
+    }
+    return "";
   }
 
   private String createSendLogMessage(
@@ -267,9 +292,6 @@ public class DDAgentApi {
         + this.failedTraces
         + ".";
   }
-
-  // empty array - see messagepack spec
-  private static final byte[] EMPTY_LIST = new byte[] {(byte) 0x90};
 
   private static OkHttpClient buildClientIfAvailable(
       final String endpoint,
@@ -357,7 +379,7 @@ public class DDAgentApi {
       this.agentRunning = isAgentRunning();
       // TODO should check agentRunning, but CoreTracerTest depends on being
       //  able to detect an endpoint without an open socket...
-      for (String candidate : ENDPOINTS) {
+      for (String candidate : endpoints) {
         tracesUrl = getUrl(host, port, candidate);
         this.httpClient =
             buildClientIfAvailable(candidate, tracesUrl, unixDomainSocketPath, timeoutMillis);
@@ -376,7 +398,7 @@ public class DDAgentApi {
       log.warn("No connectivity to datadog agent");
     }
     if (null == detectedVersion) {
-      log.debug("Tried all of {}, no connectivity to datadog agent", ENDPOINTS);
+      log.debug("Tried all of {}, no connectivity to datadog agent", endpoints);
     }
     return detectedVersion;
   }
@@ -408,32 +430,40 @@ public class DDAgentApi {
   public static final class Response {
     /** Factory method for a successful request with a trivial response body */
     public static Response success(final int status) {
-      return new Response(true, status, null);
+      return new Response(true, status, null, null);
+    }
+
+    /** Factory method for a successful request with a trivial response body */
+    public static Response success(final int status, String response) {
+      return new Response(true, status, null, response);
     }
 
     /** Factory method for a successful request will a malformed response body */
     public static Response success(final int status, final Throwable exception) {
-      return new Response(true, status, exception);
+      return new Response(true, status, exception, null);
     }
 
     /** Factory method for a request that receive an error status in response */
     public static Response failed(final int status) {
-      return new Response(false, status, null);
+      return new Response(false, status, null, null);
     }
 
     /** Factory method for a failed communication attempt */
     public static Response failed(final Throwable exception) {
-      return new Response(false, null, exception);
+      return new Response(false, null, exception, null);
     }
 
     private final boolean success;
     private final Integer status;
     private final Throwable exception;
+    private final String response;
 
-    private Response(final boolean success, final Integer status, final Throwable exception) {
+    private Response(
+        final boolean success, final Integer status, final Throwable exception, String response) {
       this.success = success;
       this.status = status;
       this.exception = exception;
+      this.response = response;
     }
 
     public final boolean success() {
@@ -448,6 +478,10 @@ public class DDAgentApi {
     // TODO: DQH - In Java 8, switch to Optional<Throwable>?
     public final Throwable exception() {
       return exception;
+    }
+
+    public final String response() {
+      return response;
     }
   }
 
