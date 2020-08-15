@@ -1,5 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
+import static datadog.trace.core.util.ThreadUtil.onSpinWait;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -194,18 +195,22 @@ public class TraceProcessingWorker implements AutoCloseable {
 
     @Override
     public void run() {
-      int polls = 0;
-      while (!Thread.currentThread().isInterrupted()) {
-        Object event = primaryQueue.poll();
+      Thread thread = Thread.currentThread();
+      int retries = 100;
+      int polls = retries;
+      while (!thread.isInterrupted()) {
+        Object event = primaryQueue.relaxedPoll();
         if (null != event) {
           onEvent(event);
-          polls = 0;
+          polls = retries;
         } else {
-          ++polls;
           if (polls > 50) {
+            onSpinWait();
+            --polls;
+          } else if (polls > 0) {
             Thread.yield();
-          }
-          if (polls > 100) {
+            --polls;
+          } else {
             LockSupport.parkNanos(MILLISECONDS.toNanos(1));
           }
         }
