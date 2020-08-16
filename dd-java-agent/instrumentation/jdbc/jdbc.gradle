@@ -20,6 +20,11 @@ compileTestGroovy {
   classpath += files(compileTestScala.destinationDir)
 }
 
+compileLatestDepTestGroovy {
+  dependsOn compileLatestDepTestScala
+  classpath += files(compileLatestDepTestScala.destinationDir)
+}
+
 dependencies {
   // jdbc unit testing
   testCompile group: 'com.h2database', name: 'h2', version: '1.3.169' // first version jdk 1.6 compatible
@@ -42,4 +47,6 @@ dependencies {
   latestDepTestCompile group: 'org.apache.tomcat', name: 'tomcat-juli', version: '+'
   latestDepTestCompile group: 'com.zaxxer', name: 'HikariCP', version: '+'
   latestDepTestCompile group: 'com.mchange', name: 'c3p0', version: '+'
+  latestDepTestCompile group: 'org.scalikejdbc', name: 'scalikejdbc_2.13', version: '+'
+  latestDepTestCompile group: 'org.scala-lang', name: 'scala-library', version: '+'
 }
