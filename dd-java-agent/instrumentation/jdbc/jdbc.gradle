@@ -7,11 +7,17 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 apply plugin: 'org.unbroken-dome.test-sets'
+apply plugin: 'scala'
 
 testSets {
   latestDepTest {
     dirName = 'test'
   }
+}
+
+compileTestGroovy {
+  dependsOn compileTestScala
+  classpath += files(compileTestScala.destinationDir)
 }
 
 dependencies {
@@ -25,6 +31,8 @@ dependencies {
   testCompile group: 'org.apache.tomcat', name: 'tomcat-juli', version: '7.0.19'
   testCompile group: 'com.zaxxer', name: 'HikariCP', version: '2.4.0'
   testCompile group: 'com.mchange', name: 'c3p0', version: '0.9.5'
+  testCompile group: 'org.scalikejdbc', name: 'scalikejdbc_2.13', version: '3.5.0'
+  testCompile group: 'org.scala-lang', name: 'scala-library', version: '2.13.3'
 
   latestDepTestCompile group: 'com.h2database', name: 'h2', version: '+'
   latestDepTestCompile group: 'org.apache.derby', name: 'derby', version: '10.14.+'
