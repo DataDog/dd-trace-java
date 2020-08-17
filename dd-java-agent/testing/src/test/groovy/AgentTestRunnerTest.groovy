@@ -45,9 +45,14 @@ class AgentTestRunnerTest extends AgentTestRunner {
     for (ClassPath.ClassInfo info : ClasspathUtils.getTestClasspath().getAllClasses()) {
       for (int i = 0; i < Constants.BOOTSTRAP_PACKAGE_PREFIXES.length; ++i) {
         if (info.getName().startsWith(Constants.BOOTSTRAP_PACKAGE_PREFIXES[i])) {
-          Class<?> bootstrapClass = Class.forName(info.getName())
-          if (bootstrapClass.getClassLoader() != BOOTSTRAP_CLASSLOADER) {
-            bootstrapClassesIncorrectlyLoaded.add(bootstrapClass)
+          try {
+            Class<?> bootstrapClass = Class.forName(info.getName())
+            if (bootstrapClass.getClassLoader() != BOOTSTRAP_CLASSLOADER) {
+              bootstrapClassesIncorrectlyLoaded.add(bootstrapClass)
+            }
+          } catch (UnsupportedClassVersionError ex) {
+            // there might be impl-specific classes which require newer Java
+            // ignore unsupported class version
           }
           break
         }

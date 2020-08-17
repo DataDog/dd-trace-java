@@ -64,16 +64,21 @@ class ShadowPackageRenamingTest extends Specification {
     for (ClassPath.ClassInfo info : bootstrapClasspath.getAllClasses()) {
       bootstrapClasses.add(info.getName())
       // make sure all bootstrap classes can be loaded from system
-      ClassLoader.getSystemClassLoader().loadClass(info.getName())
-      boolean goodPrefix = false
-      for (int i = 0; i < bootstrapPrefixes.length; ++i) {
-        if (info.getName().startsWith(bootstrapPrefixes[i])) {
-          goodPrefix = true
-          break
+      try {
+        ClassLoader.getSystemClassLoader().loadClass(info.getName())
+        boolean goodPrefix = false
+        for (int i = 0; i < bootstrapPrefixes.length; ++i) {
+          if (info.getName().startsWith(bootstrapPrefixes[i])) {
+            goodPrefix = true
+            break
+          }
         }
-      }
-      if (!goodPrefix) {
-        badBootstrapPrefixes.add(info.getName())
+        if (!goodPrefix) {
+          badBootstrapPrefixes.add(info.getName())
+        }
+      } catch (UnsupportedClassVersionError ex) {
+        // there might be impl-specific classes which require newer Java
+        // ignore unsupported class version
       }
     }
 
