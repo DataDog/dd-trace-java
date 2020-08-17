@@ -1,0 +1,169 @@
+package datadog.trace.logging.simplelogger
+
+import datadog.trace.logging.LogLevel
+import spock.lang.Specification
+
+import java.text.SimpleDateFormat
+
+class SLCompatSettingsTest extends Specification {
+
+  def "test String property precedence"() {
+    when:
+    def name = "foo"
+    Properties props = new Properties()
+    Properties fallbackProps = new Properties()
+    if (pStr != null) {
+      props.setProperty(name, pStr)
+    }
+    if (fStr != null) {
+      fallbackProps.setProperty(name, fStr)
+    }
+
+    then:
+    SLCompatSettings.getString(props, fallbackProps, name, dStr) == expected
+
+    where:
+    pStr   | fStr    | dStr      | expected
+    null   | null    | null      | null
+    null   | null    | "default" | "default"
+    "prop" | null    | "default" | "prop"
+    "prop" | "fback" | "default" | "prop"
+    null   | "fback" | "default" | "fback"
+  }
+
+  def "test Boolean property precedence"() {
+    when:
+    def name = "foo"
+    Properties props = new Properties()
+    Properties fallbackProps = new Properties()
+    if (pStr != null) {
+      props.setProperty(name, pStr)
+    }
+    if (fStr != null) {
+      fallbackProps.setProperty(name, fStr)
+    }
+
+    then:
+    SLCompatSettings.getBoolean(props, fallbackProps, name, dBool) == expected
+
+    where:
+    pStr   | fStr    | dBool | expected
+    null   | null    | true  | true
+    "true" | null    | false | true
+    "true" | "foo"   | false | true
+    null   | "true"  | false | true
+    "foo"  | "true"  | true  | false // any String not matching "true" is false
+    null   | "foo"   | true  | false // any String not matching "true" is false
+  }
+
+  def "test defaults"() {
+    when:
+    SLCompatSettings settings = new SLCompatSettings(new Properties())
+
+    then:
+    settings.warnLevelString == null
+    settings.levelInBrackets == false
+    settings.printStream == System.err
+    settings.showShortLogName == false
+    settings.showLogName == true
+    settings.showThreadName == true
+    settings.dateTimeFormatter == null
+    settings.showDateTime == false
+    settings.defaultLogLevel == LogLevel.INFO
+  }
+
+  def "test file properties"() {
+    when:
+    Properties props = new Properties()
+    props.setProperty(SLCompatSettings.Keys.CONFIGURATION_FILE, "slcompatsettingstest.properties")
+    SLCompatSettings settings = new SLCompatSettings(props)
+
+    then:
+    settings.warnLevelString == "WRN"
+    settings.levelInBrackets == true
+    settings.printStream == System.out
+    settings.showShortLogName == true
+    settings.showLogName == false
+    settings.showThreadName == false
+    settings.dateTimeFormatter == new SimpleDateFormat("'['yyyy-MM-dd HH:mm:ss:SSS Z']'")
+    settings.showDateTime == true
+    settings.defaultLogLevel == LogLevel.DEBUG
+  }
+
+  def "test log file creation"() {
+    setup:
+    def dir = File.createTempDir()
+    def file = new File(dir, "log")
+    def props = new Properties()
+    props.setProperty(SLCompatSettings.Keys.LOG_FILE, file.getAbsolutePath())
+    def settings = new SLCompatSettings(props)
+
+    expect:
+    file.exists()
+    settings.printStream != System.err
+    settings.printStream != System.out
+
+    cleanup:
+    settings.printStream.close()
+    dir.listFiles().each {
+      it.delete()
+    }
+    dir.delete()
+  }
+
+  def "test log file creation stderr fallback"() {
+    setup:
+    def dir = File.createTempDir()
+    dir.setWritable(false, true)
+    def file = new File(dir, "log")
+    def props = new Properties()
+    props.setProperty(SLCompatSettings.Keys.LOG_FILE, file.getAbsolutePath())
+    def settings = new SLCompatSettings(props)
+
+    expect:
+    !file.exists()
+    settings.printStream == System.err
+
+    cleanup:
+    dir.setWritable(true, true)
+    dir.delete()
+  }
+
+  def "test logNameForName"() {
+    when:
+    def names = ["foo", "foo.bar", "foo.bar.baz"]
+    Properties props = new Properties()
+    props.setProperty(SLCompatSettings.Keys.SHOW_SHORT_LOG_NAME, showShort.toString())
+    props.setProperty(SLCompatSettings.Keys.SHOW_LOG_NAME, show.toString())
+    def settings = new SLCompatSettings(props)
+
+    then:
+    names.collect {settings.logNameForName(it) } == expected
+
+    where:
+    showShort | show | expected
+    false | false | ["", "", ""]
+    false | true  | ["foo", "foo.bar", "foo.bar.baz"]
+    true  | true  | ["foo", "bar", "baz"]
+    true  | false | ["foo", "bar", "baz"]
+  }
+
+  def "test logLevelForName"() {
+    when:
+    def names = ["foo", "foo.bar", "foo.bar.baz"]
+    Properties props = new Properties()
+    logProperties.each {props.setProperty(SLCompatSettings.Keys.LOG_KEY_PREFIX + it.key, it.value) }
+    def settings = new SLCompatSettings(props)
+
+    then:
+    names.collect {settings.logLevelForName(it) } == expected
+
+    where:
+    logProperties | expected
+    [:] | [LogLevel.INFO, LogLevel.INFO, LogLevel.INFO]
+    ["foo":"debug"] | [LogLevel.DEBUG, LogLevel.DEBUG, LogLevel.DEBUG]
+    ["foo.bar":"debug"] | [LogLevel.INFO, LogLevel.DEBUG, LogLevel.DEBUG]
+    ["foo.bar":"debug", "foo.bar.baz":"warn"] | [LogLevel.INFO, LogLevel.DEBUG, LogLevel.WARN]
+    ["bar":"trace", "foo.bar.baz":"warn"] | [LogLevel.INFO, LogLevel.INFO, LogLevel.WARN]
+  }
+}
