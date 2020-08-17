@@ -9,12 +9,12 @@ import com.timgroup.statsd.NoOpStatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
-import datadog.trace.common.writer.ddagent.TraceProcessingDisruptor;
+import datadog.trace.common.writer.ddagent.PayloadDispatcher;
+import datadog.trace.common.writer.ddagent.TraceProcessingWorker;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.Monitor;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -34,12 +34,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DDAgentWriter implements Writer {
 
-  private static final int DISRUPTOR_BUFFER_SIZE = 1024;
+  private static final int BUFFER_SIZE = 1024;
 
   private final DDAgentApi api;
-  private final TraceProcessingDisruptor traceProcessingDisruptor;
+  private final TraceProcessingWorker traceProcessingWorker;
+  private final PayloadDispatcher dispatcher;
 
-  private final AtomicInteger traceCount = new AtomicInteger(0);
   private volatile boolean closed;
 
   public final Monitor monitor;
@@ -50,7 +50,7 @@ public class DDAgentWriter implements Writer {
     int traceAgentPort = DEFAULT_TRACE_AGENT_PORT;
     String unixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
     long timeoutMillis = TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT);
-    int traceBufferSize = DISRUPTOR_BUFFER_SIZE;
+    int traceBufferSize = BUFFER_SIZE;
     Monitor monitor = new Monitor(new NoOpStatsDClient());
     int flushFrequencySeconds = 1;
   }
@@ -78,11 +78,12 @@ public class DDAgentWriter implements Writer {
               Config.get().isTraceAgentV05Enabled());
     }
     this.monitor = monitor;
-    traceProcessingDisruptor =
-        new TraceProcessingDisruptor(
+    this.dispatcher = new PayloadDispatcher(api, monitor);
+    this.traceProcessingWorker =
+        new TraceProcessingWorker(
             traceBufferSize,
             monitor,
-            api,
+            dispatcher,
             flushFrequencySeconds,
             TimeUnit.SECONDS,
             flushFrequencySeconds > 0);
@@ -91,10 +92,11 @@ public class DDAgentWriter implements Writer {
   private DDAgentWriter(
       final DDAgentApi agentApi,
       final Monitor monitor,
-      final TraceProcessingDisruptor traceProcessingDisruptor) {
-    api = agentApi;
+      final TraceProcessingWorker traceProcessingWorker) {
+    this.api = agentApi;
     this.monitor = monitor;
-    this.traceProcessingDisruptor = traceProcessingDisruptor;
+    this.dispatcher = new PayloadDispatcher(api, monitor);
+    this.traceProcessingWorker = traceProcessingWorker;
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -102,47 +104,37 @@ public class DDAgentWriter implements Writer {
   }
 
   // Exposing some statistics for consumption by monitors
-  public final long getDisruptorCapacity() {
-    return traceProcessingDisruptor.getDisruptorCapacity();
-  }
-
-  public final long getDisruptorUtilizedCapacity() {
-    return getDisruptorCapacity() - getDisruptorRemainingCapacity();
-  }
-
-  public final long getDisruptorRemainingCapacity() {
-    return traceProcessingDisruptor.getDisruptorRemainingCapacity();
+  public final long getCapacity() {
+    return traceProcessingWorker.getCapacity();
   }
 
   @Override
   public void write(final List<DDSpan> trace) {
     // We can't add events after shutdown otherwise it will never complete shutting down.
     if (!closed) {
-      final int representativeCount;
-      if (trace.isEmpty() || !(trace.get(0).isRootSpan())) {
-        // We don't want to reset the count if we can't correctly report the value.
-        representativeCount = 1;
+      if (trace.isEmpty()) {
+        handleDroppedTrace("Trace was empty", trace);
       } else {
-        representativeCount = traceCount.getAndSet(0) + 1;
-      }
-      final boolean published = traceProcessingDisruptor.publish(trace, representativeCount);
-      if (published) {
-        monitor.onPublish(trace);
-      } else {
-        // We're discarding the trace, but we still want to count it.
-        traceCount.addAndGet(representativeCount);
-        log.debug("Trace written to overfilled buffer. Counted but dropping trace: {}", trace);
-        monitor.onFailedPublish(trace);
+        if (traceProcessingWorker.publish(trace)) {
+          monitor.onPublish(trace);
+        } else {
+          handleDroppedTrace("Trace written to overfilled buffer", trace);
+        }
       }
     } else {
-      log.debug("Trace written after shutdown. Ignoring trace: {}", trace);
-      monitor.onFailedPublish(trace);
+      handleDroppedTrace("Trace written after shutdown.", trace);
     }
+  }
+
+  private void handleDroppedTrace(String reason, List<DDSpan> trace) {
+    incrementTraceCount();
+    log.debug("{}. Counted but dropping trace: {}", reason, trace);
+    monitor.onFailedPublish(trace);
   }
 
   public boolean flush() {
     if (!closed) { // give up after a second
-      if (traceProcessingDisruptor.flush(1, TimeUnit.SECONDS)) {
+      if (traceProcessingWorker.flush(1, TimeUnit.SECONDS)) {
         monitor.onFlush(false);
         return true;
       }
@@ -152,7 +144,7 @@ public class DDAgentWriter implements Writer {
 
   @Override
   public void incrementTraceCount() {
-    traceCount.incrementAndGet();
+    dispatcher.onTraceDropped();
   }
 
   public DDAgentApi getApi() {
@@ -162,8 +154,8 @@ public class DDAgentWriter implements Writer {
   @Override
   public void start() {
     if (!closed) {
-      traceProcessingDisruptor.start();
-      monitor.onStart((int) getDisruptorCapacity());
+      traceProcessingWorker.start();
+      monitor.onStart((int) getCapacity());
     }
   }
 
@@ -171,7 +163,7 @@ public class DDAgentWriter implements Writer {
   public void close() {
     final boolean flushed = flush();
     closed = true;
-    traceProcessingDisruptor.close();
+    traceProcessingWorker.close();
     monitor.onShutdown(flushed);
   }
 }

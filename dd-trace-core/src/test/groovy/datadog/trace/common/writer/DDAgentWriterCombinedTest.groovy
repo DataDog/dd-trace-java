@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.common.writer.DDAgentWriter.DISRUPTOR_BUFFER_SIZE
+import static datadog.trace.common.writer.DDAgentWriter.BUFFER_SIZE
 import static datadog.trace.core.SpanFactory.newSpanOf
 
 @Retry
@@ -53,7 +53,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
-      .traceBufferSize(2)
+      .traceBufferSize(8)
       .flushFrequencySeconds(-1)
       .build()
     writer.start()
@@ -73,7 +73,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
-      .traceBufferSize(2)
+      .traceBufferSize(1024)
       .flushFrequencySeconds(-1)
       .build()
     writer.start()
@@ -102,7 +102,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
-      .traceBufferSize(disruptorSize)
+      .traceBufferSize(bufferSize)
       .flushFrequencySeconds(-1)
       .build()
     writer.start()
@@ -124,7 +124,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
     where:
     trace = [newSpanOf(0, "fixed-thread-name")]
-    disruptorSize = 2
+    bufferSize = 1024
     traceCount = 100 // Shouldn't trigger payload, but bigger than the disruptor size.
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
@@ -170,7 +170,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
-      .traceBufferSize(DISRUPTOR_BUFFER_SIZE)
+      .traceBufferSize(BUFFER_SIZE)
       .flushFrequencySeconds(-1)
       .build()
     writer.start()
@@ -241,7 +241,6 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     1 * monitor.onFlush(_)
     1 * monitor.onShutdown(_)
     0 * _
-    writer.traceCount.get() == 0
 
     where:
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
@@ -288,7 +287,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.start()
 
     then:
-    1 * monitor.onStart(writer.getDisruptorCapacity())
+    1 * monitor.onStart(writer.getCapacity())
 
     when:
     writer.write(minimalTrace)
@@ -338,7 +337,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.start()
 
     then:
-    1 * monitor.onStart(writer.getDisruptorCapacity())
+    1 * monitor.onStart(writer.getCapacity())
 
     when:
     writer.write(minimalTrace)
@@ -385,7 +384,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.start()
 
     then:
-    1 * monitor.onStart(writer.getDisruptorCapacity())
+    1 * monitor.onStart(writer.getCapacity())
 
     when:
     writer.write(minimalTrace)
@@ -484,7 +483,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     when:
     // send many traces to fill the sender queue...
     //   loop until outstanding requests > finished requests
-    while (writer.traceProcessingDisruptor.getDisruptorRemainingCapacity() > 0 || numFailedPublish.get() == 0) {
+    while (writer.traceProcessingWorker.getRemainingCapacity() > 0 || numFailedPublish.get() == 0) {
       writer.write(minimalTrace)
       numWritten += 1
     }
