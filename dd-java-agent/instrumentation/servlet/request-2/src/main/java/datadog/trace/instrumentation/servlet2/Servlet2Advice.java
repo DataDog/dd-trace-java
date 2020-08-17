@@ -82,9 +82,9 @@ public class Servlet2Advice {
       @Advice.Thrown final Throwable throwable) {
     // Set user.principal regardless of who created this span.
     final Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
-    if (spanAttr instanceof AgentSpan
-        && request instanceof HttpServletRequest
-        && Config.get().isServletPrincipalEnabled()) {
+    if (Config.get().isServletPrincipalEnabled()
+        && spanAttr instanceof AgentSpan
+        && request instanceof HttpServletRequest) {
       final Principal principal = ((HttpServletRequest) request).getUserPrincipal();
       if (principal != null) {
         ((AgentSpan) spanAttr).setTag(DDTags.USER_NAME, principal.getName());
