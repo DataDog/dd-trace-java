@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.servlet2.HttpServletRequestExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.servlet2.Servlet2Decorator.DECORATE;
 
+import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.GlobalTracer;
@@ -81,7 +82,9 @@ public class Servlet2Advice {
       @Advice.Thrown final Throwable throwable) {
     // Set user.principal regardless of who created this span.
     final Object spanAttr = request.getAttribute(DD_SPAN_ATTRIBUTE);
-    if (spanAttr instanceof AgentSpan && request instanceof HttpServletRequest) {
+    if (spanAttr instanceof AgentSpan
+        && request instanceof HttpServletRequest
+        && Config.get().isServletPrincipalEnabled()) {
       final Principal principal = ((HttpServletRequest) request).getUserPrincipal();
       if (principal != null) {
         ((AgentSpan) spanAttr).setTag(DDTags.USER_NAME, principal.getName());

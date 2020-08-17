@@ -354,6 +354,7 @@ public class Config {
   @Getter private final boolean kafkaClientBase64DecodingEnabled;
 
   @Getter private final boolean hystrixTagsEnabled;
+  @Getter private final boolean servletPrincipalEnabled;
 
   @Getter private final boolean traceAgentV05Enabled;
 
@@ -623,6 +624,10 @@ public class Config {
     hystrixTagsEnabled =
         getBooleanSettingFromEnvironment(TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED, false);
 
+    servletPrincipalEnabled =
+        getBooleanSettingFromEnvironment(
+            TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED, false);
+
     debugEnabled = isDebugMode();
 
     // Setting this last because we have a few places where this can come from
@@ -836,6 +841,10 @@ public class Config {
     hystrixTagsEnabled =
         getBooleanSettingFromEnvironment(
             TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED, parent.hystrixTagsEnabled);
+
+    servletPrincipalEnabled =
+        getBooleanSettingFromEnvironment(
+            TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED, parent.servletPrincipalEnabled);
 
     debugEnabled = parent.debugEnabled || isDebugMode();
 
