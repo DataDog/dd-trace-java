@@ -215,6 +215,7 @@ public class TraceProcessingWorker implements AutoCloseable {
           }
         }
       }
+      log.info("datadog trace processor exited");
     }
   }
 

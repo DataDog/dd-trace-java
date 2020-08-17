@@ -105,8 +105,8 @@ public class DDAgentWriter implements Writer {
   public void write(final List<DDSpan> trace) {
     // We can't add events after shutdown otherwise it will never complete shutting down.
     if (!closed) {
-      if (trace.isEmpty() || !(trace.get(0).isRootSpan())) {
-        handleDroppedTrace("Trace was empty or its first span wasn't a root span", trace);
+      if (trace.isEmpty()) {
+        handleDroppedTrace("Trace was empty", trace);
       } else {
         if (traceProcessingWorker.publish(trace)) {
           monitor.onPublish(trace);
