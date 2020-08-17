@@ -2,7 +2,6 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.core.util.ThreadUtil.onSpinWait;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.common.exec.DaemonThreadFactory;
@@ -127,9 +126,10 @@ public class TraceProcessingWorker implements AutoCloseable {
     private final MpscCompoundQueue<Object> primaryQueue;
     private final TraceProcessor processor;
     private final Monitor monitor;
-    private final long flushIntervalMillis;
+    private final long ticksRequiredToFlush;
     private final boolean doTimeFlush;
     private final PayloadDispatcher payloadDispatcher;
+    private long lastTicks;
     private long nextFlushMillis;
 
     public TraceSerializingHandler(
@@ -145,10 +145,10 @@ public class TraceProcessingWorker implements AutoCloseable {
       this.doTimeFlush = flushInterval > 0;
       this.payloadDispatcher = payloadDispatcher;
       if (doTimeFlush) {
-        this.flushIntervalMillis = timeUnit.toMillis(flushInterval);
-        scheduleNextTimeFlush();
+        this.lastTicks = System.nanoTime();
+        this.ticksRequiredToFlush = timeUnit.toNanos(flushInterval);
       } else {
-        this.flushIntervalMillis = Long.MAX_VALUE;
+        this.ticksRequiredToFlush = Long.MAX_VALUE;
       }
     }
 
@@ -161,9 +161,8 @@ public class TraceProcessingWorker implements AutoCloseable {
         if (event instanceof List) {
           List<DDSpan> trace = (List<DDSpan>) event;
           if (trace.isEmpty()) { // a heartbeat
-            if (doTimeFlush && millisecondTime() > nextFlushMillis) {
+            if (shouldFlush()) {
               payloadDispatcher.flush();
-              scheduleNextTimeFlush();
             }
           } else {
             // TODO populate `_sample_rate` metric in a way that accounts for lost/dropped traces
@@ -182,15 +181,16 @@ public class TraceProcessingWorker implements AutoCloseable {
       }
     }
 
-    private void scheduleNextTimeFlush() {
+    private boolean shouldFlush() {
       if (doTimeFlush) {
-        nextFlushMillis = millisecondTime() + flushIntervalMillis;
+        long nanoTime = System.nanoTime();
+        long ticks = nanoTime - lastTicks;
+        if (ticks > ticksRequiredToFlush) {
+          lastTicks = nanoTime;
+          return true;
+        }
       }
-    }
-
-    private long millisecondTime() {
-      // important: nanoTime is monotonic, currentTimeMillis is not
-      return NANOSECONDS.toMillis(System.nanoTime());
+      return false;
     }
 
     @Override
