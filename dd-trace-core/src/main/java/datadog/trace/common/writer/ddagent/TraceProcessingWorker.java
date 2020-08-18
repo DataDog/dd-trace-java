@@ -1,8 +1,5 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.common.sampling.PrioritySampling.SAMPLER_DROP;
-import static datadog.trace.common.sampling.PrioritySampling.USER_DROP;
-import static datadog.trace.core.util.ThreadUtil.onSpinWait;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.common.exec.CommonTaskExecutor;
@@ -35,6 +32,7 @@ public class TraceProcessingWorker implements AutoCloseable {
   // and CoreTracer not to do this.
   private static final List<List<DDSpan>> HEARTBEAT = new ArrayList<>(0);
 
+  private final PrioritizationStrategy prioritizationStrategy;
   private final MessagePassingQueue<Object> primaryQueue;
   private final MessagePassingQueue<Object> secondaryQueue;
   private final TraceSerializingHandler serializingHandler;
@@ -47,10 +45,19 @@ public class TraceProcessingWorker implements AutoCloseable {
       final int capacity,
       final Monitor monitor,
       final PayloadDispatcher dispatcher,
+      final Prioritization prioritization,
       final long flushInterval,
       final TimeUnit timeUnit,
       final boolean heartbeat) {
-    this(capacity, monitor, dispatcher, new TraceProcessor(), flushInterval, timeUnit, heartbeat);
+    this(
+        capacity,
+        monitor,
+        dispatcher,
+        new TraceProcessor(),
+        prioritization,
+        flushInterval,
+        timeUnit,
+        heartbeat);
   }
 
   public TraceProcessingWorker(
@@ -58,12 +65,14 @@ public class TraceProcessingWorker implements AutoCloseable {
       final Monitor monitor,
       final PayloadDispatcher dispatcher,
       final TraceProcessor processor,
+      final Prioritization prioritization,
       final long flushInterval,
       final TimeUnit timeUnit,
       final boolean heartbeat) {
     this.doHeartbeat = heartbeat;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
+    this.prioritizationStrategy = prioritization.create(primaryQueue, secondaryQueue);
     this.serializingHandler =
         new TraceSerializingHandler(
             primaryQueue, secondaryQueue, monitor, processor, flushInterval, timeUnit, dispatcher);
@@ -103,14 +112,8 @@ public class TraceProcessingWorker implements AutoCloseable {
     serializerThread.interrupt();
   }
 
-  public boolean publish(int samplingPriority, final List<DDSpan> data) {
-    switch (samplingPriority) {
-      case SAMPLER_DROP:
-      case USER_DROP:
-        return secondaryQueue.offer(data);
-      default:
-        return primaryQueue.offer(data);
-    }
+  public boolean publish(int samplingPriority, final List<DDSpan> trace) {
+    return prioritizationStrategy.published(samplingPriority, trace);
   }
 
   void heartbeat() {
@@ -128,6 +131,7 @@ public class TraceProcessingWorker implements AutoCloseable {
   }
 
   public long getRemainingCapacity() {
+    // only advertise primary capacity (partly to keep test which aims to saturate the queue happy)
     return primaryQueue.capacity() - primaryQueue.size();
   }
 
@@ -147,6 +151,8 @@ public class TraceProcessingWorker implements AutoCloseable {
     private final boolean doTimeFlush;
     private final PayloadDispatcher payloadDispatcher;
     private long lastTicks;
+    private final Object[] batch = new Object[128];
+    private int batchIndex = 0;
 
     public TraceSerializingHandler(
         final MessagePassingQueue<Object> primaryQueue,
@@ -171,8 +177,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
 
     @SuppressWarnings("unchecked")
-    @Override
-    public void accept(Object event) {
+    public void onEvent(Object event) {
       // publish an incomplete batch if
       // 1. we get a heartbeat, and it's time to send (early heartbeats will be ignored)
       // 2. a synchronous flush command is received (at shutdown)
@@ -222,49 +227,51 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
 
     private void consumeFromPrimaryQueue() {
-      int polls = 100;
+      int polls = 50;
       while (true) {
         Object event = primaryQueue.poll();
         if (null != event) {
           // there's a high priority trace, consume it,
           // and then drain whatever's in the queue now
-          accept(event);
-          primaryQueue.drain(this, primaryQueue.size());
-          // consumed lots of high priority traces so go
-          // and check if there are any low priority traces
-          consumeFromSecondaryQueue();
-        } else {
-          if (polls > 50) {
-            // is this the right approach?
-            // needs measurement in a low core environment
-            onSpinWait();
-            --polls;
-          } else if (polls > 0) {
+          onEvent(event);
+          consumeBatch(primaryQueue);
+        } else if (!consumeFromSecondaryQueue()) {
+          if (polls > 0) {
             // this is probably better than spinning when there
-            // is a low number of CPUs, perhaps should do this instead of spinning above?
-            // needs measurement in a low core environment
+            // is a low number of CPUs, needs measurement in a low core environment
             Thread.yield();
             --polls;
-          } else { // before parking because the primary queue seems to be empty,
-            // just try the secondary one in case there's some work to do
-            if (!consumeFromSecondaryQueue()) {
-              LockSupport.parkNanos(MILLISECONDS.toNanos(1));
-              return;
-            }
+          } else {
+            LockSupport.parkNanos(MILLISECONDS.toNanos(1));
+            return;
           }
         }
       }
     }
 
     private boolean consumeFromSecondaryQueue() {
-      Object event = secondaryQueue.poll();
+      Object event = secondaryQueue.relaxedPoll();
       if (null != event) {
-        accept(event);
+        onEvent(event);
         // arbitrary limit on how much time is spent consuming from the secondary queue
-        secondaryQueue.drain(this, Math.min(secondaryQueue.size(), 100));
+        consumeBatch(secondaryQueue);
         return true;
       }
       return false;
+    }
+
+    private void consumeBatch(MessagePassingQueue<Object> queue) {
+      batchIndex = 0;
+      int consumed = queue.drain(this, Math.min(queue.size(), batch.length));
+      for (int i = 0; i < consumed; ++i) {
+        onEvent(batch[i]);
+        batch[i] = null;
+      }
+    }
+
+    @Override
+    public void accept(Object event) {
+      batch[batchIndex++] = event;
     }
   }
 

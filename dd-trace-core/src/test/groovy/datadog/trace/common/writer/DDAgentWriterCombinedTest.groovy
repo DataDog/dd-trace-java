@@ -4,6 +4,7 @@ import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
@@ -373,7 +374,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
         return version
       }
 
-      DDAgentApi.Response sendSerializedTraces(int representativeCount, int traceCount, ByteBuffer dictionary, ByteBuffer traces) {
+      DDAgentApi.Response sendSerializedTraces(Payload payload) {
         // simulating a communication failure to a server
         return DDAgentApi.Response.failed(new IOException("comm error"))
       }

@@ -17,6 +17,8 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
 import static datadog.trace.api.sampling.PrioritySampling.UNSET
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
+import static datadog.trace.common.writer.ddagent.Prioritization.DEAD_LETTERS
+import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE
 
 class TraceProcessingWorkerTest extends DDSpecification {
 
@@ -35,6 +37,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
       flushCountingPayloadDispatcher(flushCount),
+      FAST_LANE,
       1,
       TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
       false) // prevent scheduled heartbeats from interfering with the test
@@ -63,6 +66,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
       flushCountingPayloadDispatcher(flushCount),
+      FAST_LANE,
       1,
       TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
       true)
@@ -84,6 +88,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
       flushCountingPayloadDispatcher(flushCount),
+      FAST_LANE,
       1,
       TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
       true)
@@ -105,7 +110,9 @@ class TraceProcessingWorkerTest extends DDSpecification {
     setup:
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
-      flushCountingPayloadDispatcher(flushCount), 100, TimeUnit.SECONDS,
+      flushCountingPayloadDispatcher(flushCount),
+      FAST_LANE,
+      100, TimeUnit.SECONDS,
       false) // prevent heartbeats from helping the flush happen
 
     when: "there is pending work it is completed before a flush"
@@ -141,7 +148,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
       errorReported.incrementAndGet()
     }
     TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
-      Mock(PayloadDispatcher), throwingTraceProcessor, 100, TimeUnit.SECONDS,
+      Mock(PayloadDispatcher), throwingTraceProcessor, FAST_LANE,100, TimeUnit.SECONDS,
       false) // prevent heartbeats from helping the flush happen
     worker.start()
 
@@ -178,7 +185,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
       errorReported.incrementAndGet()
     }
     TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
-      throwingDispatcher, Stub(TraceProcessor), 100, TimeUnit.SECONDS,
+      throwingDispatcher, Stub(TraceProcessor), FAST_LANE,
+      100, TimeUnit.SECONDS,
       false) // prevent heartbeats from helping the flush happen
     worker.start()
 
@@ -205,7 +213,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     }
     Monitor monitor = Mock(Monitor)
     TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
-      countingDispatcher, Stub(TraceProcessor), 100, TimeUnit.SECONDS,
+      countingDispatcher, Stub(TraceProcessor), FAST_LANE, 100, TimeUnit.SECONDS,
       false) // prevent heartbeats from helping the flush happen
     worker.start()
 
@@ -226,27 +234,47 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
 
     where:
-    priority      |   traceCount
-    SAMPLER_DROP  |   1
-    USER_DROP     |   1
-    SAMPLER_KEEP  |   1
-    USER_KEEP     |   1
-    UNSET         |   1
-    SAMPLER_DROP  |   10
-    USER_DROP     |   10
-    SAMPLER_KEEP  |   10
-    USER_KEEP     |   10
-    UNSET         |   10
-    SAMPLER_DROP  |   20
-    USER_DROP     |   20
-    SAMPLER_KEEP  |   20
-    USER_KEEP     |   20
-    UNSET         |   20
-    SAMPLER_DROP  |   100
-    USER_DROP     |   100
-    SAMPLER_KEEP  |   100
-    USER_KEEP     |   100
-    UNSET         |   100
+    priority      |   traceCount   | strategy
+    SAMPLER_DROP  |   1            | FAST_LANE
+    USER_DROP     |   1            | FAST_LANE
+    SAMPLER_KEEP  |   1            | FAST_LANE
+    USER_KEEP     |   1            | FAST_LANE
+    UNSET         |   1            | FAST_LANE
+    SAMPLER_DROP  |   10           | FAST_LANE
+    USER_DROP     |   10           | FAST_LANE
+    SAMPLER_KEEP  |   10           | FAST_LANE
+    USER_KEEP     |   10           | FAST_LANE
+    UNSET         |   10           | FAST_LANE
+    SAMPLER_DROP  |   20           | FAST_LANE
+    USER_DROP     |   20           | FAST_LANE
+    SAMPLER_KEEP  |   20           | FAST_LANE
+    USER_KEEP     |   20           | FAST_LANE
+    UNSET         |   20           | FAST_LANE
+    SAMPLER_DROP  |   100          | FAST_LANE
+    USER_DROP     |   100          | FAST_LANE
+    SAMPLER_KEEP  |   100          | FAST_LANE
+    USER_KEEP     |   100          | FAST_LANE
+    UNSET         |   100          | FAST_LANE
+    SAMPLER_DROP  |   1            | DEAD_LETTERS
+    USER_DROP     |   1            | DEAD_LETTERS
+    SAMPLER_KEEP  |   1            | DEAD_LETTERS
+    USER_KEEP     |   1            | DEAD_LETTERS
+    UNSET         |   1            | DEAD_LETTERS
+    SAMPLER_DROP  |   10           | DEAD_LETTERS
+    USER_DROP     |   10           | DEAD_LETTERS
+    SAMPLER_KEEP  |   10           | DEAD_LETTERS
+    USER_KEEP     |   10           | DEAD_LETTERS
+    UNSET         |   10           | DEAD_LETTERS
+    SAMPLER_DROP  |   20           | DEAD_LETTERS
+    USER_DROP     |   20           | DEAD_LETTERS
+    SAMPLER_KEEP  |   20           | DEAD_LETTERS
+    USER_KEEP     |   20           | DEAD_LETTERS
+    UNSET         |   20           | DEAD_LETTERS
+    SAMPLER_DROP  |   100          | DEAD_LETTERS
+    USER_DROP     |   100          | DEAD_LETTERS
+    SAMPLER_KEEP  |   100          | DEAD_LETTERS
+    USER_KEEP     |   100          | DEAD_LETTERS
+    UNSET         |   100          | DEAD_LETTERS
 
   }
 
