@@ -2,7 +2,6 @@ package datadog.trace.logging.simplelogger;
 
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LoggerHelper;
-import java.util.Date;
 import org.slf4j.Marker;
 
 /**
@@ -21,19 +20,6 @@ class SLCompatHelper extends LoggerHelper {
     this.logName = logName;
     this.logLevel = logLevel;
     this.settings = settings;
-  }
-
-  private void appendFormattedDate(StringBuilder builder, long timeMillis, long startTimeMillis) {
-    if (settings.dateTimeFormatter != null) {
-      Date date = new Date(timeMillis);
-      String dateString;
-      synchronized (settings.dateTimeFormatter) {
-        dateString = settings.dateTimeFormatter.format(date);
-      }
-      builder.append(dateString);
-    } else {
-      builder.append(timeMillis - startTimeMillis);
-    }
   }
 
   @Override
@@ -69,7 +55,7 @@ class SLCompatHelper extends LoggerHelper {
     StringBuilder buf = new StringBuilder(32);
 
     if (timeMillis >= 0 && settings.showDateTime) {
-      appendFormattedDate(buf, timeMillis, startTimeMillis);
+      settings.dateTimeFormatter.appendFormattedDate(buf, timeMillis, startTimeMillis);
       buf.append(' ');
     }
 

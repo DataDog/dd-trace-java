@@ -67,7 +67,7 @@ class SLCompatSettingsTest extends Specification {
     settings.showShortLogName == false
     settings.showLogName == true
     settings.showThreadName == true
-    settings.dateTimeFormatter == null
+    settings.dateTimeFormatter.class == SLCompatSettings.DiffDTFormatter
     settings.showDateTime == false
     settings.defaultLogLevel == LogLevel.INFO
   }
@@ -77,6 +77,8 @@ class SLCompatSettingsTest extends Specification {
     Properties props = new Properties()
     props.setProperty(SLCompatSettings.Keys.CONFIGURATION_FILE, "slcompatsettingstest.properties")
     SLCompatSettings settings = new SLCompatSettings(props)
+    StringBuilder formatted = new StringBuilder()
+    settings.dateTimeFormatter.appendFormattedDate(formatted, 4711 << 20, 1729)
 
     then:
     settings.warnLevelString == "WRN"
@@ -85,7 +87,7 @@ class SLCompatSettingsTest extends Specification {
     settings.showShortLogName == true
     settings.showLogName == false
     settings.showThreadName == false
-    settings.dateTimeFormatter == new SimpleDateFormat("'['yyyy-MM-dd HH:mm:ss:SSS Z']'")
+    formatted.toString() == new SimpleDateFormat("'['yy-dd-MM HH:mm:ss:SSS Z']'").format(new Date(4711 << 20))
     settings.showDateTime == true
     settings.defaultLogLevel == LogLevel.DEBUG
   }
@@ -165,5 +167,20 @@ class SLCompatSettingsTest extends Specification {
     ["foo.bar":"debug"] | [LogLevel.INFO, LogLevel.DEBUG, LogLevel.DEBUG]
     ["foo.bar":"debug", "foo.bar.baz":"warn"] | [LogLevel.INFO, LogLevel.DEBUG, LogLevel.WARN]
     ["bar":"trace", "foo.bar.baz":"warn"] | [LogLevel.INFO, LogLevel.INFO, LogLevel.WARN]
+  }
+
+  def "test DTFormatter"() {
+    when:
+    def formatted = new StringBuilder()
+    dtFormatter.appendFormattedDate(formatted, timeMillis, startTimeMillis)
+
+    then:
+    formatted.toString() == expected
+
+    where:
+    dtFormatter                                                     | timeMillis | startTimeMillis | expected
+    SLCompatSettings.DTFormatter.create(null)                       | 4711       | 1729            | "2982"
+    SLCompatSettings.DTFormatter.create("yyyy-MM-dd HH:mm:ss Z")    | 4711       | 1729            | "${new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z").format(new Date(4711))}"
+    new SLCompatSettings.LegacyDTFormatter("yyyy-MM-dd HH:mm:ss z") | 4711       | 1729            | "${new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z").format(new Date(4711))}"
   }
 }

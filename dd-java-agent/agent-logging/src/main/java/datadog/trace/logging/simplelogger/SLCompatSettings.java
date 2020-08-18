@@ -1,14 +1,18 @@
 package datadog.trace.logging.simplelogger;
 
 import datadog.trace.logging.LogLevel;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Properties;
 
 /** Settings that provide the same configurable options as {@code SimpleLogger} from SLF4J. */
@@ -50,6 +54,96 @@ public class SLCompatSettings {
     public static final String CONFIGURATION_FILE = "simplelogger.properties";
   }
 
+  public abstract static class DTFormatter {
+    public static DTFormatter create(String dateTimeFormat) {
+      if (dateTimeFormat == null) {
+        return new DiffDTFormatter();
+      }
+      try {
+        return new NewDTFormatter(dateTimeFormat);
+      } catch (Throwable t) {
+        try {
+          return new LegacyDTFormatter(dateTimeFormat);
+        } catch (IllegalArgumentException e) {
+        }
+      }
+      return new DiffDTFormatter();
+    }
+
+    public abstract void appendFormattedDate(
+        StringBuilder builder, long timeMillis, long startTimeMillis);
+  }
+
+  public static class DiffDTFormatter extends DTFormatter {
+    @Override
+    public void appendFormattedDate(StringBuilder builder, long timeMillis, long startTimeMillis) {
+      builder.append(timeMillis - startTimeMillis);
+    }
+  }
+
+  public static class LegacyDTFormatter extends DTFormatter {
+    private final DateFormat dateFormat;
+
+    public LegacyDTFormatter(String dateTimeFormat) {
+      this.dateFormat = new SimpleDateFormat(dateTimeFormat);
+    }
+
+    @Override
+    public void appendFormattedDate(StringBuilder builder, long timeMillis, long startTimeMillis) {
+      Date date = new Date(timeMillis);
+      String dateString;
+      synchronized (dateFormat) {
+        dateString = dateFormat.format(date);
+      }
+      builder.append(dateString);
+    }
+  }
+
+  public static class NewDTFormatter extends DTFormatter {
+    private final Object dateTimeFormatter;
+    private final MethodHandle formatTo;
+    private final MethodHandle instantOfEpochMilli;
+    private final Object zoneId;
+    private final MethodHandle zdtOfInstant;
+
+    public NewDTFormatter(String dateTimeFormat) {
+      MethodHandles.Lookup l = MethodHandles.publicLookup();
+      try {
+        ClassLoader cl = ClassLoader.getSystemClassLoader();
+        Class<?> fClass = cl.loadClass("java.time.format.DateTimeFormatter");
+        Class<?> tClass = cl.loadClass("java.time.temporal.TemporalAccessor");
+        Class<?> iClass = cl.loadClass("java.time.Instant");
+        Class<?> zdtClass = cl.loadClass("java.time.ZonedDateTime");
+        Class<?> zClass = cl.loadClass("java.time.ZoneId");
+        this.dateTimeFormatter =
+            l.findStatic(fClass, "ofPattern", MethodType.methodType(fClass, String.class))
+                .invoke(dateTimeFormat);
+        this.formatTo =
+            l.findVirtual(
+                fClass, "formatTo", MethodType.methodType(void.class, tClass, Appendable.class));
+        this.instantOfEpochMilli =
+            l.findStatic(iClass, "ofEpochMilli", MethodType.methodType(iClass, long.class));
+        this.zoneId = l.findStatic(zClass, "systemDefault", MethodType.methodType(zClass)).invoke();
+        this.zdtOfInstant =
+            l.findStatic(zdtClass, "ofInstant", MethodType.methodType(zdtClass, iClass, zClass));
+      } catch (Throwable t) {
+        throw new IllegalArgumentException();
+      }
+    }
+
+    @Override
+    public void appendFormattedDate(StringBuilder builder, long timeMillis, long startTimeMillis) {
+      try {
+        formatTo.invoke(
+            dateTimeFormatter,
+            zdtOfInstant.invoke(instantOfEpochMilli.invoke(timeMillis), zoneId),
+            builder);
+      } catch (Throwable t) {
+        // ignore
+      }
+    }
+  }
+
   static PrintStream getPrintStream(String logFile) {
     switch (logFile.toLowerCase()) {
       case "system.err":
@@ -57,11 +151,10 @@ public class SLCompatSettings {
       case "system.out":
         return System.out;
       default:
-        try {
-          FileOutputStream outputStream = new FileOutputStream(logFile);
-          PrintStream printStream = new PrintStream(outputStream);
+        try (FileOutputStream outputStream = new FileOutputStream(logFile);
+            PrintStream printStream = new PrintStream(outputStream)) {
           return printStream;
-        } catch (FileNotFoundException | SecurityException e) {
+        } catch (IOException | SecurityException e) {
           // TODO maybe have support for delayed logging of early failures?
           return System.err;
         }
@@ -88,23 +181,19 @@ public class SLCompatSettings {
   }
 
   static Properties loadProperties(final String fileName) {
-    Properties fileProperties = null;
     // Load properties in the same way that SimpleLogger does
-    InputStream inputStream =
-        AccessController.doPrivileged(new ResourceStreamPrivilegedAction(fileName));
-
-    if (inputStream != null) {
-      try {
+    try (InputStream inputStream =
+        AccessController.doPrivileged(new ResourceStreamPrivilegedAction(fileName))) {
+      if (inputStream != null) {
         Properties properties = new Properties();
         properties.load(inputStream);
-        fileProperties = properties;
-        inputStream.close();
-      } catch (java.io.IOException e) {
-        // ignored
+        return properties;
       }
+    } catch (IOException e) {
+      // ignored
     }
 
-    return fileProperties;
+    return null;
   }
 
   private static String getString(
@@ -128,19 +217,6 @@ public class SLCompatSettings {
     return property == null ? defaultValue : Boolean.parseBoolean(property);
   }
 
-  private static DateFormat getDateTimeFormatter(String dateTimeFormat) {
-    if (dateTimeFormat == null) {
-      return null;
-    }
-    DateFormat dateTimeFormatter = null;
-    try {
-      dateTimeFormatter = new SimpleDateFormat(dateTimeFormat);
-    } catch (IllegalArgumentException e) {
-      // TODO maybe have support for delayed logging of early failures?
-    }
-    return dateTimeFormatter;
-  }
-
   private final Properties properties;
   private final Properties fileProperties;
 
@@ -151,7 +227,7 @@ public class SLCompatSettings {
   final boolean showShortLogName;
   final boolean showLogName;
   final boolean showThreadName;
-  final DateFormat dateTimeFormatter;
+  final DTFormatter dateTimeFormatter;
   final boolean showDateTime;
   final LogLevel defaultLogLevel;
 
@@ -181,7 +257,7 @@ public class SLCompatSettings {
             properties, fileProperties, Keys.SHOW_SHORT_LOG_NAME, Defaults.SHOW_SHORT_LOG_NAME),
         getBoolean(properties, fileProperties, Keys.SHOW_LOG_NAME, Defaults.SHOW_LOG_NAME),
         getBoolean(properties, fileProperties, Keys.SHOW_THREAD_NAME, Defaults.SHOW_THREAD_NAME),
-        getDateTimeFormatter(
+        DTFormatter.create(
             getString(
                 properties, fileProperties, Keys.DATE_TIME_FORMAT, Defaults.DATE_TIME_FORMAT)),
         getBoolean(properties, fileProperties, Keys.SHOW_DATE_TIME, Defaults.SHOW_DATE_TIME),
@@ -199,7 +275,7 @@ public class SLCompatSettings {
       boolean showShortLogName,
       boolean showLogName,
       boolean showThreadName,
-      DateFormat dateTimeFormatter,
+      DTFormatter dateTimeFormatter,
       boolean showDateTime,
       LogLevel defaultLogLevel) {
     this.properties = properties;

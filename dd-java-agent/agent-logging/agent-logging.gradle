@@ -6,6 +6,7 @@ excludedClassesCoverage += [
   'datadog.trace.logging.simplelogger.SLCompatSettings.Defaults',
   // Can't test fallback path
   'datadog.trace.logging.simplelogger.SLCompatSettings.ResourceStreamPrivilegedAction',
+  'datadog.trace.logging.simplelogger.SLCompatSettings.DTFormatter',
   // Only wires up the logging
   'datadog.slf4j.impl.StaticLoggerBinder',
   'datadog.slf4j.impl.StaticMarkerBinder',

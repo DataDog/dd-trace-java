@@ -117,10 +117,7 @@ class SLCompatHelperTest extends Specification {
     def outputStream = new ByteArrayOutputStream()
     def printStream = new PrintStream(outputStream, true)
     def props = new Properties()
-    def dateTimeFormatter = dateTFS == null ? null : new SimpleDateFormat(dateTFS)
-    if (dateTimeFormatter != null) {
-      dateTimeFormatter.setTimeZone(TimeZone.getTimeZone("UTC"))
-    }
+    def dateTimeFormatter = SLCompatSettings.DTFormatter.create(dateTFS)
     def settings = new SLCompatSettings(props, props, warnS, showB, printStream, showS, showL, showT, dateTimeFormatter, showDT, LogLevel.INFO)
     def helper = new SLCompatHelper("foo.bar", settings)
     helper.log(level, 0, 4711, "thread", "log", null)
@@ -140,6 +137,6 @@ class SLCompatHelperTest extends Specification {
     LogLevel.INFO | null     | false | false | false | true  | null                    | false  | "[thread] INFO log\n"
     LogLevel.INFO | null     | false | false | false | true  | null                    | true   | "4711 [thread] INFO log\n"
     LogLevel.INFO | null     | false | false | false | true  | "yyyy-MM-dd HH:mm:ss z" | false  | "[thread] INFO log\n"
-    LogLevel.INFO | null     | false | false | false | true  | "yyyy-MM-dd HH:mm:ss z" | true   | "1970-01-01 00:00:04 UTC [thread] INFO log\n"
+    LogLevel.INFO | null     | false | false | false | true  | "yyyy-MM-dd HH:mm:ss z" | true   | "${new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z").format(new Date(4711))} [thread] INFO log\n"
   }
 }
