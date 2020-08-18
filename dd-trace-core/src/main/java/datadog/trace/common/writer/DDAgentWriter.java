@@ -4,6 +4,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
+import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 
 import com.timgroup.statsd.NoOpStatsDClient;
 import datadog.trace.api.Config;
@@ -118,9 +119,9 @@ public class DDAgentWriter implements Writer {
         DDSpan root = trace.get(0);
         int samplingPriority = root.context().getSamplingPriority();
         if (traceProcessingWorker.publish(samplingPriority, trace)) {
-          monitor.onPublish(trace);
+          monitor.onPublish(trace, samplingPriority);
         } else {
-          handleDroppedTrace("Trace written to overfilled buffer", trace);
+          handleDroppedTrace("Trace written to overfilled buffer", trace, samplingPriority);
         }
       }
     } else {
@@ -131,7 +132,13 @@ public class DDAgentWriter implements Writer {
   private void handleDroppedTrace(String reason, List<DDSpan> trace) {
     incrementTraceCount();
     log.debug("{}. Counted but dropping trace: {}", reason, trace);
-    monitor.onFailedPublish(trace);
+    monitor.onFailedPublish(UNSET);
+  }
+
+  private void handleDroppedTrace(String reason, List<DDSpan> trace, int samplingPriority) {
+    incrementTraceCount();
+    log.debug("{}. Counted but dropping trace: {}", reason, trace);
+    monitor.onFailedPublish(samplingPriority);
   }
 
   public boolean flush() {

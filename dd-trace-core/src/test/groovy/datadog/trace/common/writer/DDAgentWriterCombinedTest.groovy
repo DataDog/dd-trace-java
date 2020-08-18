@@ -150,7 +150,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     1 * api.selectTraceMapper() >> { callRealMethod() }
     1 * monitor.onSerialize(_)
     1 * api.sendSerializedTraces({ it.traceCount() == 5 && it.representativeCount() == 5 }) >> DDAgentApi.Response.success(200)
-    _ * monitor.onPublish(_)
+    _ * monitor.onPublish(_, _)
     1 * monitor.onSend(_, _, _) >> {
       phaser.arrive()
     }
@@ -294,7 +294,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.flush()
 
     then:
-    1 * monitor.onPublish(minimalTrace)
+    1 * monitor.onPublish(minimalTrace, _)
     1 * monitor.onSerialize(_)
     1 * monitor.onFlush(false)
     1 * monitor.onSend(1, _, { response -> response.success() && response.status() == 200 })
@@ -344,7 +344,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.flush()
 
     then:
-    1 * monitor.onPublish(minimalTrace)
+    1 * monitor.onPublish(minimalTrace, _)
     1 * monitor.onSerialize(_)
     1 * monitor.onFlush(false)
     1 * monitor.onFailedSend(1, _, { response -> !response.success() && response.status() == 500 })
@@ -393,7 +393,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     then:
     // if we know there's no agent, we'll drop the traces before serialising them
     // but we also know that there's nowhere to send health metrics to
-    1 * monitor.onPublish(_)
+    1 * monitor.onPublish(_, _)
     1 * monitor.onFlush(false)
 
     when:
@@ -437,7 +437,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
     // This test focuses just on failed publish, so not verifying every callback
     def monitor = Stub(Monitor) {
-      onPublish(_) >> {
+      onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
       onFailedPublish(_) >> {
@@ -448,6 +448,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       }
       onSend(_, _, _) >> {
         numRequests.incrementAndGet()
+      }
+      onFailedSend(_, _, _) >> {
+        numFailedRequests.incrementAndGet()
       }
     }
 
@@ -533,7 +536,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
     // This test focuses just on failed publish, so not verifying every callback
     def monitor = Stub(Monitor) {
-      onPublish(_) >> {
+      onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
       onFailedPublish(_) >> {
@@ -597,7 +600,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     }
 
     def statsd = Stub(StatsDClient)
-    statsd.incrementCounter("queue.accepted") >> { stat ->
+    statsd.incrementCounter("queue.accepted", _) >> { stat ->
       numTracesAccepted += 1
     }
     statsd.incrementCounter("api.requests") >> { stat ->
