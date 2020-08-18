@@ -151,8 +151,6 @@ public class TraceProcessingWorker implements AutoCloseable {
     private final boolean doTimeFlush;
     private final PayloadDispatcher payloadDispatcher;
     private long lastTicks;
-    private final Object[] batch = new Object[128];
-    private int batchIndex = 0;
 
     public TraceSerializingHandler(
         final MessagePassingQueue<Object> primaryQueue,
@@ -261,17 +259,12 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
 
     private void consumeBatch(MessagePassingQueue<Object> queue) {
-      batchIndex = 0;
-      int consumed = queue.drain(this, Math.min(queue.size(), batch.length));
-      for (int i = 0; i < consumed; ++i) {
-        onEvent(batch[i]);
-        batch[i] = null;
-      }
+      queue.drain(this, Math.min(queue.size(), 128));
     }
 
     @Override
     public void accept(Object event) {
-      batch[batchIndex++] = event;
+      onEvent(event);
     }
   }
 
