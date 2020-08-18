@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit;
 
 public interface PrioritizationStrategy {
 
-  boolean published(int priority, List<DDSpan> trace);
+  boolean publish(int priority, List<DDSpan> trace);
 
   boolean flush(long timeout, TimeUnit timeUnit);
 }

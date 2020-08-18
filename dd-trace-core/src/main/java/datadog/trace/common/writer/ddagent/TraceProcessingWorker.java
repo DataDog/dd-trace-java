@@ -113,7 +113,7 @@ public class TraceProcessingWorker implements AutoCloseable {
   }
 
   public boolean publish(int samplingPriority, final List<DDSpan> trace) {
-    return prioritizationStrategy.published(samplingPriority, trace);
+    return prioritizationStrategy.publish(samplingPriority, trace);
   }
 
   void heartbeat() {

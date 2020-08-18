@@ -40,7 +40,7 @@ public enum Prioritization {
     }
 
     @Override
-    public boolean published(int priority, List<DDSpan> trace) {
+    public boolean publish(int priority, List<DDSpan> trace) {
       switch (priority) {
         case SAMPLER_DROP:
         case USER_DROP:
@@ -84,7 +84,7 @@ public enum Prioritization {
     }
 
     @Override
-    public boolean published(int priority, List<DDSpan> trace) {
+    public boolean publish(int priority, List<DDSpan> trace) {
       if (!primary.offer(trace)) {
         switch (priority) {
           case SAMPLER_DROP:
