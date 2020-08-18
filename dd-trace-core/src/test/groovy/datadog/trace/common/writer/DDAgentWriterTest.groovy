@@ -77,7 +77,7 @@ class DDAgentWriterTest extends DDSpecification {
     writer.write(trace)
 
     then: "monitor is notified of successful publication"
-    1 * worker.publish(trace) >> true
+    1 * worker.publish(_, trace) >> true
     1 * monitor.onPublish(trace)
     0 * _
 
@@ -85,7 +85,7 @@ class DDAgentWriterTest extends DDSpecification {
     writer.write(trace)
 
     then: "monitor is notified of unsuccessful publication"
-    1 * worker.publish(trace) >> false
+    1 * worker.publish(_, trace) >> false
     1 * monitor.onFailedPublish(trace)
     0 * _
 

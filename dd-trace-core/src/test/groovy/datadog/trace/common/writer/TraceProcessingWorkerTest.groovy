@@ -1,5 +1,6 @@
 package datadog.trace.common.writer
 
+
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker
 import datadog.trace.core.DDSpan
@@ -10,6 +11,12 @@ import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
 
 class TraceProcessingWorkerTest extends DDSpecification {
 
@@ -139,7 +146,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     worker.start()
 
     when: "a trace is processed but rules can't be applied"
-    worker.publish([Mock(DDSpan)])
+    worker.publish(priority, [Mock(DDSpan)])
 
     then: "the error is reported to the monitor"
     conditions.eventually {
@@ -147,6 +154,9 @@ class TraceProcessingWorkerTest extends DDSpecification {
     }
 
     cleanup: worker.close()
+
+    where:
+    priority << [SAMPLER_DROP, USER_DROP, SAMPLER_KEEP, USER_KEEP, UNSET]
   }
 
 
@@ -173,7 +183,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     worker.start()
 
     when: "a trace is processed but can't be passed on"
-    worker.publish([Mock(DDSpan)])
+    worker.publish(priority, [Mock(DDSpan)])
 
     then: "the error is reported to the monitor"
     conditions.eventually {
@@ -181,6 +191,9 @@ class TraceProcessingWorkerTest extends DDSpecification {
     }
 
     cleanup: worker.close()
+
+    where:
+    priority << [SAMPLER_DROP, USER_DROP, SAMPLER_KEEP, USER_KEEP, UNSET]
   }
 
   def "traces should be processed"() {
@@ -199,7 +212,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     when: "traces are submitted"
     int submitted = 0
     for (int i = 0; i < traceCount; ++i) {
-      submitted += worker.publish([Mock(DDSpan)]) ? 1 : 0
+      submitted += worker.publish(priority, [Mock(DDSpan)]) ? 1 : 0
     }
 
     then: "traces are passed through unless rejected on submission"
@@ -213,8 +226,27 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
 
     where:
-
-    traceCount << [1, 10, 20, 100]
+    priority      |   traceCount
+    SAMPLER_DROP  |   1
+    USER_DROP     |   1
+    SAMPLER_KEEP  |   1
+    USER_KEEP     |   1
+    UNSET         |   1
+    SAMPLER_DROP  |   10
+    USER_DROP     |   10
+    SAMPLER_KEEP  |   10
+    USER_KEEP     |   10
+    UNSET         |   10
+    SAMPLER_DROP  |   20
+    USER_DROP     |   20
+    SAMPLER_KEEP  |   20
+    USER_KEEP     |   20
+    UNSET         |   20
+    SAMPLER_DROP  |   100
+    USER_DROP     |   100
+    SAMPLER_KEEP  |   100
+    USER_KEEP     |   100
+    UNSET         |   100
 
   }
 

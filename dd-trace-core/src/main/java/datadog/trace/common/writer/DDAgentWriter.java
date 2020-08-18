@@ -115,7 +115,9 @@ public class DDAgentWriter implements Writer {
       if (trace.isEmpty()) {
         handleDroppedTrace("Trace was empty", trace);
       } else {
-        if (traceProcessingWorker.publish(trace)) {
+        DDSpan root = trace.get(0);
+        int samplingPriority = root.context().getSamplingPriority();
+        if (traceProcessingWorker.publish(samplingPriority, trace)) {
           monitor.onPublish(trace);
         } else {
           handleDroppedTrace("Trace written to overfilled buffer", trace);

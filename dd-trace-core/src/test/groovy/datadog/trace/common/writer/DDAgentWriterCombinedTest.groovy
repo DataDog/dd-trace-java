@@ -449,9 +449,6 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       onSend(_, _, _) >> {
         numRequests.incrementAndGet()
       }
-      onFailedPublish(_, _, _) >> {
-        numFailedRequests.incrementAndGet()
-      }
     }
 
     def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitor(monitor).traceBufferSize(bufferSize).build()
