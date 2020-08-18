@@ -251,7 +251,6 @@ public class TraceProcessingWorker implements AutoCloseable {
       Object event = secondaryQueue.relaxedPoll();
       if (null != event) {
         onEvent(event);
-        // arbitrary limit on how much time is spent consuming from the secondary queue
         consumeBatch(secondaryQueue);
         return true;
       }
@@ -259,6 +258,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
 
     private void consumeBatch(MessagePassingQueue<Object> queue) {
+      // arbitrary limit on how much time is spent consuming from the secondary queue
       queue.drain(this, Math.min(queue.size(), 128));
     }
 
