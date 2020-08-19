@@ -124,6 +124,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
     then: "the flush succeeds, triggers a dispatch, and the queue is empty"
     flushed
+    flushCount.get() == 1
     worker.primaryQueue.isEmpty()
 
     cleanup:

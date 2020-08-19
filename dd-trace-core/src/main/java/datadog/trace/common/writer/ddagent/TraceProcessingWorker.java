@@ -225,6 +225,10 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
 
     private void consumeFromPrimaryQueue() {
+      // if we get a message from the primary queue, try
+      // to drain it, but if not check the secondary queue
+      // whenever neither queues produce a message, yield
+      // repeat up to 50x before parking for 2ms
       int polls = 50;
       while (true) {
         Object event = primaryQueue.poll();
@@ -240,7 +244,7 @@ public class TraceProcessingWorker implements AutoCloseable {
             Thread.yield();
             --polls;
           } else {
-            LockSupport.parkNanos(MILLISECONDS.toNanos(1));
+            LockSupport.parkNanos(MILLISECONDS.toNanos(2));
             return;
           }
         }
@@ -248,7 +252,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
 
     private boolean consumeFromSecondaryQueue() {
-      Object event = secondaryQueue.relaxedPoll();
+      Object event = secondaryQueue.poll();
       if (null != event) {
         onEvent(event);
         consumeBatch(secondaryQueue);
@@ -258,7 +262,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     }
 
     private void consumeBatch(MessagePassingQueue<Object> queue) {
-      // arbitrary limit on how much time is spent consuming from the secondary queue
+      // arbitrary limit on how much time is spent consuming from the queue
       queue.drain(this, Math.min(queue.size(), 128));
     }
 
@@ -274,18 +278,6 @@ public class TraceProcessingWorker implements AutoCloseable {
     @Override
     public void run(final TraceProcessingWorker traceProcessor) {
       traceProcessor.heartbeat();
-    }
-  }
-
-  private static final class FlushEvent {
-    private final CountDownLatch latch;
-
-    private FlushEvent(CountDownLatch latch) {
-      this.latch = latch;
-    }
-
-    void sync() {
-      latch.countDown();
     }
   }
 }

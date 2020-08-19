@@ -18,6 +18,7 @@ import datadog.trace.core.serialization.msgpack.Packer
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Retry
 import spock.lang.Timeout
+import spock.util.concurrent.PollingConditions
 
 import java.nio.ByteBuffer
 import java.util.concurrent.Phaser
@@ -32,6 +33,8 @@ import static datadog.trace.core.SpanFactory.newSpanOf
 @Retry
 @Timeout(10)
 class DDAgentWriterCombinedTest extends DDSpecification {
+
+  def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
 
   def phaser = new Phaser()
 
@@ -570,9 +573,11 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.flush()
 
     then:
-    def totalTraces = 100 + 100
-    numPublished.get() == totalTraces
-    numRepSent.get() == totalTraces
+    conditions.eventually {
+      def totalTraces = 100 + 100
+      numPublished.get() == totalTraces
+      numRepSent.get() == totalTraces
+    }
 
     cleanup:
     writer.close()
