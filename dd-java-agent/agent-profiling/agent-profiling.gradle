@@ -34,6 +34,7 @@ shadowJar {
   dependencies deps.sharedInverse
   dependencies {
     exclude(project(':dd-java-agent:agent-bootstrap'))
+    exclude(project(':dd-java-agent:agent-logging'))
     exclude(project(':dd-trace-api'))
     exclude(project(':internal-api'))
     exclude(dependency('org.slf4j::'))
