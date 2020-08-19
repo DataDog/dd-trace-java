@@ -10,6 +10,7 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -39,7 +40,8 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Default
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return implementsInterface(named("java.sql.PreparedStatement"));
+    return implementsInterface(named("java.sql.PreparedStatement"))
+        .and(not(named("scalikejdbc.DBConnectionAttributesWiredPreparedStatement")));
   }
 
   @Override
