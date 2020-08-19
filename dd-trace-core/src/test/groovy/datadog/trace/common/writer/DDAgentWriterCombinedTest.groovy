@@ -191,6 +191,11 @@ class DDAgentWriterCombinedTest extends DDSpecification {
         // Busywait because we don't want to fill up the ring buffer
       }
     }
+    // current queue does not have strict FIFO guarantees
+    // so the flush can race ahead of traces, this hack should
+    // prevent the test being flaky (we're only flushing to wait
+    // until after the buffer overflow triggered flush anyway).
+    Thread.sleep(1000)
     writer.flush()
 
     then:
