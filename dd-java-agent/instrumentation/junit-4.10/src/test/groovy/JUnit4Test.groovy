@@ -52,7 +52,7 @@ class JUnit4Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(0, 1) {
-        testSpan(it, 0, "org.example.TestFailed", "test_failed", TestDecorator.TEST_FAIL, exception)
+        testSpan(it, 0, "org.example.TestFailed", "test_failed", TestDecorator.TEST_FAIL, null, exception)
       }
     }
 
@@ -71,7 +71,7 @@ class JUnit4Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(0, 1) {
-        testSpan(it, 0, "org.example.TestError", "test_error", TestDecorator.TEST_FAIL, exception)
+        testSpan(it, 0, "org.example.TestError", "test_error", TestDecorator.TEST_FAIL, null, exception)
       }
     }
 
@@ -86,7 +86,7 @@ class JUnit4Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(0, 1) {
-        testSpan(it, 0, "org.example.TestSkipped", "test_skipped", TestDecorator.TEST_SKIP, null)
+        testSpan(it, 0, "org.example.TestSkipped", "test_skipped", TestDecorator.TEST_SKIP)
       }
     }
   }
@@ -98,7 +98,7 @@ class JUnit4Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(0, 1) {
-        testSpan(it, 0, "org.example.TestSkippedClass", "test_class_skipped", TestDecorator.TEST_SKIP, null)
+        testSpan(it, 0, "org.example.TestSkippedClass", "test_class_skipped", TestDecorator.TEST_SKIP)
       }
     }
   }
