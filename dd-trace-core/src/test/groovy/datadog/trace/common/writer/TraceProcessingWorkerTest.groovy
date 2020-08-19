@@ -32,35 +32,6 @@ class TraceProcessingWorkerTest extends DDSpecification {
     return dispatcher
   }
 
-  def "heartbeats should trigger flushes"() {
-    setup:
-    AtomicInteger flushCount = new AtomicInteger()
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
-      flushCountingPayloadDispatcher(flushCount),
-      FAST_LANE,
-      1,
-      TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
-      false) // prevent scheduled heartbeats from interfering with the test
-
-    when: "do ${heartbeatCount} heartbeats"
-    worker.start()
-    for (int i = 0; i < heartbeatCount; ++i) {
-      worker.heartbeat()
-    }
-
-    then:
-    "${heartbeatCount} flushes must be triggered"
-    conditions.eventually {
-      heartbeatCount == flushCount.get()
-    }
-
-    cleanup:
-    worker.close()
-
-    where:
-    heartbeatCount << [1, 2, 10]
-  }
-
   def "heartbeats should be triggered automatically when enabled"() {
     setup:
     AtomicInteger flushCount = new AtomicInteger()
@@ -68,8 +39,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
       flushCountingPayloadDispatcher(flushCount),
       FAST_LANE,
       1,
-      TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
-      true)
+      TimeUnit.NANOSECONDS) // stop heartbeats from being throttled
 
     when: "processor is started"
     worker.start()
@@ -83,23 +53,22 @@ class TraceProcessingWorkerTest extends DDSpecification {
     worker.close()
   }
 
-  def "heartbeats should occur approximately once per second when not throttled"() {
+  def "heartbeats should occur at least once per second when not throttled"() {
     setup:
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
       flushCountingPayloadDispatcher(flushCount),
       FAST_LANE,
       1,
-      TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
-      true)
-    def timeConditions = new PollingConditions(timeout: 4, initialDelay: 3, factor: 1.25)
+      TimeUnit.NANOSECONDS) // stop heartbeats from being throttled
+    def timeConditions = new PollingConditions(timeout: 1, initialDelay: 1, factor: 1.25)
 
     when: "processor is started"
     worker.start()
 
     then: "heartbeat occurs automatically approximately once per second"
     timeConditions.eventually {
-      flushCount.get() > 3
+      flushCount.get() > 1
     }
 
     cleanup:
@@ -112,8 +81,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
       flushCountingPayloadDispatcher(flushCount),
       FAST_LANE,
-      100, TimeUnit.SECONDS,
-      false) // prevent heartbeats from helping the flush happen
+      100, TimeUnit.SECONDS) // prevent heartbeats from helping the flush happen
 
     when: "there is pending work it is completed before a flush"
     // processing this span will throw an exception, but it should be caught
@@ -149,8 +117,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
       errorReported.incrementAndGet()
     }
     TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
-      Mock(PayloadDispatcher), throwingTraceProcessor, FAST_LANE,100, TimeUnit.SECONDS,
-      false) // prevent heartbeats from helping the flush happen
+      Mock(PayloadDispatcher), throwingTraceProcessor, FAST_LANE,100, TimeUnit.SECONDS)
+    // prevent heartbeats from helping the flush happen
     worker.start()
 
     when: "a trace is processed but rules can't be applied"
@@ -187,8 +155,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     }
     TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
       throwingDispatcher, Stub(TraceProcessor), FAST_LANE,
-      100, TimeUnit.SECONDS,
-      false) // prevent heartbeats from helping the flush happen
+      100, TimeUnit.SECONDS) // prevent heartbeats from helping the flush happen
     worker.start()
 
     when: "a trace is processed but can't be passed on"
@@ -214,8 +181,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
     }
     Monitor monitor = Mock(Monitor)
     TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
-      countingDispatcher, Stub(TraceProcessor), FAST_LANE, 100, TimeUnit.SECONDS,
-      false) // prevent heartbeats from helping the flush happen
+      countingDispatcher, Stub(TraceProcessor), FAST_LANE, 100, TimeUnit.SECONDS)
+    // prevent heartbeats from helping the flush happen
     worker.start()
 
     when: "traces are submitted"
