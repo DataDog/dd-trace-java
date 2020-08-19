@@ -4,7 +4,6 @@ import datadog.trace.common.writer.ddagent.FlushEvent
 import datadog.trace.common.writer.ddagent.Prioritization
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy
 import datadog.trace.util.test.DDSpecification
-import org.jctools.queues.MessagePassingQueue
 
 import java.util.concurrent.TimeUnit
 
@@ -17,8 +16,8 @@ class PrioritizationTest extends DDSpecification {
 
   def "fast lane strategy sends kept and unset priority traces to the primary queue, dropped traces to the secondary queue" () {
     setup:
-    MessagePassingQueue<Object> primary = Mock(MessagePassingQueue)
-    MessagePassingQueue<Object> secondary = Mock(MessagePassingQueue)
+    Queue<Object> primary = Mock(Queue)
+    Queue<Object> secondary = Mock(Queue)
     PrioritizationStrategy fastLane =  Prioritization.FAST_LANE.create(primary, secondary)
 
     when:
@@ -39,8 +38,8 @@ class PrioritizationTest extends DDSpecification {
 
   def "fast lane strategy flushes primary queue" () {
     setup:
-    MessagePassingQueue<Object> primary = Mock(MessagePassingQueue)
-    MessagePassingQueue<Object> secondary = Mock(MessagePassingQueue)
+    Queue<Object> primary = Mock(Queue)
+    Queue<Object> secondary = Mock(Queue)
     PrioritizationStrategy fastLane =  Prioritization.FAST_LANE.create(primary, secondary)
     when:
     fastLane.flush(100, TimeUnit.MILLISECONDS)
@@ -51,8 +50,8 @@ class PrioritizationTest extends DDSpecification {
 
   def "dead letters strategy drops unkept traces if the primary queue is full" () {
     setup:
-    MessagePassingQueue<Object> primary = Mock(MessagePassingQueue)
-    MessagePassingQueue<Object> secondary = Mock(MessagePassingQueue)
+    Queue<Object> primary = Mock(Queue)
+    Queue<Object> secondary = Mock(Queue)
     PrioritizationStrategy fastLane =  Prioritization.DEAD_LETTERS.create(primary, secondary)
 
     when:
@@ -78,8 +77,8 @@ class PrioritizationTest extends DDSpecification {
 
   def "dead letters strategy flushes both queues" () {
     setup:
-    MessagePassingQueue<Object> primary = Mock(MessagePassingQueue)
-    MessagePassingQueue<Object> secondary = Mock(MessagePassingQueue)
+    Queue<Object> primary = Mock(Queue)
+    Queue<Object> secondary = Mock(Queue)
     PrioritizationStrategy deadLetters =  Prioritization.DEAD_LETTERS.create(primary, secondary)
     when:
     deadLetters.flush(100, TimeUnit.MILLISECONDS)

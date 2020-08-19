@@ -12,10 +12,9 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
 import lombok.extern.slf4j.Slf4j;
 import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MpscCompoundQueue;
+import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 
 /**
  * Worker which applies rules to traces and serializes the results. Upon completion, the serialized
@@ -33,11 +32,12 @@ public class TraceProcessingWorker implements AutoCloseable {
   private static final List<List<DDSpan>> HEARTBEAT = new ArrayList<>(0);
 
   private final PrioritizationStrategy prioritizationStrategy;
-  private final MessagePassingQueue<Object> primaryQueue;
-  private final MessagePassingQueue<Object> secondaryQueue;
+  private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;
+  private final MpscBlockingConsumerArrayQueue<Object> secondaryQueue;
   private final TraceSerializingHandler serializingHandler;
   private final Thread serializerThread;
   private final boolean doHeartbeat;
+  private final int capacity;
 
   private volatile ScheduledFuture<?> heartbeat;
 
@@ -70,6 +70,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       final TimeUnit timeUnit,
       final boolean heartbeat) {
     this.doHeartbeat = heartbeat;
+    this.capacity = capacity;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
     this.prioritizationStrategy = prioritization.create(primaryQueue, secondaryQueue);
@@ -127,24 +128,23 @@ public class TraceProcessingWorker implements AutoCloseable {
   }
 
   public int getCapacity() {
-    return primaryQueue.capacity();
+    return capacity;
   }
 
   public long getRemainingCapacity() {
     // only advertise primary capacity (partly to keep test which aims to saturate the queue happy)
-    return primaryQueue.capacity() - primaryQueue.size();
+    return primaryQueue.remainingCapacity();
   }
 
-  private static MessagePassingQueue<Object> createQueue(int capacity) {
-    int parallelism = Runtime.getRuntime().availableProcessors();
-    return new MpscCompoundQueue<>(Math.max(capacity, parallelism), parallelism);
+  private static MpscBlockingConsumerArrayQueue<Object> createQueue(int capacity) {
+    return new MpscBlockingConsumerArrayQueue<>(capacity);
   }
 
   public static class TraceSerializingHandler
       implements Runnable, MessagePassingQueue.Consumer<Object> {
 
-    private final MessagePassingQueue<Object> primaryQueue;
-    private final MessagePassingQueue<Object> secondaryQueue;
+    private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;
+    private final MpscBlockingConsumerArrayQueue<Object> secondaryQueue;
     private final TraceProcessor processor;
     private final Monitor monitor;
     private final long ticksRequiredToFlush;
@@ -153,8 +153,8 @@ public class TraceProcessingWorker implements AutoCloseable {
     private long lastTicks;
 
     public TraceSerializingHandler(
-        final MessagePassingQueue<Object> primaryQueue,
-        final MessagePassingQueue<Object> secondaryQueue,
+        final MpscBlockingConsumerArrayQueue<Object> primaryQueue,
+        final MpscBlockingConsumerArrayQueue<Object> secondaryQueue,
         final Monitor monitor,
         final TraceProcessor traceProcessor,
         final long flushInterval,
@@ -217,53 +217,44 @@ public class TraceProcessingWorker implements AutoCloseable {
 
     @Override
     public void run() {
-      Thread thread = Thread.currentThread();
-      while (!thread.isInterrupted()) {
-        consumeFromPrimaryQueue();
+      try {
+        consume();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
       }
       log.info("datadog trace processor exited");
     }
 
-    private void consumeFromPrimaryQueue() {
-      // if we get a message from the primary queue, try
-      // to drain it, but if not check the secondary queue
-      // whenever neither queues produce a message, yield
-      // repeat up to 50x before parking for 2ms
-      int polls = 50;
-      while (true) {
-        Object event = primaryQueue.poll();
-        if (null != event) {
-          // there's a high priority trace, consume it,
-          // and then drain whatever's in the queue now
-          onEvent(event);
-          consumeBatch(primaryQueue);
-        } else if (!consumeFromSecondaryQueue()) {
-          if (polls > 0) {
-            // this is probably better than spinning when there
-            // is a low number of CPUs, needs measurement in a low core environment
-            Thread.yield();
-            --polls;
-          } else {
-            LockSupport.parkNanos(MILLISECONDS.toNanos(2));
-            return;
-          }
-        }
+    private void consume() throws InterruptedException {
+      Thread thread = Thread.currentThread();
+      while (!thread.isInterrupted()) {
+        consumeFromPrimaryQueue();
+        consumeFromSecondaryQueue();
       }
     }
 
-    private boolean consumeFromSecondaryQueue() {
+    private void consumeFromPrimaryQueue() throws InterruptedException {
+      Object event = primaryQueue.poll(100, MILLISECONDS);
+      if (null != event) {
+        // there's a high priority trace, consume it,
+        // and then drain whatever's in the queue
+        onEvent(event);
+        consumeBatch(primaryQueue);
+      }
+    }
+
+    private void consumeFromSecondaryQueue() {
+      // if there's something there now, take it and try to fill a batch,
+      // if not, it's the secondary queue so get back to polling the primary ASAP
       Object event = secondaryQueue.poll();
       if (null != event) {
         onEvent(event);
         consumeBatch(secondaryQueue);
-        return true;
       }
-      return false;
     }
 
     private void consumeBatch(MessagePassingQueue<Object> queue) {
-      // arbitrary limit on how much time is spent consuming from the queue
-      queue.drain(this, Math.min(queue.size(), 128));
+      queue.drain(this, queue.size());
     }
 
     @Override
