@@ -4,12 +4,15 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
+import static datadog.trace.api.sampling.PrioritySampling.UNSET;
+import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 
 import com.timgroup.statsd.NoOpStatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
 import datadog.trace.common.writer.ddagent.PayloadDispatcher;
+import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.Monitor;
@@ -65,7 +68,8 @@ public class DDAgentWriter implements Writer {
       final long timeoutMillis,
       final int traceBufferSize,
       final Monitor monitor,
-      final int flushFrequencySeconds) {
+      final int flushFrequencySeconds,
+      final Prioritization prioritization) {
     if (agentApi != null) {
       api = agentApi;
     } else {
@@ -84,6 +88,7 @@ public class DDAgentWriter implements Writer {
             traceBufferSize,
             monitor,
             dispatcher,
+            null == prioritization ? FAST_LANE : prioritization,
             flushFrequencySeconds,
             TimeUnit.SECONDS,
             flushFrequencySeconds > 0);
@@ -115,10 +120,12 @@ public class DDAgentWriter implements Writer {
       if (trace.isEmpty()) {
         handleDroppedTrace("Trace was empty", trace);
       } else {
-        if (traceProcessingWorker.publish(trace)) {
-          monitor.onPublish(trace);
+        DDSpan root = trace.get(0);
+        int samplingPriority = root.context().getSamplingPriority();
+        if (traceProcessingWorker.publish(samplingPriority, trace)) {
+          monitor.onPublish(trace, samplingPriority);
         } else {
-          handleDroppedTrace("Trace written to overfilled buffer", trace);
+          handleDroppedTrace("Trace written to overfilled buffer", trace, samplingPriority);
         }
       }
     } else {
@@ -129,7 +136,13 @@ public class DDAgentWriter implements Writer {
   private void handleDroppedTrace(String reason, List<DDSpan> trace) {
     incrementTraceCount();
     log.debug("{}. Counted but dropping trace: {}", reason, trace);
-    monitor.onFailedPublish(trace);
+    monitor.onFailedPublish(UNSET);
+  }
+
+  private void handleDroppedTrace(String reason, List<DDSpan> trace, int samplingPriority) {
+    incrementTraceCount();
+    log.debug("{}. Counted but dropping trace: {}", reason, trace);
+    monitor.onFailedPublish(samplingPriority);
   }
 
   public boolean flush() {

@@ -1,6 +1,7 @@
 package datadog.trace.core.monitor
 
 import com.timgroup.statsd.StatsDClient
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.DDAgentWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.util.test.DDSpecification
@@ -42,27 +43,31 @@ class MonitorTest extends DDSpecification {
 
   def "test onPublish"() {
     when:
-    monitor.onPublish(trace)
+    monitor.onPublish(trace, samplingPriority)
 
     then:
-    1 * statsD.incrementCounter('queue.accepted')
+    1 * statsD.incrementCounter('queue.accepted', String.valueOf(samplingPriority))
     1 * statsD.count('queue.accepted_lengths', trace.size())
     0 * _
 
     where:
-    trace << [[], [null, null]]
+    trace          |  samplingPriority
+    []             |   PrioritySampling.USER_DROP
+    [null, null]   |   PrioritySampling.USER_DROP
+    []             |   PrioritySampling.SAMPLER_KEEP
+    [null, null]   |   PrioritySampling.SAMPLER_KEEP
   }
 
   def "test onFailedPublish"() {
     when:
-    monitor.onFailedPublish(trace)
+    monitor.onFailedPublish(samplingPriority)
 
     then:
-    1 * statsD.incrementCounter('queue.dropped')
+    1 * statsD.incrementCounter('queue.dropped', String.valueOf(samplingPriority))
     0 * _
 
     where:
-    trace = null
+    samplingPriority << [PrioritySampling.SAMPLER_KEEP, PrioritySampling.USER_KEEP, PrioritySampling.USER_DROP, PrioritySampling.SAMPLER_DROP, PrioritySampling.UNSET]
   }
 
   def "test onScheduleFlush"() {

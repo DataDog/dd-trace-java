@@ -4,6 +4,7 @@ import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
@@ -17,6 +18,7 @@ import datadog.trace.core.serialization.msgpack.Packer
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Retry
 import spock.lang.Timeout
+import spock.util.concurrent.PollingConditions
 
 import java.nio.ByteBuffer
 import java.util.concurrent.Phaser
@@ -31,6 +33,8 @@ import static datadog.trace.core.SpanFactory.newSpanOf
 @Retry
 @Timeout(10)
 class DDAgentWriterCombinedTest extends DDSpecification {
+
+  def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
 
   def phaser = new Phaser()
 
@@ -150,7 +154,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     1 * api.selectTraceMapper() >> { callRealMethod() }
     1 * monitor.onSerialize(_)
     1 * api.sendSerializedTraces({ it.traceCount() == 5 && it.representativeCount() == 5 }) >> DDAgentApi.Response.success(200)
-    _ * monitor.onPublish(_)
+    _ * monitor.onPublish(_, _)
     1 * monitor.onSend(_, _, _) >> {
       phaser.arrive()
     }
@@ -187,6 +191,11 @@ class DDAgentWriterCombinedTest extends DDSpecification {
         // Busywait because we don't want to fill up the ring buffer
       }
     }
+    // current queue does not have strict FIFO guarantees
+    // so the flush can race ahead of traces, this hack should
+    // prevent the test being flaky (we're only flushing to wait
+    // until after the buffer overflow triggered flush anyway).
+    Thread.sleep(1000)
     writer.flush()
 
     then:
@@ -294,7 +303,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.flush()
 
     then:
-    1 * monitor.onPublish(minimalTrace)
+    1 * monitor.onPublish(minimalTrace, _)
     1 * monitor.onSerialize(_)
     1 * monitor.onFlush(false)
     1 * monitor.onSend(1, _, { response -> response.success() && response.status() == 200 })
@@ -344,7 +353,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.flush()
 
     then:
-    1 * monitor.onPublish(minimalTrace)
+    1 * monitor.onPublish(minimalTrace, _)
     1 * monitor.onSerialize(_)
     1 * monitor.onFlush(false)
     1 * monitor.onFailedSend(1, _, { response -> !response.success() && response.status() == 500 })
@@ -373,7 +382,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
         return version
       }
 
-      DDAgentApi.Response sendSerializedTraces(int representativeCount, int traceCount, ByteBuffer dictionary, ByteBuffer traces) {
+      DDAgentApi.Response sendSerializedTraces(Payload payload) {
         // simulating a communication failure to a server
         return DDAgentApi.Response.failed(new IOException("comm error"))
       }
@@ -393,7 +402,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     then:
     // if we know there's no agent, we'll drop the traces before serialising them
     // but we also know that there's nowhere to send health metrics to
-    1 * monitor.onPublish(_)
+    1 * monitor.onPublish(_, _)
     1 * monitor.onFlush(false)
 
     when:
@@ -437,7 +446,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
     // This test focuses just on failed publish, so not verifying every callback
     def monitor = Stub(Monitor) {
-      onPublish(_) >> {
+      onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
       onFailedPublish(_) >> {
@@ -449,7 +458,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       onSend(_, _, _) >> {
         numRequests.incrementAndGet()
       }
-      onFailedPublish(_, _, _) >> {
+      onFailedSend(_, _, _) >> {
         numFailedRequests.incrementAndGet()
       }
     }
@@ -536,7 +545,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
     // This test focuses just on failed publish, so not verifying every callback
     def monitor = Stub(Monitor) {
-      onPublish(_) >> {
+      onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
       onFailedPublish(_) >> {
@@ -569,9 +578,11 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     writer.flush()
 
     then:
-    def totalTraces = 100 + 100
-    numPublished.get() == totalTraces
-    numRepSent.get() == totalTraces
+    conditions.eventually {
+      def totalTraces = 100 + 100
+      numPublished.get() == totalTraces
+      numRepSent.get() == totalTraces
+    }
 
     cleanup:
     writer.close()
@@ -600,7 +611,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     }
 
     def statsd = Stub(StatsDClient)
-    statsd.incrementCounter("queue.accepted") >> { stat ->
+    statsd.incrementCounter("queue.accepted", _) >> { stat ->
       numTracesAccepted += 1
     }
     statsd.incrementCounter("api.requests") >> { stat ->

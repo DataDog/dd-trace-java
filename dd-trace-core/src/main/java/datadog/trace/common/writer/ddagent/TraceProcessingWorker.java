@@ -1,6 +1,5 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.core.util.ThreadUtil.onSpinWait;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.common.exec.CommonTaskExecutor;
@@ -15,6 +14,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import lombok.extern.slf4j.Slf4j;
+import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscCompoundQueue;
 
 /**
@@ -32,7 +32,9 @@ public class TraceProcessingWorker implements AutoCloseable {
   // and CoreTracer not to do this.
   private static final List<List<DDSpan>> HEARTBEAT = new ArrayList<>(0);
 
-  private final MpscCompoundQueue<Object> primaryQueue;
+  private final PrioritizationStrategy prioritizationStrategy;
+  private final MessagePassingQueue<Object> primaryQueue;
+  private final MessagePassingQueue<Object> secondaryQueue;
   private final TraceSerializingHandler serializingHandler;
   private final Thread serializerThread;
   private final boolean doHeartbeat;
@@ -43,10 +45,19 @@ public class TraceProcessingWorker implements AutoCloseable {
       final int capacity,
       final Monitor monitor,
       final PayloadDispatcher dispatcher,
+      final Prioritization prioritization,
       final long flushInterval,
       final TimeUnit timeUnit,
       final boolean heartbeat) {
-    this(capacity, monitor, dispatcher, new TraceProcessor(), flushInterval, timeUnit, heartbeat);
+    this(
+        capacity,
+        monitor,
+        dispatcher,
+        new TraceProcessor(),
+        prioritization,
+        flushInterval,
+        timeUnit,
+        heartbeat);
   }
 
   public TraceProcessingWorker(
@@ -54,15 +65,17 @@ public class TraceProcessingWorker implements AutoCloseable {
       final Monitor monitor,
       final PayloadDispatcher dispatcher,
       final TraceProcessor processor,
+      final Prioritization prioritization,
       final long flushInterval,
       final TimeUnit timeUnit,
       final boolean heartbeat) {
     this.doHeartbeat = heartbeat;
-    int parallelism = Runtime.getRuntime().availableProcessors();
-    this.primaryQueue = new MpscCompoundQueue<>(Math.max(capacity, parallelism), parallelism);
+    this.primaryQueue = createQueue(capacity);
+    this.secondaryQueue = createQueue(capacity);
+    this.prioritizationStrategy = prioritization.create(primaryQueue, secondaryQueue);
     this.serializingHandler =
         new TraceSerializingHandler(
-            primaryQueue, monitor, processor, flushInterval, timeUnit, dispatcher);
+            primaryQueue, secondaryQueue, monitor, processor, flushInterval, timeUnit, dispatcher);
     this.serializerThread = DaemonThreadFactory.TRACE_PROCESSOR.newThread(serializingHandler);
   }
 
@@ -99,8 +112,8 @@ public class TraceProcessingWorker implements AutoCloseable {
     serializerThread.interrupt();
   }
 
-  public boolean publish(final List<DDSpan> data) {
-    return primaryQueue.offer(data);
+  public boolean publish(int samplingPriority, final List<DDSpan> trace) {
+    return prioritizationStrategy.publish(samplingPriority, trace);
   }
 
   void heartbeat() {
@@ -118,28 +131,37 @@ public class TraceProcessingWorker implements AutoCloseable {
   }
 
   public long getRemainingCapacity() {
+    // only advertise primary capacity (partly to keep test which aims to saturate the queue happy)
     return primaryQueue.capacity() - primaryQueue.size();
   }
 
-  public static class TraceSerializingHandler implements Runnable {
+  private static MessagePassingQueue<Object> createQueue(int capacity) {
+    int parallelism = Runtime.getRuntime().availableProcessors();
+    return new MpscCompoundQueue<>(Math.max(capacity, parallelism), parallelism);
+  }
 
-    private final MpscCompoundQueue<Object> primaryQueue;
+  public static class TraceSerializingHandler
+      implements Runnable, MessagePassingQueue.Consumer<Object> {
+
+    private final MessagePassingQueue<Object> primaryQueue;
+    private final MessagePassingQueue<Object> secondaryQueue;
     private final TraceProcessor processor;
     private final Monitor monitor;
     private final long ticksRequiredToFlush;
     private final boolean doTimeFlush;
     private final PayloadDispatcher payloadDispatcher;
     private long lastTicks;
-    private long nextFlushMillis;
 
     public TraceSerializingHandler(
-        final MpscCompoundQueue<Object> primaryQueue,
+        final MessagePassingQueue<Object> primaryQueue,
+        final MessagePassingQueue<Object> secondaryQueue,
         final Monitor monitor,
         final TraceProcessor traceProcessor,
         final long flushInterval,
         final TimeUnit timeUnit,
         final PayloadDispatcher payloadDispatcher) {
       this.primaryQueue = primaryQueue;
+      this.secondaryQueue = secondaryQueue;
       this.monitor = monitor;
       this.processor = traceProcessor;
       this.doTimeFlush = flushInterval > 0;
@@ -196,26 +218,57 @@ public class TraceProcessingWorker implements AutoCloseable {
     @Override
     public void run() {
       Thread thread = Thread.currentThread();
-      int retries = 100;
-      int polls = retries;
       while (!thread.isInterrupted()) {
-        Object event = primaryQueue.relaxedPoll();
+        consumeFromPrimaryQueue();
+      }
+      log.info("datadog trace processor exited");
+    }
+
+    private void consumeFromPrimaryQueue() {
+      // if we get a message from the primary queue, try
+      // to drain it, but if not check the secondary queue
+      // whenever neither queues produce a message, yield
+      // repeat up to 50x before parking for 2ms
+      int polls = 50;
+      while (true) {
+        Object event = primaryQueue.poll();
         if (null != event) {
+          // there's a high priority trace, consume it,
+          // and then drain whatever's in the queue now
           onEvent(event);
-          polls = retries;
-        } else {
-          if (polls > 50) {
-            onSpinWait();
-            --polls;
-          } else if (polls > 0) {
+          consumeBatch(primaryQueue);
+        } else if (!consumeFromSecondaryQueue()) {
+          if (polls > 0) {
+            // this is probably better than spinning when there
+            // is a low number of CPUs, needs measurement in a low core environment
             Thread.yield();
             --polls;
           } else {
-            LockSupport.parkNanos(MILLISECONDS.toNanos(1));
+            LockSupport.parkNanos(MILLISECONDS.toNanos(2));
+            return;
           }
         }
       }
-      log.info("datadog trace processor exited");
+    }
+
+    private boolean consumeFromSecondaryQueue() {
+      Object event = secondaryQueue.poll();
+      if (null != event) {
+        onEvent(event);
+        consumeBatch(secondaryQueue);
+        return true;
+      }
+      return false;
+    }
+
+    private void consumeBatch(MessagePassingQueue<Object> queue) {
+      // arbitrary limit on how much time is spent consuming from the queue
+      queue.drain(this, Math.min(queue.size(), 128));
+    }
+
+    @Override
+    public void accept(Object event) {
+      onEvent(event);
     }
   }
 
@@ -225,18 +278,6 @@ public class TraceProcessingWorker implements AutoCloseable {
     @Override
     public void run(final TraceProcessingWorker traceProcessor) {
       traceProcessor.heartbeat();
-    }
-  }
-
-  private static final class FlushEvent {
-    private final CountDownLatch latch;
-
-    private FlushEvent(CountDownLatch latch) {
-      this.latch = latch;
-    }
-
-    void sync() {
-      latch.countDown();
     }
   }
 }

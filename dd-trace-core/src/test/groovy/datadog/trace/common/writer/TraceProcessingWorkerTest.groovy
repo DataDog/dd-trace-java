@@ -1,5 +1,6 @@
 package datadog.trace.common.writer
 
+
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker
 import datadog.trace.core.DDSpan
@@ -10,6 +11,14 @@ import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static datadog.trace.api.sampling.PrioritySampling.USER_DROP
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP
+import static datadog.trace.common.writer.ddagent.Prioritization.DEAD_LETTERS
+import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE
 
 class TraceProcessingWorkerTest extends DDSpecification {
 
@@ -28,6 +37,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
       flushCountingPayloadDispatcher(flushCount),
+      FAST_LANE,
       1,
       TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
       false) // prevent scheduled heartbeats from interfering with the test
@@ -56,6 +66,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
       flushCountingPayloadDispatcher(flushCount),
+      FAST_LANE,
       1,
       TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
       true)
@@ -77,6 +88,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
       flushCountingPayloadDispatcher(flushCount),
+      FAST_LANE,
       1,
       TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
       true)
@@ -98,7 +110,9 @@ class TraceProcessingWorkerTest extends DDSpecification {
     setup:
     AtomicInteger flushCount = new AtomicInteger()
     TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
-      flushCountingPayloadDispatcher(flushCount), 100, TimeUnit.SECONDS,
+      flushCountingPayloadDispatcher(flushCount),
+      FAST_LANE,
+      100, TimeUnit.SECONDS,
       false) // prevent heartbeats from helping the flush happen
 
     when: "there is pending work it is completed before a flush"
@@ -110,6 +124,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
     then: "the flush succeeds, triggers a dispatch, and the queue is empty"
     flushed
+    flushCount.get() == 1
     worker.primaryQueue.isEmpty()
 
     cleanup:
@@ -134,12 +149,12 @@ class TraceProcessingWorkerTest extends DDSpecification {
       errorReported.incrementAndGet()
     }
     TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
-      Mock(PayloadDispatcher), throwingTraceProcessor, 100, TimeUnit.SECONDS,
+      Mock(PayloadDispatcher), throwingTraceProcessor, FAST_LANE,100, TimeUnit.SECONDS,
       false) // prevent heartbeats from helping the flush happen
     worker.start()
 
     when: "a trace is processed but rules can't be applied"
-    worker.publish([Mock(DDSpan)])
+    worker.publish(priority, [Mock(DDSpan)])
 
     then: "the error is reported to the monitor"
     conditions.eventually {
@@ -147,6 +162,9 @@ class TraceProcessingWorkerTest extends DDSpecification {
     }
 
     cleanup: worker.close()
+
+    where:
+    priority << [SAMPLER_DROP, USER_DROP, SAMPLER_KEEP, USER_KEEP, UNSET]
   }
 
 
@@ -168,12 +186,13 @@ class TraceProcessingWorkerTest extends DDSpecification {
       errorReported.incrementAndGet()
     }
     TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
-      throwingDispatcher, Stub(TraceProcessor), 100, TimeUnit.SECONDS,
+      throwingDispatcher, Stub(TraceProcessor), FAST_LANE,
+      100, TimeUnit.SECONDS,
       false) // prevent heartbeats from helping the flush happen
     worker.start()
 
     when: "a trace is processed but can't be passed on"
-    worker.publish([Mock(DDSpan)])
+    worker.publish(priority, [Mock(DDSpan)])
 
     then: "the error is reported to the monitor"
     conditions.eventually {
@@ -181,6 +200,9 @@ class TraceProcessingWorkerTest extends DDSpecification {
     }
 
     cleanup: worker.close()
+
+    where:
+    priority << [SAMPLER_DROP, USER_DROP, SAMPLER_KEEP, USER_KEEP, UNSET]
   }
 
   def "traces should be processed"() {
@@ -192,14 +214,14 @@ class TraceProcessingWorkerTest extends DDSpecification {
     }
     Monitor monitor = Mock(Monitor)
     TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
-      countingDispatcher, Stub(TraceProcessor), 100, TimeUnit.SECONDS,
+      countingDispatcher, Stub(TraceProcessor), FAST_LANE, 100, TimeUnit.SECONDS,
       false) // prevent heartbeats from helping the flush happen
     worker.start()
 
     when: "traces are submitted"
     int submitted = 0
     for (int i = 0; i < traceCount; ++i) {
-      submitted += worker.publish([Mock(DDSpan)]) ? 1 : 0
+      submitted += worker.publish(priority, [Mock(DDSpan)]) ? 1 : 0
     }
 
     then: "traces are passed through unless rejected on submission"
@@ -213,8 +235,47 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
 
     where:
-
-    traceCount << [1, 10, 20, 100]
+    priority      |   traceCount   | strategy
+    SAMPLER_DROP  |   1            | FAST_LANE
+    USER_DROP     |   1            | FAST_LANE
+    SAMPLER_KEEP  |   1            | FAST_LANE
+    USER_KEEP     |   1            | FAST_LANE
+    UNSET         |   1            | FAST_LANE
+    SAMPLER_DROP  |   10           | FAST_LANE
+    USER_DROP     |   10           | FAST_LANE
+    SAMPLER_KEEP  |   10           | FAST_LANE
+    USER_KEEP     |   10           | FAST_LANE
+    UNSET         |   10           | FAST_LANE
+    SAMPLER_DROP  |   20           | FAST_LANE
+    USER_DROP     |   20           | FAST_LANE
+    SAMPLER_KEEP  |   20           | FAST_LANE
+    USER_KEEP     |   20           | FAST_LANE
+    UNSET         |   20           | FAST_LANE
+    SAMPLER_DROP  |   100          | FAST_LANE
+    USER_DROP     |   100          | FAST_LANE
+    SAMPLER_KEEP  |   100          | FAST_LANE
+    USER_KEEP     |   100          | FAST_LANE
+    UNSET         |   100          | FAST_LANE
+    SAMPLER_DROP  |   1            | DEAD_LETTERS
+    USER_DROP     |   1            | DEAD_LETTERS
+    SAMPLER_KEEP  |   1            | DEAD_LETTERS
+    USER_KEEP     |   1            | DEAD_LETTERS
+    UNSET         |   1            | DEAD_LETTERS
+    SAMPLER_DROP  |   10           | DEAD_LETTERS
+    USER_DROP     |   10           | DEAD_LETTERS
+    SAMPLER_KEEP  |   10           | DEAD_LETTERS
+    USER_KEEP     |   10           | DEAD_LETTERS
+    UNSET         |   10           | DEAD_LETTERS
+    SAMPLER_DROP  |   20           | DEAD_LETTERS
+    USER_DROP     |   20           | DEAD_LETTERS
+    SAMPLER_KEEP  |   20           | DEAD_LETTERS
+    USER_KEEP     |   20           | DEAD_LETTERS
+    UNSET         |   20           | DEAD_LETTERS
+    SAMPLER_DROP  |   100          | DEAD_LETTERS
+    USER_DROP     |   100          | DEAD_LETTERS
+    SAMPLER_KEEP  |   100          | DEAD_LETTERS
+    USER_KEEP     |   100          | DEAD_LETTERS
+    UNSET         |   100          | DEAD_LETTERS
 
   }
 

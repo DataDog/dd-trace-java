@@ -30,13 +30,13 @@ public class Monitor {
 
   public void onShutdown(final boolean flushSuccess) {}
 
-  public void onPublish(final List<DDSpan> trace) {
-    statsd.incrementCounter("queue.accepted");
+  public void onPublish(final List<DDSpan> trace, int samplingPriority) {
+    statsd.incrementCounter("queue.accepted", String.valueOf(samplingPriority));
     statsd.count("queue.accepted_lengths", trace.size());
   }
 
-  public void onFailedPublish(final List<DDSpan> trace) {
-    statsd.incrementCounter("queue.dropped");
+  public void onFailedPublish(int samplingPriority) {
+    statsd.incrementCounter("queue.dropped", String.valueOf(samplingPriority));
   }
 
   public void onScheduleFlush(final boolean previousIncomplete) {
