@@ -1,3 +1,7 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
 muzzle {
   pass {
     coreJdk()
@@ -5,8 +9,8 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-
 apply plugin: 'org.unbroken-dome.test-sets'
+apply plugin: 'scala'
 
 testSets {
   latestDepTest {
@@ -14,14 +18,29 @@ testSets {
   }
 }
 
+compileTestGroovy {
+  dependsOn compileTestScala
+  classpath += files(compileTestScala.destinationDir)
+}
+
+compileLatestDepTestGroovy {
+  dependsOn compileLatestDepTestScala
+  classpath += files(compileLatestDepTestScala.destinationDir)
+}
+
 dependencies {
+  testCompile project(':dd-java-agent:instrumentation:jdbc')
+  testCompile group: 'org.scalikejdbc', name: 'scalikejdbc_2.13', version: '3.5.0'
+  testCompile deps.scala
+
+  latestDepTestCompile group: 'org.scalikejdbc', name: 'scalikejdbc_2.13', version: '+'
+  latestDepTestCompile group: 'org.scala-lang', name: 'scala-library', version: '+'
+
   // jdbc unit testing
-  testCompile group: 'com.h2database', name: 'h2', version: '1.3.169' // first version jdk 1.6 compatible
+  testCompile group: 'com.h2database', name: 'h2', version: '1.3.169'
   testCompile group: 'org.apache.derby', name: 'derby', version: '10.6.1.0'
   testCompile group: 'org.hsqldb', name: 'hsqldb', version: '2.0.0'
-
   testCompile group: 'org.apache.tomcat', name: 'tomcat-jdbc', version: '7.0.19'
-  // tomcat needs this to run
   testCompile group: 'org.apache.tomcat', name: 'tomcat-juli', version: '7.0.19'
   testCompile group: 'com.zaxxer', name: 'HikariCP', version: '2.4.0'
   testCompile group: 'com.mchange', name: 'c3p0', version: '0.9.5'
@@ -29,7 +48,6 @@ dependencies {
   latestDepTestCompile group: 'com.h2database', name: 'h2', version: '+'
   latestDepTestCompile group: 'org.apache.derby', name: 'derby', version: '10.14.+'
   latestDepTestCompile group: 'org.hsqldb', name: 'hsqldb', version: '+'
-
   latestDepTestCompile group: 'org.apache.tomcat', name: 'tomcat-jdbc', version: '+'
   latestDepTestCompile group: 'org.apache.tomcat', name: 'tomcat-juli', version: '+'
   latestDepTestCompile group: 'com.zaxxer', name: 'HikariCP', version: '+'

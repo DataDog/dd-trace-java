@@ -9,7 +9,6 @@ import org.apache.derby.jdbc.EmbeddedDriver
 import org.h2.Driver
 import org.h2.jdbcx.JdbcDataSource
 import org.hsqldb.jdbc.JDBCDriver
-import scalike.ScalikeSqlExecutor$
 import spock.lang.Shared
 import spock.lang.Unroll
 import test.TestConnection
@@ -324,57 +323,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     "derby" | cpDatasources.get("hikari").get("derby").getConnection()  | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1"
     "h2"    | cpDatasources.get("c3p0").get("h2").getConnection()       | null     | "SELECT 3"
     "derby" | cpDatasources.get("c3p0").get("derby").getConnection()    | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1"
-  }
-
-  @Unroll
-  def "scalikejdbc query test"() {
-    setup:
-    runUnderTrace("parent") {
-      ScalikeSqlExecutor$.MODULE$.execute(jdbcDriverClassNames.get(driver), jdbcUrls.get(driver), username, null, query)
-    }
-
-    expect:
-    assertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "parent")
-        span(1) {
-          operationName "${driver}.query"
-          serviceName driver
-          resourceName query
-          spanType DDSpanTypes.SQL
-          childOf span(0)
-          errored false
-          tags {
-            "$Tags.COMPONENT" "java-jdbc-prepared_statement"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" driver
-            "$Tags.DB_INSTANCE" dbName.toLowerCase()
-            if (username != null) {
-              "$Tags.DB_USER" username
-            }
-            "span.origin.type" String
-            defaultTags()
-          }
-        }
-        span(2) {
-          operationName "database.connection"
-          serviceName span(2).serviceName
-          resourceName "PoolingDataSource.getConnection"
-          spanType null
-          childOf span(0)
-          errored false
-          tags {
-            "$Tags.COMPONENT" "java-jdbc-connection"
-            defaultTags()
-          }
-        }
-      }
-    }
-
-    where:
-    driver  | username | query
-    "h2"    | null    | "SELECT 3"
-    "derby" | "APP"   | "SELECT 3 FROM SYSIBM.SYSDUMMY1"
   }
 
   @Unroll

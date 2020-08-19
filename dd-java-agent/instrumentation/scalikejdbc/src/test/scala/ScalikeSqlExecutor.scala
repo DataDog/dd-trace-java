@@ -1,8 +1,6 @@
-package scalike
-
 import scalikejdbc._
 
-object ScalikeSqlExecutor {
+class ScalikeSqlExecutor {
 
   def execute(
       driverClass: String,
