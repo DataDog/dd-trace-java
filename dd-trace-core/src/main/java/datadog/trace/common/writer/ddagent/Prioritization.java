@@ -5,36 +5,32 @@ import static datadog.trace.common.sampling.PrioritySampling.USER_DROP;
 
 import datadog.trace.core.DDSpan;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import org.jctools.queues.MessagePassingQueue;
 
 public enum Prioritization {
   FAST_LANE {
     @Override
-    public PrioritizationStrategy create(
-        MessagePassingQueue<Object> primary, MessagePassingQueue<Object> secondary) {
+    public PrioritizationStrategy create(Queue<Object> primary, Queue<Object> secondary) {
       return new FastLaneStrategy(primary, secondary);
     }
   },
   DEAD_LETTERS {
     @Override
-    public PrioritizationStrategy create(
-        MessagePassingQueue<Object> primary, MessagePassingQueue<Object> secondary) {
+    public PrioritizationStrategy create(Queue<Object> primary, Queue<Object> secondary) {
       return new DeadLettersStrategy(primary, secondary);
     }
   };
 
-  public abstract PrioritizationStrategy create(
-      MessagePassingQueue<Object> primary, MessagePassingQueue<Object> secondary);
+  public abstract PrioritizationStrategy create(Queue<Object> primary, Queue<Object> secondary);
 
   private static final class FastLaneStrategy implements PrioritizationStrategy {
 
-    private final MessagePassingQueue<Object> primary;
-    private final MessagePassingQueue<Object> secondary;
+    private final Queue<Object> primary;
+    private final Queue<Object> secondary;
 
-    private FastLaneStrategy(
-        MessagePassingQueue<Object> primary, MessagePassingQueue<Object> secondary) {
+    private FastLaneStrategy(Queue<Object> primary, Queue<Object> secondary) {
       this.primary = primary;
       this.secondary = secondary;
     }
@@ -64,7 +60,7 @@ public enum Prioritization {
       }
     }
 
-    private void offer(MessagePassingQueue<Object> queue, FlushEvent event) {
+    private void offer(Queue<Object> queue, FlushEvent event) {
       boolean offered;
       do {
         offered = queue.offer(event);
@@ -74,11 +70,10 @@ public enum Prioritization {
 
   private static final class DeadLettersStrategy implements PrioritizationStrategy {
 
-    private final MessagePassingQueue<Object> primary;
-    private final MessagePassingQueue<Object> secondary;
+    private final Queue<Object> primary;
+    private final Queue<Object> secondary;
 
-    private DeadLettersStrategy(
-        MessagePassingQueue<Object> primary, MessagePassingQueue<Object> secondary) {
+    private DeadLettersStrategy(Queue<Object> primary, Queue<Object> secondary) {
       this.primary = primary;
       this.secondary = secondary;
     }
@@ -112,7 +107,7 @@ public enum Prioritization {
       }
     }
 
-    private void offer(MessagePassingQueue<Object> queue, FlushEvent event) {
+    private void offer(Queue<Object> queue, FlushEvent event) {
       boolean offered;
       do {
         offered = queue.offer(event);

@@ -90,8 +90,7 @@ public class DDAgentWriter implements Writer {
             dispatcher,
             null == prioritization ? FAST_LANE : prioritization,
             flushFrequencySeconds,
-            TimeUnit.SECONDS,
-            flushFrequencySeconds > 0);
+            TimeUnit.SECONDS);
   }
 
   private DDAgentWriter(
