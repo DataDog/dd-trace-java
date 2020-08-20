@@ -15,6 +15,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   static {
     ConfigUtils.updateConfig {
       System.setProperty("dd.integration.junit.enabled", "true")
+      System.setProperty("dd.integration.testng.enabled", "true")
     }
   }
 

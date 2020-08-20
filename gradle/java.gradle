@@ -278,7 +278,7 @@ def isJdkForced(String javaName) {
 }
 
 def isTestingInstrumentation(Project project) {
-  return project.name == "junit-4.10"
+  return project.name == "junit-4.10" || project.name == "testng-6.4"
 }
 
 // Disable default test tasks if current JVM doesn't match version requirements
@@ -324,6 +324,7 @@ for (def env : System.getenv().entrySet()) {
     if (isTestingInstrumentation(project)) {
       exclude "**/TestSucceed*"
       exclude "**/TestFailed*"
+      exclude "**/TestFailedWithSuccessPercentage*"
       exclude "**/TestError*"
       exclude "**/TestSkipped*"
       exclude "**/TestSkippedClass*"
