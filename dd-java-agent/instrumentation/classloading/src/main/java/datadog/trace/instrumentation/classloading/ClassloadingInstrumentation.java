@@ -45,7 +45,11 @@ public final class ClassloadingInstrumentation extends Instrumenter.Default {
     return namedNoneOf(
             "java.lang.ClassLoader",
             "com.ibm.oti.vm.BootstrapClassLoader",
-            "datadog.trace.bootstrap.AgentClassLoader")
+            "org.springframework.context.support.ContextTypeMatchClassLoader",
+            "org.springframework.core.OverridingClassLoader",
+            "org.springframework.core.DecoratingClassLoader",
+            "org.springframework.instrument.classloading.SimpleThrowawayClassLoader",
+            "org.springframework.instrument.classloading.ShadowingClassLoader")
         .and(extendsClass(named("java.lang.ClassLoader")));
   }
 
