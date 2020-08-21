@@ -101,7 +101,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>
  *
  * <p>System properties are {@link Config#PREFIX}'ed. Environment variables are the same as the
- * system property, but uppercased with '.' -> '_'.
+ * system property, but uppercased and '.' is replaced with '_'.
  */
 @Deprecated
 @Slf4j
