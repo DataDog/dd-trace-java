@@ -8,7 +8,6 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -25,7 +24,8 @@ public class SessionMethodUtils {
   public static <TARGET, ENTITY> SessionState startScopeFrom(
       final ContextStore<TARGET, SessionState> contextStore,
       final TARGET spanKey,
-      final Method origin,
+      final String originType,
+      final String originMethod,
       final String operationName,
       final ENTITY entity,
       final boolean createSpan) {
@@ -46,9 +46,9 @@ public class SessionMethodUtils {
       final AgentSpan span = startSpan(operationName, sessionState.getSessionSpan().context());
       DECORATOR.afterStart(span);
       DECORATOR.onOperation(span, entity);
-      scope = activateSpan(span);
+      scope = activateSpan(span, originType, originMethod);
     } else {
-      scope = activateSpan(sessionState.getSessionSpan());
+      scope = activateSpan(sessionState.getSessionSpan(), originType, originMethod);
       sessionState.setHasChildSpan(false);
     }
 

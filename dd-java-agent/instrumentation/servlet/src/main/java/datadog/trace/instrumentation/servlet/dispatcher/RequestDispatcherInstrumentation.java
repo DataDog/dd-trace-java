@@ -77,6 +77,8 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
     public static AgentScope start(
         @Advice.Origin("#m") final String method,
         @Advice.This final RequestDispatcher dispatcher,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod,
         @Advice.Local("_requestSpan") Object requestSpan,
         @Advice.Argument(0) final ServletRequest request) {
       final AgentSpan parentSpan = activeSpan();
@@ -113,7 +115,7 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
       requestSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
 
-      final AgentScope agentScope = activateSpan(span);
+      final AgentScope agentScope = activateSpan(span, originType, originMethod);
       agentScope.setAsyncPropagation(true);
       return agentScope;
     }

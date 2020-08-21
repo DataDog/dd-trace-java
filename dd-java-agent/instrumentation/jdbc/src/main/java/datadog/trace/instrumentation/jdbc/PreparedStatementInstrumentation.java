@@ -59,7 +59,10 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Default
   public static class PreparedStatementAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.This final PreparedStatement statement) {
+    public static AgentScope onEnter(
+        @Advice.This final PreparedStatement statement,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final Connection connection = connectionFromStatement(statement);
       if (connection == null) {
         return null;
@@ -75,7 +78,7 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Default
       DECORATE.onConnection(span, connection);
       DECORATE.onPreparedStatement(span, statement);
       span.setTag("span.origin.type", statement.getClass().getName());
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

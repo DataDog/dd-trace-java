@@ -49,10 +49,12 @@ public final class JasperJSPCompilationContextInstrumentation extends Instrument
   public static class JasperJspCompilationContext {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter() {
+    public static AgentScope onEnter(
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final AgentSpan span = startSpan("jsp.compile");
       DECORATE.afterStart(span);
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

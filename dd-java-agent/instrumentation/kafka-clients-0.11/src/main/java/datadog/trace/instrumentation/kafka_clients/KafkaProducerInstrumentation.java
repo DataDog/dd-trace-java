@@ -67,7 +67,9 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
     public static AgentScope onEnter(
         @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
-        @Advice.Argument(value = 1, readOnly = false) Callback callback) {
+        @Advice.Argument(value = 1, readOnly = false) Callback callback,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final AgentSpan parent = activeSpan();
       final AgentSpan span = startSpan("kafka.produce");
       PRODUCER_DECORATE.afterStart(span);
@@ -105,7 +107,7 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
         }
       }
 
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

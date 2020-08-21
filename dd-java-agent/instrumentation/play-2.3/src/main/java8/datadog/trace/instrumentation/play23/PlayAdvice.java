@@ -20,7 +20,10 @@ import scala.concurrent.Future;
 
 public class PlayAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(@Advice.Argument(0) final Request req) {
+  public static AgentScope onEnter(
+      @Advice.Argument(0) final Request req,
+      @Advice.Origin("#t") final String originType,
+      @Advice.Origin("#m") final String originMethod) {
     final AgentSpan span;
     if (activeSpan() == null) {
       final Context extractedContext = propagate().extract(req.headers(), GETTER);
@@ -34,7 +37,7 @@ public class PlayAdvice {
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, req);
 
-    final AgentScope scope = activateSpan(span);
+    final AgentScope scope = activateSpan(span, originType, originMethod);
     scope.setAsyncPropagation(true);
     return scope;
   }

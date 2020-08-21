@@ -112,7 +112,10 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
   public static class ChannelMethodAdvice {
     @Advice.OnMethodEnter
     public static AgentScope onEnter(
-        @Advice.This final Channel channel, @Advice.Origin("Channel.#m") final String method) {
+        @Advice.This final Channel channel,
+        @Advice.Origin("Channel.#m") final String method,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Channel.class);
       if (callDepth > 0) {
         return null;
@@ -127,7 +130,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
               .setTag(InstrumentationTags.DD_MEASURED, true);
       DECORATE.afterStart(span);
       DECORATE.onPeerConnection(span, connection.getAddress());
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -213,7 +216,9 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
         @Advice.Local("placeholderScope") final AgentScope placeholderScope,
         @Advice.Local("callDepth") final int callDepth,
         @Advice.Return final GetResponse response,
-        @Advice.Thrown final Throwable throwable) {
+        @Advice.Thrown final Throwable throwable,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
 
       placeholderScope.close(); // noop span, so no need to finish.
 
@@ -253,7 +258,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
         span.setTag("message.size", response.getBody().length);
       }
       span.setTag(Tags.PEER_PORT, connection.getPort());
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final AgentScope scope = activateSpan(span, originType, originMethod)) {
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onGet(span, queue);
         CONSUMER_DECORATE.onPeerConnection(span, connection.getAddress());

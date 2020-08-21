@@ -96,11 +96,14 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Default
   public static class RenderAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(0) final ModelAndView mv) {
+    public static AgentScope onEnter(
+        @Advice.Argument(0) final ModelAndView mv,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final AgentSpan span = startSpan("response.render");
       DECORATE_RENDER.afterStart(span);
       DECORATE_RENDER.onRender(span, mv);
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

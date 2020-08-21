@@ -74,11 +74,14 @@ public final class RediscalaInstrumentation extends Instrumenter.Default {
   public static class RediscalaAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(@Advice.Argument(0) final RedisCommand cmd) {
+    public static AgentScope onEnter(
+        @Advice.Argument(0) final RedisCommand cmd,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final AgentSpan span = startSpan("redis.command");
       DECORATE.afterStart(span);
       DECORATE.onStatement(span, DECORATE.spanNameForClass(cmd.getClass()));
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

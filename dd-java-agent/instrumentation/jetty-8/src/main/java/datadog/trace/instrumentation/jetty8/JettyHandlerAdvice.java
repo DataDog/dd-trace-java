@@ -23,7 +23,10 @@ public class JettyHandlerAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
-      @Advice.This final Object source, @Advice.Argument(2) final HttpServletRequest req) {
+      @Advice.This final Object source,
+      @Advice.Argument(2) final HttpServletRequest req,
+      @Advice.Origin("#t") final String originType,
+      @Advice.Origin("#m") final String originMethod) {
 
     if (req.getAttribute(DD_SPAN_ATTRIBUTE) != null) {
       // Request already being traced elsewhere.
@@ -40,7 +43,7 @@ public class JettyHandlerAdvice {
     DECORATE.onConnection(span, req);
     DECORATE.onRequest(span, req);
 
-    final AgentScope scope = activateSpan(span);
+    final AgentScope scope = activateSpan(span, originType, originMethod);
     scope.setAsyncPropagation(true);
     req.setAttribute(DD_SPAN_ATTRIBUTE, span);
     req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

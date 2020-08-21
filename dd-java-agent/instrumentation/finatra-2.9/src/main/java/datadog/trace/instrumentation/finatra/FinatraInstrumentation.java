@@ -24,7 +24,6 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import java.lang.reflect.Method;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -74,7 +73,8 @@ public class FinatraInstrumentation extends Instrumenter.Default {
         @Advice.Argument(0) final Request request,
         @Advice.FieldValue("path") final String path,
         @Advice.FieldValue("clazz") final Class clazz,
-        @Advice.Origin final Method method) {
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
 
       // Update the parent "netty.request"
       final AgentSpan parent = activeSpan();
@@ -86,7 +86,7 @@ public class FinatraInstrumentation extends Instrumenter.Default {
       DECORATE.afterStart(span);
       span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForClass(clazz));
 
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateSpan(span, originType, originMethod);
       scope.setAsyncPropagation(true);
       return scope;
     }

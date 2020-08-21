@@ -14,13 +14,16 @@ import net.bytebuddy.asm.Advice;
 public class LettuceAsyncCommandsAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(@Advice.Argument(0) final RedisCommand command) {
+  public static AgentScope onEnter(
+      @Advice.Argument(0) final RedisCommand command,
+      @Advice.Origin("#t") final String originType,
+      @Advice.Origin("#m") final String originMethod) {
 
     final AgentSpan span = startSpan("redis.query");
     DECORATE.afterStart(span);
     DECORATE.onCommand(span, command);
 
-    return activateSpan(span);
+    return activateSpan(span, originType, originMethod);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

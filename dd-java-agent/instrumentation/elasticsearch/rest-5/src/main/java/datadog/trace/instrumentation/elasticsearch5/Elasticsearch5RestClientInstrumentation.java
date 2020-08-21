@@ -59,7 +59,9 @@ public class Elasticsearch5RestClientInstrumentation extends Instrumenter.Defaul
     public static AgentScope onEnter(
         @Advice.Argument(0) final String method,
         @Advice.Argument(1) final String endpoint,
-        @Advice.Argument(value = 5, readOnly = false) ResponseListener responseListener) {
+        @Advice.Argument(value = 5, readOnly = false) ResponseListener responseListener,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
 
       final AgentSpan span = startSpan("elasticsearch.rest.query");
       DECORATE.afterStart(span);
@@ -67,7 +69,7 @@ public class Elasticsearch5RestClientInstrumentation extends Instrumenter.Defaul
 
       responseListener = new RestResponseListener(responseListener, span);
 
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

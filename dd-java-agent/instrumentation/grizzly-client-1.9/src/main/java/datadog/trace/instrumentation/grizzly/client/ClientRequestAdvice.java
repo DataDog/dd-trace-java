@@ -21,15 +21,17 @@ public class ClientRequestAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
       @Advice.Argument(0) final Request request,
-      @Advice.Argument(1) final AsyncHandler<?> handler) {
-    AgentSpan parentSpan = activeSpan();
-    AgentSpan span = startSpan(HTTP_REQUEST);
+      @Advice.Argument(1) final AsyncHandler<?> handler,
+      @Advice.Origin("#t") final String originType,
+      @Advice.Origin("#m") final String originMethod) {
+    final AgentSpan parentSpan = activeSpan();
+    final AgentSpan span = startSpan(HTTP_REQUEST);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
     propagate().inject(span, request, SETTER);
     InstrumentationContext.get(AsyncHandler.class, Pair.class)
         .put(handler, Pair.of(parentSpan, span));
-    return activateSpan(span);
+    return activateSpan(span, originType, originMethod);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

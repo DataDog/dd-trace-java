@@ -66,7 +66,10 @@ public final class FilterInstrumentation extends Instrumenter.Default {
   public static class FilterAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope start(@Advice.This final Filter filter) {
+    public static AgentScope start(
+        @Advice.This final Filter filter,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       if (activeSpan() == null) {
         // Don't want to generate a new top-level span
         return null;
@@ -78,7 +81,7 @@ public final class FilterInstrumentation extends Instrumenter.Default {
       // Here we use "this" instead of "the method target" to distinguish abstract filter instances.
       span.setTag(DDTags.RESOURCE_NAME, filter.getClass().getSimpleName() + ".doFilter");
 
-      final AgentScope agentScope = activateSpan(span);
+      final AgentScope agentScope = activateSpan(span, originType, originMethod);
       agentScope.setAsyncPropagation(true);
       return agentScope;
     }

@@ -14,18 +14,25 @@ public class FilterAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
-      @Advice.This BaseFilter it, @Advice.Argument(0) final FilterChainContext ctx) {
+      @Advice.This final BaseFilter it,
+      @Advice.Argument(0) final FilterChainContext ctx,
+      @Advice.Origin("#t") final String originType,
+      @Advice.Origin("#m") final String originMethod) {
     if (ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE) == null || activeScope() != null) {
       return null;
     }
-    AgentScope scope =
-        activateSpan((AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE));
+    final AgentScope scope =
+        activateSpan(
+            (AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE),
+            originType,
+            originMethod);
     scope.setAsyncPropagation(true);
     return scope;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-  public static void onExit(@Advice.This BaseFilter it, @Advice.Enter final AgentScope scope) {
+  public static void onExit(
+      @Advice.This final BaseFilter it, @Advice.Enter final AgentScope scope) {
     if (scope != null) {
       scope.setAsyncPropagation(false);
       scope.close();

@@ -153,10 +153,11 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
   }
 
   public static class HelperMethods {
-    public static AgentScope doMethodEnter(final HttpUriRequest request) {
+    public static AgentScope doMethodEnter(
+        final HttpUriRequest request, final String originType, final String orignMethod) {
       final AgentSpan span = startSpan("http.request");
       span.setTag(InstrumentationTags.DD_MEASURED, true);
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateSpan(span, originType, orignMethod);
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
@@ -192,13 +193,16 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
 
   public static class UriRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(@Advice.Argument(0) final HttpUriRequest request) {
+    public static AgentScope methodEnter(
+        @Advice.Argument(0) final HttpUriRequest request,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
       if (callDepth > 0) {
         return null;
       }
 
-      return HelperMethods.doMethodEnter(request);
+      return HelperMethods.doMethodEnter(request, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -221,13 +225,15 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
                 optional = true,
                 typing = Assigner.Typing.DYNAMIC,
                 readOnly = false)
-            Object handler) {
+            Object handler,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
       if (callDepth > 0) {
         return null;
       }
 
-      final AgentScope scope = HelperMethods.doMethodEnter(request);
+      final AgentScope scope = HelperMethods.doMethodEnter(request, originType, originMethod);
 
       // Wrap the handler so we capture the status code
       if (handler instanceof ResponseHandler) {
@@ -249,16 +255,20 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
   public static class RequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
-        @Advice.Argument(0) final HttpHost host, @Advice.Argument(1) final HttpRequest request) {
+        @Advice.Argument(0) final HttpHost host,
+        @Advice.Argument(1) final HttpRequest request,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
       if (callDepth > 0) {
         return null;
       }
 
       if (request instanceof HttpUriRequest) {
-        return HelperMethods.doMethodEnter((HttpUriRequest) request);
+        return HelperMethods.doMethodEnter((HttpUriRequest) request, originType, originMethod);
       } else {
-        return HelperMethods.doMethodEnter(new HostAndRequestAsHttpUriRequest(host, request));
+        return HelperMethods.doMethodEnter(
+            new HostAndRequestAsHttpUriRequest(host, request), originType, originMethod);
       }
     }
 
@@ -283,7 +293,9 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
                 optional = true,
                 typing = Assigner.Typing.DYNAMIC,
                 readOnly = false)
-            Object handler) {
+            Object handler,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
       if (callDepth > 0) {
         return null;
@@ -292,9 +304,11 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
       final AgentScope scope;
 
       if (request instanceof HttpUriRequest) {
-        scope = HelperMethods.doMethodEnter((HttpUriRequest) request);
+        scope = HelperMethods.doMethodEnter((HttpUriRequest) request, originType, originMethod);
       } else {
-        scope = HelperMethods.doMethodEnter(new HostAndRequestAsHttpUriRequest(host, request));
+        scope =
+            HelperMethods.doMethodEnter(
+                new HostAndRequestAsHttpUriRequest(host, request), originType, originMethod);
       }
 
       // Wrap the handler so we capture the status code

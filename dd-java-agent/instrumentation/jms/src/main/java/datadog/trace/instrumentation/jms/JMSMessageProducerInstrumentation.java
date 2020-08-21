@@ -74,7 +74,10 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.Argument(0) final Message message, @Advice.This final MessageProducer producer) {
+        @Advice.Argument(0) final Message message,
+        @Advice.This final MessageProducer producer,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
       if (callDepth > 0) {
         return null;
@@ -94,7 +97,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
 
       propagate().inject(span, message, SETTER);
 
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -117,7 +120,9 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
     public static AgentScope onEnter(
         @Advice.Argument(0) final Destination destination,
         @Advice.Argument(1) final Message message,
-        @Advice.This final MessageProducer producer) {
+        @Advice.This final MessageProducer producer,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
       if (callDepth > 0) {
         return null;
@@ -130,7 +135,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
 
       propagate().inject(span, message, SETTER);
 
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

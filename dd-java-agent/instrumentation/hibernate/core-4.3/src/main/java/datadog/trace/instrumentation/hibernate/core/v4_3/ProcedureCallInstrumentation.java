@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.lang.reflect.Method;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -65,14 +64,21 @@ public class ProcedureCallInstrumentation extends Instrumenter.Default {
     public static SessionState startMethod(
         @Advice.This final ProcedureCall call,
         @Advice.Origin("hibernate.procedure.#m") final String operationName,
-        @Advice.Origin final Method origin) {
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
 
       final ContextStore<ProcedureCall, SessionState> contextStore =
           InstrumentationContext.get(ProcedureCall.class, SessionState.class);
 
       final SessionState state =
           SessionMethodUtils.startScopeFrom(
-              contextStore, call, origin, operationName, call.getProcedureName(), true);
+              contextStore,
+              call,
+              originType,
+              originMethod,
+              operationName,
+              call.getProcedureName(),
+              true);
       return state;
     }
 

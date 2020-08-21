@@ -66,7 +66,10 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope start(
-        @Advice.Origin("#m") final String method, @Advice.This final HttpServletResponse resp) {
+        @Advice.Origin("#m") final String method,
+        @Advice.This final HttpServletResponse resp,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       if (activeSpan() == null) {
         // Don't want to generate a new top-level span
         return null;
@@ -87,7 +90,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
       // In case we lose context, inject trace into to the request.
       propagate().inject(span, req, SETTER);
 
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateSpan(span, originType, originMethod);
       scope.setAsyncPropagation(true);
       return scope;
     }

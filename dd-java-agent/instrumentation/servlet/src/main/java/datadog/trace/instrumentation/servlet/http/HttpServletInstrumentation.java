@@ -85,7 +85,8 @@ public final class HttpServletInstrumentation extends Instrumenter.Default {
       // Here we use the Method instead of "this.class.name" to distinguish calls to "super".
       span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(method));
 
-      final AgentScope agentScope = activateSpan(span);
+      final AgentScope agentScope =
+          activateSpan(span, method.getDeclaringClass().getName(), method.getName());
       agentScope.setAsyncPropagation(true);
       return agentScope;
     }

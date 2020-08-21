@@ -18,7 +18,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
 import datadog.trace.instrumentation.hibernate.SessionState;
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -135,15 +134,16 @@ public class SessionInstrumentation extends AbstractHibernateInstrumentation {
     public static SessionState startMethod(
         @Advice.This final SharedSessionContract session,
         @Advice.Origin("hibernate.#m") final String operationName,
-        @Advice.Origin final Method origin,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod,
         @Advice.Argument(0) final Object entity,
         @Advice.Local("startSpan") boolean startSpan) {
 
-      startSpan = !SCOPE_ONLY_METHODS.contains(origin.getName());
+      startSpan = !SCOPE_ONLY_METHODS.contains(originMethod);
       final ContextStore<SharedSessionContract, SessionState> contextStore =
           InstrumentationContext.get(SharedSessionContract.class, SessionState.class);
       return SessionMethodUtils.startScopeFrom(
-          contextStore, session, origin, operationName, entity, startSpan);
+          contextStore, session, originType, originMethod, operationName, entity, startSpan);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

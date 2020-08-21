@@ -67,8 +67,9 @@ public class Elasticsearch2TransportClientInstrumentation extends Instrumenter.D
     public static AgentScope onEnter(
         @Advice.Argument(0) final Action action,
         @Advice.Argument(1) final ActionRequest actionRequest,
-        @Advice.Argument(value = 2, readOnly = false)
-            ActionListener<ActionResponse> actionListener) {
+        @Advice.Argument(value = 2, readOnly = false) ActionListener<ActionResponse> actionListener,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
 
       final AgentSpan span = startSpan("elasticsearch.query");
       DECORATE.afterStart(span);
@@ -76,7 +77,7 @@ public class Elasticsearch2TransportClientInstrumentation extends Instrumenter.D
 
       actionListener = new TransportActionListener<>(actionRequest, actionListener, span);
 
-      return activateSpan(span);
+      return activateSpan(span, originType, originMethod);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

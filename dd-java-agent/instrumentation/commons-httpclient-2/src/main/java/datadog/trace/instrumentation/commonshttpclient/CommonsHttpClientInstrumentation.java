@@ -64,14 +64,17 @@ public class CommonsHttpClientInstrumentation extends Instrumenter.Default {
 
   public static class ExecAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
+    public static AgentScope methodEnter(
+        @Advice.Argument(1) final HttpMethod httpMethod,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
       if (callDepth > 0) {
         return null;
       }
 
       final AgentSpan span = startSpan("http.request");
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateSpan(span, originType, originMethod);
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, httpMethod);

@@ -12,7 +12,6 @@ import com.couchbase.client.java.CouchbaseCluster;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import java.lang.reflect.Method;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -63,13 +62,14 @@ public class CouchbaseClusterInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void subscribeResult(
         @Advice.Enter final int callDepth,
-        @Advice.Origin final Method method,
+        @Advice.Origin final Class<?> originType,
+        @Advice.Origin("#m") final String originMethod,
         @Advice.Return(readOnly = false) Observable result) {
       if (callDepth > 0) {
         return;
       }
       CallDepthThreadLocalMap.reset(CouchbaseCluster.class);
-      result = Observable.create(new CouchbaseOnSubscribe(result, method, null));
+      result = Observable.create(new CouchbaseOnSubscribe(result, originType, originMethod, null));
     }
   }
 }

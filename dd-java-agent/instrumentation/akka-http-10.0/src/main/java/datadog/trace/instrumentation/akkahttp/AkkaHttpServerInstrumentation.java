@@ -78,9 +78,10 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
   public static class AkkaHttpSyncAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void wrapHandler(
-        @Advice.Argument(value = 0, readOnly = false)
-            Function1<HttpRequest, HttpResponse> handler) {
-      handler = new DatadogSyncWrapper(handler);
+        @Advice.Argument(value = 0, readOnly = false) Function1<HttpRequest, HttpResponse> handler,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
+      handler = new DatadogSyncWrapper(handler, originType, originMethod);
     }
   }
 
@@ -89,13 +90,18 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
     public static void wrapHandler(
         @Advice.Argument(value = 0, readOnly = false)
             Function1<HttpRequest, Future<HttpResponse>> handler,
-        @Advice.Argument(value = 7) final Materializer materializer) {
-      handler = new DatadogAsyncWrapper(handler, materializer.executionContext());
+        @Advice.Argument(value = 7) final Materializer materializer,
+        @Advice.Origin("#t") final String originType,
+        @Advice.Origin("#m") final String originMethod) {
+      handler =
+          new DatadogAsyncWrapper(
+              handler, materializer.executionContext(), originType, originMethod);
     }
   }
 
   public static class DatadogWrapperHelper {
-    public static AgentScope createSpan(final HttpRequest request) {
+    public static AgentScope createSpan(
+        final HttpRequest request, final String originType, final String orignMethod) {
       final AgentSpan.Context extractedContext = propagate().extract(request, GETTER);
       final AgentSpan span = startSpan(AKKA_REQUEST, extractedContext);
       span.setTag(InstrumentationTags.DD_MEASURED, true);
@@ -104,7 +110,7 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
       DECORATE.onConnection(span, request);
       DECORATE.onRequest(span, request);
 
-      final AgentScope scope = activateSpan(span);
+      final AgentScope scope = activateSpan(span, originType, orignMethod);
       scope.setAsyncPropagation(true);
       return scope;
     }
@@ -135,14 +141,21 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
 
   public static class DatadogSyncWrapper extends AbstractFunction1<HttpRequest, HttpResponse> {
     private final Function1<HttpRequest, HttpResponse> userHandler;
+    private final String originType;
+    private final String orignMethod;
 
-    public DatadogSyncWrapper(final Function1<HttpRequest, HttpResponse> userHandler) {
+    public DatadogSyncWrapper(
+        final Function1<HttpRequest, HttpResponse> userHandler,
+        final String originType,
+        final String orignMethod) {
       this.userHandler = userHandler;
+      this.originType = originType;
+      this.orignMethod = orignMethod;
     }
 
     @Override
     public HttpResponse apply(final HttpRequest request) {
-      final AgentScope scope = DatadogWrapperHelper.createSpan(request);
+      final AgentScope scope = DatadogWrapperHelper.createSpan(request, originType, orignMethod);
       try {
         final HttpResponse response = userHandler.apply(request);
         scope.close();
@@ -160,17 +173,23 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
       extends AbstractFunction1<HttpRequest, Future<HttpResponse>> {
     private final Function1<HttpRequest, Future<HttpResponse>> userHandler;
     private final ExecutionContext executionContext;
+    private final String originType;
+    private final String originMethod;
 
     public DatadogAsyncWrapper(
         final Function1<HttpRequest, Future<HttpResponse>> userHandler,
-        final ExecutionContext executionContext) {
+        final ExecutionContext executionContext,
+        final String originType,
+        final String originMethod) {
       this.userHandler = userHandler;
       this.executionContext = executionContext;
+      this.originType = originType;
+      this.originMethod = originMethod;
     }
 
     @Override
     public Future<HttpResponse> apply(final HttpRequest request) {
-      final AgentScope scope = DatadogWrapperHelper.createSpan(request);
+      final AgentScope scope = DatadogWrapperHelper.createSpan(request, originType, originMethod);
       Future<HttpResponse> futureResponse = null;
       try {
         futureResponse = userHandler.apply(request);
