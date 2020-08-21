@@ -48,7 +48,7 @@ abstract class AbstractSmokeTest extends Specification {
   @AutoCleanup
   protected TestHttpServer server = httpServer {
     handlers {
-      prefix("/v0.3/traces") {
+      prefix("/v0.4/traces") {
         println("Received traces: " + request.getHeader("X-Datadog-Trace-Count"))
         traceRequests.add(request)
         response.status(200).send()

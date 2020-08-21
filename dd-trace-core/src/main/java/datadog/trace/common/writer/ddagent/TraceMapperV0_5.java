@@ -22,6 +22,9 @@ import java.util.Map;
 
 public final class TraceMapperV0_5 implements TraceMapper {
 
+  static final byte[] EMPTY =
+      ByteBuffer.allocate(3).put((byte) 0x92).put((byte) 0x90).put((byte) 0x90).array();
+
   private static final class DictionaryFull extends BufferOverflowException {
     @Override
     public synchronized Throwable fillInStackTrace() {
@@ -123,14 +126,18 @@ public final class TraceMapperV0_5 implements TraceMapper {
     Integer encoded = encoding.get(target);
     if (null == encoded) {
       if (!dictionaryWriter.format(target, dictionaryMapper)) {
+        assert code == dictionaryWriter.messageCount()
+            : "wrong number of elements in the dictionary";
         dictionaryWriter.flush();
         // signal the need for a flush because the string table filled up
         // faster than the message content
         throw DICTIONARY_FULL;
       }
-      encoding.put(target, code);
-      writable.writeInt(code);
-      ++code;
+      int dictionaryCode = code++;
+      encoding.put(target, dictionaryCode);
+      // this call can fail, but the dictionary has been written to now
+      // so should make sure dictionary state is consistent first
+      writable.writeInt(dictionaryCode);
     } else {
       writable.writeInt(encoded);
     }
@@ -170,7 +177,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     @Override
     public void map(Object data, Writable packer) {
       if (data instanceof UTF8BytesString) {
-        packer.writeUTF8(((UTF8BytesString) data).getUtf8Bytes());
+        packer.writeObject(data, NO_CACHING);
       } else if (data instanceof Long || data instanceof Integer) {
         writeLongAsString(((Number) data).longValue(), packer, numberByteArray);
       } else {

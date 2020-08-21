@@ -7,18 +7,34 @@ import com.amazonaws.Response;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Function;
+import datadog.trace.bootstrap.instrumentation.api.Functions;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
 
   static final String COMPONENT_NAME = "java-aws-sdk";
 
-  private final Map<String, String> serviceNames = new ConcurrentHashMap<>();
-  private final Map<Class, String> operationNames = new ConcurrentHashMap<>();
+  private final QualifiedClassNameCache cache =
+      new QualifiedClassNameCache(
+          new Function<Class<?>, CharSequence>() {
+            @Override
+            public String apply(Class<?> input) {
+              return input.getSimpleName().replace("Request", "");
+            }
+          },
+          Functions.SuffixJoin.of(
+              ".",
+              new Function<CharSequence, CharSequence>() {
+                @Override
+                public CharSequence apply(CharSequence serviceName) {
+                  return String.valueOf(serviceName).replace("Amazon", "").trim();
+                }
+              }));
+
   private final ContextStore<AmazonWebServiceRequest, RequestMeta> contextStore;
 
   public AwsSdkClientDecorator(
@@ -40,9 +56,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setTag("aws.operation", awsOperation.getSimpleName());
     span.setTag("aws.endpoint", request.getEndpoint().toString());
 
-    span.setTag(
-        DDTags.RESOURCE_NAME,
-        remapServiceName(awsServiceName) + "." + remapOperationName(awsOperation));
+    span.setTag(DDTags.RESOURCE_NAME, cache.getQualifiedName(awsOperation, awsServiceName));
     span.setTag(InstrumentationTags.DD_MEASURED, true);
 
     if (contextStore != null) {
@@ -66,20 +80,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       span.setTag("aws.requestId", awsResp.getRequestId());
     }
     return super.onResponse(span, response);
-  }
-
-  private String remapServiceName(final String serviceName) {
-    if (!serviceNames.containsKey(serviceName)) {
-      serviceNames.put(serviceName, serviceName.replace("Amazon", "").trim());
-    }
-    return serviceNames.get(serviceName);
-  }
-
-  private String remapOperationName(final Class<?> awsOperation) {
-    if (!operationNames.containsKey(awsOperation)) {
-      operationNames.put(awsOperation, awsOperation.getSimpleName().replace("Request", ""));
-    }
-    return operationNames.get(awsOperation);
   }
 
   @Override

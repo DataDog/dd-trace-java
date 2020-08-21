@@ -170,7 +170,7 @@ tasks.withType(Javadoc).configureEach {
 }
 
 javadoc {
-  source = sourceSets.main.allJava
+  source = sourceSets.main.java.srcDirs
   classpath = configurations.compileClasspath
 
   options {
@@ -178,6 +178,7 @@ javadoc {
     setAuthor true
 
     links "https://docs.oracle.com/javase/8/docs/api/"
+    source = 8
   }
 }
 

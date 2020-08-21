@@ -30,4 +30,9 @@ class Log4j1MDCTest extends LogContextInjectionTestBase {
   def clear() {
     return MDC.clear()
   }
+
+  @Override
+  def getMap() {
+    return MDC.getContext()
+  }
 }

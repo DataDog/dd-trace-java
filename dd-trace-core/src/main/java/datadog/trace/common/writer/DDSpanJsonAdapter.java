@@ -45,7 +45,7 @@ class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
     writer.name("service");
     writer.value(span.getServiceName());
     writer.name("name");
-    writer.value(span.getOperationName());
+    writer.value(span.getOperationName().toString());
     writer.name("resource");
     writer.value(span.getResourceName().toString());
     writer.name("trace_id");

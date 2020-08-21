@@ -15,4 +15,7 @@ public class DBInfo {
   private final String db;
   private final String host;
   private final Integer port;
+
+  // Needed for javadoc
+  public static class Builder {}
 }

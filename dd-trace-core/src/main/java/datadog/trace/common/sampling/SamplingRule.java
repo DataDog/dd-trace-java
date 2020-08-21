@@ -42,11 +42,11 @@ public abstract class SamplingRule {
 
     @Override
     public boolean matches(final DDSpan span) {
-      final String relevantString = getRelevantString(span);
+      final CharSequence relevantString = getRelevantString(span);
       return relevantString != null && pattern.matcher(relevantString).matches();
     }
 
-    protected abstract String getRelevantString(DDSpan span);
+    protected abstract CharSequence getRelevantString(DDSpan span);
   }
 
   public static class ServiceSamplingRule extends PatternMatchSamplingRule {
@@ -66,7 +66,7 @@ public abstract class SamplingRule {
     }
 
     @Override
-    protected String getRelevantString(final DDSpan span) {
+    protected CharSequence getRelevantString(final DDSpan span) {
       return span.getOperationName();
     }
   }

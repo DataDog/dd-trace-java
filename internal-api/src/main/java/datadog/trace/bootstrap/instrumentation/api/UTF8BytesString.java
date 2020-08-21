@@ -1,56 +1,71 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import java.nio.charset.StandardCharsets;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Class that wraps a {@code String} and caches the UTF8 byte representation. Implements {@code
  * CharSequence} so that it can be mixed with normal{@code String} instances.
  */
 public final class UTF8BytesString implements CharSequence {
-  public static UTF8BytesString create(String string) {
-    if (string == null) {
-      return null;
-    } else {
-      // To make sure that we don't get an infinite circle in weak caches that are indexed on this
-      // very String, we create a new wrapper String that we hold on to instead.
-      return new UTF8BytesString(new String(string));
-    }
+
+  /*
+   * This method should be used judiciously for strings known not to vary much in the application's
+   * lifecycle, such as constants and effective constant (e.g. resource names)
+   */
+  public static UTF8BytesString createConstant(CharSequence string) {
+    return create(string, true);
   }
 
   public static UTF8BytesString create(CharSequence chars) {
-    if (chars == null) {
+    return create(chars, false);
+  }
+
+  private static UTF8BytesString create(CharSequence sequence, boolean constant) {
+    if (null == sequence) {
       return null;
-    } else if (chars instanceof UTF8BytesString) {
-      return (UTF8BytesString) chars;
-    } else if (chars instanceof String) {
-      return create((String) chars);
+    } else if (sequence instanceof UTF8BytesString) {
+      return (UTF8BytesString) sequence;
     } else {
-      return new UTF8BytesString(String.valueOf(chars));
+      return new UTF8BytesString(sequence, constant);
     }
   }
+
+  private static final Allocator ALLOCATOR = new Allocator();
 
   private final String string;
-  private byte[] utf8Bytes = null;
+  private final byte[] utf8Bytes;
+  private final int offset;
+  private final int length;
 
-  private UTF8BytesString(String string) {
-    this.string = string;
+  private UTF8BytesString(CharSequence chars, boolean constant) {
+    // To make sure that we don't get an infinite circle in weak caches that are indexed on this
+    // very String, we create a new wrapper String that we hold on to instead.
+    this.string = chars instanceof String ? new String((String) chars) : String.valueOf(chars);
+    byte[] utf8Bytes = string.getBytes(UTF_8);
+    this.length = utf8Bytes.length;
+    if (constant) {
+      Allocator.Allocation allocation = ALLOCATOR.allocate(utf8Bytes);
+      if (null != allocation) {
+        this.offset = allocation.position;
+        this.utf8Bytes = allocation.page;
+        return;
+      }
+    }
+    this.offset = 0;
+    this.utf8Bytes = utf8Bytes;
   }
 
-  /**
-   * Returns a <code>byte[]</code> representing the UTF8 encoding of the wrapped {@code String}.
-   * Please note that the same <code>byte[]</code> will be returned on each call, and the caller is
-   * bound by honor, and the fear of purgatory, to not modify the <code>byte[]</code>.
-   *
-   * @return the byte array of the UTF8 encode string
-   */
-  public byte[] getUtf8Bytes() {
-    byte[] bytes = this.utf8Bytes;
-    // This race condition is intentional and benign.
-    // The worst that can happen is that an identical value is produced and written into the field.
-    if (bytes == null) {
-      this.utf8Bytes = bytes = this.string.getBytes(StandardCharsets.UTF_8);
-    }
-    return bytes;
+  /** Writes the UTF8 encoding of the wrapped {@code String}. */
+  public void transferTo(ByteBuffer buffer) {
+    buffer.put(utf8Bytes, offset, length);
+  }
+
+  public int encodedLength() {
+    return length;
   }
 
   @Override
@@ -87,5 +102,58 @@ public final class UTF8BytesString implements CharSequence {
   @Override
   public CharSequence subSequence(int start, int end) {
     return this.string.subSequence(start, end);
+  }
+
+  private static class Allocator {
+
+    private static final class Allocation {
+      final int position;
+      final byte[] page;
+
+      private Allocation(int position, byte[] page) {
+        this.position = position;
+        this.page = page;
+      }
+    }
+
+    private static final int PAGE_SIZE = 8192;
+
+    private final List<byte[]> pages;
+    private int currentPage = -1;
+    int currentPosition = 0;
+
+    Allocator() {
+      this.pages = new ArrayList<>();
+    }
+
+    synchronized Allocation allocate(byte[] utf8) {
+      byte[] page = getPageWithCapacity(utf8.length);
+      if (null == page) { // too big
+        return null;
+      }
+      System.arraycopy(utf8, 0, page, currentPosition, utf8.length);
+      currentPosition += utf8.length;
+      return new Allocation(currentPosition - utf8.length, page);
+    }
+
+    private byte[] getPageWithCapacity(int length) {
+      if (length >= PAGE_SIZE) {
+        return null;
+      }
+      if (currentPage < 0) {
+        newPage();
+      } else if (currentPosition + length >= PAGE_SIZE) {
+        // might leave a lot of space empty at the end of the page, but
+        // this is designed for small strings
+        newPage();
+      }
+      return pages.get(currentPage);
+    }
+
+    private void newPage() {
+      this.pages.add(new byte[PAGE_SIZE]);
+      ++currentPage;
+      currentPosition = 0;
+    }
   }
 }

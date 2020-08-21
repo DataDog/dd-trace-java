@@ -41,6 +41,7 @@ public final class ConfigDefaults {
   static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
   static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
+  static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = true;
 
   static final int DEFAULT_JMX_FETCH_STATSD_PORT = 8125;
 

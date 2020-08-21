@@ -39,11 +39,6 @@ public class Elasticsearch5TransportClientInstrumentation extends Instrumenter.D
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "com.google.common.base.Preconditions",
-      "com.google.common.base.Joiner",
-      "com.google.common.base.Joiner$1",
-      "com.google.common.base.Joiner$2",
-      "com.google.common.base.Joiner$MapJoiner",
       "datadog.trace.instrumentation.elasticsearch.ElasticsearchTransportClientDecorator",
       packageName + ".TransportActionListener",
     };

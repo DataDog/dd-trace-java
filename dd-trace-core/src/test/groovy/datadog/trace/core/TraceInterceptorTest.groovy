@@ -131,7 +131,7 @@ class TraceInterceptorTest extends DDSpecification {
 
     span.context().operationName == "modifiedON-test"
     span.serviceName.startsWith("modifiedSN-")
-    span.resourceName == "modifiedRN-modifiedON-test"
+    span.resourceName.toString() == "modifiedRN-modifiedON-test"
     span.type == "modifiedST-null"
     span.context().getErrorFlag()
 

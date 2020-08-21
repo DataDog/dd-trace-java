@@ -383,14 +383,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
    *
    * @param trace a list of the spans related to the same trace
    */
-  void write(final Collection<DDSpan> trace) {
+  void write(final List<DDSpan> trace) {
     if (trace.isEmpty()) {
       return;
     }
-    final ArrayList<DDSpan> writtenTrace;
-    if (interceptors.isEmpty()) {
-      writtenTrace = new ArrayList<>(trace);
-    } else {
+    List<DDSpan> writtenTrace = trace;
+    if (!interceptors.isEmpty()) {
       // TODO: move this off application thread to TraceProcessor
       Collection<? extends MutableSpan> interceptedTrace = new ArrayList<>(trace);
       for (final TraceInterceptor interceptor : interceptors) {

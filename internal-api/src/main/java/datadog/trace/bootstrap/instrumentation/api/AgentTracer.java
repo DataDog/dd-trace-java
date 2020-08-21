@@ -297,7 +297,7 @@ public class AgentTracer {
     }
 
     @Override
-    public MutableSpan setOperationName(final String serviceName) {
+    public MutableSpan setOperationName(final CharSequence serviceName) {
       return this;
     }
 
@@ -410,7 +410,7 @@ public class AgentTracer {
     }
 
     @Override
-    public void setSpanName(final String spanName) {}
+    public void setSpanName(final CharSequence spanName) {}
 
     @Override
     public boolean hasResourceName() {

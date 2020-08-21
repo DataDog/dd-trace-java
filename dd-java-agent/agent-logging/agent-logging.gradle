@@ -1,0 +1,21 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+excludedClassesCoverage += [
+  // Contains no code
+  'datadog.trace.logging.simplelogger.SLCompatSettings.Keys',
+  'datadog.trace.logging.simplelogger.SLCompatSettings.Defaults',
+  // Can't test fallback path
+  'datadog.trace.logging.simplelogger.SLCompatSettings.ResourceStreamPrivilegedAction',
+  'datadog.trace.logging.simplelogger.SLCompatSettings.DTFormatter',
+  // Only wires up the logging
+  'datadog.slf4j.impl.StaticLoggerBinder',
+  'datadog.slf4j.impl.StaticMarkerBinder',
+  'datadog.slf4j.impl.StaticMDCBinder',
+  'datadog.trace.logging.DDLoggerFactory',
+  'datadog.trace.logging.simplelogger.SLCompatFactory',
+]
+
+dependencies {
+  compile group: 'org.slf4j', name: 'slf4j-api', version: versions.slf4j
+  // This is fine since this project is shadowed into the agent-jar by dd-java-agent:agent-bootstrap
+}

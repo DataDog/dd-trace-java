@@ -51,7 +51,7 @@ class ScopeManagerTest extends DDSpecification {
 
     then:
     scopeManager.active() == scope
-    scope instanceof ScopeInterceptor.Scope
+    scope instanceof ContinuableScopeManager.ContinuableScope
 
     when:
     scope.close()
@@ -78,7 +78,7 @@ class ScopeManagerTest extends DDSpecification {
     then:
     !spanFinished(scope.span())
     scopeManager.active() == scope
-    scope instanceof ScopeInterceptor.Scope
+    scope instanceof ContinuableScopeManager.ContinuableScope
     writer.empty
 
     when:
@@ -128,7 +128,7 @@ class ScopeManagerTest extends DDSpecification {
   def "DDScope only creates continuations when propagation is set"() {
     setup:
     def span = tracer.buildSpan("test").start()
-    def scope = (ScopeInterceptor.Scope) tracer.activateSpan(span)
+    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
     def continuation = scope.capture()
 
     expect:
@@ -147,7 +147,7 @@ class ScopeManagerTest extends DDSpecification {
   def "Continuation.cancel doesn't close parent scope"() {
     setup:
     def span = tracer.buildSpan("test").start()
-    def scope = (ScopeInterceptor.Scope) tracer.activateSpan(span)
+    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
     scope.setAsyncPropagation(true)
     def continuation = scope.capture()
 
@@ -186,7 +186,7 @@ class ScopeManagerTest extends DDSpecification {
   def "hard reference on continuation prevents trace from reporting"() {
     setup:
     def span = tracer.buildSpan("test").start()
-    def scope = (ScopeInterceptor.Scope) tracer.activateSpan(span)
+    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
     scope.setAsyncPropagation(true)
     def continuation = scope.capture()
     scope.close()
@@ -225,7 +225,7 @@ class ScopeManagerTest extends DDSpecification {
     def parentSpan = tracer.buildSpan("parent").start()
     def parentScope = tracer.activateSpan(parentSpan)
     def childSpan = tracer.buildSpan("child").start()
-    ScopeInterceptor.Scope childScope = (ScopeInterceptor.Scope) tracer.activateSpan(childSpan)
+    ContinuableScopeManager.ContinuableScope childScope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(childSpan)
     childScope.setAsyncPropagation(true)
 
     def continuation = childScope.capture()
@@ -254,7 +254,7 @@ class ScopeManagerTest extends DDSpecification {
     def newContinuation = newScope.capture()
 
     then:
-    newScope instanceof ScopeInterceptor.Scope
+    newScope instanceof ContinuableScopeManager.ContinuableScope
     scopeManager.active() == newScope
     newScope != childScope && newScope != parentScope
     newScope.span() == childSpan
@@ -277,7 +277,7 @@ class ScopeManagerTest extends DDSpecification {
   def "continuation allows adding spans even after other spans were completed"() {
     setup:
     def span = tracer.buildSpan("test").start()
-    def scope = (ScopeInterceptor.Scope) tracer.activateSpan(span)
+    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
     scope.setAsyncPropagation(true)
     def continuation = scope.capture()
     scope.close()
@@ -286,7 +286,7 @@ class ScopeManagerTest extends DDSpecification {
     def newScope = continuation.activate()
 
     expect:
-    newScope instanceof ScopeInterceptor.Scope
+    newScope instanceof ContinuableScopeManager.ContinuableScope
     newScope != scope
     scopeManager.active() == newScope
     spanFinished(span)
@@ -309,7 +309,7 @@ class ScopeManagerTest extends DDSpecification {
   def "DDScope put in threadLocal after continuation activation"() {
     setup:
     def span = tracer.buildSpan("parent").start()
-    ScopeInterceptor.Scope scope = (ScopeInterceptor.Scope) tracer.activateSpan(span)
+    ContinuableScopeManager.ContinuableScope scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
     scope.setAsyncPropagation(true)
 
     expect:
@@ -380,7 +380,7 @@ class ScopeManagerTest extends DDSpecification {
     AgentScope continuableScope = tracer.activateSpan(span)
 
     then:
-    continuableScope instanceof ScopeInterceptor.Scope
+    continuableScope instanceof ContinuableScopeManager.ContinuableScope
     activatedCount.get() == 1
     closedCount.get() == 0
 
@@ -389,7 +389,7 @@ class ScopeManagerTest extends DDSpecification {
     AgentScope childDDScope = tracer.activateSpan(childSpan)
 
     then:
-    childDDScope instanceof ScopeInterceptor.Scope
+    childDDScope instanceof ContinuableScopeManager.ContinuableScope
     activatedCount.get() == 2
     closedCount.get() == 0
 

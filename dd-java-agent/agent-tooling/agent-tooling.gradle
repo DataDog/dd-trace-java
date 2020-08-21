@@ -10,8 +10,7 @@ configurations {
 
 dependencies {
   compile(project(':dd-java-agent:agent-bootstrap')) {
-    // This only needs to exist in the bootstrap, not the instrumentation jar.
-    exclude group: 'org.slf4j', module: 'slf4j-simple'
+    exclude group: 'com.datadoghq', module: 'agent-logging'
   }
   compile group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.15'
   compile deps.bytebuddy
