@@ -103,7 +103,7 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
       case 'h' - 'a':
         break;
       case 'i' - 'a':
-        if (name.startsWith("io.micronaut.tracing.")) {
+        if (name.startsWith("io.micronaut.tracing.") || name.startsWith("io.micrometer.")) {
           return true;
         }
         break;
