@@ -10,6 +10,7 @@ class ClassloadingTest extends AgentTestRunner {
     try {
       clazz = Class.forName("datadog.trace.api.GlobalTracer", false, classLoader)
     } catch (ClassNotFoundException e) {
+      e.printStackTrace()
     }
 
     then:

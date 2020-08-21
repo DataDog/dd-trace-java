@@ -127,13 +127,14 @@ public class HelperInjector implements Transformer {
             helperModules.add(new WeakReference<>(javaModule.unwrap()));
           }
         } catch (final Exception e) {
+          e.printStackTrace();
           if (log.isErrorEnabled()) {
             log.error(
-                "Error preparing helpers while processing {} for {}. Failed to inject helper classes into instance {}",
+                "Error preparing helpers while processing '{}' for '{}'. "
+                    + "Failed to inject helper classes into instance '{}'.",
                 typeDescription,
                 requestingName,
-                classLoader,
-                e);
+                classLoader);
           }
           throw new RuntimeException(e);
         }
