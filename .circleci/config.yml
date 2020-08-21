@@ -142,7 +142,7 @@ jobs:
           name: Build Project
           command: >-
             GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew check -PskipTests
+            ./gradlew build -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
 
