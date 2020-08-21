@@ -27,6 +27,8 @@ class ReferenceMatcherTest extends AgentTestRunner {
   ClassLoader safeClasspath = new URLClassLoader([ClasspathUtils.createJarWithClasses(MethodBodyAdvice.A,
     MethodBodyAdvice.B,
     MethodBodyAdvice.SomeInterface,
+    MethodBodyAdvice.SkipLevel, // pattern in e.g. AWS SDK where empty interfaces join other interfaces
+    MethodBodyAdvice.HasMethod,
     MethodBodyAdvice.SomeImplementation)] as URL[],
     (ClassLoader) null)
 
@@ -71,6 +73,8 @@ class ReferenceMatcherTest extends AgentTestRunner {
       [ClasspathUtils.createJarWithClasses(MethodBodyAdvice.A,
         MethodBodyAdvice.B,
         MethodBodyAdvice.SomeInterface,
+        MethodBodyAdvice.SkipLevel,
+        MethodBodyAdvice.HasMethod,
         MethodBodyAdvice.SomeImplementation)] as URL[],
       (ClassLoader) null)
     Reference[] refs = ReferenceCreator.createReferencesFrom(MethodBodyAdvice.getName(), this.getClass().getClassLoader()).values().toArray(new Reference[0])

@@ -175,7 +175,8 @@ public final class ReferenceMatcher {
     Map<Pair<String, String>, Reference.Field> indexedFields = indexFields(reference.getFields());
     traverseHierarchy(reference, typeOnClasspath, indexedMethods, indexedFields, mismatches);
     if (!indexedMethods.isEmpty()) {
-      findInterfaceMethods(reference, typeOnClasspath, indexedMethods, mismatches);
+      findInterfaceMethods(
+          reference, typeOnClasspath, indexedMethods, mismatches, new HashSet<TypeDescription>());
     }
 
     for (Reference.Field missingField : indexedFields.values()) {
@@ -271,12 +272,18 @@ public final class ReferenceMatcher {
       final Reference reference,
       final TypeDescription typeOnClasspath,
       final Map<Pair<String, String>, Reference.Method> methodsToFind,
-      final List<Reference.Mismatch> flagMismatches) {
+      final List<Reference.Mismatch> flagMismatches,
+      final Set<TypeDescription> visitedInterfaces) {
     if (!methodsToFind.isEmpty()) {
       for (final TypeDescription.Generic interfaceType : typeOnClasspath.getInterfaces()) {
-        findMethodsForType(reference, interfaceType.asErasure(), methodsToFind, flagMismatches);
+        TypeDescription erasureType = interfaceType.asErasure();
+        findMethodsForType(reference, erasureType, methodsToFind, flagMismatches);
         if (methodsToFind.isEmpty()) {
           break;
+        }
+        if (visitedInterfaces.add(erasureType)) {
+          findInterfaceMethods(
+              reference, erasureType, methodsToFind, flagMismatches, visitedInterfaces);
         }
       }
     }
