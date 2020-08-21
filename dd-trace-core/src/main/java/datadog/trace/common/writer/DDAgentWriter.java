@@ -141,7 +141,8 @@ public class DDAgentWriter implements Writer {
     monitor.onFailedPublish(UNSET);
   }
 
-  private void handleDroppedTrace(final String reason, final List<DDSpan> trace, final int samplingPriority) {
+  private void handleDroppedTrace(
+      final String reason, final List<DDSpan> trace, final int samplingPriority) {
     incrementTraceCount();
     log.debug("{}. Counted but dropping trace: {}", reason, trace);
     monitor.onFailedPublish(samplingPriority);
