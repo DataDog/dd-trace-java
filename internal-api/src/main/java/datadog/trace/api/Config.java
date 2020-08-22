@@ -38,6 +38,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SPLIT_BY_TAGS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
@@ -54,6 +55,7 @@ import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
+import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
 
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.JmxFetchConfig;
@@ -100,7 +102,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>
  *
  * <p>System properties are {@link Config#PREFIX}'ed. Environment variables are the same as the
- * system property, but uppercased with '.' -> '_'.
+ * system property, but uppercased and '.' is replaced with '_'.
  */
 @Deprecated
 @Slf4j
@@ -358,6 +360,9 @@ public class Config {
   @Getter private final boolean kafkaClientBase64DecodingEnabled;
 
   @Getter private final boolean hystrixTagsEnabled;
+  @Getter private final boolean servletPrincipalEnabled;
+
+  @Getter private final boolean traceAgentV05Enabled;
 
   @Getter private final boolean debugEnabled;
   @Getter private final String configFile;
@@ -524,6 +529,9 @@ public class Config {
     reportHostName =
         getBooleanSettingFromEnvironment(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
+    traceAgentV05Enabled =
+        getBooleanSettingFromEnvironment(ENABLE_TRACE_AGENT_V05, DEFAULT_TRACE_AGENT_V05_ENABLED);
+
     traceAnnotations = getSettingFromEnvironment(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
 
     traceMethods = getSettingFromEnvironment(TRACE_METHODS, DEFAULT_TRACE_METHODS);
@@ -625,6 +633,10 @@ public class Config {
 
     hystrixTagsEnabled =
         getBooleanSettingFromEnvironment(TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED, false);
+
+    servletPrincipalEnabled =
+        getBooleanSettingFromEnvironment(
+            TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED, false);
 
     debugEnabled = isDebugMode();
 
@@ -767,6 +779,9 @@ public class Config {
     reportHostName =
         getPropertyBooleanValue(properties, TRACE_REPORT_HOSTNAME, parent.reportHostName);
 
+    traceAgentV05Enabled =
+        getBooleanSettingFromEnvironment(ENABLE_TRACE_AGENT_V05, parent.traceAgentV05Enabled);
+
     traceAnnotations = properties.getProperty(TRACE_ANNOTATIONS, parent.traceAnnotations);
 
     traceMethods = properties.getProperty(TRACE_METHODS, parent.traceMethods);
@@ -841,6 +856,10 @@ public class Config {
     hystrixTagsEnabled =
         getBooleanSettingFromEnvironment(
             TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED, parent.hystrixTagsEnabled);
+
+    servletPrincipalEnabled =
+        getBooleanSettingFromEnvironment(
+            TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED, parent.servletPrincipalEnabled);
 
     debugEnabled = parent.debugEnabled || isDebugMode();
 

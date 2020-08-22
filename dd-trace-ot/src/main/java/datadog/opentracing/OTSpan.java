@@ -2,6 +2,7 @@ package datadog.opentracing;
 
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.tag.Tag;
@@ -108,6 +109,11 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
+  public Span setOperationName(String operationName) {
+    return setOperationName(UTF8BytesString.create(operationName));
+  }
+
+  @Override
   public long getStartTime() {
     return delegate.getStartTime();
   }
@@ -118,12 +124,12 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public String getOperationName() {
+  public CharSequence getOperationName() {
     return delegate.getOperationName();
   }
 
   @Override
-  public OTSpan setOperationName(final String operationName) {
+  public OTSpan setOperationName(final CharSequence operationName) {
     delegate.setOperationName(operationName);
     return this;
   }

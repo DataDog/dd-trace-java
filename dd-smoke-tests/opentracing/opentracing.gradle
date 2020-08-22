@@ -6,7 +6,7 @@ apply from: "$rootDir/gradle/java.gradle"
 dependencies {
   compile project(':dd-trace-api')
   compile project(':dd-trace-ot')
-  compile group: 'org.slf4j', name: 'slf4j-simple', version: versions.slf4j
+  compile deps.slf4j
 
   testCompile project(':dd-smoke-tests')
 }

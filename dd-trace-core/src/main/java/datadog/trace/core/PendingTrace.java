@@ -216,19 +216,24 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     } else {
       if (tracer.getPartialFlushMinSpans() > 0 && size() > tracer.getPartialFlushMinSpans()) {
         synchronized (this) {
-          if (size() > tracer.getPartialFlushMinSpans()) {
+          int size = size();
+          if (size > tracer.getPartialFlushMinSpans()) {
             final DDSpan rootSpan = getRootSpan();
-            final List<DDSpan> partialTrace = new ArrayList(size());
+            final List<DDSpan> partialTrace = new ArrayList<>(size);
             final Iterator<DDSpan> it = iterator();
             while (it.hasNext()) {
               final DDSpan span = it.next();
               if (span != rootSpan) {
                 partialTrace.add(span);
                 completedSpanCount.decrementAndGet();
+                // TODO spans are removed here
+                //  but not when the whole trace is written!
                 it.remove();
               }
             }
-            log.debug("Writing partial trace {} of size {}", traceId, partialTrace.size());
+            if (log.isDebugEnabled()) {
+              log.debug("Writing partial trace {} of size {}", traceId, partialTrace.size());
+            }
             tracer.write(partialTrace);
           }
         }
@@ -248,8 +253,18 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     if (isWritten.compareAndSet(false, true)) {
       removePendingTrace();
       if (!isEmpty()) {
-        log.debug("Writing {} spans to {}.", size(), tracer.writer);
-        tracer.write(this);
+        int size = size();
+        if (log.isDebugEnabled()) {
+          log.debug("Writing {} spans to {}.", size, tracer.writer);
+        }
+        List<DDSpan> trace = new ArrayList<>(size);
+        trace.addAll(this);
+        // TODO - strange that tests expect the contents
+        //  NOT to be cleared here. Keeping the spans around
+        //  could lead to them all being promoted by nepotism,
+        //  whereas some of them might avoid this if they're
+        //  dropped when we write
+        tracer.write(trace);
       }
     }
   }

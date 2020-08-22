@@ -132,12 +132,12 @@ public class OtelSpan implements Span, MutableSpan {
   }
 
   @Override
-  public String getOperationName() {
+  public CharSequence getOperationName() {
     return delegate.getOperationName();
   }
 
   @Override
-  public MutableSpan setOperationName(final String serviceName) {
+  public MutableSpan setOperationName(final CharSequence serviceName) {
     return delegate.setOperationName(serviceName);
   }
 

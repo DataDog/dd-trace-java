@@ -14,6 +14,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -31,7 +32,7 @@ public class MDCInjectionInstrumentation extends Instrumenter.Default {
   // mdcClassName = org.slf4j.MDC
   private static final String mdcClassName = "org.TMP.MDC".replaceFirst("TMP", "slf4j");
 
-  private boolean initialized = false;
+  private volatile boolean initialized = false;
 
   public MDCInjectionInstrumentation() {
     super(MDC_INSTRUMENTATION_NAME);
@@ -102,7 +103,9 @@ public class MDCInjectionInstrumentation extends Instrumenter.Default {
         Object copyOnThreadLocalFieldValue =
             ((ThreadLocal) copyOnThreadLocalField.get(mdcAdapterInstance)).get();
         copyOnThreadLocalFieldValue =
-            copyOnThreadLocalFieldValue != null ? copyOnThreadLocalFieldValue : new HashMap<>();
+            copyOnThreadLocalFieldValue != null
+                ? copyOnThreadLocalFieldValue
+                : Collections.synchronizedMap(new HashMap<>());
         copyOnThreadLocalField.set(
             mdcAdapterInstance, ThreadLocalWithDDTagsInitValue.create(copyOnThreadLocalFieldValue));
 

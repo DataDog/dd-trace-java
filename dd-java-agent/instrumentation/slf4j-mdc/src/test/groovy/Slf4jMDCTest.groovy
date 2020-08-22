@@ -22,4 +22,9 @@ class Slf4jMDCTest extends LogContextInjectionTestBase {
   def clear() {
     return MDC.clear()
   }
+
+  @Override
+  def getMap() {
+    return MDC.getCopyOfContextMap()
+  }
 }

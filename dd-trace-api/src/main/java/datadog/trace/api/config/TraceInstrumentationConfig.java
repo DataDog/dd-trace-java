@@ -34,6 +34,7 @@ public final class TraceInstrumentationConfig {
       "kafka.client.base64.decoding.enabled";
 
   public static final String HYSTRIX_TAGS_ENABLED = "hystrix.tags.enabled";
+  public static final String SERVLET_PRINCIPAL_ENABLED = "trace.servlet.principal.enabled";
 
   private TraceInstrumentationConfig() {}
 }

@@ -20,12 +20,12 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected String origin;
   protected boolean valid;
 
-  private final FixedSizeCache<String, String> cache = new FixedSizeCache<>(64);
+  private static final FixedSizeCache<String, String> CACHE = new FixedSizeCache<>(64);
   private static final FixedSizeCache.Creator<String, String> LOWER_CASE =
       new FixedSizeCache.LowerCase();
 
   protected String toLowerCase(String key) {
-    return cache.computeIfAbsent(key, LOWER_CASE);
+    return CACHE.computeIfAbsent(key, LOWER_CASE);
   }
 
   protected ContextInterpreter(Map<String, String> taggedHeaders) {

@@ -29,7 +29,7 @@ public class SpringSchedulingDecorator extends BaseDecorator {
 
   public AgentSpan onRun(final AgentSpan span, final Runnable runnable) {
     if (runnable != null) {
-      String resourceName = "";
+      CharSequence resourceName = "";
       if (runnable instanceof ScheduledMethodRunnable) {
         final ScheduledMethodRunnable scheduledMethodRunnable = (ScheduledMethodRunnable) runnable;
         resourceName = spanNameForMethod(scheduledMethodRunnable.getMethod());

@@ -57,6 +57,9 @@ afterEvaluate {
         }
       }
     }
+
+    // Disable verification if skipTests property was specified
+    onlyIf { !project.rootProject.hasProperty("skipTests") }
   }
 
   jacocoTestCoverageVerification.dependsOn jacocoTestReport

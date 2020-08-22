@@ -115,7 +115,9 @@ modifyPom {
 }
 
 dependencies {
-  testCompile project(':dd-java-agent:agent-bootstrap')
+  testCompile(project(':dd-java-agent:agent-bootstrap')) {
+    exclude group: 'com.datadoghq', module: 'agent-logging'
+  }
   testCompile project(':dd-trace-api')
   testCompile project(':dd-trace-core')
   testCompile project(':utils:test-utils')

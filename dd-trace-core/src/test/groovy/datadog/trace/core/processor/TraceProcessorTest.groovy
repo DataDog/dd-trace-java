@@ -110,7 +110,7 @@ class TraceProcessorTest extends DDSpecification {
     processor.onTraceComplete(trace)
 
     then:
-    span.resourceName == resourceName
+    span.resourceName.toString() == resourceName
 
     where:
     method | url      | status | resourceName

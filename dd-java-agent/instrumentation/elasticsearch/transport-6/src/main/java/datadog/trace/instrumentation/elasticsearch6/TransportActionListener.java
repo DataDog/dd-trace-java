@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.elasticsearch6;
 
 import static datadog.trace.instrumentation.elasticsearch.ElasticsearchTransportClientDecorator.DECORATE;
 
-import com.google.common.base.Joiner;
+import datadog.trace.api.utils.Strings;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import org.elasticsearch.action.ActionListener;
@@ -38,12 +38,12 @@ public class TransportActionListener<T extends ActionResponse> implements Action
     if (request instanceof IndicesRequest) {
       final IndicesRequest req = (IndicesRequest) request;
       if (req.indices() != null) {
-        span.setTag("elasticsearch.request.indices", Joiner.on(",").join(req.indices()));
+        span.setTag("elasticsearch.request.indices", Strings.join(",", req.indices()));
       }
     }
     if (request instanceof SearchRequest) {
       final SearchRequest req = (SearchRequest) request;
-      span.setTag("elasticsearch.request.search.types", Joiner.on(",").join(req.types()));
+      span.setTag("elasticsearch.request.search.types", Strings.join(",", req.types()));
     }
     if (request instanceof DocWriteRequest) {
       final DocWriteRequest req = (DocWriteRequest) request;

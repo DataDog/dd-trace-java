@@ -1,12 +1,15 @@
 package datadog.trace.core.scopemanager;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.context.TraceScope;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.interceptor.TraceHeuristicsEvaluator;
 import datadog.trace.mlt.MethodLevelTracer;
@@ -14,8 +17,7 @@ import datadog.trace.mlt.Session;
 import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
 
-public abstract class TraceProfilingScopeInterceptor
-    extends ScopeInterceptor.DelegatingInterceptor {
+public abstract class TraceProfilingScopeInterceptor {
   private static final long MAX_NANOSECONDS_BETWEEN_ACTIVATIONS = TimeUnit.SECONDS.toNanos(1);
   private static final double ACTIVATIONS_PER_SECOND = 5;
   private static final ThreadLocal<Boolean> IS_THREAD_PROFILING =
@@ -30,38 +32,51 @@ public abstract class TraceProfilingScopeInterceptor
 
   protected final RateLimiter rateLimiter = RateLimiter.create(ACTIVATIONS_PER_SECOND);
 
-  private TraceProfilingScopeInterceptor(
-      final StatsDClient statsDClient, final ScopeInterceptor delegate) {
-    super(delegate);
+  private TraceProfilingScopeInterceptor(final StatsDClient statsDClient) {
     this.statsDClient = statsDClient;
   }
 
-  public static ScopeInterceptor create(
+  public static TraceProfilingScopeInterceptor create(
       final Double methodTraceSampleRate,
       final TraceHeuristicsEvaluator traceHeuristicsEvaluator,
-      final StatsDClient statsDClient,
-      final ScopeInterceptor delegate) {
+      final StatsDClient statsDClient) {
     if (!Config.get().isMethodTraceEnabled()) {
-      return delegate;
+      return new NoOp();
     }
     if (methodTraceSampleRate != null) {
-      return new Percentage(methodTraceSampleRate, statsDClient, delegate);
+      return new Percentage(methodTraceSampleRate, statsDClient);
     }
-    return new Heuristical(traceHeuristicsEvaluator, statsDClient, delegate);
+    return new Heuristical(traceHeuristicsEvaluator, statsDClient);
   }
 
-  @Override
-  public Scope handleSpan(final AgentSpan span) {
+  public AgentScope handleSpan(final AgentSpan span) {
     if (!(span instanceof AgentTracer.NoopAgentSpan)
         && (IS_THREAD_PROFILING.get() // if already profiling, we want to add more context.
             || shouldProfile(span))) {
-      return new TraceProfilingScope(span, delegate.handleSpan(span));
+      return new TraceProfilingScope(span);
     }
     // We don't want to wrap the scope for profiling.
-    return delegate.handleSpan(span);
+    return AgentTracer.NoopAgentScope.INSTANCE;
   }
 
   abstract boolean shouldProfile(AgentSpan span);
+
+  private static class NoOp extends TraceProfilingScopeInterceptor {
+
+    private NoOp() {
+      super(new NoOpStatsDClient());
+    }
+
+    @Override
+    public AgentScope handleSpan(AgentSpan span) {
+      return AgentTracer.NoopAgentScope.INSTANCE;
+    }
+
+    @Override
+    boolean shouldProfile(AgentSpan span) {
+      return false;
+    }
+  }
 
   private static class Percentage extends TraceProfilingScopeInterceptor {
     private static final BigDecimal TRACE_ID_MAX_AS_BIG_DECIMAL =
@@ -69,9 +84,8 @@ public abstract class TraceProfilingScopeInterceptor
 
     private final long cutoff;
 
-    private Percentage(
-        final double percent, final StatsDClient statsDClient, final ScopeInterceptor delegate) {
-      super(statsDClient, delegate);
+    private Percentage(final double percent, final StatsDClient statsDClient) {
+      super(statsDClient);
       assert 0 <= percent && percent <= 1;
       cutoff = new BigDecimal(percent).multiply(TRACE_ID_MAX_AS_BIG_DECIMAL).longValue();
     }
@@ -94,10 +108,8 @@ public abstract class TraceProfilingScopeInterceptor
     private final TraceHeuristicsEvaluator traceEvaluator;
 
     private Heuristical(
-        final TraceHeuristicsEvaluator traceEvaluator,
-        final StatsDClient statsDClient,
-        final ScopeInterceptor delegate) {
-      super(statsDClient, delegate);
+        final TraceHeuristicsEvaluator traceEvaluator, final StatsDClient statsDClient) {
+      super(statsDClient);
       this.traceEvaluator = traceEvaluator;
     }
 
@@ -136,12 +148,12 @@ public abstract class TraceProfilingScopeInterceptor
     }
   }
 
-  private class TraceProfilingScope extends DelegatingScope {
+  private class TraceProfilingScope implements AgentScope {
     private final Session session;
     private final boolean rootScope;
+    private final AgentSpan span;
 
-    private TraceProfilingScope(final AgentSpan span, final Scope delegate) {
-      super(delegate);
+    private TraceProfilingScope(final AgentSpan span) {
       rootScope = !IS_THREAD_PROFILING.get();
       if (rootScope) {
         statsDClient.incrementCounter("mlt.scope", "scope:root");
@@ -150,6 +162,20 @@ public abstract class TraceProfilingScopeInterceptor
         statsDClient.incrementCounter("mlt.scope", "scope:child");
       }
       session = MethodLevelTracer.startProfiling(span.getTraceId().toString());
+      this.span = span;
+    }
+
+    @Override
+    public AgentSpan span() {
+      return span;
+    }
+
+    @Override
+    public void setAsyncPropagation(boolean value) {}
+
+    @Override
+    public TraceScope.Continuation capture() {
+      throw new UnsupportedOperationException();
     }
 
     @Override
@@ -157,19 +183,22 @@ public abstract class TraceProfilingScopeInterceptor
       if (rootScope) {
         IS_THREAD_PROFILING.set(false);
       }
-      delegate.close();
       final byte[] samplingData = session.close();
 
       if (samplingData != null) {
         statsDClient.incrementCounter("mlt.count");
         statsDClient.count("mlt.bytes", samplingData.length);
-        AgentSpan span = span();
         span.setTag(InstrumentationTags.DD_MLT, samplingData);
         if (span.getSamplingPriority() == null) {
           // if priority not set, let's increase priority to improve chance this is kept.
           span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
         }
       }
+    }
+
+    @Override
+    public boolean isAsyncPropagating() {
+      return false;
     }
   }
 }

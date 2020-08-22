@@ -12,6 +12,7 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
+import datadog.trace.bootstrap.instrumentation.api.Functions;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
@@ -24,14 +25,12 @@ public class KafkaDecorator extends ClientDecorator {
   private final String spanKind;
   private final String spanType;
 
-  private static final FixedSizeCache<String, String> PRODUCER_RESOURCE_NAME_CACHE =
+  private static final FixedSizeCache<CharSequence, CharSequence> PRODUCER_RESOURCE_NAME_CACHE =
       new FixedSizeCache<>(32);
-  private static final FixedSizeCache.Prefix PRODUCER_PREFIX =
-      new FixedSizeCache.Prefix("Produce Topic ");
-  private static final FixedSizeCache<String, String> CONSUMER_RESOURCE_NAME_CACHE =
+  private static final Functions.Prefix PRODUCER_PREFIX = new Functions.Prefix("Produce Topic ");
+  private static final FixedSizeCache<CharSequence, CharSequence> CONSUMER_RESOURCE_NAME_CACHE =
       new FixedSizeCache<>(32);
-  private static final FixedSizeCache.Prefix CONSUMER_PREFIX =
-      new FixedSizeCache.Prefix("Consume Topic ");
+  private static final Functions.Prefix CONSUMER_PREFIX = new Functions.Prefix("Consume Topic ");
 
   public static final KafkaDecorator PRODUCER_DECORATE =
       new KafkaDecorator(Tags.SPAN_KIND_PRODUCER, DDSpanTypes.MESSAGE_PRODUCER);

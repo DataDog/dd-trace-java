@@ -72,6 +72,11 @@ public class StringWritingTest {
                 put("hani", "道道道");
                 put("foo", "bar");
               }
+            },
+            new HashMap<String, String>() {
+              {
+                put("CJK", "罿潯罿潯罿潯罿潯罿潯");
+              }
             }),
       },
       {

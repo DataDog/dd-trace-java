@@ -13,6 +13,7 @@ import datadog.trace.api.GlobalTracer;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -91,7 +92,7 @@ public class ThreadContextInstrumentation extends Instrumenter.Default {
           final Map<String, String> threadLocalInitValueAsMap =
               threadLocalInitValue != null
                   ? (Map<String, String>) threadLocalInitValue
-                  : new HashMap<String, String>();
+                  : Collections.synchronizedMap(new HashMap<String, String>());
           org.slf4j.LoggerFactory.getLogger(threadContextClass)
               .debug("Setting {} for ThreadLocalWithDDTagsInitValue ", threadLocalInitValueAsMap);
           localMapField.set(

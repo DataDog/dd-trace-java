@@ -42,7 +42,7 @@ public class TracingSubscriber<T>
       if (downstreamScope != null) {
         downstreamScope.setAsyncPropagation(true);
         // create a hard reference to the trace that we don't want reported until we are done
-        continuation.set(activeScope().capture());
+        continuation.set(downstreamScope.capture());
       } else {
         continuation.set(NoopAgentScope.INSTANCE.capture());
       }
@@ -77,9 +77,10 @@ public class TracingSubscriber<T>
   }
 
   private UnifiedScope finalScopeForDownstream() {
-    if (continuation.get() != null) {
+    final TraceScope.Continuation current = continuation.getAndSet(null);
+    if (current != null) {
       // releases our reference to the trace
-      final TraceScope scope = continuation.getAndSet(null).activate();
+      final TraceScope scope = current.activate();
       scope.setAsyncPropagation(true);
       return new UnifiedScope(scope);
     } else {

@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit
 
 abstract class CliApplicationSmokeTest extends AbstractSmokeTest {
   // Estimate for the amount of time instrumentation, plus request, plus some extra
-  private static final int TIMEOUT_SECS = 30
+  private static final int TIMEOUT_SECS = 60
 
   // Timeout for individual requests
   public static final int REQUEST_TIMEOUT = 5

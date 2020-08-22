@@ -125,7 +125,7 @@ class URLAsResourceNameRuleTest extends DDSpecification {
     })
 
     then:
-    span.resourceName == resourceName
+    span.resourceName.toString() == resourceName
 
     where:
     value                       | resourceName        | meta

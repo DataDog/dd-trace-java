@@ -9,6 +9,7 @@ public class TestClasses {
     public static void methodBodyAdvice() {
       final A a = new A();
       final SomeInterface inter = new SomeImplementation();
+      Object o = inter.requiredMethod();
       inter.someMethod();
       a.b.aMethod("foo");
       a.b.aMethodWithPrimitives(false);
@@ -51,13 +52,24 @@ public class TestClasses {
 
     public static class A2 extends A {}
 
-    public interface SomeInterface {
+    public interface HasMethod {
+      Object requiredMethod();
+    }
+
+    public interface SkipLevel extends HasMethod {}
+
+    public interface SomeInterface extends SkipLevel {
       void someMethod();
     }
 
     public static class SomeImplementation implements SomeInterface {
       @Override
       public void someMethod() {}
+
+      @Override
+      public Object requiredMethod() {
+        return null;
+      }
     }
 
     public static class SomeClassWithFields {

@@ -7,7 +7,7 @@ public interface DDSpanData {
 
   String getServiceName();
 
-  String getOperationName();
+  CharSequence getOperationName();
 
   CharSequence getResourceName();
 

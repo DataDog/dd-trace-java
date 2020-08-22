@@ -175,7 +175,6 @@ class CoreTracerTest extends DDSpecification {
 
     expect:
     tracer.writer instanceof DDAgentWriter
-    tracer.writer.traceCount.is(((DDAgentWriter) tracer.writer).traceCount)
 
     where:
     key               | value
