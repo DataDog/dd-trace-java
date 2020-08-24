@@ -5,7 +5,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.context.embedded.EmbeddedServletContainerFactory
 import org.springframework.boot.context.embedded.tomcat.TomcatConnectorCustomizer
 import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainerFactory
+import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
+import org.springframework.core.Ordered
 import org.springframework.http.HttpInputMessage
 import org.springframework.http.HttpOutputMessage
 import org.springframework.http.MediaType
@@ -17,6 +19,7 @@ import org.springframework.util.StreamUtils
 import org.springframework.web.HttpMediaTypeNotAcceptableException
 import org.springframework.web.accept.ContentNegotiationStrategy
 import org.springframework.web.context.request.NativeWebRequest
+import org.springframework.web.filter.RequestContextFilter
 import org.springframework.web.servlet.config.annotation.ContentNegotiationConfigurer
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
 
@@ -37,6 +40,27 @@ class DynamicRoutingAppConfig extends WebMvcConfigurerAdapter {
           return [MediaType.TEXT_PLAIN]
         }
       })
+  }
+
+
+  @Bean
+  FilterRegistrationBean requestContextFilterRegistrationBean() {
+    // make sure this hasn't happened when HandlerMappingResourceNameFilter executes
+    FilterRegistrationBean registrationBean = new FilterRegistrationBean()
+    RequestContextFilter requestContextFilter = new RequestContextFilter()
+    registrationBean.setFilter(requestContextFilter)
+    registrationBean.setOrder(Ordered.LOWEST_PRECEDENCE)
+    return registrationBean
+  }
+
+  @Bean
+  FilterRegistrationBean clearRequestContextFilterRegistrationBean() {
+    // make sure context is cleared when HandlerMappingResourceNameFilter executes
+    FilterRegistrationBean registrationBean = new FilterRegistrationBean()
+    ClearRequestContext requestContextFilter = new ClearRequestContext()
+    registrationBean.setFilter(requestContextFilter)
+    registrationBean.setOrder(Ordered.HIGHEST_PRECEDENCE)
+    return registrationBean
   }
 
   @Bean

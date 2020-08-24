@@ -1,6 +1,8 @@
 package test.dynamic
 
+import org.junit.Assert
 import org.springframework.context.ApplicationContext
+import org.springframework.web.context.request.RequestContextHolder
 import org.springframework.web.method.HandlerMethod
 import org.springframework.web.servlet.handler.AbstractHandlerMapping
 
@@ -11,6 +13,13 @@ class DynamicHandlerMapping extends AbstractHandlerMapping {
 
   @Override
   protected Object getHandlerInternal(HttpServletRequest request) throws Exception {
+    // this is here to cause problems if they haven't been set when this gets called
+    // this mimics bean construction which depends on this value having been set in a request
+    try {
+      RequestContextHolder.currentRequestAttributes()
+    } catch (Exception e) {
+      Assert.fail(e.getMessage())
+    }
     ApplicationContext applicationContext = this.getApplicationContext()
     DynamicRoutingConfig routingConfig = applicationContext
       .getBean(DynamicRoutingConfig)

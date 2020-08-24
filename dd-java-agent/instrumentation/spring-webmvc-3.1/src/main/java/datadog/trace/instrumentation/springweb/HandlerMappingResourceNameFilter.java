@@ -64,9 +64,10 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
 
   public void setHandlerMappings(final List<HandlerMapping> handlerMappings) {
     for (HandlerMapping handlerMapping : handlerMappings) {
-      if (handlerMapping instanceof RequestMappingInfoHandlerMapping
-          && !this.handlerMappings.contains(handlerMapping)) {
-        this.handlerMappings.add(handlerMapping);
+      if (handlerMapping instanceof RequestMappingInfoHandlerMapping) {
+        if (!this.handlerMappings.contains(handlerMapping)) {
+          this.handlerMappings.add(handlerMapping);
+        }
       } else {
         log.debug(
             "discarding handler mapping {} which won't set BEST_MATCHING_PATTERN_ATTRIBUTE",
