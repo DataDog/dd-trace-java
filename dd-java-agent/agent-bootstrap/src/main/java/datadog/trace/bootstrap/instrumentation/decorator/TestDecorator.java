@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.annotation.Annotation;
@@ -12,9 +13,9 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public abstract class TestDecorator extends BaseDecorator {
-  public static final String TEST_PASS = "PASS";
-  public static final String TEST_FAIL = "FAIL";
-  public static final String TEST_SKIP = "SKIP";
+  public static final String TEST_PASS = "pass";
+  public static final String TEST_FAIL = "fail";
+  public static final String TEST_SKIP = "skip";
 
   protected abstract String testFramework();
 
@@ -33,6 +34,7 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setTag(Tags.SPAN_KIND, spanKind());
     span.setTag(DDTags.SPAN_TYPE, spanType());
     span.setTag(DDTags.TEST_FRAMEWORK, testFramework());
+    span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
     return super.afterStart(span);
   }
 
