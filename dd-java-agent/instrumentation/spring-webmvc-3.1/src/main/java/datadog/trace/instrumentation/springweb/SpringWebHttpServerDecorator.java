@@ -109,34 +109,31 @@ public class SpringWebHttpServerDecorator
   }
 
   public void onHandle(final AgentSpan span, final Object handler) {
-    final Class<?> clazz;
-    final String methodName;
-
     if (handler instanceof HandlerMethod) {
       // name span based on the class and method name defined in the handler
       final Method method = ((HandlerMethod) handler).getMethod();
-      clazz = method.getDeclaringClass();
-      methodName = method.getName();
-    } else if (handler instanceof HttpRequestHandler) {
+      span.setTag(
+          DDTags.RESOURCE_NAME,
+          DECORATE.spanNameForMethod(method.getDeclaringClass(), method.getName()));
+    } else {
+      span.setTag(
+          DDTags.RESOURCE_NAME,
+          DECORATE.spanNameForMethod(handler.getClass(), getMethodName(handler)));
+    }
+  }
+
+  private String getMethodName(final Object handler) {
+    if (handler instanceof HttpRequestHandler || handler instanceof Controller) {
       // org.springframework.web.servlet.mvc.HttpRequestHandlerAdapter
-      clazz = handler.getClass();
-      methodName = "handleRequest";
-    } else if (handler instanceof Controller) {
       // org.springframework.web.servlet.mvc.SimpleControllerHandlerAdapter
-      clazz = handler.getClass();
-      methodName = "handleRequest";
+      return "handleRequest";
     } else if (handler instanceof Servlet) {
       // org.springframework.web.servlet.handler.SimpleServletHandlerAdapter
-      clazz = handler.getClass();
-      methodName = "service";
+      return "service";
     } else {
       // perhaps org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter
-      clazz = handler.getClass();
-      methodName = "<annotation>";
+      return "<annotation>";
     }
-
-    final CharSequence resourceName = DECORATE.spanNameForMethod(clazz, methodName);
-    span.setTag(DDTags.RESOURCE_NAME, resourceName);
   }
 
   public AgentSpan onRender(final AgentSpan span, final ModelAndView mv) {
