@@ -35,6 +35,14 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
       AdditionalLibraryIgnoresMatcher.additionalLibraryIgnoresMatcher();
   private final boolean skipAdditionalLibraryMatcher;
 
+  private final ElementMatcher<T> springClassLoaderIgnores =
+      NameMatchers.namedOneOf(
+          "org.springframework.context.support.ContextTypeMatchClassLoader",
+          "org.springframework.core.OverridingClassLoader",
+          "org.springframework.core.DecoratingClassLoader",
+          "org.springframework.instrument.classloading.SimpleThrowawayClassLoader",
+          "org.springframework.instrument.classloading.ShadowingClassLoader");
+
   private GlobalIgnoresMatcher(final boolean skipAdditionalLibraryMatcher) {
     this.skipAdditionalLibraryMatcher = skipAdditionalLibraryMatcher;
   }
@@ -156,6 +164,11 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
           }
           if (name.startsWith("org.apache.log4j.")) {
             return !name.equals("org.apache.log4j.MDC");
+          }
+          if (name.startsWith("org.springframework.")) {
+            if (springClassLoaderIgnores.matches(target)) {
+              return true;
+            }
           }
         }
         break;

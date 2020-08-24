@@ -122,27 +122,20 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
 
       if (name.startsWith("org.springframework.context.")) {
         // More runnables to deal with
-        if (name.startsWith("org.springframework.context.support.AbstractApplicationContext$")
-            || name.equals("org.springframework.context.support.ContextTypeMatchClassLoader")) {
+        if (name.startsWith("org.springframework.context.support.AbstractApplicationContext$")) {
           return false;
         }
         return true;
       }
 
       if (name.startsWith("org.springframework.core.")) {
-        if (name.startsWith("org.springframework.core.task.")
-            || name.equals("org.springframework.core.DecoratingClassLoader")
-            || name.equals("org.springframework.core.OverridingClassLoader")) {
+        if (name.startsWith("org.springframework.core.task.")) {
           return false;
         }
         return true;
       }
 
       if (name.startsWith("org.springframework.instrument.")) {
-        if (name.equals("org.springframework.instrument.classloading.SimpleThrowawayClassLoader")
-            || name.equals("org.springframework.instrument.classloading.ShadowingClassLoader")) {
-          return false;
-        }
         return true;
       }
 

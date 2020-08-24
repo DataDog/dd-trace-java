@@ -42,10 +42,7 @@ public final class ClassloadingInstrumentation extends Instrumenter.Default {
   public ElementMatcher<TypeDescription> typeMatcher() {
     // just an optimization to exclude common class loaders that are known to delegate to the
     // bootstrap loader (or happen to _be_ the bootstrap loader)
-    return namedNoneOf(
-            "java.lang.ClassLoader",
-            "com.ibm.oti.vm.BootstrapClassLoader",
-            "datadog.trace.bootstrap.AgentClassLoader")
+    return namedNoneOf("java.lang.ClassLoader", "com.ibm.oti.vm.BootstrapClassLoader")
         .and(extendsClass(named("java.lang.ClassLoader")));
   }
 
