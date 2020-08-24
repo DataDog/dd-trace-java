@@ -2,6 +2,10 @@ package datadog.trace.instrumentation.springweb;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
+import datadog.trace.bootstrap.instrumentation.api.Function;
+import datadog.trace.bootstrap.instrumentation.api.Pair;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -19,6 +23,16 @@ import org.springframework.web.servlet.mvc.Controller;
 @Slf4j
 public class SpringWebHttpServerDecorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
+
+  private static final Function<Pair<String, Object>, CharSequence> RESOURCE_NAME_JOINER =
+      new Function<Pair<String, Object>, CharSequence>() {
+        @Override
+        public CharSequence apply(Pair<String, Object> input) {
+          return UTF8BytesString.create(input.getLeft() + " " + input.getRight());
+        }
+      };
+  private static final FixedSizeCache<Pair<String, Object>, CharSequence> RESOURCE_NAME_CACHE =
+      new FixedSizeCache<>(64);
 
   private final String component;
 
@@ -85,7 +99,9 @@ public class SpringWebHttpServerDecorator
       final Object bestMatchingPattern =
           request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
       if (method != null && bestMatchingPattern != null) {
-        final String resourceName = method + " " + bestMatchingPattern;
+        final CharSequence resourceName =
+            RESOURCE_NAME_CACHE.computeIfAbsent(
+                Pair.of(method, bestMatchingPattern), RESOURCE_NAME_JOINER);
         span.setTag(DDTags.RESOURCE_NAME, resourceName);
       }
     }

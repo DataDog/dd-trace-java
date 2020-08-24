@@ -47,7 +47,9 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Default {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".SpringWebHttpServerDecorator"};
+    return new String[] {
+      packageName + ".SpringWebHttpServerDecorator", packageName + ".SpringWebHttpServerDecorator$1"
+    };
   }
 
   @Override
