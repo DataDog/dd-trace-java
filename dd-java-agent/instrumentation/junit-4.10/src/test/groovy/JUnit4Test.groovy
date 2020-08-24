@@ -24,7 +24,7 @@ class JUnit4Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(0, 1) {
-        testSpan(it, 0, "org.example.TestSucceed", "test_succeed", TestDecorator.TEST_PASS, null)
+        testSpan(it, 0, "org.example.TestSucceed", "test_succeed", TestDecorator.TEST_PASS)
       }
     }
   }
@@ -36,7 +36,7 @@ class JUnit4Test extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(0, 1) {
-        testSpan(it, 0, "org.example.TestInheritance", "test_succeed", TestDecorator.TEST_PASS, null)
+        testSpan(it, 0, "org.example.TestInheritance", "test_succeed", TestDecorator.TEST_PASS)
       }
     }
   }
