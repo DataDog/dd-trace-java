@@ -10,6 +10,7 @@ import org.example.TestSkippedClass
 import org.example.TestSucceed
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
 import org.junit.platform.launcher.core.LauncherFactory
+import org.opentest4j.AssertionFailedError
 
 import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass
 
@@ -65,7 +66,7 @@ class JUnit5Test extends TestFrameworkTest {
     }
 
     where:
-    exception = new AssertionError()
+    exception = new AssertionFailedError("expected: <true> but was: <false>")
   }
 
   def "test error generates spans"() {
