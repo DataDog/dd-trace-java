@@ -11,10 +11,13 @@ import org.testng.TestNG
 
 class TestNGTest extends TestFrameworkTest {
 
+  def static TEST_OUTPUT = "build/tmp/test-output"
+
   def "test success generates spans"() {
     setup:
     def testNG = new TestNG()
     testNG.setTestClasses(TestSucceed)
+    testNG.setOutputDirectory(TEST_OUTPUT)
     testNG.run()
 
     expect:
@@ -29,6 +32,7 @@ class TestNGTest extends TestFrameworkTest {
     setup:
     def testNG = new TestNG()
     testNG.setTestClasses(TestInheritance)
+    testNG.setOutputDirectory(TEST_OUTPUT)
     testNG.run()
 
     expect:
@@ -44,6 +48,7 @@ class TestNGTest extends TestFrameworkTest {
     try {
       def testNG = new TestNG()
       testNG.setTestClasses(TestFailed)
+      testNG.setOutputDirectory(TEST_OUTPUT)
       testNG.run()
     } catch (Throwable ignored) {
       // Ignored
@@ -65,6 +70,7 @@ class TestNGTest extends TestFrameworkTest {
     try {
       def testNG = new TestNG()
       testNG.setTestClasses(TestFailedWithSuccessPercentage)
+      testNG.setOutputDirectory(TEST_OUTPUT)
       testNG.run()
     } catch (Throwable ignored) {
       // Ignored
@@ -97,6 +103,7 @@ class TestNGTest extends TestFrameworkTest {
     setup:
     def testNG = new TestNG()
     testNG.setTestClasses(TestError)
+    testNG.setOutputDirectory(TEST_OUTPUT)
     testNG.run()
 
     expect:
@@ -114,6 +121,7 @@ class TestNGTest extends TestFrameworkTest {
     setup:
     def testNG = new TestNG()
     testNG.setTestClasses(TestSkipped)
+    testNG.setOutputDirectory(TEST_OUTPUT)
     testNG.run()
 
     expect:
