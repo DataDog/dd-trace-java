@@ -58,7 +58,7 @@ public class JUnit5Instrumentation extends Instrumenter.Default {
       launcher.registerTestExecutionListeners(listener);
     }
 
-    // JUnit 5.3.2 and above
+    // JUnit 5.3.0 and above
     public static void muzzleCheck(final SameThreadHierarchicalTestExecutorService service) {
       service.invokeAll(null);
     }
