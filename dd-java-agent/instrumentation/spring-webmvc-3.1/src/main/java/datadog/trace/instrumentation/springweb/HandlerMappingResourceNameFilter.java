@@ -6,18 +6,22 @@ import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorat
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExecutionChain;
 import org.springframework.web.servlet.HandlerMapping;
+import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping;
 
+@Slf4j
 public class HandlerMappingResourceNameFilter extends OncePerRequestFilter implements Ordered {
-  private volatile List<HandlerMapping> handlerMappings;
+  private final List<HandlerMapping> handlerMappings = new CopyOnWriteArrayList<>();
 
   @Override
   protected void doFilterInternal(
@@ -28,7 +32,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
 
     final Object parentSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
 
-    if (handlerMappings != null && parentSpan instanceof AgentSpan) {
+    if (parentSpan instanceof AgentSpan && !handlerMappings.isEmpty()) {
       try {
         if (findMapping(request)) {
           // Name the parent span based on the matching pattern
@@ -59,7 +63,16 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
   }
 
   public void setHandlerMappings(final List<HandlerMapping> handlerMappings) {
-    this.handlerMappings = handlerMappings;
+    for (HandlerMapping handlerMapping : handlerMappings) {
+      if (handlerMapping instanceof RequestMappingInfoHandlerMapping
+          && !this.handlerMappings.contains(handlerMapping)) {
+        this.handlerMappings.add(handlerMapping);
+      } else {
+        log.debug(
+            "discarding handler mapping {} which won't set BEST_MATCHING_PATTERN_ATTRIBUTE",
+            handlerMapping);
+      }
+    }
   }
 
   @Override
