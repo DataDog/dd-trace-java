@@ -1,0 +1,17 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'org.testng'
+    module = 'testng'
+    versions = '[6.4,)'
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.testng', name: 'testng', version: '6.4'
+
+  testCompile(group: 'org.testng', name: 'testng', version: '6.4') {
+    force = true
+  }
+}
