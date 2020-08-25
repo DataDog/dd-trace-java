@@ -47,6 +47,7 @@ public class WebApplicationContextInstrumentation extends Instrumenter.Default {
     return new String[] {
       packageName + ".SpringWebHttpServerDecorator",
       packageName + ".SpringWebHttpServerDecorator$1",
+      packageName + ".ServletRequestURIAdapter",
       packageName + ".HandlerMappingResourceNameFilter",
       packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
     };

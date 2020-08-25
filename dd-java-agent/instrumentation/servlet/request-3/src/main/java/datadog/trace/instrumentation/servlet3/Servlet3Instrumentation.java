@@ -37,6 +37,7 @@ public final class Servlet3Instrumentation extends Instrumenter.Default {
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".Servlet3Decorator",
+      packageName + ".ServletRequestURIAdapter",
       packageName + ".HttpServletRequestExtractAdapter",
       packageName + ".TagSettingAsyncListener"
     };

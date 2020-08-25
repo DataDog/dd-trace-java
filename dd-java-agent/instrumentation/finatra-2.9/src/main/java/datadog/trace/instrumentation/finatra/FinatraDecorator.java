@@ -2,9 +2,10 @@ package datadog.trace.instrumentation.finatra;
 
 import com.twitter.finagle.http.Request;
 import com.twitter.finagle.http.Response;
+import datadog.trace.bootstrap.instrumentation.api.DefaultURIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.net.URI;
-import java.net.URISyntaxException;
 
 public class FinatraDecorator extends HttpServerDecorator<Request, Request, Response> {
   public static final FinatraDecorator DECORATE = new FinatraDecorator();
@@ -20,8 +21,8 @@ public class FinatraDecorator extends HttpServerDecorator<Request, Request, Resp
   }
 
   @Override
-  protected URI url(final Request request) throws URISyntaxException {
-    return URI.create(request.uri());
+  protected URIDataAdapter url(final Request request) {
+    return new DefaultURIDataAdapter(URI.create(request.uri()));
   }
 
   @Override

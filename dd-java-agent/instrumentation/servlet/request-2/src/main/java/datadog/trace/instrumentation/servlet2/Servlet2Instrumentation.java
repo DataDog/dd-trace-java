@@ -41,7 +41,9 @@ public final class Servlet2Instrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".Servlet2Decorator", packageName + ".HttpServletRequestExtractAdapter",
+      packageName + ".Servlet2Decorator",
+      packageName + ".ServletRequestURIAdapter",
+      packageName + ".HttpServletRequestExtractAdapter",
     };
   }
 

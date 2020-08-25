@@ -3,11 +3,10 @@ package datadog.trace.instrumentation.play24;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import lombok.extern.slf4j.Slf4j;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
@@ -33,8 +32,8 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   }
 
   @Override
-  protected URI url(final Request request) throws URISyntaxException {
-    return new URI((request.secure() ? "https://" : "http://") + request.host() + request.uri());
+  protected URIDataAdapter url(final Request request) {
+    return new RequestURIDataAdapter(request);
   }
 
   @Override

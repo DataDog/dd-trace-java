@@ -50,6 +50,7 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Default {
     return new String[] {
       packageName + ".GrizzlyDecorator",
       packageName + ".GrizzlyRequestExtractAdapter",
+      packageName + ".RequestURIDataAdapter",
       getClass().getName() + "$SpanClosingListener"
     };
   }

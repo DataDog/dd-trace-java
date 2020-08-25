@@ -27,7 +27,11 @@ public class DefaultFilterChainInstrumentation extends Instrumenter.Default {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".GrizzlyDecorator", packageName + ".ExtractAdapter"};
+    return new String[] {
+      packageName + ".GrizzlyDecorator",
+      packageName + ".HTTPRequestPacketURIDataAdapter",
+      packageName + ".ExtractAdapter"
+    };
   }
 
   @Override

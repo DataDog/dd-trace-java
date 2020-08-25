@@ -38,6 +38,7 @@ public final class PlayInstrumentation extends Instrumenter.Default {
       packageName + ".PlayHttpServerDecorator",
       packageName + ".RequestCompleteCallback",
       packageName + ".PlayHeaders",
+      packageName + ".RequestURIDataAdapter"
     };
   }
 

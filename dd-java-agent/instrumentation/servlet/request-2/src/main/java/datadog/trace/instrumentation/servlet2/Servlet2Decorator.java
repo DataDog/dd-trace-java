@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.servlet2;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
-import java.net.URI;
-import java.net.URISyntaxException;
 import javax.servlet.http.HttpServletRequest;
 
 public class Servlet2Decorator
@@ -26,15 +25,8 @@ public class Servlet2Decorator
   }
 
   @Override
-  protected URI url(final HttpServletRequest httpServletRequest) throws URISyntaxException {
-    return new URI(
-        httpServletRequest.getScheme(),
-        null,
-        httpServletRequest.getServerName(),
-        httpServletRequest.getServerPort(),
-        httpServletRequest.getRequestURI(),
-        httpServletRequest.getQueryString(),
-        null);
+  protected URIDataAdapter url(final HttpServletRequest httpServletRequest) {
+    return new ServletRequestURIAdapter(httpServletRequest);
   }
 
   @Override
