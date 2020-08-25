@@ -8,9 +8,8 @@ import static datadog.trace.bootstrap.instrumentation.api.DDSpanNames.GRIZZLY_RE
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
-import java.net.URI;
-import java.net.URISyntaxException;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
 import org.glassfish.grizzly.http.HttpHeader;
 import org.glassfish.grizzly.http.HttpRequestPacket;
@@ -27,14 +26,8 @@ public class GrizzlyDecorator
   }
 
   @Override
-  protected URI url(final HttpRequestPacket httpRequest) throws URISyntaxException {
-    return new URI(
-        (httpRequest.isSecure() ? "https://" : "http://")
-            + httpRequest.serverName()
-            + ":"
-            + httpRequest.getServerPort()
-            + httpRequest.getRequestURI()
-            + (httpRequest.getQueryString() != null ? "?" + httpRequest.getQueryString() : ""));
+  protected URIDataAdapter url(final HttpRequestPacket httpRequest) {
+    return new HTTPRequestPacketURIDataAdapter(httpRequest);
   }
 
   @Override

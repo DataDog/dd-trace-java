@@ -1,17 +1,14 @@
 package datadog.trace.instrumentation.ratpack;
 
-import com.google.common.net.HostAndPort;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
-import java.net.URI;
 import lombok.extern.slf4j.Slf4j;
 import ratpack.handling.Context;
-import ratpack.http.HttpUrlBuilder;
 import ratpack.http.Request;
 import ratpack.http.Response;
 import ratpack.http.Status;
-import ratpack.server.PublicAddress;
 
 @Slf4j
 public class RatpackServerDecorator extends HttpServerDecorator<Request, Request, Response> {
@@ -38,14 +35,8 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
   }
 
   @Override
-  protected URI url(final Request request) {
-    final HostAndPort address = request.getLocalAddress();
-    // This call implicitly uses request via a threadlocal provided by ratpack.
-    final PublicAddress publicAddress =
-        PublicAddress.inferred(address.getPort() == 443 ? "https" : "http");
-    final HttpUrlBuilder url =
-        publicAddress.builder().path(request.getPath()).params(request.getQueryParams());
-    return url.build();
+  protected URIDataAdapter url(final Request request) {
+    return new RequestURIAdapterAdapter(request);
   }
 
   @Override

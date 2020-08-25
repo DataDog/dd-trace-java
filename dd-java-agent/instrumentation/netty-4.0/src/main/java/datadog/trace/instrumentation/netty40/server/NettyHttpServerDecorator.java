@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.netty40.server;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.HOST;
 
+import datadog.trace.bootstrap.instrumentation.api.DefaultURIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.HttpRequest;
@@ -9,7 +11,6 @@ import io.netty.handler.codec.http.HttpResponse;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
-import java.net.URISyntaxException;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -33,12 +34,13 @@ public class NettyHttpServerDecorator
   }
 
   @Override
-  protected URI url(final HttpRequest request) throws URISyntaxException {
-    final URI uri = new URI(request.getUri());
+  protected URIDataAdapter url(final HttpRequest request) {
+    final URI uri = URI.create(request.getUri());
     if ((uri.getHost() == null || uri.getHost().equals("")) && request.headers().contains(HOST)) {
-      return new URI("http://" + request.headers().get(HOST) + request.getUri());
+      return new DefaultURIDataAdapter(
+          URI.create("http://" + request.headers().get(HOST) + request.getUri()));
     } else {
-      return uri;
+      return new DefaultURIDataAdapter(uri);
     }
   }
 

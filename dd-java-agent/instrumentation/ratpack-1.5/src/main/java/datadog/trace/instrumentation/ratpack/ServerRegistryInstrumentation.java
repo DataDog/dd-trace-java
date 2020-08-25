@@ -27,7 +27,9 @@ public class ServerRegistryInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RatpackServerDecorator", packageName + ".TracingHandler",
+      packageName + ".RatpackServerDecorator",
+      packageName + ".RequestURIAdapterAdapter",
+      packageName + ".TracingHandler",
     };
   }
 

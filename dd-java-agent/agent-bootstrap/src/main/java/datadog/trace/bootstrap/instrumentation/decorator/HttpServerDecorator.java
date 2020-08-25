@@ -5,8 +5,7 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import java.net.URI;
-import java.net.URISyntaxException;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,7 +21,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
 
   protected abstract String method(REQUEST request);
 
-  protected abstract URI url(REQUEST request) throws URISyntaxException;
+  protected abstract URIDataAdapter url(REQUEST request);
 
   protected abstract String peerHostIP(CONNECTION connection);
 
@@ -47,32 +46,38 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
 
       // Copy of HttpClientDecorator url handling
       try {
-        final URI url = url(request);
+        final URIDataAdapter url = url(request);
         if (url != null) {
           final StringBuilder urlNoParams = new StringBuilder();
-          if (url.getScheme() != null) {
-            urlNoParams.append(url.getScheme());
+          String scheme = url.scheme();
+          if (scheme != null) {
+            urlNoParams.append(scheme);
             urlNoParams.append("://");
           }
-          if (url.getHost() != null) {
-            urlNoParams.append(url.getHost());
-            if (url.getPort() > 0 && url.getPort() != 80 && url.getPort() != 443) {
+          String host = url.host();
+          if (host != null) {
+            urlNoParams.append(host);
+            int port = url.port();
+            if (port > 0 && port != 80 && port != 443) {
               urlNoParams.append(":");
-              urlNoParams.append(url.getPort());
+              urlNoParams.append(port);
             }
           }
-          final String path = url.getPath();
+          final String path = url.path();
           if (path.isEmpty()) {
             urlNoParams.append("/");
           } else {
+            if (!path.startsWith("/")) {
+              urlNoParams.append("/");
+            }
             urlNoParams.append(path);
           }
 
           span.setTag(Tags.HTTP_URL, urlNoParams.toString());
 
           if (Config.get().isHttpServerTagQueryString()) {
-            span.setTag(DDTags.HTTP_QUERY, url.getQuery());
-            span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
+            span.setTag(DDTags.HTTP_QUERY, url.query());
+            span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
           }
         }
       } catch (final Exception e) {

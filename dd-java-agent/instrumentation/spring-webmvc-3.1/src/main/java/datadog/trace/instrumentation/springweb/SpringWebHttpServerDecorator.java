@@ -5,11 +5,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
 import datadog.trace.bootstrap.instrumentation.api.Function;
 import datadog.trace.bootstrap.instrumentation.api.Pair;
+import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.reflect.Method;
-import java.net.URI;
-import java.net.URISyntaxException;
 import javax.servlet.Servlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -66,15 +65,8 @@ public class SpringWebHttpServerDecorator
   }
 
   @Override
-  protected URI url(final HttpServletRequest httpServletRequest) throws URISyntaxException {
-    return new URI(
-        httpServletRequest.getScheme(),
-        null,
-        httpServletRequest.getServerName(),
-        httpServletRequest.getServerPort(),
-        httpServletRequest.getRequestURI(),
-        httpServletRequest.getQueryString(),
-        null);
+  protected URIDataAdapter url(final HttpServletRequest httpServletRequest) {
+    return new ServletRequestURIAdapter(httpServletRequest);
   }
 
   @Override

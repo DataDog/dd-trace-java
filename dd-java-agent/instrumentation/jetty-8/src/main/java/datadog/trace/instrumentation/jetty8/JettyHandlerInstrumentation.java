@@ -44,6 +44,7 @@ public final class JettyHandlerInstrumentation extends Instrumenter.Default {
     return new String[] {
       packageName + ".JettyDecorator",
       packageName + ".HttpServletRequestExtractAdapter",
+      packageName + ".RequestURIDataAdapter",
       packageName + ".TagSettingAsyncListener"
     };
   }

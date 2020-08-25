@@ -43,6 +43,7 @@ public final class DispatcherServletInstrumentation extends Instrumenter.Default
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SpringWebHttpServerDecorator",
+      packageName + ".ServletRequestURIAdapter",
       packageName + ".SpringWebHttpServerDecorator$1",
       packageName + ".HandlerMappingResourceNameFilter",
     };
