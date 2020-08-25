@@ -10,7 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Function;
 import datadog.trace.bootstrap.instrumentation.api.Functions;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import datadog.trace.bootstrap.instrumentation.api.QualifiedClassNameCache;
+import datadog.trace.bootstrap.instrumentation.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 

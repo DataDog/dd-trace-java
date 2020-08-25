@@ -2,10 +2,11 @@ package datadog.trace.instrumentation.springweb;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
 import datadog.trace.bootstrap.instrumentation.api.Function;
 import datadog.trace.bootstrap.instrumentation.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.bootstrap.instrumentation.cache.DDCache;
+import datadog.trace.bootstrap.instrumentation.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -31,8 +32,8 @@ public class SpringWebHttpServerDecorator
           return UTF8BytesString.create(input.getLeft() + " " + input.getRight());
         }
       };
-  private static final FixedSizeCache<Pair<String, Object>, CharSequence> RESOURCE_NAME_CACHE =
-      new FixedSizeCache<>(64);
+  private static final DDCache<Pair<String, Object>, CharSequence> RESOURCE_NAME_CACHE =
+      DDCaches.newCache(64);
 
   private final String component;
 

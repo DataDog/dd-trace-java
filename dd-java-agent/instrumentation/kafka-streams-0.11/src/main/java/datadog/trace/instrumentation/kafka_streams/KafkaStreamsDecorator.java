@@ -3,18 +3,19 @@ package datadog.trace.instrumentation.kafka_streams;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
 import datadog.trace.bootstrap.instrumentation.api.Functions;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.cache.DDCache;
+import datadog.trace.bootstrap.instrumentation.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
 
 public class KafkaStreamsDecorator extends ClientDecorator {
   public static final KafkaStreamsDecorator CONSUMER_DECORATE = new KafkaStreamsDecorator();
 
-  private static final FixedSizeCache<CharSequence, CharSequence> RESOURCE_NAME_CACHE =
-      new FixedSizeCache<>(32);
+  private static final DDCache<CharSequence, CharSequence> RESOURCE_NAME_CACHE =
+      DDCaches.newCache(32);
   private static final Functions.Prefix PREFIX = new Functions.Prefix("Consume Topic ");
 
   @Override

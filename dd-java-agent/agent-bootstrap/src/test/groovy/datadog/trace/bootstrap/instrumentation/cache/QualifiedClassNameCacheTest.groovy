@@ -1,5 +1,7 @@
-package datadog.trace.bootstrap.instrumentation.api
+package datadog.trace.bootstrap.instrumentation.cache
 
+import datadog.trace.bootstrap.instrumentation.api.Function
+import datadog.trace.bootstrap.instrumentation.api.Functions
 import datadog.trace.util.test.DDSpecification
 
 class QualifiedClassNameCacheTest extends DDSpecification {
@@ -17,11 +19,11 @@ class QualifiedClassNameCacheTest extends DDSpecification {
     then:
     qualified == expected
     where:
-    type    |    prefix    |  func                          |   expected
-    String  |    "foo."    |  Functions.Suffix.ZERO         | "foo.String"
-    String  |    ".foo"    |  Functions.Prefix.ZERO         | "String.foo"
-    String  |    "foo"     |  Functions.SuffixJoin.of(".")  | "foo.String"
-    String  |    "foo"     |  Functions.PrefixJoin.of(".")  | "String.foo"
+    type    |    prefix    |  func                                                 |   expected
+    String  |    "foo."    |  Functions.Suffix.ZERO                                | "foo.String"
+    String  |    ".foo"    |  Functions.Prefix.ZERO                                | "String.foo"
+    String  |    "foo"     |  Functions.SuffixJoin.of(".")                         | "foo.String"
+    String  |    "foo"     |  Functions.PrefixJoin.of(".")                         | "String.foo"
     String  |    "foo"     |  Functions.SuffixJoin.of(".", new Replace("oo", ""))  | "f.String"
     String  |    "foo"     |  Functions.PrefixJoin.of(".", new Replace("oo", ""))  | "String.f"
   }

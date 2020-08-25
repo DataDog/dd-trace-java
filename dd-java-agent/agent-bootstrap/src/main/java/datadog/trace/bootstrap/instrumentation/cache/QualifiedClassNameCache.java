@@ -1,6 +1,9 @@
-package datadog.trace.bootstrap.instrumentation.api;
+package datadog.trace.bootstrap.instrumentation.cache;
 
-public class QualifiedClassNameCache {
+import datadog.trace.bootstrap.instrumentation.api.Function;
+import datadog.trace.bootstrap.instrumentation.api.TwoArgFunction;
+
+public final class QualifiedClassNameCache {
 
   private final Root root;
 
@@ -42,7 +45,7 @@ public class QualifiedClassNameCache {
 
     private final CharSequence name;
 
-    private final FixedSizeCache<CharSequence, CharSequence> cache;
+    private final DDCache<CharSequence, CharSequence> cache;
     private final Function<CharSequence, CharSequence> joiner;
 
     private Leaf(
@@ -50,7 +53,7 @@ public class QualifiedClassNameCache {
         TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner,
         int leafSize) {
       this.name = name;
-      this.cache = new FixedSizeCache<>(leafSize);
+      this.cache = DDCaches.newUnboundedCache(leafSize);
       this.joiner = joiner.curry(name);
     }
 
