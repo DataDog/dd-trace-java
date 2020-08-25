@@ -55,6 +55,9 @@ public abstract class TestDecorator extends BaseDecorator {
   @Getter private String gitTag;
 
   public TestDecorator() {
+    // CI and Git information is obtained
+    // from different environment variables
+    // depending on which CI server is running the build.
     if (System.getenv(JENKINS) != null) {
       setJenkinsData();
     } else if (System.getenv(GITLAB) != null) {
@@ -79,6 +82,8 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setTag(Tags.SPAN_KIND, spanKind());
     span.setTag(DDTags.SPAN_TYPE, spanType());
     span.setTag(DDTags.TEST_FRAMEWORK, testFramework());
+
+    // All test spans need to be sent to the backend.
     span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
 
     span.setTag(DDTags.CI_PROVIDER_NAME, ciProviderName);
