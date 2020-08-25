@@ -23,7 +23,7 @@ public class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Me
         }
       };
 
-  private final DDCache<String, String> cache = DDCaches.newCache(32);
+  private final DDCache<String, String> cache = DDCaches.newFixedSizeCache(32);
 
   public static final MessageExtractAdapter GETTER = new MessageExtractAdapter();
 

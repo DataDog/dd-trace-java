@@ -27,10 +27,10 @@ public class KafkaDecorator extends ClientDecorator {
   private final String spanType;
 
   private static final DDCache<CharSequence, CharSequence> PRODUCER_RESOURCE_NAME_CACHE =
-      DDCaches.newCache(32);
+      DDCaches.newFixedSizeCache(32);
   private static final Functions.Prefix PRODUCER_PREFIX = new Functions.Prefix("Produce Topic ");
   private static final DDCache<CharSequence, CharSequence> CONSUMER_RESOURCE_NAME_CACHE =
-      DDCaches.newCache(32);
+      DDCaches.newFixedSizeCache(32);
   private static final Functions.Prefix CONSUMER_PREFIX = new Functions.Prefix("Consume Topic ");
 
   public static final KafkaDecorator PRODUCER_DECORATE =

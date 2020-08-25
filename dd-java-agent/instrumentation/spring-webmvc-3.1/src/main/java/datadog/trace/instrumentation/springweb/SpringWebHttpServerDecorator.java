@@ -33,7 +33,7 @@ public class SpringWebHttpServerDecorator
         }
       };
   private static final DDCache<Pair<String, Object>, CharSequence> RESOURCE_NAME_CACHE =
-      DDCaches.newCache(64);
+      DDCaches.newFixedSizeCache(64);
 
   private final String component;
 

@@ -15,7 +15,7 @@ public class KafkaStreamsDecorator extends ClientDecorator {
   public static final KafkaStreamsDecorator CONSUMER_DECORATE = new KafkaStreamsDecorator();
 
   private static final DDCache<CharSequence, CharSequence> RESOURCE_NAME_CACHE =
-      DDCaches.newCache(32);
+      DDCaches.newFixedSizeCache(32);
   private static final Functions.Prefix PREFIX = new Functions.Prefix("Consume Topic ");
 
   @Override

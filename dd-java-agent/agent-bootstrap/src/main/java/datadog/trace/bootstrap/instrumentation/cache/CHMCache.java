@@ -7,8 +7,8 @@ final class CHMCache<K, V> implements DDCache<K, V> {
 
   private final ConcurrentHashMap<K, V> chm;
 
-  public CHMCache(final int capacity) {
-    this.chm = new ConcurrentHashMap<>(capacity);
+  public CHMCache(final int initialCapacity) {
+    this.chm = new ConcurrentHashMap<>(initialCapacity);
   }
 
   @Override

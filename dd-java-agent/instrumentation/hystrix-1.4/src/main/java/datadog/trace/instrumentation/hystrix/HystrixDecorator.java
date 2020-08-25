@@ -28,7 +28,7 @@ public class HystrixDecorator extends BaseDecorator {
   }
 
   private static final DDCache<ResourceNameCacheKey, String> RESOURCE_NAME_CACHE =
-      DDCaches.newCache(64);
+      DDCaches.newFixedSizeCache(64);
 
   private static final Functions.ToString<ResourceNameCacheKey> TO_STRING =
       new Functions.ToString<>();

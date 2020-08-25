@@ -16,7 +16,7 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   // The total number of entries in the cache will normally be less than 4, since
   // most applications only have one or two DBs, and "jdbc" itself is also used as
   // one DB_TYPE, but set the cache size to 16 to help avoid collisions.
-  private static final DDCache<CharSequence, CharSequence> CACHE = DDCaches.newCache(16);
+  private static final DDCache<CharSequence, CharSequence> CACHE = DDCaches.newFixedSizeCache(16);
   private static final Function<CharSequence, CharSequence> APPEND_OPERATION =
       new Functions.Suffix(".query");
 
