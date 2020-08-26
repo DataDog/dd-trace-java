@@ -23,6 +23,7 @@ import static context.ContextTestInstrumentation.IncorrectContextClassUsageKeyCl
 import static context.ContextTestInstrumentation.IncorrectKeyClassUsageKeyClass
 import static context.ContextTestInstrumentation.KeyClass
 import static context.ContextTestInstrumentation.UntransformableKeyClass
+import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 
 class FieldBackedProviderTest extends AgentTestRunner {
 
@@ -190,7 +191,7 @@ class FieldBackedProviderTest extends AgentTestRunner {
  * Unfortunately we cannot set system properties here early enough for AgentTestRunner to see.
  * Instead we have to configure this via Gradle. Ideally we should not have to do this.
  */
-@Requires({ "true" == System.getProperty(Config.PREFIX + Config.RUNTIME_CONTEXT_FIELD_INJECTION) })
+@Requires({ "true" == System.getProperty(PREFIX + Config.RUNTIME_CONTEXT_FIELD_INJECTION) })
 class FieldBackedProviderFieldInjectionDisabledTest extends AgentTestRunner {
   def "Check that structure is not modified when structure modification is disabled"() {
     setup:

@@ -1,7 +1,8 @@
 package datadog.trace.api
 
-
 import datadog.trace.api.env.FixedCapturedEnvironment
+import datadog.trace.bootstrap.config.provider.ConfigConverter
+import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.util.test.DDSpecification
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
@@ -29,7 +30,6 @@ import static datadog.trace.api.Config.JMX_FETCH_STATSD_HOST
 import static datadog.trace.api.Config.JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.Config.JMX_TAGS
 import static datadog.trace.api.Config.PARTIAL_FLUSH_MIN_SPANS
-import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.api.Config.PRIORITY_SAMPLING
 import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_OLD
 import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_VERY_OLD
@@ -83,6 +83,7 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 
 class ConfigTest extends DDSpecification {
   @Rule
@@ -542,7 +543,7 @@ class ConfigTest extends DDSpecification {
     false        | false              | false              | false                    | 8126
     true         | true               | true               | false                    | 123
     true         | false              | true               | false                    | 123
-    false        | true               | true               | false                    | 777 // env var gets picked up instead.
+    false        | true               | true               | false                    | 456 // legacy port gets picked up instead.
     false        | false              | true               | false                    | 777 // env var gets picked up instead.
     true         | true               | false              | true                     | 123
     true         | false              | false              | true                     | 123
@@ -550,7 +551,7 @@ class ConfigTest extends DDSpecification {
     false        | false              | false              | true                     | 888 // legacy env var gets picked up instead.
     true         | true               | true               | true                     | 123
     true         | false              | true               | true                     | 123
-    false        | true               | true               | true                     | 777 // env var gets picked up instead.
+    false        | true               | true               | true                     | 456 // legacy port gets picked up instead.
     false        | false              | true               | true                     | 777 // env var gets picked up instead.
   }
 
@@ -823,7 +824,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty("dd.negative.test", "-1")
 
     expect:
-    Config.getFloatSettingFromEnvironment(name, defaultValue) == (float) expected
+    Config.get().configProvider.getFloat(name, defaultValue) == (float) expected
 
     where:
     name              | expected
@@ -852,7 +853,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty("dd.negative.test", "-1")
 
     expect:
-    Config.getDoubleSettingFromEnvironment(name, defaultValue) == (double) expected
+    Config.get().configProvider.getDouble(name, defaultValue) == (double) expected
 
     where:
     name              | expected
@@ -1594,7 +1595,7 @@ class ConfigTest extends DDSpecification {
       properties.setProperty(TRACE_AGENT_PORT, propertyPort)
     }
 
-    def childConfig = new Config(properties, config)
+    def childConfig = new Config(Config.get().runtimeId, ConfigProvider.withPropertiesOverride(properties))
 
     then:
     childConfig.isAgentConfiguredUsingDefault() == childConfiguredUsingDefault
@@ -1615,66 +1616,66 @@ class ConfigTest extends DDSpecification {
   }
 
   // Static methods test:
-  def "getProperty*Value unit test"() {
+  def "configProvider.get* unit test"() {
     setup:
     def p = new Properties()
-    p.setProperty("a", "42.42")
-    p.setProperty("intProp", "13")
+    p.setProperty("i", "13")
+    p.setProperty("f", "42.42")
+    def configProvider = ConfigProvider.withPropertiesOverride(p)
 
     expect:
-    Config.getPropertyDoubleValue(p, "intProp", 40) == 13
-    Config.getPropertyDoubleValue(p, "a", 41) == 42.42
-    Config.getPropertyIntegerValue(p, "b", 61) == 61
-    Config.getPropertyIntegerValue(p, "intProp", 61) == 13
-    Config.getPropertyBooleanValue(p, "a", true) == false
+    configProvider.getDouble("i", 40) == 13
+    configProvider.getDouble("f", 41) == 42.42
+    configProvider.getFloat("i", 40) == 13
+    configProvider.getFloat("f", 41) == 42.42f
+    configProvider.getInteger("b", 61) == 61
+    configProvider.getInteger("i", 61) == 13
+    configProvider.getBoolean("a", true) == true
   }
 
   def "valueOf positive test"() {
     expect:
-    Config.valueOf(value, tClass, defaultValue) == expected
+    ConfigConverter.valueOf(value, tClass) == expected
 
     where:
-    value       | tClass  | defaultValue | expected
-    "42.42"     | Boolean | true         | false
-    "42.42"     | Boolean | null         | false
-    "true"      | Boolean | null         | true
-    "trUe"      | Boolean | null         | true
-    "trUe"      | Boolean | false        | true
-    "tru"       | Boolean | true         | false
-    "truee"     | Boolean | true         | false
-    "true "     | Boolean | true         | false
-    " true"     | Boolean | true         | false
-    " true "    | Boolean | true         | false
-    "   true  " | Boolean | true         | false
-    null        | Float   | 43.3         | 43.3
-    "42.42"     | Float   | 21.21        | 42.42f
-    null        | Double  | 43.3         | 43.3
-    "42.42"     | Double  | 21.21        | 42.42
-    null        | Integer | 13           | 13
-    "44"        | Integer | 21           | 44
-    "45"        | Long    | 21           | 45
-    "46"        | Short   | 21           | 46
+    value       | tClass  | expected
+    "42.42"     | Boolean | false
+    "42.42"     | Boolean | false
+    "true"      | Boolean | true
+    "trUe"      | Boolean | true
+    "trUe"      | Boolean | true
+    "tru"       | Boolean | false
+    "truee"     | Boolean | false
+    "true "     | Boolean | false
+    " true"     | Boolean | false
+    " true "    | Boolean | false
+    "   true  " | Boolean | false
+    "42.42"     | Float   | 42.42f
+    "42.42"     | Double  | 42.42
+    "44"        | Integer | 44
+    "45"        | Long    | 45
+    "46"        | Short   | 46
   }
 
   def "valueOf negative test when tClass is null"() {
     when:
-    Config.valueOf(value, tClass, defaultValue)
+    ConfigConverter.valueOf(value, null)
 
     then:
     def exception = thrown(NullPointerException)
     exception.message == "tClass is marked non-null but is null"
 
     where:
-    value    | tClass | defaultValue
-    null     | null   | "42"
-    ""       | null   | "43"
-    "      " | null   | "44"
-    "1"      | null   | "45"
+    value    | defaultValue
+    null     | "42"
+    ""       | "43"
+    "      " | "44"
+    "1"      | "45"
   }
 
   def "valueOf negative test"() {
     when:
-    Config.valueOf(value, tClass, null)
+    ConfigConverter.valueOf(value, tClass)
 
     then:
     def exception = thrown(NumberFormatException)

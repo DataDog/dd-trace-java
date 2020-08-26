@@ -20,7 +20,6 @@ import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Timeout
 
 import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
-import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
@@ -28,6 +27,7 @@ import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
+import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 
 @Timeout(10)
 class CoreTracerTest extends DDSpecification {

@@ -9,8 +9,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import java.util.concurrent.atomic.AtomicReference
 
-import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.api.config.GeneralConfig.TAGS
+import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
 
