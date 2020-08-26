@@ -2,6 +2,7 @@ package com.datadog.mlt.sampler;
 
 import com.datadog.mlt.io.IMLTChunk;
 import datadog.trace.mlt.Session;
+import java.util.concurrent.ScheduledFuture;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 
@@ -9,22 +10,29 @@ import lombok.extern.slf4j.Slf4j;
 public class JMXSession implements Session {
   private final String id;
   private final long threadId;
+  private final ScheduledFuture<?> future;
   private final Consumer<JMXSession> cleanup;
   private final ScopeStackCollector scopeStackCollector;
 
   public JMXSession(
       String id,
       long threadId,
+      ScheduledFuture<?> future,
       ScopeStackCollector scopeStackCollector,
       Consumer<JMXSession> cleanup) {
     this.id = id;
     this.threadId = threadId;
+    this.future = future;
     this.scopeStackCollector = scopeStackCollector;
     this.cleanup = cleanup;
   }
 
   @Override
   public byte[] close() {
+    boolean cancelled = future.cancel(true);
+    if (cancelled) {
+      // likely no data...
+    }
     byte[] data = scopeStackCollector.end(IMLTChunk::serialize);
     cleanup.accept(this);
     return data;

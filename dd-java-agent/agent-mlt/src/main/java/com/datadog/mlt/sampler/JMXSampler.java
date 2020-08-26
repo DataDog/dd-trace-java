@@ -4,6 +4,7 @@ import java.lang.management.ThreadInfo;
 import java.util.Arrays;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,7 @@ class JMXSampler {
             return t;
           });
   private final AtomicReference<long[]> threadIds = new AtomicReference<>();
+  private final long samplerDelay;
   private boolean providerFirstAccess = true;
   private long exceptionCountBeforeLog;
   private long exceptionCount;
@@ -28,6 +30,7 @@ class JMXSampler {
     this.threadScopeMapper = threadScopeMapper;
     // TODO period as parameter
     long samplerPeriod = Long.getLong("mlt.sampler.ms", 10);
+    samplerDelay = Long.getLong("mlt.sampler.delay.ms", 25);
     // rate limiting exception logging to 1 per minute
     exceptionCountBeforeLog = samplerPeriod != 0 ? 60 * 1000 / samplerPeriod : 60 * 1000;
     executor.scheduleAtFixedRate(this::sample, 0, samplerPeriod, TimeUnit.MILLISECONDS);
@@ -122,5 +125,9 @@ class JMXSampler {
       }
       exceptionCount++;
     }
+  }
+
+  public ScheduledFuture<?> delayedAddThreadId(long threadId) {
+    return executor.schedule(() -> addThreadId(threadId), samplerDelay, TimeUnit.MILLISECONDS);
   }
 }
