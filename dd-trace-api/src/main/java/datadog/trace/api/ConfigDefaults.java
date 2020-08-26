@@ -23,7 +23,7 @@ public final class ConfigDefaults {
 
   static final String DEFAULT_SITE = "datadoghq.com";
 
-  static final boolean DEFAULT_TRACE_ENABLED = true;
+  public static final boolean DEFAULT_TRACE_ENABLED = true;
   static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
   static final String DEFAULT_AGENT_WRITER_TYPE = "DDAgentWriter";
 
@@ -50,8 +50,8 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_LOGS_INJECTION_ENABLED = false;
 
-  static final boolean DEFAULT_PROFILING_ENABLED = false;
-  static final int DEFAULT_PROFILING_START_DELAY = 10;
+  public static final boolean DEFAULT_PROFILING_ENABLED = false;
+  public static final int DEFAULT_PROFILING_START_DELAY = 10;
   static final boolean DEFAULT_PROFILING_START_FORCE_FIRST = false;
   static final int DEFAULT_PROFILING_UPLOAD_PERIOD = 60; // 1 min
   static final int DEFAULT_PROFILING_UPLOAD_TIMEOUT = 30; // seconds

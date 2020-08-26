@@ -1306,7 +1306,7 @@ public class Config {
   }
 
   @NonNull
-  private static Map<String, String> parseMap(final String str, final String settingName) {
+  public static Map<String, String> parseMap(final String str, final String settingName) {
     // If we ever want to have default values besides an empty map, this will need to change.
     if (str == null || str.trim().isEmpty()) {
       return Collections.emptyMap();
@@ -1462,7 +1462,7 @@ public class Config {
    * @return The {@link Properties} object. the returned instance might be empty of file does not
    *     exist or if it is in a wrong format.
    */
-  private static Properties loadConfigurationFile() {
+  public static Properties loadConfigurationFile() {
     final Properties properties = new Properties();
 
     // Reading from system property first and from env after

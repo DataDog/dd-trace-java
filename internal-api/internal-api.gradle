@@ -23,5 +23,8 @@ dependencies {
   // references TraceScope and Continuation from public api
   compile project(':dd-trace-api')
 
+  annotationProcessor 'com.google.dagger:dagger-compiler:2.28.1'
+  implementation 'com.google.dagger:dagger:2.28.1'
+
   testCompile project(":utils:test-utils")
 }
