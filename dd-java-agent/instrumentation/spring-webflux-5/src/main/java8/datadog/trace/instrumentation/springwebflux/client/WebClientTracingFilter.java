@@ -22,6 +22,15 @@ public class WebClientTracingFilter implements ExchangeFilterFunction {
   private static final WebClientTracingFilter INSTANCE = new WebClientTracingFilter();
 
   public static void addFilter(final List<ExchangeFilterFunction> exchangeFilterFunctions) {
+    // Since the builder where we instrument the build function can be reused, we need
+    // to only add the filter once
+    int index = exchangeFilterFunctions.indexOf(INSTANCE);
+    if (index == 0) {
+      return;
+    }
+    if (index > 0) {
+      exchangeFilterFunctions.remove(index);
+    }
     exchangeFilterFunctions.add(0, INSTANCE);
   }
 
