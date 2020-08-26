@@ -30,7 +30,7 @@ public class HttpUrlConnectionDecorator extends HttpClientDecorator<HttpURLConne
   }
 
   @Override
-  protected Integer status(final Integer status) {
+  protected int status(final Integer status) {
     return status;
   }
 }

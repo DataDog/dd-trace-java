@@ -91,7 +91,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   @Override
-  protected Integer status(final SdkHttpResponse response) {
+  protected int status(final SdkHttpResponse response) {
     return response.statusCode();
   }
 }

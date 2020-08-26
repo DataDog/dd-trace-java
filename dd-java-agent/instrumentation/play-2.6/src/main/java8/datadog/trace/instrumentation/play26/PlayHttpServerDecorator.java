@@ -65,12 +65,12 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   }
 
   @Override
-  protected Integer peerPort(final Request request) {
-    return null;
+  protected int peerPort(final Request request) {
+    return 0;
   }
 
   @Override
-  protected Integer status(final Result httpResponse) {
+  protected int status(final Result httpResponse) {
     return httpResponse.header().status();
   }
 

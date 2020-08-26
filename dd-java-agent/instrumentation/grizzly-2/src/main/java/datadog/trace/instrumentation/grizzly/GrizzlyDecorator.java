@@ -24,12 +24,12 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
   }
 
   @Override
-  protected Integer peerPort(final Request request) {
+  protected int peerPort(final Request request) {
     return request.getRemotePort();
   }
 
   @Override
-  protected Integer status(final Response containerResponse) {
+  protected int status(final Response containerResponse) {
     return containerResponse.getStatus();
   }
 

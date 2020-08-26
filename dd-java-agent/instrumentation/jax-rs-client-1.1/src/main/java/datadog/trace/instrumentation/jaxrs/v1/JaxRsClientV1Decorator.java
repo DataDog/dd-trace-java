@@ -29,7 +29,7 @@ public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, C
   }
 
   @Override
-  protected Integer status(final ClientResponse clientResponse) {
+  protected int status(final ClientResponse clientResponse) {
     return clientResponse.getStatus();
   }
 }

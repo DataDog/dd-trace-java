@@ -36,12 +36,12 @@ public class GrizzlyDecorator
   }
 
   @Override
-  protected Integer peerPort(final HttpRequestPacket httpRequest) {
+  protected int peerPort(final HttpRequestPacket httpRequest) {
     return httpRequest.getRemotePort();
   }
 
   @Override
-  protected Integer status(final HttpResponsePacket httpResponse) {
+  protected int status(final HttpResponsePacket httpResponse) {
     return httpResponse.getStatus();
   }
 

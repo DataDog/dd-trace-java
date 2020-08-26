@@ -54,16 +54,16 @@ public class NettyHttpServerDecorator
   }
 
   @Override
-  protected Integer peerPort(final Channel channel) {
+  protected int peerPort(final Channel channel) {
     final SocketAddress socketAddress = channel.getRemoteAddress();
     if (socketAddress instanceof InetSocketAddress) {
       return ((InetSocketAddress) socketAddress).getPort();
     }
-    return null;
+    return 0;
   }
 
   @Override
-  protected Integer status(final HttpResponse httpResponse) {
+  protected int status(final HttpResponse httpResponse) {
     return httpResponse.getStatus().getCode();
   }
 }

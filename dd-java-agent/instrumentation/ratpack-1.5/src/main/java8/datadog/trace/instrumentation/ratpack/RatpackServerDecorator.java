@@ -45,17 +45,17 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
   }
 
   @Override
-  protected Integer peerPort(final Request request) {
+  protected int peerPort(final Request request) {
     return request.getRemoteAddress().getPort();
   }
 
   @Override
-  protected Integer status(final Response response) {
+  protected int status(final Response response) {
     final Status status = response.getStatus();
     if (status != null) {
       return status.getCode();
     } else {
-      return null;
+      return 0;
     }
   }
 
