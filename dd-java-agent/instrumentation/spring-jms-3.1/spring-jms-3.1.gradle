@@ -1,0 +1,35 @@
+muzzle {
+  pass {
+    group = 'org.springframework'
+    module = 'spring-jms'
+    versions = "[3.1.0.RELEASE,]"
+    extraDependency 'javax.jms:jms-api:1.1-rev-1'
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compile project(':dd-java-agent:instrumentation:jms')
+
+  compileOnly group: 'javax.jms', name: 'jms-api', version: '1.1-rev-1'
+  compileOnly group: 'org.springframework', name: 'spring-jms', version: '3.1.0.RELEASE'
+
+  testCompile group: 'javax.jms', name: 'jms-api', version: '1.1-rev-1'
+  testCompile group: 'org.springframework', name: 'spring-jms', version: '4.3.21.RELEASE' // test written for 4.x+
+
+  testCompile group: 'org.apache.activemq.tooling', name: 'activemq-junit', version: '5.14.5'
+  testCompile group: 'org.apache.activemq', name: 'activemq-pool', version: '5.14.5'
+  testCompile group: 'org.apache.activemq', name: 'activemq-broker', version: '5.14.5'
+
+  latestDepTestCompile group: 'org.springframework', name: 'spring-jms', version: '+'
+  latestDepTestCompile group: 'org.springframework', name: 'spring-context', version: '+'
+}
