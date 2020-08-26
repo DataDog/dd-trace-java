@@ -53,6 +53,8 @@ public final class QualifiedClassNameCache {
         TwoArgFunction<CharSequence, CharSequence, CharSequence> joiner,
         int leafSize) {
       this.name = name;
+      // the class provides a natural bound on the number of elements
+      // (e.g. the number of methods)
       this.cache = DDCaches.newUnboundedCache(leafSize);
       this.joiner = joiner.curry(name);
     }

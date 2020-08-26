@@ -45,7 +45,6 @@ class FixedSizeCacheTest extends DDSpecification {
     def tk1 = new TKey(1, 1, "one")
     def tk6 = new TKey(6, 6, "six")
     def tk10 = new TKey(10, 10, "ten")
-    // insert some values that happen to be the chain of hashes 1 -> 6 -> 10
     fsCache.computeIfAbsent(tk1, tvc)
     fsCache.computeIfAbsent(tk6, tvc)
     fsCache.computeIfAbsent(tk10, tvc)
