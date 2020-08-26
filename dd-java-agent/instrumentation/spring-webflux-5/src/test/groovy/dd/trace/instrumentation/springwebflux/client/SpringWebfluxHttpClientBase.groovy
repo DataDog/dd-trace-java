@@ -8,19 +8,25 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator
 import org.springframework.http.HttpMethod
+import org.springframework.web.reactive.function.client.ClientRequest
 import org.springframework.web.reactive.function.client.ClientResponse
+import org.springframework.web.reactive.function.client.ExchangeFilterFunction
+import org.springframework.web.reactive.function.client.ExchangeFunction
 import org.springframework.web.reactive.function.client.WebClient
-import spock.lang.Timeout
+import reactor.core.publisher.Mono
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
-@Timeout(5)
-class SpringWebfluxHttpClientTest extends HttpClientTest {
+abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
+
+  abstract WebClient createClient(String component)
+  abstract void check()
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
     def hasParent = activeSpan() != null
-    ClientResponse response = WebClient.builder().build().method(HttpMethod.resolve(method))
+    def client = createClient(component())
+    ClientResponse response = client.method(HttpMethod.resolve(method))
       .uri(uri)
       .headers { h -> headers.forEach({ key, value -> h.add(key, value) }) }
       .exchange()
@@ -32,6 +38,9 @@ class SpringWebfluxHttpClientTest extends HttpClientTest {
     if (hasParent) {
       blockUntilChildSpansFinished(callback ? 3 : 2)
     }
+
+    check()
+
     response.statusCode().value()
   }
 
@@ -96,5 +105,18 @@ class SpringWebfluxHttpClientTest extends HttpClientTest {
   boolean testRemoteConnection() {
     // FIXME: figure out how to configure timeouts.
     false
+  }
+
+  static class CollectingFilter implements ExchangeFilterFunction {
+    volatile String collected = ""
+    volatile int count = 0
+
+    @Override
+    Mono<ClientResponse> filter(ClientRequest request, ExchangeFunction next) {
+      def span = activeSpan()
+      collected += span == null ? "null:" : String.valueOf(span.getTag(Tags.COMPONENT)) + ":"
+      count += 1
+      return next.exchange(request)
+    }
   }
 }
