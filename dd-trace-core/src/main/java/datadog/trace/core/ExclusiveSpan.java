@@ -62,6 +62,10 @@ public final class ExclusiveSpan {
     context.setSpanType(type);
   }
 
+  public StackTraceElement[] getContextStack() {
+    return context.getContextStack();
+  }
+
   /** @return if sampling priority was set by this method invocation */
   public boolean setSamplingPriority(final int newPriority) {
     return context.setSamplingPriority(newPriority);

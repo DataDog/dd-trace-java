@@ -698,6 +698,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final String origin;
       final Map<String, String> coreTags;
       final Map<String, String> rootSpanTags;
+      final Throwable contextStack;
 
       final DDSpanContext context;
 
@@ -725,6 +726,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         origin = null;
         coreTags = null;
         rootSpanTags = null;
+        contextStack = null;
         if (serviceName == null) {
           serviceName = ddsc.getServiceName();
         }
@@ -755,6 +757,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
 
         rootSpanTags = localRootSpanTags;
+        contextStack = new Throwable(); // Capture context stack only for local root spans.
 
         parentTrace = PendingTrace.create(CoreTracer.this, traceId);
       }
@@ -784,6 +787,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               baggage,
               errorFlag,
               spanType,
+              contextStack,
               tagsSize,
               parentTrace,
               CoreTracer.this,

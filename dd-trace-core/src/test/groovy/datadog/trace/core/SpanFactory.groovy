@@ -23,6 +23,7 @@ class SpanFactory {
       Collections.emptyMap(),
       false,
       "fakeType",
+      null,
       0,
       PendingTrace.create(tracer, DDId.ONE),
       tracer, [:])
@@ -43,6 +44,7 @@ class SpanFactory {
       Collections.emptyMap(),
       false,
       "fakeType",
+      null,
       0,
       PendingTrace.create(tracer, DDId.ONE),
       tracer, [:])
@@ -62,6 +64,7 @@ class SpanFactory {
       Collections.emptyMap(),
       false,
       "fakeType",
+      null,
       0,
       trace,
       trace.tracer, [:])
@@ -83,6 +86,7 @@ class SpanFactory {
       Collections.emptyMap(),
       false,
       "fakeType",
+      null,
       0,
       PendingTrace.create(tracer, DDId.ONE),
       tracer,

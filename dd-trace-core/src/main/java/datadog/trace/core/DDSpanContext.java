@@ -57,6 +57,8 @@ public class DDSpanContext implements AgentSpan.Context {
    */
   private final Map<String, Object> unsafeTags;
 
+  private final Throwable contextStack;
+
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
   /** The resource associated to the service (server_web, database, etc.) */
@@ -95,6 +97,7 @@ public class DDSpanContext implements AgentSpan.Context {
       final Map<String, String> baggageItems,
       final boolean errorFlag,
       final String spanType,
+      Throwable contextStack,
       final int tagsSize,
       final PendingTrace trace,
       final CoreTracer tracer,
@@ -130,6 +133,7 @@ public class DDSpanContext implements AgentSpan.Context {
     this.errorFlag = errorFlag;
     this.spanType = spanType;
     this.origin = origin;
+    this.contextStack = contextStack;
 
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority);
@@ -421,6 +425,16 @@ public class DDSpanContext implements AgentSpan.Context {
     synchronized (unsafeTags) {
       consumer.accept(exclusiveSpan);
     }
+  }
+
+  /**
+   * This is a moderately expensive call and should not be used on the critical path.
+   *
+   * @return
+   */
+  // package private visible to only expose for use by ExclusiveSpan during span processing
+  StackTraceElement[] getContextStack() {
+    return contextStack == null ? null : contextStack.getStackTrace();
   }
 
   @Override

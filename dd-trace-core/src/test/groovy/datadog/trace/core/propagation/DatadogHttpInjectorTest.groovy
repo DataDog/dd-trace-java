@@ -1,9 +1,9 @@
 package datadog.trace.core.propagation
 
+import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
-import datadog.trace.api.DDId
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.util.test.DDSpecification
@@ -41,6 +41,7 @@ class DatadogHttpInjectorTest extends DDSpecification {
         },
         false,
         "fakeType",
+        null,
         0,
         new PendingTrace(tracer, DDId.ONE),
         tracer,

@@ -1,3 +1,4 @@
+import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -6,7 +7,6 @@ import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
-import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
@@ -41,6 +41,7 @@ class DDApiIntegrationTest extends DDSpecification {
     [:],
     false,
     "fakeType",
+    null,
     0,
     new PendingTrace(TRACER, DDId.ONE),
     TRACER,

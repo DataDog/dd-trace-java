@@ -160,6 +160,7 @@ class PayloadDispatcherTest extends DDSpecification {
       [:],
       false,
       "",
+      null,
       0,
       Mock(PendingTrace),
       Mock(CoreTracer),
