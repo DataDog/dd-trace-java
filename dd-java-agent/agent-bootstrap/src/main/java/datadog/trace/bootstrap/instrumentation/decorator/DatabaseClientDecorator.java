@@ -5,17 +5,18 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
 import datadog.trace.bootstrap.instrumentation.api.Function;
 import datadog.trace.bootstrap.instrumentation.api.Functions;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.cache.DDCache;
+import datadog.trace.bootstrap.instrumentation.cache.DDCaches;
 
 public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorator {
 
   // The total number of entries in the cache will normally be less than 4, since
   // most applications only have one or two DBs, and "jdbc" itself is also used as
   // one DB_TYPE, but set the cache size to 16 to help avoid collisions.
-  private static final FixedSizeCache<CharSequence, CharSequence> CACHE = new FixedSizeCache<>(16);
+  private static final DDCache<CharSequence, CharSequence> CACHE = DDCaches.newFixedSizeCache(16);
   private static final Function<CharSequence, CharSequence> APPEND_OPERATION =
       new Functions.Suffix(".query");
 

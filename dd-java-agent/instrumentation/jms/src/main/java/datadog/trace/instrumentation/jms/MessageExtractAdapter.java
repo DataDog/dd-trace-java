@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.jms;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
 import datadog.trace.bootstrap.instrumentation.api.Function;
+import datadog.trace.bootstrap.instrumentation.cache.DDCache;
+import datadog.trace.bootstrap.instrumentation.cache.DDCaches;
 import java.util.Enumeration;
 import javax.jms.JMSException;
 import javax.jms.Message;
@@ -22,7 +23,7 @@ public class MessageExtractAdapter implements AgentPropagation.ContextVisitor<Me
         }
       };
 
-  private final FixedSizeCache<String, String> cache = new FixedSizeCache<>(32);
+  private final DDCache<String, String> cache = DDCaches.newFixedSizeCache(32);
 
   public static final MessageExtractAdapter GETTER = new MessageExtractAdapter();
 

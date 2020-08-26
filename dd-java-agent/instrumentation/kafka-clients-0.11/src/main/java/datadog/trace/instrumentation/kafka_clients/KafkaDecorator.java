@@ -11,10 +11,11 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
 import datadog.trace.bootstrap.instrumentation.api.Functions;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.cache.DDCache;
+import datadog.trace.bootstrap.instrumentation.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -25,11 +26,11 @@ public class KafkaDecorator extends ClientDecorator {
   private final String spanKind;
   private final String spanType;
 
-  private static final FixedSizeCache<CharSequence, CharSequence> PRODUCER_RESOURCE_NAME_CACHE =
-      new FixedSizeCache<>(32);
+  private static final DDCache<CharSequence, CharSequence> PRODUCER_RESOURCE_NAME_CACHE =
+      DDCaches.newFixedSizeCache(32);
   private static final Functions.Prefix PRODUCER_PREFIX = new Functions.Prefix("Produce Topic ");
-  private static final FixedSizeCache<CharSequence, CharSequence> CONSUMER_RESOURCE_NAME_CACHE =
-      new FixedSizeCache<>(32);
+  private static final DDCache<CharSequence, CharSequence> CONSUMER_RESOURCE_NAME_CACHE =
+      DDCaches.newFixedSizeCache(32);
   private static final Functions.Prefix CONSUMER_PREFIX = new Functions.Prefix("Consume Topic ");
 
   public static final KafkaDecorator PRODUCER_DECORATE =

@@ -1,5 +1,6 @@
-package datadog.trace.bootstrap.instrumentation.api
+package datadog.trace.bootstrap.instrumentation.cache
 
+import datadog.trace.bootstrap.instrumentation.api.Function
 import datadog.trace.util.test.DDSpecification
 import spock.util.concurrent.AsyncConditions
 
@@ -8,9 +9,9 @@ import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
 
 class FixedSizeCacheTest extends DDSpecification {
-  def "should store and retrieve values"() {
+  def "fixed size should store and retrieve values"() {
     setup:
-    def fsCache = new FixedSizeCache<TKey, String>(15)
+    def fsCache = DDCaches.newFixedSizeCache(15)
     def creationCount = new AtomicInteger(0)
     def tvc = new TVC(creationCount)
     def tk1 = new TKey(1, 1, "one")
@@ -32,8 +33,35 @@ class FixedSizeCacheTest extends DDSpecification {
     new TKey(1, 10, "foo")    | "ten_value"    | 3     // used the cached tk10
     new TKey(6, 6, "foo")     | "six_value"    | 3     // used the cached tk6
     new TKey(1, 11, "eleven") | "eleven_value" | 4     // create new value in an occupied slot
-    new TKey(4, 4, "four" )   | "four_value"   | 4     // create new value in empty slot
+    new TKey(4, 4, "four")    | "four_value"   | 4     // create new value in empty slot
     null                      | null           | 3     // do nothing
+  }
+
+  def "chm cache should store and retrieve values"() {
+    setup:
+    def fsCache = DDCaches.newUnboundedCache(15)
+    def creationCount = new AtomicInteger(0)
+    def tvc = new TVC(creationCount)
+    def tk1 = new TKey(1, 1, "one")
+    def tk6 = new TKey(6, 6, "six")
+    def tk10 = new TKey(10, 10, "ten")
+    fsCache.computeIfAbsent(tk1, tvc)
+    fsCache.computeIfAbsent(tk6, tvc)
+    fsCache.computeIfAbsent(tk10, tvc)
+
+    expect:
+    fsCache.computeIfAbsent(tk, tvc) == value
+    creationCount.get() == count
+
+    where:
+    tk                        | value          | count
+    new TKey(1, 1, "foo")     | "one_value"    | 3
+    new TKey(1, 6, "foo")     | "foo_value"    | 4
+    new TKey(1, 10, "foo")    | "foo_value"    | 4
+    new TKey(6, 6, "foo")     | "six_value"    | 3
+    new TKey(1, 11, "eleven") | "eleven_value" | 4
+    new TKey(4, 4, "four")    | "four_value"   | 4
+    null                      | null           | 3     
   }
 
   def "should handle concurrent usage"() {
@@ -43,9 +71,9 @@ class FixedSizeCacheTest extends DDSpecification {
     def conds = new AsyncConditions(numThreads)
     def started = new CountDownLatch(numThreads)
     def runTest = new CountDownLatch(1)
-    def fsCache = new FixedSizeCache<TKey, String>(64)
 
     when:
+    def fsCache = cacheImpl(64)
     for (int t = 0; t < numThreads; t++) {
       Thread.start {
         def tlr = ThreadLocalRandom.current()
@@ -66,6 +94,9 @@ class FixedSizeCacheTest extends DDSpecification {
 
     then:
     conds.await(30.0) // the test is really fast locally, but I don't know how fast CI is
+
+    where:
+    cacheImpl << [{capacity -> DDCaches.newFixedSizeCache(capacity) }, {capacity -> DDCaches.newUnboundedCache(capacity)}]
   }
 
   private class TVC implements Function<TKey, String> {

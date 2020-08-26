@@ -8,8 +8,9 @@ import com.netflix.hystrix.HystrixInvokableInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.FixedSizeCache;
 import datadog.trace.bootstrap.instrumentation.api.Functions;
+import datadog.trace.bootstrap.instrumentation.cache.DDCache;
+import datadog.trace.bootstrap.instrumentation.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.Objects;
 
@@ -26,8 +27,8 @@ public class HystrixDecorator extends BaseDecorator {
     this(Config.get().isHystrixTagsEnabled());
   }
 
-  private static final FixedSizeCache<ResourceNameCacheKey, String> RESOURCE_NAME_CACHE =
-      new FixedSizeCache<>(64);
+  private static final DDCache<ResourceNameCacheKey, String> RESOURCE_NAME_CACHE =
+      DDCaches.newFixedSizeCache(64);
 
   private static final Functions.ToString<ResourceNameCacheKey> TO_STRING =
       new Functions.ToString<>();
