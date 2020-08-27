@@ -52,6 +52,7 @@ include ':dd-smoke-tests:java9-modules'
 include ':dd-smoke-tests:opentracing'
 include ':dd-smoke-tests:play'
 include ':dd-smoke-tests:springboot'
+include ':dd-smoke-tests:springboot-grpc'
 include ':dd-smoke-tests:wildfly'
 include ':dd-smoke-tests:profiling-integration-tests'
 
