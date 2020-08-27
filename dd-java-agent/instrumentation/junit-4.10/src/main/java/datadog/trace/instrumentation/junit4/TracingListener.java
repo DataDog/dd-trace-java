@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.Description;
 import org.junit.runner.notification.Failure;
@@ -81,10 +82,13 @@ public class TracingListener extends RunListener {
       testNames.addAll(DECORATE.testNames(description.getTestClass(), Test.class));
     }
 
+    final Ignore ignore = description.getAnnotation(Ignore.class);
+    final String reason = ignore != null ? ignore.value() : null;
+
     for (final String testName : testNames) {
       final AgentSpan span = startSpan("junit.test");
       DECORATE.afterStart(span);
-      DECORATE.onTestIgnored(span, description, testName);
+      DECORATE.onTestIgnored(span, description, testName, reason);
       DECORATE.beforeFinish(span);
       span.finish(span.getStartTime());
     }

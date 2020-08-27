@@ -62,8 +62,12 @@ public class JUnit4Decorator extends TestDecorator {
   }
 
   public void onTestIgnored(
-      final AgentSpan span, final Description description, final String testName) {
+      final AgentSpan span,
+      final Description description,
+      final String testName,
+      final String reason) {
     onTestStart(span, description, testName);
     span.setTag(DDTags.TEST_STATUS, TEST_SKIP);
+    span.setTag(DDTags.TEST_SKIP_REASON, reason);
   }
 }

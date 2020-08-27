@@ -51,5 +51,9 @@ public class TestNGDecorator extends TestDecorator {
 
   public void onTestIgnored(final AgentSpan span, final ITestResult result) {
     span.setTag(DDTags.TEST_STATUS, TEST_SKIP);
+    // Typically the way of skipping a TestNG test is throwing a SkipException
+    if (result.getThrowable() != null) {
+      span.setTag(DDTags.TEST_SKIP_REASON, result.getThrowable().getMessage());
+    }
   }
 }

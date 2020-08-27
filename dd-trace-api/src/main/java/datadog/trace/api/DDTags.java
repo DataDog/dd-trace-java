@@ -24,6 +24,18 @@ public class DDTags {
   public static final String TEST_FRAMEWORK = "test.framework";
   public static final String TEST_SKIP_REASON = "test.skip_reason";
 
+  public static final String CI_PROVIDER_NAME = "ci.provider.name";
+  public static final String CI_PIPELINE_ID = "ci.pipeline.id";
+  public static final String CI_PIPELINE_NUMBER = "ci.pipeline.number";
+  public static final String CI_PIPELINE_URL = "ci.pipeline.url";
+  public static final String CI_JOB_URL = "ci.job.url";
+  public static final String CI_WORKSPACE_PATH = "ci.workspace_path";
+
+  public static final String GIT_REPOSITORY_URL = "git.repository_url";
+  public static final String GIT_COMMIT_SHA = "git.commit_sha";
+  public static final String GIT_BRANCH = "git.branch";
+  public static final String GIT_TAG = "git.tag";
+
   public static final String ANALYTICS_SAMPLE_RATE = "_dd1.sr.eausr";
   @Deprecated public static final String EVENT_SAMPLE_RATE = ANALYTICS_SAMPLE_RATE;
 

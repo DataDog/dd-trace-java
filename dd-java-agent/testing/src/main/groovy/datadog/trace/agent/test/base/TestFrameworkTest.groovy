@@ -43,6 +43,19 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           errorTags(exception.class, exception.message)
         }
 
+        if (isCI) {
+          "$DDTags.CI_PROVIDER_NAME" ciProviderName
+          "$DDTags.CI_PIPELINE_ID" ciPipelineId
+          "$DDTags.CI_PIPELINE_NUMBER" ciPipelineNumber
+          "$DDTags.CI_PIPELINE_URL" ciPipelineUrl
+          "$DDTags.CI_JOB_URL" ciJobUrl
+          "$DDTags.CI_WORKSPACE_PATH" ciWorkspacePath
+          "$DDTags.GIT_REPOSITORY_URL" gitRepositoryUrl
+          "$DDTags.GIT_COMMIT_SHA" gitCommit
+          "$DDTags.GIT_BRANCH" gitBranch
+          "$DDTags.GIT_TAG" gitTag
+        }
+        
         defaultTags()
       }
     }
@@ -51,9 +64,55 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   @Shared
   String component = component()
 
+  @Shared
+  boolean isCI = isCI()
+  @Shared
+  String ciProviderName = ciProviderName()
+  @Shared
+  String ciPipelineId = ciPipelineId()
+  @Shared
+  String ciPipelineNumber = ciPipelineNumber()
+  @Shared
+  String ciPipelineUrl = ciPipelineUrl()
+  @Shared
+  String ciJobUrl = ciJobUrl()
+  @Shared
+  String ciWorkspacePath = ciWorkspacePath()
+  @Shared
+  String gitRepositoryUrl = gitRepositoryUrl()
+  @Shared
+  String gitCommit = gitCommit()
+  @Shared
+  String gitBranch = gitBranch()
+  @Shared
+  String gitTag = gitTag()
+
   abstract String expectedOperationName()
 
   abstract String expectedTestFramework()
 
   abstract String component()
+
+  abstract boolean isCI()
+
+  abstract String ciProviderName()
+
+  abstract String ciPipelineId()
+
+  abstract String ciPipelineNumber()
+
+  abstract String ciPipelineUrl()
+
+  abstract String ciJobUrl()
+
+  abstract String ciWorkspacePath()
+
+  abstract String gitRepositoryUrl()
+
+  abstract String gitCommit()
+
+  abstract String gitBranch()
+
+  abstract String gitTag()
+
 }
