@@ -84,6 +84,9 @@ public class GlobalIgnoresMatcher<T extends TypeDescription>
         if (name.startsWith("clojure.")) {
           return true;
         }
+        if (name.startsWith("cinnamon.")) {
+          return true;
+        }
         break;
       case 'd' - 'a':
         if (name.startsWith("datadog.")) {
