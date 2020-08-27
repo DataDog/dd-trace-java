@@ -73,13 +73,12 @@ public class ConfigProvider {
   public static ConfigProvider createDefault() {
     Properties configProperties = Config.loadConfigurationFile();
     if (configProperties.isEmpty()) {
-      return new ConfigProvider(
-          new SystemPropertiesConfigProvider(), new EnvironmentConfigProvider());
+      return new ConfigProvider(new SystemPropertiesConfigSource(), new EnvironmentConfigSource());
     } else {
       return new ConfigProvider(
-          new SystemPropertiesConfigProvider(),
-          new EnvironmentConfigProvider(),
-          new PropertiesConfigProvider(configProperties));
+          new SystemPropertiesConfigSource(),
+          new EnvironmentConfigSource(),
+          new PropertiesConfigSource(configProperties));
     }
   }
 
