@@ -71,6 +71,10 @@ public abstract class MLTChunkCollector implements IMLTChunk {
     return stacks.size() > 1;
   }
 
+  protected int getStackCount() {
+    return stacks.size();
+  }
+
   @Override
   public FrameSequence baseFrameSequence() {
     return stackPool.get(stacks.getInt(0));

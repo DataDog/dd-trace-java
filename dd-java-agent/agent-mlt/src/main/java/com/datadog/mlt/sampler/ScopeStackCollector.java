@@ -15,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 final class ScopeStackCollector extends MLTChunkCollector {
 
+  private static final boolean LOGGING_STACKCOUNT = Boolean.getBoolean("mlt.log.stackcount");
+
   private static final byte VERSION = (byte) 0;
 
   private final ScopeManager threadStacktraceCollector;
@@ -32,7 +34,7 @@ final class ScopeStackCollector extends MLTChunkCollector {
       ConstantPool<String> stringPool,
       ConstantPool<FrameElement> framePool,
       ConstantPool<FrameSequence> stackPool) {
-    super(new Throwable(), stringPool, framePool, stackPool);
+    super(null /*new Throwable()*/, stringPool, framePool, stackPool);
     this.scopeId = scopeId;
     this.threadStacktraceCollector = threadStacktraceCollector;
     startTime = startTimeEpoch;
@@ -60,6 +62,10 @@ final class ScopeStackCollector extends MLTChunkCollector {
   }
 
   public <T> T end(Function<IMLTChunk, T> onEnd) {
+    int stackCount = getStackCount();
+    if (LOGGING_STACKCOUNT && stackCount > 0) {
+      log.info("end scope(traceid)[{}] stacktraces[{}]", scopeId, stackCount);
+    }
     return onEnd.apply(threadStacktraceCollector.endScope(this));
   }
 

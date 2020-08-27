@@ -29,10 +29,6 @@ public class JMXSession implements Session {
 
   @Override
   public byte[] close() {
-    boolean cancelled = future.cancel(true);
-    if (cancelled) {
-      // likely no data...
-    }
     byte[] data = scopeStackCollector.end(IMLTChunk::serialize);
     cleanup.accept(this);
     return data;

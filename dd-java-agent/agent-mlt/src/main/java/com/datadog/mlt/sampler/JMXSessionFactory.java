@@ -4,7 +4,6 @@ import datadog.trace.mlt.Session;
 import datadog.trace.mlt.SessionFactory;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledFuture;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -37,9 +36,8 @@ public class JMXSessionFactory implements SessionFactory {
   // inside the map
   private JMXSession createNewSession(
       String id, long threadId, ScopeStackCollector scopeStackCollector) {
-    // sampler.addThreadId(threadId);
-    ScheduledFuture<?> future = sampler.delayedAddThreadId(threadId);
-    return new JMXSession(id, threadId, future, scopeStackCollector, this::cleanup);
+    sampler.addThreadId(threadId);
+    return new JMXSession(id, threadId, null, scopeStackCollector, this::cleanup);
   }
 
   private void cleanup(JMXSession session) {

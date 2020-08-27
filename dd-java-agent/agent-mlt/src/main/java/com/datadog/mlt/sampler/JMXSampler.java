@@ -1,16 +1,23 @@
 package com.datadog.mlt.sampler;
 
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongList;
 import java.lang.management.ThreadInfo;
-import java.util.Arrays;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 class JMXSampler {
+  private static final int SAMPLER_DELAY = Integer.getInteger("mlt.sampler.delay.ms", 25);
+  private static final int[] BACKOFF_SAMPLING_INTERVALS = {SAMPLER_DELAY, 1, 2, 5, 10, 50, 100};
+  private static final int[] BACKOFF_SAMPLING_COUNT = {1, 20, 25, 20, 100, 2_000, 200};
+  private static final ThreadSampleInfo[] EMPTY_INFO = new ThreadSampleInfo[0];
+
   private final ThreadScopeMapper threadScopeMapper;
   private final ScheduledExecutorService executor =
       Executors.newSingleThreadScheduledExecutor(
@@ -20,8 +27,9 @@ class JMXSampler {
             t.setContextClassLoader(null);
             return t;
           });
-  private final AtomicReference<long[]> threadIds = new AtomicReference<>();
-  private final long samplerDelay;
+  private final ConcurrentMap<Long, ThreadSampleInfo> threadSampleInfoMap =
+      new ConcurrentHashMap<>();
+  private ScheduledFuture<?> threadDumpFuture;
   private boolean providerFirstAccess = true;
   private long exceptionCountBeforeLog;
   private long exceptionCount;
@@ -29,11 +37,11 @@ class JMXSampler {
   public JMXSampler(ThreadScopeMapper threadScopeMapper) {
     this.threadScopeMapper = threadScopeMapper;
     // TODO period as parameter
-    long samplerPeriod = Long.getLong("mlt.sampler.ms", 10);
-    samplerDelay = Long.getLong("mlt.sampler.delay.ms", 25);
+    long samplerPeriod = Long.getLong("mlt.sampler.ms", 1);
     // rate limiting exception logging to 1 per minute
     exceptionCountBeforeLog = samplerPeriod != 0 ? 60 * 1000 / samplerPeriod : 60 * 1000;
-    executor.scheduleAtFixedRate(this::sample, 0, samplerPeriod, TimeUnit.MILLISECONDS);
+    threadDumpFuture =
+        executor.scheduleAtFixedRate(this::sample, 0, samplerPeriod, TimeUnit.MILLISECONDS);
   }
 
   public void shutdown() {
@@ -46,64 +54,59 @@ class JMXSampler {
    * @param threadId
    */
   public void addThreadId(long threadId) {
-    long[] tmpArray;
-    long[] prev = threadIds.get();
-    while (prev == null) {
-      tmpArray = new long[] {threadId};
-      if (threadIds.compareAndSet(null, tmpArray)) {
-        return;
-      }
-      prev = threadIds.get();
-    }
-    do {
-      prev = threadIds.get();
-      int idx = Arrays.binarySearch(prev, threadId);
-      // check if already exists
-      if (idx >= 0) {
-        return;
-      }
-      idx = -idx - 1;
-      tmpArray = Arrays.copyOf(prev, prev.length + 1);
-      System.arraycopy(tmpArray, idx, tmpArray, idx + 1, prev.length - idx);
-      tmpArray[idx] = threadId;
-    } while (!threadIds.compareAndSet(prev, tmpArray));
+    threadSampleInfoMap.computeIfAbsent(threadId, ThreadSampleInfo::new);
   }
 
   public void removeThread(long threadId) {
-    long[] prev;
-    long[] tmpArray;
-    do {
-      prev = threadIds.get();
-      if (prev == null || prev.length == 0) {
-        return;
-      }
-      int idx = 0;
-      int size = prev.length;
-      while (idx < size && prev[idx] != threadId) {
-        idx++;
-      }
-      if (idx >= size) {
-        // not found
-        return;
-      }
-      tmpArray = new long[prev.length - 1];
-      System.arraycopy(prev, 0, tmpArray, 0, idx);
-      System.arraycopy(prev, idx + 1, tmpArray, idx, tmpArray.length - idx);
-    } while (!threadIds.compareAndSet(prev, tmpArray));
+    threadSampleInfoMap.remove(threadId);
+    // threadSampleInfoMap.computeIfPresent(threadId, (key, threadSampleInfo) -> null);
   }
 
   private void sample() {
+
     try {
-      long[] tmpArray = threadIds.get();
-      if (tmpArray == null || tmpArray.length == 0) {
+      if (threadSampleInfoMap.isEmpty()) {
         return;
       }
+      // snapshot of object references
+      ThreadSampleInfo[] threadSampleInfos = threadSampleInfoMap.values().toArray(EMPTY_INFO);
+      // prepare thread id array
+      LongList threadIdList = new LongArrayList();
+      for (ThreadSampleInfo info : threadSampleInfos) {
+        if (info.backoffIdx >= BACKOFF_SAMPLING_COUNT.length || info.backoffIdx < 0) {
+          continue;
+        }
+        info.msInterval++;
+        if (info.msInterval == BACKOFF_SAMPLING_INTERVALS[info.backoffIdx]) {
+          info.msInterval = 0;
+          threadIdList.add(info.threadId);
+        } else {
+          continue;
+        }
+        info.sampleCount++;
+        if (info.sampleCount == BACKOFF_SAMPLING_COUNT[info.backoffIdx]) {
+          if (info.backoffIdx + 1 < BACKOFF_SAMPLING_INTERVALS.length) {
+            log.debug(
+                "Backing off sampling interval for thread[{}] from {}ms to {}ms",
+                info.threadId,
+                BACKOFF_SAMPLING_INTERVALS[info.backoffIdx],
+                BACKOFF_SAMPLING_INTERVALS[info.backoffIdx + 1]);
+          }
+          info.backoffIdx++;
+          info.msInterval = 0;
+          info.sampleCount = 0;
+        }
+      }
+      if (threadIdList.isEmpty()) {
+        return;
+      }
+      long[] threadsIds = threadIdList.toLongArray();
       ThreadStackProvider provider = ThreadStackAccess.getCurrentThreadStackProvider();
       if (provider instanceof NoneThreadStackProvider && providerFirstAccess) {
         log.warn("ThreadStack provider is no op. It will not provide thread stacks.");
         providerFirstAccess = false;
       }
-      final ThreadInfo[] threadInfos = provider.getThreadInfo(tmpArray);
+      final ThreadInfo[] threadInfos = provider.getThreadInfo(threadsIds);
       // dispatch to Scopes
       for (ThreadInfo threadInfo : threadInfos) {
         if (threadInfo == null) {
@@ -127,7 +130,15 @@ class JMXSampler {
     }
   }
 
-  public ScheduledFuture<?> delayedAddThreadId(long threadId) {
-    return executor.schedule(() -> addThreadId(threadId), samplerDelay, TimeUnit.MILLISECONDS);
+  private static class ThreadSampleInfo {
+    final long threadId;
+    int backoffIdx;
+    int sampleCount;
+    int msInterval;
+
+    public ThreadSampleInfo(long threadId) {
+      this.threadId = threadId;
+    }
   }
 }
+
