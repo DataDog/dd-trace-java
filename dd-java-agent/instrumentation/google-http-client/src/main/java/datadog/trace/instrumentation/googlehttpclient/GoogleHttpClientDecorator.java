@@ -24,7 +24,7 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
   }
 
   @Override
-  protected Integer status(final HttpResponse httpResponse) {
+  protected int status(final HttpResponse httpResponse) {
     return httpResponse.getStatusCode();
   }
 

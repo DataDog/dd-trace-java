@@ -30,7 +30,7 @@ public class JaxRsClientDecorator
   }
 
   @Override
-  protected Integer status(final ClientResponseContext httpResponse) {
+  protected int status(final ClientResponseContext httpResponse) {
     return httpResponse.getStatus();
   }
 }

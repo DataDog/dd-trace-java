@@ -76,12 +76,12 @@ public class SpringWebHttpServerDecorator
   }
 
   @Override
-  protected Integer peerPort(final HttpServletRequest httpServletRequest) {
+  protected int peerPort(final HttpServletRequest httpServletRequest) {
     return httpServletRequest.getRemotePort();
   }
 
   @Override
-  protected Integer status(final HttpServletResponse httpServletResponse) {
+  protected int status(final HttpServletResponse httpServletResponse) {
     return httpServletResponse.getStatus();
   }
 

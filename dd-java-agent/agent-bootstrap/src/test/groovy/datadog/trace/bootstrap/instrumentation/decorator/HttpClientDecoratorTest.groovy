@@ -161,8 +161,8 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
       }
 
       @Override
-      protected Integer status(Map m) {
-        return m.status
+      protected int status(Map m) {
+        null == m.status ? 0 : m.status.intValue()
       }
 
       protected boolean traceAnalyticsDefault() {

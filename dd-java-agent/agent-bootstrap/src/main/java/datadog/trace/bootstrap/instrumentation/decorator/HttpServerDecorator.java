@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
+import static datadog.trace.bootstrap.instrumentation.cache.RadixTreeBoxCache.HTTP_STATUSES;
+import static datadog.trace.bootstrap.instrumentation.cache.RadixTreeBoxCache.PORTS;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
@@ -25,9 +28,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
 
   protected abstract String peerHostIP(CONNECTION connection);
 
-  protected abstract Integer peerPort(CONNECTION connection);
+  protected abstract int peerPort(CONNECTION connection);
 
-  protected abstract Integer status(RESPONSE response);
+  protected abstract int status(RESPONSE response);
 
   @Override
   protected String spanType() {
@@ -99,10 +102,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
           span.setTag(Tags.PEER_HOST_IPV6, ip);
         }
       }
-      final Integer port = peerPort(connection);
+      final int port = peerPort(connection);
       // Negative or Zero ports might represent an unset/null value for an int type.  Skip setting.
-      if (port != null && port > 0) {
-        span.setTag(Tags.PEER_PORT, port);
+      if (port > 0) {
+        span.setTag(Tags.PEER_PORT, PORTS.box(port));
       }
     }
     return span;
@@ -111,9 +114,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
     assert span != null;
     if (response != null) {
-      final Integer status = status(response);
-      if (status != null) {
-        span.setTag(Tags.HTTP_STATUS, status);
+      final int status = status(response);
+      if (status != 0) {
+        span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.box(status));
       }
     }
     return span;

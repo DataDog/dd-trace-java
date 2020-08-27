@@ -30,7 +30,7 @@ public class AkkaHttpClientDecorator extends HttpClientDecorator<HttpRequest, Ht
   }
 
   @Override
-  protected Integer status(final HttpResponse httpResponse) {
+  protected int status(final HttpResponse httpResponse) {
     return httpResponse.status().intValue();
   }
 }

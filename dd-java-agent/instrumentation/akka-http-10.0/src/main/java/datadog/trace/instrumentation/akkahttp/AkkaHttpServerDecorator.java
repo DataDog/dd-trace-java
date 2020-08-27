@@ -35,12 +35,12 @@ public class AkkaHttpServerDecorator
   }
 
   @Override
-  protected Integer peerPort(final HttpRequest httpRequest) {
-    return null;
+  protected int peerPort(final HttpRequest httpRequest) {
+    return 0;
   }
 
   @Override
-  protected Integer status(final HttpResponse httpResponse) {
+  protected int status(final HttpResponse httpResponse) {
     return httpResponse.status().intValue();
   }
 }

@@ -29,7 +29,7 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
   }
 
   @Override
-  protected Integer status(final HttpResponse httpResponse) {
+  protected int status(final HttpResponse httpResponse) {
     return httpResponse.getStatusLine().getStatusCode();
   }
 }

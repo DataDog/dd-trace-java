@@ -45,7 +45,7 @@ public class SpringWebfluxHttpClientDecorator
   }
 
   @Override
-  protected Integer status(final ClientResponse httpResponse) {
+  protected int status(final ClientResponse httpResponse) {
     if (null != RAW_STATUS_CODE) {
       try {
         return (int) RAW_STATUS_CODE.invokeExact(httpResponse);

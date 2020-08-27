@@ -34,7 +34,7 @@ public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response
   }
 
   @Override
-  protected Integer status(final Response httpResponse) {
+  protected int status(final Response httpResponse) {
     return httpResponse.code();
   }
 }

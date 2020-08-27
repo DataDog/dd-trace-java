@@ -176,13 +176,13 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       }
 
       @Override
-      protected Integer peerPort(Map m) {
-        return m.port
+      protected int peerPort(Map m) {
+        return m.port == null ? 0 : m.port
       }
 
       @Override
-      protected Integer status(Map m) {
-        return m.status
+      protected int status(Map m) {
+        return m.status == null ? 0 : m.status
       }
     }
   }

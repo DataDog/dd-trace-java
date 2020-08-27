@@ -52,7 +52,7 @@ public class ApacheHttpAsyncClientDecorator extends HttpClientDecorator<HttpRequ
   }
 
   @Override
-  protected Integer status(final HttpContext context) {
+  protected int status(final HttpContext context) {
     final Object responseObject = context.getAttribute(HttpCoreContext.HTTP_RESPONSE);
     if (responseObject instanceof HttpResponse) {
       final StatusLine statusLine = ((HttpResponse) responseObject).getStatusLine();
@@ -60,6 +60,6 @@ public class ApacheHttpAsyncClientDecorator extends HttpClientDecorator<HttpRequ
         return statusLine.getStatusCode();
       }
     }
-    return null;
+    return 0;
   }
 }

@@ -36,8 +36,8 @@ public class CommonsHttpClientDecorator extends HttpClientDecorator<HttpMethod, 
   }
 
   @Override
-  protected Integer status(final HttpMethod httpMethod) {
+  protected int status(final HttpMethod httpMethod) {
     final StatusLine statusLine = httpMethod.getStatusLine();
-    return statusLine == null ? null : statusLine.getStatusCode();
+    return statusLine == null ? 0 : statusLine.getStatusCode();
   }
 }

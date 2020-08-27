@@ -39,7 +39,7 @@ public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, H
   }
 
   @Override
-  protected Integer status(final HttpResponse httpResponse) {
+  protected int status(final HttpResponse httpResponse) {
     return httpResponse.getStatus().code();
   }
 }

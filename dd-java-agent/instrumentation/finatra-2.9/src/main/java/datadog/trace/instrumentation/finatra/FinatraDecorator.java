@@ -31,12 +31,12 @@ public class FinatraDecorator extends HttpServerDecorator<Request, Request, Resp
   }
 
   @Override
-  protected Integer peerPort(final Request request) {
+  protected int peerPort(final Request request) {
     return request.remotePort();
   }
 
   @Override
-  protected Integer status(final Response response) {
+  protected int status(final Response response) {
     return response.statusCode();
   }
 
