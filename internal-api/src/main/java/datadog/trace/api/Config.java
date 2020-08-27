@@ -54,6 +54,7 @@ import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
 
 import datadog.trace.api.config.GeneralConfig;
@@ -317,6 +318,7 @@ public class Config {
   @Getter private final Integer healthMetricsStatsdPort;
 
   @Getter private final boolean logsInjectionEnabled;
+  @Getter private final boolean logsMDCTagsInjectionEnabled;
   @Getter private final boolean reportHostName;
 
   @Getter private final String traceAnnotations;
@@ -520,6 +522,8 @@ public class Config {
 
     logsInjectionEnabled =
         getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
+    logsMDCTagsInjectionEnabled =
+        getBooleanSettingFromEnvironment(LOGS_MDC_TAGS_INJECTION_ENABLED, false);
     reportHostName =
         getBooleanSettingFromEnvironment(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
@@ -766,6 +770,9 @@ public class Config {
 
     logsInjectionEnabled =
         getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
+    logsMDCTagsInjectionEnabled =
+        getBooleanSettingFromEnvironment(
+            LOGS_MDC_TAGS_INJECTION_ENABLED, parent.logsMDCTagsInjectionEnabled);
     reportHostName =
         getPropertyBooleanValue(properties, TRACE_REPORT_HOSTNAME, parent.reportHostName);
 

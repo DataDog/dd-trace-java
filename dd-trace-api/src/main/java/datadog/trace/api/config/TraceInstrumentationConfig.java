@@ -28,6 +28,7 @@ public final class TraceInstrumentationConfig {
       "trace.runtime.context.field.injection";
 
   public static final String LOGS_INJECTION_ENABLED = "logs.injection";
+  public static final String LOGS_MDC_TAGS_INJECTION_ENABLED = "logs.mdc.tags.injection";
 
   public static final String KAFKA_CLIENT_PROPAGATION_ENABLED = "kafka.client.propagation.enabled";
   public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =

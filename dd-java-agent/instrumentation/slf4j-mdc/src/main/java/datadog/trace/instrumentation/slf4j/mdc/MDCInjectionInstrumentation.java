@@ -89,26 +89,31 @@ public class MDCInjectionInstrumentation extends Instrumenter.Default {
         final Method removeMethod = mdcClass.getMethod("remove", String.class);
         GlobalTracer.get().addScopeListener(new LogContextScopeListener(putMethod, removeMethod));
 
-        final Field mdcAdapterField = mdcClass.getDeclaredField("mdcAdapter");
-        mdcAdapterField.setAccessible(true);
-        final Object mdcAdapterInstance = mdcAdapterField.get(null);
-        final Field copyOnThreadLocalField =
-            mdcAdapterInstance.getClass().getDeclaredField("copyOnThreadLocal");
-        if (!ThreadLocal.class.isAssignableFrom(copyOnThreadLocalField.getType())) {
+        if (Config.get().isLogsMDCTagsInjectionEnabled()) {
+          final Field mdcAdapterField = mdcClass.getDeclaredField("mdcAdapter");
+          mdcAdapterField.setAccessible(true);
+          final Object mdcAdapterInstance = mdcAdapterField.get(null);
+          final Field copyOnThreadLocalField =
+              mdcAdapterInstance.getClass().getDeclaredField("copyOnThreadLocal");
+          if (!ThreadLocal.class.isAssignableFrom(copyOnThreadLocalField.getType())) {
+            org.slf4j.LoggerFactory.getLogger(mdcClass)
+                .debug("Can't find thread local field: {}", copyOnThreadLocalField);
+            return;
+          }
+          copyOnThreadLocalField.setAccessible(true);
+          Object copyOnThreadLocalFieldValue =
+              ((ThreadLocal) copyOnThreadLocalField.get(mdcAdapterInstance)).get();
+          copyOnThreadLocalFieldValue =
+              copyOnThreadLocalFieldValue != null
+                  ? copyOnThreadLocalFieldValue
+                  : Collections.synchronizedMap(new HashMap<>());
+          copyOnThreadLocalField.set(
+              mdcAdapterInstance,
+              ThreadLocalWithDDTagsInitValue.create(copyOnThreadLocalFieldValue));
+        } else {
           org.slf4j.LoggerFactory.getLogger(mdcClass)
-              .debug("Can't find thread local field: {}", copyOnThreadLocalField);
-          return;
+              .debug("Skip injection tags in thread context logger, because of Config setting");
         }
-        copyOnThreadLocalField.setAccessible(true);
-        Object copyOnThreadLocalFieldValue =
-            ((ThreadLocal) copyOnThreadLocalField.get(mdcAdapterInstance)).get();
-        copyOnThreadLocalFieldValue =
-            copyOnThreadLocalFieldValue != null
-                ? copyOnThreadLocalFieldValue
-                : Collections.synchronizedMap(new HashMap<>());
-        copyOnThreadLocalField.set(
-            mdcAdapterInstance, ThreadLocalWithDDTagsInitValue.create(copyOnThreadLocalFieldValue));
-
       } catch (final NoSuchMethodException
           | IllegalAccessException
           | NoSuchFieldException
