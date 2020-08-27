@@ -28,7 +28,6 @@ class BaseDecoratorTest extends DDSpecification {
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)
     _ * span.setOperationName(_)
-    _ * span.setSamplingPriority(_)
     0 * _
   }
 
