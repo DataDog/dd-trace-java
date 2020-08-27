@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.base.TestFrameworkTest
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import datadog.trace.instrumentation.testng.TestNGDecorator
 import org.example.TestError
@@ -127,9 +128,12 @@ class TestNGTest extends TestFrameworkTest {
     expect:
     assertTraces(1) {
       trace(0, 1) {
-        testSpan(it, 0, "org.example.TestSkipped", "test_skipped", TestDecorator.TEST_SKIP)
+        testSpan(it, 0, "org.example.TestSkipped", "test_skipped", TestDecorator.TEST_SKIP, testTags)
       }
     }
+
+    where:
+    testTags = ["$DDTags.TEST_SKIP_REASON": "Ignore reason in test"]
   }
 
   @Override
