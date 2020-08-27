@@ -62,59 +62,64 @@ public class ThreadContextInstrumentation extends Instrumenter.Default {
         final Method removeMethod = threadContextClass.getMethod("remove", String.class);
         GlobalTracer.get().addScopeListener(new LogContextScopeListener(putMethod, removeMethod));
 
-        final Field contextMapField = threadContextClass.getDeclaredField("contextMap");
-        contextMapField.setAccessible(true);
-        final Object contextMap = contextMapField.get(null);
-        if (contextMap
-            .getClass()
-            .getCanonicalName()
-            .equals("org.apache.logging.slf4j.MDCContextMap")) {
-          org.slf4j.LoggerFactory.getLogger(threadContextClass)
-              .debug(
-                  "Log4j to SLF4J Adapter detected. "
-                      + TYPE_NAME
-                      + "'s ThreadLocal"
-                      + " field will not be instrumented because it delegates to slf4-MDC");
-          return;
-        }
-        final Field localMapField = contextMap.getClass().getDeclaredField("localMap");
-        if (!ThreadLocal.class.isAssignableFrom(localMapField.getType())) {
-          org.slf4j.LoggerFactory.getLogger(threadContextClass)
-              .debug("Can't find thread local field: {}", localMapField);
-          return;
-        }
+        if (Config.get().isLogsMDCTagsInjectionEnabled()) {
+          final Field contextMapField = threadContextClass.getDeclaredField("contextMap");
+          contextMapField.setAccessible(true);
+          final Object contextMap = contextMapField.get(null);
+          if (contextMap
+              .getClass()
+              .getCanonicalName()
+              .equals("org.apache.logging.slf4j.MDCContextMap")) {
+            org.slf4j.LoggerFactory.getLogger(threadContextClass)
+                .debug(
+                    "Log4j to SLF4J Adapter detected. "
+                        + TYPE_NAME
+                        + "'s ThreadLocal"
+                        + " field will not be instrumented because it delegates to slf4-MDC");
+            return;
+          }
+          final Field localMapField = contextMap.getClass().getDeclaredField("localMap");
+          if (!ThreadLocal.class.isAssignableFrom(localMapField.getType())) {
+            org.slf4j.LoggerFactory.getLogger(threadContextClass)
+                .debug("Can't find thread local field: {}", localMapField);
+            return;
+          }
 
-        localMapField.setAccessible(true);
-        final Object threadLocalInitValue = ((ThreadLocal) localMapField.get(contextMap)).get();
-        final String fullTypeWithGeneric = localMapField.getGenericType().toString();
-        if ("java.lang.ThreadLocal<java.util.Map<java.lang.String, java.lang.String>>"
-            .equals(fullTypeWithGeneric)) {
-          final Map<String, String> threadLocalInitValueAsMap =
-              threadLocalInitValue != null
-                  ? (Map<String, String>) threadLocalInitValue
-                  : Collections.synchronizedMap(new HashMap<String, String>());
-          org.slf4j.LoggerFactory.getLogger(threadContextClass)
-              .debug("Setting {} for ThreadLocalWithDDTagsInitValue ", threadLocalInitValueAsMap);
-          localMapField.set(
-              contextMap, ThreadLocalWithDDTagsInitValue.create(threadLocalInitValueAsMap));
-        } else if ("java.lang.ThreadLocal<org.apache.logging.log4j.util.StringMap>"
-            .equals(fullTypeWithGeneric)) {
-          final Object threadLocalInitValueAsStringMap =
-              threadLocalInitValue != null
-                  ? threadLocalInitValue
-                  : Class.forName("org.apache.logging.log4j.util.SortedArrayStringMap")
-                      .newInstance();
-          org.slf4j.LoggerFactory.getLogger(threadContextClass)
-              .debug(
-                  "Setting {} for ThreadLocalWithDDTagsInitValue ",
-                  threadLocalInitValueAsStringMap);
-          localMapField.set(
-              contextMap, ThreadLocalWithDDTagsInitValue.create(threadLocalInitValueAsStringMap));
+          localMapField.setAccessible(true);
+          final Object threadLocalInitValue = ((ThreadLocal) localMapField.get(contextMap)).get();
+          final String fullTypeWithGeneric = localMapField.getGenericType().toString();
+          if ("java.lang.ThreadLocal<java.util.Map<java.lang.String, java.lang.String>>"
+              .equals(fullTypeWithGeneric)) {
+            final Map<String, String> threadLocalInitValueAsMap =
+                threadLocalInitValue != null
+                    ? (Map<String, String>) threadLocalInitValue
+                    : Collections.synchronizedMap(new HashMap<String, String>());
+            org.slf4j.LoggerFactory.getLogger(threadContextClass)
+                .debug("Setting {} for ThreadLocalWithDDTagsInitValue ", threadLocalInitValueAsMap);
+            localMapField.set(
+                contextMap, ThreadLocalWithDDTagsInitValue.create(threadLocalInitValueAsMap));
+          } else if ("java.lang.ThreadLocal<org.apache.logging.log4j.util.StringMap>"
+              .equals(fullTypeWithGeneric)) {
+            final Object threadLocalInitValueAsStringMap =
+                threadLocalInitValue != null
+                    ? threadLocalInitValue
+                    : Class.forName("org.apache.logging.log4j.util.SortedArrayStringMap")
+                        .newInstance();
+            org.slf4j.LoggerFactory.getLogger(threadContextClass)
+                .debug(
+                    "Setting {} for ThreadLocalWithDDTagsInitValue ",
+                    threadLocalInitValueAsStringMap);
+            localMapField.set(
+                contextMap, ThreadLocalWithDDTagsInitValue.create(threadLocalInitValueAsStringMap));
+          } else {
+            org.slf4j.LoggerFactory.getLogger(threadContextClass)
+                .warn(
+                    "can't find thread local for {}; skipping adding extra tags",
+                    fullTypeWithGeneric);
+          }
         } else {
           org.slf4j.LoggerFactory.getLogger(threadContextClass)
-              .warn(
-                  "can't find thread local for {}; skipping adding extra tags",
-                  fullTypeWithGeneric);
+              .debug("Skip injection tags in thread context logger, because of Config setting");
         }
       } catch (final NoSuchMethodException
           | NoSuchFieldException

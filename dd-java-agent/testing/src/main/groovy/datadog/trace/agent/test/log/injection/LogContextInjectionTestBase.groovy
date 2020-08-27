@@ -44,6 +44,7 @@ abstract class LogContextInjectionTestBase extends AgentTestRunner {
   static {
     ConfigUtils.updateConfig {
       System.setProperty("dd.logs.injection", "true")
+      System.setProperty("dd.logs.mdc.tags.injection", "true")
       System.setProperty(PREFIX + TAGS, "env:${TEST_ENV},version:${TEST_VERSION}")
     }
   }

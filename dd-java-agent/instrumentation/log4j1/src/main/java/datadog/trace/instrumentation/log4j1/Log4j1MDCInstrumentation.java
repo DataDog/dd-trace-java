@@ -53,9 +53,16 @@ public class Log4j1MDCInstrumentation extends Instrumenter.Default {
         final Method putMethod = mdcClass.getMethod("put", String.class, Object.class);
         final Method removeMethod = mdcClass.getMethod("remove", String.class);
         GlobalTracer.get().addScopeListener(new LogContextScopeListener(putMethod, removeMethod));
-        // log4j1 uses subclass of InheritableThreadLocal and we don't need to modify private thread
-        // local field:
-        LogContextScopeListener.addDDTagsToMDC(putMethod);
+
+        if (Config.get().isLogsMDCTagsInjectionEnabled()) {
+          // log4j1 uses subclass of InheritableThreadLocal and we don't need to modify private
+          // thread
+          // local field:
+          LogContextScopeListener.addDDTagsToMDC(putMethod);
+        } else {
+          org.slf4j.LoggerFactory.getLogger(mdcClass)
+              .debug("Skip injection tags in thread context logger, because of Config setting");
+        }
       } catch (final NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
         org.slf4j.LoggerFactory.getLogger(mdcClass)
             .debug("Failed to add log4j ThreadContext span listener", e);
