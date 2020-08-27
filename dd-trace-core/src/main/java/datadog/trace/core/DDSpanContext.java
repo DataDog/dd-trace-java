@@ -1,11 +1,14 @@
 package datadog.trace.core;
 
 import com.google.common.collect.ImmutableMap;
+import datadog.trace.api.Config;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.taginterceptor.AbstractTagInterceptor;
+import datadog.trace.core.util.SpanContextStack;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -57,8 +60,6 @@ public class DDSpanContext implements AgentSpan.Context {
    */
   private final Map<String, Object> unsafeTags;
 
-  private final Throwable contextStack;
-
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
   /** The resource associated to the service (server_web, database, etc.) */
@@ -69,6 +70,10 @@ public class DDSpanContext implements AgentSpan.Context {
   private volatile String spanType;
   /** True indicates that the span reports an error */
   private volatile boolean errorFlag;
+
+  /** an object containing a stacktrace leading up to the start or finish of this span. */
+  private volatile SpanContextStack contextStack;
+
   /**
    * When true, the samplingPriority cannot be changed. This prevents the sampling flag from
    * changing after the context has propagated.
@@ -97,7 +102,7 @@ public class DDSpanContext implements AgentSpan.Context {
       final Map<String, String> baggageItems,
       final boolean errorFlag,
       final String spanType,
-      Throwable contextStack,
+      final SpanContextStack contextStack,
       final int tagsSize,
       final PendingTrace trace,
       final CoreTracer tracer,
@@ -424,6 +429,17 @@ public class DDSpanContext implements AgentSpan.Context {
   public void processExclusiveSpan(ExclusiveSpan.Consumer consumer) {
     synchronized (unsafeTags) {
       consumer.accept(exclusiveSpan);
+    }
+  }
+
+  public void maybeAddStacktrace(long durationNano) {
+    if (contextStack != null
+        && Config.get().getClientSpanStacktraceThresholdNanos() < durationNano) {
+      synchronized (unsafeTags) {
+        if (Tags.SPAN_KIND_CLIENT.equals(unsafeTags.get(Tags.SPAN_KIND))) {
+          contextStack = new SpanContextStack();
+        }
+      }
     }
   }
 

@@ -82,6 +82,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import lombok.Getter;
 import lombok.NonNull;
@@ -161,6 +162,8 @@ public class Config {
   public static final String SCOPE_DEPTH_LIMIT = TracerConfig.SCOPE_DEPTH_LIMIT;
   public static final String SCOPE_STRICT_MODE = TracerConfig.SCOPE_STRICT_MODE;
   public static final String PARTIAL_FLUSH_MIN_SPANS = TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
+  public static final String CLIENT_SPAN_STACKTRACE_THRESHOLD_MILLIS =
+      TracerConfig.CLIENT_SPAN_STACKTRACE_THRESHOLD_MILLIS;
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
   public static final String PROPAGATION_STYLE_EXTRACT = TracerConfig.PROPAGATION_STYLE_EXTRACT;
@@ -291,6 +294,7 @@ public class Config {
   @Getter private final int scopeDepthLimit;
   @Getter private final boolean scopeStrictMode;
   @Getter private final int partialFlushMinSpans;
+  @Getter private final long clientSpanStacktraceThresholdNanos;
   @Getter private final boolean runtimeContextFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
   @Getter private final Set<PropagationStyle> propagationStylesToInject;
@@ -471,6 +475,12 @@ public class Config {
 
     partialFlushMinSpans =
         configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
+
+    clientSpanStacktraceThresholdNanos =
+        TimeUnit.MILLISECONDS.toNanos(
+            configProvider.getInteger(
+                CLIENT_SPAN_STACKTRACE_THRESHOLD_MILLIS,
+                ConfigDefaults.DEFAULT_CLIENT_SPAN_STACKTRACE_THRESHOLD_MILLIS));
 
     runtimeContextFieldInjection =
         configProvider.getBoolean(

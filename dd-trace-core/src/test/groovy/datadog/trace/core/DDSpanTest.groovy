@@ -1,13 +1,16 @@
 package datadog.trace.core
 
+import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.propagation.TagContext
 import datadog.trace.util.test.DDSpecification
+import org.spockframework.util.ReflectionUtil
 
 import java.util.concurrent.TimeUnit
 
@@ -166,6 +169,30 @@ class DDSpanTest extends DDSpecification {
 
     expect:
     span.durationNano == 1
+  }
+
+  def "stacktrace captured on client span when duration exceeds configured threshold"() {
+    setup:
+    // Get the part of the stack before this test is called.
+    def acceptRemaining = false
+    def originalStack = Thread.currentThread().stackTrace
+    def stackTraceElements = originalStack.dropWhile {
+      if (it.className == ReflectionUtil.name) {
+        acceptRemaining = true
+      }
+      return !acceptRemaining
+    }
+    def stack = "\tat " + stackTraceElements.join("\n\tat ") + "\n"
+
+    when:
+    DDSpan span = tracer.buildSpan("test").withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT).start()
+    span.finish(span.startTimeMicro + TimeUnit.NANOSECONDS.toMicros(Config.get().clientSpanStacktraceThresholdNanos) + 1)
+    String actual = span.tags[Tags.CONTEXT_STACK_TAG]
+
+    then:
+    span.context().contextStack != null
+    !stack.isEmpty()
+    actual.endsWith(stack)
   }
 
   def "priority sampling metric set only on root span"() {

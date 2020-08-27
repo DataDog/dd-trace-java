@@ -11,10 +11,13 @@ import groovy.transform.stc.SimpleType
 
 import java.util.regex.Pattern
 
+import static datadog.trace.bootstrap.instrumentation.api.Tags.CONTEXT_STACK_TAG
+
 class TagsAssert {
   private final DDId spanParentId
   private final Map<String, Object> tags
   private final Set<String> assertedTags = new TreeSet<>()
+  private final Set<String> ignoredTags = [CONTEXT_STACK_TAG] // Don't error if these tags aren't checked.
 
   private TagsAssert(DDSpan span) {
     this.spanParentId = span.parentId
@@ -48,8 +51,8 @@ class TagsAssert {
 
     boolean isRoot = (DDId.ZERO == spanParentId)
     if (isRoot || distributedRootSpan) {
-      assertedTags.add(DDTags.CONTEXT_STACK_TAG)
-      assert tags[DDTags.CONTEXT_STACK_TAG] != null
+      assertedTags.add(CONTEXT_STACK_TAG)
+      assert tags[CONTEXT_STACK_TAG] != null
       // If runtime id is actually different here, it might indicate that
       // the Config class was loaded on multiple different class loaders.
       assert tags[DDTags.RUNTIME_ID_TAG] == Config.get().runtimeId
@@ -110,6 +113,7 @@ class TagsAssert {
   void assertTagsAllVerified() {
     def set = new TreeMap<>(tags).keySet()
     set.removeAll(assertedTags)
+    set.removeAll(ignoredTags)
     // The primary goal is to ensure the set is empty.
     // tags and assertedTags are included via an "always true" comparison
     // so they provide better context in the error message.

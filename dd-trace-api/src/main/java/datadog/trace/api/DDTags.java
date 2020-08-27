@@ -31,7 +31,6 @@ public class DDTags {
   /* Tags below are for internal use only. */
   static final String INTERNAL_HOST_NAME = "_dd.hostname";
   public static final String RUNTIME_ID_TAG = "runtime-id";
-  public static final String CONTEXT_STACK_TAG = "context.stack";
   static final String SERVICE = "service";
   static final String SERVICE_TAG = SERVICE;
   static final String HOST_TAG = "host";

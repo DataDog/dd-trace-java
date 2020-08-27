@@ -37,6 +37,7 @@ import datadog.trace.core.propagation.TagContext;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.core.taginterceptor.AbstractTagInterceptor;
 import datadog.trace.core.taginterceptor.TagInterceptorsFactory;
+import datadog.trace.core.util.SpanContextStack;
 import java.lang.ref.WeakReference;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -698,7 +699,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final String origin;
       final Map<String, String> coreTags;
       final Map<String, String> rootSpanTags;
-      final Throwable contextStack;
+      final SpanContextStack contextStack;
 
       final DDSpanContext context;
 
@@ -757,7 +758,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
 
         rootSpanTags = localRootSpanTags;
-        contextStack = new Throwable(); // Capture context stack only for local root spans.
+        contextStack = new SpanContextStack(); // Capture context stack only for local root spans.
 
         parentTrace = PendingTrace.create(CoreTracer.this, traceId);
       }
