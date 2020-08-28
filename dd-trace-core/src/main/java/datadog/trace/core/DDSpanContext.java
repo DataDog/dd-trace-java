@@ -435,10 +435,13 @@ public class DDSpanContext implements AgentSpan.Context {
   public void maybeAddStacktrace(long durationNano) {
     if (contextStack != null
         && Config.get().getClientSpanStacktraceThresholdNanos() < durationNano) {
+      Object spanKind;
       synchronized (unsafeTags) {
-        if (Tags.SPAN_KIND_CLIENT.equals(unsafeTags.get(Tags.SPAN_KIND))) {
-          contextStack = new SpanContextStack(SpanContextStack.Origin.CLIENT, tracer.monitor);
-        }
+        // TODO: move spanKind outside of tag map to a field to make this more efficient.
+        spanKind = unsafeTags.get(Tags.SPAN_KIND);
+      }
+      if (Tags.SPAN_KIND_CLIENT.equals(spanKind)) {
+        contextStack = new SpanContextStack(SpanContextStack.Origin.CLIENT, tracer.monitor);
       }
     }
   }
