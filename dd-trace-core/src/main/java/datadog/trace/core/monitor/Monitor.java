@@ -3,6 +3,7 @@ package datadog.trace.core.monitor;
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.util.SpanContextStack;
 import java.util.List;
 
 /**
@@ -21,6 +22,7 @@ public class Monitor {
   private final StatsDClient statsd;
 
   public Monitor(final StatsDClient statsd) {
+    assert statsd != null;
     this.statsd = statsd;
   }
 
@@ -81,6 +83,16 @@ public class Monitor {
 
     if (response.status() != null) {
       statsd.incrementCounter("api.responses", "status: " + response.status());
+    }
+  }
+
+  public void onSpanContextStack(SpanContextStack.Origin origin) {
+    switch (origin) {
+      case ROOT:
+        break;
+      case CLIENT:
+        statsd.incrementCounter("span.context-stack", "origin:client");
+        break;
     }
   }
 }

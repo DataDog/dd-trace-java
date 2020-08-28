@@ -94,6 +94,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @lombok.Getter private final int partialFlushMinSpans;
 
   private final StatsDClient statsDClient;
+  final Monitor monitor;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -191,6 +192,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } else {
       this.statsDClient = statsDClient;
     }
+    this.monitor = new Monitor(this.statsDClient);
 
     if (scopeManager == null) {
       this.scopeManager =
@@ -204,7 +206,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     if (writer == null) {
-      this.writer = createWriter(config, sampler, this.statsDClient);
+      this.writer = createWriter(config, sampler, this.monitor);
     } else {
       this.writer = writer;
     }
@@ -493,7 +495,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   private static Writer createWriter(
-      final Config config, final Sampler sampler, final StatsDClient statsDClient) {
+      final Config config, final Sampler sampler, final Monitor monitor) {
     final String configuredType = config.getWriterType();
 
     if (WriterConstants.LOGGING_WRITER_TYPE.equals(configuredType)) {
@@ -530,7 +532,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             TimeUnit.SECONDS.toMillis(config.getAgentTimeout()));
 
     final DDAgentWriter ddAgentWriter =
-        DDAgentWriter.builder().agentApi(ddAgentApi).monitor(new Monitor(statsDClient)).build();
+        DDAgentWriter.builder().agentApi(ddAgentApi).monitor(monitor).build();
 
     if (sampler instanceof DDAgentResponseListener) {
       ddAgentWriter.addResponseListener((DDAgentResponseListener) sampler);
@@ -758,7 +760,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
 
         rootSpanTags = localRootSpanTags;
-        contextStack = new SpanContextStack(); // Capture context stack only for local root spans.
+        contextStack =
+            new SpanContextStack(
+                SpanContextStack.Origin.ROOT,
+                monitor); // Capture context stack only for local root spans.
 
         parentTrace = PendingTrace.create(CoreTracer.this, traceId);
       }

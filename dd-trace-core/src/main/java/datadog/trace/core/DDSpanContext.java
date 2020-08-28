@@ -437,7 +437,7 @@ public class DDSpanContext implements AgentSpan.Context {
         && Config.get().getClientSpanStacktraceThresholdNanos() < durationNano) {
       synchronized (unsafeTags) {
         if (Tags.SPAN_KIND_CLIENT.equals(unsafeTags.get(Tags.SPAN_KIND))) {
-          contextStack = new SpanContextStack();
+          contextStack = new SpanContextStack(SpanContextStack.Origin.CLIENT, tracer.monitor);
         }
       }
     }
