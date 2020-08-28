@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "datadog.smoketest.springboot.grpc";
+option java_outer_classname = "GRPCSmokeTestStub";
+
+package smoketest;
+
+service Greeter {
+  rpc Hello(Request) returns (Response) {}
+}
+
+message Request {
+  string message = 1;
+}
+
+message Response {
+  string message = 1;
+}
