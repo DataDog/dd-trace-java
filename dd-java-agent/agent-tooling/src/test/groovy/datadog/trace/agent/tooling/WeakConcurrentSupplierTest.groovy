@@ -16,8 +16,6 @@ class WeakConcurrentSupplierTest extends DDSpecification {
   def weakConcurrentSupplier = new WeakMapSuppliers.WeakConcurrent()
   @Shared
   def weakInlineSupplier = new WeakMapSuppliers.WeakConcurrent.Inline()
-  @Shared
-  def guavaSupplier = new WeakMapSuppliers.Guava()
 
   def "Calling newWeakMap on #name creates independent maps"() {
     setup:
@@ -38,7 +36,6 @@ class WeakConcurrentSupplierTest extends DDSpecification {
     name             | supplier
     "WeakConcurrent" | weakConcurrentSupplier
     "WeakInline"     | weakInlineSupplier
-    "Guava"          | guavaSupplier
   }
 
   def "Unreferenced supplier gets cleaned up on #name"() {
@@ -59,7 +56,6 @@ class WeakConcurrentSupplierTest extends DDSpecification {
     name             | supplierSupplier
     "WeakConcurrent" | { -> new WeakMapSuppliers.WeakConcurrent() }
     "WeakInline"     | { -> new WeakMapSuppliers.WeakConcurrent.Inline() }
-    "Guava"          | { -> new WeakMapSuppliers.Guava() }
   }
 
   def "Unreferenced map gets cleaned up on #name"() {
@@ -80,7 +76,6 @@ class WeakConcurrentSupplierTest extends DDSpecification {
     name             | supplier
     "WeakConcurrent" | weakConcurrentSupplier
     "WeakInline"     | weakInlineSupplier
-    "Guava"          | guavaSupplier
   }
 
   def "Unreferenced keys get cleaned up on #name"() {
@@ -108,14 +103,10 @@ class WeakConcurrentSupplierTest extends DDSpecification {
       }
     }
 
-    // Hit map a few times to trigger unreferenced entries cleanup.
+    // Hit map to trigger unreferenced entries cleanup.
     // Exact number of times that we need to hit map is implementation dependent.
-    // For Guava it is specified in
-    // com.google.common.collect.MapMakerInternalMap.DRAIN_THRESHOLD = 0x3F
-    if (name == "Guava" || name == "WeakInline") {
-      for (int i = 0; i <= 0x3F; i++) {
-        map.get("test")
-      }
+    if (name == "WeakInline") {
+      map.get("test")
     }
 
     then:
@@ -125,8 +116,5 @@ class WeakConcurrentSupplierTest extends DDSpecification {
     name             | map
     "WeakConcurrent" | weakConcurrentSupplier.get()
     "WeakInline"     | weakInlineSupplier.get()
-    // Guava's cleanup process depends on concurrency level,
-    // and in order to be able to test it we need to set concurrency to 1
-    "Guava"          | guavaSupplier.get(1)
   }
 }

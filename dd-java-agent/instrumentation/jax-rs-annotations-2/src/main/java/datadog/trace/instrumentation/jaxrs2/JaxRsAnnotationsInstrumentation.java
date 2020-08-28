@@ -62,6 +62,7 @@ public final class JaxRsAnnotationsInstrumentation extends Instrumenter.Default 
       "datadog.trace.agent.tooling.ClassHierarchyIterable",
       "datadog.trace.agent.tooling.ClassHierarchyIterable$ClassIterator",
       packageName + ".JaxRsAnnotationsDecorator",
+      packageName + ".JaxRsAnnotationsDecorator$1",
     };
   }
 
