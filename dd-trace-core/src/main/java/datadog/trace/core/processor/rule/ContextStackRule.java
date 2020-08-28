@@ -26,7 +26,7 @@ public class ContextStackRule implements TraceProcessor.Rule {
         builder.append(element);
         builder.append("\n");
       }
-      span.setTag(Tags.CONTEXT_STACK_TAG, builder.toString());
+      span.setTag(Tags.CONTEXT_STACK_TAG, builder);
     }
   }
 }

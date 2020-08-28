@@ -159,7 +159,7 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
 
     final StringWriter errorString = new StringWriter();
     error.printStackTrace(new PrintWriter(errorString));
-    setTag(DDTags.ERROR_STACK, errorString.toString());
+    setTag(DDTags.ERROR_STACK, errorString.getBuffer());
 
     return this;
   }

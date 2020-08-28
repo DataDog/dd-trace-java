@@ -366,7 +366,7 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   void unsafeSetTag(final String tag, final Object value) {
-    if (value == null || (value instanceof String && ((String) value).isEmpty())) {
+    if (value == null || (value instanceof CharSequence && ((CharSequence) value).length() == 0)) {
       unsafeTags.remove(tag);
       return;
     }
