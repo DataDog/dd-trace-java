@@ -1,7 +1,9 @@
 package datadog.trace.core
 
+
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -13,6 +15,8 @@ import datadog.trace.util.test.DDSpecification
 import org.spockframework.util.ReflectionUtil
 
 import java.util.concurrent.TimeUnit
+
+import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 
 class DDSpanTest extends DDSpecification {
 
@@ -186,7 +190,9 @@ class DDSpanTest extends DDSpecification {
 
     when:
     DDSpan span = tracer.buildSpan("test").withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT).start()
-    span.finish(span.startTimeMicro + TimeUnit.NANOSECONDS.toMicros(Config.get().clientSpanStacktraceThresholdNanos) + 1)
+    withConfigOverride(TracerConfig.SPAN_CONTEXT_STACK_ENABLED, "true") {
+      span.finish(span.startTimeMicro + TimeUnit.NANOSECONDS.toMicros(Config.get().spanContextStackClientDurationThresholdNanos) + 1)
+    }
     String actual = span.tags[Tags.CONTEXT_STACK_TAG]
 
     then:

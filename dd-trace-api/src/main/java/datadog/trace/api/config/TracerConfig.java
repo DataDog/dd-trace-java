@@ -38,8 +38,9 @@ public final class TracerConfig {
   public static final String SCOPE_DEPTH_LIMIT = "trace.scope.depth.limit";
   public static final String SCOPE_STRICT_MODE = "trace.scope.strict.mode";
   public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
-  public static final String CLIENT_SPAN_STACKTRACE_THRESHOLD_MILLIS =
-      "trace.span.stacktrace.client.duration.millis";
+  public static final String SPAN_CONTEXT_STACK_ENABLED = "trace.span.context.stack.enabled";
+  public static final String SPAN_CONTEXT_STACK_CLIENT_DURATION_MILLIS =
+      "trace.span.context.stack.client.duration.millis";
   public static final String PROPAGATION_STYLE_EXTRACT = "propagation.style.extract";
   public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";
 

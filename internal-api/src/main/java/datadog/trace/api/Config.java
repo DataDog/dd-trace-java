@@ -35,6 +35,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJ
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SPAN_CONTEXT_STACK_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
@@ -162,8 +163,9 @@ public class Config {
   public static final String SCOPE_DEPTH_LIMIT = TracerConfig.SCOPE_DEPTH_LIMIT;
   public static final String SCOPE_STRICT_MODE = TracerConfig.SCOPE_STRICT_MODE;
   public static final String PARTIAL_FLUSH_MIN_SPANS = TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
-  public static final String CLIENT_SPAN_STACKTRACE_THRESHOLD_MILLIS =
-      TracerConfig.CLIENT_SPAN_STACKTRACE_THRESHOLD_MILLIS;
+  public static final String SPAN_CONTEXT_STACK_ENABLED = TracerConfig.SPAN_CONTEXT_STACK_ENABLED;
+  public static final String SPAN_CONTEXT_STACK_CLIENT_DURATION_MILLIS =
+      TracerConfig.SPAN_CONTEXT_STACK_CLIENT_DURATION_MILLIS;
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
   public static final String PROPAGATION_STYLE_EXTRACT = TracerConfig.PROPAGATION_STYLE_EXTRACT;
@@ -294,7 +296,8 @@ public class Config {
   @Getter private final int scopeDepthLimit;
   @Getter private final boolean scopeStrictMode;
   @Getter private final int partialFlushMinSpans;
-  @Getter private final long clientSpanStacktraceThresholdNanos;
+  @Getter private final boolean spanContextStackEnabled;
+  @Getter private final long spanContextStackClientDurationThresholdNanos;
   @Getter private final boolean runtimeContextFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
   @Getter private final Set<PropagationStyle> propagationStylesToInject;
@@ -476,11 +479,14 @@ public class Config {
     partialFlushMinSpans =
         configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
 
-    clientSpanStacktraceThresholdNanos =
+    spanContextStackEnabled =
+        configProvider.getBoolean(SPAN_CONTEXT_STACK_ENABLED, DEFAULT_SPAN_CONTEXT_STACK_ENABLED);
+
+    spanContextStackClientDurationThresholdNanos =
         TimeUnit.MILLISECONDS.toNanos(
             configProvider.getInteger(
-                CLIENT_SPAN_STACKTRACE_THRESHOLD_MILLIS,
-                ConfigDefaults.DEFAULT_CLIENT_SPAN_STACKTRACE_THRESHOLD_MILLIS));
+                SPAN_CONTEXT_STACK_CLIENT_DURATION_MILLIS,
+                ConfigDefaults.DEFAULT_SPAN_CONTEXT_STACK_CLIENT_DURATION_MILLIS));
 
     runtimeContextFieldInjection =
         configProvider.getBoolean(

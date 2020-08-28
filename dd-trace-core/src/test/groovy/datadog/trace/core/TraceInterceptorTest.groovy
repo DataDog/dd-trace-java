@@ -145,8 +145,7 @@ class TraceInterceptorTest extends DDSpecification {
     tags["thread.id"] != null
     tags["runtime-id"] != null
     tags["language"] != null
-    tags["context.stack"] != null
-    tags.size() == 8
+    tags.size() == 7
   }
 
   def "register interceptor through bridge"() {

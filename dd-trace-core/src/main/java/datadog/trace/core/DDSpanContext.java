@@ -433,8 +433,9 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   public void maybeAddStacktrace(long durationNano) {
-    if (contextStack != null
-        && Config.get().getClientSpanStacktraceThresholdNanos() < durationNano) {
+    if (contextStack == null
+        && Config.get().isSpanContextStackEnabled()
+        && Config.get().getSpanContextStackClientDurationThresholdNanos() < durationNano) {
       Object spanKind;
       synchronized (unsafeTags) {
         // TODO: move spanKind outside of tag map to a field to make this more efficient.

@@ -37,7 +37,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
-  static final int DEFAULT_CLIENT_SPAN_STACKTRACE_THRESHOLD_MILLIS = 50;
+  static final boolean DEFAULT_SPAN_CONTEXT_STACK_ENABLED = false;
+  static final int DEFAULT_SPAN_CONTEXT_STACK_CLIENT_DURATION_MILLIS = 50;
   static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
   static final String DEFAULT_PROPAGATION_STYLE_INJECT = PropagationStyle.DATADOG.name();
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;

@@ -760,10 +760,12 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         }
 
         rootSpanTags = localRootSpanTags;
-        contextStack =
-            new SpanContextStack(
-                SpanContextStack.Origin.ROOT,
-                monitor); // Capture context stack only for local root spans.
+        if (Config.get().isSpanContextStackEnabled()) {
+          // Capture context stack only for local root spans.
+          contextStack = new SpanContextStack(SpanContextStack.Origin.ROOT, monitor);
+        } else {
+          contextStack = null;
+        }
 
         parentTrace = PendingTrace.create(CoreTracer.this, traceId);
       }
