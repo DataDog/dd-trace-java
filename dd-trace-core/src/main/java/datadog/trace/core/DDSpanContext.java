@@ -450,7 +450,8 @@ public class DDSpanContext implements AgentSpan.Context {
    */
   // package private visible to only expose for use by ExclusiveSpan during span processing
   StackTraceElement[] getContextStack() {
-    return contextStack == null ? null : contextStack.getStackTrace();
+    SpanContextStack localContextStack = contextStack;
+    return localContextStack == null ? null : localContextStack.getStackTrace();
   }
 
   @Override
