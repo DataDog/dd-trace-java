@@ -7,9 +7,9 @@ final class PropertiesConfigSource extends ConfigProvider.Source {
   private final boolean useSystemPropertyFormat;
 
   public PropertiesConfigSource(Properties props, boolean useSystemPropertyFormat) {
-    this.useSystemPropertyFormat = useSystemPropertyFormat;
     assert props != null;
     this.props = props;
+    this.useSystemPropertyFormat = useSystemPropertyFormat;
   }
 
   @Override

@@ -743,6 +743,35 @@ class ConfigTest extends DDSpecification {
     integrationNames = new TreeSet<>(names)
   }
 
+  def "verify rule config #name"() {
+    setup:
+    environmentVariables.set("DD_TRACE_TEST_ENABLED", "true")
+    environmentVariables.set("DD_TRACE_TEST_ENV_ENABLED", "true")
+    environmentVariables.set("DD_TRACE_DISABLED_ENV_ENABLED", "false")
+
+    System.setProperty("dd.trace.test.enabled", "false")
+    System.setProperty("dd.trace.test-prop.enabled", "true")
+    System.setProperty("dd.trace.disabled-prop.enabled", "false")
+
+    expect:
+    Config.get().isRuleEnabled(name) == enabled
+
+    where:
+    name            | enabled
+    ""              | true
+    "invalid"       | true
+    "test-prop"     | true
+    "Test-Prop"     | true
+    "test-env"      | true
+    "Test-Env"      | true
+    "test"          | false
+    "TEST"          | false
+    "disabled-prop" | false
+    "Disabled-Prop" | false
+    "disabled-env"  | false
+    "Disabled-Env"  | false
+  }
+
   def "verify integration jmxfetch config"() {
     setup:
     environmentVariables.set("DD_JMXFETCH_ORDER_ENABLED", "false")

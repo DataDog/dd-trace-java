@@ -61,7 +61,6 @@ import datadog.trace.api.config.JmxFetchConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
-import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.BufferedReader;
 import java.io.File;
@@ -924,18 +923,6 @@ public class Config {
       }
     }
     return "no config file present";
-  }
-
-  private static Properties loadCapturedEnvironment() {
-    final CapturedEnvironment capturedEnvironment = CapturedEnvironment.get();
-    final Properties properties = new Properties();
-    for (final Map.Entry<String, String> entry : capturedEnvironment.getProperties().entrySet()) {
-      if (entry.getKey() != null && entry.getValue() != null) {
-        properties.put(entry.getKey(), entry.getValue());
-      }
-    }
-
-    return properties;
   }
 
   /** Returns the detected hostname. First tries locally, then using DNS */

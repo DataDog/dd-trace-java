@@ -86,6 +86,7 @@ public final class ConfigProvider {
       try {
         value = ConfigConverter.valueOf(source.get(key, aliases), type);
       } catch (NumberFormatException ex) {
+        assert ex != null;
         continue;
       }
       if (value != null) {
