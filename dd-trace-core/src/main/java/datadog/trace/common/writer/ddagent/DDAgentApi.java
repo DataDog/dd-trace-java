@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +31,6 @@ import okio.BufferedSink;
 /** The API pointing to a DD agent */
 @Slf4j
 public class DDAgentApi {
-  private static final int CONNECT_TIMEOUT_MS = 1000;
   private static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
   private static final String DATADOG_META_LANG_VERSION = "Datadog-Meta-Lang-Version";
   private static final String DATADOG_META_LANG_INTERPRETER = "Datadog-Meta-Lang-Interpreter";
@@ -334,7 +334,7 @@ public class DDAgentApi {
       builder = builder.socketFactory(new UnixDomainSocketFactory(new File(unixDomainSocketPath)));
     }
     return builder
-        .connectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .connectTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
         .writeTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
         .readTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
 
@@ -376,7 +376,7 @@ public class DDAgentApi {
   String detectEndpointAndBuildClient() {
     // TODO clean this up
     if (httpClient == null) {
-      this.agentRunning = isAgentRunning();
+      this.agentRunning = isAgentRunning(timeoutMillis);
       // TODO should check agentRunning, but CoreTracerTest depends on being
       //  able to detect an endpoint without an open socket...
       for (String candidate : endpoints) {
@@ -397,16 +397,15 @@ public class DDAgentApi {
     } else {
       log.warn("No connectivity to datadog agent");
     }
-    if (null == detectedVersion) {
-      log.debug("Tried all of {}, no connectivity to datadog agent", endpoints);
+    if (null == detectedVersion && log.isDebugEnabled()) {
+      log.debug("Tried all of {}, no connectivity to datadog agent", Arrays.asList(endpoints));
     }
     return detectedVersion;
   }
 
-  private boolean isAgentRunning() {
+  private boolean isAgentRunning(final long timeoutMillis) {
     try (Socket socket = new Socket()) {
-      socket.setSoTimeout(CONNECT_TIMEOUT_MS);
-      socket.connect(new InetSocketAddress(host, port));
+      socket.connect(new InetSocketAddress(host, port), (int) timeoutMillis);
       log.debug("Agent connectivity ({}:{})", host, port);
       return true;
     } catch (IOException ex) {
