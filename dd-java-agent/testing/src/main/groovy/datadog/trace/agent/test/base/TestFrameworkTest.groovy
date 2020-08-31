@@ -6,6 +6,7 @@ import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import spock.lang.Shared
 import spock.lang.Unroll
 
@@ -31,6 +32,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_TEST
+        "$DDTags.TEST_TYPE" TestDecorator.TEST_TYPE
         "$DDTags.TEST_SUITE" testSuite
         "$DDTags.TEST_NAME" testName
         "$DDTags.TEST_FRAMEWORK" testFramework
@@ -55,7 +57,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           "$DDTags.GIT_BRANCH" gitBranch
           "$DDTags.GIT_TAG" gitTag
         }
-        
+
         defaultTags()
       }
     }

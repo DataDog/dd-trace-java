@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class TestDecorator extends BaseDecorator {
 
+  public static final String TEST_TYPE = "test";
   public static final String TEST_PASS = "pass";
   public static final String TEST_FAIL = "fail";
   public static final String TEST_SKIP = "skip";
@@ -66,6 +67,10 @@ public abstract class TestDecorator extends BaseDecorator {
 
   protected abstract String testFramework();
 
+  protected String testType() {
+    return TEST_TYPE;
+  }
+
   protected String spanKind() {
     return Tags.SPAN_KIND_TEST;
   }
@@ -81,6 +86,7 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setTag(Tags.SPAN_KIND, spanKind());
     span.setTag(DDTags.SPAN_TYPE, spanType());
     span.setTag(DDTags.TEST_FRAMEWORK, testFramework());
+    span.setTag(DDTags.TEST_TYPE, testType());
 
     span.setTag(DDTags.CI_PROVIDER_NAME, ciProviderName);
     span.setTag(DDTags.CI_PIPELINE_ID, ciPipelineId);

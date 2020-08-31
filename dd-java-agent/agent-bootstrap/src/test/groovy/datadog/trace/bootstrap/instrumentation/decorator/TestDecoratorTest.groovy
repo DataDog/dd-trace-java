@@ -47,6 +47,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
     1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
     1 * span.setTag(DDTags.TEST_FRAMEWORK, decorator.testFramework())
+    1 * span.setTag(DDTags.TEST_TYPE, decorator.testType())
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)
     _ * span.setOperationName(_)
@@ -77,6 +78,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
     1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
     1 * span.setTag(DDTags.TEST_FRAMEWORK, decorator.testFramework())
+    1 * span.setTag(DDTags.TEST_TYPE, decorator.testType())
     1 * span.setTag(DDTags.CI_PROVIDER_NAME, JENKINS_PROVIDER_NAME)
     1 * span.setTag(DDTags.CI_PIPELINE_ID, "jenkins-pipeline-id")
     1 * span.setTag(DDTags.CI_PIPELINE_NUMBER, "jenkins-pipeline-number")
@@ -123,6 +125,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
     1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
     1 * span.setTag(DDTags.TEST_FRAMEWORK, decorator.testFramework())
+    1 * span.setTag(DDTags.TEST_TYPE, decorator.testType())
     1 * span.setTag(DDTags.CI_PROVIDER_NAME, GITLAB_PROVIDER_NAME)
     1 * span.setTag(DDTags.CI_PIPELINE_ID, "gitlab-pipeline-id")
     1 * span.setTag(DDTags.CI_PIPELINE_NUMBER, "gitlab-pipeline-number")
