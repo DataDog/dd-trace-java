@@ -28,6 +28,8 @@ public final class CommonTaskExecutor extends AbstractExecutorService {
     }
   }
 
+  public void initialize() {}
+
   /**
    * Run {@code task} periodically providing it with {@code target}
    *
