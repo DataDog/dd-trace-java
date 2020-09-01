@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class TestDecorator extends BaseDecorator {
 
+  public static final String TEST_TYPE = "test";
   public static final String TEST_PASS = "pass";
   public static final String TEST_FAIL = "fail";
   public static final String TEST_SKIP = "skip";
@@ -66,6 +67,10 @@ public abstract class TestDecorator extends BaseDecorator {
 
   protected abstract String testFramework();
 
+  protected String testType() {
+    return TEST_TYPE;
+  }
+
   protected String spanKind() {
     return Tags.SPAN_KIND_TEST;
   }
@@ -80,19 +85,20 @@ public abstract class TestDecorator extends BaseDecorator {
     assert span != null;
     span.setTag(Tags.SPAN_KIND, spanKind());
     span.setTag(DDTags.SPAN_TYPE, spanType());
-    span.setTag(DDTags.TEST_FRAMEWORK, testFramework());
+    span.setTag(Tags.TEST_FRAMEWORK, testFramework());
+    span.setTag(Tags.TEST_TYPE, testType());
 
-    span.setTag(DDTags.CI_PROVIDER_NAME, ciProviderName);
-    span.setTag(DDTags.CI_PIPELINE_ID, ciPipelineId);
-    span.setTag(DDTags.CI_PIPELINE_NUMBER, ciPipelineNumber);
-    span.setTag(DDTags.CI_PIPELINE_URL, ciPipelineUrl);
-    span.setTag(DDTags.CI_JOB_URL, ciJobUrl);
-    span.setTag(DDTags.CI_WORKSPACE_PATH, ciWorkspacePath);
+    span.setTag(Tags.CI_PROVIDER_NAME, ciProviderName);
+    span.setTag(Tags.CI_PIPELINE_ID, ciPipelineId);
+    span.setTag(Tags.CI_PIPELINE_NUMBER, ciPipelineNumber);
+    span.setTag(Tags.CI_PIPELINE_URL, ciPipelineUrl);
+    span.setTag(Tags.CI_JOB_URL, ciJobUrl);
+    span.setTag(Tags.CI_WORKSPACE_PATH, ciWorkspacePath);
 
-    span.setTag(DDTags.GIT_REPOSITORY_URL, gitRepositoryUrl);
-    span.setTag(DDTags.GIT_COMMIT_SHA, gitCommit);
-    span.setTag(DDTags.GIT_BRANCH, normalizeRef(gitBranch));
-    span.setTag(DDTags.GIT_TAG, normalizeRef(gitTag));
+    span.setTag(Tags.GIT_REPOSITORY_URL, gitRepositoryUrl);
+    span.setTag(Tags.GIT_COMMIT_SHA, gitCommit);
+    span.setTag(Tags.GIT_BRANCH, normalizeRef(gitBranch));
+    span.setTag(Tags.GIT_TAG, normalizeRef(gitTag));
 
     return super.afterStart(span);
   }
