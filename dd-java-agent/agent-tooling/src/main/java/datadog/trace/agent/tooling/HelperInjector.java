@@ -1,9 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.BOOTSTRAP_CLASSLOADER;
-import static datadog.trace.bootstrap.WeakMap.Provider.newWeakMap;
 
-import datadog.trace.bootstrap.WeakMap;
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -18,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.agent.builder.AgentBuilder.Transformer;
@@ -44,7 +43,8 @@ public class HelperInjector implements Transformer {
   private final Set<String> helperClassNames;
   private final Map<String, byte[]> dynamicTypeMap = new LinkedHashMap<>();
 
-  private final WeakMap<ClassLoader, Boolean> injectedClassLoaders = newWeakMap();
+  private final Map<ClassLoader, Boolean> injectedClassLoaders =
+      Collections.synchronizedMap(new WeakHashMap<ClassLoader, Boolean>());
 
   private final List<WeakReference<Object>> helperModules = new CopyOnWriteArrayList<>();
   /**

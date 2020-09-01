@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling;
 
 import com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.MapMaker;
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.common.exec.CommonTaskExecutor.Task;
 import datadog.trace.bootstrap.WeakMap;
@@ -116,19 +115,6 @@ class WeakMapSuppliers {
       public <K, V> WeakMap<K, V> get() {
         return new Adapter<>(new WeakConcurrentMap.WithInlinedExpunction<K, V>());
       }
-    }
-  }
-
-  static class Guava implements WeakMap.Implementation {
-
-    @Override
-    public <K, V> WeakMap<K, V> get() {
-      return new WeakMap.MapAdapter<>(new MapMaker().weakKeys().<K, V>makeMap());
-    }
-
-    public <K, V> WeakMap<K, V> get(final int concurrencyLevel) {
-      return new WeakMap.MapAdapter<>(
-          new MapMaker().concurrencyLevel(concurrencyLevel).weakKeys().<K, V>makeMap());
     }
   }
 }

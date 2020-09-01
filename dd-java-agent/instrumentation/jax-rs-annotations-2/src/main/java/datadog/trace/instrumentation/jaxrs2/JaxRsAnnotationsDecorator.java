@@ -1,11 +1,8 @@
 package datadog.trace.instrumentation.jaxrs2;
 
-import static datadog.trace.bootstrap.WeakMap.Provider.newWeakMap;
-
 import datadog.trace.agent.tooling.ClassHierarchyIterable;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
-import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -27,7 +24,13 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
 
   public static final JaxRsAnnotationsDecorator DECORATE = new JaxRsAnnotationsDecorator();
 
-  private final WeakMap<Class<?>, Map<Method, String>> resourceNames = newWeakMap();
+  private static final ClassValue<Map<Method, String>> RESOURCE_NAMES =
+      new ClassValue<Map<Method, String>>() {
+        @Override
+        protected Map<Method, String> computeValue(Class<?> type) {
+          return new ConcurrentHashMap<>();
+        }
+      };
 
   @Override
   protected String[] instrumentationNames() {
@@ -83,21 +86,14 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
    * @return The result can be an empty string but will never be {@code null}.
    */
   private String getPathResourceName(final Class<?> target, final Method method) {
-    Map<Method, String> classMap = resourceNames.get(target);
-
-    if (classMap == null) {
-      resourceNames.putIfAbsent(target, new ConcurrentHashMap<Method, String>());
-      classMap = resourceNames.get(target);
-      // classMap should not be null at this point because we have a
-      // strong reference to target and don't manually clear the map.
-    }
+    Map<Method, String> classMap = RESOURCE_NAMES.get(target);
 
     String resourceName = classMap.get(method);
     if (resourceName == null) {
       String httpMethod = null;
       Path methodPath = null;
       final Path classPath = findClassPath(target);
-      for (final Class currentClass : new ClassHierarchyIterable(target)) {
+      for (final Class<?> currentClass : new ClassHierarchyIterable(target)) {
         final Method currentMethod;
         if (currentClass.equals(target)) {
           currentMethod = method;

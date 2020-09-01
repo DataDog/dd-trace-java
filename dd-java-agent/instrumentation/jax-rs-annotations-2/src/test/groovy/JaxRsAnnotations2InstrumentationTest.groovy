@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.bootstrap.WeakMap
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator
 
@@ -10,7 +9,6 @@ import javax.ws.rs.OPTIONS
 import javax.ws.rs.POST
 import javax.ws.rs.PUT
 import javax.ws.rs.Path
-import java.lang.reflect.Method
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -43,7 +41,6 @@ class JaxRsAnnotations2InstrumentationTest extends AgentTestRunner {
 
   def "span named '#name' from annotations on class when is not root span"() {
     setup:
-    def startingCacheSize = resourceNames.size()
     runUnderTrace("test") {
       obj.call()
     }
@@ -72,18 +69,6 @@ class JaxRsAnnotations2InstrumentationTest extends AgentTestRunner {
         }
       }
     }
-    resourceNames.size() == startingCacheSize + 1
-    resourceNames.get(obj.class).size() == 1
-
-    when: "multiple calls to the same method"
-    runUnderTrace("test") {
-      (1..10).each {
-        obj.call()
-      }
-    }
-    then: "doesn't increase the cache size"
-    resourceNames.size() == startingCacheSize + 1
-    resourceNames.get(obj.class).size() == 1
 
     where:
     name                 | obj
@@ -140,7 +125,6 @@ class JaxRsAnnotations2InstrumentationTest extends AgentTestRunner {
 
     // JavaInterfaces classes are loaded on a different classloader, so we need to find the right cache instance.
     decorator = obj.class.classLoader.loadClass(JaxRsAnnotationsDecorator.name).getField("DECORATE").get(null)
-    resourceNames = (WeakMap<Class, Map<Method, String>>) decorator.resourceNames
   }
 
   def "no annotations has no effect"() {
