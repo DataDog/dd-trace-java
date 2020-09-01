@@ -1,5 +1,10 @@
 package datadog.trace.core;
 
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_AGENT_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.PRINTING_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.TRACE_STRUCTURE_WRITER_TYPE;
+
 import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
@@ -17,12 +22,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
-import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.common.writer.PrintingWriter;
+import datadog.trace.common.writer.TraceStructureWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
@@ -495,13 +500,15 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Config config, final Sampler sampler, final StatsDClient statsDClient) {
     final String configuredType = config.getWriterType();
 
-    if (WriterConstants.LOGGING_WRITER_TYPE.equals(configuredType)) {
+    if (LOGGING_WRITER_TYPE.equals(configuredType)) {
       return new LoggingWriter();
-    } else if (WriterConstants.PRINTING_WRITER_TYPE.equals(configuredType)) {
+    } else if (PRINTING_WRITER_TYPE.equals(configuredType)) {
       return new PrintingWriter(System.out, true);
+    } else if (configuredType.startsWith(TRACE_STRUCTURE_WRITER_TYPE)) {
+      return new TraceStructureWriter(configuredType.replace(TRACE_STRUCTURE_WRITER_TYPE, ""));
     }
 
-    if (!WriterConstants.DD_AGENT_WRITER_TYPE.equals(configuredType)) {
+    if (!DD_AGENT_WRITER_TYPE.equals(configuredType)) {
       log.warn(
           "Writer type not configured correctly: Type {} not recognized. Ignoring", configuredType);
     }
