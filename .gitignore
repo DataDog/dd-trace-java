@@ -57,6 +57,7 @@ derby.log
 hs_err_pid*
 replay_pid*
 
+**/src/*/generated/*
 !dd-java-agent/benchmark/releases/*.jar
 
 # Magic for local JMC built

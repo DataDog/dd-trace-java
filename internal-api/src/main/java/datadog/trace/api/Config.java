@@ -35,13 +35,11 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_RUNTIME_CONTEXT_FIELD_INJ
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SCOPE_DEPTH_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SPLIT_BY_TAGS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATIONS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_RATE_LIMIT;
@@ -54,6 +52,7 @@ import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
+import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
 
@@ -62,21 +61,16 @@ import datadog.trace.api.config.JmxFetchConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
-import datadog.trace.api.env.CapturedEnvironment;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
@@ -108,12 +102,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @ToString(includeFieldNames = true)
 public class Config {
-  private static final MethodHandles.Lookup PUBLIC_LOOKUP = MethodHandles.publicLookup();
 
   /** Config keys below */
-  private static final String PREFIX = "dd.";
-
   public static final String CONFIGURATION_FILE = GeneralConfig.CONFIGURATION_FILE;
+
   public static final String API_KEY = GeneralConfig.API_KEY;
   public static final String API_KEY_FILE = GeneralConfig.API_KEY_FILE;
   public static final String SITE = GeneralConfig.SITE;
@@ -363,28 +355,25 @@ public class Config {
   @Getter private final boolean debugEnabled;
   @Getter private final String configFile;
 
-  // Values from an optionally provided properties file
-  private static Properties propertiesFromConfigFile;
-
-  // Values extracted from the environment. These properties are platform dependant.
-  private static Properties propertiesFromCapturedEnv;
+  private final ConfigProvider configProvider;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
   private Config() {
-    this(INSTANCE != null ? INSTANCE.runtimeId : UUID.randomUUID().toString());
+    this(
+        INSTANCE != null ? INSTANCE.runtimeId : UUID.randomUUID().toString(),
+        ConfigProvider.createDefault());
   }
 
-  private Config(final String runtimeId) {
-    propertiesFromConfigFile = loadConfigurationFile();
-    propertiesFromCapturedEnv = loadCapturedEnvironment();
+  private Config(final String runtimeId, ConfigProvider configProvider) {
+    this.configProvider = configProvider;
     configFile = findConfigurationFile();
     this.runtimeId = runtimeId;
 
     // Note: We do not want APiKey to be loaded from property for security reasons
     // Note: we do not use defined default here
     // FIXME: We should use better authentication mechanism
-    final String apiKeyFile = getSettingFromEnvironment(API_KEY_FILE, null);
-    String tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(API_KEY));
+    final String apiKeyFile = configProvider.getString(API_KEY_FILE);
+    String tmpApiKey = configProvider.getStringBypassSysProps(API_KEY, null);
     if (apiKeyFile != null) {
       try {
         tmpApiKey =
@@ -393,19 +382,17 @@ public class Config {
         log.error("Cannot read API key from file {}, skipping", apiKeyFile, e);
       }
     }
-    site = getSettingFromEnvironment(SITE, DEFAULT_SITE);
-    serviceName =
-        getSettingFromEnvironment(
-            SERVICE, getSettingFromEnvironment(SERVICE_NAME, DEFAULT_SERVICE_NAME));
+    site = configProvider.getString(SITE, DEFAULT_SITE);
+    serviceName = configProvider.getString(SERVICE, DEFAULT_SERVICE_NAME, SERVICE_NAME);
 
-    traceEnabled = getBooleanSettingFromEnvironment(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
+    traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     integrationsEnabled =
-        getBooleanSettingFromEnvironment(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
-    writerType = getSettingFromEnvironment(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
+        configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
+    writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
 
     // The extra code is to detect when defaults are used for agent configuration
     final boolean agentHostConfiguredUsingDefault;
-    final String agentHostFromEnvironment = getSettingFromEnvironment(AGENT_HOST, null);
+    final String agentHostFromEnvironment = configProvider.getString(AGENT_HOST);
     if (agentHostFromEnvironment == null) {
       agentHost = DEFAULT_AGENT_HOST;
       agentHostConfiguredUsingDefault = true;
@@ -415,7 +402,7 @@ public class Config {
     }
 
     final boolean socketConfiguredUsingDefault;
-    final String unixDomainFromEnv = getSettingFromEnvironment(AGENT_UNIX_DOMAIN_SOCKET, null);
+    final String unixDomainFromEnv = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
     if (unixDomainFromEnv == null) {
       agentUnixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
       socketConfiguredUsingDefault = true;
@@ -425,74 +412,68 @@ public class Config {
     }
 
     agentPort =
-        getIntegerSettingFromEnvironment(
-            TRACE_AGENT_PORT,
-            getIntegerSettingFromEnvironment(AGENT_PORT_LEGACY, DEFAULT_TRACE_AGENT_PORT));
+        configProvider.getInteger(TRACE_AGENT_PORT, DEFAULT_TRACE_AGENT_PORT, AGENT_PORT_LEGACY);
 
     agentConfiguredUsingDefault =
         agentHostConfiguredUsingDefault
             && socketConfiguredUsingDefault
             && agentPort == DEFAULT_TRACE_AGENT_PORT;
 
-    agentTimeout = getIntegerSettingFromEnvironment(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
+    agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
     prioritySamplingEnabled =
-        getBooleanSettingFromEnvironment(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
+        configProvider.getBoolean(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
     traceResolverEnabled =
-        getBooleanSettingFromEnvironment(TRACE_RESOLVER_ENABLED, DEFAULT_TRACE_RESOLVER_ENABLED);
-    serviceMapping = getMapSettingFromEnvironment(SERVICE_MAPPING, null);
+        configProvider.getBoolean(TRACE_RESOLVER_ENABLED, DEFAULT_TRACE_RESOLVER_ENABLED);
+    serviceMapping = configProvider.getMergedMap(SERVICE_MAPPING);
 
     {
-      final Map<String, String> tags =
-          new HashMap<>(getMapSettingFromEnvironment(GLOBAL_TAGS, null));
-      tags.putAll(getMapSettingFromEnvironment(TAGS, null));
+      final Map<String, String> tags = new HashMap<>(configProvider.getMergedMap(GLOBAL_TAGS));
+      tags.putAll(configProvider.getMergedMap(TAGS));
       this.tags = getMapWithPropertiesDefinedByEnvironment(tags, ENV, VERSION);
     }
 
-    spanTags = getMapSettingFromEnvironment(SPAN_TAGS, null);
-    jmxTags = getMapSettingFromEnvironment(JMX_TAGS, null);
+    spanTags = configProvider.getMergedMap(SPAN_TAGS);
+    jmxTags = configProvider.getMergedMap(JMX_TAGS);
 
-    excludedClasses = getListSettingFromEnvironment(TRACE_CLASSES_EXCLUDE, null);
-    headerTags = getMapSettingFromEnvironment(HEADER_TAGS, null);
+    excludedClasses = configProvider.getList(TRACE_CLASSES_EXCLUDE);
+    headerTags = configProvider.getMergedMap(HEADER_TAGS);
 
     httpServerErrorStatuses =
-        getIntegerRangeSettingFromEnvironment(
+        configProvider.getIntegerRange(
             HTTP_SERVER_ERROR_STATUSES, DEFAULT_HTTP_SERVER_ERROR_STATUSES);
 
     httpClientErrorStatuses =
-        getIntegerRangeSettingFromEnvironment(
+        configProvider.getIntegerRange(
             HTTP_CLIENT_ERROR_STATUSES, DEFAULT_HTTP_CLIENT_ERROR_STATUSES);
 
     httpServerTagQueryString =
-        getBooleanSettingFromEnvironment(
+        configProvider.getBoolean(
             HTTP_SERVER_TAG_QUERY_STRING, DEFAULT_HTTP_SERVER_TAG_QUERY_STRING);
 
     httpClientTagQueryString =
-        getBooleanSettingFromEnvironment(
+        configProvider.getBoolean(
             HTTP_CLIENT_TAG_QUERY_STRING, DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING);
 
     httpClientSplitByDomain =
-        getBooleanSettingFromEnvironment(
+        configProvider.getBoolean(
             HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN);
 
     dbClientSplitByInstance =
-        getBooleanSettingFromEnvironment(
+        configProvider.getBoolean(
             DB_CLIENT_HOST_SPLIT_BY_INSTANCE, DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE);
 
     splitByTags =
-        Collections.unmodifiableSet(
-            new LinkedHashSet<>(
-                getListSettingFromEnvironment(SPLIT_BY_TAGS, DEFAULT_SPLIT_BY_TAGS)));
+        Collections.unmodifiableSet(new LinkedHashSet<>(configProvider.getList(SPLIT_BY_TAGS)));
 
-    scopeDepthLimit =
-        getIntegerSettingFromEnvironment(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
+    scopeDepthLimit = configProvider.getInteger(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
 
-    scopeStrictMode = getBooleanSettingFromEnvironment(SCOPE_STRICT_MODE, false);
+    scopeStrictMode = configProvider.getBoolean(SCOPE_STRICT_MODE, false);
 
     partialFlushMinSpans =
-        getIntegerSettingFromEnvironment(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
+        configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
 
     runtimeContextFieldInjection =
-        getBooleanSettingFromEnvironment(
+        configProvider.getBoolean(
             RUNTIME_CONTEXT_FIELD_INJECTION, DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
 
     propagationStylesToExtract =
@@ -502,59 +483,52 @@ public class Config {
         getPropagationStyleSetSettingFromEnvironmentOrDefault(
             PROPAGATION_STYLE_INJECT, DEFAULT_PROPAGATION_STYLE_INJECT);
 
-    jmxFetchEnabled =
-        getBooleanSettingFromEnvironment(JMX_FETCH_ENABLED, DEFAULT_JMX_FETCH_ENABLED);
-    jmxFetchConfigDir = getSettingFromEnvironment(JMX_FETCH_CONFIG_DIR, null);
-    jmxFetchConfigs = getListSettingFromEnvironment(JMX_FETCH_CONFIG, null);
-    jmxFetchMetricsConfigs = getListSettingFromEnvironment(JMX_FETCH_METRICS_CONFIGS, null);
-    jmxFetchCheckPeriod = getIntegerSettingFromEnvironment(JMX_FETCH_CHECK_PERIOD, null);
-    jmxFetchRefreshBeansPeriod =
-        getIntegerSettingFromEnvironment(JMX_FETCH_REFRESH_BEANS_PERIOD, null);
-    jmxFetchStatsdHost = getSettingFromEnvironment(JMX_FETCH_STATSD_HOST, null);
+    jmxFetchEnabled = configProvider.getBoolean(JMX_FETCH_ENABLED, DEFAULT_JMX_FETCH_ENABLED);
+    jmxFetchConfigDir = configProvider.getString(JMX_FETCH_CONFIG_DIR);
+    jmxFetchConfigs = configProvider.getList(JMX_FETCH_CONFIG);
+    jmxFetchMetricsConfigs = configProvider.getList(JMX_FETCH_METRICS_CONFIGS);
+    jmxFetchCheckPeriod = configProvider.getInteger(JMX_FETCH_CHECK_PERIOD);
+    jmxFetchRefreshBeansPeriod = configProvider.getInteger(JMX_FETCH_REFRESH_BEANS_PERIOD);
+    jmxFetchStatsdHost = configProvider.getString(JMX_FETCH_STATSD_HOST);
     jmxFetchStatsdPort =
-        getIntegerSettingFromEnvironment(JMX_FETCH_STATSD_PORT, DEFAULT_JMX_FETCH_STATSD_PORT);
+        configProvider.getInteger(JMX_FETCH_STATSD_PORT, DEFAULT_JMX_FETCH_STATSD_PORT);
 
     // Writer.Builder createMonitor will use the values of the JMX fetch & agent to fill-in defaults
     healthMetricsEnabled =
-        getBooleanSettingFromEnvironment(HEALTH_METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
-    healthMetricsStatsdHost = getSettingFromEnvironment(HEALTH_METRICS_STATSD_HOST, null);
-    healthMetricsStatsdPort = getIntegerSettingFromEnvironment(HEALTH_METRICS_STATSD_PORT, null);
+        configProvider.getBoolean(HEALTH_METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
+    healthMetricsStatsdHost = configProvider.getString(HEALTH_METRICS_STATSD_HOST);
+    healthMetricsStatsdPort = configProvider.getInteger(HEALTH_METRICS_STATSD_PORT);
 
     logsInjectionEnabled =
-        getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
-    logsMDCTagsInjectionEnabled =
-        getBooleanSettingFromEnvironment(LOGS_MDC_TAGS_INJECTION_ENABLED, false);
+        configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
+    logsMDCTagsInjectionEnabled = configProvider.getBoolean(LOGS_MDC_TAGS_INJECTION_ENABLED, false);
     reportHostName =
-        getBooleanSettingFromEnvironment(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
+        configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
     traceAgentV05Enabled =
-        getBooleanSettingFromEnvironment(ENABLE_TRACE_AGENT_V05, DEFAULT_TRACE_AGENT_V05_ENABLED);
+        configProvider.getBoolean(ENABLE_TRACE_AGENT_V05, DEFAULT_TRACE_AGENT_V05_ENABLED);
 
-    traceAnnotations = getSettingFromEnvironment(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
+    traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
 
-    traceMethods = getSettingFromEnvironment(TRACE_METHODS, DEFAULT_TRACE_METHODS);
+    traceMethods = configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS);
 
-    traceExecutorsAll =
-        getBooleanSettingFromEnvironment(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
+    traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
 
-    traceExecutors = getListSettingFromEnvironment(TRACE_EXECUTORS, DEFAULT_TRACE_EXECUTORS);
+    traceExecutors = configProvider.getList(TRACE_EXECUTORS);
 
     traceAnalyticsEnabled =
-        getBooleanSettingFromEnvironment(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
+        configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
 
-    traceSamplingServiceRules = getMapSettingFromEnvironment(TRACE_SAMPLING_SERVICE_RULES, null);
-    traceSamplingOperationRules =
-        getMapSettingFromEnvironment(TRACE_SAMPLING_OPERATION_RULES, null);
-    traceSampleRate = getDoubleSettingFromEnvironment(TRACE_SAMPLE_RATE, null);
-    traceRateLimit = getDoubleSettingFromEnvironment(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
+    traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
+    traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
+    traceSampleRate = configProvider.getDouble(TRACE_SAMPLE_RATE);
+    traceRateLimit = configProvider.getDouble(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
-    profilingEnabled =
-        getBooleanSettingFromEnvironment(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
-    profilingUrl = getSettingFromEnvironment(PROFILING_URL, null);
+    profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
+    profilingUrl = configProvider.getString(PROFILING_URL);
 
     if (tmpApiKey == null) {
-      final String oldProfilingApiKeyFile =
-          getSettingFromEnvironment(PROFILING_API_KEY_FILE_OLD, null);
+      final String oldProfilingApiKeyFile = configProvider.getString(PROFILING_API_KEY_FILE_OLD);
       tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
       if (oldProfilingApiKeyFile != null) {
         try {
@@ -569,7 +543,7 @@ public class Config {
     }
     if (tmpApiKey == null) {
       final String veryOldProfilingApiKeyFile =
-          getSettingFromEnvironment(PROFILING_API_KEY_FILE_VERY_OLD, null);
+          configProvider.getString(PROFILING_API_KEY_FILE_VERY_OLD);
       tmpApiKey = System.getenv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_VERY_OLD));
       if (veryOldProfilingApiKeyFile != null) {
         try {
@@ -584,282 +558,53 @@ public class Config {
       }
     }
 
-    profilingTags = getMapSettingFromEnvironment(PROFILING_TAGS, null);
+    profilingTags = configProvider.getMergedMap(PROFILING_TAGS);
     profilingStartDelay =
-        getIntegerSettingFromEnvironment(PROFILING_START_DELAY, DEFAULT_PROFILING_START_DELAY);
+        configProvider.getInteger(PROFILING_START_DELAY, DEFAULT_PROFILING_START_DELAY);
     profilingStartForceFirst =
-        getBooleanSettingFromEnvironment(
-            PROFILING_START_FORCE_FIRST, DEFAULT_PROFILING_START_FORCE_FIRST);
+        configProvider.getBoolean(PROFILING_START_FORCE_FIRST, DEFAULT_PROFILING_START_FORCE_FIRST);
     profilingUploadPeriod =
-        getIntegerSettingFromEnvironment(PROFILING_UPLOAD_PERIOD, DEFAULT_PROFILING_UPLOAD_PERIOD);
-    profilingTemplateOverrideFile =
-        getSettingFromEnvironment(PROFILING_TEMPLATE_OVERRIDE_FILE, null);
+        configProvider.getInteger(PROFILING_UPLOAD_PERIOD, DEFAULT_PROFILING_UPLOAD_PERIOD);
+    profilingTemplateOverrideFile = configProvider.getString(PROFILING_TEMPLATE_OVERRIDE_FILE);
     profilingUploadTimeout =
-        getIntegerSettingFromEnvironment(
-            PROFILING_UPLOAD_TIMEOUT, DEFAULT_PROFILING_UPLOAD_TIMEOUT);
+        configProvider.getInteger(PROFILING_UPLOAD_TIMEOUT, DEFAULT_PROFILING_UPLOAD_TIMEOUT);
     profilingUploadCompression =
-        getSettingFromEnvironment(
+        configProvider.getString(
             PROFILING_UPLOAD_COMPRESSION, DEFAULT_PROFILING_UPLOAD_COMPRESSION);
-    profilingProxyHost = getSettingFromEnvironment(PROFILING_PROXY_HOST, null);
+    profilingProxyHost = configProvider.getString(PROFILING_PROXY_HOST);
     profilingProxyPort =
-        getIntegerSettingFromEnvironment(PROFILING_PROXY_PORT, DEFAULT_PROFILING_PROXY_PORT);
-    profilingProxyUsername = getSettingFromEnvironment(PROFILING_PROXY_USERNAME, null);
-    profilingProxyPassword = getSettingFromEnvironment(PROFILING_PROXY_PASSWORD, null);
+        configProvider.getInteger(PROFILING_PROXY_PORT, DEFAULT_PROFILING_PROXY_PORT);
+    profilingProxyUsername = configProvider.getString(PROFILING_PROXY_USERNAME);
+    profilingProxyPassword = configProvider.getString(PROFILING_PROXY_PASSWORD);
 
     profilingExceptionSampleLimit =
-        getIntegerSettingFromEnvironment(
+        configProvider.getInteger(
             PROFILING_EXCEPTION_SAMPLE_LIMIT, DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT);
     profilingExceptionHistogramTopItems =
-        getIntegerSettingFromEnvironment(
+        configProvider.getInteger(
             PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
             DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS);
     profilingExceptionHistogramMaxCollectionSize =
-        getIntegerSettingFromEnvironment(
+        configProvider.getInteger(
             PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
             DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE);
 
     kafkaClientPropagationEnabled =
-        getBooleanSettingFromEnvironment(
+        configProvider.getBoolean(
             KAFKA_CLIENT_PROPAGATION_ENABLED, DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED);
 
     kafkaClientBase64DecodingEnabled =
-        getBooleanSettingFromEnvironment(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
+        configProvider.getBoolean(KAFKA_CLIENT_BASE64_DECODING_ENABLED, false);
 
-    hystrixTagsEnabled =
-        getBooleanSettingFromEnvironment(TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED, false);
+    hystrixTagsEnabled = configProvider.getBoolean(HYSTRIX_TAGS_ENABLED, false);
 
     servletPrincipalEnabled =
-        getBooleanSettingFromEnvironment(
-            TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED, false);
+        configProvider.getBoolean(TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED, false);
 
     debugEnabled = isDebugMode();
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
-
-    log.debug("New instance: {}", this);
-  }
-
-  // Read order: Properties -> Parent
-  private Config(final Properties properties, final Config parent) {
-    runtimeId = parent.runtimeId;
-
-    configFile = parent.configFile;
-
-    apiKey = properties.getProperty(API_KEY, parent.apiKey);
-    site = properties.getProperty(SITE, parent.site);
-    serviceName =
-        properties.getProperty(SERVICE, properties.getProperty(SERVICE_NAME, parent.serviceName));
-
-    traceEnabled = getPropertyBooleanValue(properties, TRACE_ENABLED, parent.traceEnabled);
-    integrationsEnabled =
-        getPropertyBooleanValue(properties, INTEGRATIONS_ENABLED, parent.integrationsEnabled);
-    writerType = properties.getProperty(WRITER_TYPE, parent.writerType);
-    agentHost = properties.getProperty(AGENT_HOST, parent.agentHost);
-    agentPort =
-        getPropertyIntegerValue(
-            properties,
-            TRACE_AGENT_PORT,
-            getPropertyIntegerValue(properties, AGENT_PORT_LEGACY, parent.agentPort));
-    agentUnixDomainSocket =
-        properties.getProperty(AGENT_UNIX_DOMAIN_SOCKET, parent.agentUnixDomainSocket);
-    agentConfiguredUsingDefault =
-        !properties.containsKey(AGENT_HOST)
-            && !properties.containsKey(AGENT_UNIX_DOMAIN_SOCKET)
-            && !properties.containsKey(TRACE_AGENT_PORT)
-            && !properties.containsKey(AGENT_PORT_LEGACY)
-            && parent.agentConfiguredUsingDefault;
-    agentTimeout = getPropertyIntegerValue(properties, AGENT_TIMEOUT, parent.agentTimeout);
-    prioritySamplingEnabled =
-        getPropertyBooleanValue(properties, PRIORITY_SAMPLING, parent.prioritySamplingEnabled);
-    traceResolverEnabled =
-        getPropertyBooleanValue(properties, TRACE_RESOLVER_ENABLED, parent.traceResolverEnabled);
-    serviceMapping = getPropertyMapValue(properties, SERVICE_MAPPING, parent.serviceMapping);
-
-    {
-      final Map<String, String> preTags =
-          new HashMap<>(
-              getPropertyMapValue(properties, GLOBAL_TAGS, Collections.<String, String>emptyMap()));
-      preTags.putAll(getPropertyMapValue(properties, TAGS, parent.tags));
-      tags = overwriteKeysFromProperties(preTags, properties, ENV, VERSION);
-    }
-    spanTags = getPropertyMapValue(properties, SPAN_TAGS, parent.spanTags);
-    jmxTags = getPropertyMapValue(properties, JMX_TAGS, parent.jmxTags);
-    excludedClasses =
-        getPropertyListValue(properties, TRACE_CLASSES_EXCLUDE, parent.excludedClasses);
-    headerTags = getPropertyMapValue(properties, HEADER_TAGS, parent.headerTags);
-
-    httpServerErrorStatuses =
-        getPropertyIntegerRangeValue(
-            properties, HTTP_SERVER_ERROR_STATUSES, parent.httpServerErrorStatuses);
-
-    httpClientErrorStatuses =
-        getPropertyIntegerRangeValue(
-            properties, HTTP_CLIENT_ERROR_STATUSES, parent.httpClientErrorStatuses);
-
-    httpServerTagQueryString =
-        getPropertyBooleanValue(
-            properties, HTTP_SERVER_TAG_QUERY_STRING, parent.httpServerTagQueryString);
-
-    httpClientTagQueryString =
-        getPropertyBooleanValue(
-            properties, HTTP_CLIENT_TAG_QUERY_STRING, parent.httpClientTagQueryString);
-
-    httpClientSplitByDomain =
-        getPropertyBooleanValue(
-            properties, HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, parent.httpClientSplitByDomain);
-
-    dbClientSplitByInstance =
-        getPropertyBooleanValue(
-            properties, DB_CLIENT_HOST_SPLIT_BY_INSTANCE, parent.dbClientSplitByInstance);
-
-    splitByTags =
-        Collections.unmodifiableSet(
-            new LinkedHashSet<>(
-                getPropertyListValue(
-                    properties, SPLIT_BY_TAGS, new ArrayList<>(parent.splitByTags))));
-
-    scopeDepthLimit =
-        getPropertyIntegerValue(properties, SCOPE_DEPTH_LIMIT, parent.scopeDepthLimit);
-
-    scopeStrictMode =
-        getPropertyBooleanValue(properties, SCOPE_STRICT_MODE, parent.scopeStrictMode);
-
-    partialFlushMinSpans =
-        getPropertyIntegerValue(properties, PARTIAL_FLUSH_MIN_SPANS, parent.partialFlushMinSpans);
-
-    runtimeContextFieldInjection =
-        getPropertyBooleanValue(
-            properties, RUNTIME_CONTEXT_FIELD_INJECTION, parent.runtimeContextFieldInjection);
-
-    final Set<PropagationStyle> parsedPropagationStylesToExtract =
-        getPropagationStyleSetFromPropertyValue(properties, PROPAGATION_STYLE_EXTRACT);
-    propagationStylesToExtract =
-        parsedPropagationStylesToExtract == null
-            ? parent.propagationStylesToExtract
-            : parsedPropagationStylesToExtract;
-    final Set<PropagationStyle> parsedPropagationStylesToInject =
-        getPropagationStyleSetFromPropertyValue(properties, PROPAGATION_STYLE_INJECT);
-    propagationStylesToInject =
-        parsedPropagationStylesToInject == null
-            ? parent.propagationStylesToInject
-            : parsedPropagationStylesToInject;
-
-    jmxFetchEnabled =
-        getPropertyBooleanValue(properties, JMX_FETCH_ENABLED, parent.jmxFetchEnabled);
-    jmxFetchConfigDir = properties.getProperty(JMX_FETCH_CONFIG_DIR, parent.jmxFetchConfigDir);
-    jmxFetchConfigs = getPropertyListValue(properties, JMX_FETCH_CONFIG, parent.jmxFetchConfigs);
-    jmxFetchMetricsConfigs =
-        getPropertyListValue(properties, JMX_FETCH_METRICS_CONFIGS, parent.jmxFetchMetricsConfigs);
-    jmxFetchCheckPeriod =
-        getPropertyIntegerValue(properties, JMX_FETCH_CHECK_PERIOD, parent.jmxFetchCheckPeriod);
-    jmxFetchRefreshBeansPeriod =
-        getPropertyIntegerValue(
-            properties, JMX_FETCH_REFRESH_BEANS_PERIOD, parent.jmxFetchRefreshBeansPeriod);
-    jmxFetchStatsdHost = properties.getProperty(JMX_FETCH_STATSD_HOST, parent.jmxFetchStatsdHost);
-    jmxFetchStatsdPort =
-        getPropertyIntegerValue(properties, JMX_FETCH_STATSD_PORT, parent.jmxFetchStatsdPort);
-
-    healthMetricsEnabled =
-        getPropertyBooleanValue(properties, HEALTH_METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
-    healthMetricsStatsdHost =
-        properties.getProperty(HEALTH_METRICS_STATSD_HOST, parent.healthMetricsStatsdHost);
-    healthMetricsStatsdPort =
-        getPropertyIntegerValue(
-            properties, HEALTH_METRICS_STATSD_PORT, parent.healthMetricsStatsdPort);
-
-    logsInjectionEnabled =
-        getBooleanSettingFromEnvironment(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
-    logsMDCTagsInjectionEnabled =
-        getBooleanSettingFromEnvironment(
-            LOGS_MDC_TAGS_INJECTION_ENABLED, parent.logsMDCTagsInjectionEnabled);
-    reportHostName =
-        getPropertyBooleanValue(properties, TRACE_REPORT_HOSTNAME, parent.reportHostName);
-
-    traceAgentV05Enabled =
-        getBooleanSettingFromEnvironment(ENABLE_TRACE_AGENT_V05, parent.traceAgentV05Enabled);
-
-    traceAnnotations = properties.getProperty(TRACE_ANNOTATIONS, parent.traceAnnotations);
-
-    traceMethods = properties.getProperty(TRACE_METHODS, parent.traceMethods);
-
-    traceExecutorsAll =
-        getPropertyBooleanValue(properties, TRACE_EXECUTORS_ALL, parent.traceExecutorsAll);
-    traceExecutors = getPropertyListValue(properties, TRACE_EXECUTORS, parent.traceExecutors);
-
-    traceAnalyticsEnabled =
-        getPropertyBooleanValue(properties, TRACE_ANALYTICS_ENABLED, parent.traceAnalyticsEnabled);
-
-    traceSamplingServiceRules =
-        getPropertyMapValue(
-            properties, TRACE_SAMPLING_SERVICE_RULES, parent.traceSamplingServiceRules);
-    traceSamplingOperationRules =
-        getPropertyMapValue(
-            properties, TRACE_SAMPLING_OPERATION_RULES, parent.traceSamplingOperationRules);
-    traceSampleRate = getPropertyDoubleValue(properties, TRACE_SAMPLE_RATE, parent.traceSampleRate);
-    traceRateLimit = getPropertyDoubleValue(properties, TRACE_RATE_LIMIT, parent.traceRateLimit);
-
-    profilingEnabled =
-        getPropertyBooleanValue(properties, PROFILING_ENABLED, parent.profilingEnabled);
-    profilingUrl = properties.getProperty(PROFILING_URL, parent.profilingUrl);
-    profilingTags = getPropertyMapValue(properties, PROFILING_TAGS, parent.profilingTags);
-    profilingStartDelay =
-        getPropertyIntegerValue(properties, PROFILING_START_DELAY, parent.profilingStartDelay);
-    profilingStartForceFirst =
-        getPropertyBooleanValue(
-            properties, PROFILING_START_FORCE_FIRST, parent.profilingStartForceFirst);
-    profilingUploadPeriod =
-        getPropertyIntegerValue(properties, PROFILING_UPLOAD_PERIOD, parent.profilingUploadPeriod);
-    profilingTemplateOverrideFile =
-        properties.getProperty(
-            PROFILING_TEMPLATE_OVERRIDE_FILE, parent.profilingTemplateOverrideFile);
-    profilingUploadTimeout =
-        getPropertyIntegerValue(
-            properties, PROFILING_UPLOAD_TIMEOUT, parent.profilingUploadTimeout);
-    profilingUploadCompression =
-        properties.getProperty(PROFILING_UPLOAD_COMPRESSION, parent.profilingUploadCompression);
-    profilingProxyHost = properties.getProperty(PROFILING_PROXY_HOST, parent.profilingProxyHost);
-    profilingProxyPort =
-        getPropertyIntegerValue(properties, PROFILING_PROXY_PORT, parent.profilingProxyPort);
-    profilingProxyUsername =
-        properties.getProperty(PROFILING_PROXY_USERNAME, parent.profilingProxyUsername);
-    profilingProxyPassword =
-        properties.getProperty(PROFILING_PROXY_PASSWORD, parent.profilingProxyPassword);
-
-    profilingExceptionSampleLimit =
-        getPropertyIntegerValue(
-            properties, PROFILING_EXCEPTION_SAMPLE_LIMIT, parent.profilingExceptionSampleLimit);
-
-    profilingExceptionHistogramTopItems =
-        getPropertyIntegerValue(
-            properties,
-            PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
-            parent.profilingExceptionHistogramTopItems);
-    profilingExceptionHistogramMaxCollectionSize =
-        getPropertyIntegerValue(
-            properties,
-            PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
-            parent.profilingExceptionHistogramMaxCollectionSize);
-
-    kafkaClientPropagationEnabled =
-        getPropertyBooleanValue(
-            properties, KAFKA_CLIENT_PROPAGATION_ENABLED, parent.kafkaClientPropagationEnabled);
-
-    hystrixTagsEnabled =
-        getBooleanSettingFromEnvironment(
-            TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED, parent.hystrixTagsEnabled);
-
-    servletPrincipalEnabled =
-        getBooleanSettingFromEnvironment(
-            TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED, parent.servletPrincipalEnabled);
-
-    debugEnabled = parent.debugEnabled || isDebugMode();
-
-    kafkaClientBase64DecodingEnabled =
-        getPropertyBooleanValue(
-            properties,
-            KAFKA_CLIENT_BASE64_DECODING_ENABLED,
-            parent.kafkaClientBase64DecodingEnabled);
 
     log.debug("New instance: {}", this);
   }
@@ -929,7 +674,7 @@ public class Config {
    */
   public float getInstrumentationAnalyticsSampleRate(final String... aliases) {
     for (final String alias : aliases) {
-      final Float rate = getFloatSettingFromEnvironment(alias + ".analytics.sample-rate", null);
+      final Float rate = configProvider.getFloat(alias + ".analytics.sample-rate");
       if (null != rate) {
         return rate;
       }
@@ -984,8 +729,8 @@ public class Config {
   }
 
   public boolean isRuleEnabled(final String name) {
-    return getBooleanSettingFromEnvironment("trace." + name + ".enabled", true)
-        && getBooleanSettingFromEnvironment("trace." + name.toLowerCase() + ".enabled", true);
+    return configProvider.getBoolean("trace." + name + ".enabled", true)
+        && configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", true);
   }
 
   /**
@@ -1044,7 +789,7 @@ public class Config {
     return Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled);
   }
 
-  private static boolean isEnabled(
+  private boolean isEnabled(
       final Iterable<String> integrationNames,
       final String settingPrefix,
       final String settingSuffix,
@@ -1054,7 +799,7 @@ public class Config {
     boolean anyEnabled = defaultEnabled;
     for (final String name : integrationNames) {
       final boolean configEnabled =
-          getBooleanSettingFromEnvironment(settingPrefix + name + settingSuffix, defaultEnabled);
+          configProvider.getBoolean(settingPrefix + name + settingSuffix, defaultEnabled);
       if (defaultEnabled) {
         anyEnabled &= configEnabled;
       } else {
@@ -1065,123 +810,12 @@ public class Config {
   }
 
   /**
-   * Helper method that takes the name, adds a "dd." prefix then checks for System Properties of
-   * that name. If none found, the name is converted to an Environment Variable and used to check
-   * the env. If none of the above returns a value, then an optional properties file if checked. If
-   * none found, then platform dependant properties are checked. If setting is not configured in
-   * either location, <code>defaultValue</code> is returned.
-   *
-   * @param name
-   * @param defaultValue
-   * @return
-   * @deprecated This method should only be used internally. Use the explicit getter instead.
+   * Calls configProvider.getString(String, String) and converts the result to a set of strings
+   * splitting by space or comma.
    */
-  private static String getSettingFromEnvironment(final String name, final String defaultValue) {
-    String value;
-    final String systemPropertyName = propertyNameToSystemPropertyName(name);
-
-    // System properties and properties provided from command line have the highest precedence
-    value = System.getProperties().getProperty(systemPropertyName);
-    if (null != value) {
-      return value;
-    }
-
-    // If value not provided from system properties, looking at env variables
-    value = System.getenv(propertyNameToEnvironmentVariableName(name));
-    if (null != value) {
-      return value;
-    }
-
-    // If value is not defined yet, we look at properties optionally defined in a properties file
-    value = propertiesFromConfigFile.getProperty(systemPropertyName);
-    if (null != value) {
-      return value;
-    }
-
-    // If value is not defined yet, we look at properties dependant of the platform.
-    value = propertiesFromCapturedEnv.getProperty(name);
-    if (null != value) {
-      return value;
-    }
-
-    return defaultValue;
-  }
-
-  /** @deprecated This method should only be used internally. Use the explicit getter instead. */
-  @NonNull
-  private static Map<String, String> getMapSettingFromEnvironment(
+  private Set<PropagationStyle> getPropagationStyleSetSettingFromEnvironmentOrDefault(
       final String name, final String defaultValue) {
-    return parseMap(
-        getSettingFromEnvironment(name, defaultValue), propertyNameToSystemPropertyName(name));
-  }
-
-  /**
-   * Calls {@link #getSettingFromEnvironment(String, String)} and converts the result to a list by
-   * splitting on `,`.
-   *
-   * @deprecated This method should only be used internally. Use the explicit getter instead.
-   */
-  @NonNull
-  private static List<String> getListSettingFromEnvironment(
-      final String name, final String defaultValue) {
-    return parseList(getSettingFromEnvironment(name, defaultValue));
-  }
-
-  /**
-   * Calls {@link #getSettingFromEnvironment(String, String)} and converts the result to a Boolean.
-   *
-   * @deprecated This method should only be used internally. Use the explicit getter instead.
-   */
-  public static Boolean getBooleanSettingFromEnvironment(
-      final String name, final Boolean defaultValue) {
-    return getSettingFromEnvironmentWithLog(name, Boolean.class, defaultValue);
-  }
-
-  /**
-   * Calls {@link #getSettingFromEnvironment(String, String)} and converts the result to a Float.
-   *
-   * @deprecated This method should only be used internally. Use the explicit getter instead.
-   */
-  public static Float getFloatSettingFromEnvironment(final String name, final Float defaultValue) {
-    return getSettingFromEnvironmentWithLog(name, Float.class, defaultValue);
-  }
-
-  /**
-   * Calls {@link #getSettingFromEnvironment(String, String)} and converts the result to a Double.
-   *
-   * @deprecated This method should only be used internally. Use the explicit getter instead.
-   */
-  @Deprecated
-  private static Double getDoubleSettingFromEnvironment(
-      final String name, final Double defaultValue) {
-    return getSettingFromEnvironmentWithLog(name, Double.class, defaultValue);
-  }
-
-  /**
-   * Calls {@link #getSettingFromEnvironment(String, String)} and converts the result to a Integer.
-   */
-  private static Integer getIntegerSettingFromEnvironment(
-      final String name, final Integer defaultValue) {
-    return getSettingFromEnvironmentWithLog(name, Integer.class, defaultValue);
-  }
-
-  private static <T> T getSettingFromEnvironmentWithLog(
-      final String name, final Class<T> tClass, final T defaultValue) {
-    try {
-      return valueOf(getSettingFromEnvironment(name, null), tClass, defaultValue);
-    } catch (final NumberFormatException e) {
-      log.warn("Invalid configuration for " + name, e);
-      return defaultValue;
-    }
-  }
-
-  /**
-   * Calls {@link #getSettingFromEnvironment(String, String)} and converts the result to a set of
-   * strings splitting by space or comma.
-   */
-  private static Set<PropagationStyle> getPropagationStyleSetSettingFromEnvironmentOrDefault(
-      final String name, final String defaultValue) {
-    final String value = getSettingFromEnvironment(name, defaultValue);
+    final String value = configProvider.getString(name, defaultValue);
     Set<PropagationStyle> result =
         convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(value));
 
@@ -1192,17 +826,6 @@ public class Config {
     }
 
     return result;
-  }
-
-  private static BitSet getIntegerRangeSettingFromEnvironment(
-      final String name, final BitSet defaultValue) {
-    final String value = getSettingFromEnvironment(name, null);
-    try {
-      return value == null ? defaultValue : parseIntegerRangeSet(value, name);
-    } catch (final NumberFormatException e) {
-      log.warn("Invalid configuration for " + name, e);
-      return defaultValue;
-    }
   }
 
   /**
@@ -1219,6 +842,7 @@ public class Config {
         .replaceAll("_");
   }
 
+  private static final String PREFIX = "dd.";
   /**
    * Converts the property name, e.g. 'service.name' into a public system property name, e.g.
    * `dd.service.name`.
@@ -1229,148 +853,6 @@ public class Config {
   @NonNull
   private static String propertyNameToSystemPropertyName(final String setting) {
     return PREFIX + setting;
-  }
-
-  /**
-   * @param value to parse by tClass::valueOf
-   * @param tClass should contain static parsing method "T valueOf(String)"
-   * @param defaultValue
-   * @param <T>
-   * @return value == null || value.trim().isEmpty() ? defaultValue : tClass.valueOf(value)
-   * @throws NumberFormatException
-   */
-  private static <T> T valueOf(
-      final String value, @NonNull final Class<T> tClass, final T defaultValue) {
-    if (value == null || value.trim().isEmpty()) {
-      return defaultValue;
-    }
-    try {
-      return (T)
-          PUBLIC_LOOKUP
-              .findStatic(tClass, "valueOf", MethodType.methodType(tClass, String.class))
-              .invoke(value);
-    } catch (final NumberFormatException e) {
-      throw e;
-    } catch (final NoSuchMethodException | IllegalAccessException e) {
-      log.debug("Can't invoke or access 'valueOf': ", e);
-      throw new NumberFormatException(e.toString());
-    } catch (final Throwable e) {
-      log.debug("Can't parse: ", e);
-      throw new NumberFormatException(e.toString());
-    }
-  }
-
-  private static Map<String, String> getPropertyMapValue(
-      final Properties properties, final String name, final Map<String, String> defaultValue) {
-    final String value = properties.getProperty(name);
-    return value == null || value.trim().isEmpty() ? defaultValue : parseMap(value, name);
-  }
-
-  private static List<String> getPropertyListValue(
-      final Properties properties, final String name, final List<String> defaultValue) {
-    final String value = properties.getProperty(name);
-    return value == null || value.trim().isEmpty() ? defaultValue : parseList(value);
-  }
-
-  private static Boolean getPropertyBooleanValue(
-      final Properties properties, final String name, final Boolean defaultValue) {
-    return valueOf(properties.getProperty(name), Boolean.class, defaultValue);
-  }
-
-  private static Integer getPropertyIntegerValue(
-      final Properties properties, final String name, final Integer defaultValue) {
-    return valueOf(properties.getProperty(name), Integer.class, defaultValue);
-  }
-
-  private static Double getPropertyDoubleValue(
-      final Properties properties, final String name, final Double defaultValue) {
-    return valueOf(properties.getProperty(name), Double.class, defaultValue);
-  }
-
-  private static Set<PropagationStyle> getPropagationStyleSetFromPropertyValue(
-      final Properties properties, final String name) {
-    final String value = properties.getProperty(name);
-    if (value != null) {
-      final Set<PropagationStyle> result =
-          convertStringSetToPropagationStyleSet(parseStringIntoSetOfNonEmptyStrings(value));
-      if (!result.isEmpty()) {
-        return result;
-      }
-    }
-    // null means parent value should be used
-    return null;
-  }
-
-  private static BitSet getPropertyIntegerRangeValue(
-      final Properties properties, final String name, final BitSet defaultValue) {
-    final String value = properties.getProperty(name);
-    try {
-      return value == null ? defaultValue : parseIntegerRangeSet(value, name);
-    } catch (final NumberFormatException e) {
-      log.warn("Invalid configuration for " + name, e);
-      return defaultValue;
-    }
-  }
-
-  @NonNull
-  private static Map<String, String> parseMap(final String str, final String settingName) {
-    // If we ever want to have default values besides an empty map, this will need to change.
-    if (str == null || str.trim().isEmpty()) {
-      return Collections.emptyMap();
-    }
-    if (!str.matches("(([^,:]+:[^,:]*,)*([^,:]+:[^,:]*),?)?")) {
-      log.warn(
-          "Invalid config for {}: '{}'. Must match 'key1:value1,key2:value2'.", settingName, str);
-      return Collections.emptyMap();
-    }
-
-    final String[] tokens = str.split(",", -1);
-    final Map<String, String> map = newHashMap(tokens.length);
-
-    for (final String token : tokens) {
-      final String[] keyValue = token.split(":", -1);
-      if (keyValue.length == 2) {
-        final String key = keyValue[0].trim();
-        final String value = keyValue[1].trim();
-        if (value.length() <= 0) {
-          log.warn("Ignoring empty value for key '{}' in config for {}", key, settingName);
-          continue;
-        }
-        map.put(key, value);
-      }
-    }
-    return Collections.unmodifiableMap(map);
-  }
-
-  @NonNull
-  static BitSet parseIntegerRangeSet(@NonNull String str, final String settingName)
-      throws NumberFormatException {
-    str = str.replaceAll("\\s", "");
-    if (!str.matches("\\d{3}(?:-\\d{3})?(?:,\\d{3}(?:-\\d{3})?)*")) {
-      log.warn(
-          "Invalid config for {}: '{}'. Must be formatted like '400-403,405,410-499'.",
-          settingName,
-          str);
-      throw new NumberFormatException();
-    }
-
-    final int lastSeparator = Math.max(str.lastIndexOf(','), str.lastIndexOf('-'));
-    final int maxValue = Integer.parseInt(str.substring(lastSeparator + 1));
-    final BitSet set = new BitSet(maxValue);
-    final String[] tokens = str.split(",", -1);
-    for (final String token : tokens) {
-      final int separator = token.indexOf('-');
-      if (separator == -1) {
-        set.set(Integer.parseInt(token));
-      } else if (separator > 0) {
-        final int left = Integer.parseInt(token.substring(0, separator));
-        final int right = Integer.parseInt(token.substring(separator + 1));
-        final int min = Math.min(left, right);
-        final int max = Math.max(left, right);
-        set.set(min, max + 1);
-      }
-    }
-    return set;
   }
 
   @NonNull
@@ -1384,54 +866,16 @@ public class Config {
    * @return new unmodifiable copy of {@param map} where properties are overwritten from environment
    */
   @NonNull
-  private static Map<String, String> getMapWithPropertiesDefinedByEnvironment(
+  private Map<String, String> getMapWithPropertiesDefinedByEnvironment(
       @NonNull final Map<String, String> map, @NonNull final String... propNames) {
     final Map<String, String> res = new HashMap<>(map);
     for (final String propName : propNames) {
-      final String val = getSettingFromEnvironment(propName, null);
+      final String val = configProvider.getString(propName);
       if (val != null) {
         res.put(propName, val);
       }
     }
     return Collections.unmodifiableMap(res);
-  }
-
-  /**
-   * same as {@link Config#getMapWithPropertiesDefinedByEnvironment(Map, String...)} but using
-   * {@code properties} as source of values to overwrite inside map
-   *
-   * @param map
-   * @param properties
-   * @param keys
-   * @return
-   */
-  @NonNull
-  private static Map<String, String> overwriteKeysFromProperties(
-      @NonNull final Map<String, String> map,
-      @NonNull final Properties properties,
-      @NonNull final String... keys) {
-    final Map<String, String> res = new HashMap<>(map);
-    for (final String propName : keys) {
-      final String val = properties.getProperty(propName, null);
-      if (val != null) {
-        res.put(propName, val);
-      }
-    }
-    return Collections.unmodifiableMap(res);
-  }
-
-  @NonNull
-  private static List<String> parseList(final String str) {
-    if (str == null || str.trim().isEmpty()) {
-      return Collections.emptyList();
-    }
-
-    final String[] tokens = str.split(",", -1);
-    // Remove whitespace from each item.
-    for (int i = 0; i < tokens.length; i++) {
-      tokens[i] = tokens[i].trim();
-    }
-    return Collections.unmodifiableList(Arrays.asList(tokens));
   }
 
   @NonNull
@@ -1463,49 +907,6 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
-  /**
-   * Loads the optional configuration properties file into the global {@link Properties} object.
-   *
-   * @return The {@link Properties} object. the returned instance might be empty of file does not
-   *     exist or if it is in a wrong format.
-   */
-  private static Properties loadConfigurationFile() {
-    final Properties properties = new Properties();
-
-    // Reading from system property first and from env after
-    String configurationFilePath =
-        System.getProperty(propertyNameToSystemPropertyName(CONFIGURATION_FILE));
-    if (null == configurationFilePath) {
-      configurationFilePath =
-          System.getenv(propertyNameToEnvironmentVariableName(CONFIGURATION_FILE));
-    }
-    if (null == configurationFilePath) {
-      return properties;
-    }
-
-    // Normalizing tilde (~) paths for unix systems
-    configurationFilePath =
-        configurationFilePath.replaceFirst("^~", System.getProperty("user.home"));
-
-    // Configuration properties file is optional
-    final File configurationFile = new File(configurationFilePath);
-    if (!configurationFile.exists()) {
-      log.error("Configuration file '{}' not found.", configurationFilePath);
-      return properties;
-    }
-
-    try (final FileReader fileReader = new FileReader(configurationFile)) {
-      properties.load(fileReader);
-    } catch (final FileNotFoundException fnf) {
-      log.error("Configuration file '{}' not found.", configurationFilePath);
-    } catch (final IOException ioe) {
-      log.error(
-          "Configuration file '{}' cannot be accessed or correctly parsed.", configurationFilePath);
-    }
-
-    return properties;
-  }
-
   private static String findConfigurationFile() {
     String configurationFilePath =
         System.getProperty(propertyNameToSystemPropertyName(CONFIGURATION_FILE));
@@ -1522,18 +923,6 @@ public class Config {
       }
     }
     return "no config file present";
-  }
-
-  private static Properties loadCapturedEnvironment() {
-    final CapturedEnvironment capturedEnvironment = CapturedEnvironment.get();
-    final Properties properties = new Properties();
-    for (final Map.Entry<String, String> entry : capturedEnvironment.getProperties().entrySet()) {
-      if (entry.getKey() != null && entry.getValue() != null) {
-        properties.put(entry.getKey(), entry.getValue());
-      }
-    }
-
-    return properties;
   }
 
   /** Returns the detected hostname. First tries locally, then using DNS */
@@ -1601,7 +990,7 @@ public class Config {
     if (properties == null || properties.isEmpty()) {
       return INSTANCE;
     } else {
-      return new Config(properties, INSTANCE);
+      return new Config(INSTANCE.runtimeId, ConfigProvider.withPropertiesOverride(properties));
     }
   }
 }

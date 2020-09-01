@@ -35,7 +35,6 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING = false;
   static final boolean DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE = false;
-  static final String DEFAULT_SPLIT_BY_TAGS = "";
   static final int DEFAULT_SCOPE_DEPTH_LIMIT = 100;
   static final int DEFAULT_PARTIAL_FLUSH_MIN_SPANS = 1000;
   static final String DEFAULT_PROPAGATION_STYLE_EXTRACT = PropagationStyle.DATADOG.name();
@@ -66,7 +65,6 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TRACE_REPORT_HOSTNAME = false;
   static final String DEFAULT_TRACE_ANNOTATIONS = null;
   static final boolean DEFAULT_TRACE_EXECUTORS_ALL = false;
-  static final String DEFAULT_TRACE_EXECUTORS = "";
   static final String DEFAULT_TRACE_METHODS = null;
   static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
   static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;

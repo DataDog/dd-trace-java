@@ -13,8 +13,8 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import spock.lang.Shared
 
-import static datadog.trace.api.Config.PREFIX
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
+import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 
 class RediscalaClientTest extends AgentTestRunner {
 
