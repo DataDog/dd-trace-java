@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory
 import spock.lang.Shared
 import spock.lang.Unroll
 
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 import static datadog.trace.agent.test.asserts.TraceAssert.assertTrace
@@ -54,9 +55,11 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
   @Shared
   OkHttpClient client = OkHttpUtils.client()
   @Shared
-  int port = PortUtils.randomOpenPort()
+  ServerSocket socket = PortUtils.randomOpenSocket()
   @Shared
-  URI address = buildAddress()
+  int port = -1
+  @Shared
+  URI address = null
 
   URI buildAddress() {
     return new URI("http://localhost:$port/")
@@ -66,7 +69,14 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
   String component = component()
 
   def setupSpec() {
+    // Set up other shared variables
+    port = socket.getLocalPort()
+    address = buildAddress()
+    // Wait with closing the socket until right before we start the server
+    socket.close()
+    PortUtils.waitForPortToClose(port, 5, TimeUnit.SECONDS)
     server = startServer(port)
+    PortUtils.waitForPortToOpen(port, 5, TimeUnit.SECONDS)
     println getClass().name + " http server started at: http://localhost:$port/"
   }
 
@@ -79,6 +89,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     }
     stopServer(server)
     server = null
+    PortUtils.waitForPortToClose(port, 10, TimeUnit.SECONDS)
     println getClass().name + " http server stopped at: http://localhost:$port/"
   }
 
