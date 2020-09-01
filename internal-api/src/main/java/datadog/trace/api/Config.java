@@ -351,6 +351,7 @@ public class Config {
 
   @Getter private final boolean hystrixTagsEnabled;
   @Getter private final boolean servletPrincipalEnabled;
+  @Getter private final boolean servletTimeoutAsError;
 
   @Getter private final boolean traceAgentV05Enabled;
 
@@ -368,7 +369,7 @@ public class Config {
         ConfigProvider.createDefault());
   }
 
-  private Config(final String runtimeId, ConfigProvider configProvider) {
+  private Config(final String runtimeId, final ConfigProvider configProvider) {
     this.configProvider = configProvider;
     configFile = findConfigurationFile();
     this.runtimeId = runtimeId;
@@ -610,6 +611,9 @@ public class Config {
 
     servletPrincipalEnabled =
         configProvider.getBoolean(TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED, false);
+
+    servletTimeoutAsError =
+        configProvider.getBoolean(TraceInstrumentationConfig.SERVLET_TIMEOUT_AS_ERROR, true);
 
     debugEnabled = isDebugMode();
 
@@ -853,6 +857,7 @@ public class Config {
   }
 
   private static final String PREFIX = "dd.";
+
   /**
    * Converts the property name, e.g. 'service.name' into a public system property name, e.g.
    * `dd.service.name`.

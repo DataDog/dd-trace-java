@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
@@ -31,7 +32,9 @@ public class TagSettingAsyncListener implements AsyncListener {
   @Override
   public void onTimeout(final AsyncEvent event) throws IOException {
     if (activated.compareAndSet(false, true)) {
-      span.setError(true);
+      if (Config.get().isServletTimeoutAsError()) {
+        span.setError(true);
+      }
       span.setTag("timeout", event.getAsyncContext().getTimeout());
       DECORATE.beforeFinish(span);
       span.finish();
