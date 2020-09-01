@@ -1,5 +1,6 @@
 package datadog.smoketest.springboot.controller;
 
+import datadog.smoketest.springboot.grpc.AsynchronousGreeter;
 import datadog.smoketest.springboot.grpc.LocalInterface;
 import datadog.smoketest.springboot.grpc.SynchronousGreeter;
 import java.io.IOException;
@@ -11,11 +12,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class WebController implements AutoCloseable {
 
+  private final AsynchronousGreeter asyncGreeter;
   private final SynchronousGreeter greeter;
   private final LocalInterface localInterface;
 
   public WebController() throws IOException {
     this.localInterface = new LocalInterface();
+    this.asyncGreeter = new AsynchronousGreeter(localInterface.getPort());
     this.greeter = new SynchronousGreeter(localInterface.getPort());
   }
 
@@ -24,9 +27,15 @@ public class WebController implements AutoCloseable {
     return greeter.greet();
   }
 
+  @RequestMapping("/async_greeting")
+  public String asyncGreeting() {
+    return asyncGreeter.greet();
+  }
+
   @Override
   public void close() {
     localInterface.close();
     greeter.close();
+    asyncGreeter.close();
   }
 }
