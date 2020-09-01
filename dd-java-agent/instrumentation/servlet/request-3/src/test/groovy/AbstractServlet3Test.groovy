@@ -101,7 +101,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
         if (endpoint.errored) {
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }
-          "error.stack" { it == null || it instanceof String }
+          "error.stack" { it == null || it instanceof StringBuffer }
         }
         if (endpoint.query) {
           "$DDTags.HTTP_QUERY" endpoint.query

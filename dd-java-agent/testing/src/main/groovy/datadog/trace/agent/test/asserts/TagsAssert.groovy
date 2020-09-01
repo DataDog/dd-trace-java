@@ -76,7 +76,7 @@ class TagsAssert {
 
   def errorTags(Class<Throwable> errorType, message) {
     tag("error.type", errorType.name)
-    tag("error.stack", String)
+    tag("error.stack", CharSequence)
 
     if (message != null) {
       tag("error.msg", message)

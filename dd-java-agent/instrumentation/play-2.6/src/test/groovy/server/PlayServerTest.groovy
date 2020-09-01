@@ -1,11 +1,11 @@
 package server
 
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
 import datadog.trace.instrumentation.play26.PlayHttpServerDecorator
 import play.BuiltInComponents
@@ -135,7 +135,7 @@ class PlayServerTest extends HttpServerTest<Server> {
         if (endpoint.errored) {
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }
-          "error.stack" { it == null || it instanceof String }
+          "error.stack" { it == null || it instanceof StringBuffer }
         }
         if (endpoint.query) {
           "$DDTags.HTTP_QUERY" endpoint.query

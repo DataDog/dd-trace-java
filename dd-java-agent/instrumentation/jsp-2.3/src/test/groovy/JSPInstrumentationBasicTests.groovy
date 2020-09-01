@@ -326,7 +326,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             "error.msg" { String tagErrorMsg ->
               return errorMessageOptional || tagErrorMsg instanceof String
             }
-            "error.stack" String
+            "error.stack" StringBuffer
             defaultTags()
           }
         }
@@ -347,7 +347,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             "error.msg" { String tagErrorMsg ->
               return errorMessageOptional || tagErrorMsg instanceof String
             }
-            "error.stack" String
+            "error.stack" StringBuffer
             defaultTags()
           }
         }
