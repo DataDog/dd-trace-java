@@ -16,9 +16,9 @@ class SpringBootSmokeTest extends AbstractServerSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
-  def "default home page #n th time"() {
+  def "greeter #n th time"() {
     setup:
-    String url = "http://localhost:${httpPort}/greeting"
+    String url = "http://localhost:${httpPort}/${route}"
     def request = new Request.Builder().url(url).get().build()
 
     when:
@@ -32,6 +32,8 @@ class SpringBootSmokeTest extends AbstractServerSmokeTest {
     response.code() == 200
 
     where:
-    n << (1..200)
+    [n, route] << GroovyCollections.combinations((1..200), ["greeting", "async_greeting"])
   }
+
+
 }
