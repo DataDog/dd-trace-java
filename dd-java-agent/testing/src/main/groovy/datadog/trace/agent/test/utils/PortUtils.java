@@ -11,15 +11,29 @@ public class PortUtils {
 
   /** Open up a random, reusable port. */
   public static int randomOpenPort() {
-    final ServerSocket socket;
+    ServerSocket socket = randomOpenSocket();
+    if (null != socket) {
+      try {
+        socket.close();
+        return socket.getLocalPort();
+      } catch (final IOException ioe) {
+        ioe.printStackTrace();
+        return -1;
+      }
+    } else {
+      return -1;
+    }
+  }
+
+  /** Open up a random, server socket and keep it open. */
+  public static ServerSocket randomOpenSocket() {
     try {
-      socket = new ServerSocket(0);
+      ServerSocket socket = new ServerSocket(0);
       socket.setReuseAddress(true);
-      socket.close();
-      return socket.getLocalPort();
+      return socket;
     } catch (final IOException ioe) {
       ioe.printStackTrace();
-      return -1;
+      return null;
     }
   }
 
@@ -56,5 +70,33 @@ public class PortUtils {
     }
 
     throw new RuntimeException("Timed out waiting for port " + port + " to be opened");
+  }
+
+  public static void waitForPortToOpen(int port, long timeout, TimeUnit unit) {
+    waitForPort(port, timeout, unit, true);
+  }
+
+  public static void waitForPortToClose(int port, long timeout, TimeUnit unit) {
+    waitForPort(port, timeout, unit, false);
+  }
+
+  private static void waitForPort(int port, long timeout, TimeUnit unit, boolean open) {
+    long waitNanos = unit.toNanos(timeout);
+    long start = System.nanoTime();
+    String state = open ? "open" : "closed";
+
+    while (System.nanoTime() - start < waitNanos) {
+      if (isPortOpen(port) == open) {
+        return;
+      }
+
+      try {
+        Thread.sleep(100);
+      } catch (final InterruptedException e) {
+        throw new RuntimeException("Interrupted while waiting for " + port + " to be " + state);
+      }
+    }
+
+    throw new RuntimeException("Timed out waiting for port " + port + " to be " + state);
   }
 }
