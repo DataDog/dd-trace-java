@@ -1,0 +1,39 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+muzzle {
+  pass {
+    group = 'org.scala-lang'
+    module = "scala-library"
+    versions = "[2.9.3,2.13)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own version.
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+compileTestGroovy {
+  classpath += files(sourceSets.test.scala.classesDirectory)
+}
+compileLatestDepTestGroovy {
+  classpath += files(sourceSets.latestDepTest.scala.classesDirectory)
+}
+
+dependencies {
+  compileOnly group: 'org.scala-lang', name: 'scala-library', version: '2.9.3'
+
+  // first version that works with the tests (without dependency problems):
+  testCompile group: 'org.scala-lang', name: 'scala-library', version: '2.10.2'
+
+  latestDepTestCompile group: 'org.scala-lang', name: 'scala-library', version: '2.12.+'
+}
