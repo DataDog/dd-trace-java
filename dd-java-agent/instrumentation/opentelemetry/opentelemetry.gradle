@@ -5,7 +5,7 @@ muzzle {
   pass {
     module = 'opentelemetry-api'
     group = 'io.opentelemetry'
-    versions = "[$otelVersion,]"
+    versions = "[$otelVersion,0.8.0)"
     assertInverse = true
     skipVersions = ['0.2.2', '0.2.3']
   }

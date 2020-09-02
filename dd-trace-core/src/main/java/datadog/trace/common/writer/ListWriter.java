@@ -15,6 +15,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   private final TraceProcessor processor = new TraceProcessor();
   private final List<CountDownLatch> latches = new ArrayList<>();
   private final AtomicInteger traceCount = new AtomicInteger();
+  private final TraceStructureWriter structureWriter = new TraceStructureWriter();
 
   public List<DDSpan> firstTrace() {
     return get(0);
@@ -34,6 +35,7 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
         }
       }
     }
+    structureWriter.write(trace);
   }
 
   public void waitForTraces(final int number) throws InterruptedException, TimeoutException {
