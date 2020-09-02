@@ -28,7 +28,7 @@ import scala.concurrent.forkjoin.ForkJoinTask;
 public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Default {
 
   public ScalaForkJoinPoolInstrumentation() {
-    super("java_concurrent", "akka_concurrent");
+    super("java_concurrent", "scala_concurrent");
   }
 
   @Override
