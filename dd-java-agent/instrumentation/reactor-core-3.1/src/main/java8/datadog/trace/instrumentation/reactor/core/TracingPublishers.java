@@ -7,9 +7,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.function.Consumer;
+import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import reactor.core.CoreSubscriber;
 import reactor.core.Disposable;
 import reactor.core.Fuseable;
@@ -19,8 +18,8 @@ import reactor.core.publisher.GroupedFlux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.ParallelFlux;
 
+@Slf4j
 public class TracingPublishers {
-  private static final Logger log = LoggerFactory.getLogger(TracingPublishers.class);
 
   /**
    * Instead of using {@link reactor.core.publisher.Operators#lift} (available in reactor 3.1) or
