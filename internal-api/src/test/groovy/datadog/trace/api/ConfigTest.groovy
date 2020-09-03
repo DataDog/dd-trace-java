@@ -1,5 +1,6 @@
 package datadog.trace.api
 
+import datadog.trace.api.config.ProfilingConfig
 import datadog.trace.api.env.FixedCapturedEnvironment
 import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
@@ -169,6 +170,7 @@ class ConfigTest extends DDSpecification {
     config.profilingProxyPort == DEFAULT_PROFILING_PROXY_PORT
     config.profilingProxyUsername == null
     config.profilingProxyPassword == null
+    config.profilingExceptionEnabled == true
     config.profilingExceptionSampleLimit == DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT
     config.profilingExceptionHistogramTopItems == DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
     config.profilingExceptionHistogramMaxCollectionSize == DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
@@ -239,6 +241,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(PROFILING_PROXY_PORT, "1118")
     prop.setProperty(PROFILING_PROXY_USERNAME, "proxy-username")
     prop.setProperty(PROFILING_PROXY_PASSWORD, "proxy-password")
+    prop.setProperty(ProfilingConfig.PROFILING_EXCEPTION_ENABLED, "true")
     prop.setProperty(PROFILING_EXCEPTION_SAMPLE_LIMIT, "811")
     prop.setProperty(PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS, "1121")
     prop.setProperty(PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
@@ -359,6 +362,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + PROFILING_PROXY_PORT, "1118")
     System.setProperty(PREFIX + PROFILING_PROXY_USERNAME, "proxy-username")
     System.setProperty(PREFIX + PROFILING_PROXY_PASSWORD, "proxy-password")
+    System.setProperty(PREFIX + ProfilingConfig.PROFILING_EXCEPTION_ENABLED, "true")
     System.setProperty(PREFIX + PROFILING_EXCEPTION_SAMPLE_LIMIT, "811")
     System.setProperty(PREFIX + PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS, "1121")
     System.setProperty(PREFIX + PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE, "1122")
