@@ -8,6 +8,10 @@ abstract class AbstractProfilingIntegrationTest extends AbstractSmokeTest {
   // can not be @Shared since the same instance will be reused for all specs and this is not supported by MockWebServer
   protected static MockWebServer profilingServer
 
+  protected String[] getExtraJavaProperties() {
+    return []
+  }
+
   @Override
   ProcessBuilder createProcessBuilder() {
     String profilingShadowJar = System.getProperty("datadog.smoketest.profiling.shadowJar.path")
@@ -17,6 +21,13 @@ abstract class AbstractProfilingIntegrationTest extends AbstractSmokeTest {
     List<String> command = new ArrayList<>()
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
+    /*
+     * Spock is *always* executing parent class 'setupSpec' method first -
+     * making it impossible to do any customization to the profiled application command line.
+     * Thus we need have this hack to at least allow concrete test classes to have their
+     * specific Java properties set.
+     */
+    command.addAll(getExtraJavaProperties())
     command.addAll((String[]) ["-Ddd.${ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE}=${templateOverride}"])
     command.addAll((String[]) ["-jar", profilingShadowJar])
     command.add(Integer.toString(exitDelay))

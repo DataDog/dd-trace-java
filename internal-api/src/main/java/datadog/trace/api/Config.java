@@ -340,6 +340,7 @@ public class Config {
   @Getter private final int profilingProxyPort;
   @Getter private final String profilingProxyUsername;
   @Getter private final String profilingProxyPassword;
+  @Getter private final boolean profilingExceptionEnabled;
   @Getter private final int profilingExceptionSampleLimit;
   @Getter private final int profilingExceptionHistogramTopItems;
   @Getter private final int profilingExceptionHistogramMaxCollectionSize;
@@ -576,6 +577,9 @@ public class Config {
         configProvider.getInteger(PROFILING_PROXY_PORT, DEFAULT_PROFILING_PROXY_PORT);
     profilingProxyUsername = configProvider.getString(PROFILING_PROXY_USERNAME);
     profilingProxyPassword = configProvider.getString(PROFILING_PROXY_PASSWORD);
+
+    profilingExceptionEnabled =
+        configProvider.getBoolean(ProfilingConfig.PROFILING_EXCEPTION_ENABLED, true);
 
     profilingExceptionSampleLimit =
         configProvider.getInteger(

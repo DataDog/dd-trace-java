@@ -5,25 +5,22 @@ import com.google.common.collect.Multimap
 import net.jpountz.lz4.LZ4FrameInputStream
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.RecordedRequest
-import org.openjdk.jmc.common.item.Aggregators
-import org.openjdk.jmc.common.item.Attribute
 import org.openjdk.jmc.common.item.IItemCollection
 import org.openjdk.jmc.common.item.ItemFilters
-import org.openjdk.jmc.common.unit.UnitLookup
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit
 
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-class ProfilingIntegrationContinuousProfilesTest extends AbstractProfilingIntegrationTest {
+class ProfilingExceptionsEnabledTest extends AbstractProfilingIntegrationTest {
   private static final int REQUEST_WAIT_TIMEOUT = 40
 
   @Override
   protected String[] getExtraJavaProperties() {
-    return ["-Ddd.profiling.exception.enabled=false"]
+    return ["-Ddd.profiling.exception.enabled=true"]
   }
 
-  def "test continuous recording"() {
+  def "test exception profiling enabled"() {
     setup:
     profilingServer.enqueue(new MockResponse().setResponseCode(200))
 
@@ -76,21 +73,8 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractProfilingIntegr
     firstRequestParameters.get("chunk-data").get(0) != null
 
     IItemCollection events = JfrLoaderToolkit.loadEvents(new LZ4FrameInputStream(new ByteArrayInputStream(secondRequestParameters.get("chunk-data").get(0))))
-    IItemCollection scopeEvents = events.apply(ItemFilters.type("datadog.Scope"))
 
-    scopeEvents.hasItems()
-
-    def cpuTimeAttr = Attribute.attr("cpuTime", "cpuTime", UnitLookup.TIMESPAN)
-
-    // filter out scope events without CPU time data
-    def filteredScopeEvents = scopeEvents.apply(ItemFilters.more(cpuTimeAttr, UnitLookup.NANOSECOND.quantity(Long.MIN_VALUE)))
-    // make sure there is at least one scope event with CPU time data
-    filteredScopeEvents.hasItems()
-
-    filteredScopeEvents.getAggregate(Aggregators.min("datadog.Scope", cpuTimeAttr)).longValue() >= 10_000L
-
-    // check deadlock events
-    events.apply(ItemFilters.type("datadog.Deadlock")).hasItems()
-    events.apply(ItemFilters.type("datadog.DeadlockedThread")).hasItems()
+    IItemCollection exceptionSampleEvents = events.apply(ItemFilters.type("datadog.ExceptionSample"))
+    exceptionSampleEvents.hasItems()
   }
 }

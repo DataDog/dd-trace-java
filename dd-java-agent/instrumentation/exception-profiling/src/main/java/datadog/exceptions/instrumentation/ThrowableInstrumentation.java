@@ -54,6 +54,7 @@ public final class ThrowableInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
+    System.out.println("*** typeMatcher: " + hasJfr);
     if (hasJfr) {
       return is(Throwable.class);
     }
@@ -70,6 +71,6 @@ public final class ThrowableInstrumentation extends Instrumenter.Default {
 
   @Override
   protected boolean defaultEnabled() {
-    return Config.get().isProfilingEnabled();
+    return Config.get().isProfilingExceptionEnabled();
   }
 }

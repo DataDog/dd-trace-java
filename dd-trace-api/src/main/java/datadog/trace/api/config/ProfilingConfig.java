@@ -33,6 +33,7 @@ public final class ProfilingConfig {
   public static final String PROFILING_PROXY_PORT = "profiling.proxy.port";
   public static final String PROFILING_PROXY_USERNAME = "profiling.proxy.username";
   public static final String PROFILING_PROXY_PASSWORD = "profiling.proxy.password";
+  public static final String PROFILING_EXCEPTION_ENABLED = "profiling.exception.enabled";
   public static final String PROFILING_EXCEPTION_SAMPLE_LIMIT = "profiling.exception.sample.limit";
   public static final String PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS =
       "profiling.exception.histogram.top-items";
