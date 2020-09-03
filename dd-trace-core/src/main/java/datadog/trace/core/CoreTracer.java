@@ -12,6 +12,7 @@ import datadog.common.container.ServerlessInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDId;
+import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
@@ -72,11 +73,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
   public static final BigInteger TRACE_ID_MIN = BigInteger.ZERO;
 
-  public static final String LANG_STATSD_TAG = "lang";
-  public static final String LANG_VERSION_STATSD_TAG = "lang_version";
-  public static final String LANG_INTERPRETER_STATSD_TAG = "lang_interpreter";
-  public static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
-  public static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
+  private static final String LANG_STATSD_TAG = "lang";
+  private static final String LANG_VERSION_STATSD_TAG = "lang_version";
+  private static final String LANG_INTERPRETER_STATSD_TAG = "lang_interpreter";
+  private static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
+  private static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
 
   /** Default service name if none provided on the trace or span */
   final String serviceName;
@@ -568,16 +569,27 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         port = config.getJmxFetchStatsdPort();
       }
 
-      final String[] constantTags =
-          new String[] {
-            statsdTag(LANG_INTERPRETER_STATSD_TAG, "java"),
-            statsdTag(LANG_VERSION_STATSD_TAG, DDTraceCoreInfo.JAVA_VERSION),
-            statsdTag(LANG_INTERPRETER_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_NAME),
-            statsdTag(LANG_INTERPRETER_VENDOR_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_VENDOR),
-            statsdTag(TRACER_VERSION_STATSD_TAG, DDTraceCoreInfo.VERSION)
-          };
+      final List<String> constantTags = new ArrayList<>();
+      constantTags.add(statsdTag(LANG_INTERPRETER_STATSD_TAG, "java"));
+      constantTags.add(statsdTag(LANG_VERSION_STATSD_TAG, DDTraceCoreInfo.JAVA_VERSION));
+      constantTags.add(statsdTag(LANG_INTERPRETER_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_NAME));
+      constantTags.add(
+          statsdTag(LANG_INTERPRETER_VENDOR_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_VENDOR));
+      constantTags.add(statsdTag(TRACER_VERSION_STATSD_TAG, DDTraceCoreInfo.VERSION));
+      constantTags.add(statsdTag("service", config.getServiceName()));
 
-      return new NonBlockingStatsDClient("datadog.tracer", host, port, constantTags);
+      final String version = config.getMergedSpanTags().get(GeneralConfig.VERSION);
+      if (version != null && !version.isEmpty()) {
+        constantTags.add(statsdTag("version", version));
+      }
+
+      final String env = config.getMergedSpanTags().get(GeneralConfig.ENV);
+      if (version != null && !version.isEmpty()) {
+        constantTags.add(statsdTag("env", env));
+      }
+
+      return new NonBlockingStatsDClient(
+          "datadog.tracer", host, port, constantTags.toArray(new String[0]));
     }
   }
 
