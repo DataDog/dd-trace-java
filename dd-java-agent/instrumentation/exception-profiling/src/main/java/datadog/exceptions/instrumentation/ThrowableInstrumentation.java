@@ -70,6 +70,7 @@ public final class ThrowableInstrumentation extends Instrumenter.Default {
 
   @Override
   protected boolean defaultEnabled() {
-    return Config.get().isProfilingExceptionEnabled();
+    Config cfg = Config.get();
+    return cfg.isProfilingEnabled() && cfg.isProfilingExceptionEnabled();
   }
 }
