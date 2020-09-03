@@ -35,9 +35,12 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.PATH_P
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_TIMEOUT_AS_ERROR
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static org.junit.Assume.assumeTrue
@@ -132,6 +135,10 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     true
   }
 
+  boolean testTimeout() {
+    false
+  }
+
   /** Return the expected resource name */
   String testPathParam() {
     null
@@ -143,6 +150,9 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     ERROR("error-status", 500, "controller error"), // "error" is a special path for some frameworks
     EXCEPTION("exception", 500, "controller exception"),
     NOT_FOUND("notFound", 404, "not found"),
+
+    TIMEOUT("timeout", -1, null),
+    TIMEOUT_ERROR("timeout_error", -1, null),
 
     // TODO: add tests for the following cases:
     QUERY_PARAM("query?some=query", 200, "some=query"),
@@ -168,7 +178,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
       this.fragment = uriObj.fragment
       this.status = status
       this.body = body
-      this.errored = status >= 500
+      this.errored = status >= 500 || name().contains("ERROR")
       this.hasPathParam = body == "123"
     }
 
@@ -500,6 +510,70 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
       } else {
         trace(0, 1) {
           serverSpan(it, 0, null, null, method, NOT_FOUND)
+        }
+      }
+    }
+
+    where:
+    method = "GET"
+    body = null
+  }
+
+  def "test timeout"() {
+    setup:
+    assumeTrue(testTimeout())
+    def request = request(TIMEOUT, method, body).build()
+    def response = withConfigOverride(SERVLET_TIMEOUT_AS_ERROR, "false", {
+      client.newCall(request).execute()
+    })
+
+    expect:
+    response.code() == 500
+    response.body().contentLength() == 0
+
+    and:
+    cleanAndAssertTraces(1) {
+      if (hasHandlerSpan()) {
+        trace(0, 3) {
+          serverSpan(it, 0, null, null, method, TIMEOUT)
+          handlerSpan(it, 1, span(0), TIMEOUT)
+          controllerSpan(it, 2, span(1))
+        }
+      } else {
+        trace(0, 2) {
+          serverSpan(it, 0, null, null, method, TIMEOUT)
+          controllerSpan(it, 1, span(0))
+        }
+      }
+    }
+
+    where:
+    method = "GET"
+    body = null
+  }
+
+  def "test timeout as error"() {
+    setup:
+    assumeTrue(testTimeout())
+    def request = request(TIMEOUT_ERROR, method, body).build()
+    def response = client.newCall(request).execute()
+
+    expect:
+    response.code() == 500
+    response.body().contentLength() == 0
+
+    and:
+    cleanAndAssertTraces(1) {
+      if (hasHandlerSpan()) {
+        trace(0, 3) {
+          serverSpan(it, 0, null, null, method, TIMEOUT_ERROR)
+          handlerSpan(it, 1, span(0), TIMEOUT_ERROR)
+          controllerSpan(it, 2, span(1))
+        }
+      } else {
+        trace(0, 2) {
+          serverSpan(it, 0, null, null, method, TIMEOUT_ERROR)
+          controllerSpan(it, 1, span(0))
         }
       }
     }

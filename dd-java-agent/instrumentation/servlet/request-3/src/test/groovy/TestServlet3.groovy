@@ -1,9 +1,10 @@
 import datadog.trace.agent.test.base.HttpServerTest
 import groovy.servlet.AbstractHttpServlet
+
+import javax.servlet.AsyncListener
 import javax.servlet.annotation.WebServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
-
 import java.util.concurrent.Phaser
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -11,6 +12,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 
 class TestServlet3 {
 
@@ -50,6 +53,12 @@ class TestServlet3 {
       HttpServerTest.ServerEndpoint endpoint = HttpServerTest.ServerEndpoint.forPath(req.servletPath)
       def phaser = new Phaser(2)
       def context = req.startAsync()
+      if (endpoint.name().contains("TIMEOUT")) {
+        context.setTimeout(1_000)
+        // this line makes Jetty behave like Tomcat and immediately return 500 to the client
+        // otherwise it will continue to repeat the same request until the client times out
+        context.addListener({ resp.status = 500; it.asyncContext.complete() } as AsyncListener)
+      }
       context.start {
         try {
           phaser.arrive()
@@ -81,6 +90,10 @@ class TestServlet3 {
                 resp.writer.print(endpoint.body)
                 context.complete()
                 throw new Exception(endpoint.body)
+              case TIMEOUT:
+              case TIMEOUT_ERROR:
+                sleep context.getTimeout() + 2_000
+                break;
             }
           }
         } finally {

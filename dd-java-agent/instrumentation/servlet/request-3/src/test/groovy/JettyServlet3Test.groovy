@@ -1,8 +1,8 @@
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 import org.eclipse.jetty.server.Server
@@ -19,6 +19,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletContextHandler> {
@@ -105,6 +107,11 @@ class JettyServlet3TestAsync extends JettyServlet3Test {
   @Override
   Class<Servlet> servlet() {
     TestServlet3.Async
+  }
+
+  @Override
+  boolean testTimeout() {
+    true
   }
 }
 
@@ -194,6 +201,11 @@ class JettyServlet3TestDispatchAsync extends JettyDispatchTest {
   }
 
   @Override
+  boolean testTimeout() {
+    true
+  }
+
+  @Override
   protected void setupServlets(ServletContextHandler context) {
     super.setupServlets(context)
 
@@ -203,6 +215,8 @@ class JettyServlet3TestDispatchAsync extends JettyDispatchTest {
     addServlet(context, "/dispatch" + EXCEPTION.path, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch" + REDIRECT.path, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch" + AUTH_REQUIRED.path, TestServlet3.DispatchAsync)
+    addServlet(context, "/dispatch" + TIMEOUT.path, TestServlet3.DispatchAsync)
+    addServlet(context, "/dispatch" + TIMEOUT_ERROR.path, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
   }
 }
@@ -256,7 +270,11 @@ abstract class JettyDispatchTest extends JettyServlet3Test {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" endpoint.status
+            if (endpoint.status > 0) {
+              "$Tags.HTTP_STATUS" endpoint.status
+            } else {
+              "timeout" 1_000
+            }
             "servlet.context" "/$context"
             "servlet.path" endpoint.status == 404 ? endpoint.path : "/dispatch$endpoint.path"
             "servlet.dispatch" endpoint.path

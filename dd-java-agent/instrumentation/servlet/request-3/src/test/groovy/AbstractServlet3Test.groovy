@@ -16,6 +16,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 
 abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERVER> {
   @Override
@@ -61,6 +63,8 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     addServlet(context, EXCEPTION.path, servlet)
     addServlet(context, REDIRECT.path, servlet)
     addServlet(context, AUTH_REQUIRED.path, servlet)
+    addServlet(context, TIMEOUT.path, servlet)
+    addServlet(context, TIMEOUT_ERROR.path, servlet)
   }
 
   protected ServerEndpoint lastRequest
@@ -92,7 +96,11 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
         "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
-        "$Tags.HTTP_STATUS" endpoint.status
+        if (endpoint.status > 0) {
+          "$Tags.HTTP_STATUS" endpoint.status
+        } else {
+          "timeout" 1_000
+        }
         if (context) {
           "servlet.context" "/$context"
         }

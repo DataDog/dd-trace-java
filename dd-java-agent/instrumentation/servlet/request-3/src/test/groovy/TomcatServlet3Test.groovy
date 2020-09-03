@@ -1,10 +1,10 @@
 import com.google.common.io.Files
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.CorrelationIdentifier
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 import org.apache.catalina.AccessLog
@@ -32,6 +32,8 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FO
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 @Unroll
@@ -249,6 +251,11 @@ class TomcatServlet3TestAsync extends TomcatServlet3Test {
   Class<Servlet> servlet() {
     TestServlet3.Async
   }
+
+  @Override
+  boolean testTimeout() {
+    true
+  }
 }
 
 class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {
@@ -341,6 +348,11 @@ class TomcatServlet3TestDispatchAsync extends TomcatDispatchTest {
   }
 
   @Override
+  boolean testTimeout() {
+    true
+  }
+
+  @Override
   protected void setupServlets(Context context) {
     super.setupServlets(context)
 
@@ -350,6 +362,8 @@ class TomcatServlet3TestDispatchAsync extends TomcatDispatchTest {
     addServlet(context, "/dispatch" + EXCEPTION.path, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch" + REDIRECT.path, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch" + AUTH_REQUIRED.path, TestServlet3.DispatchAsync)
+    addServlet(context, "/dispatch" + TIMEOUT.path, TestServlet3.DispatchAsync)
+    addServlet(context, "/dispatch" + TIMEOUT_ERROR.path, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
   }
 }
@@ -413,7 +427,11 @@ abstract class TomcatDispatchTest extends TomcatServlet3Test {
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
             "$Tags.HTTP_METHOD" "GET"
-            "$Tags.HTTP_STATUS" endpoint.status
+            if (endpoint.status > 0) {
+              "$Tags.HTTP_STATUS" endpoint.status
+            } else {
+              "timeout" 1_000
+            }
             "servlet.context" "/$context"
             "servlet.path" endpoint.status == 404 ? endpoint.path : "/dispatch$endpoint.path"
             "servlet.dispatch" endpoint.path
