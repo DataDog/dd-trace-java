@@ -54,7 +54,6 @@ public final class ThrowableInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    System.out.println("*** typeMatcher: " + hasJfr);
     if (hasJfr) {
       return is(Throwable.class);
     }
