@@ -6,10 +6,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
 @SpringBootApplication
-public class SpringbootApplication {
+public class SpringbootGrpcApplication {
 
   public static void main(final String[] args) {
-    ConfigurableApplicationContext app = SpringApplication.run(SpringbootApplication.class, args);
+    ConfigurableApplicationContext app =
+        SpringApplication.run(SpringbootGrpcApplication.class, args);
     Integer port = app.getBean("local.server.port", Integer.class);
     System.out.println(
         "Bound to " + port + " in " + ManagementFactory.getRuntimeMXBean().getUptime() + "ms");
