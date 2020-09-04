@@ -107,7 +107,7 @@ public class Monitor {
     }
 
     if (response.status() != null) {
-      statsd.incrementCounter("api.responses", "status: " + response.status());
+      statsd.incrementCounter("api.responses", "status:" + response.status());
     }
   }
 }
