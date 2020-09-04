@@ -86,7 +86,7 @@ class DDApiIntegrationTest extends DDSpecification {
       and we use 'testcontainers' for this.
      */
     if ("true" != System.getenv("CI")) {
-      agentContainer = new GenericContainer("datadog/agent:7.22.0-rc.1")
+      agentContainer = new GenericContainer("datadog/agent:7.22.0")
         .withEnv(["DD_APM_ENABLED": "true",
                   "DD_BIND_HOST"  : "0.0.0.0",
                   "DD_API_KEY"    : "invalid_key_but_this_is_fine",
