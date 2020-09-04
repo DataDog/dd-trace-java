@@ -157,7 +157,11 @@ class TraceMapperV04PayloadTest extends DDSpecification {
               metrics.put(key, n)
             }
             for (Map.Entry<String, Number> metric : metrics.entrySet()) {
-              assertEquals(expectedSpan.getMetrics().get(metric.getKey()), metric.getValue())
+              if (metric.getValue() instanceof Double) {
+                assertEquals(expectedSpan.getMetrics().get(metric.getKey()).doubleValue(), metric.getValue().doubleValue(), 0.001)
+              } else {
+                assertEquals(expectedSpan.getMetrics().get(metric.getKey()), metric.getValue())
+              }
             }
             assertEquals("meta", unpacker.unpackString())
             int metaSize = unpacker.unpackMapHeader()

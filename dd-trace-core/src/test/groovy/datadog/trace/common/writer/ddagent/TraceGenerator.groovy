@@ -30,29 +30,58 @@ class TraceGenerator {
 
   private static DDSpanData randomSpan(long traceId, boolean lowCardinality) {
     Map<String, String> baggage = new HashMap<>()
-    baggage.put("baggage-key", lowCardinality ? "x" : UUID.randomUUID().toString())
     if (ThreadLocalRandom.current().nextBoolean()) {
-      baggage.put("tag.1", "bar")
+      baggage.put("baggage-key", lowCardinality ? "x" : randomString(100))
+      if (ThreadLocalRandom.current().nextBoolean()) {
+        baggage.put("tag.1", "bar")
+        baggage.put("tag.2", "qux")
+      }
     }
     Map<String, Object> tags = new HashMap<>()
-    tags.put("tag.1", ThreadLocalRandom.current().nextBoolean() ? "foo" : new String(new char[2000]))
-    tags.put("tag.2", lowCardinality ? "y" : UUID.randomUUID())
+    int tagCount = ThreadLocalRandom.current().nextInt(0, 20)
+    for (int i = 0; i < tagCount; ++i) {
+      tags.put("tag." + i, ThreadLocalRandom.current().nextBoolean() ? "foo" : randomString(2000))
+      tags.put("tag.1." + i, lowCardinality ? "y" : UUID.randomUUID())
+    }
     Map<String, Number> metrics = new HashMap<>()
-    metrics.put("metric.1", ThreadLocalRandom.current().nextInt())
+    int metricCount = ThreadLocalRandom.current().nextInt(0, 20)
+    for (int i = 0; i < metricCount; ++i) {
+      metrics.put("metric." + i, ThreadLocalRandom.current().nextBoolean()
+        ? ThreadLocalRandom.current().nextInt()
+        : ThreadLocalRandom.current().nextDouble())
+    }
     return new PojoSpan(
       "service-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 10),
       "operation-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 100),
-      "resource-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 100),
+      UTF8BytesString.create("resource-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 100)),
       DDId.from(traceId),
       DDId.generate(),
       DDId.ZERO,
-      TimeUnit.MICROSECONDS.toMicros(System.currentTimeMillis()),
+      TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis()),
       ThreadLocalRandom.current().nextLong(500, 10_000_000),
       ThreadLocalRandom.current().nextInt(2),
       metrics,
       baggage,
       tags,
       "type-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 100))
+  }
+
+  private static String randomString(int maxLength) {
+    char[] chars = new char[ThreadLocalRandom.current().nextInt(maxLength)]
+    for (int i = 0; i < chars.length; ++i) {
+      char next = (char)ThreadLocalRandom.current().nextInt((int) Character.MAX_VALUE)
+      if (Character.isSurrogate(next)) {
+        if (i < chars.length - 1) {
+          chars[i++] = '\uD801'
+          chars[i] = '\uDC01'
+        } else {
+          chars[i] = 'a'
+        }
+      } else {
+        chars[i] = next
+      }
+    }
+    return new String(chars)
   }
 
   static class PojoSpan implements DDSpanData {
