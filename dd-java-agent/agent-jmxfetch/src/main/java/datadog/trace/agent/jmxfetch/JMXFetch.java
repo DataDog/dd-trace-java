@@ -2,21 +2,19 @@ package datadog.trace.agent.jmxfetch;
 
 import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
-import com.google.common.collect.ImmutableList;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.datadog.jmxfetch.App;
 import org.datadog.jmxfetch.AppConfig;
 import org.datadog.jmxfetch.reporter.ReporterFactory;
@@ -24,14 +22,14 @@ import org.datadog.jmxfetch.reporter.ReporterFactory;
 @Slf4j
 public class JMXFetch {
 
-  public static final ImmutableList<String> DEFAULT_CONFIGS =
-      ImmutableList.of("jmxfetch-config.yaml");
+  public static final List<String> DEFAULT_CONFIGS =
+      Collections.singletonList("jmxfetch-config.yaml");
 
   private static final int SLEEP_AFTER_JMXFETCH_EXITS = 5000;
 
   private static final String UNIX_DOMAIN_SOCKET_PREFIX = "unix://";
 
-  public static final void run() {
+  public static void run() {
     run(Config.get());
   }
 
@@ -72,7 +70,7 @@ public class JMXFetch {
 
     final AppConfig.AppConfigBuilder configBuilder =
         AppConfig.builder()
-            .action(ImmutableList.of(ACTION_COLLECT))
+            .action(Collections.singletonList(ACTION_COLLECT))
             // App should be run as daemon otherwise CLI apps would not exit once main method exits.
             .daemon(true)
             .confdDirectory(jmxFetchConfigDir)
@@ -138,18 +136,18 @@ public class JMXFetch {
   }
 
   private static List<String> getInternalMetricFiles() {
-    final InputStream metricConfigsStream = JMXFetch.class.getResourceAsStream("metricconfigs.txt");
-    if (metricConfigsStream == null) {
-      log.debug("metricconfigs not found. returning empty set");
-      return Collections.emptyList();
-    }
-
-    try {
-      final String configs = IOUtils.toString(metricConfigsStream, StandardCharsets.UTF_8);
-      final String[] split = configs.split("\n");
-      final List<String> result = new ArrayList<>(split.length);
+    try (final InputStream metricConfigsStream =
+        JMXFetch.class.getResourceAsStream("metricconfigs.txt")) {
+      if (metricConfigsStream == null) {
+        log.debug("metricconfigs not found. returning empty set");
+        return Collections.emptyList();
+      }
+      Scanner scanner = new Scanner(metricConfigsStream);
+      scanner.useDelimiter("\n");
+      final List<String> result = new ArrayList<>();
       final SortedSet<String> integrationName = new TreeSet<>();
-      for (final String config : split) {
+      while (scanner.hasNext()) {
+        String config = scanner.next();
         integrationName.clear();
         integrationName.add(config.replace(".yaml", ""));
         if (Config.get().isJmxFetchIntegrationEnabled(integrationName, false)) {
@@ -169,8 +167,6 @@ public class JMXFetch {
     } catch (final IOException e) {
       log.debug("error reading metricconfigs. returning empty set", e);
       return Collections.emptyList();
-    } finally {
-      IOUtils.closeQuietly(metricConfigsStream);
     }
   }
 
