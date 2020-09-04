@@ -26,7 +26,7 @@ protobuf {
 // so we'll build a fat jar instead
 jar {
   manifest {
-    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootGrpcApplication')
   }
 }
 
