@@ -31,18 +31,18 @@ public class ProfilingAgent {
     if (profiler == null) {
       final Config config = Config.get();
       if (isStartingFirst && !config.isProfilingStartForceFirst()) {
-        log.debug("Profiling: not starting first");
+        System.err.println("Profiling: not starting first");
         // early startup is disabled;
         return;
       }
       if (!config.isProfilingEnabled()) {
-        log.info("Profiling: disabled");
+        System.err.println("Profiling: disabled");
         return;
       }
       if (config.getApiKey() != null && !API_KEY_REGEX.test(config.getApiKey())) {
-        log.info(
-            "Profiling: API key doesn't match expected format, expected to get a 32 character hex string. Profiling is disabled. {} ",
-            config.getApiKey());
+        System.err.println(
+            "Profiling: API key doesn't match expected format, expected to get a 32 character hex string. Profiling is disabled. "
+                + config.getApiKey());
         return;
       }
 
@@ -66,8 +66,9 @@ public class ProfilingAgent {
                 startupDelayRandomRange,
                 uploadPeriod,
                 config.isProfilingStartForceFirst());
+        System.err.println("==== Profiling is starting!");
         profiler.start();
-        log.info("Profiling has started!");
+        System.err.println("==== Profiling has started!");
 
         try {
           /*
@@ -81,11 +82,11 @@ public class ProfilingAgent {
           // The JVM is already shutting down.
         }
       } catch (final UnsupportedEnvironmentException e) {
-        log.warn(e.getMessage());
-        log.debug("", e);
+        System.err.println("Unsupported environment for profiling agent! " + e.getMessage());
+        e.printStackTrace();
       } catch (final ConfigurationException e) {
-        log.warn("Failed to initialize profiling agent! " + e.getMessage());
-        log.debug("Failed to initialize profiling agent!", e);
+        System.err.println("Failed to initialize profiling agent! " + e.getMessage());
+        e.printStackTrace();
       }
     }
   }

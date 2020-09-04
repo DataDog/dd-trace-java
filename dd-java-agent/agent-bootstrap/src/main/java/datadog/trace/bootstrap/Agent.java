@@ -321,7 +321,6 @@ public class Agent {
 
   private static synchronized void startProfilingAgent(
       final URL bootstrapURL, final boolean isStartingFirst) {
-    System.err.println("Start profiler... first=" + isStartingFirst);
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
       final ClassLoader classLoader = getProfilingClassloader(bootstrapURL);
@@ -340,7 +339,6 @@ public class Agent {
       log.error("Throwable thrown while starting profiling agent", ex);
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
-      System.err.println("...started profiler first=" + isStartingFirst);
     }
   }
 
