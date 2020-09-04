@@ -1,10 +1,12 @@
 package jvmbootstraptest;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.Date;
 import java.util.logging.LogManager;
 
 public class LogManagerSetter {
   public static void main(final String... args) throws Exception {
+    System.err.println("main started... " + new Date());
     if (System.getProperty("dd.app.customlogmanager") != null) {
       System.out.println("dd.app.customlogmanager != null");
 
@@ -132,6 +134,7 @@ public class LogManagerSetter {
             "profiling should start in premain when no custom log manager is set.");
       }
     }
+    System.err.println("main stopped... " + new Date());
   }
 
   private static void customAssert(
