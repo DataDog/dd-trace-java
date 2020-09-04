@@ -2,6 +2,7 @@ package datadog.trace.agent.test;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.util.ContextInitializer;
 import com.google.common.collect.Sets;
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.agent.test.asserts.ListWriterAssert;
@@ -101,8 +102,7 @@ public abstract class AgentTestRunner extends DDSpecification {
     assert Config.class.getClassLoader() == null : "Config must load on the bootstrap classpath.";
     INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
 
-    ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.WARN);
-    ((Logger) LoggerFactory.getLogger("datadog")).setLevel(Level.DEBUG);
+    configureLoggingLevels();
 
     TEST_WRITER =
         new ListWriter() {
@@ -116,6 +116,11 @@ public abstract class AgentTestRunner extends DDSpecification {
     STATS_D_CLIENT = new DetachedMockFactory().Mock(StatsDClient.class);
     TEST_TRACER = CoreTracer.builder().writer(TEST_WRITER).statsDClient(STATS_D_CLIENT).build();
     TracerInstaller.installGlobalTracer((CoreTracer) TEST_TRACER);
+  }
+
+  private static void configureLoggingLevels() {
+    ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.WARN);
+    ((Logger) LoggerFactory.getLogger("datadog")).setLevel(Level.DEBUG);
   }
 
   protected static TracerAPI getTestTracer() {
@@ -180,11 +185,25 @@ public abstract class AgentTestRunner extends DDSpecification {
 
   @Before
   public void beforeTest() {
+    checkLoggingConfiguration();
     assert getTestTracer().activeSpan() == null
         : "Span is active before test has started: " + getTestTracer().activeSpan();
     log.debug("Starting test: '{}'", getSpecificationContext().getCurrentIteration().getName());
     new MockUtil().attachMock(STATS_D_CLIENT, this);
     TEST_WRITER.start();
+  }
+
+  private static void checkLoggingConfiguration() {
+    final Logger rootLogger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+    if (!rootLogger.iteratorForAppenders().hasNext()) {
+      try {
+        // previous test wiped out the logging config; bring it back for the next test
+        new ContextInitializer(rootLogger.getLoggerContext()).autoConfig();
+      } catch (final Exception e) {
+        e.printStackTrace();
+      }
+      configureLoggingLevels();
+    }
   }
 
   @After
