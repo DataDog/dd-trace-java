@@ -39,6 +39,7 @@ dependencies {
 
   testCompile project(':dd-java-agent:instrumentation:netty-3.8')
   testCompile project(':dd-java-agent:instrumentation:akka-concurrent')
+  testCompile project(':dd-java-agent:instrumentation:akka-init')
   testCompile project(':dd-java-agent:instrumentation:scala-concurrent')
   testCompile project(':dd-java-agent:instrumentation:scala-promise-2.10')
   testCompile project(':dd-java-agent:instrumentation:scala-promise-2.13')
