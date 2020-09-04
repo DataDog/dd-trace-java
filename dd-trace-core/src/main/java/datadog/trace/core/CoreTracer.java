@@ -569,28 +569,33 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         port = config.getJmxFetchStatsdPort();
       }
 
-      final List<String> constantTags = new ArrayList<>();
-      constantTags.add(statsdTag(LANG_INTERPRETER_STATSD_TAG, "java"));
-      constantTags.add(statsdTag(LANG_VERSION_STATSD_TAG, DDTraceCoreInfo.JAVA_VERSION));
-      constantTags.add(statsdTag(LANG_INTERPRETER_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_NAME));
-      constantTags.add(
-          statsdTag(LANG_INTERPRETER_VENDOR_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_VENDOR));
-      constantTags.add(statsdTag(TRACER_VERSION_STATSD_TAG, DDTraceCoreInfo.VERSION));
-      constantTags.add(statsdTag("service", config.getServiceName()));
-
-      final String version = config.getMergedSpanTags().get(GeneralConfig.VERSION);
-      if (version != null && !version.isEmpty()) {
-        constantTags.add(statsdTag("version", version));
-      }
-
-      final String env = config.getMergedSpanTags().get(GeneralConfig.ENV);
-      if (version != null && !version.isEmpty()) {
-        constantTags.add(statsdTag("env", env));
-      }
-
       return new NonBlockingStatsDClient(
-          "datadog.tracer", host, port, constantTags.toArray(new String[0]));
+          "datadog.tracer", host, port, generateConstantTags(config));
     }
+  }
+
+  private static String[] generateConstantTags(final Config config) {
+    final List<String> constantTags = new ArrayList<>();
+
+    constantTags.add(statsdTag(LANG_STATSD_TAG, "java"));
+    constantTags.add(statsdTag(LANG_VERSION_STATSD_TAG, DDTraceCoreInfo.JAVA_VERSION));
+    constantTags.add(statsdTag(LANG_INTERPRETER_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_NAME));
+    constantTags.add(statsdTag(LANG_INTERPRETER_VENDOR_STATSD_TAG, DDTraceCoreInfo.JAVA_VM_VENDOR));
+    constantTags.add(statsdTag(TRACER_VERSION_STATSD_TAG, DDTraceCoreInfo.VERSION));
+    constantTags.add(statsdTag("service", config.getServiceName()));
+
+    final Map<String, String> mergedSpanTags = config.getMergedSpanTags();
+    final String version = mergedSpanTags.get(GeneralConfig.VERSION);
+    if (version != null && !version.isEmpty()) {
+      constantTags.add(statsdTag("version", version));
+    }
+
+    final String env = mergedSpanTags.get(GeneralConfig.ENV);
+    if (env != null && !env.isEmpty()) {
+      constantTags.add(statsdTag("env", env));
+    }
+
+    return constantTags.toArray(new String[0]);
   }
 
   private static String statsdTag(final String tagPrefix, final String tagValue) {
