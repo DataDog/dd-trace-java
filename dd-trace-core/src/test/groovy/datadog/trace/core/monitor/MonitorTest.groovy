@@ -119,7 +119,7 @@ class MonitorTest extends DDSpecification {
       1 * statsD.incrementCounter('api.errors')
     }
     if (response.status()) {
-      1 * statsD.incrementCounter('api.responses', ["status: ${response.status()}"])
+      1 * statsD.incrementCounter('api.responses', ["status:${response.status()}"])
     }
     0 * _
 
@@ -147,7 +147,7 @@ class MonitorTest extends DDSpecification {
       1 * statsD.incrementCounter('api.errors')
     }
     if (response.status()) {
-      1 * statsD.incrementCounter('api.responses', ["status: ${response.status()}"])
+      1 * statsD.incrementCounter('api.responses', ["status:${response.status()}"])
     }
     0 * _
 
