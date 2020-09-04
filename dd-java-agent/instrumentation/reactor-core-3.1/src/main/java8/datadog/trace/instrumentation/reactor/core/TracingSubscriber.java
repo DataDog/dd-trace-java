@@ -28,7 +28,7 @@ public class TracingSubscriber<T>
   private final CoreSubscriber<T> delegate;
   private final Context context;
   private final AgentSpan downstreamSpan;
-  private Subscription subscription;
+  private volatile Subscription subscription;
 
   public TracingSubscriber(final AgentSpan upstreamSpan, final CoreSubscriber<T> delegate) {
     this.delegate = delegate;
