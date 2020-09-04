@@ -20,7 +20,10 @@ import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Timeout
 
 import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
+import static datadog.trace.api.config.GeneralConfig.ENV
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
+import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
+import static datadog.trace.api.config.GeneralConfig.VERSION
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
 import static datadog.trace.api.config.TracerConfig.HEADER_TAGS
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
@@ -62,6 +65,62 @@ class CoreTracerTest extends DDSpecification {
 
     then:
     tracer.statsDClient instanceof NonBlockingStatsDClient
+  }
+
+  def "verify service, env, and version are added as stats tags"() {
+    setup:
+    def expectedSize = 6
+    System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, "true")
+
+    if (service != null) {
+      System.setProperty(PREFIX + SERVICE_NAME, service)
+    }
+
+    if (env != null) {
+      System.setProperty(PREFIX + ENV, env)
+      expectedSize += 1
+    }
+
+    if (version != null) {
+      System.setProperty(PREFIX + VERSION, version)
+      expectedSize += 1
+    }
+
+    when:
+    def constantTags = CoreTracer.generateConstantTags(new Config())
+
+    then:
+    constantTags.size() == expectedSize
+    assert constantTags.any { it == CoreTracer.LANG_STATSD_TAG + ":java" }
+    assert constantTags.any { it.startsWith(CoreTracer.LANG_VERSION_STATSD_TAG + ":") }
+    assert constantTags.any { it.startsWith(CoreTracer.LANG_INTERPRETER_STATSD_TAG + ":") }
+    assert constantTags.any { it.startsWith(CoreTracer.LANG_INTERPRETER_VENDOR_STATSD_TAG + ":") }
+    assert constantTags.any { it.startsWith(CoreTracer.TRACER_VERSION_STATSD_TAG + ":") }
+
+    if (service == null) {
+      assert constantTags.any { it.startsWith("service:") }
+    } else {
+      assert constantTags.any { it == "service:" + service }
+    }
+
+    if (env != null) {
+      assert constantTags.any { it == "env:" + env }
+    }
+
+    if (version != null) {
+      assert constantTags.any { it == "version:" + version }
+    }
+
+    where:
+    service       | env       | version
+    null          | null      | null
+    "testService" | null      | null
+    "testService" | "staging" | null
+    "testService" | null      | "1"
+    "testService" | "staging" | "1"
+    null          | "staging" | null
+    null          | "staging" | "1"
+    null          | null      | "1"
   }
 
   def "verify overriding sampler"() {
