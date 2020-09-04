@@ -533,7 +533,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             config.getAgentHost(),
             config.getAgentPort(),
             unixDomainSocket,
-            TimeUnit.SECONDS.toMillis(config.getAgentTimeout()));
+            TimeUnit.SECONDS.toMillis(config.getAgentTimeout()),
+            Config.get().isTraceAgentV05Enabled());
 
     final DDAgentWriter ddAgentWriter =
         DDAgentWriter.builder().agentApi(ddAgentApi).monitor(new Monitor(statsDClient)).build();
