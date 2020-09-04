@@ -20,7 +20,6 @@ import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.PidHelper;
 import com.datadog.profiling.uploader.util.StreamUtils;
 import com.datadog.profiling.util.ProfilingThreadFactory;
-import com.google.common.annotations.VisibleForTesting;
 import datadog.common.container.ContainerInfo;
 import datadog.trace.api.Config;
 import java.io.IOException;
@@ -138,7 +137,10 @@ public final class ProfileUploader {
     this(config, ContainerInfo.get().getContainerId());
   }
 
-  @VisibleForTesting
+  /**
+   * Note that this method is only visible for testing and should not be used from outside this
+   * class.
+   */
   ProfileUploader(final Config config, final String containerId) {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
@@ -259,7 +261,10 @@ public final class ProfileUploader {
     client.connectionPool().evictAll();
   }
 
-  @VisibleForTesting
+  /**
+   * Note that this method is only visible for testing and should not be used from outside this
+   * class.
+   */
   OkHttpClient getClient() {
     return client;
   }
