@@ -267,10 +267,10 @@ public class Agent {
     registerDeadlockDetectionEvent(bootstrapURL);
   }
 
-  private static synchronized void registerDeadlockDetectionEvent(URL bootstrapUrl) {
+  private static synchronized void registerDeadlockDetectionEvent(final URL bootstrapUrl) {
     log.info("Initializing JMX thread deadlock detector");
     try {
-      ClassLoader classLoader = getProfilingClassloader(bootstrapUrl);
+      final ClassLoader classLoader = getProfilingClassloader(bootstrapUrl);
       final Class<?> deadlockFactoryClass =
           classLoader.loadClass(
               "com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory");
@@ -321,9 +321,10 @@ public class Agent {
 
   private static synchronized void startProfilingAgent(
       final URL bootstrapURL, final boolean isStartingFirst) {
+    System.err.println("Start profiler... first=" + isStartingFirst);
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
-      ClassLoader classLoader = getProfilingClassloader(bootstrapURL);
+      final ClassLoader classLoader = getProfilingClassloader(bootstrapURL);
       Thread.currentThread().setContextClassLoader(classLoader);
       final Class<?> profilingAgentClass =
           classLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
@@ -339,10 +340,11 @@ public class Agent {
       log.error("Throwable thrown while starting profiling agent", ex);
     } finally {
       Thread.currentThread().setContextClassLoader(contextLoader);
+      System.err.println("...started profiler first=" + isStartingFirst);
     }
   }
 
-  private static synchronized ClassLoader getProfilingClassloader(URL bootstrapURL)
+  private static synchronized ClassLoader getProfilingClassloader(final URL bootstrapURL)
       throws Exception {
     if (PROFILING_CLASSLOADER == null) {
       PROFILING_CLASSLOADER =
@@ -398,7 +400,7 @@ public class Agent {
     final Constructor constructor =
         loaderClass.getDeclaredConstructor(
             URL.class, String.class, ClassLoader.class, ClassLoader.class, ClassLoader.class);
-    ClassLoader classLoader =
+    final ClassLoader classLoader =
         (ClassLoader)
             constructor.newInstance(
                 bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent, PARENT_CLASSLOADER);
