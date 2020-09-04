@@ -82,6 +82,7 @@ dependencies {
 
   lagomTestCompile project(':dd-java-agent:instrumentation:akka-http-10.0')
   lagomTestCompile project(':dd-java-agent:instrumentation:akka-concurrent')
+  lagomTestCompile project(':dd-java-agent:instrumentation:akka-init')
   lagomTestCompile project(':dd-java-agent:instrumentation:scala-concurrent')
   lagomTestCompile project(':dd-java-agent:instrumentation:scala-promise-2.10')
   lagomTestCompile project(':dd-java-agent:instrumentation:scala-promise-2.13')
