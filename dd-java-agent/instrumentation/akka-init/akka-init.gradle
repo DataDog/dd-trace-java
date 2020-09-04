@@ -1,0 +1,39 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+def akkaVersion = '2.3.2'
+def scalaVersion = '2.11'
+
+muzzle {
+  pass {
+    group = 'com.typesafe.akka'
+    module = "akka-actor_$scalaVersion"
+    versions = "[$akkaVersion,]"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+apply from: "$rootDir/gradle/test-with-scala.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compileOnly group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
+
+  testCompile deps.scala
+  testCompile group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: akkaVersion
+  testCompile project(':dd-java-agent:instrumentation:akka-concurrent')
+  testCompile project(':dd-java-agent:instrumentation:scala-concurrent')
+  testCompile project(':dd-java-agent:instrumentation:scala-promise-2.10')
+  testCompile project(':dd-java-agent:instrumentation:scala-promise-2.13')
+
+  latestDepTestCompile group: 'com.typesafe.akka', name: "akka-actor_$scalaVersion", version: '+'
+}
