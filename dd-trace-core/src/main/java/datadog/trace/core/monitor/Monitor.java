@@ -1,5 +1,10 @@
 package datadog.trace.core.monitor;
 
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
+
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.DDSpan;
@@ -18,6 +23,28 @@ import java.util.List;
  * </ul>
  */
 public class Monitor {
+
+  private static final String[] USER_DROP_TAG = new String[] {"priority:user_drop"};
+  private static final String[] USER_KEEP_TAG = new String[] {"priority:user_keep"};
+  private static final String[] SAMPLER_DROP_TAG = new String[] {"priority:sampler_drop"};
+  private static final String[] SAMPLER_KEEP_TAG = new String[] {"priority:sampler_keep"};
+  private static final String[] UNSET_TAG = new String[] {"priority:unset"};
+
+  private static String[] samplingPriorityTag(int samplingPriority) {
+    switch (samplingPriority) {
+      case USER_DROP:
+        return USER_DROP_TAG;
+      case USER_KEEP:
+        return USER_KEEP_TAG;
+      case SAMPLER_DROP:
+        return SAMPLER_DROP_TAG;
+      case SAMPLER_KEEP:
+        return SAMPLER_KEEP_TAG;
+      default:
+        return UNSET_TAG;
+    }
+  }
+
   private final StatsDClient statsd;
 
   public Monitor(final StatsDClient statsd) {
@@ -31,12 +58,12 @@ public class Monitor {
   public void onShutdown(final boolean flushSuccess) {}
 
   public void onPublish(final List<DDSpan> trace, int samplingPriority) {
-    statsd.incrementCounter("queue.accepted", String.valueOf(samplingPriority));
+    statsd.incrementCounter("queue.accepted", samplingPriorityTag(samplingPriority));
     statsd.count("queue.accepted_lengths", trace.size());
   }
 
   public void onFailedPublish(int samplingPriority) {
-    statsd.incrementCounter("queue.dropped", String.valueOf(samplingPriority));
+    statsd.incrementCounter("queue.dropped", samplingPriorityTag(samplingPriority));
   }
 
   public void onScheduleFlush(final boolean previousIncomplete) {

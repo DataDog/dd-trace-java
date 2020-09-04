@@ -46,16 +46,17 @@ class MonitorTest extends DDSpecification {
     monitor.onPublish(trace, samplingPriority)
 
     then:
-    1 * statsD.incrementCounter('queue.accepted', String.valueOf(samplingPriority))
+    // verify the tags syntax
+    1 * statsD.incrementCounter('queue.accepted',  "priority:" + priorityName )
     1 * statsD.count('queue.accepted_lengths', trace.size())
     0 * _
 
     where:
-    trace          |  samplingPriority
-    []             |   PrioritySampling.USER_DROP
-    [null, null]   |   PrioritySampling.USER_DROP
-    []             |   PrioritySampling.SAMPLER_KEEP
-    [null, null]   |   PrioritySampling.SAMPLER_KEEP
+    trace          |  samplingPriority                |    priorityName
+    []             |   PrioritySampling.USER_DROP     |      "user_drop"
+    [null, null]   |   PrioritySampling.USER_DROP     |      "user_drop"
+    []             |   PrioritySampling.SAMPLER_KEEP  |   "sampler_keep"
+    [null, null]   |   PrioritySampling.SAMPLER_KEEP  |   "sampler_keep"
   }
 
   def "test onFailedPublish"() {
@@ -63,7 +64,7 @@ class MonitorTest extends DDSpecification {
     monitor.onFailedPublish(samplingPriority)
 
     then:
-    1 * statsD.incrementCounter('queue.dropped', String.valueOf(samplingPriority))
+    1 * statsD.incrementCounter('queue.dropped', { it.startsWith("priority:") })
     0 * _
 
     where:
