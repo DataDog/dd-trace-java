@@ -202,8 +202,8 @@ public abstract class AgentTestRunner extends DDSpecification {
       } catch (final Exception e) {
         e.printStackTrace();
       }
-      configureLoggingLevels();
     }
+    configureLoggingLevels();
   }
 
   @After
