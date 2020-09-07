@@ -63,3 +63,8 @@ Suggested plugins and settings:
 * [Google Java Format](https://plugins.jetbrains.com/plugin/8527-google-java-format)
 * [Save Actions](https://plugins.jetbrains.com/plugin/7642-save-actions)
   ![Recommended Settings](https://user-images.githubusercontent.com/734411/43430944-db84bf8a-94ae-11e8-8cec-0daa064937c4.png)
+
+## Troubleshooting
+
+P: When Gradle is building the project, the error `Could not find netty-transport-native-epoll-4.1.43.Final-linux-x86_64.jar` is shown.
+S: Execute `rm -rf  ~/.m2/repository/io/netty/netty-transport*` in a Terminal and re-build again.
