@@ -83,9 +83,9 @@ class DDIdTest extends DDSpecification {
     hexId << [null, "", "-1", "1" + "0" * 16, "f" * 14 + "zf", "f" * 15 + "z" ]
   }
 
-  def "pump up the coverage"() {
+  def "generate id with #idGenerator"() {
     when:
-    final ddid = DDId.generate()
+    final ddid = idGenerator.generate()
 
     then:
     !ddid.equals(null)
@@ -93,5 +93,8 @@ class DDIdTest extends DDSpecification {
     ddid != DDId.ZERO
     ddid.equals(ddid)
     ddid.hashCode() == (int) (ddid.toLong() ^ (ddid.toLong() >>> 32))
+
+    where:
+    idGenerator << IdGenerationStrategy.values()
   }
 }

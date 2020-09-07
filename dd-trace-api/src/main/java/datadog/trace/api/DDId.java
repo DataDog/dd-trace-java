@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -18,22 +17,6 @@ public class DDId {
 
   // Convenience constant used from tests
   private static final DDId ONE = DDId.from(1);
-
-  /**
-   * Generate a new unsigned 64 bit id.
-   *
-   * @return DDId
-   */
-  public static DDId generate() {
-    // It is **extremely** unlikely to generate the value "0" but we still need to handle that case
-    long id;
-    do {
-      // The ids are positive here for historical reasons, and supposed compatibility with
-      // different older Datadog agent versions.
-      id = ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
-    } while (id == 0);
-    return DDId.from(id);
-  }
 
   /**
    * Create a new {@code DDId} from the given {@code long} interpreted as the bits of the unsigned

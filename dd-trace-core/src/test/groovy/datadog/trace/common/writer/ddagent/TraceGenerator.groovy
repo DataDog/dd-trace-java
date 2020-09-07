@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent
 
 import datadog.trace.api.DDId
+import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.DDSpanData
 import datadog.trace.core.TagsAndBaggageConsumer
@@ -44,7 +45,7 @@ class TraceGenerator {
       "operation-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 100),
       "resource-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 100),
       DDId.from(traceId),
-      DDId.generate(),
+      IdGenerationStrategy.RANDOM.generate(),
       DDId.ZERO,
       TimeUnit.MICROSECONDS.toMicros(System.currentTimeMillis()),
       ThreadLocalRandom.current().nextLong(500, 10_000_000),

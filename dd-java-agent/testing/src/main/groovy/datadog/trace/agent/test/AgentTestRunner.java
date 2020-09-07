@@ -1,5 +1,7 @@
 package datadog.trace.agent.test;
 
+import static datadog.trace.api.IdGenerationStrategy.THREAD_PREFIX;
+
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import com.google.common.collect.Sets;
@@ -114,7 +116,12 @@ public abstract class AgentTestRunner extends DDSpecification {
         };
 
     STATS_D_CLIENT = new DetachedMockFactory().Mock(StatsDClient.class);
-    TEST_TRACER = CoreTracer.builder().writer(TEST_WRITER).statsDClient(STATS_D_CLIENT).build();
+    TEST_TRACER =
+        CoreTracer.builder()
+            .writer(TEST_WRITER)
+            .idGenerationStrategy(THREAD_PREFIX)
+            .statsDClient(STATS_D_CLIENT)
+            .build();
     TracerInstaller.installGlobalTracer((CoreTracer) TEST_TRACER);
   }
 
