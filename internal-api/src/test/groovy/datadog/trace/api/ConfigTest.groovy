@@ -22,6 +22,7 @@ import static datadog.trace.api.Config.HEALTH_METRICS_STATSD_PORT
 import static datadog.trace.api.Config.HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.Config.HTTP_SERVER_ERROR_STATUSES
+import static datadog.trace.api.Config.ID_GENERATION_STRATEGY
 import static datadog.trace.api.Config.JMX_FETCH_CHECK_PERIOD
 import static datadog.trace.api.Config.JMX_FETCH_ENABLED
 import static datadog.trace.api.Config.JMX_FETCH_METRICS_CONFIGS
@@ -82,6 +83,8 @@ import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
 import static datadog.trace.api.DDTags.SERVICE
 import static datadog.trace.api.DDTags.SERVICE_TAG
+import static datadog.trace.api.IdGenerationStrategy.RANDOM
+import static datadog.trace.api.IdGenerationStrategy.SEQUENTIAL
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 
@@ -126,6 +129,7 @@ class ConfigTest extends DDSpecification {
     config.site == DEFAULT_SITE
     config.serviceName == "unnamed-java-app"
     config.traceEnabled == true
+    config.idGenerationStrategy == IdGenerationStrategy.RANDOM
     config.writerType == "DDAgentWriter"
     config.agentHost == "localhost"
     config.agentPort == 8126
@@ -190,6 +194,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(SITE, "new site")
     prop.setProperty(SERVICE_NAME, "something else")
     prop.setProperty(TRACE_ENABLED, "false")
+    prop.setProperty(ID_GENERATION_STRATEGY, "SEQUENTIAL")
     prop.setProperty(WRITER_TYPE, "LoggingWriter")
     prop.setProperty(AGENT_HOST, "somehost")
     prop.setProperty(TRACE_AGENT_PORT, "123")
@@ -250,6 +255,7 @@ class ConfigTest extends DDSpecification {
     config.apiKey == "new api key" // we can still override via internal properties object
     config.site == "new site"
     config.serviceName == "something else"
+    config.idGenerationStrategy == SEQUENTIAL
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
     config.agentHost == "somehost"
@@ -1731,6 +1737,17 @@ class ConfigTest extends DDSpecification {
     "42.42" | double
     "42.42" | float
     "42.42" | ClassThrowsExceptionForValueOfMethod // will wrapped in NumberFormatException anyway
+  }
+
+  def "revert to RANDOM with invalid id generation strategy" () {
+    setup:
+    def prop = new Properties()
+    prop.setProperty(ID_GENERATION_STRATEGY, "LOL")
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.idGenerationStrategy == RANDOM
   }
 
   static class ClassThrowsExceptionForValueOfMethod {

@@ -12,6 +12,7 @@ package datadog.trace.api.config;
  * details.
  */
 public final class TracerConfig {
+  public static final String ID_GENERATION_STRATEGY = "id.generation.strategy";
   public static final String WRITER_TYPE = "writer.type";
   public static final String AGENT_HOST = "agent.host";
   public static final String TRACE_AGENT_PORT = "trace.agent.port";

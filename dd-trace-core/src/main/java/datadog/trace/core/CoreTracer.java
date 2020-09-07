@@ -12,6 +12,7 @@ import datadog.common.container.ServerlessInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDId;
+import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.interceptor.MutableSpan;
@@ -100,6 +101,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final StatsDClient statsDClient;
 
+  private final IdGenerationStrategy idGenerationStrategy;
+
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
    * earlier
@@ -166,6 +169,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       final Config config,
       final String serviceName,
       final Writer writer,
+      final IdGenerationStrategy idGenerationStrategy,
       final Sampler sampler,
       final HttpCodec.Injector injector,
       final HttpCodec.Extractor extractor,
@@ -190,6 +194,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     this.defaultSpanTags = defaultSpanTags;
     this.serviceNameMappings = serviceNameMappings;
     this.partialFlushMinSpans = partialFlushMinSpans;
+    this.idGenerationStrategy =
+        null == idGenerationStrategy
+            ? Config.get().getIdGenerationStrategy()
+            : idGenerationStrategy;
 
     if (statsDClient == null) {
       this.statsDClient = createStatsDClient(config);
@@ -715,7 +723,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
      */
     private DDSpanContext buildSpanContext() {
       final DDId traceId;
-      final DDId spanId = DDId.generate();
+      final DDId spanId = idGenerationStrategy.generate();
       final DDId parentSpanId;
       final Map<String, String> baggage;
       final PendingTrace parentTrace;
@@ -764,7 +772,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           baggage = extractedContext.getBaggage();
         } else {
           // Start a new trace
-          traceId = DDId.generate();
+          traceId = IdGenerationStrategy.RANDOM.generate();
           parentSpanId = DDId.ZERO;
           samplingPriority = PrioritySampling.UNSET;
           baggage = null;

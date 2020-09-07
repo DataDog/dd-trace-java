@@ -25,6 +25,18 @@ public final class ConfigProvider {
     return getString(key, null);
   }
 
+  public final <T extends Enum<T>> T getEnum(String key, Class<T> enumType, T defaultValue) {
+    String value = getString(key);
+    if (null != value) {
+      try {
+        return Enum.valueOf(enumType, value);
+      } catch (Exception ignoreAndUseDefault) {
+        log.debug("failed to parse {} for {}, defaulting to {}", value, key, defaultValue);
+      }
+    }
+    return defaultValue;
+  }
+
   public final String getString(String key, String defaultValue, String... aliases) {
     for (ConfigProvider.Source source : sources) {
       String value = source.get(key, aliases);

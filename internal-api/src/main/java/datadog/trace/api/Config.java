@@ -52,6 +52,7 @@ import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
+import static datadog.trace.api.IdGenerationStrategy.RANDOM;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
@@ -112,6 +113,7 @@ public class Config {
   public static final String SERVICE_NAME = GeneralConfig.SERVICE_NAME;
   public static final String TRACE_ENABLED = TraceInstrumentationConfig.TRACE_ENABLED;
   public static final String INTEGRATIONS_ENABLED = TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
+  public static final String ID_GENERATION_STRATEGY = TracerConfig.ID_GENERATION_STRATEGY;
   public static final String WRITER_TYPE = TracerConfig.WRITER_TYPE;
   public static final String AGENT_HOST = TracerConfig.AGENT_HOST;
   public static final String TRACE_AGENT_PORT = TracerConfig.TRACE_AGENT_PORT;
@@ -355,6 +357,8 @@ public class Config {
   @Getter private final boolean debugEnabled;
   @Getter private final String configFile;
 
+  @Getter private final IdGenerationStrategy idGenerationStrategy;
+
   private final ConfigProvider configProvider;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
@@ -389,7 +393,13 @@ public class Config {
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
-
+    idGenerationStrategy =
+        configProvider.getEnum(ID_GENERATION_STRATEGY, IdGenerationStrategy.class, RANDOM);
+    if (idGenerationStrategy != RANDOM) {
+      log.warn(
+          "*** you are using an unsupported id generation strategy {} - this can impact correctness of traces",
+          idGenerationStrategy);
+    }
     // The extra code is to detect when defaults are used for agent configuration
     final boolean agentHostConfiguredUsingDefault;
     final String agentHostFromEnvironment = configProvider.getString(AGENT_HOST);
