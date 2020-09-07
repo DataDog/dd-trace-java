@@ -7,13 +7,14 @@ package datadog.trace.api.config;
  *   DDTracer.builder().withProperties(new Properties()).build()
  * </pre>
  *
- * If using dd-java-agent, these keys represent settings that should be configured via system
+ * <p>If using dd-java-agent, these keys represent settings that should be configured via system
  * properties, environment variables, or config properties file. See online documentation for
  * details.
  */
 public final class TracerConfig {
   public static final String ID_GENERATION_STRATEGY = "id.generation.strategy";
   public static final String WRITER_TYPE = "writer.type";
+  public static final String PRIORITIZATION_TYPE = "prioritization.type";
   public static final String AGENT_HOST = "agent.host";
   public static final String TRACE_AGENT_PORT = "trace.agent.port";
   public static final String AGENT_PORT_LEGACY = "agent.port";

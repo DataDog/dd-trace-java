@@ -26,6 +26,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TRACE_ENABLED = true;
   static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
   static final String DEFAULT_AGENT_WRITER_TYPE = "DDAgentWriter";
+  static final String DEFAULT_PRIORITIZATION_TYPE = "FastLane";
 
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
 

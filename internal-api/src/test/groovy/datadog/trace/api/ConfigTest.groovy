@@ -31,6 +31,7 @@ import static datadog.trace.api.Config.JMX_FETCH_STATSD_HOST
 import static datadog.trace.api.Config.JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.Config.JMX_TAGS
 import static datadog.trace.api.Config.PARTIAL_FLUSH_MIN_SPANS
+import static datadog.trace.api.Config.PRIORITIZATION_TYPE
 import static datadog.trace.api.Config.PRIORITY_SAMPLING
 import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_OLD
 import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_VERY_OLD
@@ -100,6 +101,7 @@ class ConfigTest extends DDSpecification {
   private static final DD_SERVICE_NAME_ENV = "DD_SERVICE_NAME"
   private static final DD_TRACE_ENABLED_ENV = "DD_TRACE_ENABLED"
   private static final DD_WRITER_TYPE_ENV = "DD_WRITER_TYPE"
+  private static final DD_PRIORITIZATION_TYPE_ENV = "DD_PRIORITIZATION_TYPE"
   private static final DD_SERVICE_MAPPING_ENV = "DD_SERVICE_MAPPING"
   private static final DD_TAGS_ENV = "DD_TAGS"
   private static final DD_ENV_ENV = "DD_ENV"
@@ -131,6 +133,7 @@ class ConfigTest extends DDSpecification {
     config.traceEnabled == true
     config.idGenerationStrategy == IdGenerationStrategy.RANDOM
     config.writerType == "DDAgentWriter"
+    config.prioritizationType == "FastLane"
     config.agentHost == "localhost"
     config.agentPort == 8126
     config.agentUnixDomainSocket == null
@@ -196,6 +199,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(TRACE_ENABLED, "false")
     prop.setProperty(ID_GENERATION_STRATEGY, "SEQUENTIAL")
     prop.setProperty(WRITER_TYPE, "LoggingWriter")
+    prop.setProperty(PRIORITIZATION_TYPE, "EnsureTrace")
     prop.setProperty(AGENT_HOST, "somehost")
     prop.setProperty(TRACE_AGENT_PORT, "123")
     prop.setProperty(AGENT_UNIX_DOMAIN_SOCKET, "somepath")
@@ -258,6 +262,7 @@ class ConfigTest extends DDSpecification {
     config.idGenerationStrategy == SEQUENTIAL
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
+    config.prioritizationType == "EnsureTrace"
     config.agentHost == "somehost"
     config.agentPort == 123
     config.agentUnixDomainSocket == "somepath"
@@ -317,6 +322,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + SERVICE_NAME, "something else")
     System.setProperty(PREFIX + TRACE_ENABLED, "false")
     System.setProperty(PREFIX + WRITER_TYPE, "LoggingWriter")
+    System.setProperty(PREFIX + PRIORITIZATION_TYPE, "EnsureTrace")
     System.setProperty(PREFIX + AGENT_HOST, "somehost")
     System.setProperty(PREFIX + TRACE_AGENT_PORT, "123")
     System.setProperty(PREFIX + AGENT_UNIX_DOMAIN_SOCKET, "somepath")
@@ -378,6 +384,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "something else"
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
+    config.prioritizationType == "EnsureTrace"
     config.agentHost == "somehost"
     config.agentPort == 123
     config.agentUnixDomainSocket == "somepath"
@@ -436,6 +443,7 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set(DD_SERVICE_NAME_ENV, "still something else")
     environmentVariables.set(DD_TRACE_ENABLED_ENV, "false")
     environmentVariables.set(DD_WRITER_TYPE_ENV, "LoggingWriter")
+    environmentVariables.set(DD_PRIORITIZATION_TYPE_ENV, "EnsureTrace")
     environmentVariables.set(DD_PROPAGATION_STYLE_EXTRACT, "B3 Datadog")
     environmentVariables.set(DD_PROPAGATION_STYLE_INJECT, "Datadog B3")
     environmentVariables.set(DD_JMXFETCH_METRICS_CONFIGS_ENV, "some/file")
@@ -449,6 +457,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "still something else"
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
+    config.prioritizationType == "EnsureTrace"
     config.propagationStylesToExtract.toList() == [PropagationStyle.B3, PropagationStyle.DATADOG]
     config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG, PropagationStyle.B3]
     config.jmxFetchMetricsConfigs == ["some/file"]
@@ -459,10 +468,12 @@ class ConfigTest extends DDSpecification {
     setup:
     environmentVariables.set(DD_SERVICE_NAME_ENV, "still something else")
     environmentVariables.set(DD_WRITER_TYPE_ENV, "LoggingWriter")
+    environmentVariables.set(DD_PRIORITIZATION_TYPE_ENV, "EnsureTrace")
     environmentVariables.set(DD_TRACE_AGENT_PORT_ENV, "777")
 
     System.setProperty(PREFIX + SERVICE_NAME, "what we actually want")
     System.setProperty(PREFIX + WRITER_TYPE, "DDAgentWriter")
+    System.setProperty(PREFIX + PRIORITIZATION_TYPE, "FastLane")
     System.setProperty(PREFIX + AGENT_HOST, "somewhere")
     System.setProperty(PREFIX + TRACE_AGENT_PORT, "123")
 
@@ -472,6 +483,7 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == "what we actually want"
     config.writerType == "DDAgentWriter"
+    config.prioritizationType == "FastLane"
     config.agentHost == "somewhere"
     config.agentPort == 123
   }
@@ -481,6 +493,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + SERVICE_NAME, " ")
     System.setProperty(PREFIX + TRACE_ENABLED, " ")
     System.setProperty(PREFIX + WRITER_TYPE, " ")
+    System.setProperty(PREFIX + PRIORITIZATION_TYPE, " ")
     System.setProperty(PREFIX + AGENT_HOST, " ")
     System.setProperty(PREFIX + TRACE_AGENT_PORT, " ")
     System.setProperty(PREFIX + AGENT_PORT_LEGACY, "invalid")
@@ -503,6 +516,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == " "
     config.traceEnabled == true
     config.writerType == " "
+    config.prioritizationType == " "
     config.agentHost == " "
     config.agentPort == 8126
     config.prioritySamplingEnabled == false
@@ -568,6 +582,7 @@ class ConfigTest extends DDSpecification {
     properties.setProperty(SERVICE_NAME, "something else")
     properties.setProperty(TRACE_ENABLED, "false")
     properties.setProperty(WRITER_TYPE, "LoggingWriter")
+    properties.setProperty(PRIORITIZATION_TYPE, "EnsureTrace")
     properties.setProperty(AGENT_HOST, "somehost")
     properties.setProperty(TRACE_AGENT_PORT, "123")
     properties.setProperty(AGENT_UNIX_DOMAIN_SOCKET, "somepath")
@@ -598,6 +613,7 @@ class ConfigTest extends DDSpecification {
     config.serviceName == "something else"
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
+    config.prioritizationType == "EnsureTrace"
     config.agentHost == "somehost"
     config.agentPort == 123
     config.agentUnixDomainSocket == "somepath"
@@ -629,6 +645,7 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == "unnamed-java-app"
     config.writerType == "DDAgentWriter"
+    config.prioritizationType == "FastLane"
   }
 
   def "override empty properties"() {
@@ -641,6 +658,7 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == "unnamed-java-app"
     config.writerType == "DDAgentWriter"
+    config.prioritizationType == "FastLane"
   }
 
   def "override non empty properties"() {
@@ -654,6 +672,7 @@ class ConfigTest extends DDSpecification {
     then:
     config.serviceName == "unnamed-java-app"
     config.writerType == "DDAgentWriter"
+    config.prioritizationType == "FastLane"
   }
 
   def "captured env props override default props"() {
