@@ -4,6 +4,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public final class Functions {
 
+  private Functions() {}
+
   // the majority of this can be removed/simplified in JDK8
 
   public static final class Zero<T> implements Function<T, T> {

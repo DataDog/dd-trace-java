@@ -2,6 +2,8 @@ package datadog.trace.api.cache;
 
 public final class DDCaches {
 
+  private DDCaches() {}
+
   /**
    * Creates a cache which cannot grow beyond a fixed capacity. Useful for caching relationships
    * between low cardinality but potentially unbounded keys with values, without risking using
