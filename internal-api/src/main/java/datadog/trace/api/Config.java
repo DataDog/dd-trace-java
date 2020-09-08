@@ -351,7 +351,7 @@ public class Config {
 
   @Getter private final boolean hystrixTagsEnabled;
   @Getter private final boolean servletPrincipalEnabled;
-  @Getter private final boolean servletTimeoutAsError;
+  @Getter private final boolean servletAsyncTimeoutAsError;
 
   @Getter private final boolean traceAgentV05Enabled;
 
@@ -612,8 +612,8 @@ public class Config {
     servletPrincipalEnabled =
         configProvider.getBoolean(TraceInstrumentationConfig.SERVLET_PRINCIPAL_ENABLED, false);
 
-    servletTimeoutAsError =
-        configProvider.getBoolean(TraceInstrumentationConfig.SERVLET_TIMEOUT_AS_ERROR, true);
+    servletAsyncTimeoutAsError =
+        configProvider.getBoolean(TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_AS_ERROR, true);
 
     debugEnabled = isDebugMode();
 

@@ -40,7 +40,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOU
 import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_TIMEOUT_AS_ERROR
+import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_AS_ERROR
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static org.junit.Assume.assumeTrue
@@ -523,7 +523,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     setup:
     assumeTrue(testTimeout())
     def request = request(TIMEOUT, method, body).build()
-    def response = withConfigOverride(SERVLET_TIMEOUT_AS_ERROR, "false", {
+    def response = withConfigOverride(SERVLET_ASYNC_TIMEOUT_AS_ERROR, "false", {
       client.newCall(request).execute()
     })
 

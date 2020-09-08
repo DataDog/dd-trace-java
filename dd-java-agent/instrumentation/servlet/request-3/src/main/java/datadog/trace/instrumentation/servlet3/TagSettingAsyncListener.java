@@ -32,7 +32,7 @@ public class TagSettingAsyncListener implements AsyncListener {
   @Override
   public void onTimeout(final AsyncEvent event) throws IOException {
     if (activated.compareAndSet(false, true)) {
-      if (Config.get().isServletTimeoutAsError()) {
+      if (Config.get().isServletAsyncTimeoutAsError()) {
         span.setError(true);
       }
       span.setTag("timeout", event.getAsyncContext().getTimeout());
