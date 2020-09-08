@@ -36,8 +36,7 @@ public final class TraceInstrumentationConfig {
 
   public static final String HYSTRIX_TAGS_ENABLED = "hystrix.tags.enabled";
   public static final String SERVLET_PRINCIPAL_ENABLED = "trace.servlet.principal.enabled";
-  public static final String SERVLET_ASYNC_TIMEOUT_IS_ERROR =
-      "trace.servlet.async-timeout.is-error";
+  public static final String SERVLET_ASYNC_TIMEOUT_ERROR = "trace.servlet.async-timeout.error";
 
   private TraceInstrumentationConfig() {}
 }
