@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.api.cache.RadixTreeBoxCache.HTTP_STATUSES;
+import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
@@ -84,7 +84,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
     if (response != null) {
       final int status = status(response);
       if (status != 0) {
-        span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.box(status));
+        span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.get(status));
       }
     }
     return span;
