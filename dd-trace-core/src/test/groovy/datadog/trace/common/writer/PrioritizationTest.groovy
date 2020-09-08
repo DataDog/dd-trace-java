@@ -41,13 +41,13 @@ class PrioritizationTest extends DDSpecification {
     []    | false       | USER_KEEP    | 1             | 0
   }
 
-  def "ensure trace strategy strategy flushes primary queue"() {
+  def "ensure trace strategy flushes primary queue"() {
     setup:
     Queue<Object> primary = Mock(Queue)
     Queue<Object> secondary = Mock(Queue)
-    PrioritizationStrategy fastLane = Prioritization.FAST_LANE.create(primary, secondary)
+    PrioritizationStrategy ensureTrace = Prioritization.ENSURE_TRACE.create(primary, secondary)
     when:
-    fastLane.flush(100, TimeUnit.MILLISECONDS)
+    ensureTrace.flush(100, TimeUnit.MILLISECONDS)
     then:
     1 * primary.offer({ it instanceof FlushEvent }) >> true
     0 * secondary.offer(_)
