@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.cache;
+package datadog.trace.api.cache;
 
 public final class DDCaches {
 

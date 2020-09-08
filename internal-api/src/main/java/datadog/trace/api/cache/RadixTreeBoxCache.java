@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.cache;
+package datadog.trace.api.cache;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
 

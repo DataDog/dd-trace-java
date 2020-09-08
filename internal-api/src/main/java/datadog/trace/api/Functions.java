@@ -1,4 +1,6 @@
-package datadog.trace.bootstrap.instrumentation.api;
+package datadog.trace.api;
+
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public final class Functions {
 
@@ -142,6 +144,8 @@ public final class Functions {
   }
 
   public static final class LowerCase implements Function<String, String> {
+
+    public static final LowerCase INSTANCE = new LowerCase();
 
     @Override
     public String apply(String key) {

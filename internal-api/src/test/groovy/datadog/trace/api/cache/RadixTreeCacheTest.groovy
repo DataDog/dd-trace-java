@@ -1,8 +1,8 @@
-package datadog.trace.bootstrap.instrumentation.cache
+package datadog.trace.api.cache
 
 import datadog.trace.util.test.DDSpecification
 
-class RadixTreeBoxCacheTest extends DDSpecification {
+class RadixTreeCacheTest extends DDSpecification {
 
   def "cached values are equal to autoboxed values" () {
     setup:

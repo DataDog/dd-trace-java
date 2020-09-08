@@ -1,9 +1,11 @@
 package datadog.trace.core.propagation;
 
 import datadog.trace.api.DDId;
+import datadog.trace.api.Functions;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.core.util.FixedSizeCache;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,12 +22,10 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected String origin;
   protected boolean valid;
 
-  private static final FixedSizeCache<String, String> CACHE = new FixedSizeCache<>(64);
-  private static final FixedSizeCache.Creator<String, String> LOWER_CASE =
-      new FixedSizeCache.LowerCase();
+  private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
 
   protected String toLowerCase(String key) {
-    return CACHE.computeIfAbsent(key, LOWER_CASE);
+    return CACHE.computeIfAbsent(key, Functions.LowerCase.INSTANCE);
   }
 
   protected ContextInterpreter(Map<String, String> taggedHeaders) {

@@ -7,10 +7,10 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.HY
 import com.netflix.hystrix.HystrixInvokableInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.Functions;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Functions;
-import datadog.trace.bootstrap.instrumentation.cache.DDCache;
-import datadog.trace.bootstrap.instrumentation.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.Objects;
 

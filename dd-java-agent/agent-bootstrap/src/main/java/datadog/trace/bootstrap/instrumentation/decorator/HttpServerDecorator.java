@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.bootstrap.instrumentation.cache.RadixTreeBoxCache.HTTP_STATUSES;
-import static datadog.trace.bootstrap.instrumentation.cache.RadixTreeBoxCache.PORTS;
+import static datadog.trace.api.cache.RadixTreeBoxCache.HTTP_STATUSES;
+import static datadog.trace.api.cache.RadixTreeBoxCache.PORTS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;

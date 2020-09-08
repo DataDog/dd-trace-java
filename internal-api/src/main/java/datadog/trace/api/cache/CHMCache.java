@@ -1,6 +1,6 @@
-package datadog.trace.bootstrap.instrumentation.cache;
+package datadog.trace.api.cache;
 
-import datadog.trace.bootstrap.instrumentation.api.Function;
+import datadog.trace.api.Function;
 import java.util.concurrent.ConcurrentHashMap;
 
 final class CHMCache<K, V> implements DDCache<K, V> {
