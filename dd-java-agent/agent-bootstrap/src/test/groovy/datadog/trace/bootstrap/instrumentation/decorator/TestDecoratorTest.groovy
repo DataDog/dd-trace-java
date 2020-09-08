@@ -136,7 +136,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.CI_PIPELINE_URL, "gitlab-pipeline-url")
     1 * span.setTag(Tags.CI_JOB_URL, "gitlab-job-url")
     1 * span.setTag(Tags.CI_WORKSPACE_PATH, "gitlab-workspace-path")
-    1 * span.setTag(Tags.GIT_REPOSITORY_URL, spanRepo)
+    1 * span.setTag(Tags.GIT_REPOSITORY_URL, spanTagRepo)
     1 * span.setTag(Tags.GIT_COMMIT_SHA, "gitlab-git-commit")
     1 * span.setTag(Tags.GIT_BRANCH, spanTagBranch)
     1 * span.setTag(Tags.GIT_TAG, spanTagTag)
@@ -146,7 +146,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     0 * _
 
     where:
-    gitlabRepo                              | spanRepo                        | gitlabBranch             | gitlabTag               | spanTagBranch | spanTagTag
+    gitlabRepo                              | spanTagRepo                     | gitlabBranch             | gitlabTag               | spanTagBranch | spanTagTag
     "sample"                                | "sample"                        | "origin/master"          | null                    | "master"      | null
     "sample"                                | "sample"                        | "refs/heads/master"      | null                    | "master"      | null
     "sample"                                | "sample"                        | "refs/heads/feature/one" | null                    | "feature/one" | null
