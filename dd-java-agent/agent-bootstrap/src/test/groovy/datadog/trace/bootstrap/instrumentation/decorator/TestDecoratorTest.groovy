@@ -65,7 +65,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     environmentVariables.set(JENKINS_PIPELINE_URL, "jenkins-pipeline-url")
     environmentVariables.set(JENKINS_JOB_URL, "jenkins-job-url")
     environmentVariables.set(JENKINS_WORKSPACE_PATH, "jenkins-workspace-path")
-    environmentVariables.set(JENKINS_GIT_REPOSITORY_URL, "jenkins-git-repo-url")
+    environmentVariables.set(JENKINS_GIT_REPOSITORY_URL, jenkinsRepo)
     environmentVariables.set(JENKINS_GIT_COMMIT, "jenkins-git-commit")
     environmentVariables.set(JENKINS_GIT_BRANCH, jenkinsBranch)
     def decorator = newDecorator()
@@ -85,7 +85,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.CI_PIPELINE_URL, "jenkins-pipeline-url")
     1 * span.setTag(Tags.CI_JOB_URL, "jenkins-job-url")
     1 * span.setTag(Tags.CI_WORKSPACE_PATH, "jenkins-workspace-path")
-    1 * span.setTag(Tags.GIT_REPOSITORY_URL, "jenkins-git-repo-url")
+    1 * span.setTag(Tags.GIT_REPOSITORY_URL, spanTagRepo)
     1 * span.setTag(Tags.GIT_COMMIT_SHA, "jenkins-git-commit")
     1 * span.setTag(Tags.GIT_BRANCH, spanTagBranch)
     1 * span.setTag(Tags.GIT_TAG, spanTagTag)
@@ -95,12 +95,16 @@ class TestDecoratorTest extends BaseDecoratorTest {
     0 * _
 
     where:
-    jenkinsBranch            | spanTagBranch | spanTagTag
-    "origin/master"          | "master"      | null
-    "refs/heads/master"      | "master"      | null
-    "refs/heads/feature/one" | "feature/one" | null
-    "origin/tags/0.1.0"      | null          | "0.1.0"
-    "refs/heads/tags/0.1.0"  | null          | "0.1.0"
+    jenkinsRepo                             | spanTagRepo                     | jenkinsBranch            | spanTagBranch | spanTagTag
+    "sample"                                | "sample"                        | "origin/master"          | "master"      | null
+    "sample"                                | "sample"                        | "refs/heads/master"      | "master"      | null
+    "sample"                                | "sample"                        | "refs/heads/feature/one" | "feature/one" | null
+    "sample"                                | "sample"                        | "origin/tags/0.1.0"      | null          | "0.1.0"
+    "sample"                                | "sample"                        | "refs/heads/tags/0.1.0"  | null          | "0.1.0"
+    "http://hostname.com/repo.git"          | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
+    "http://user@hostname.com/repo.git"     | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
+    "http://user:pwd@hostname.com/repo.git" | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
+    "git@hostname.com:org/repo.git"         | "git@hostname.com:org/repo.git" | "origin/master"          | "master"      | null
   }
 
   def "test afterStart in GitLab"() {
@@ -111,7 +115,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     environmentVariables.set(GITLAB_PIPELINE_URL, "gitlab-pipeline-url")
     environmentVariables.set(GITLAB_JOB_URL, "gitlab-job-url")
     environmentVariables.set(GITLAB_WORKSPACE_PATH, "gitlab-workspace-path")
-    environmentVariables.set(GITLAB_GIT_REPOSITORY_URL, "gitlab-git-repo-url")
+    environmentVariables.set(GITLAB_GIT_REPOSITORY_URL, gitlabRepo)
     environmentVariables.set(GITLAB_GIT_COMMIT, "gitlab-git-commit")
     environmentVariables.set(GITLAB_GIT_BRANCH, gitlabBranch)
     environmentVariables.set(GITLAB_GIT_TAG, gitlabTag)
@@ -132,7 +136,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.CI_PIPELINE_URL, "gitlab-pipeline-url")
     1 * span.setTag(Tags.CI_JOB_URL, "gitlab-job-url")
     1 * span.setTag(Tags.CI_WORKSPACE_PATH, "gitlab-workspace-path")
-    1 * span.setTag(Tags.GIT_REPOSITORY_URL, "gitlab-git-repo-url")
+    1 * span.setTag(Tags.GIT_REPOSITORY_URL, spanRepo)
     1 * span.setTag(Tags.GIT_COMMIT_SHA, "gitlab-git-commit")
     1 * span.setTag(Tags.GIT_BRANCH, spanTagBranch)
     1 * span.setTag(Tags.GIT_TAG, spanTagTag)
@@ -142,13 +146,17 @@ class TestDecoratorTest extends BaseDecoratorTest {
     0 * _
 
     where:
-    gitlabBranch             | gitlabTag               | spanTagBranch | spanTagTag
-    "origin/master"          | null                    | "master"      | null
-    "refs/heads/master"      | null                    | "master"      | null
-    "refs/heads/feature/one" | null                    | "feature/one" | null
-    null                     | "origin/tags/0.1.0"     | null          | "0.1.0"
-    null                     | "refs/heads/tags/0.1.0" | null          | "0.1.0"
-    null                     | "0.1.0"                 | null          | "0.1.0"
+    gitlabRepo                              | spanRepo                        | gitlabBranch             | gitlabTag               | spanTagBranch | spanTagTag
+    "sample"                                | "sample"                        | "origin/master"          | null                    | "master"      | null
+    "sample"                                | "sample"                        | "refs/heads/master"      | null                    | "master"      | null
+    "sample"                                | "sample"                        | "refs/heads/feature/one" | null                    | "feature/one" | null
+    "sample"                                | "sample"                        | null                     | "origin/tags/0.1.0"     | null          | "0.1.0"
+    "sample"                                | "sample"                        | null                     | "refs/heads/tags/0.1.0" | null          | "0.1.0"
+    "sample"                                | "sample"                        | null                     | "0.1.0"                 | null          | "0.1.0"
+    "http://hostname.com/repo.git"          | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
+    "http://user@hostname.com/repo.git"     | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
+    "http://user:pwd@hostname.com/repo.git" | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
+    "git@hostname.com:org/repo.git"         | "git@hostname.com:org/repo.git" | "origin/master"          | null                    | "master"      | null
   }
 
   def "test beforeFinish"() {

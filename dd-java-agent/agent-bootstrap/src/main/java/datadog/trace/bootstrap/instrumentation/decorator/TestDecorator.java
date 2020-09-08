@@ -6,6 +6,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -95,7 +97,7 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setTag(Tags.CI_JOB_URL, ciJobUrl);
     span.setTag(Tags.CI_WORKSPACE_PATH, ciWorkspacePath);
 
-    span.setTag(Tags.GIT_REPOSITORY_URL, gitRepositoryUrl);
+    span.setTag(Tags.GIT_REPOSITORY_URL, filterSensitiveInfo(gitRepositoryUrl));
     span.setTag(Tags.GIT_COMMIT_SHA, gitCommit);
     span.setTag(Tags.GIT_BRANCH, normalizeRef(gitBranch));
     span.setTag(Tags.GIT_TAG, normalizeRef(gitTag));
@@ -155,6 +157,20 @@ public abstract class TestDecorator extends BaseDecorator {
     }
 
     return ref;
+  }
+
+  private String filterSensitiveInfo(final String urlStr) {
+    if (urlStr == null || urlStr.isEmpty()) {
+      return urlStr;
+    }
+
+    try {
+      final URL url = new URL(urlStr);
+      final String userInfo = url.getUserInfo();
+      return urlStr.replace(userInfo + "@", "");
+    } catch (final MalformedURLException ex) {
+      return urlStr;
+    }
   }
 
   public List<String> testNames(
