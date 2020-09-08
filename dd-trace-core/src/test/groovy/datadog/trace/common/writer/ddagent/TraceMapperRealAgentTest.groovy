@@ -48,12 +48,10 @@ class TraceMapperRealAgentTest extends DDSpecification {
     100 << 10     |       1        | true             | true
     100 << 10     |       10       | true             | true
     100 << 10     |       100      | true             | true
-    100 << 10     |       10000    | true             | true
     100 << 10     |       0        | false            | true
     100 << 10     |       1        | false            | true
     100 << 10     |       10       | false            | true
     100 << 10     |       100      | false            | true
-    100 << 10     |       10000    | false            | true
     10 << 10      |       0        | true             | false
     10 << 10      |       1        | true             | false
     30 << 10      |       1        | true             | false
@@ -66,11 +64,9 @@ class TraceMapperRealAgentTest extends DDSpecification {
     100 << 10     |       1        | true             | false
     100 << 10     |       10       | true             | false
     100 << 10     |       100      | true             | false
-    100 << 10     |       10000    | true             | false
     100 << 10     |       0        | false            | false
     100 << 10     |       1        | false            | false
     100 << 10     |       10       | false            | false
     100 << 10     |       100      | false            | false
-    100 << 10     |       10000    | false            | false
   }
 }
