@@ -6,8 +6,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -165,10 +165,10 @@ public abstract class TestDecorator extends BaseDecorator {
     }
 
     try {
-      final URL url = new URL(urlStr);
+      final URI url = new URI(urlStr);
       final String userInfo = url.getUserInfo();
       return urlStr.replace(userInfo + "@", "");
-    } catch (final MalformedURLException ex) {
+    } catch (final URISyntaxException ex) {
       return urlStr;
     }
   }
