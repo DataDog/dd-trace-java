@@ -56,6 +56,9 @@ public class TagSettingAsyncListener implements AsyncListener {
     }
   }
 
+  /** Transfer the listener over to the new context. */
   @Override
-  public void onStartAsync(final AsyncEvent event) throws IOException {}
+  public void onStartAsync(final AsyncEvent event) throws IOException {
+    event.getAsyncContext().addListener(this);
+  }
 }
