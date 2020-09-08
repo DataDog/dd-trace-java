@@ -6,6 +6,8 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 
 import com.timgroup.statsd.StatsDClient;
+import datadog.trace.api.IntFunction;
+import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.DDSpan;
 import java.util.List;
@@ -23,6 +25,18 @@ import java.util.List;
  * </ul>
  */
 public class Monitor {
+
+  private static final IntFunction<String[]> STATUS_TAGS =
+      new IntFunction<String[]>() {
+        @Override
+        public String[] apply(int httpStatus) {
+          return new String[] {"status:" + httpStatus};
+        }
+      };
+
+  private static final String[] NO_TAGS = new String[0];
+  private final RadixTreeCache<String[]> statusTagsCache =
+      new RadixTreeCache<>(16, 32, STATUS_TAGS, 200, 400);
 
   private static final String[] USER_DROP_TAG = new String[] {"priority:user_drop"};
   private static final String[] USER_KEEP_TAG = new String[] {"priority:user_keep"};
@@ -52,14 +66,14 @@ public class Monitor {
   }
 
   public void onStart(final int queueCapacity) {
-    statsd.recordGaugeValue("queue.max_length", queueCapacity);
+    statsd.recordGaugeValue("queue.max_length", queueCapacity, NO_TAGS);
   }
 
   public void onShutdown(final boolean flushSuccess) {}
 
   public void onPublish(final List<DDSpan> trace, int samplingPriority) {
     statsd.incrementCounter("queue.accepted", samplingPriorityTag(samplingPriority));
-    statsd.count("queue.accepted_lengths", trace.size());
+    statsd.count("queue.accepted_lengths", trace.size(), NO_TAGS);
   }
 
   public void onFailedPublish(int samplingPriority) {
@@ -75,7 +89,7 @@ public class Monitor {
   public void onSerialize(final int serializedSizeInBytes) {
     // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
     // map precisely
-    statsd.count("queue.accepted_size", serializedSizeInBytes);
+    statsd.count("queue.accepted_size", serializedSizeInBytes, NO_TAGS);
   }
 
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
@@ -95,19 +109,19 @@ public class Monitor {
 
   private void onSendAttempt(
       final int representativeCount, final int sizeInBytes, final DDAgentApi.Response response) {
-    statsd.incrementCounter("api.requests");
-    statsd.recordGaugeValue("queue.length", representativeCount);
+    statsd.incrementCounter("api.requests", NO_TAGS);
+    statsd.recordGaugeValue("queue.length", representativeCount, NO_TAGS);
     // TODO: missing queue.spans (# of spans being sent)
-    statsd.recordGaugeValue("queue.size", sizeInBytes);
+    statsd.recordGaugeValue("queue.size", sizeInBytes, NO_TAGS);
 
     if (response.exception() != null) {
       // covers communication errors -- both not receiving a response or
       // receiving malformed response (even when otherwise successful)
-      statsd.incrementCounter("api.errors");
+      statsd.incrementCounter("api.errors", NO_TAGS);
     }
 
     if (response.status() != null) {
-      statsd.incrementCounter("api.responses", "status:" + response.status());
+      statsd.incrementCounter("api.responses", statusTagsCache.get(response.status()));
     }
   }
 }

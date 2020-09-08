@@ -32,7 +32,7 @@ public final class RadixTreeCache<T> {
   private final AtomicReferenceArray<Object[]> tree;
   private final IntFunction<T> mapper;
 
-  RadixTreeCache(int level1, int level2, IntFunction<T> mapper, int... commonValues) {
+  public RadixTreeCache(int level1, int level2, IntFunction<T> mapper, int... commonValues) {
     assert Integer.bitCount(level1) == 1
         && Integer.bitCount(level2) == 1
         && level1 > 0
