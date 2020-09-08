@@ -16,6 +16,8 @@ public class TagInterceptorsFactory {
         Arrays.asList(
             new ForceManualDropTagInterceptor(),
             new ForceManualKeepTagInterceptor(),
+            new ForceManualSamplerKeepTagInterceptor(),
+            new ForceManualSamplerDropTagInterceptor(),
             new PeerServiceTagInterceptor(),
             new ServiceNameTagInterceptor(),
             new ServiceNameTagInterceptor("service", false),

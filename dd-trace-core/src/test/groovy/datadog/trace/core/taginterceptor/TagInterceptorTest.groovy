@@ -282,18 +282,30 @@ class TagInterceptorTest extends DDSpecification {
     span.samplingPriority == expected
 
     where:
-    tag                | value   | expected
-    DDTags.MANUAL_KEEP | true    | PrioritySampling.USER_KEEP
-    DDTags.MANUAL_KEEP | false   | null
-    DDTags.MANUAL_KEEP | "true"  | PrioritySampling.USER_KEEP
-    DDTags.MANUAL_KEEP | "false" | null
-    DDTags.MANUAL_KEEP | "asdf"  | null
+    tag                        | value   | expected
+    DDTags.MANUAL_KEEP         | true    | PrioritySampling.USER_KEEP
+    DDTags.MANUAL_KEEP         | false   | null
+    DDTags.MANUAL_KEEP         | "true"  | PrioritySampling.USER_KEEP
+    DDTags.MANUAL_KEEP         | "false" | null
+    DDTags.MANUAL_KEEP         | "asdf"  | null
 
-    DDTags.MANUAL_DROP | true    | PrioritySampling.USER_DROP
-    DDTags.MANUAL_DROP | false   | null
-    DDTags.MANUAL_DROP | "true"  | PrioritySampling.USER_DROP
-    DDTags.MANUAL_DROP | "false" | null
-    DDTags.MANUAL_DROP | "asdf"  | null
+    DDTags.MANUAL_DROP         | true    | PrioritySampling.USER_DROP
+    DDTags.MANUAL_DROP         | false   | null
+    DDTags.MANUAL_DROP         | "true"  | PrioritySampling.USER_DROP
+    DDTags.MANUAL_DROP         | "false" | null
+    DDTags.MANUAL_DROP         | "asdf"  | null
+
+    DDTags.MANUAL_SAMPLER_KEEP | true    | PrioritySampling.SAMPLER_KEEP
+    DDTags.MANUAL_SAMPLER_KEEP | false   | null
+    DDTags.MANUAL_SAMPLER_KEEP | "true"  | PrioritySampling.SAMPLER_KEEP
+    DDTags.MANUAL_SAMPLER_KEEP | "false" | null
+    DDTags.MANUAL_SAMPLER_KEEP | "asdf"  | null
+
+    DDTags.MANUAL_SAMPLER_DROP | true    | PrioritySampling.SAMPLER_DROP
+    DDTags.MANUAL_SAMPLER_DROP | false   | null
+    DDTags.MANUAL_SAMPLER_DROP | "true"  | PrioritySampling.SAMPLER_DROP
+    DDTags.MANUAL_SAMPLER_DROP | "false" | null
+    DDTags.MANUAL_SAMPLER_DROP | "asdf"  | null
   }
 
   def "DBStatementAsResource should not interact on Mongo queries"() {

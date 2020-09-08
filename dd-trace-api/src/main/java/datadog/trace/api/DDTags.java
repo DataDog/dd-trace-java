@@ -26,6 +26,11 @@ public class DDTags {
   /** Manually force tracer to be drop the trace */
   public static final String MANUAL_DROP = "manual.drop";
 
+  /** Manually force sampler to be keep the trace */
+  public static final String MANUAL_SAMPLER_KEEP = "manual.sampler_keep";
+  /** Manually force sampler to be drop the trace */
+  public static final String MANUAL_SAMPLER_DROP = "manual.sampler_drop";
+
   public static final String TRACE_START_TIME = "t0";
 
   /* Tags below are for internal use only. */

@@ -87,6 +87,7 @@ public abstract class TestDecorator extends BaseDecorator {
     span.setTag(DDTags.SPAN_TYPE, spanType());
     span.setTag(Tags.TEST_FRAMEWORK, testFramework());
     span.setTag(Tags.TEST_TYPE, testType());
+    span.setTag(DDTags.MANUAL_SAMPLER_KEEP, true);
 
     span.setTag(Tags.CI_PROVIDER_NAME, ciProviderName);
     span.setTag(Tags.CI_PIPELINE_ID, ciPipelineId);

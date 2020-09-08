@@ -48,6 +48,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
+    1 * span.setTag(DDTags.MANUAL_SAMPLER_KEEP, true)
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)
     _ * span.setOperationName(_)
