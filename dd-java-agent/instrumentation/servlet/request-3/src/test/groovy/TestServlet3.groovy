@@ -93,7 +93,7 @@ class TestServlet3 {
               case TIMEOUT:
               case TIMEOUT_ERROR:
                 sleep context.getTimeout() + 2_000
-                break;
+                break
             }
           }
         } finally {
