@@ -95,16 +95,17 @@ class TestDecoratorTest extends BaseDecoratorTest {
     0 * _
 
     where:
-    jenkinsRepo                             | spanTagRepo                     | jenkinsBranch            | spanTagBranch | spanTagTag
-    "sample"                                | "sample"                        | "origin/master"          | "master"      | null
-    "sample"                                | "sample"                        | "refs/heads/master"      | "master"      | null
-    "sample"                                | "sample"                        | "refs/heads/feature/one" | "feature/one" | null
-    "sample"                                | "sample"                        | "origin/tags/0.1.0"      | null          | "0.1.0"
-    "sample"                                | "sample"                        | "refs/heads/tags/0.1.0"  | null          | "0.1.0"
-    "http://hostname.com/repo.git"          | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
-    "http://user@hostname.com/repo.git"     | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
-    "http://user:pwd@hostname.com/repo.git" | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
-    "git@hostname.com:org/repo.git"         | "git@hostname.com:org/repo.git" | "origin/master"          | "master"      | null
+    jenkinsRepo                                  | spanTagRepo                     | jenkinsBranch            | spanTagBranch | spanTagTag
+    "sample"                                     | "sample"                        | "origin/master"          | "master"      | null
+    "sample"                                     | "sample"                        | "refs/heads/master"      | "master"      | null
+    "sample"                                     | "sample"                        | "refs/heads/feature/one" | "feature/one" | null
+    "sample"                                     | "sample"                        | "origin/tags/0.1.0"      | null          | "0.1.0"
+    "sample"                                     | "sample"                        | "refs/heads/tags/0.1.0"  | null          | "0.1.0"
+    "http://hostname.com/repo.git"               | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
+    "http://user@hostname.com/repo.git"          | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
+    "http://user%E2%82%AC@hostname.com/repo.git" | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
+    "http://user:pwd@hostname.com/repo.git"      | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
+    "git@hostname.com:org/repo.git"              | "git@hostname.com:org/repo.git" | "origin/master"          | "master"      | null
   }
 
   def "test afterStart in GitLab"() {
@@ -146,17 +147,18 @@ class TestDecoratorTest extends BaseDecoratorTest {
     0 * _
 
     where:
-    gitlabRepo                              | spanTagRepo                     | gitlabBranch             | gitlabTag               | spanTagBranch | spanTagTag
-    "sample"                                | "sample"                        | "origin/master"          | null                    | "master"      | null
-    "sample"                                | "sample"                        | "refs/heads/master"      | null                    | "master"      | null
-    "sample"                                | "sample"                        | "refs/heads/feature/one" | null                    | "feature/one" | null
-    "sample"                                | "sample"                        | null                     | "origin/tags/0.1.0"     | null          | "0.1.0"
-    "sample"                                | "sample"                        | null                     | "refs/heads/tags/0.1.0" | null          | "0.1.0"
-    "sample"                                | "sample"                        | null                     | "0.1.0"                 | null          | "0.1.0"
-    "http://hostname.com/repo.git"          | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
-    "http://user@hostname.com/repo.git"     | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
-    "http://user:pwd@hostname.com/repo.git" | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
-    "git@hostname.com:org/repo.git"         | "git@hostname.com:org/repo.git" | "origin/master"          | null                    | "master"      | null
+    gitlabRepo                                   | spanTagRepo                     | gitlabBranch             | gitlabTag               | spanTagBranch | spanTagTag
+    "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
+    "sample"                                     | "sample"                        | "refs/heads/master"      | null                    | "master"      | null
+    "sample"                                     | "sample"                        | "refs/heads/feature/one" | null                    | "feature/one" | null
+    "sample"                                     | "sample"                        | null                     | "origin/tags/0.1.0"     | null          | "0.1.0"
+    "sample"                                     | "sample"                        | null                     | "refs/heads/tags/0.1.0" | null          | "0.1.0"
+    "sample"                                     | "sample"                        | null                     | "0.1.0"                 | null          | "0.1.0"
+    "http://hostname.com/repo.git"               | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
+    "http://user@hostname.com/repo.git"          | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
+    "http://user%E2%82%AC@hostname.com/repo.git" | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
+    "http://user:pwd@hostname.com/repo.git"      | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
+    "git@hostname.com:org/repo.git"              | "git@hostname.com:org/repo.git" | "origin/master"          | null                    | "master"      | null
   }
 
   def "test beforeFinish"() {

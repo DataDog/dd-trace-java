@@ -166,7 +166,7 @@ public abstract class TestDecorator extends BaseDecorator {
 
     try {
       final URI url = new URI(urlStr);
-      final String userInfo = url.getUserInfo();
+      final String userInfo = url.getRawUserInfo();
       return urlStr.replace(userInfo + "@", "");
     } catch (final URISyntaxException ex) {
       return urlStr;
