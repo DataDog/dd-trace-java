@@ -140,13 +140,13 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     "execute Runnable"       | executeRunnable     | java7SafeCompletableFutureThreadPerTaskExecutor()
   }
 
-  def "#poolImpl '#name' disabled wrapping"() {
+  def "#poolImpl '#name' wraps"() {
     setup:
     def pool = poolImpl
     def m = method
     def w = wrap
 
-    JavaAsyncChild child = new JavaAsyncChild(true, true)
+    JavaAsyncChild child = new JavaAsyncChild(true, false)
     new Runnable() {
       @Override
       @Trace(operationName = "parent")
@@ -155,27 +155,20 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
         m(pool, w(child))
       }
     }.run()
-    // We block in child to make sure spans close in predictable order
-    child.unblock()
 
-    // Expect two traces because async propagation gets effectively disabled
-    TEST_WRITER.waitForTraces(2)
+    TEST_WRITER.waitForTraces(1)
 
     expect:
-    TEST_WRITER.size() == 2
-    TEST_WRITER.get(0).size() == 1
-    TEST_WRITER.get(0).get(0).operationName == "parent"
-    TEST_WRITER.get(1).size() == 1
-    TEST_WRITER.get(1).get(0).operationName == "asyncChild"
+    TEST_WRITER.size() == 1
+    TEST_WRITER.get(0).size() == 2
+    TEST_WRITER.get(0).get(1).operationName == "parent"
+    TEST_WRITER.get(0).get(0).operationName == "asyncChild"
+    TEST_WRITER.get(0).get(0).parentId == TEST_WRITER.get(0).get(1).spanId
 
     cleanup:
     pool?.shutdown()
 
     where:
-    // Scheduled executor cannot accept wrapped tasks
-    // TODO: we should have a test that passes lambda, but this is hard
-    // because this requires tests to be run in java8+ only.
-    // Instead we 'hand-wrap' tasks in this test.
     name                | method           | wrap                        | poolImpl
     "execute Runnable"  | executeRunnable  | { new RunnableWrapper(it) } | new ScheduledThreadPoolExecutor(1)
     "submit Runnable"   | submitRunnable   | { new RunnableWrapper(it) } | new ScheduledThreadPoolExecutor(1)
