@@ -1,4 +1,6 @@
 import datadog.trace.agent.test.AgentTestRunner
+import org.apache.tomcat.util.threads.TaskQueue
+import org.apache.tomcat.util.threads.ThreadPoolExecutor
 import spock.lang.Shared
 
 import java.util.concurrent.Callable
@@ -54,5 +56,10 @@ class ExecutorLambdaTest extends AgentTestRunner {
     "submit Callable"   | submitCallable   | { LambdaGenerator.wrapCallable(it) } | new ScheduledThreadPoolExecutor(1)
     "schedule Runnable" | scheduleRunnable | { LambdaGenerator.wrapRunnable(it) } | new ScheduledThreadPoolExecutor(1)
     "schedule Callable" | scheduleCallable | { LambdaGenerator.wrapCallable(it) } | new ScheduledThreadPoolExecutor(1)
+
+    // TOMCAT
+    "execute Runnable"  | executeRunnable  | { LambdaGenerator.wrapRunnable(it) } | new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
+    "submit Runnable"   | submitRunnable   | { LambdaGenerator.wrapRunnable(it) } | new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
+    "submit Callable"   | submitCallable   | { LambdaGenerator.wrapCallable(it) } | new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
   }
 }

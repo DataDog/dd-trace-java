@@ -146,7 +146,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     def m = method
     def w = wrap
 
-    JavaAsyncChild child = new JavaAsyncChild(true, false)
+    JavaAsyncChild child = new JavaAsyncChild(true, true)
     new Runnable() {
       @Override
       @Trace(operationName = "parent")
@@ -155,6 +155,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
         m(pool, w(child))
       }
     }.run()
+    child.unblock()
 
     TEST_WRITER.waitForTraces(1)
 
