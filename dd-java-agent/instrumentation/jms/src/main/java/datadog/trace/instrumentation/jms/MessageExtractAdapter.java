@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.jms;
 
+import datadog.trace.api.Function;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import datadog.trace.bootstrap.instrumentation.api.Function;
-import datadog.trace.bootstrap.instrumentation.cache.DDCache;
-import datadog.trace.bootstrap.instrumentation.cache.DDCaches;
 import java.util.Enumeration;
 import javax.jms.JMSException;
 import javax.jms.Message;

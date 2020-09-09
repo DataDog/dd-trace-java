@@ -4,12 +4,12 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.Function;
+import datadog.trace.api.Functions;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Function;
-import datadog.trace.bootstrap.instrumentation.api.Functions;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.bootstrap.instrumentation.cache.DDCache;
-import datadog.trace.bootstrap.instrumentation.cache.DDCaches;
 
 public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorator {
 

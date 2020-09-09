@@ -1,6 +1,8 @@
-package datadog.trace.bootstrap.instrumentation.cache;
+package datadog.trace.api.cache;
 
 public final class DDCaches {
+
+  private DDCaches() {}
 
   /**
    * Creates a cache which cannot grow beyond a fixed capacity. Useful for caching relationships

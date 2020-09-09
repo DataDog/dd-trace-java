@@ -2,12 +2,12 @@ package datadog.trace.instrumentation.kafka_streams;
 
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.Functions;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Functions;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.bootstrap.instrumentation.cache.DDCache;
-import datadog.trace.bootstrap.instrumentation.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
 

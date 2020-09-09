@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
-import static datadog.trace.bootstrap.instrumentation.cache.RadixTreeBoxCache.HTTP_STATUSES;
-import static datadog.trace.bootstrap.instrumentation.cache.RadixTreeBoxCache.PORTS;
+import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
+import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
@@ -105,7 +105,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
       final int port = peerPort(connection);
       // Negative or Zero ports might represent an unset/null value for an int type.  Skip setting.
       if (port > 0) {
-        span.setTag(Tags.PEER_PORT, PORTS.box(port));
+        span.setTag(Tags.PEER_PORT, PORTS.get(port));
       }
     }
     return span;
@@ -116,7 +116,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
     if (response != null) {
       final int status = status(response);
       if (status != 0) {
-        span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.box(status));
+        span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.get(status));
       }
     }
     return span;

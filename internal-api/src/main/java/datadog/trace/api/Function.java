@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.api;
+package datadog.trace.api;
 
 public interface Function<T, U> {
   U apply(T input);

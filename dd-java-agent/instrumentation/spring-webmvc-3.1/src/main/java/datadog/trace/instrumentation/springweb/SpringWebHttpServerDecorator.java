@@ -1,13 +1,13 @@
 package datadog.trace.instrumentation.springweb;
 
 import datadog.trace.api.DDTags;
+import datadog.trace.api.Function;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Function;
 import datadog.trace.bootstrap.instrumentation.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.instrumentation.cache.DDCache;
-import datadog.trace.bootstrap.instrumentation.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.reflect.Method;
 import javax.servlet.Servlet;

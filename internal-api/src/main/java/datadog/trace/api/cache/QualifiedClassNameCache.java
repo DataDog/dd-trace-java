@@ -1,7 +1,7 @@
-package datadog.trace.bootstrap.instrumentation.cache;
+package datadog.trace.api.cache;
 
-import datadog.trace.bootstrap.instrumentation.api.Function;
-import datadog.trace.bootstrap.instrumentation.api.TwoArgFunction;
+import datadog.trace.api.Function;
+import datadog.trace.api.TwoArgFunction;
 
 public final class QualifiedClassNameCache {
 

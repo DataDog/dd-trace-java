@@ -1,6 +1,6 @@
-package datadog.trace.bootstrap.instrumentation.cache;
+package datadog.trace.api.cache;
 
-import datadog.trace.bootstrap.instrumentation.api.Function;
+import datadog.trace.api.Function;
 
 /**
  * This is a fixed size cache that only has one operation <code>computeIfAbsent</code>, that is used

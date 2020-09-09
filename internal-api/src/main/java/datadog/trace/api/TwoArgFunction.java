@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.api;
+package datadog.trace.api;
 
 // not named BiFunction to ease baselining against JDK8
 public interface TwoArgFunction<T, U, V> {

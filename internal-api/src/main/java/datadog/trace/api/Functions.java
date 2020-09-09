@@ -1,6 +1,10 @@
-package datadog.trace.bootstrap.instrumentation.api;
+package datadog.trace.api;
+
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public final class Functions {
+
+  private Functions() {}
 
   // the majority of this can be removed/simplified in JDK8
 
@@ -142,6 +146,8 @@ public final class Functions {
   }
 
   public static final class LowerCase implements Function<String, String> {
+
+    public static final LowerCase INSTANCE = new LowerCase();
 
     @Override
     public String apply(String key) {

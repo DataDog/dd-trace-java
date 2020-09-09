@@ -1,7 +1,8 @@
-package datadog.trace.bootstrap.instrumentation.cache
+package datadog.trace.api.cache
 
-import datadog.trace.bootstrap.instrumentation.api.Function
-import datadog.trace.bootstrap.instrumentation.api.Functions
+
+import datadog.trace.api.Function
+import datadog.trace.api.Functions
 import datadog.trace.util.test.DDSpecification
 
 class QualifiedClassNameCacheTest extends DDSpecification {
