@@ -56,12 +56,12 @@ class TraceMapperV04PayloadTest extends DDSpecification {
     100 << 10     |       1        | true
     100 << 10     |       10       | true
     100 << 10     |       100      | true
-    100 << 10     |       10000    | true
+    100 << 10     |       1000     | true
     100 << 10     |       0        | false
     100 << 10     |       1        | false
     100 << 10     |       10       | false
     100 << 10     |       100      | false
-    100 << 10     |       10000    | false
+    100 << 10     |       1000     | false
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
