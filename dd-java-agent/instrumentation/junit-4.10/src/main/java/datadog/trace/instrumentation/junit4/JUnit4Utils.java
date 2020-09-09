@@ -40,6 +40,7 @@ public abstract class JUnit4Utils {
     // Since JUnit 4.12, the RunListener are wrapped by a SynchronizedRunListener object.
     if (SYNCHRONIZED_LISTENER.equals(listener.getClass().getName())) {
       try {
+        // There is no public accessor to the inner listener.
         final Field innerListener = listener.getClass().getDeclaredField("listener");
         innerListener.setAccessible(true);
 
