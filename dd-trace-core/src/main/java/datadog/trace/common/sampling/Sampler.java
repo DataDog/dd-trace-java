@@ -41,7 +41,11 @@ public interface Sampler {
             sampler = new AllSampler();
           }
         } else if (config.isPrioritySamplingEnabled()) {
-          sampler = new RateByServiceSampler();
+          if (config.isForceSamplerKeepEnabled()) {
+            sampler = new ForceKeepSampler();
+          } else {
+            sampler = new RateByServiceSampler();
+          }
         } else {
           sampler = new AllSampler();
         }

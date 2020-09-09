@@ -6,6 +6,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FORCE_PRIORITY_SAMPLER_KEEP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING;
@@ -123,6 +124,7 @@ public class Config {
   public static final String AGENT_UNIX_DOMAIN_SOCKET = TracerConfig.AGENT_UNIX_DOMAIN_SOCKET;
   public static final String AGENT_TIMEOUT = TracerConfig.AGENT_TIMEOUT;
   public static final String PRIORITY_SAMPLING = TracerConfig.PRIORITY_SAMPLING;
+  public static final String FORCE_PRIORITY_SAMPLER_KEEP = TracerConfig.FORCE_PRIORITY_SAMPLER_KEEP;
 
   @Deprecated
   public static final String TRACE_RESOLVER_ENABLED = TracerConfig.TRACE_RESOLVER_ENABLED;
@@ -279,6 +281,7 @@ public class Config {
   @Getter private final String agentUnixDomainSocket;
   @Getter private final int agentTimeout;
   @Getter private final boolean prioritySamplingEnabled;
+  @Getter private final boolean forceSamplerKeepEnabled;
   @Getter private final boolean traceResolverEnabled;
   @Getter private final Map<String, String> serviceMapping;
   @NonNull private final Map<String, String> tags;
@@ -439,6 +442,9 @@ public class Config {
     agentTimeout = configProvider.getInteger(AGENT_TIMEOUT, DEFAULT_AGENT_TIMEOUT);
     prioritySamplingEnabled =
         configProvider.getBoolean(PRIORITY_SAMPLING, DEFAULT_PRIORITY_SAMPLING_ENABLED);
+    forceSamplerKeepEnabled =
+        configProvider.getBoolean(
+            FORCE_PRIORITY_SAMPLER_KEEP, DEFAULT_FORCE_PRIORITY_SAMPLER_KEEP_ENABLED);
     traceResolverEnabled =
         configProvider.getBoolean(TRACE_RESOLVER_ENABLED, DEFAULT_TRACE_RESOLVER_ENABLED);
     serviceMapping = configProvider.getMergedMap(SERVICE_MAPPING);
