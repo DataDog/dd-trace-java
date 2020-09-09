@@ -110,8 +110,10 @@ class SpanAssert {
   }
 
   def childOf(DDSpan parent) {
-    parentDDId(parent.spanId)
-    traceDDId(parent.traceId)
+    assert span.parentId == parent.spanId
+    checked.parentId = true
+    assert span.traceId == parent.traceId
+    checked.traceId = true
   }
 
   def notChildOf(DDSpan parent) {
