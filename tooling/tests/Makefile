@@ -31,4 +31,4 @@ all: ${TARGETS}
 ci:
 	@echo ${TARGETS} | circleci tests split | xargs make -f ${ROOT_DIR}/Makefile
 gitlab-ci:
-	bash ${ROOT_DIR}/lib/split_tests.sh ${TARGETS} | xargs -n 1 echo make -f ${ROOT_DIR}/Makefile
+	bash ${ROOT_DIR}/lib/split_tests.sh ${TARGETS} | xargs -n 1 make -f ${ROOT_DIR}/Makefile
