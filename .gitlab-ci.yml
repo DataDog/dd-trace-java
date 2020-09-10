@@ -43,6 +43,7 @@ build:
 "tooling tests":
   <<: *gradle_build
   stage: test
+  tags: ["runner:main", "size:large"]
   needs: []
   parallel: 5
   variables:
