@@ -68,7 +68,7 @@ public class JUnit4Instrumentation extends Instrumenter.Default {
 
       // This prevents installing the TracingListener multiple times.
       for (final RunListener listener : runListeners) {
-        if (listener instanceof TracingListener) {
+        if (JUnit4Utils.isTracingListener(listener)) {
           return;
         }
       }
