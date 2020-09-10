@@ -1,7 +1,7 @@
 #!/bin/bash
 tests=( "$@" )
 runners=${CI_NODE_TOTAL-1}
-runner_id=${CI_NODE_INDEX-0}
+runner_id=$((${CI_NODE_INDEX-0} - 1))
 
 if (($runners <= $runner_id)); then
   echo "ERROR: runner id can't be equal or higher than number of runners" >&2
