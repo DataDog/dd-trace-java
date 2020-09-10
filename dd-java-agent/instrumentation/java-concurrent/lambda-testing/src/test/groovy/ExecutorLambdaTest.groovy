@@ -57,7 +57,7 @@ class ExecutorLambdaTest extends AgentTestRunner {
     "schedule Runnable" | scheduleRunnable | { LambdaGenerator.wrapRunnable(it) } | new ScheduledThreadPoolExecutor(1)
     "schedule Callable" | scheduleCallable | { LambdaGenerator.wrapCallable(it) } | new ScheduledThreadPoolExecutor(1)
 
-    // TOMCAT
+    // TOMCAT uses it's own queue type TaskQueue
     "execute Runnable"  | executeRunnable  | { LambdaGenerator.wrapRunnable(it) } | new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
     "submit Runnable"   | submitRunnable   | { LambdaGenerator.wrapRunnable(it) } | new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
     "submit Callable"   | submitCallable   | { LambdaGenerator.wrapCallable(it) } | new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
