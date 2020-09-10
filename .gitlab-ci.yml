@@ -2,6 +2,7 @@ stages:
   - ci-image
   - build
   - deploy
+  - test
 
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
@@ -35,6 +36,18 @@ build:
   stage: build
   script:
     - GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M" ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=8
+  artifacts:
+    paths:
+      - 'workspace/dd-java-agent/build/libs/*.jar'
+
+run_tooling_tests:
+  <<: *gradle_build
+  stage: test
+  variables:
+    GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M"
+  script:
+    - make -C tooling/tests gitlab-ci
+
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'

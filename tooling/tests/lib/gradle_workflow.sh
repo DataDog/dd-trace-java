@@ -8,6 +8,8 @@ function init {
 function tests {
   (
     cd $TARGET
+    export JAVA_OPTS=""
+    # export JAVA_TOOL_OPTS? jetty, netty, spring reactor, 
     ./gradlew check
   )
 }
