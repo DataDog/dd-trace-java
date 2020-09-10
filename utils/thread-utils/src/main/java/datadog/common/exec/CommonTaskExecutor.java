@@ -1,27 +1,23 @@
 package datadog.common.exec;
 
 import java.lang.ref.WeakReference;
-import java.util.List;
-import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Delayed;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public final class CommonTaskExecutor extends AbstractExecutorService {
+public final class CommonTaskExecutor extends ScheduledThreadPoolExecutor {
   public static final CommonTaskExecutor INSTANCE = new CommonTaskExecutor();
   private static final long SHUTDOWN_WAIT_SECONDS = 5;
 
-  private final ScheduledExecutorService executorService =
-      Executors.newSingleThreadScheduledExecutor(DaemonThreadFactory.TASK_SCHEDULER);
-
   private CommonTaskExecutor() {
+    super(1, DaemonThreadFactory.TASK_SCHEDULER);
     try {
-      Runtime.getRuntime().addShutdownHook(new ShutdownCallback(executorService));
+      Runtime.getRuntime().addShutdownHook(new ShutdownCallback(this));
     } catch (final IllegalStateException ex) {
       // The JVM is already shutting down.
       log.debug("Error adding shutdown hook", ex);
@@ -67,7 +63,7 @@ public final class CommonTaskExecutor extends AbstractExecutorService {
       try {
         final PeriodicTask<T> periodicTask = new PeriodicTask<>(task, target);
         final ScheduledFuture<?> future =
-            executorService.scheduleAtFixedRate(periodicTask, initialDelay, period, unit);
+            super.scheduleAtFixedRate(periodicTask, initialDelay, period, unit);
         periodicTask.setFuture(future);
         return future;
       } catch (final RejectedExecutionException e) {
@@ -79,37 +75,6 @@ public final class CommonTaskExecutor extends AbstractExecutorService {
      * We are using 'fake' object instead of null to avoid callers needing to deal with nulls.
      */
     return new UnscheduledFuture(name);
-  }
-
-  @Override
-  public void shutdown() {
-    executorService.shutdown();
-  }
-
-  @Override
-  public List<Runnable> shutdownNow() {
-    return executorService.shutdownNow();
-  }
-
-  @Override
-  public boolean isShutdown() {
-    return executorService.isShutdown();
-  }
-
-  @Override
-  public boolean isTerminated() {
-    return executorService.isTerminated();
-  }
-
-  @Override
-  public boolean awaitTermination(final long timeout, final TimeUnit unit)
-      throws InterruptedException {
-    return executorService.awaitTermination(timeout, unit);
-  }
-
-  @Override
-  public void execute(final Runnable command) {
-    executorService.execute(command);
   }
 
   private static final class ShutdownCallback extends Thread {

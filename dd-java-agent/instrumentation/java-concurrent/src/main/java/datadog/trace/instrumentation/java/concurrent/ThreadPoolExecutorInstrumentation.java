@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.common.exec.CommonTaskExecutor;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
@@ -52,6 +53,11 @@ public class ThreadPoolExecutorInstrumentation extends Instrumenter.Default {
     public static void disableIfQueueWrongType(
         @Advice.This final ThreadPoolExecutor executor,
         @Advice.Argument(4) final BlockingQueue<Runnable> queue) {
+
+      if (executor instanceof CommonTaskExecutor) {
+        return; // ignore our internal executor
+      }
+
       // We disable this way because this instrumentation is only used to call
       // disableExecutorForWrappedTasks. Therefore disabling the instrumentation explicitly will not
       // work, for this instrumentation disabling for all executors is more of the intention
