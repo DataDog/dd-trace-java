@@ -1,8 +1,8 @@
 stages:
   - ci-image
   - build
-  - deploy
   - test
+  - deploy
 
 variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
@@ -43,9 +43,11 @@ build:
 run_tooling_tests:
   <<: *gradle_build
   stage: test
+  needs: ["build"]
   variables:
     GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M"
   script:
+    - ls -la workspace/dd-java-agent/build/libs/* || true
     - make -C tooling/tests gitlab-ci
 
   artifacts:
@@ -69,6 +71,7 @@ copy_to_s3:
 deploy_to_bintray:
   <<: *gradle_build
   stage: deploy
+  needs: [ "build" ]
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
