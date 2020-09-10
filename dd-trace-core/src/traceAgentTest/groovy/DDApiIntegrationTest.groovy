@@ -1,3 +1,5 @@
+import com.timgroup.statsd.NonBlockingStatsDClient
+import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -10,6 +12,7 @@ import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
+import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.Packer
 import datadog.trace.util.test.DDSpecification
@@ -64,6 +67,8 @@ class DDApiIntegrationTest extends DDSpecification {
   Process process
   @Shared
   File socketPath
+  @Shared
+  StatsDClient statsDClient
 
   def api
   def unixDomainSocketApi
@@ -79,6 +84,7 @@ class DDApiIntegrationTest extends DDSpecification {
   }
 
   def setupSpec() {
+    statsDClient = new NonBlockingStatsDClient("itest", agentContainerHost, 8125)
 
     /*
       CI will provide us with agent container running along side our build.
@@ -115,15 +121,19 @@ class DDApiIntegrationTest extends DDSpecification {
     if (agentContainer) {
       agentContainer.stop()
     }
+    if (null != statsDClient) {
+      statsDClient.close()
+    }
     process.destroy()
   }
 
   def beforeTest(boolean enableV05) {
-    api = new DDAgentApi(agentContainerHost, agentContainerPort, null, 5000, enableV05)
+    Monitoring monitoring = new Monitoring(statsDClient, 1, TimeUnit.SECONDS)
+    api = new DDAgentApi(agentContainerHost, agentContainerPort, null, 5000, enableV05, monitoring)
     api.addResponseListener(responseListener)
     mapper = api.selectTraceMapper()
     version = mapper instanceof TraceMapperV0_5 ? "v0.5" : "v0.4"
-    unixDomainSocketApi = new DDAgentApi(SOMEHOST, SOMEPORT, socketPath.toString(), 5000, enableV05)
+    unixDomainSocketApi = new DDAgentApi(SOMEHOST, SOMEPORT, socketPath.toString(), 5000, enableV05, monitoring)
     unixDomainSocketApi.addResponseListener(responseListener)
   }
 

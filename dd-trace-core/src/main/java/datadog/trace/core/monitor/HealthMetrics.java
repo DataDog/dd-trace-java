@@ -24,7 +24,7 @@ import java.util.List;
  *   <li>sending to agent
  * </ul>
  */
-public class Monitor {
+public class HealthMetrics {
 
   private static final IntFunction<String[]> STATUS_TAGS =
       new IntFunction<String[]>() {
@@ -61,7 +61,7 @@ public class Monitor {
 
   private final StatsDClient statsd;
 
-  public Monitor(final StatsDClient statsd) {
+  public HealthMetrics(final StatsDClient statsd) {
     this.statsd = statsd;
   }
 

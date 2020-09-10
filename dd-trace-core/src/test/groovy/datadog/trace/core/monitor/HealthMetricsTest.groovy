@@ -10,11 +10,11 @@ import spock.lang.Subject
 
 import java.util.concurrent.ThreadLocalRandom
 
-class MonitorTest extends DDSpecification {
+class HealthMetricsTest extends DDSpecification {
   def statsD = Mock(StatsDClient)
 
   @Subject
-  def monitor = new Monitor(statsD)
+  def healthMetrics = new HealthMetrics(statsD)
 
   // This fails because DDAgentWriter isn't an interface and the mock doesn't prevent the call.
   @Ignore
@@ -23,7 +23,7 @@ class MonitorTest extends DDSpecification {
     def writer = Mock(DDAgentWriter)
 
     when:
-    monitor.onStart(writer)
+    healthMetrics.onStart(writer)
 
     then:
     1 * writer.getCapacity() >> capacity
@@ -35,7 +35,7 @@ class MonitorTest extends DDSpecification {
 
   def "test onShutdown"() {
     when:
-    monitor.onShutdown(true)
+    healthMetrics.onShutdown(true)
 
     then:
     0 * _
@@ -43,7 +43,7 @@ class MonitorTest extends DDSpecification {
 
   def "test onPublish"() {
     when:
-    monitor.onPublish(trace, samplingPriority)
+    healthMetrics.onPublish(trace, samplingPriority)
 
     then:
     // verify the tags syntax
@@ -61,7 +61,7 @@ class MonitorTest extends DDSpecification {
 
   def "test onFailedPublish"() {
     when:
-    monitor.onFailedPublish(samplingPriority)
+    healthMetrics.onFailedPublish(samplingPriority)
 
     then:
     1 * statsD.incrementCounter('queue.dropped', { it.startsWith("priority:") })
@@ -73,7 +73,7 @@ class MonitorTest extends DDSpecification {
 
   def "test onScheduleFlush"() {
     when:
-    monitor.onScheduleFlush(true)
+    healthMetrics.onScheduleFlush(true)
 
     then:
     0 * _
@@ -81,7 +81,7 @@ class MonitorTest extends DDSpecification {
 
   def "test onFlush"() {
     when:
-    monitor.onFlush(true)
+    healthMetrics.onFlush(true)
 
     then:
     0 * _
@@ -89,7 +89,7 @@ class MonitorTest extends DDSpecification {
 
   def "test onSerialize"() {
     when:
-    monitor.onSerialize(bytes)
+    healthMetrics.onSerialize(bytes)
 
     then:
     1 * statsD.count('queue.accepted_size', bytes)
@@ -101,7 +101,7 @@ class MonitorTest extends DDSpecification {
 
   def "test onFailedSerialize"() {
     when:
-    monitor.onFailedSerialize(null, null)
+    healthMetrics.onFailedSerialize(null, null)
 
     then:
     0 * _
@@ -109,7 +109,7 @@ class MonitorTest extends DDSpecification {
 
   def "test onSend"() {
     when:
-    monitor.onSend(representativeCount, sendSize, response)
+    healthMetrics.onSend(representativeCount, sendSize, response)
 
     then:
     1 * statsD.incrementCounter('api.requests')
@@ -137,7 +137,7 @@ class MonitorTest extends DDSpecification {
 
   def "test onFailedSend"() {
     when:
-    monitor.onFailedSend(representativeCount, sendSize, response)
+    healthMetrics.onFailedSend(representativeCount, sendSize, response)
 
     then:
     1 * statsD.incrementCounter('api.requests')

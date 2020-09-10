@@ -4,7 +4,9 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.core.DDSpan;
-import datadog.trace.core.monitor.Monitor;
+import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.Monitoring;
+import datadog.trace.core.monitor.Timer;
 import datadog.trace.core.processor.TraceProcessor;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -32,14 +34,16 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   public TraceProcessingWorker(
       final int capacity,
-      final Monitor monitor,
+      final HealthMetrics healthMetrics,
+      final Monitoring monitoring,
       final PayloadDispatcher dispatcher,
       final Prioritization prioritization,
       final long flushInterval,
       final TimeUnit timeUnit) {
     this(
         capacity,
-        monitor,
+        healthMetrics,
+        monitoring,
         dispatcher,
         new TraceProcessor(),
         prioritization,
@@ -49,7 +53,8 @@ public class TraceProcessingWorker implements AutoCloseable {
 
   public TraceProcessingWorker(
       final int capacity,
-      final Monitor monitor,
+      final HealthMetrics healthMetrics,
+      final Monitoring monitoring,
       final PayloadDispatcher dispatcher,
       final TraceProcessor processor,
       final Prioritization prioritization,
@@ -61,7 +66,14 @@ public class TraceProcessingWorker implements AutoCloseable {
     this.prioritizationStrategy = prioritization.create(primaryQueue, secondaryQueue);
     this.serializingHandler =
         new TraceSerializingHandler(
-            primaryQueue, secondaryQueue, monitor, processor, dispatcher, flushInterval, timeUnit);
+            primaryQueue,
+            secondaryQueue,
+            healthMetrics,
+            monitoring,
+            processor,
+            dispatcher,
+            flushInterval,
+            timeUnit);
     this.serializerThread = DaemonThreadFactory.TRACE_PROCESSOR.newThread(serializingHandler);
   }
 
@@ -112,23 +124,26 @@ public class TraceProcessingWorker implements AutoCloseable {
     private final MpscBlockingConsumerArrayQueue<Object> primaryQueue;
     private final MpscBlockingConsumerArrayQueue<Object> secondaryQueue;
     private final TraceProcessor processor;
-    private final Monitor monitor;
+    private final HealthMetrics healthMetrics;
     private final long ticksRequiredToFlush;
     private final boolean doTimeFlush;
     private final PayloadDispatcher payloadDispatcher;
     private long lastTicks;
+    private final Timer dutyCycleTimer;
 
     public TraceSerializingHandler(
         final MpscBlockingConsumerArrayQueue<Object> primaryQueue,
         final MpscBlockingConsumerArrayQueue<Object> secondaryQueue,
-        final Monitor monitor,
+        final HealthMetrics healthMetrics,
+        final Monitoring monitoring,
         final TraceProcessor traceProcessor,
         final PayloadDispatcher payloadDispatcher,
         final long flushInterval,
         final TimeUnit timeUnit) {
       this.primaryQueue = primaryQueue;
       this.secondaryQueue = secondaryQueue;
-      this.monitor = monitor;
+      this.healthMetrics = healthMetrics;
+      this.dutyCycleTimer = monitoring.newTimer("tracer.duty.cycle");
       this.processor = traceProcessor;
       this.doTimeFlush = flushInterval > 0;
       this.payloadDispatcher = payloadDispatcher;
@@ -159,7 +174,7 @@ public class TraceProcessingWorker implements AutoCloseable {
           log.debug("Error while serializing trace", e);
         }
         List<DDSpan> data = event instanceof List ? (List<DDSpan>) event : null;
-        monitor.onFailedSerialize(data, e);
+        healthMetrics.onFailedSerialize(data, e);
       }
     }
 
@@ -175,11 +190,14 @@ public class TraceProcessingWorker implements AutoCloseable {
 
     private void runDutyCycle() throws InterruptedException {
       Thread thread = Thread.currentThread();
+      dutyCycleTimer.start();
       while (!thread.isInterrupted()) {
         consumeFromPrimaryQueue();
         consumeFromSecondaryQueue();
         flushIfNecessary();
+        dutyCycleTimer.reset();
       }
+      dutyCycleTimer.stop();
     }
 
     private void consumeFromPrimaryQueue() throws InterruptedException {

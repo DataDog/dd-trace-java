@@ -170,6 +170,11 @@ public final class TraceMapperV0_5 implements TraceMapper {
     encoding.clear();
   }
 
+  @Override
+  public String endpoint() {
+    return "v0.5";
+  }
+
   private static class DictionaryMapper implements Mapper<Object> {
 
     private final byte[] numberByteArray = integerToStringBuffer();

@@ -1,5 +1,6 @@
 package datadog.trace.common.writer
 
+import com.timgroup.statsd.NoOpStatsDClient
 import com.timgroup.statsd.StatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
@@ -11,7 +12,8 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
-import datadog.trace.core.monitor.Monitor
+import datadog.trace.core.monitor.HealthMetrics
+import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.Mapper
 import datadog.trace.core.serialization.msgpack.Packer
@@ -35,7 +37,7 @@ import static datadog.trace.core.SpanFactory.newSpanOf
 class DDAgentWriterCombinedTest extends DDSpecification {
 
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
-
+  def monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
   def phaser = new Phaser()
 
   def apiWithVersion(String version) {
@@ -44,7 +46,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     api.selectTraceMapper() >> { callRealMethod() }
     return api
   }
-  def monitor = Mock(Monitor)
+  def healthMetrics = Mock(HealthMetrics)
 
   def setup() {
     // Register for two threads.
@@ -58,6 +60,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     def writer = DDAgentWriter.builder()
       .agentApi(api)
       .traceBufferSize(8)
+      .monitoring(monitoring)
       .flushFrequencySeconds(-1)
       .build()
     writer.start()
@@ -78,6 +81,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     def writer = DDAgentWriter.builder()
       .agentApi(api)
       .traceBufferSize(1024)
+      .monitoring(monitoring)
       .flushFrequencySeconds(-1)
       .build()
     writer.start()
@@ -107,6 +111,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     def writer = DDAgentWriter.builder()
       .agentApi(api)
       .traceBufferSize(bufferSize)
+      .monitoring(monitoring)
       .flushFrequencySeconds(-1)
       .build()
     writer.start()
@@ -138,7 +143,8 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
-      .monitor(monitor)
+      .healthMetrics(healthMetrics)
+      .monitoring(monitoring)
       .flushFrequencySeconds(1)
       .build()
     writer.start()
@@ -152,10 +158,10 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     then:
     1 * api.detectEndpointAndBuildClient() >> agentVersion
     1 * api.selectTraceMapper() >> { callRealMethod() }
-    1 * monitor.onSerialize(_)
+    1 * healthMetrics.onSerialize(_)
     1 * api.sendSerializedTraces({ it.traceCount() == 5 && it.representativeCount() == 5 }) >> DDAgentApi.Response.success(200)
-    _ * monitor.onPublish(_, _)
-    1 * monitor.onSend(_, _, _) >> {
+    _ * healthMetrics.onPublish(_, _)
+    1 * healthMetrics.onSend(_, _, _) >> {
       phaser.arrive()
     }
     0 * _
@@ -175,6 +181,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     def writer = DDAgentWriter.builder()
       .agentApi(api)
       .traceBufferSize(BUFFER_SIZE)
+      .monitoring(monitoring)
       .flushFrequencySeconds(-1)
       .build()
     writer.start()
@@ -230,7 +237,8 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
       .agentApi(api)
-      .monitor(monitor)
+      .healthMetrics(healthMetrics)
+      .monitoring(monitoring)
       .build()
     writer.start()
 
@@ -241,9 +249,9 @@ class DDAgentWriterCombinedTest extends DDSpecification {
 
     then:
     // this will be checked during flushing
-    1 * monitor.onFailedPublish(_)
-    1 * monitor.onFlush(_)
-    1 * monitor.onShutdown(_)
+    1 * healthMetrics.onFailedPublish(_)
+    1 * healthMetrics.onFlush(_)
+    1 * healthMetrics.onShutdown(_)
     0 * _
 
     where:
@@ -285,29 +293,29 @@ class DDAgentWriterCombinedTest extends DDSpecification {
         }
       }
     }
-    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitor(monitor).build()
+    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitoring(monitoring).healthMetrics(healthMetrics).build()
 
     when:
     writer.start()
 
     then:
-    1 * monitor.onStart(writer.getCapacity())
+    1 * healthMetrics.onStart(writer.getCapacity())
 
     when:
     writer.write(minimalTrace)
     writer.flush()
 
     then:
-    1 * monitor.onPublish(minimalTrace, _)
-    1 * monitor.onSerialize(_)
-    1 * monitor.onFlush(false)
-    1 * monitor.onSend(1, _, { response -> response.success() && response.status() == 200 })
+    1 * healthMetrics.onPublish(minimalTrace, _)
+    1 * healthMetrics.onSerialize(_)
+    1 * healthMetrics.onFlush(false)
+    1 * healthMetrics.onSend(1, _, { response -> response.success() && response.status() == 200 })
 
     when:
     writer.close()
 
     then:
-    1 * monitor.onShutdown(true)
+    1 * healthMetrics.onShutdown(true)
 
     cleanup:
     agent.close()
@@ -335,29 +343,29 @@ class DDAgentWriterCombinedTest extends DDSpecification {
         }
       }
     }
-    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitor(monitor).build()
+    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitoring(monitoring).healthMetrics(healthMetrics).build()
 
     when:
     writer.start()
 
     then:
-    1 * monitor.onStart(writer.getCapacity())
+    1 * healthMetrics.onStart(writer.getCapacity())
 
     when:
     writer.write(minimalTrace)
     writer.flush()
 
     then:
-    1 * monitor.onPublish(minimalTrace, _)
-    1 * monitor.onSerialize(_)
-    1 * monitor.onFlush(false)
-    1 * monitor.onFailedSend(1, _, { response -> !response.success() && response.status() == 500 })
+    1 * healthMetrics.onPublish(minimalTrace, _)
+    1 * healthMetrics.onSerialize(_)
+    1 * healthMetrics.onFlush(false)
+    1 * healthMetrics.onFailedSend(1, _, { response -> !response.success() && response.status() == 500 })
 
     when:
     writer.close()
 
     then:
-    1 * monitor.onShutdown(true)
+    1 * healthMetrics.onShutdown(true)
 
     cleanup:
     agent.close()
@@ -371,7 +379,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     def minimalTrace = createMinimalTrace()
     def version = agentVersion
 
-    def api = new DDAgentApi("localhost", 8192, null, 1000) {
+    def api = new DDAgentApi("localhost", 8192, null, 1000, monitoring) {
 
       String detectEndpointAndBuildClient() {
         return version
@@ -382,13 +390,13 @@ class DDAgentWriterCombinedTest extends DDSpecification {
         return DDAgentApi.Response.failed(new IOException("comm error"))
       }
     }
-    def writer = DDAgentWriter.builder().agentApi(api).monitor(monitor).build()
+    def writer = DDAgentWriter.builder().agentApi(api).monitoring(monitoring).healthMetrics(healthMetrics).build()
 
     when:
     writer.start()
 
     then:
-    1 * monitor.onStart(writer.getCapacity())
+    1 * healthMetrics.onStart(writer.getCapacity())
 
     when:
     writer.write(minimalTrace)
@@ -397,14 +405,14 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     then:
     // if we know there's no agent, we'll drop the traces before serialising them
     // but we also know that there's nowhere to send health metrics to
-    1 * monitor.onPublish(_, _)
-    1 * monitor.onFlush(false)
+    1 * healthMetrics.onPublish(_, _)
+    1 * healthMetrics.onFlush(false)
 
     when:
     writer.close()
 
     then:
-    1 * monitor.onShutdown(true)
+    1 * healthMetrics.onShutdown(true)
 
     where:
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
@@ -440,7 +448,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     }
 
     // This test focuses just on failed publish, so not verifying every callback
-    def monitor = Stub(Monitor) {
+    def healthMetrics = Stub(HealthMetrics) {
       onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
@@ -458,7 +466,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       }
     }
 
-    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitor(monitor).traceBufferSize(bufferSize).build()
+    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitoring(monitoring).healthMetrics(healthMetrics).traceBufferSize(bufferSize).build()
     writer.start()
 
     // gate responses
@@ -539,7 +547,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     }
 
     // This test focuses just on failed publish, so not verifying every callback
-    def monitor = Stub(Monitor) {
+    def healthMetrics = Stub(HealthMetrics) {
       onPublish(_, _) >> {
         numPublished.incrementAndGet()
       }
@@ -551,7 +559,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       }
     }
 
-    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitor(monitor).build()
+    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitoring(monitoring).healthMetrics(healthMetrics).build()
     writer.start()
 
     when:
@@ -616,8 +624,8 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       numResponses += 1
     }
 
-    def monitor = new Monitor(statsd)
-    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitor(monitor).build()
+    def healthMetrics = new HealthMetrics(statsd)
+    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitoring(monitoring).healthMetrics(healthMetrics).build()
     writer.start()
 
     when:
@@ -659,8 +667,8 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       numErrors += 1
     }
 
-    def monitor = new Monitor(statsd)
-    def writer = DDAgentWriter.builder().agentApi(api).monitor(monitor).build()
+    def healthMetrics = new HealthMetrics(statsd)
+    def writer = DDAgentWriter.builder().agentApi(api).monitoring(monitoring).healthMetrics(healthMetrics).build()
     writer.start()
 
     when:

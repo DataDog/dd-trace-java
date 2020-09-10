@@ -444,6 +444,7 @@ class ScopeManagerTest extends DDSpecification {
     then:
     activatedCount.get() == 2
     closedCount.get() == 1
+    4 * statsDClient.time("trace.write", { it > 0 }, _)
     0 * _
 
     when:

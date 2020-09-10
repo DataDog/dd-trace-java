@@ -11,4 +11,6 @@ public interface TraceMapper extends Mapper<List<? extends DDSpanData>> {
   int messageBufferSize();
 
   void reset();
+
+  String endpoint();
 }

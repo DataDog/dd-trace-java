@@ -1,3 +1,4 @@
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.core.DDSpan
 
@@ -34,9 +35,6 @@ class RequestDispatcherTest extends AgentTestRunner {
         basicSpan(it, 0, "include-child")
       }
     }
-
-    and:
-    0 * _
   }
 
   def "test dispatcher #method with parent"() {

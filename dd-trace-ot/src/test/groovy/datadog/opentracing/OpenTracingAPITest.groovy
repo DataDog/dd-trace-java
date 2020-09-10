@@ -318,6 +318,7 @@ class OpenTracingAPITest extends DDSpecification {
     then:
     1 * scopeListener.afterScopeClosed()
     1 * traceInterceptor.onTraceComplete({ it.size() == 2 }) >> { args -> args[0] }
+    4 * statsDClient.time("trace.write", { it > 0 }, _)
     0 * _
 
     when:
@@ -361,6 +362,7 @@ class OpenTracingAPITest extends DDSpecification {
     then:
     1 * scopeListener.afterScopeClosed()
     1 * traceInterceptor.onTraceComplete({ it.size() == 2 }) >> { args -> args[0] }
+    4 * statsDClient.time("trace.write", { it > 0 }, _)
     0 * _
 
     when:

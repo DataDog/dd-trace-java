@@ -1,8 +1,10 @@
 package datadog.trace.common.writer
 
+import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker
-import datadog.trace.core.monitor.Monitor
+import datadog.trace.core.monitor.HealthMetrics
+import datadog.trace.core.monitor.Monitoring
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Subject
 
@@ -13,11 +15,12 @@ import static datadog.trace.core.SpanFactory.newSpanOf
 class DDAgentWriterTest extends DDSpecification {
 
   def api = Mock(DDAgentApi)
-  def monitor = Mock(Monitor)
+  def monitor = Mock(HealthMetrics)
   def worker = Mock(TraceProcessingWorker)
+  def monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
 
   @Subject
-  def writer = new DDAgentWriter(api, monitor, worker)
+  def writer = new DDAgentWriter(api, monitor, monitoring, worker)
 
   def "test writer.start"() {
     when:

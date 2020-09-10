@@ -1,5 +1,6 @@
 package datadog.trace.common.writer
 
+import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -10,19 +11,25 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
-import datadog.trace.core.monitor.Monitor
+import datadog.trace.core.monitor.HealthMetrics
+import datadog.trace.core.monitor.Monitoring
 import datadog.trace.util.test.DDSpecification
+import spock.lang.Shared
 import spock.lang.Timeout
 
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 class PayloadDispatcherTest extends DDSpecification {
 
+  @Shared
+  Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
+
   def "dropped traces should be reported in the representativeCount"() {
     setup:
-    Monitor monitor = Mock(Monitor)
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
     DDAgentApi api = Mock(DDAgentApi)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(api, monitor)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring)
 
     when: "traces are reported, serialized, and flushed"
     for (int i = 0; i < droppedTraces; ++i) {
@@ -48,14 +55,14 @@ class PayloadDispatcherTest extends DDSpecification {
   def "flush automatically when data limit is breached"() {
     setup:
     AtomicBoolean flushed = new AtomicBoolean()
-    Monitor monitor = Mock(Monitor)
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
     DDAgentApi api = Mock(DDAgentApi)
     api.selectTraceMapper() >> traceMapper
     api.sendSerializedTraces(_) >> {
       flushed.set(true)
       return DDAgentApi.Response.success(200)
     }
-    PayloadDispatcher dispatcher = new PayloadDispatcher(api, monitor)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
     when:
     while (!flushed.get()) {
@@ -72,9 +79,9 @@ class PayloadDispatcherTest extends DDSpecification {
 
   def "should flush buffer on demand"() {
     setup:
-    Monitor monitor = Mock(Monitor)
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
     DDAgentApi api = Mock(DDAgentApi)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(api, monitor)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
     when:
     for (int i = 0; i < traceCount; ++i) {
@@ -82,7 +89,7 @@ class PayloadDispatcherTest extends DDSpecification {
     }
     dispatcher.flush()
     then:
-    1 * monitor.onSerialize({ it > 0 })
+    1 * healthMetrics.onSerialize({ it > 0 })
     1 * api.selectTraceMapper() >> traceMapper
     1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> DDAgentApi.Response.success(200)
 
@@ -98,9 +105,9 @@ class PayloadDispatcherTest extends DDSpecification {
 
   def "should report failed request to monitor"() {
     setup:
-    Monitor monitor = Mock(Monitor)
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
     DDAgentApi api = Mock(DDAgentApi)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(api, monitor)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
     when:
     for (int i = 0; i < droppedTraces; ++i) {
@@ -111,7 +118,7 @@ class PayloadDispatcherTest extends DDSpecification {
     }
     dispatcher.flush()
     then:
-    1 * monitor.onSerialize({ it > 0 })
+    1 * healthMetrics.onSerialize({ it > 0 })
     1 * api.selectTraceMapper() >> traceMapper
     1 * api.sendSerializedTraces({ it.traceCount() == traceCount && it.representativeCount() == droppedTraces + traceCount }) >> DDAgentApi.Response.failed(400)
 
@@ -135,9 +142,9 @@ class PayloadDispatcherTest extends DDSpecification {
 
   def "should drop trace when there is no agent connectivity" () {
     setup:
-    Monitor monitor = Mock(Monitor)
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
     DDAgentApi api = Mock(DDAgentApi)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(api, monitor)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(api, healthMetrics, monitoring)
     List<DDSpan> trace = [realSpan()]
     api.selectTraceMapper() >> null
     when:

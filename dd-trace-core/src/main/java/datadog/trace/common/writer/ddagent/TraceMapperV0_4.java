@@ -131,6 +131,11 @@ public final class TraceMapperV0_4 implements TraceMapper {
   @Override
   public void reset() {}
 
+  @Override
+  public String endpoint() {
+    return "v0.4";
+  }
+
   private static class PayloadV0_4 extends Payload {
 
     @Override
