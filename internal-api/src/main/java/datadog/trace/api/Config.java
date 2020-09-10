@@ -18,6 +18,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITIZATION_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
@@ -115,6 +116,7 @@ public class Config {
   public static final String INTEGRATIONS_ENABLED = TraceInstrumentationConfig.INTEGRATIONS_ENABLED;
   public static final String ID_GENERATION_STRATEGY = TracerConfig.ID_GENERATION_STRATEGY;
   public static final String WRITER_TYPE = TracerConfig.WRITER_TYPE;
+  public static final String PRIORITIZATION_TYPE = TracerConfig.PRIORITIZATION_TYPE;
   public static final String AGENT_HOST = TracerConfig.AGENT_HOST;
   public static final String TRACE_AGENT_PORT = TracerConfig.TRACE_AGENT_PORT;
   public static final String AGENT_PORT_LEGACY = TracerConfig.AGENT_PORT_LEGACY;
@@ -270,6 +272,7 @@ public class Config {
   @Getter private final boolean traceEnabled;
   @Getter private final boolean integrationsEnabled;
   @Getter private final String writerType;
+  @Getter private final String prioritizationType;
   @Getter private final boolean agentConfiguredUsingDefault;
   @Getter private final String agentHost;
   @Getter private final int agentPort;
@@ -394,6 +397,8 @@ public class Config {
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
+    prioritizationType = configProvider.getString(PRIORITIZATION_TYPE, DEFAULT_PRIORITIZATION_TYPE);
+
     idGenerationStrategy =
         configProvider.getEnum(ID_GENERATION_STRATEGY, IdGenerationStrategy.class, RANDOM);
     if (idGenerationStrategy != RANDOM) {
@@ -401,6 +406,7 @@ public class Config {
           "*** you are using an unsupported id generation strategy {} - this can impact correctness of traces",
           idGenerationStrategy);
     }
+
     // The extra code is to detect when defaults are used for agent configuration
     final boolean agentHostConfiguredUsingDefault;
     final String agentHostFromEnvironment = configProvider.getString(AGENT_HOST);

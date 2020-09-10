@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.bootstrap.instrumentation.api.PrioritizationConstants.ENSURE_TRACE_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_AGENT_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.PRINTING_WRITER_TYPE;
@@ -33,6 +34,7 @@ import datadog.trace.common.writer.TraceStructureWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener;
+import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.jfr.DDNoopScopeEventFactory;
@@ -545,8 +547,20 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             TimeUnit.SECONDS.toMillis(config.getAgentTimeout()),
             Config.get().isTraceAgentV05Enabled());
 
+    final String prioritizationType = config.getPrioritizationType();
+    Prioritization prioritization = null;
+    if (ENSURE_TRACE_TYPE.equals(prioritizationType)) {
+      prioritization = Prioritization.ENSURE_TRACE;
+      log.info(
+          "Using 'EnsureTrace' prioritization type. (Do not use this type if your application is running in production mode)");
+    }
+
     final DDAgentWriter ddAgentWriter =
-        DDAgentWriter.builder().agentApi(ddAgentApi).monitor(new Monitor(statsDClient)).build();
+        DDAgentWriter.builder()
+            .agentApi(ddAgentApi)
+            .prioritization(prioritization)
+            .monitor(new Monitor(statsDClient))
+            .build();
 
     if (sampler instanceof DDAgentResponseListener) {
       ddAgentWriter.addResponseListener((DDAgentResponseListener) sampler);
@@ -557,7 +571,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private static boolean isWindows() {
     // https://mkyong.com/java/how-to-detect-os-in-java-systemgetpropertyosname/
-    String os = System.getProperty("os.name").toLowerCase();
+    final String os = System.getProperty("os.name").toLowerCase();
     return os.contains("win");
   }
 
@@ -703,7 +717,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public CoreSpanBuilder withTag(final String tag, final Object value) {
-      Map<String, Object> tagMap = this.tags;
+      Map<String, Object> tagMap = tags;
       if (tagMap == null) {
         tags = tagMap = new LinkedHashMap<>(); // Insertion order is important
       }
@@ -798,7 +812,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       final String operationName = this.operationName != null ? this.operationName : resourceName;
 
-      int tagsSize =
+      final int tagsSize =
           (null == tags ? 0 : tags.size())
               + defaultSpanTags.size()
               + (null == coreTags ? 0 : coreTags.size())
