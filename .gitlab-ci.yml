@@ -50,7 +50,8 @@ build:
     GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M"
   script:
     - ls -la workspace/dd-java-agent/build/libs/* || true
-    - make -C tooling/tests gitlab-ci
+    - export
+    # - make -C tooling/tests gitlab-ci
 
   artifacts:
     paths:
