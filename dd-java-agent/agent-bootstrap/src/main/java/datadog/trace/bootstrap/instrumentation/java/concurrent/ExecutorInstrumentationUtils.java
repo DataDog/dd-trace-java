@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.context.TraceScope;
 import java.util.concurrent.Executor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,9 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 /** Utils for concurrent instrumentations. */
 @Slf4j
 public class ExecutorInstrumentationUtils {
-
-  private static final WeakMap<Executor, Boolean> EXECUTORS_DISABLED_FOR_WRAPPED_TASKS =
-      WeakMap.Provider.newWeakMap();
 
   /**
    * Checks if given task should get state attached.
@@ -32,7 +28,6 @@ public class ExecutorInstrumentationUtils {
 
     return scope != null
         && scope.isAsyncPropagating()
-        && !ExecutorInstrumentationUtils.isExecutorDisabledForThisTask(executor, task)
 
         // Don't instrument the executor's own runnables.  These runnables may never return until
         // netty shuts down.  Any created continuations will be open until that time preventing
@@ -89,21 +84,5 @@ public class ExecutorInstrumentationUtils {
        */
       state.closeContinuation();
     }
-  }
-
-  public static void disableExecutorForWrappedTasks(final Executor executor) {
-    log.debug("Disabling Executor tracing for wrapped tasks for instance {}", executor);
-    EXECUTORS_DISABLED_FOR_WRAPPED_TASKS.put(executor, true);
-  }
-
-  /**
-   * Check if Executor can accept given task.
-   *
-   * <p>Disabled executors cannot accept wrapped tasks, non wrapped tasks (i.e. tasks with injected
-   * fields) should still work fine.
-   */
-  public static boolean isExecutorDisabledForThisTask(final Executor executor, final Object task) {
-    return (task instanceof RunnableWrapper || task instanceof CallableWrapper)
-        && EXECUTORS_DISABLED_FOR_WRAPPED_TASKS.containsKey(executor);
   }
 }

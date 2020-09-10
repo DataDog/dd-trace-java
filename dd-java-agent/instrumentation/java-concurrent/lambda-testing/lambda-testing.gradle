@@ -1,0 +1,23 @@
+// This is a separate project to allow for testing against various JDKs with existing tooling.
+
+// Set properties before any plugins get loaded
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+apply from: "${rootDir}/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
+
+  testCompile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '7.0.0'
+  latestDepTestCompile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '+'
+}
