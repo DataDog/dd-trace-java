@@ -125,7 +125,6 @@ public class Config {
   public static final String AGENT_TIMEOUT = TracerConfig.AGENT_TIMEOUT;
   public static final String PRIORITY_SAMPLING = TracerConfig.PRIORITY_SAMPLING;
   public static final String PRIORITY_SAMPLING_FORCE = TracerConfig.PRIORITY_SAMPLING_FORCE;
-  public static final String FORCE_PRIORITY_SAMPLER_KEEP = TracerConfig.FORCE_PRIORITY_SAMPLER_KEEP;
 
   @Deprecated
   public static final String TRACE_RESOLVER_ENABLED = TracerConfig.TRACE_RESOLVER_ENABLED;
