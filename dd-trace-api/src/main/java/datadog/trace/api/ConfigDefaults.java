@@ -31,7 +31,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
 
   static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
-  static final boolean DEFAULT_FORCE_PRIORITY_SAMPLER_KEEP_ENABLED = false;
+  static final String DEFAULT_PRIORITY_SAMPLING_FORCE = null;
   static final boolean DEFAULT_TRACE_RESOLVER_ENABLED = true;
   static final boolean DEFAULT_HTTP_SERVER_TAG_QUERY_STRING = false;
   static final boolean DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING = false;

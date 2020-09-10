@@ -1,5 +1,7 @@
 package datadog.trace.common.sampling;
 
+import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.KEEP;
+
 import datadog.trace.api.Config;
 import datadog.trace.core.DDSpan;
 import java.util.Map;
@@ -41,7 +43,8 @@ public interface Sampler {
             sampler = new AllSampler();
           }
         } else if (config.isPrioritySamplingEnabled()) {
-          if (config.isForceSamplerKeepEnabled()) {
+          if (KEEP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
+            log.info("Using ForceKeepSampler.");
             sampler = new ForceKeepSampler();
           } else {
             sampler = new RateByServiceSampler();
