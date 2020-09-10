@@ -43,7 +43,7 @@ build:
 "tooling tests":
   <<: *gradle_build
   stage: test
-  needs: ["build"]
+  needs: []
   parallel: 5
   variables:
     GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M"
