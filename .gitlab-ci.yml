@@ -40,7 +40,7 @@ build:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
 
-run_tooling_tests:
+"tooling tests":
   <<: *gradle_build
   stage: test
   needs: ["build"]
