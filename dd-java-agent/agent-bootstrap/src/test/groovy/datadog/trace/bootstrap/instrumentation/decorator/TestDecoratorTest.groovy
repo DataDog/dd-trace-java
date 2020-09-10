@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.api.DDTags
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.junit.Rule
@@ -48,6 +49,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
+    1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)
     _ * span.setOperationName(_)
@@ -92,6 +94,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)
     _ * span.setOperationName(_)
+    _ * span.setSamplingPriority(_)
     0 * _
 
     where:
@@ -144,6 +147,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)
     _ * span.setOperationName(_)
+    _ * span.setSamplingPriority(_)
     0 * _
 
     where:
