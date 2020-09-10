@@ -7,24 +7,29 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.SpanFactory
 import datadog.trace.util.test.DDSpecification
 
-class ForceKeepSamplerTest extends DDSpecification {
+class ForcePrioritySamplerTest extends DDSpecification {
 
-  def "force to sampler_keep priority sampling"() {
+  def "force priority sampling"() {
     setup:
-    def sampler = new ForceKeepSampler()
+    def sampler = new ForcePrioritySampler(prioritySampling)
 
     when:
     DDSpan span1 = SpanFactory.newSpanOf("foo", "bar")
     sampler.setSamplingPriority(span1)
 
     then:
-    span1.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
+    span1.getSamplingPriority() == expectedSampling
     sampler.sample(span1)
+
+    where:
+    prioritySampling              | expectedSampling
+    PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP
+    PrioritySampling.SAMPLER_DROP | PrioritySampling.SAMPLER_DROP
   }
 
   def "sampling priority set"() {
     setup:
-    def sampler = new ForceKeepSampler()
+    def sampler = new ForcePrioritySampler(prioritySampling)
     def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
 
     when:
@@ -38,12 +43,17 @@ class ForceKeepSamplerTest extends DDSpecification {
 
     then:
     span.finish()
-    span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
+    span.getSamplingPriority() == expectedSampling
+
+    where:
+    prioritySampling              | expectedSampling
+    PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP
+    PrioritySampling.SAMPLER_DROP | PrioritySampling.SAMPLER_DROP
   }
 
   def "setting forced tracing via tag"() {
     when:
-    def sampler = new ForceKeepSampler()
+    def sampler = new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP)
     def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
     def span = tracer.buildSpan("root").start()
     if (tagName) {
@@ -62,7 +72,7 @@ class ForceKeepSamplerTest extends DDSpecification {
 
   def "not setting forced tracing via tag or setting it wrong value not causing exception"() {
     setup:
-    def sampler = new ForceKeepSampler()
+    def sampler = new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP)
     def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
     def span = tracer.buildSpan("root").start()
     if (tagName) {

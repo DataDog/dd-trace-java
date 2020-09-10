@@ -1,5 +1,6 @@
 package datadog.trace.common.sampling;
 
+import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.DROP;
 import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.KEEP;
 
 import datadog.trace.api.Config;
@@ -44,8 +45,11 @@ public interface Sampler {
           }
         } else if (config.isPrioritySamplingEnabled()) {
           if (KEEP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
-            log.info("Using ForceKeepSampler.");
-            sampler = new ForceKeepSampler();
+            log.info("Force Sampling Priority to: SAMPLER_KEEP.");
+            sampler = new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP);
+          } else if (DROP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
+            log.info("Force Sampling Priority to: SAMPLER_DROP.");
+            sampler = new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP);
           } else {
             sampler = new RateByServiceSampler();
           }
