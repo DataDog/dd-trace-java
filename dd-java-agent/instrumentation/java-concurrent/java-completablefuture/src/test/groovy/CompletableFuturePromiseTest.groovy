@@ -11,7 +11,7 @@ class CompletableFuturePromiseTest extends AbstractPromiseTest<CompletableFuture
 
   @Override
   CompletableFuture<Boolean> newPromise() {
-    return new CompletableFuture<Boolean>();
+    return new CompletableFuture<Boolean>()
   }
 
   @Override
