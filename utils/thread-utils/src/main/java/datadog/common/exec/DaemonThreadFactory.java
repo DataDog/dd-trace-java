@@ -6,7 +6,6 @@ import java.util.concurrent.ThreadFactory;
 public final class DaemonThreadFactory implements ThreadFactory {
   public static final DaemonThreadFactory TRACE_PROCESSOR =
       new DaemonThreadFactory("dd-trace-processor");
-  public static final DaemonThreadFactory TRACE_WRITER = new DaemonThreadFactory("dd-trace-writer");
   public static final DaemonThreadFactory TASK_SCHEDULER =
       new DaemonThreadFactory("dd-task-scheduler");
 
