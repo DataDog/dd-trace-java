@@ -73,8 +73,8 @@ public class Timer extends Recording {
 
   public void flush() {
     statsd.time(name, (long) histogram.getMean(), meanTags);
-    statsd.time(name, histogram.getValueAtPercentile(0.5), p50Tags);
-    statsd.time(name, histogram.getValueAtPercentile(0.99), p99Tags);
+    statsd.time(name, histogram.getValueAtPercentile(50), p50Tags);
+    statsd.time(name, histogram.getValueAtPercentile(99), p99Tags);
     statsd.time(name, histogram.getMaxValue(), maxTags);
   }
 
