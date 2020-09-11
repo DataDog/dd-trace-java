@@ -5,6 +5,7 @@ import datadog.common.exec.CommonTaskExecutor.Task;
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
+import datadog.trace.core.monitor.Recording;
 import datadog.trace.core.util.Clock;
 import java.io.Closeable;
 import java.lang.ref.Reference;
@@ -212,29 +213,33 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   private void expireReference() {
     final int count = pendingReferenceCount.decrementAndGet();
     if (count == 0) {
-      write();
+      try (Recording recording = tracer.writeTimer()) {
+        write();
+      }
     } else {
       if (tracer.getPartialFlushMinSpans() > 0 && size() > tracer.getPartialFlushMinSpans()) {
-        synchronized (this) {
-          int size = size();
-          if (size > tracer.getPartialFlushMinSpans()) {
-            final DDSpan rootSpan = getRootSpan();
-            final List<DDSpan> partialTrace = new ArrayList<>(size);
-            final Iterator<DDSpan> it = iterator();
-            while (it.hasNext()) {
-              final DDSpan span = it.next();
-              if (span != rootSpan) {
-                partialTrace.add(span);
-                completedSpanCount.decrementAndGet();
-                // TODO spans are removed here
-                //  but not when the whole trace is written!
-                it.remove();
+        try (Recording recording = tracer.writeTimer()) {
+          synchronized (this) {
+            int size = size();
+            if (size > tracer.getPartialFlushMinSpans()) {
+              final DDSpan rootSpan = getRootSpan();
+              final List<DDSpan> partialTrace = new ArrayList<>(size);
+              final Iterator<DDSpan> it = iterator();
+              while (it.hasNext()) {
+                final DDSpan span = it.next();
+                if (span != rootSpan) {
+                  partialTrace.add(span);
+                  completedSpanCount.decrementAndGet();
+                  // TODO spans are removed here
+                  //  but not when the whole trace is written!
+                  it.remove();
+                }
               }
+              if (log.isDebugEnabled()) {
+                log.debug("Writing partial trace {} of size {}", traceId, partialTrace.size());
+              }
+              tracer.write(partialTrace);
             }
-            if (log.isDebugEnabled()) {
-              log.debug("Writing partial trace {} of size {}", traceId, partialTrace.size());
-            }
-            tracer.write(partialTrace);
           }
         }
       }

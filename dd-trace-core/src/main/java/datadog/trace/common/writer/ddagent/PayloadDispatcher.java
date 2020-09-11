@@ -1,7 +1,9 @@
 package datadog.trace.common.writer.ddagent;
 
 import datadog.trace.core.DDSpanData;
-import datadog.trace.core.monitor.Monitor;
+import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.Monitoring;
+import datadog.trace.core.monitor.Timer;
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
 import datadog.trace.core.serialization.msgpack.Packer;
 import java.nio.ByteBuffer;
@@ -14,14 +16,17 @@ public class PayloadDispatcher implements ByteBufferConsumer {
 
   private final AtomicInteger droppedCount = new AtomicInteger();
   private final DDAgentApi api;
-  private final Monitor monitor;
+  private final HealthMetrics healthMetrics;
+  private final Monitoring monitoring;
 
+  private Timer batchTimer;
   private TraceMapper traceMapper;
   private Packer packer;
 
-  public PayloadDispatcher(DDAgentApi api, Monitor monitor) {
+  public PayloadDispatcher(DDAgentApi api, HealthMetrics healthMetrics, Monitoring monitoring) {
     this.api = api;
-    this.monitor = monitor;
+    this.healthMetrics = healthMetrics;
+    this.monitoring = monitoring;
   }
 
   void flush() {
@@ -52,7 +57,11 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     if (null == traceMapper) {
       this.traceMapper = api.selectTraceMapper();
       if (null != traceMapper && null == packer) {
+        this.batchTimer =
+            monitoring.newTimer(
+                "tracer.trace.buffer.fill.time", "endpoint:" + traceMapper.endpoint());
         this.packer = new Packer(this, ByteBuffer.allocate(traceMapper.messageBufferSize()));
+        batchTimer.start();
       }
     }
   }
@@ -62,6 +71,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
     // the packer calls this when the buffer is full,
     // or when the packer is flushed at a heartbeat
     if (messageCount > 0) {
+      batchTimer.reset();
       final int representativeCount = this.droppedCount.getAndSet(0) + messageCount;
       Payload payload =
           traceMapper
@@ -69,14 +79,14 @@ public class PayloadDispatcher implements ByteBufferConsumer {
               .withRepresentativeCount(representativeCount)
               .withBody(messageCount, buffer);
       final int sizeInBytes = payload.sizeInBytes();
-      monitor.onSerialize(sizeInBytes);
+      healthMetrics.onSerialize(sizeInBytes);
       DDAgentApi.Response response = api.sendSerializedTraces(payload);
       traceMapper.reset();
       if (response.success()) {
         if (log.isDebugEnabled()) {
           log.debug("Successfully sent {} traces to the API", messageCount);
         }
-        monitor.onSend(representativeCount, sizeInBytes, response);
+        healthMetrics.onSend(representativeCount, sizeInBytes, response);
       } else {
         if (log.isDebugEnabled()) {
           log.debug(
@@ -85,7 +95,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
               representativeCount,
               sizeInBytes);
         }
-        monitor.onFailedSend(representativeCount, sizeInBytes, response);
+        healthMetrics.onFailedSend(representativeCount, sizeInBytes, response);
       }
     }
   }

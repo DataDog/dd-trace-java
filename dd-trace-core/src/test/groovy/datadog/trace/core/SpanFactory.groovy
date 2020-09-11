@@ -49,6 +49,25 @@ class SpanFactory {
     return DDSpan.create(1, context)
   }
 
+  static DDSpan newSpanOf(CoreTracer tracer, ThreadLocal<Timer> timer) {
+    def context = new DDSpanContext(
+      DDId.from(1),
+      DDId.from(1),
+      DDId.ZERO,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      Collections.emptyMap(),
+      false,
+      "fakeType",
+      0,
+      PendingTrace.create(tracer, DDId.ONE),
+      tracer, [:])
+    return DDSpan.create(1, context)
+  }
+
   static DDSpan newSpanOf(PendingTrace trace) {
     def context = new DDSpanContext(
       trace.traceId,

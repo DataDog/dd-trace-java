@@ -2,6 +2,7 @@ package datadog.trace.common.writer
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.DDAgentResponseListener
@@ -11,13 +12,16 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.SpanFactory
+import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.Packer
 import datadog.trace.util.test.DDSpecification
 import org.msgpack.jackson.dataformat.MessagePackFactory
+import spock.lang.Shared
 import spock.lang.Timeout
 
 import java.nio.ByteBuffer
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
@@ -25,6 +29,9 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
 @Timeout(20)
 class DDAgentApiTest extends DDSpecification {
+
+  @Shared
+  Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
   static mapper = new ObjectMapper(new MessagePackFactory())
 
   static newAgent(String latestVersion) {
@@ -47,7 +54,7 @@ class DDAgentApiTest extends DDSpecification {
   def "sending an empty list of traces returns no errors"() {
     setup:
     def agent = newAgent(agentVersion)
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
     def payload = prepareTraces(agentVersion, [])
 
     expect:
@@ -66,7 +73,7 @@ class DDAgentApiTest extends DDSpecification {
   def "get right mapper for latest endpoint"() {
     setup:
     def agent = newAgent(version)
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
     def mapper = client.selectTraceMapper()
     expect:
     mapper.getClass().isAssignableFrom(expected)
@@ -95,7 +102,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
     Payload payload = prepareTraces("v0.3/traces", [])
     expect:
     def response = client.sendSerializedTraces(payload)
@@ -116,7 +123,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
     def payload = prepareTraces(agentVersion, traces)
 
     expect:
@@ -193,7 +200,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
     client.addResponseListener(responseListener)
     def payload = prepareTraces(agentVersion, [[], [], []])
 
@@ -223,7 +230,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", v3Agent.address.port, null, 1000)
+    def client = new DDAgentApi("localhost", v3Agent.address.port, null, 1000, monitoring)
     def payload = prepareTraces("v0.4/traces", [])
     expect:
     client.sendSerializedTraces(payload).success()
@@ -250,7 +257,7 @@ class DDAgentApiTest extends DDSpecification {
       }
     }
     def port = badPort ? 999 : agent.address.port
-    def client = new DDAgentApi("localhost", port, null, 1000)
+    def client = new DDAgentApi("localhost", port, null, 1000, monitoring)
     def payload = prepareTraces("v0.4/traces", [])
     def result = client.sendSerializedTraces(payload)
 
@@ -282,7 +289,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000)
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
     def payload = prepareTraces(agentVersion, traces)
     when:
     def success = client.sendSerializedTraces(payload).success()

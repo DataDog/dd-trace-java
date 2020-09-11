@@ -39,7 +39,10 @@ import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.jfr.DDNoopScopeEventFactory;
 import datadog.trace.core.jfr.DDScopeEventFactory;
-import datadog.trace.core.monitor.Monitor;
+import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.monitor.Monitoring;
+import datadog.trace.core.monitor.Recording;
+import datadog.trace.core.monitor.Timer;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
@@ -102,7 +105,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @lombok.Getter private final int partialFlushMinSpans;
 
   private final StatsDClient statsDClient;
-
+  private final Monitoring monitoring;
+  private final ThreadLocal<Timer> traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
 
   /**
@@ -206,7 +210,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } else {
       this.statsDClient = statsDClient;
     }
-
+    this.monitoring = new Monitoring(this.statsDClient, 10, TimeUnit.SECONDS);
+    this.traceWriteTimer = monitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
       this.scopeManager =
           new ContinuableScopeManager(
@@ -219,7 +224,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     if (writer == null) {
-      this.writer = createWriter(config, sampler, this.statsDClient);
+      this.writer = createWriter(config, sampler, this.statsDClient, monitoring);
     } else {
       this.writer = writer;
     }
@@ -508,7 +513,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   private static Writer createWriter(
-      final Config config, final Sampler sampler, final StatsDClient statsDClient) {
+      final Config config,
+      final Sampler sampler,
+      final StatsDClient statsDClient,
+      final Monitoring monitoring) {
     final String configuredType = config.getWriterType();
 
     if (LOGGING_WRITER_TYPE.equals(configuredType)) {
@@ -545,7 +553,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
             config.getAgentPort(),
             unixDomainSocket,
             TimeUnit.SECONDS.toMillis(config.getAgentTimeout()),
-            Config.get().isTraceAgentV05Enabled());
+            Config.get().isTraceAgentV05Enabled(),
+            monitoring);
 
     final String prioritizationType = config.getPrioritizationType();
     Prioritization prioritization = null;
@@ -559,7 +568,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         DDAgentWriter.builder()
             .agentApi(ddAgentApi)
             .prioritization(prioritization)
-            .monitor(new Monitor(statsDClient))
+            .healthMetrics(new HealthMetrics(statsDClient))
+            .monitoring(monitoring)
             .build();
 
     if (sampler instanceof DDAgentResponseListener) {
@@ -619,6 +629,10 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     return constantTags.toArray(new String[0]);
+  }
+
+  Recording writeTimer() {
+    return traceWriteTimer.get().start();
   }
 
   private static String statsdTag(final String tagPrefix, final String tagValue) {

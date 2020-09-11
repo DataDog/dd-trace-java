@@ -1,5 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -7,6 +9,9 @@ import datadog.common.container.ContainerInfo;
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.trace.common.writer.ddagent.unixdomainsockets.UnixDomainSocketFactory;
 import datadog.trace.core.DDTraceCoreInfo;
+import datadog.trace.core.monitor.Monitoring;
+import datadog.trace.core.monitor.Recording;
+import datadog.trace.core.monitor.Timer;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -55,6 +60,9 @@ public class DDAgentApi {
   private long sentTraces = 0;
   private long failedTraces = 0;
 
+  private final Timer discoveryTimer;
+  private final Timer sendPayloadTimer;
+
   private static final JsonAdapter<Map<String, Map<String, Number>>> RESPONSE_ADAPTER =
       new Moshi.Builder()
           .build()
@@ -89,7 +97,8 @@ public class DDAgentApi {
       final int port,
       final String unixDomainSocketPath,
       final long timeoutMillis,
-      final boolean enableV05Endpoint) {
+      final boolean enableV05Endpoint,
+      final Monitoring monitoring) {
     this.host = host;
     this.port = port;
     this.unixDomainSocketPath = unixDomainSocketPath;
@@ -98,14 +107,17 @@ public class DDAgentApi {
         enableV05Endpoint
             ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
             : new String[] {V4_ENDPOINT, V3_ENDPOINT};
+    this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
+    this.sendPayloadTimer = monitoring.newTimer("trace.agent.send.time");
   }
 
   public DDAgentApi(
       final String host,
       final int port,
       final String unixDomainSocketPath,
-      final long timeoutMillis) {
-    this(host, port, unixDomainSocketPath, timeoutMillis, true);
+      final long timeoutMillis,
+      final Monitoring monitoring) {
+    this(host, port, unixDomainSocketPath, timeoutMillis, true, monitoring);
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -145,7 +157,8 @@ public class DDAgentApi {
               .build();
       this.totalTraces += payload.representativeCount();
       this.receivedTraces += payload.traceCount();
-      try (final okhttp3.Response response = httpClient.newCall(request).execute()) {
+      try (final Recording recording = sendPayloadTimer.start();
+          final okhttp3.Response response = httpClient.newCall(request).execute()) {
         if (response.code() != 200) {
           countAndLogFailedSend(
               payload.traceCount(), payload.representativeCount(), sizeInBytes, response, null);
@@ -334,9 +347,9 @@ public class DDAgentApi {
       builder = builder.socketFactory(new UnixDomainSocketFactory(new File(unixDomainSocketPath)));
     }
     return builder
-        .connectTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
-        .writeTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
-        .readTimeout(timeoutMillis, TimeUnit.MILLISECONDS)
+        .connectTimeout(timeoutMillis, MILLISECONDS)
+        .writeTimeout(timeoutMillis, MILLISECONDS)
+        .readTimeout(timeoutMillis, MILLISECONDS)
 
         // We only use http to talk to the agent
         .connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT))
@@ -376,23 +389,27 @@ public class DDAgentApi {
   String detectEndpointAndBuildClient() {
     // TODO clean this up
     if (httpClient == null) {
-      this.agentRunning = isAgentRunning(timeoutMillis);
-      // TODO should check agentRunning, but CoreTracerTest depends on being
-      //  able to detect an endpoint without an open socket...
-      for (String candidate : endpoints) {
-        tracesUrl = getUrl(host, port, candidate);
-        this.httpClient =
-            buildClientIfAvailable(candidate, tracesUrl, unixDomainSocketPath, timeoutMillis);
-        if (null != httpClient) {
-          detectedVersion = candidate;
-          log.debug("connected to agent {}", candidate);
-          return candidate;
-        } else {
-          log.debug("API {} endpoints not available. Downgrading", candidate);
+      try (Recording recording = discoveryTimer.start()) {
+        this.agentRunning = isAgentRunning(timeoutMillis);
+        // TODO should check agentRunning, but CoreTracerTest depends on being
+        //  able to detect an endpoint without an open socket...
+        for (String candidate : endpoints) {
+          tracesUrl = getUrl(host, port, candidate);
+          this.httpClient =
+              buildClientIfAvailable(candidate, tracesUrl, unixDomainSocketPath, timeoutMillis);
+          if (null != httpClient) {
+            detectedVersion = candidate;
+            log.debug("connected to agent {}", candidate);
+            return candidate;
+          } else {
+            log.debug("API {} endpoints not available. Downgrading", candidate);
+          }
         }
-      }
-      if (null == tracesUrl) {
-        log.error("no compatible agent detected");
+        if (null == tracesUrl) {
+          log.error("no compatible agent detected");
+        }
+      } finally {
+        discoveryTimer.flush();
       }
     } else {
       log.warn("No connectivity to datadog agent");

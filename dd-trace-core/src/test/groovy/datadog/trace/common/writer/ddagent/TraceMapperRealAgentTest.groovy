@@ -1,11 +1,14 @@
 package datadog.trace.common.writer.ddagent
 
-
+import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.core.DDSpanData
-import datadog.trace.core.monitor.Monitor
+import datadog.trace.core.monitor.HealthMetrics
+import datadog.trace.core.monitor.Monitoring
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Requires
 import spock.lang.Shared
+
+import java.util.concurrent.TimeUnit
 
 import static datadog.trace.common.writer.ddagent.TraceGenerator.generateRandomTraces
 
@@ -13,14 +16,16 @@ import static datadog.trace.common.writer.ddagent.TraceGenerator.generateRandomT
 class TraceMapperRealAgentTest extends DDSpecification {
 
   @Shared
-  DDAgentApi v05Api = new DDAgentApi("localhost", 8126, null, 30_000, true)
+  Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
   @Shared
-  DDAgentApi v04Api = new DDAgentApi("localhost", 8126, null, 30_000, false)
+  DDAgentApi v05Api = new DDAgentApi("localhost", 8126, null, 30_000, true, monitoring)
+  @Shared
+  DDAgentApi v04Api = new DDAgentApi("localhost", 8126, null, 30_000, false, monitoring)
 
   def "send random traces" () {
     setup:
-    Monitor monitor = Mock(Monitor)
-    PayloadDispatcher dispatcher = new PayloadDispatcher(v05 ? v05Api : v04Api, monitor)
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    PayloadDispatcher dispatcher = new PayloadDispatcher(v05 ? v05Api : v04Api, healthMetrics, monitoring)
     List<List<DDSpanData>> traces = generateRandomTraces(traceCount, lowCardinality)
     when:
     for (List<DDSpanData> trace : traces) {
@@ -28,10 +33,10 @@ class TraceMapperRealAgentTest extends DDSpecification {
     }
     dispatcher.flush()
     then:
-    0 * monitor.onFailedSerialize(_, _)
-    0 * monitor.onFailedSend(_, _, _)
-    _ * monitor.onSend(_, _, _)
-    _ * monitor.onSerialize(_)
+    0 * healthMetrics.onFailedSerialize(_, _)
+    0 * healthMetrics.onFailedSend(_, _, _)
+    _ * healthMetrics.onSend(_, _, _)
+    _ * healthMetrics.onSerialize(_)
     0 * _
 
     where:

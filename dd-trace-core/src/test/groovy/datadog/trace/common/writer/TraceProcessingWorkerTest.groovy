@@ -1,12 +1,14 @@
 package datadog.trace.common.writer
 
-
+import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.common.writer.ddagent.PayloadDispatcher
 import datadog.trace.common.writer.ddagent.TraceProcessingWorker
 import datadog.trace.core.DDSpan
-import datadog.trace.core.monitor.Monitor
+import datadog.trace.core.monitor.HealthMetrics
+import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.processor.TraceProcessor
 import datadog.trace.util.test.DDSpecification
+import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 
 import java.util.concurrent.TimeUnit
@@ -22,6 +24,9 @@ import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE
 
 class TraceProcessingWorkerTest extends DDSpecification {
 
+  @Shared
+  Monitoring monitoring = new Monitoring(new NoOpStatsDClient(), 1, TimeUnit.SECONDS)
+
   def conditions = new PollingConditions(timeout: 5, initialDelay: 0, factor: 1.25)
 
   def flushCountingPayloadDispatcher(AtomicInteger flushCounter) {
@@ -35,7 +40,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
   def "heartbeats should be triggered automatically when enabled"() {
     setup:
     AtomicInteger flushCount = new AtomicInteger()
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(HealthMetrics),
+      monitoring,
       flushCountingPayloadDispatcher(flushCount),
       FAST_LANE,
       1,
@@ -56,7 +62,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
   def "heartbeats should occur at least once per second when not throttled"() {
     setup:
     AtomicInteger flushCount = new AtomicInteger()
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(HealthMetrics),
+      monitoring,
       flushCountingPayloadDispatcher(flushCount),
       FAST_LANE,
       1,
@@ -78,7 +85,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
   def "a flush should clear the primary queue"() {
     setup:
     AtomicInteger flushCount = new AtomicInteger()
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(Monitor),
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, Stub(HealthMetrics),
+      monitoring,
       flushCountingPayloadDispatcher(flushCount),
       FAST_LANE,
       100, TimeUnit.SECONDS) // prevent heartbeats from helping the flush happen
@@ -107,8 +115,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
       throw theError
     }
     AtomicInteger errorReported = new AtomicInteger()
-    Monitor monitor = Mock(Monitor)
-    monitor.onFailedSerialize(_, theError) >> {
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    healthMetrics.onFailedSerialize(_, theError) >> {
       // do this manually with a counter, despite spock's
       // lovely syntactical sugar so we don't have a race
       // condition induced flaky test. All we care about
@@ -116,7 +124,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
       // right one
       errorReported.incrementAndGet()
     }
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, monitoring,
       Mock(PayloadDispatcher), throwingTraceProcessor, FAST_LANE,100, TimeUnit.SECONDS)
     // prevent heartbeats from helping the flush happen
     worker.start()
@@ -124,7 +132,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     when: "a trace is processed but rules can't be applied"
     worker.publish(priority, [Mock(DDSpan)])
 
-    then: "the error is reported to the monitor"
+    then: "the error is reported to the healthMetrics"
     conditions.eventually {
       1 == errorReported.get()
     }
@@ -144,8 +152,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
       throw theError
     }
     AtomicInteger errorReported = new AtomicInteger()
-    Monitor monitor = Mock(Monitor)
-    monitor.onFailedSerialize(_, theError) >> {
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    healthMetrics.onFailedSerialize(_, theError) >> {
       // do this manually with a counter, despite spock's
       // lovely syntactical sugar so we don't have a race
       // condition induced flaky test. All we care about
@@ -153,8 +161,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
       // right one
       errorReported.incrementAndGet()
     }
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
-      throwingDispatcher, Stub(TraceProcessor), FAST_LANE,
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics,
+      monitoring, throwingDispatcher, Stub(TraceProcessor), FAST_LANE,
       100, TimeUnit.SECONDS) // prevent heartbeats from helping the flush happen
     worker.start()
 
@@ -179,8 +187,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
     countingDispatcher.addTrace(_) >> {
       acceptedCount.getAndIncrement()
     }
-    Monitor monitor = Mock(Monitor)
-    TraceProcessingWorker worker = new TraceProcessingWorker(10, monitor,
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, monitoring,
       countingDispatcher, Stub(TraceProcessor), FAST_LANE, 100, TimeUnit.SECONDS)
     // prevent heartbeats from helping the flush happen
     worker.start()
@@ -192,7 +200,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     }
 
     then: "traces are passed through unless rejected on submission"
-    0 * monitor.onFailedSerialize(_, _)
+    0 * healthMetrics.onFailedSerialize(_, _)
     conditions.eventually {
       submitted == acceptedCount.get()
     }
