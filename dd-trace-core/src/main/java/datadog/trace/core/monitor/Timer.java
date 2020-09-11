@@ -47,17 +47,20 @@ public class Timer extends Recording {
     this(name, null, statsd, flushAfterNanos);
   }
 
+  @Override
   public Recording start() {
     start = System.nanoTime();
     return this;
   }
 
+  @Override
   public void reset() {
     long now = System.nanoTime();
     record(now);
     start = now;
   }
 
+  @Override
   public void stop() {
     record(System.nanoTime());
   }
@@ -71,11 +74,12 @@ public class Timer extends Recording {
     }
   }
 
+  @Override
   public void flush() {
-    statsd.time(name, (long) histogram.getMean(), meanTags);
-    statsd.time(name, histogram.getValueAtPercentile(50), p50Tags);
-    statsd.time(name, histogram.getValueAtPercentile(99), p99Tags);
-    statsd.time(name, histogram.getMaxValue(), maxTags);
+    statsd.gauge(name, (long) histogram.getMean(), meanTags);
+    statsd.gauge(name, histogram.getValueAtPercentile(50), p50Tags);
+    statsd.gauge(name, histogram.getValueAtPercentile(99), p99Tags);
+    statsd.gauge(name, histogram.getMaxValue(), maxTags);
   }
 
   private static String[] mergeTags(String[] left, String[] right) {

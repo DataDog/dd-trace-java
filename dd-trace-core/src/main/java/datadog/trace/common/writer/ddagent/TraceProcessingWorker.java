@@ -6,7 +6,7 @@ import datadog.common.exec.DaemonThreadFactory;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.Monitoring;
-import datadog.trace.core.monitor.Timer;
+import datadog.trace.core.monitor.Recording;
 import datadog.trace.core.processor.TraceProcessor;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -129,7 +129,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     private final boolean doTimeFlush;
     private final PayloadDispatcher payloadDispatcher;
     private long lastTicks;
-    private final Timer dutyCycleTimer;
+    private final Recording dutyCycleTimer;
 
     public TraceSerializingHandler(
         final MpscBlockingConsumerArrayQueue<Object> primaryQueue,

@@ -42,7 +42,6 @@ import datadog.trace.core.jfr.DDScopeEventFactory;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
-import datadog.trace.core.monitor.Timer;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
@@ -77,7 +76,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   // UINT64 max value
   public static final BigInteger TRACE_ID_MAX =
       BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
-  public static final BigInteger TRACE_ID_MIN = BigInteger.ZERO;
 
   private static final String LANG_STATSD_TAG = "lang";
   private static final String LANG_VERSION_STATSD_TAG = "lang_version";
@@ -106,7 +104,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   private final StatsDClient statsDClient;
   private final Monitoring monitoring;
-  private final ThreadLocal<Timer> traceWriteTimer;
+  private final Monitoring performanceMonitoring;
+  private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
 
   /**
@@ -210,7 +209,14 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     } else {
       this.statsDClient = statsDClient;
     }
-    this.monitoring = new Monitoring(this.statsDClient, 10, TimeUnit.SECONDS);
+    this.monitoring =
+        config.isHealthMetricsEnabled()
+            ? new Monitoring(this.statsDClient, 10, TimeUnit.SECONDS)
+            : Monitoring.DISABLED;
+    this.performanceMonitoring =
+        config.isPerfMetricsEnabled()
+            ? new Monitoring(this.statsDClient, 10, TimeUnit.SECONDS)
+            : Monitoring.DISABLED;
     this.traceWriteTimer = monitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
       this.scopeManager =
@@ -632,7 +638,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   Recording writeTimer() {
-    return traceWriteTimer.get().start();
+    return traceWriteTimer.start();
   }
 
   private static String statsdTag(final String tagPrefix, final String tagValue) {

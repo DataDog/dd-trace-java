@@ -28,6 +28,7 @@ public final class GeneralConfig {
   public static final String HEALTH_METRICS_ENABLED = "trace.health.metrics.enabled";
   public static final String HEALTH_METRICS_STATSD_HOST = "trace.health.metrics.statsd.host";
   public static final String HEALTH_METRICS_STATSD_PORT = "trace.health.metrics.statsd.port";
+  public static final String PERF_METRICS_ENABLED = "trace.perf.metrics.enabled";
 
   private GeneralConfig() {}
 }
