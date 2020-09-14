@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.http_url_connection;
+package datadog.trace.bootstrap.instrumentation.httpurlconnection;
 
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.HttpURLConnection;
