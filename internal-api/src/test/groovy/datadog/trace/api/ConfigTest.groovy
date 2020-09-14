@@ -57,6 +57,7 @@ import static datadog.trace.api.Config.RUNTIME_CONTEXT_FIELD_INJECTION
 import static datadog.trace.api.Config.SERVICE_MAPPING
 import static datadog.trace.api.Config.SERVICE_NAME
 import static datadog.trace.api.Config.SITE
+import static datadog.trace.api.Config.SOURCE_HOSTNAME
 import static datadog.trace.api.Config.SPAN_TAGS
 import static datadog.trace.api.Config.SPLIT_BY_TAGS
 import static datadog.trace.api.Config.TAGS
@@ -79,6 +80,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_PROXY_PORT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE
 import static datadog.trace.api.DDTags.HOST_TAG
+import static datadog.trace.api.DDTags.INTERNAL_HOST_NAME
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG
@@ -134,6 +136,7 @@ class ConfigTest extends DDSpecification {
     config.idGenerationStrategy == IdGenerationStrategy.RANDOM
     config.writerType == "DDAgentWriter"
     config.prioritizationType == "FastLane"
+    config.sourceHostName == null
     config.agentHost == "localhost"
     config.agentPort == 8126
     config.agentUnixDomainSocket == null
@@ -200,6 +203,7 @@ class ConfigTest extends DDSpecification {
     prop.setProperty(ID_GENERATION_STRATEGY, "SEQUENTIAL")
     prop.setProperty(WRITER_TYPE, "LoggingWriter")
     prop.setProperty(PRIORITIZATION_TYPE, "EnsureTrace")
+    prop.setProperty(SOURCE_HOSTNAME, "some-source-host")
     prop.setProperty(AGENT_HOST, "somehost")
     prop.setProperty(TRACE_AGENT_PORT, "123")
     prop.setProperty(AGENT_UNIX_DOMAIN_SOCKET, "somepath")
@@ -263,6 +267,7 @@ class ConfigTest extends DDSpecification {
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
     config.prioritizationType == "EnsureTrace"
+    config.sourceHostName == "some-source-host"
     config.agentHost == "somehost"
     config.agentPort == 123
     config.agentUnixDomainSocket == "somepath"
@@ -299,7 +304,7 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (INTERNAL_HOST_NAME): "some-source-host", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
     config.profilingUploadPeriod == 1112
@@ -323,6 +328,7 @@ class ConfigTest extends DDSpecification {
     System.setProperty(PREFIX + TRACE_ENABLED, "false")
     System.setProperty(PREFIX + WRITER_TYPE, "LoggingWriter")
     System.setProperty(PREFIX + PRIORITIZATION_TYPE, "EnsureTrace")
+    System.setProperty(PREFIX + SOURCE_HOSTNAME, "some-source-host")
     System.setProperty(PREFIX + AGENT_HOST, "somehost")
     System.setProperty(PREFIX + TRACE_AGENT_PORT, "123")
     System.setProperty(PREFIX + AGENT_UNIX_DOMAIN_SOCKET, "somepath")
@@ -385,6 +391,7 @@ class ConfigTest extends DDSpecification {
     config.traceEnabled == false
     config.writerType == "LoggingWriter"
     config.prioritizationType == "EnsureTrace"
+    config.sourceHostName == "some-source-host"
     config.agentHost == "somehost"
     config.agentPort == 123
     config.agentUnixDomainSocket == "somepath"
@@ -421,7 +428,7 @@ class ConfigTest extends DDSpecification {
 
     config.profilingEnabled == true
     config.profilingUrl == "new url"
-    config.mergedProfilingTags == [b: "2", f: "6", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
+    config.mergedProfilingTags == [b: "2", f: "6", (INTERNAL_HOST_NAME): "some-source-host", (HOST_TAG): "test-host", (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
     config.profilingStartDelay == 1111
     config.profilingStartForceFirst == true
     config.profilingUploadPeriod == 1112
@@ -1758,7 +1765,7 @@ class ConfigTest extends DDSpecification {
     "42.42" | ClassThrowsExceptionForValueOfMethod // will wrapped in NumberFormatException anyway
   }
 
-  def "revert to RANDOM with invalid id generation strategy" () {
+  def "revert to RANDOM with invalid id generation strategy"() {
     setup:
     def prop = new Properties()
     prop.setProperty(ID_GENERATION_STRATEGY, "LOL")

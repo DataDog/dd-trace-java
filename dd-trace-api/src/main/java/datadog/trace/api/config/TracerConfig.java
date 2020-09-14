@@ -15,6 +15,7 @@ public final class TracerConfig {
   public static final String ID_GENERATION_STRATEGY = "id.generation.strategy";
   public static final String WRITER_TYPE = "writer.type";
   public static final String PRIORITIZATION_TYPE = "prioritization.type";
+  public static final String SOURCE_HOSTNAME = "source.hostname";
   public static final String AGENT_HOST = "agent.host";
   public static final String TRACE_AGENT_PORT = "trace.agent.port";
   public static final String AGENT_PORT_LEGACY = "agent.port";

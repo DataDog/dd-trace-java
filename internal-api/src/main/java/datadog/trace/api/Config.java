@@ -118,6 +118,7 @@ public class Config {
   public static final String ID_GENERATION_STRATEGY = TracerConfig.ID_GENERATION_STRATEGY;
   public static final String WRITER_TYPE = TracerConfig.WRITER_TYPE;
   public static final String PRIORITIZATION_TYPE = TracerConfig.PRIORITIZATION_TYPE;
+  public static final String SOURCE_HOSTNAME = TracerConfig.SOURCE_HOSTNAME;
   public static final String AGENT_HOST = TracerConfig.AGENT_HOST;
   public static final String TRACE_AGENT_PORT = TracerConfig.TRACE_AGENT_PORT;
   public static final String AGENT_PORT_LEGACY = TracerConfig.AGENT_PORT_LEGACY;
@@ -277,6 +278,7 @@ public class Config {
   @Getter private final String writerType;
   @Getter private final String prioritizationType;
   @Getter private final boolean agentConfiguredUsingDefault;
+  @Getter private final String sourceHostName;
   @Getter private final String agentHost;
   @Getter private final int agentPort;
   @Getter private final String agentUnixDomainSocket;
@@ -411,6 +413,8 @@ public class Config {
           "*** you are using an unsupported id generation strategy {} - this can impact correctness of traces",
           idGenerationStrategy);
     }
+
+    sourceHostName = configProvider.getString(SOURCE_HOSTNAME);
 
     // The extra code is to detect when defaults are used for agent configuration
     final boolean agentHostConfiguredUsingDefault;
@@ -644,7 +648,9 @@ public class Config {
     final Map<String, String> result = new HashMap<>(runtimeTags);
     result.put(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE);
 
-    if (reportHostName) {
+    if (sourceHostName != null) {
+      result.put(INTERNAL_HOST_NAME, sourceHostName);
+    } else if (reportHostName) {
       final String hostName = getHostName();
       if (null != hostName && !hostName.isEmpty()) {
         result.put(INTERNAL_HOST_NAME, hostName);
@@ -685,8 +691,13 @@ public class Config {
             getGlobalTags().size()
                 + profilingTags.size()
                 + runtimeTags.size()
-                + 3 /* for serviceName and host and language */);
-    result.put(HOST_TAG, host); // Host goes first to allow to override it
+                + 4 /* for serviceName and host(x2) and language */);
+    if (sourceHostName != null) {
+      result.put(INTERNAL_HOST_NAME, sourceHostName);
+    }
+    if (host != null) {
+      result.put(HOST_TAG, host); // Host goes first to allow to override it
+    }
     result.putAll(getGlobalTags());
     result.putAll(profilingTags);
     result.putAll(runtimeTags);
@@ -730,6 +741,7 @@ public class Config {
    */
   private Map<String, String> getRuntimeTags() {
     final Map<String, String> result = newHashMap(2);
+
     result.put(RUNTIME_ID_TAG, runtimeId);
     return Collections.unmodifiableMap(result);
   }
