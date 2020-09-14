@@ -79,6 +79,12 @@ public class StatusLogger {
       writer.value(System.getProperty("java.vm.version"));
       writer.name("java_class_version");
       writer.value(System.getProperty("java.class.version"));
+      writer.name("java_class_path");
+      writer.value(System.getProperty("java.class.path"));
+      writer.name("http_nonProxyHosts");
+      writer.value(String.valueOf(System.getProperty("http.nonProxyHosts")));
+      writer.name("http_proxyHost");
+      writer.value(String.valueOf(System.getProperty("http.proxyHost")));
       writer.name("enabled");
       writer.value(config.isTraceEnabled());
       writer.name("service");
