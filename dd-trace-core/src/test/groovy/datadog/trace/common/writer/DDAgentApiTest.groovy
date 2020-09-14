@@ -321,11 +321,21 @@ class DDAgentApiTest extends DDSpecification {
     "v0.5/traces" | 65541 + 1 + 1  | (1..(1 << 16)).collect { [] }
   }
 
-  def "RejectingExecutorService rejects execute requests"() {
+  def "Embedded HTTP client rejects async requests"() {
+    setup:
+    def agent = newAgent("v0.5/traces")
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
+    def payload = prepareTraces("v0.5/traces", [])
+    def result = client.sendSerializedTraces(payload)
+    def httpExecutorService = client.httpClient.dispatcher().executorService()
     when:
-    DDAgentApi.RejectingExecutorService.INSTANCE.execute({})
+    httpExecutorService.execute({})
     then:
     thrown RejectedExecutionException
+    and:
+    httpExecutorService.isShutdown()
+    cleanup:
+    agent.close()
   }
 
   static List<List<TreeMap<String, Object>>> convertList(String agentVersion, byte[] bytes) {
