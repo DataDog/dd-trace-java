@@ -21,6 +21,7 @@ import spock.lang.Shared
 import spock.lang.Timeout
 
 import java.nio.ByteBuffer
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -318,6 +319,13 @@ class DDAgentApiTest extends DDSpecification {
     "v0.5/traces" | 19 + 1 + 1     | (1..16).collect { [] }
     "v0.5/traces" | 65538 + 1 + 1  | (1..((1 << 16) - 1)).collect { [] }
     "v0.5/traces" | 65541 + 1 + 1  | (1..(1 << 16)).collect { [] }
+  }
+
+  def "RejectingExecutorService rejects execute requests"() {
+    when:
+    DDAgentApi.RejectingExecutorService.INSTANCE.execute({})
+    then:
+    thrown RejectedExecutionException
   }
 
   static List<List<TreeMap<String, Object>>> convertList(String agentVersion, byte[] bytes) {
