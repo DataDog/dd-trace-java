@@ -42,7 +42,13 @@ public class WebController implements AutoCloseable {
 
   @RequestMapping("/async_cf_greeting")
   public String asyncCompleteableFutureGreeting() {
-    return CompletableFuture.supplyAsync(asyncGreeter::greet).join().toString()
+    CompletableFuture<String>[] cfs = new CompletableFuture[20];
+    for (int i = 0; i < cfs.length; ++i) {
+      cfs[i] =
+          CompletableFuture.supplyAsync(() -> "something", pool)
+              .thenApplyAsync(x -> asyncGreeter.greet(), pool);
+    }
+    return CompletableFuture.allOf(cfs).thenApply(x -> "bye").join();
   }
 
   @RequestMapping("/async_concurrent_greeting")

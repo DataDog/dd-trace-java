@@ -34,13 +34,19 @@ jar {
   }
 }
 
-dependencies {
-  compile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
-  implementation 'io.grpc:grpc-netty-shaded:1.31.1'
-  implementation 'io.grpc:grpc-protobuf:1.31.1'
-  implementation 'io.grpc:grpc-stub:1.31.1'
-  compileOnly 'org.apache.tomcat:annotations-api:6.0.53'
+shadowJar {
+  configurations = [
+    project.configurations.compile,
+    project.configurations.main_java8Compile
+  ]
+}
 
+dependencies {
+  main_java8Compile 'org.springframework.boot:spring-boot-starter-web:1.5.18.RELEASE'
+  main_java8Compile 'io.grpc:grpc-netty-shaded:1.31.1'
+  main_java8Compile 'io.grpc:grpc-protobuf:1.31.1'
+  main_java8Compile 'io.grpc:grpc-stub:1.31.1'
+  main_java8Compile 'org.apache.tomcat:annotations-api:6.0.53'
 
   testCompile project(':dd-smoke-tests')
 }
