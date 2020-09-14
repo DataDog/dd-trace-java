@@ -143,7 +143,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       this.primaryQueue = primaryQueue;
       this.secondaryQueue = secondaryQueue;
       this.healthMetrics = healthMetrics;
-      this.dutyCycleTimer = monitoring.newTimer("tracer.duty.cycle");
+      this.dutyCycleTimer = monitoring.newCPUTimer("tracer.duty.cycle");
       this.processor = traceProcessor;
       this.doTimeFlush = flushInterval > 0;
       this.payloadDispatcher = payloadDispatcher;

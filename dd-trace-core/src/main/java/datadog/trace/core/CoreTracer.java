@@ -217,7 +217,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         config.isPerfMetricsEnabled()
             ? new Monitoring(this.statsDClient, 10, TimeUnit.SECONDS)
             : Monitoring.DISABLED;
-    this.traceWriteTimer = monitoring.newThreadLocalTimer("trace.write");
+    this.traceWriteTimer = performanceMonitoring.newThreadLocalTimer("trace.write");
     if (scopeManager == null) {
       this.scopeManager =
           new ContinuableScopeManager(

@@ -9,6 +9,7 @@ import datadog.common.container.ContainerInfo;
 import datadog.common.exec.CommonTaskExecutor;
 import datadog.trace.common.writer.ddagent.unixdomainsockets.UnixDomainSocketFactory;
 import datadog.trace.core.DDTraceCoreInfo;
+import datadog.trace.core.monitor.Counter;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
 import java.io.File;
@@ -61,6 +62,7 @@ public class DDAgentApi {
 
   private final Recording discoveryTimer;
   private final Recording sendPayloadTimer;
+  private final Counter agentErrorCounter;
 
   private static final JsonAdapter<Map<String, Map<String, Number>>> RESPONSE_ADAPTER =
       new Moshi.Builder()
@@ -108,6 +110,7 @@ public class DDAgentApi {
             : new String[] {V4_ENDPOINT, V3_ENDPOINT};
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
     this.sendPayloadTimer = monitoring.newTimer("trace.agent.send.time");
+    this.agentErrorCounter = monitoring.newCounter("trace.agent.error.counter");
   }
 
   public DDAgentApi(
@@ -159,6 +162,7 @@ public class DDAgentApi {
       try (final Recording recording = sendPayloadTimer.start();
           final okhttp3.Response response = httpClient.newCall(request).execute()) {
         if (response.code() != 200) {
+          agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());
           countAndLogFailedSend(
               payload.traceCount(), payload.representativeCount(), sizeInBytes, response, null);
           return Response.failed(response.code());
