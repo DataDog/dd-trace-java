@@ -325,8 +325,7 @@ class DDAgentApiTest extends DDSpecification {
     setup:
     def agent = newAgent("v0.5/traces")
     def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
-    def payload = prepareTraces("v0.5/traces", [])
-    def result = client.sendSerializedTraces(payload)
+    client.detectEndpointAndBuildClient()
     def httpExecutorService = client.httpClient.dispatcher().executorService()
     when:
     httpExecutorService.execute({})
