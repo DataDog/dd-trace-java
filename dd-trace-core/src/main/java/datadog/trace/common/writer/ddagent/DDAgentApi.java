@@ -11,7 +11,6 @@ import datadog.trace.common.writer.ddagent.unixdomainsockets.UnixDomainSocketFac
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
-import datadog.trace.core.monitor.Timer;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -60,8 +59,8 @@ public class DDAgentApi {
   private long sentTraces = 0;
   private long failedTraces = 0;
 
-  private final Timer discoveryTimer;
-  private final Timer sendPayloadTimer;
+  private final Recording discoveryTimer;
+  private final Recording sendPayloadTimer;
 
   private static final JsonAdapter<Map<String, Map<String, Number>>> RESPONSE_ADAPTER =
       new Moshi.Builder()

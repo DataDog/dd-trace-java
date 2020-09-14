@@ -3,7 +3,7 @@ package datadog.trace.common.writer.ddagent;
 import datadog.trace.core.DDSpanData;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.Monitoring;
-import datadog.trace.core.monitor.Timer;
+import datadog.trace.core.monitor.Recording;
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
 import datadog.trace.core.serialization.msgpack.Packer;
 import java.nio.ByteBuffer;
@@ -19,7 +19,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
   private final HealthMetrics healthMetrics;
   private final Monitoring monitoring;
 
-  private Timer batchTimer;
+  private Recording batchTimer;
   private TraceMapper traceMapper;
   private Packer packer;
 

@@ -188,6 +188,7 @@ public class Config {
   public static final String HEALTH_METRICS_ENABLED = GeneralConfig.HEALTH_METRICS_ENABLED;
   public static final String HEALTH_METRICS_STATSD_HOST = GeneralConfig.HEALTH_METRICS_STATSD_HOST;
   public static final String HEALTH_METRICS_STATSD_PORT = GeneralConfig.HEALTH_METRICS_STATSD_PORT;
+  public static final String PERF_METRICS_ENABLED = GeneralConfig.PERF_METRICS_ENABLED;
 
   public static final String LOGS_INJECTION_ENABLED =
       TraceInstrumentationConfig.LOGS_INJECTION_ENABLED;
@@ -316,6 +317,7 @@ public class Config {
   @Getter private final boolean healthMetricsEnabled;
   @Getter private final String healthMetricsStatsdHost;
   @Getter private final Integer healthMetricsStatsdPort;
+  @Getter private final boolean perfMetricsEnabled;
 
   @Getter private final boolean logsInjectionEnabled;
   @Getter private final boolean logsMDCTagsInjectionEnabled;
@@ -521,6 +523,7 @@ public class Config {
         configProvider.getBoolean(HEALTH_METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
     healthMetricsStatsdHost = configProvider.getString(HEALTH_METRICS_STATSD_HOST);
     healthMetricsStatsdPort = configProvider.getInteger(HEALTH_METRICS_STATSD_PORT);
+    perfMetricsEnabled = configProvider.getBoolean(PERF_METRICS_ENABLED, false);
 
     logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);

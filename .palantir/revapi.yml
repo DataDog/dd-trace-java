@@ -628,6 +628,9 @@ acceptedBreaks:
     - code: "java.field.removed"
       old: "field datadog.trace.common.writer.DDAgentWriter.monitor"
       justification: "internal api"
+    - code: "java.field.removed"
+      old: "field datadog.trace.core.CoreTracer.TRACE_ID_MIN"
+      justification: "revapi"
     - code: "java.method.removed"
       old: "method datadog.trace.common.writer.DDAgentWriter.DDAgentWriterBuilder\
         \ datadog.trace.common.writer.DDAgentWriter.DDAgentWriterBuilder::monitor(datadog.trace.core.monitor.Monitor)"

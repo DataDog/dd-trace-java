@@ -6,7 +6,11 @@ public abstract class Recording implements AutoCloseable {
     stop();
   }
 
+  public abstract Recording start();
+
   public abstract void reset();
 
   public abstract void stop();
+
+  public abstract void flush();
 }

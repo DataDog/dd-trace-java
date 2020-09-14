@@ -5,28 +5,48 @@ import java.util.concurrent.TimeUnit;
 
 public final class Monitoring {
 
+  public static final Monitoring DISABLED = new Monitoring();
+
   private final StatsDClient statsd;
   private final long flushAfterNanos;
+  private final boolean enabled;
 
   public Monitoring(StatsDClient statsd, long flushInterval, TimeUnit flushUnit) {
     this.statsd = statsd;
     this.flushAfterNanos = flushUnit.toNanos(flushInterval);
+    this.enabled = true;
   }
 
-  public Timer newTimer(final String name) {
+  private Monitoring() {
+    this.statsd = null;
+    this.flushAfterNanos = 0;
+    this.enabled = false;
+  }
+
+  public Recording newTimer(final String name) {
+    if (!enabled) {
+      return NoOpRecording.NO_OP;
+    }
     return new Timer(name, statsd, flushAfterNanos);
   }
 
-  public Timer newTimer(final String name, String... tags) {
+  public Recording newTimer(final String name, String... tags) {
+    if (!enabled) {
+      return NoOpRecording.NO_OP;
+    }
     return new Timer(name, tags, statsd, flushAfterNanos);
   }
 
-  public ThreadLocal<Timer> newThreadLocalTimer(final String name) {
-    return new ThreadLocal<Timer>() {
-      @Override
-      protected Timer initialValue() {
-        return newTimer(name, "thread:" + Thread.currentThread().getName());
-      }
-    };
+  public Recording newThreadLocalTimer(final String name) {
+    if (!enabled) {
+      return NoOpRecording.NO_OP;
+    }
+    return new ThreadLocalRecording(
+        new ThreadLocal<Recording>() {
+          @Override
+          protected Recording initialValue() {
+            return newTimer(name, "thread:" + Thread.currentThread().getName());
+          }
+        });
   }
 }
