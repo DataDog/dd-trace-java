@@ -1,16 +1,9 @@
 import datadog.trace.agent.test.base.AbstractPromiseTest
-import spock.lang.Shared
 
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executor
 import java.util.function.Function
 
-abstract class CompletableFuturePromiseTest extends AbstractPromiseTest<CompletableFuture<Boolean>, CompletableFuture<String>> {
-  @Shared
-  Executor executor = executor()
-
-  abstract Executor executor()
-
+class CompletableFuturePromiseNoAsyncTest extends AbstractPromiseTest<CompletableFuture<Boolean>, CompletableFuture<String>> {
   @Override
   CompletableFuture<Boolean> newPromise() {
     return new CompletableFuture<Boolean>()
@@ -18,17 +11,17 @@ abstract class CompletableFuturePromiseTest extends AbstractPromiseTest<Completa
 
   @Override
   CompletableFuture<String> map(CompletableFuture<Boolean> promise, Closure<String> callback) {
-    return promise.thenApplyAsync(new Function<Boolean, String>() {
+    return promise.thenApply(new Function<Boolean, String>() {
       @Override
       String apply(Boolean value) {
         return callback.call(value)
       }
-    }, executor).toCompletableFuture()
+    }).toCompletableFuture()
   }
 
   @Override
   void onComplete(CompletableFuture<String> promise, Closure callback) {
-    promise.thenApplyAsync(callback, executor)
+    promise.thenApplyAsync(callback)
   }
 
   @Override
