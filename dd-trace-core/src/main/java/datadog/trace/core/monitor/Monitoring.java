@@ -61,4 +61,8 @@ public final class Monitoring {
     }
     return newTimer(name);
   }
+
+  public Counter newCounter(String name) {
+    return new Counter(name, statsd);
+  }
 }

@@ -1,9 +1,9 @@
 package datadog.trace.core.monitor;
 
+import static datadog.trace.core.monitor.Utils.mergeTags;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.timgroup.statsd.StatsDClient;
-import java.util.Arrays;
 import org.HdrHistogram.PackedHistogram;
 
 /**
@@ -80,14 +80,5 @@ public class Timer extends Recording {
     statsd.gauge(name, histogram.getValueAtPercentile(50), p50Tags);
     statsd.gauge(name, histogram.getValueAtPercentile(99), p99Tags);
     statsd.gauge(name, histogram.getMaxValue(), maxTags);
-  }
-
-  private static String[] mergeTags(String[] left, String[] right) {
-    if (null == right) {
-      return left;
-    }
-    String[] merged = Arrays.copyOf(left, left.length + right.length);
-    System.arraycopy(right, 0, merged, left.length, right.length);
-    return merged;
   }
 }
