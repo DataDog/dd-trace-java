@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 
-import datadog.common.exec.CommonTaskExecutor;
 import datadog.trace.agent.tooling.context.FieldBackedProvider;
 import datadog.trace.api.Config;
 import java.lang.instrument.Instrumentation;
@@ -36,8 +35,6 @@ public class AgentInstaller {
   }
 
   static {
-    // hack - make sure the singleton is initialised up front
-    CommonTaskExecutor.INSTANCE.initialize();
     // WeakMap is used by other classes below, so we need to register the provider first.
     AgentTooling.registerWeakMapProvider();
   }

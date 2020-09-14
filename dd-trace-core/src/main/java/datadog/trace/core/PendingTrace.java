@@ -1,7 +1,7 @@
 package datadog.trace.core;
 
-import datadog.common.exec.CommonTaskExecutor;
-import datadog.common.exec.CommonTaskExecutor.Task;
+import datadog.common.exec.AgentTaskScheduler;
+import datadog.common.exec.AgentTaskScheduler.Task;
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
@@ -356,13 +356,8 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
         Collections.newSetFromMap(new ConcurrentHashMap<PendingTrace, Boolean>());
 
     public SpanCleaner() {
-      CommonTaskExecutor.INSTANCE.scheduleAtFixedRate(
-          SpanCleanerTask.INSTANCE,
-          this,
-          0,
-          CLEAN_FREQUENCY,
-          TimeUnit.SECONDS,
-          "Pending trace cleaner");
+      AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+          SpanCleanerTask.INSTANCE, this, 0, CLEAN_FREQUENCY, TimeUnit.SECONDS);
     }
 
     @Override

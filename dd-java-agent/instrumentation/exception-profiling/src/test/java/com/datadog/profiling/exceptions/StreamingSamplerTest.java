@@ -3,19 +3,17 @@ package com.datadog.profiling.exceptions;
 import static java.lang.Math.abs;
 import static java.lang.Math.round;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doNothing;
 
-import datadog.common.exec.CommonTaskExecutor;
-import datadog.common.exec.CommonTaskExecutor.Task;
+import datadog.common.exec.AgentTaskScheduler;
+import datadog.common.exec.AgentTaskScheduler.Task;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
@@ -180,21 +178,20 @@ class StreamingSamplerTest {
   private static final int SAMPLES_PER_WINDOW = 100;
   private static final int LOOKBACK = 30;
 
-  @Mock CommonTaskExecutor taskExecutor;
+  @Mock AgentTaskScheduler taskScheduler;
   @Captor ArgumentCaptor<Task<StreamingSampler>> rollWindowTaskCaptor;
   @Captor ArgumentCaptor<StreamingSampler> rollWindowTargetCaptor;
-  @Mock ScheduledFuture scheduledFuture;
 
   @BeforeEach
   public void setup() {
-    when(taskExecutor.scheduleAtFixedRate(
+    doNothing()
+        .when(taskScheduler)
+        .scheduleAtFixedRate(
             rollWindowTaskCaptor.capture(),
             rollWindowTargetCaptor.capture(),
             eq(WINDOW_DURATION.toNanos()),
             eq(WINDOW_DURATION.toNanos()),
-            same(TimeUnit.NANOSECONDS),
-            any()))
-        .thenReturn(scheduledFuture);
+            same(TimeUnit.NANOSECONDS));
   }
 
   @Test
@@ -278,7 +275,7 @@ class StreamingSamplerTest {
         "> mode: {}, windows: {}, SAMPLES_PER_WINDOW: {}, LOOKBACK: {}, max error: {}%",
         windowEventsSupplier, WINDOWS, SAMPLES_PER_WINDOW, LOOKBACK, maxErrorPercent);
     final StreamingSampler sampler =
-        new StreamingSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskExecutor);
+        new StreamingSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
 
     // simulate event generation and sampling for the given number of sampling windows
     final long expectedSamples = WINDOWS * SAMPLES_PER_WINDOW;
@@ -436,7 +433,7 @@ class StreamingSamplerTest {
     final AtomicLong receivedEvents = new AtomicLong(0);
 
     final StreamingSampler sampler =
-        new StreamingSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskExecutor);
+        new StreamingSampler(WINDOW_DURATION, SAMPLES_PER_WINDOW, LOOKBACK, taskScheduler);
 
     for (int w = 0; w < WINDOWS; w++) {
       final Thread[] threads = new Thread[threadCount];

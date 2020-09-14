@@ -16,7 +16,7 @@ class PeriodicSchedulingTest extends DDSpecification {
   def "test scheduling"() {
     setup:
     def latch = new CountDownLatch(2)
-    def task = new CommonTaskExecutor.Task<CountDownLatch>() {
+    def task = new AgentTaskScheduler.Task<CountDownLatch>() {
       @Override
       void run(CountDownLatch target) {
         target.countDown()
@@ -24,10 +24,10 @@ class PeriodicSchedulingTest extends DDSpecification {
     }
 
     expect:
-    !CommonTaskExecutor.INSTANCE.isShutdown()
+    !AgentTaskScheduler.INSTANCE.isShutdown()
 
     when:
-    CommonTaskExecutor.INSTANCE.scheduleAtFixedRate(task, latch, 10, 10, MILLISECONDS, "test")
+    AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(task, latch, 10, 10, MILLISECONDS)
 
     then:
     latch.await(500, MILLISECONDS)
@@ -37,7 +37,7 @@ class PeriodicSchedulingTest extends DDSpecification {
     setup:
     def callCount = new AtomicInteger()
     def target = new WeakReference(new Object())
-    def task = new CommonTaskExecutor.Task<Object>() {
+    def task = new AgentTaskScheduler.Task<Object>() {
       @Override
       void run(Object t) {
         callCount.countDown()
@@ -45,10 +45,10 @@ class PeriodicSchedulingTest extends DDSpecification {
     }
 
     expect:
-    !CommonTaskExecutor.INSTANCE.isShutdown()
+    !AgentTaskScheduler.INSTANCE.isShutdown()
 
     when:
-    CommonTaskExecutor.INSTANCE.scheduleAtFixedRate(task, target.get(), 10, 10, MILLISECONDS, "test")
+    AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(task, target.get(), 10, 10, MILLISECONDS)
     GCUtils.awaitGC(target)
     Thread.sleep(1)
     def snapshot = callCount.get()
@@ -61,7 +61,7 @@ class PeriodicSchedulingTest extends DDSpecification {
   def "test null target"() {
     setup:
     def callCount = new AtomicInteger()
-    def task = new CommonTaskExecutor.Task<Object>() {
+    def task = new AgentTaskScheduler.Task<Object>() {
       @Override
       void run(Object t) {
         callCount.countDown()
@@ -69,14 +69,13 @@ class PeriodicSchedulingTest extends DDSpecification {
     }
 
     expect:
-    !CommonTaskExecutor.INSTANCE.isShutdown()
+    !AgentTaskScheduler.INSTANCE.isShutdown()
 
     when:
-    def future = CommonTaskExecutor.INSTANCE.scheduleAtFixedRate(task, null, 10, 10, MILLISECONDS, "test")
+    AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(task, null, 10, 10, MILLISECONDS)
     Thread.sleep(11)
 
     then:
-    future.isCancelled()
     callCount.get() == 0
   }
 }
