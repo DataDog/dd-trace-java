@@ -1,4 +1,3 @@
-import datadog.common.exec.CommonTaskExecutor
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
@@ -16,6 +15,8 @@ import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.stub.StreamObserver
 
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -25,12 +26,13 @@ class GrpcTest extends AgentTestRunner {
 
   def "test request-response"() {
     setup:
+    ExecutorService responseExecutor = Executors.newSingleThreadExecutor()
     BindableService greeter = new GreeterGrpc.GreeterImplBase() {
       @Override
       void sayHello(
         final Helloworld.Request req, final StreamObserver<Helloworld.Response> responseObserver) {
         final Helloworld.Response reply = Helloworld.Response.newBuilder().setMessage("Hello $req.name").build()
-        CommonTaskExecutor.INSTANCE.execute {
+        responseExecutor.execute {
           if (testTracer.activeSpan() == null) {
             responseObserver.onError(new IllegalStateException("no active span"))
           } else {

@@ -2,8 +2,8 @@ package datadog.trace.agent.tooling;
 
 import com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap;
 import com.google.common.annotations.VisibleForTesting;
-import datadog.common.exec.CommonTaskExecutor;
-import datadog.common.exec.CommonTaskExecutor.Task;
+import datadog.common.exec.AgentTaskScheduler;
+import datadog.common.exec.AgentTaskScheduler.Task;
 import datadog.trace.bootstrap.WeakMap;
 import java.util.concurrent.TimeUnit;
 
@@ -36,13 +36,12 @@ class WeakMapSuppliers {
     @Override
     public <K, V> WeakMap<K, V> get() {
       final WeakConcurrentMap<K, V> map = new WeakConcurrentMap<>(false, true);
-      CommonTaskExecutor.INSTANCE.scheduleAtFixedRate(
+      AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
           MapCleaningTask.INSTANCE,
           map,
           CLEAN_FREQUENCY_SECONDS,
           CLEAN_FREQUENCY_SECONDS,
-          TimeUnit.SECONDS,
-          "cleaner for " + map);
+          TimeUnit.SECONDS);
       return new Adapter<>(map);
     }
 

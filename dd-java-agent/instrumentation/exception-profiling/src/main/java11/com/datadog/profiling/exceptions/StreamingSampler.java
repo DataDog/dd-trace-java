@@ -1,7 +1,7 @@
 package com.datadog.profiling.exceptions;
 
-import datadog.common.exec.CommonTaskExecutor;
-import datadog.common.exec.CommonTaskExecutor.Task;
+import datadog.common.exec.AgentTaskScheduler;
+import datadog.common.exec.AgentTaskScheduler.Task;
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -84,13 +84,13 @@ class StreamingSampler {
    * @param windowDuration the sampling window duration
    * @param samplesPerWindow the maximum number of samples in the sampling window
    * @param lookback the number of windows to consider in averaging the sampling rate
-   * @param taskExecutor common task executor to use for periodic rolls
+   * @param taskScheduler agent task scheduler to use for periodic rolls
    */
   StreamingSampler(
       final Duration windowDuration,
       final int samplesPerWindow,
       final int lookback,
-      final CommonTaskExecutor taskExecutor) {
+      final AgentTaskScheduler taskScheduler) {
 
     this.samplesPerWindow = samplesPerWindow;
     samplesBudget = samplesPerWindow + CARRIED_OVER_BUDGET_LOOK_BACK * samplesPerWindow;
@@ -98,13 +98,12 @@ class StreamingSampler {
     budgetAlpha = computeIntervalAlpha(CARRIED_OVER_BUDGET_LOOK_BACK);
     countsRef = new AtomicReference<>(new Counts());
 
-    taskExecutor.scheduleAtFixedRate(
+    taskScheduler.scheduleAtFixedRate(
         RollWindowTask.INSTANCE,
         this,
         windowDuration.toNanos(),
         windowDuration.toNanos(),
-        TimeUnit.NANOSECONDS,
-        "exception sampling window roll");
+        TimeUnit.NANOSECONDS);
   }
 
   /**
@@ -115,7 +114,7 @@ class StreamingSampler {
    * @param lookback the number of windows to consider in averaging the sampling rate
    */
   StreamingSampler(final Duration windowDuration, final int samplesPerWindow, final int lookback) {
-    this(windowDuration, samplesPerWindow, lookback, CommonTaskExecutor.INSTANCE);
+    this(windowDuration, samplesPerWindow, lookback, AgentTaskScheduler.INSTANCE);
   }
 
   /**

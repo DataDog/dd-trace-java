@@ -6,7 +6,6 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.common.container.ContainerInfo;
-import datadog.common.exec.CommonTaskExecutor;
 import datadog.trace.common.writer.ddagent.unixdomainsockets.UnixDomainSocketFactory;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.monitor.Counter;
@@ -22,6 +21,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.ConnectionSpec;
@@ -358,8 +359,41 @@ public class DDAgentApi {
         .connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT))
 
         // We don't do async so this shouldn't matter, but just to be safe...
-        .dispatcher(new Dispatcher(CommonTaskExecutor.INSTANCE))
+        .dispatcher(new Dispatcher(RejectingExecutorService.INSTANCE))
         .build();
+  }
+
+  /** {@link ExecutorService} that always rejects requests. */
+  private static final class RejectingExecutorService extends AbstractExecutorService {
+    static final RejectingExecutorService INSTANCE = new RejectingExecutorService();
+
+    @Override
+    public void execute(final Runnable command) {
+      throw new RejectedExecutionException("Unexpected request to execute async task");
+    }
+
+    @Override
+    public void shutdown() {}
+
+    @Override
+    public List<Runnable> shutdownNow() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public boolean isShutdown() {
+      return true;
+    }
+
+    @Override
+    public boolean isTerminated() {
+      return true;
+    }
+
+    @Override
+    public boolean awaitTermination(final long timeout, final TimeUnit unit) {
+      return true;
+    }
   }
 
   private static HttpUrl getUrl(final String host, final int port, final String endPoint) {
