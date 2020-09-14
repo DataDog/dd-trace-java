@@ -5,6 +5,7 @@ import datadog.smoketest.springboot.grpc.LocalInterface;
 import datadog.smoketest.springboot.grpc.SynchronousGreeter;
 import java.io.IOException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -37,6 +38,11 @@ public class WebController implements AutoCloseable {
   @RequestMapping("/async_greeting")
   public String asyncGreeting() {
     return asyncGreeter.greet();
+  }
+
+  @RequestMapping("/async_cf_greeting")
+  public String asyncCompleteableFutureGreeting() {
+    return CompletableFuture.supplyAsync(asyncGreeter::greet).join().toString()
   }
 
   @RequestMapping("/async_concurrent_greeting")

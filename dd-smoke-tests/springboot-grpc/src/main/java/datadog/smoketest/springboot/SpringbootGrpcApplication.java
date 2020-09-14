@@ -1,6 +1,7 @@
 package datadog.smoketest.springboot;
 
 import java.lang.management.ManagementFactory;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;

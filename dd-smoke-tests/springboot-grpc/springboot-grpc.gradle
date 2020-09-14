@@ -3,6 +3,10 @@ plugins {
   id 'com.google.protobuf' version '0.8.8'
 }
 
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot/gRPC combined Smoke Tests.'
 
