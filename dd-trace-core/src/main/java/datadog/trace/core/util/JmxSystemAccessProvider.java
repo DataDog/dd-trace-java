@@ -4,7 +4,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadMXBean;
 
-/** System provider based on JMX MXbeans */
+/** System provider based on JMX MXBeans */
 public class JmxSystemAccessProvider implements SystemAccessProvider {
   private final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
   private final RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
