@@ -37,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Call;
@@ -91,12 +92,30 @@ public final class ProfileUploader {
       Headers.of(
           "Content-Disposition", "form-data; name=\"" + DATA_PARAM + "\"; filename=\"profile\"");
 
+  private static final long NANOSECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toNanos(5);
   private static final Callback RESPONSE_CALLBACK =
       new Callback() {
+        final AtomicLong previousErrorLogNanos = new AtomicLong();
+
         @Override
         public void onFailure(final Call call, final IOException e) {
           HttpUrl url = call.request().url();
-          log.warn("Failed to upload profile to {}", url, e);
+          if (log.isDebugEnabled()) {
+            log.debug("Failed to upload profile to {}", url, e);
+            return;
+          }
+          if (log.isWarnEnabled()) {
+            long previous = previousErrorLogNanos.get();
+            long now = System.nanoTime();
+            if (now - previous >= NANOSECONDS_BETWEEN_ERROR_LOG) {
+              if (previousErrorLogNanos.compareAndSet(previous, now)) {
+                log.warn(
+                    "Failed to upload profile to {} {} (Will not log errors for 5 minutes)",
+                    url,
+                    e.toString());
+              }
+            }
+          }
         }
 
         @Override
