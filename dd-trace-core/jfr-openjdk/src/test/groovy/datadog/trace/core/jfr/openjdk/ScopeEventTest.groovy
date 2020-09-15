@@ -11,7 +11,7 @@ import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
-import datadog.trace.core.util.ThreadCpuTimeAccess
+import datadog.trace.core.util.SystemAccess
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Requires
 
@@ -54,7 +54,7 @@ class ScopeEventTest extends DDSpecification {
     ConfigUtils.updateConfig {
       System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
     }
-    ThreadCpuTimeAccess.enableJmx()
+    SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
     when:
@@ -75,7 +75,7 @@ class ScopeEventTest extends DDSpecification {
     event.getLong("cpuTime") != Long.MIN_VALUE
 
     cleanup:
-    ThreadCpuTimeAccess.disableJmx()
+    SystemAccess.disableJmx()
   }
 
   def "Scope event is written without thread CPU time - profiling enabled"() {
@@ -83,7 +83,7 @@ class ScopeEventTest extends DDSpecification {
     ConfigUtils.updateConfig {
       System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
     }
-    ThreadCpuTimeAccess.disableJmx()
+    SystemAccess.disableJmx()
     def recording = JfrHelper.startRecording()
 
     when:
@@ -104,7 +104,7 @@ class ScopeEventTest extends DDSpecification {
     event.getLong("cpuTime") == Long.MIN_VALUE
 
     cleanup:
-    ThreadCpuTimeAccess.disableJmx()
+    SystemAccess.disableJmx()
   }
 
   def "Scope event is written without thread CPU time - profiling disabled"() {
@@ -112,7 +112,7 @@ class ScopeEventTest extends DDSpecification {
     ConfigUtils.updateConfig {
       System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "false")
     }
-    ThreadCpuTimeAccess.enableJmx()
+    SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
     when:
@@ -133,7 +133,7 @@ class ScopeEventTest extends DDSpecification {
     event.getLong("cpuTime") == Long.MIN_VALUE
 
     cleanup:
-    ThreadCpuTimeAccess.disableJmx()
+    SystemAccess.disableJmx()
   }
 
   def "Scope event is written after continuation activation"() {
