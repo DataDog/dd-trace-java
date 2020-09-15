@@ -1,6 +1,6 @@
 package datadog.trace.core.util;
 
-public class NoneSystemAccessProvider implements SystemAccessProvider {
+final class NoneSystemAccessProvider implements SystemAccessProvider {
   @Override
   public long getThreadCpuTime() {
     return Long.MIN_VALUE;

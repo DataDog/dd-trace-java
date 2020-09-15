@@ -4,7 +4,7 @@ import datadog.trace.api.Config;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class SystemAccess {
+public final class SystemAccess {
   private static volatile SystemAccessProvider systemAccessProvider = SystemAccessProvider.NONE;
 
   /**
