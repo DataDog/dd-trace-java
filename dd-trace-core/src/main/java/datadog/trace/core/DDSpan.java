@@ -71,8 +71,9 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
       startTimeNano = context.getTrace().getCurrentTimeNano();
     } else {
       startTimeMicro = timestampMicro;
-      // Timestamp have come from an external clock, so use startTimeNano as a flag
+      // Timestamp has come from an external clock, so use startTimeNano as a flag
       startTimeNano = 0;
+      context.getTrace().touch(); // Update lastReferenced
     }
   }
 
@@ -102,6 +103,7 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
 
   @Override
   public final void finish(final long stoptimeMicros) {
+    context.getTrace().touch(); // Update timestamp
     finishAndAddToTrace(TimeUnit.MICROSECONDS.toNanos(stoptimeMicros - startTimeMicro));
   }
 
@@ -284,6 +286,7 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
    *
    * @return metrics for this span
    */
+  @Override
   public Map<String, Number> getMetrics() {
     return context.getMetrics();
   }
@@ -308,10 +311,12 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
     return context.getTraceId();
   }
 
+  @Override
   public DDId getSpanId() {
     return context.getSpanId();
   }
 
+  @Override
   public DDId getParentId() {
     return context.getParentId();
   }
@@ -362,6 +367,7 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
     return context.getTags();
   }
 
+  @Override
   public String getType() {
     return context.getSpanType();
   }
@@ -376,6 +382,7 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
     return context.getErrorFlag();
   }
 
+  @Override
   public int getError() {
     return context.getErrorFlag() ? 1 : 0;
   }

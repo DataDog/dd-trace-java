@@ -34,6 +34,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   }
 
   private static final AtomicReference<SpanCleaner> SPAN_CLEANER = new AtomicReference<>();
+  private static final PendingTraceBuffer PENDING_TRACE_BUFFER = new PendingTraceBuffer();
 
   private final CoreTracer tracer;
   private final DDId traceId;
@@ -80,6 +81,12 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   /** Ensure a trace is never written multiple times */
   private final AtomicBoolean isWritten = new AtomicBoolean(false);
 
+  /**
+   * Updated with the latest nanoTicks each time getCurrentTimeNano is called (at the start and
+   * finish of each span).
+   */
+  private volatile long lastReferenced = 0;
+
   private PendingTrace(final CoreTracer tracer, final DDId traceId) {
     this.tracer = tracer;
     this.traceId = traceId;
@@ -99,7 +106,17 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
    * @return timestamp in nanoseconds
    */
   public long getCurrentTimeNano() {
-    return startTimeNano + Math.max(0, Clock.currentNanoTicks() - startNanoTicks);
+    long nanoTicks = Clock.currentNanoTicks();
+    lastReferenced = nanoTicks;
+    return startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
+  }
+
+  public void touch() {
+    lastReferenced = Clock.currentNanoTicks();
+  }
+
+  public long getLastReferenced() {
+    return lastReferenced;
   }
 
   public void registerSpan(final DDSpan span) {
@@ -213,8 +230,9 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   private void expireReference() {
     final int count = pendingReferenceCount.decrementAndGet();
     if (count == 0) {
+      // FIXME: Does this still make sense to measure?
       try (Recording recording = tracer.writeTimer()) {
-        write();
+        PENDING_TRACE_BUFFER.enqueue(this);
       }
     } else {
       if (tracer.getPartialFlushMinSpans() > 0 && size() > tracer.getPartialFlushMinSpans()) {
@@ -254,7 +272,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     }
   }
 
-  private synchronized void write() {
+  synchronized void write() {
     if (isWritten.compareAndSet(false, true)) {
       removePendingTrace();
       if (!isEmpty()) {
@@ -334,6 +352,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   }
 
   static void initialize() {
+    PENDING_TRACE_BUFFER.start();
     final SpanCleaner oldCleaner = SPAN_CLEANER.getAndSet(new SpanCleaner());
     if (oldCleaner != null) {
       oldCleaner.close();
@@ -341,6 +360,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   }
 
   static void close() {
+    PENDING_TRACE_BUFFER.close();
     final SpanCleaner cleaner = SPAN_CLEANER.getAndSet(null);
     if (cleaner != null) {
       cleaner.close();
