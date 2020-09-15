@@ -8,11 +8,11 @@ public class SystemAccess {
   private static volatile SystemAccessProvider systemAccessProvider = SystemAccessProvider.NONE;
 
   /**
-   * Disable JMX based thread CPU time. Will flip back to the {@linkplain SystemAccessProvider#NONE}
+   * Disable JMX based system access. Will flip back to the {@linkplain SystemAccessProvider#NONE}
    * implementation.
    */
   public static void disableJmx() {
-    log.debug("Disabling JMX thread CPU time provider");
+    log.debug("Disabling JMX system access provider");
     systemAccessProvider = SystemAccessProvider.NONE;
   }
 
