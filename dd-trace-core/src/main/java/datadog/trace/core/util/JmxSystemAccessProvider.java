@@ -5,11 +5,11 @@ import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadMXBean;
 
 /** System provider based on JMX MXbeans */
-public class JmxSystemProvider implements SystemProvider {
+public class JmxSystemAccessProvider implements SystemAccessProvider {
   private final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
   private final RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
 
-  public static final JmxSystemProvider INSTANCE = new JmxSystemProvider();
+  public static final JmxSystemAccessProvider INSTANCE = new JmxSystemAccessProvider();
 
   /**
    * @return the actual thread CPU time as reported by {@linkplain

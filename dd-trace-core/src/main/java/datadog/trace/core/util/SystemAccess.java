@@ -5,15 +5,15 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class SystemAccess {
-  private static volatile SystemProvider systemProvider = SystemProvider.NONE;
+  private static volatile SystemAccessProvider systemAccessProvider = SystemAccessProvider.NONE;
 
   /**
-   * Disable JMX based thread CPU time. Will flip back to the {@linkplain SystemProvider#NONE}
+   * Disable JMX based thread CPU time. Will flip back to the {@linkplain SystemAccessProvider#NONE}
    * implementation.
    */
   public static void disableJmx() {
     log.debug("Disabling JMX thread CPU time provider");
-    systemProvider = SystemProvider.NONE;
+    systemAccessProvider = SystemAccessProvider.NONE;
   }
 
   /** Enable JMX accesses */
@@ -33,9 +33,9 @@ public class SystemAccess {
        * system provider will be loaded at exact moment when the reflection code is executed. Then it is up
        * to the caller to ensure that it is safe to use JMX.
        */
-      systemProvider =
-          (SystemProvider)
-              Class.forName("datadog.trace.core.util.JmxSystemProvider")
+      systemAccessProvider =
+          (SystemAccessProvider)
+              Class.forName("datadog.trace.core.util.JmxSystemAccessProvider")
                   .getField("INSTANCE")
                   .get(null);
     } catch (final ClassNotFoundException | NoSuchFieldException | IllegalAccessException e) {
@@ -50,7 +50,7 @@ public class SystemAccess {
    *     is not available
    */
   public static long getCurrentThreadCpuTime() {
-    return systemProvider.getThreadCpuTime();
+    return systemAccessProvider.getThreadCpuTime();
   }
 
   /**
@@ -59,6 +59,6 @@ public class SystemAccess {
    * @return the actual current process id or 0 if the JMX provider is not available
    */
   public static int getCurrentPid() {
-    return systemProvider.getCurrentPid();
+    return systemAccessProvider.getCurrentPid();
   }
 }
