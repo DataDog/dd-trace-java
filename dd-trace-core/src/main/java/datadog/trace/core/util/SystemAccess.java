@@ -61,4 +61,9 @@ public final class SystemAccess {
   public static int getCurrentPid() {
     return systemAccessProvider.getCurrentPid();
   }
+
+  /** */
+  public static String executeDiagnosticCommand(String command, Object[] args, String[] sig) {
+    return systemAccessProvider.executeDiagnosticCommand(command, args, sig);
+  }
 }

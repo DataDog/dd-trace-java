@@ -16,12 +16,14 @@
 package com.datadog.profiling.controller;
 
 import com.datadog.profiling.util.ProfilingThreadFactory;
+import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import javax.management.ObjectName;
 import lombok.extern.slf4j.Slf4j;
 
 /** Sets up the profiling strategy and schedules the profiling recordings. */
@@ -126,9 +128,53 @@ public final class ProfilingSystem {
     }
   }
 
+  private static void setupStackDepth(int stackdepth) {
+    log.debug("setting stackdepth...");
+    // JMX issue:
+    try {
+      ManagementFactory.getPlatformMBeanServer()
+          .invoke(
+              new ObjectName("com.sun.management:type=DiagnosticCommand"),
+              "jfrConfigure",
+              new Object[] {new String[] {"stackdepth=128"}},
+              new String[] {String[].class.getName()});
+    } catch (Exception ex) {
+      ex.printStackTrace();
+    }
+    /*
+     String name = ManagementFactory.getRuntimeMXBean().getName();
+
+     String pid = name.substring(0, name.indexOf('@'));
+     ProcessBuilder processBuilder =
+         new ProcessBuilder(
+             System.getProperty("java.home")
+                 + File.separatorChar
+                 + "bin"
+                 + File.separatorChar
+                 + (System.getProperty("os.name", "").toLowerCase(Locale.US).contains("windows")
+                     ? "jcmd.exe"
+                     : "jcmd"),
+             pid,
+             "JFR.configure",
+             "stackdepth=" + stackdepth);
+     try {
+       Process process = processBuilder.start();
+       int exitCode = process.waitFor();
+       if (exitCode == 0) {
+         log.info("stackdepth set to {}", stackdepth);
+         return;
+       }
+       log.debug("jcmd exit code: {}", exitCode);
+     } catch (Exception ex) {
+       ex.printStackTrace();
+     }
+    */
+  }
+
   private void startProfilingRecording() {
     try {
       final Instant now = Instant.now();
+      setupStackDepth(128);
       recording = controller.createRecording(RECORDING_NAME);
       executorService.scheduleAtFixedRate(
           new SnapshotRecording(now),

@@ -15,4 +15,7 @@ public interface SystemAccessProvider {
 
   /** get the current pid */
   int getCurrentPid();
+
+  /** execute a diagnostic command */
+  String executeDiagnosticCommand(String command, Object[] args, String[] sig);
 }

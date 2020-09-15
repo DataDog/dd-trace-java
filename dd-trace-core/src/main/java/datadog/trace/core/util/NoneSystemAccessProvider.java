@@ -10,4 +10,9 @@ final class NoneSystemAccessProvider implements SystemAccessProvider {
   public int getCurrentPid() {
     return 0;
   }
+
+  @Override
+  public String executeDiagnosticCommand(String command, Object[] args, String[] sig) {
+    return null;
+  }
 }

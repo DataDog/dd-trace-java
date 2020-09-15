@@ -18,6 +18,7 @@ package com.datadog.profiling.controller.openjdk;
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import datadog.trace.api.Config;
+import datadog.trace.core.util.SystemAccess;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
@@ -47,7 +48,8 @@ public final class OpenJdkController implements Controller {
     // factory and can use it.
     Class.forName("jdk.jfr.Recording");
     Class.forName("jdk.jfr.FlightRecorder");
-
+    SystemAccess.executeDiagnosticCommand(
+        "jfrConfigure", new Object[] {"stackdepth=128"}, new String[] {String[].class.getName()});
     try {
       recordingSettings =
           JfpUtils.readNamedJfpResource(JFP, config.getProfilingTemplateOverrideFile());
