@@ -1,6 +1,7 @@
-import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
+import datadog.trace.agent.test.AgentTestRunner.{TEST_WRITER, blockUntilChildSpansFinished}
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activeScope, activeSpan}
+import datadog.trace.core.DDSpan
 import slick.jdbc.H2Profile.api._
 
 import scala.concurrent.duration.Duration
@@ -19,12 +20,20 @@ class SlickUtils {
     // wrapped runnables.
     executor = AsyncExecutor("test", numThreads = 1, queueSize = 1000)
   )
-  Await.result(
-    database.run(
-      sqlu"""CREATE ALIAS IF NOT EXISTS SLEEP FOR "java.lang.Thread.sleep(long)""""
-    ),
-    Duration.Inf
-  )
+  TEST_WRITER.waitUntilReported(setup())
+  TEST_WRITER.clear()
+
+  @Trace
+  def setup(): DDSpan = {
+    activeScope().setAsyncPropagation(true)
+    Await.result(
+      database.run(
+        sqlu"""CREATE ALIAS IF NOT EXISTS SLEEP FOR "java.lang.Thread.sleep(long)""""
+      ),
+      Duration.Inf
+    )
+    activeSpan().asInstanceOf[DDSpan]
+  }
 
   @Trace
   def startQuery(query: String): Future[Vector[Int]] = {

@@ -16,6 +16,9 @@ public class CliApplication {
     app.exampleTrace();
 
     System.out.println("Finished calling example trace");
+
+    // Sleep to allow the trace to be reported
+    Thread.sleep(1000);
   }
 
   @Trace(operationName = "example")

@@ -6,6 +6,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.sampling.AllSampler
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.ExclusiveSpan
@@ -28,7 +29,9 @@ class TagInterceptorTest extends DDSpecification {
       System.clearProperty("dd.$SPLIT_BY_TAGS")
     }
   }
-  def tracer = CoreTracer.builder().writer(new LoggingWriter()).build()
+
+  def writer = new ListWriter()
+  def tracer = CoreTracer.builder().writer(writer).build()
   def span = SpanFactory.newSpanOf(tracer)
 
   def "adding span personalisation using Decorators"() {
@@ -223,6 +226,7 @@ class TagInterceptorTest extends DDSpecification {
     when:
     span.setTag(DDTags.RESOURCE_NAME, name)
     span.finish()
+    writer.waitForTraces(1)
 
     then:
     span.getResourceName() == name
@@ -235,6 +239,7 @@ class TagInterceptorTest extends DDSpecification {
     when:
     span.setTag(DDTags.SPAN_TYPE, type)
     span.finish()
+    writer.waitForTraces(1)
 
     then:
     span.getSpanType() == type
@@ -250,6 +255,7 @@ class TagInterceptorTest extends DDSpecification {
     when:
     span.setTag(ANALYTICS_SAMPLE_RATE, rate)
     span.finish()
+    writer.waitForTraces(1)
 
     then:
     span.metrics.get(ANALYTICS_SAMPLE_RATE) == result
@@ -302,6 +308,7 @@ class TagInterceptorTest extends DDSpecification {
     span.setTag(Tags.COMPONENT, component)
     span.setTag(Tags.DB_STATEMENT, statement)
     span.finish()
+    writer.waitForTraces(1)
 
     then:
     span.getResourceName() == resource
@@ -316,6 +323,7 @@ class TagInterceptorTest extends DDSpecification {
     when:
     span.setTag(Tags.ERROR, error)
     span.finish()
+    writer.waitForTraces(1)
 
     then:
     span.isError() == error
@@ -330,6 +338,7 @@ class TagInterceptorTest extends DDSpecification {
     setup:
     def span = tracer.buildSpan("interceptor.test").withTag(name, value).start()
     span.finish()
+    writer.waitForTraces(1)
 
     expect:
     span.context()."$attribute" == value
@@ -345,6 +354,7 @@ class TagInterceptorTest extends DDSpecification {
     when:
     def span = tracer.buildSpan("decorator.test").withTag("sn.tag1", "some val").start()
     span.finish()
+    writer.waitForTraces(1)
 
     then:
     span.serviceName == "some val"
@@ -358,6 +368,7 @@ class TagInterceptorTest extends DDSpecification {
     when:
     span = tracer.buildSpan("decorator.test").withTag("error", "true").start()
     span.finish()
+    writer.waitForTraces(2)
 
     then:
     span.error
@@ -365,6 +376,7 @@ class TagInterceptorTest extends DDSpecification {
     when:
     span = tracer.buildSpan("decorator.test").withTag(Tags.DB_STATEMENT, "some-statement").start()
     span.finish()
+    writer.waitForTraces(3)
 
     then:
     span.resourceName.toString() == "some-statement"

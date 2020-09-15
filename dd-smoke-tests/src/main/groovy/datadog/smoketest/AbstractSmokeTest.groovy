@@ -65,6 +65,8 @@ abstract class AbstractSmokeTest extends Specification {
     if (buildDirectory == null || shadowJarPath == null) {
       throw new AssertionError("Expected system properties not found. Smoke tests have to be run from Gradle. Please make sure that is the case.")
     }
+    assert new File(buildDirectory).isDirectory()
+    assert new File(shadowJarPath).isFile()
 
     startServer()
     System.out.println("Mock agent started at " + server.address)

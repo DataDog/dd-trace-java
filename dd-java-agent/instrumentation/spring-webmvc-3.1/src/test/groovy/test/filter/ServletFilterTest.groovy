@@ -112,6 +112,38 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
         }
         it.remove(responseSpan)
       }
+      def errorForwardSpan = it.find {
+        it.operationName.toString() == "servlet.forward"
+      }
+      if (errorForwardSpan) {
+        SpanAssert.assertSpan(errorForwardSpan) {
+          operationName "servlet.forward"
+          resourceName "GET /error"
+          errored false
+          tags {
+            "$Tags.COMPONENT" "java-web-servlet-dispatcher"
+            defaultTags()
+          }
+        }
+        it.remove(errorForwardSpan)
+      }
+      def errorHandlerSpan = it.find {
+        it.operationName.toString() == "spring.handler" && it.resourceName.toString() == "BasicErrorController.error"
+      }
+      if (errorHandlerSpan) {
+        SpanAssert.assertSpan(errorHandlerSpan) {
+          operationName "spring.handler"
+          resourceName "BasicErrorController.error"
+          errored false
+          spanType DDSpanTypes.HTTP_SERVER
+          tags {
+            "$Tags.COMPONENT" "spring-web-controller"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            defaultTags()
+          }
+        }
+        it.remove(errorHandlerSpan)
+      }
     }
 
     super.cleanAndAssertTraces(size, spec)

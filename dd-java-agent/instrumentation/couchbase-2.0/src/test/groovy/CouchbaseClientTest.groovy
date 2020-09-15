@@ -9,6 +9,8 @@ import spock.lang.Retry
 import spock.lang.Unroll
 import util.AbstractCouchbaseTest
 
+import java.util.concurrent.TimeoutException
+
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -16,6 +18,13 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 @Unroll
 class CouchbaseClientTest extends AbstractCouchbaseTest {
   def "test hasBucket #type"() {
+    setup:
+    try {
+      TEST_WRITER.waitForTraces(1) // from the clusterManager call in "where" below
+    } catch (TimeoutException ex) {
+    }
+    TEST_WRITER.clear()
+
     when:
     def hasBucket = manager.hasBucket(bucketSettings.name())
 

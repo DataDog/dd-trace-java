@@ -123,6 +123,11 @@ class OpenTracing32Test extends AgentTestRunner {
     then:
     (scope.span().delegate as DDSpan).isFinished() == finishSpan
 
+    cleanup:
+    if (finishSpan) {
+      TEST_WRITER.waitForTraces(1)
+    }
+
     where:
     finishSpan << [true, false]
   }
@@ -159,6 +164,11 @@ class OpenTracing32Test extends AgentTestRunner {
 
     then:
     (span.delegate as DDSpan).isFinished() == finishSpan
+
+    cleanup:
+    if (finishSpan) {
+      TEST_WRITER.waitForTraces(1)
+    }
 
     where:
     finishSpan | _

@@ -6,9 +6,13 @@ import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.util.test.DDSpecification
+import spock.lang.Timeout
 
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
+@Timeout(10)
 class TraceInterceptorTest extends DDSpecification {
 
   def writer = new ListWriter()
@@ -70,11 +74,13 @@ class TraceInterceptorTest extends DDSpecification {
   def "interceptor can discard a trace (p=#score)"() {
     setup:
     def called = new AtomicBoolean(false)
+    def latch = new CountDownLatch(1)
     def priority = score
     tracer.interceptors.add(new TraceInterceptor() {
       @Override
       Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
         called.set(true)
+        latch.countDown()
         return Collections.emptyList()
       }
 
@@ -83,7 +89,12 @@ class TraceInterceptorTest extends DDSpecification {
         return priority
       }
     })
-    tracer.buildSpan("test").start().finish()
+    tracer.buildSpan("test " + score).start().finish()
+    if (score == 0) {
+      writer.waitForTraces(1)
+    } else {
+      latch.await(5, TimeUnit.SECONDS)
+    }
 
     expect:
     tracer.interceptors.size() == Math.abs(score) + 1
@@ -93,7 +104,7 @@ class TraceInterceptorTest extends DDSpecification {
     where:
     score | _
     -1    | _
-    0     | _
+    0     | _ // This conflicts with TestInterceptor, so it won't be added.
     1     | _
   }
 
@@ -122,6 +133,7 @@ class TraceInterceptorTest extends DDSpecification {
       }
     })
     tracer.buildSpan("test").start().finish()
+    writer.waitForTraces(1)
 
     expect:
     def trace = writer.firstTrace()

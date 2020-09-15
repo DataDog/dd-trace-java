@@ -1,6 +1,7 @@
 package datadog.trace.common.sampling
 
 import datadog.trace.api.DDTags
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.core.CoreTracer
@@ -72,7 +73,8 @@ class RateByServiceSamplerTest extends DDSpecification {
 
   def "sampling priority set when service later"() {
     def sampler = new RateByServiceSampler()
-    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def writer = new ListWriter()
+    def tracer = CoreTracer.builder().writer(writer).sampler(sampler).build()
 
     sampler.onResponse("test", serializer
       .fromJson('{"rate_by_service":{"service:,env:":1.0,"service:spock,env:":0.0}}'))
@@ -88,11 +90,13 @@ class RateByServiceSamplerTest extends DDSpecification {
 
     then:
     span.finish()
+    writer.waitForTraces(1)
     span.getSamplingPriority() == PrioritySampling.SAMPLER_DROP
 
     when:
     span = tracer.buildSpan("test").withTag(DDTags.SERVICE_NAME, "spock").start()
     span.finish()
+    writer.waitForTraces(2)
 
     then:
     span.getSamplingPriority() == PrioritySampling.SAMPLER_DROP

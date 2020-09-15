@@ -37,6 +37,7 @@ class PendingTraceTest extends DDSpecification {
   def "single span gets added to trace and written when finished"() {
     setup:
     rootSpan.finish()
+    writer.waitForTraces(1)
 
     expect:
     trace.asList() == [rootSpan]
@@ -63,6 +64,7 @@ class PendingTraceTest extends DDSpecification {
 
     when:
     rootSpan.finish()
+    writer.waitForTraces(1)
 
     then:
     trace.pendingReferenceCount.get() == 0
@@ -91,6 +93,7 @@ class PendingTraceTest extends DDSpecification {
 
     when:
     child.finish()
+    writer.waitForTraces(1)
 
     then:
     trace.pendingReferenceCount.get() == 0
@@ -150,6 +153,7 @@ class PendingTraceTest extends DDSpecification {
     while (trace.pendingReferenceCount.get() > 0) {
       trace.clean()
     }
+    writer.waitForTraces(1)
 
     then:
     trace.pendingReferenceCount.get() == 0
@@ -198,6 +202,7 @@ class PendingTraceTest extends DDSpecification {
   def "child spans created after trace written"() {
     setup:
     rootSpan.finish()
+    writer.waitForTraces(1)
     // this shouldn't happen, but it's possible users of the api
     // may incorrectly add spans after the trace is reported.
     // in those cases we should still decrement the pending trace count
@@ -208,6 +213,22 @@ class PendingTraceTest extends DDSpecification {
     trace.pendingReferenceCount.get() == 0
     trace.asList() == [rootSpan]
     writer == [[rootSpan]]
+  }
+
+  def "child spans created quickly after trace written"() {
+    setup:
+    rootSpan.finish()
+    // this shouldn't happen, but it's possible users of the api
+    // may incorrectly add spans after the trace is reported.
+    // in those cases we should still decrement the pending trace count
+    DDSpan childSpan = tracer.buildSpan("child").asChildOf(rootSpan).start()
+    childSpan.finish()
+    writer.waitForTraces(1)
+
+    expect:
+    trace.pendingReferenceCount.get() == 0
+    trace.asList() == [childSpan, rootSpan]
+    writer == [[childSpan, rootSpan]]
   }
 
   def "test getCurrentTimeNano"() {
@@ -243,6 +264,7 @@ class PendingTraceTest extends DDSpecification {
 
     when:
     child1.finish()
+    writer.waitForTraces(1)
 
     then:
     trace.pendingReferenceCount.get() == 1
@@ -253,6 +275,7 @@ class PendingTraceTest extends DDSpecification {
 
     when:
     child2.finish()
+    writer.waitForTraces(2)
 
     then:
     trace.pendingReferenceCount.get() == 0
@@ -289,6 +312,7 @@ class PendingTraceTest extends DDSpecification {
 
     when:
     child2.finish()
+    writer.waitForTraces(1)
 
     then:
     trace.pendingReferenceCount.get() == 1
@@ -299,6 +323,7 @@ class PendingTraceTest extends DDSpecification {
 
     when:
     rootSpan.finish()
+    writer.waitForTraces(2)
 
     then:
     trace.pendingReferenceCount.get() == 0

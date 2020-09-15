@@ -19,6 +19,8 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test hasBucket #type"() {
     setup:
+    TEST_WRITER.waitForTraces(1) // from the clusterManager call in "where" below
+    TEST_WRITER.clear()
     def hasBucket = new BlockingVariable<Boolean>(TIMEOUT)
 
     when:

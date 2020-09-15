@@ -5,9 +5,9 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 
 class SpanFactory {
+  static writer = new ListWriter()
 
   static DDSpan newSpanOf(long timestampMicro, String threadName = Thread.currentThread().name) {
-    def writer = new ListWriter()
     def tracer = CoreTracer.builder().writer(writer).build()
     def currentThreadName = Thread.currentThread().getName()
     Thread.currentThread().setName(threadName)
@@ -88,7 +88,6 @@ class SpanFactory {
   }
 
   static DDSpan newSpanOf(String serviceName, String envName) {
-    def writer = new ListWriter()
     def tracer = CoreTracer.builder().writer(writer).build()
     def context = new DDSpanContext(
       DDId.from(1),

@@ -1,6 +1,7 @@
 package test.dynamic
 
 import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -38,7 +39,7 @@ class DynamicRoutingTest extends ServletFilterTest {
   }
 
   @Override
-  void handlerSpan(TraceAssert trace, Object parent, ServerEndpoint endpoint = SUCCESS) {
+  void handlerSpan(TraceAssert trace, Object parent, HttpServerTest.ServerEndpoint endpoint = SUCCESS) {
     trace.span {
       serviceName expectedServiceName()
       operationName "spring.handler"
@@ -58,7 +59,7 @@ class DynamicRoutingTest extends ServletFilterTest {
   }
 
   @Override
-  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", HttpServerTest.ServerEndpoint endpoint = SUCCESS) {
     trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
@@ -94,7 +95,7 @@ class DynamicRoutingTest extends ServletFilterTest {
     }
   }
 
-  def formatEndpoint(ServerEndpoint endpoint) {
+  def formatEndpoint(HttpServerTest.ServerEndpoint endpoint) {
     String x = endpoint.name().toLowerCase()
     int firstUnderscore = x.indexOf('_')
     return firstUnderscore == -1 ? x : x.substring(0, firstUnderscore)

@@ -15,6 +15,7 @@ class DDSpanContextTest extends DDSpecification {
     context.setTag(name, null)
     context.setErrorFlag(true)
     span.finish()
+    SpanFactory.writer.waitForTraces(1)
 
     expect:
     context.getTags() == tags
@@ -37,6 +38,7 @@ class DDSpanContextTest extends DDSpecification {
     def context = span.context
     context.setTag(name, value)
     span.finish()
+    SpanFactory.writer.waitForTraces(1)
     def thread = Thread.currentThread()
 
     def expectedTags = [(DDTags.THREAD_NAME): thread.name, (DDTags.THREAD_ID): thread.id]
@@ -60,6 +62,7 @@ class DDSpanContextTest extends DDSpecification {
     def context = span.context
     context.setTag(name, value)
     span.finish()
+    SpanFactory.writer.waitForTraces(1)
     def thread = Thread.currentThread()
 
     expect:

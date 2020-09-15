@@ -12,6 +12,7 @@ import datadog.trace.context.ScopeListener
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.util.test.DDSpecification
+import spock.lang.Ignore
 import spock.lang.Timeout
 
 import java.lang.ref.WeakReference
@@ -97,6 +98,7 @@ class ScopeManagerTest extends DDSpecification {
 
     when:
     span.finish()
+    writer.waitForTraces(1)
 
     then:
     spanFinished(scope.span())
@@ -213,6 +215,7 @@ class ScopeManagerTest extends DDSpecification {
     if (autoClose) {
       if (continuation != null) {
         continuation.cancel()
+        writer.waitForTraces(1)
       }
     }
 
@@ -272,6 +275,7 @@ class ScopeManagerTest extends DDSpecification {
     newScope.close()
     newContinuation.activate().close()
     childSpan.finish()
+    writer.waitForTraces(1)
 
     then:
     scopeManager.active() == null
@@ -304,6 +308,7 @@ class ScopeManagerTest extends DDSpecification {
     childScope.close()
     childSpan.finish()
     scopeManager.active().close()
+    writer.waitForTraces(1)
 
     then:
     scopeManager.active() == null
@@ -577,11 +582,14 @@ class ScopeManagerTest extends DDSpecification {
     when:
     secondScope.close()
     secondSpan.finish()
+    writer.waitForTraces(1)
 
     then:
     writer == [[secondSpan, span]]
   }
 
+  @Ignore
+  // TraceInterceptors are called off-thread now
   def "exception thrown in TraceInterceptor does not leave scopemanager in bad state"() {
     when:
     tracer.addTraceInterceptor(new ExceptionThrowingInterceptor())

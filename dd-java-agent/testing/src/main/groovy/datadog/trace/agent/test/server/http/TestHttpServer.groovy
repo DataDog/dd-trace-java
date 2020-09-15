@@ -105,6 +105,7 @@ class TestHttpServer implements AutoCloseable {
         }
         tags {
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+          "path" String
           defaultTags(parentSpan != null)
         }
         metrics {
@@ -238,9 +239,11 @@ class TestHttpServer implements AutoCloseable {
         final AgentSpan.Context extractedContext = propagate().extract(req, GETTER)
         if (extractedContext != null) {
           startSpan("test-http-server", extractedContext)
+            .setTag("path", request.path)
             .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER).finish()
         } else {
           startSpan("test-http-server")
+            .setTag("path", request.path)
             .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER).finish()
         }
       }
