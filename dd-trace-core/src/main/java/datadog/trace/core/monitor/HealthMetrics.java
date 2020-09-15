@@ -71,13 +71,13 @@ public class HealthMetrics {
 
   public void onShutdown(final boolean flushSuccess) {}
 
-  public void onPublish(final List<DDSpan> trace, int samplingPriority) {
-    statsd.incrementCounter("queue.accepted", samplingPriorityTag(samplingPriority));
-    statsd.count("queue.accepted_lengths", trace.size(), NO_TAGS);
+  public void onPublish(final List<DDSpan> trace, final int samplingPriority) {
+    statsd.incrementCounter("queue.enqueued.traces", samplingPriorityTag(samplingPriority));
+    statsd.count("queue.enqueued.spans", trace.size(), NO_TAGS);
   }
 
-  public void onFailedPublish(int samplingPriority) {
-    statsd.incrementCounter("queue.dropped", samplingPriorityTag(samplingPriority));
+  public void onFailedPublish(final int samplingPriority) {
+    statsd.incrementCounter("queue.dropped.traces", samplingPriorityTag(samplingPriority));
   }
 
   public void onScheduleFlush(final boolean previousIncomplete) {
@@ -89,7 +89,7 @@ public class HealthMetrics {
   public void onSerialize(final int serializedSizeInBytes) {
     // DQH - Because of Java tracer's 2 phase acceptance and serialization scheme, this doesn't
     // map precisely
-    statsd.count("queue.accepted_size", serializedSizeInBytes, NO_TAGS);
+    statsd.count("queue.enqueued.bytes", serializedSizeInBytes, NO_TAGS);
   }
 
   public void onFailedSerialize(final List<DDSpan> trace, final Throwable optionalCause) {
@@ -109,19 +109,19 @@ public class HealthMetrics {
 
   private void onSendAttempt(
       final int representativeCount, final int sizeInBytes, final DDAgentApi.Response response) {
-    statsd.incrementCounter("api.requests", NO_TAGS);
-    statsd.recordGaugeValue("queue.length", representativeCount, NO_TAGS);
+    statsd.incrementCounter("api.requests.total", NO_TAGS);
+    statsd.count("flush.traces.total", representativeCount, NO_TAGS);
     // TODO: missing queue.spans (# of spans being sent)
-    statsd.recordGaugeValue("queue.size", sizeInBytes, NO_TAGS);
+    statsd.count("flush.bytes.total", sizeInBytes, NO_TAGS);
 
     if (response.exception() != null) {
       // covers communication errors -- both not receiving a response or
       // receiving malformed response (even when otherwise successful)
-      statsd.incrementCounter("api.errors", NO_TAGS);
+      statsd.incrementCounter("api.errors.total", NO_TAGS);
     }
 
     if (response.status() != null) {
-      statsd.incrementCounter("api.responses", statusTagsCache.get(response.status()));
+      statsd.incrementCounter("api.responses.total", statusTagsCache.get(response.status()));
     }
   }
 }

@@ -47,16 +47,16 @@ class HealthMetricsTest extends DDSpecification {
 
     then:
     // verify the tags syntax
-    1 * statsD.incrementCounter('queue.accepted',  "priority:" + priorityName )
-    1 * statsD.count('queue.accepted_lengths', trace.size())
+    1 * statsD.incrementCounter('queue.enqueued.traces', "priority:" + priorityName)
+    1 * statsD.count('queue.enqueued.spans', trace.size())
     0 * _
 
     where:
-    trace          |  samplingPriority                |    priorityName
-    []             |   PrioritySampling.USER_DROP     |      "user_drop"
-    [null, null]   |   PrioritySampling.USER_DROP     |      "user_drop"
-    []             |   PrioritySampling.SAMPLER_KEEP  |   "sampler_keep"
-    [null, null]   |   PrioritySampling.SAMPLER_KEEP  |   "sampler_keep"
+    trace        | samplingPriority              | priorityName
+    []           | PrioritySampling.USER_DROP    | "user_drop"
+    [null, null] | PrioritySampling.USER_DROP    | "user_drop"
+    []           | PrioritySampling.SAMPLER_KEEP | "sampler_keep"
+    [null, null] | PrioritySampling.SAMPLER_KEEP | "sampler_keep"
   }
 
   def "test onFailedPublish"() {
@@ -64,7 +64,7 @@ class HealthMetricsTest extends DDSpecification {
     healthMetrics.onFailedPublish(samplingPriority)
 
     then:
-    1 * statsD.incrementCounter('queue.dropped', { it.startsWith("priority:") })
+    1 * statsD.incrementCounter('queue.dropped.traces', { it.startsWith("priority:") })
     0 * _
 
     where:
@@ -92,7 +92,7 @@ class HealthMetricsTest extends DDSpecification {
     healthMetrics.onSerialize(bytes)
 
     then:
-    1 * statsD.count('queue.accepted_size', bytes)
+    1 * statsD.count('queue.enqueued.bytes', bytes)
     0 * _
 
     where:
@@ -112,14 +112,14 @@ class HealthMetricsTest extends DDSpecification {
     healthMetrics.onSend(representativeCount, sendSize, response)
 
     then:
-    1 * statsD.incrementCounter('api.requests')
-    1 * statsD.recordGaugeValue('queue.length', representativeCount)
-    1 * statsD.recordGaugeValue('queue.size', sendSize)
+    1 * statsD.incrementCounter('api.requests.total')
+    1 * statsD.count('flush.traces.total', representativeCount)
+    1 * statsD.count('flush.bytes.total', sendSize)
     if (response.exception()) {
-      1 * statsD.incrementCounter('api.errors')
+      1 * statsD.incrementCounter('api.errors.total')
     }
     if (response.status()) {
-      1 * statsD.incrementCounter('api.responses', ["status:${response.status()}"])
+      1 * statsD.incrementCounter('api.responses.total', ["status:${response.status()}"])
     }
     0 * _
 
@@ -140,14 +140,14 @@ class HealthMetricsTest extends DDSpecification {
     healthMetrics.onFailedSend(representativeCount, sendSize, response)
 
     then:
-    1 * statsD.incrementCounter('api.requests')
-    1 * statsD.recordGaugeValue('queue.length', representativeCount)
-    1 * statsD.recordGaugeValue('queue.size', sendSize)
+    1 * statsD.incrementCounter('api.requests.total')
+    1 * statsD.count('flush.traces.total', representativeCount)
+    1 * statsD.count('flush.bytes.total', sendSize)
     if (response.exception()) {
-      1 * statsD.incrementCounter('api.errors')
+      1 * statsD.incrementCounter('api.errors.total')
     }
     if (response.status()) {
-      1 * statsD.incrementCounter('api.responses', ["status:${response.status()}"])
+      1 * statsD.incrementCounter('api.responses.total', ["status:${response.status()}"])
     }
     0 * _
 
