@@ -3,7 +3,6 @@ package datadog.smoketest.springboot.controller;
 import datadog.smoketest.springboot.AsyncTask;
 import datadog.smoketest.springboot.grpc.AsynchronousGreeter;
 import datadog.smoketest.springboot.grpc.SynchronousGreeter;
-
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -24,12 +23,12 @@ public class WebController {
   private final SynchronousGreeter greeter;
   private final AsyncTask asyncTask;
 
-  public WebController(AsynchronousGreeter asyncGreeter, SynchronousGreeter greeter, AsyncTask asyncTask) {
+  public WebController(
+      AsynchronousGreeter asyncGreeter, SynchronousGreeter greeter, AsyncTask asyncTask) {
     this.asyncGreeter = asyncGreeter;
     this.greeter = greeter;
     this.asyncTask = asyncTask;
   }
-
 
   @RequestMapping("/greeting")
   public String greeting() {
@@ -79,5 +78,4 @@ public class WebController {
   public String asyncAnnotationGreeting() {
     return asyncTask.greet().join();
   }
-
 }

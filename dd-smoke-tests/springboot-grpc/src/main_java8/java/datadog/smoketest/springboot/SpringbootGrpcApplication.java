@@ -1,11 +1,10 @@
 package datadog.smoketest.springboot;
 
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-
 import datadog.smoketest.springboot.grpc.AsynchronousGreeter;
 import datadog.smoketest.springboot.grpc.LocalInterface;
 import datadog.smoketest.springboot.grpc.SynchronousGreeter;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;

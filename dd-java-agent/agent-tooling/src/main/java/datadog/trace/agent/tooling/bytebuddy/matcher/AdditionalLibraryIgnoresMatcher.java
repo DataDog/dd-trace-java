@@ -43,7 +43,7 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
 
     if (name.startsWith("org.springframework.")) {
       if ((name.startsWith("org.springframework.aop.")
-              && !(name.equals("org.springframework.aop.interceptor.AsyncExecutionInterceptor")))
+              && !name.equals("org.springframework.aop.interceptor.AsyncExecutionInterceptor"))
           || name.startsWith("org.springframework.cache.")
           || name.startsWith("org.springframework.dao.")
           || name.startsWith("org.springframework.ejb.")

@@ -1,9 +1,8 @@
 package datadog.smoketest.springboot;
 
 import datadog.smoketest.springboot.grpc.AsynchronousGreeter;
-import org.springframework.scheduling.annotation.Async;
-
 import java.util.concurrent.CompletableFuture;
+import org.springframework.scheduling.annotation.Async;
 
 public class AsyncTask {
 

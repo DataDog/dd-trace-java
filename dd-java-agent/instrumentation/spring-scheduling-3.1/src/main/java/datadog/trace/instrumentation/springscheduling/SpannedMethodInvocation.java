@@ -40,10 +40,10 @@ public class SpannedMethodInvocation implements MethodInvocation {
       // if the delegate does async work is everything OK because of this?
       // if the delegate does async work, should I need to worry about it here?
       scope.setAsyncPropagation(true);
-      Object result = delegate.proceed();
-      // question? Why can't this just be AutoCloseable? Dogma?
+      return delegate.proceed();
+    } finally {
+      // question: Why can't this just be AutoCloseable? Dogma?
       span.finish();
-      return result;
     }
   }
 
