@@ -614,13 +614,13 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     }
 
     def statsd = Stub(StatsDClient)
-    statsd.incrementCounter("queue.accepted", _) >> { stat ->
+    statsd.incrementCounter("queue.enqueued.traces", _) >> { stat ->
       numTracesAccepted += 1
     }
-    statsd.incrementCounter("api.requests") >> { stat ->
+    statsd.incrementCounter("api.requests.total") >> { stat ->
       numRequests += 1
     }
-    statsd.incrementCounter("api.responses", _) >> { stat, tags ->
+    statsd.incrementCounter("api.responses.total", _) >> { stat, tags ->
       numResponses += 1
     }
 
@@ -657,13 +657,13 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     api.sendSerializedTraces(_) >> DDAgentApi.Response.failed(new IOException("comm error"))
 
     def statsd = Stub(StatsDClient)
-    statsd.incrementCounter("api.requests") >> { stat ->
+    statsd.incrementCounter("api.requests.total") >> { stat ->
       numRequests += 1
     }
-    statsd.incrementCounter("api.responses", _) >> { stat, tags ->
+    statsd.incrementCounter("api.responses.total", _) >> { stat, tags ->
       numResponses += 1
     }
-    statsd.incrementCounter("api.errors", _) >> { stat ->
+    statsd.incrementCounter("api.errors.total", _) >> { stat ->
       numErrors += 1
     }
 
