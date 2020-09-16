@@ -1,9 +1,9 @@
 package datadog.smoketest.springboot.controller;
 
+import datadog.smoketest.springboot.AsyncTask;
 import datadog.smoketest.springboot.grpc.AsynchronousGreeter;
-import datadog.smoketest.springboot.grpc.LocalInterface;
 import datadog.smoketest.springboot.grpc.SynchronousGreeter;
-import java.io.IOException;
+
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -16,19 +16,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RestController
-public class WebController implements AutoCloseable {
+public class WebController {
 
   private final ExecutorService pool = Executors.newFixedThreadPool(5);
 
   private final AsynchronousGreeter asyncGreeter;
   private final SynchronousGreeter greeter;
-  private final LocalInterface localInterface;
+  private final AsyncTask asyncTask;
 
-  public WebController() throws IOException {
-    this.localInterface = new LocalInterface();
-    this.asyncGreeter = new AsynchronousGreeter(localInterface.getPort());
-    this.greeter = new SynchronousGreeter(localInterface.getPort());
+  public WebController(AsynchronousGreeter asyncGreeter, SynchronousGreeter greeter, AsyncTask asyncTask) {
+    this.asyncGreeter = asyncGreeter;
+    this.greeter = greeter;
+    this.asyncTask = asyncTask;
   }
+
 
   @RequestMapping("/greeting")
   public String greeting() {
@@ -74,10 +75,9 @@ public class WebController implements AutoCloseable {
     return response;
   }
 
-  @Override
-  public void close() {
-    localInterface.close();
-    greeter.close();
-    asyncGreeter.close();
+  @RequestMapping("async_annotation_greeting")
+  public String asyncAnnotationGreeting() {
+    return asyncTask.greet().join();
   }
+
 }
