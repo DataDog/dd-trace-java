@@ -22,11 +22,12 @@ testSets {
 }
 
 dependencies {
-  // 3.2.3 is the first version with which the tests will run. Lower versions require other
-  // classes and packages to be imported. Versions 3.1.0+ work with the instrumentation.
-  compileOnly group: 'org.springframework', name: 'spring-context', version: '3.1.0.RELEASE'
-  testCompile group: 'org.springframework', name: 'spring-context', version: '3.2.3.RELEASE'
+  // choose a recent version so that we can test both lambdas (JDK8)
+  // @Async requires proxying and older versions can't read classfile versions > 51
+  // we muzzle older versions of spring anyway
+  compileOnly group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
+  testCompile group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
 
   // this is the latest version that supports Java 7
-  latestDepTestCompile group: 'org.springframework', name: 'spring-context', version: '4.+'
+  latestDepTestCompile group: 'org.springframework', name: 'spring-context', version: '5.+'
 }

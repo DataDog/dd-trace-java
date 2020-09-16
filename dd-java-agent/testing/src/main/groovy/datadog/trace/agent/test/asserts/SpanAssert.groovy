@@ -114,6 +114,10 @@ class SpanAssert {
     traceDDId(parent.traceId)
   }
 
+  def threadNameStartsWith(String threadName) {
+    assert span.tags.get("thread.name")?.startsWith(threadName)
+  }
+
   def notChildOf(DDSpan parent) {
     assert parent.spanId != span.parentId
     assert parent.traceId != span.traceId
