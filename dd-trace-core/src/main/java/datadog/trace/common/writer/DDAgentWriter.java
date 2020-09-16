@@ -57,6 +57,7 @@ public class DDAgentWriter implements Writer {
     int traceBufferSize = BUFFER_SIZE;
     HealthMetrics healthMetrics = new HealthMetrics(new NoOpStatsDClient());
     int flushFrequencySeconds = 1;
+    Monitoring monitoring = Monitoring.DISABLED;
   }
 
   @lombok.Builder
@@ -124,8 +125,8 @@ public class DDAgentWriter implements Writer {
       if (trace.isEmpty()) {
         handleDroppedTrace("Trace was empty", trace);
       } else {
-        DDSpan root = trace.get(0);
-        int samplingPriority = root.context().getSamplingPriority();
+        final DDSpan root = trace.get(0);
+        final int samplingPriority = root.context().getSamplingPriority();
         if (traceProcessingWorker.publish(samplingPriority, trace)) {
           healthMetrics.onPublish(trace, samplingPriority);
         } else {
@@ -137,13 +138,14 @@ public class DDAgentWriter implements Writer {
     }
   }
 
-  private void handleDroppedTrace(String reason, List<DDSpan> trace) {
+  private void handleDroppedTrace(final String reason, final List<DDSpan> trace) {
     incrementTraceCount();
     log.debug("{}. Counted but dropping trace: {}", reason, trace);
     healthMetrics.onFailedPublish(UNSET);
   }
 
-  private void handleDroppedTrace(String reason, List<DDSpan> trace, int samplingPriority) {
+  private void handleDroppedTrace(
+      final String reason, final List<DDSpan> trace, final int samplingPriority) {
     incrementTraceCount();
     log.debug("{}. Counted but dropping trace: {}", reason, trace);
     healthMetrics.onFailedPublish(samplingPriority);

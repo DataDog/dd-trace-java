@@ -22,6 +22,14 @@ class DDAgentWriterTest extends DDSpecification {
   @Subject
   def writer = new DDAgentWriter(api, monitor, monitoring, worker)
 
+  def "test writer builder"() {
+    when:
+    def writer = DDAgentWriter.builder().build()
+
+    then:
+    writer != null
+  }
+
   def "test writer.start"() {
     when:
     writer.start()
