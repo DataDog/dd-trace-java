@@ -650,4 +650,4 @@ acceptedBreaks:
     com.datadoghq:dd-trace-ot:
     - code: "java.class.removed"
       old: "class datadog.trace.bootstrap.instrumentation.api.DDSpanNames"
-      justification: "internal api"
+      justification: "this is fine"
