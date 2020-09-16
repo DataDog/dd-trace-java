@@ -42,6 +42,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -65,6 +67,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Unit tests for the recording uploader. */
 @ExtendWith(MockitoExtension.class)
@@ -491,6 +495,37 @@ public class ProfileUploaderTest {
 
     verify(recording.getStream()).close();
     verify(recording).release();
+  }
+
+  @Test
+  public void testLogLevelInfoFailedUpload() throws IOException, InterruptedException {
+    changeLogLevel("INFO");
+    test500Response();
+  }
+
+  private static void changeLogLevel(String logLevel) {
+    Logger logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+    try {
+      // Use of reflection to avoid relying statically on the logback
+      // implementation as dependency
+      Class<?> loggerImplClass = Class.forName("ch.qos.logback.classic.Logger");
+      if (logger.getClass().isAssignableFrom(loggerImplClass)) {
+        Class<?> levelClass = Class.forName("ch.qos.logback.classic.Level");
+        Method setLevelMethod = logger.getClass().getMethod("setLevel", levelClass);
+        Field debugLevelField;
+        try {
+          debugLevelField = levelClass.getDeclaredField(logLevel);
+        } catch (NoSuchFieldException ex) {
+          logger.warn("Invalid log level name: " + logLevel, ex);
+          return;
+        }
+        Object debugLevelFieldValue = debugLevelField.get(null);
+        setLevelMethod.invoke(logger, debugLevelFieldValue);
+        logger.info("New log level: " + logLevel);
+      }
+    } catch (Exception e) {
+      logger.warn("Cannot change log level: ", e);
+    }
   }
 
   private RecordingData mockRecordingData(final String recordingResource) throws IOException {
