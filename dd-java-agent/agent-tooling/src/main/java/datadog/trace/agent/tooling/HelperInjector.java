@@ -194,7 +194,17 @@ public class HelperInjector implements Transformer {
   }
 
   private static File createTempDir() throws IOException {
-    return Files.createTempDirectory("datadog-temp-jars").toFile();
+    try {
+      return Files.createTempDirectory("datadog-temp-jars").toFile();
+    } catch (final IOException e) {
+      if (log.isErrorEnabled()) {
+        log.error(
+            "Unable to create temporary folder for injection.  Please ensure that `{}` specified by the system property `java.io.tmpdir` exists and is writable by this process",
+            System.getProperty("java.io.tmpdir"));
+      }
+
+      throw e;
+    }
   }
 
   private static void deleteTempDir(final File file) {
