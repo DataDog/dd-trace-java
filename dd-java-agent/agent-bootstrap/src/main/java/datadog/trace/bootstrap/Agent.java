@@ -263,7 +263,7 @@ public class Agent {
 
   private static synchronized void startJmx(final URL bootstrapURL) {
     startJmxFetch(bootstrapURL);
-    initializeJmxThreadCpuTimeProvider();
+    initializeJmxSystemAccessProvider();
     registerDeadlockDetectionEvent(bootstrapURL);
   }
 
@@ -283,19 +283,19 @@ public class Agent {
     }
   }
 
-  /** Enable JMX based thread CPU time provider once it is safe to touch JMX */
-  private static synchronized void initializeJmxThreadCpuTimeProvider() {
-    log.info("Initializing JMX thread CPU time provider");
+  /** Enable JMX based system access provider once it is safe to touch JMX */
+  private static synchronized void initializeJmxSystemAccessProvider() {
+    log.info("Initializing JMX system access provider");
     if (AGENT_CLASSLOADER == null) {
       throw new IllegalStateException("Datadog agent should have been started already");
     }
     try {
       final Class<?> tracerInstallerClass =
-          AGENT_CLASSLOADER.loadClass("datadog.trace.core.util.ThreadCpuTimeAccess");
+          AGENT_CLASSLOADER.loadClass("datadog.trace.core.util.SystemAccess");
       final Method enableJmxMethod = tracerInstallerClass.getMethod("enableJmx");
       enableJmxMethod.invoke(null);
     } catch (final Throwable ex) {
-      log.error("Throwable thrown while initializing JMX thread CPU time provider", ex);
+      log.error("Throwable thrown while initializing JMX system access provider", ex);
     }
   }
 
