@@ -28,6 +28,10 @@ dependencies {
   compileOnly group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
   testCompile group: 'org.springframework', name: 'spring-context', version: '5.0.0.RELEASE'
 
+  // for a test case with CompletableFuture
+  testCompile project(':dd-java-agent:instrumentation:java-concurrent')
+  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
+
   // this is the latest version that supports Java 7
   latestDepTestCompile group: 'org.springframework', name: 'spring-context', version: '5.+'
 }
