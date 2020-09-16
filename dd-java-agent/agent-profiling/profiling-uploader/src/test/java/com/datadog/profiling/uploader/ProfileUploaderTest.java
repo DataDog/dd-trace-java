@@ -28,6 +28,9 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.AppenderBase;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.testing.ProfilingTestUtils;
@@ -42,8 +45,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.zip.GZIPInputStream;
 import net.jpountz.lz4.LZ4FrameInputStream;
 import okhttp3.ConnectionSpec;
@@ -499,32 +501,53 @@ public class ProfileUploaderTest {
 
   @Test
   public void testLogLevelInfoFailedUpload() throws IOException, InterruptedException {
-    changeLogLevel("INFO");
-    test500Response();
+    AssertingAppender appender =
+        new AssertingAppender(
+            loggingEvent -> {
+              if (loggingEvent.getLevel() == Level.WARN) {
+                assertEquals(
+                    "Failed to upload profile: unexpected response code Server Error 500",
+                    loggingEvent.getFormattedMessage());
+              }
+            });
+    setupLogger("INFO", appender);
+    try {
+      test500Response();
+    } finally {
+      cleanupLogger("DEBUG", appender);
+    }
   }
 
-  private static void changeLogLevel(String logLevel) {
+  private static ch.qos.logback.classic.Logger getLogBackLogger() {
     Logger logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    try {
-      // Use of reflection to avoid relying statically on the logback
-      // implementation as dependency
-      Class<?> loggerImplClass = Class.forName("ch.qos.logback.classic.Logger");
-      if (logger.getClass().isAssignableFrom(loggerImplClass)) {
-        Class<?> levelClass = Class.forName("ch.qos.logback.classic.Level");
-        Method setLevelMethod = logger.getClass().getMethod("setLevel", levelClass);
-        Field debugLevelField;
-        try {
-          debugLevelField = levelClass.getDeclaredField(logLevel);
-        } catch (NoSuchFieldException ex) {
-          logger.warn("Invalid log level name: " + logLevel, ex);
-          return;
-        }
-        Object debugLevelFieldValue = debugLevelField.get(null);
-        setLevelMethod.invoke(logger, debugLevelFieldValue);
-        logger.info("New log level: " + logLevel);
-      }
-    } catch (Exception e) {
-      logger.warn("Cannot change log level: ", e);
+    return (ch.qos.logback.classic.Logger) logger;
+  }
+
+  private static void setupLogger(String logLevel, AppenderBase<ILoggingEvent> appender) {
+    ch.qos.logback.classic.Logger logBackLogger = getLogBackLogger();
+    appender.start();
+    logBackLogger.addAppender(appender);
+    logBackLogger.setLevel(Level.toLevel(logLevel));
+  }
+
+  private static void cleanupLogger(String logLevel, AppenderBase<ILoggingEvent> appender) {
+    ch.qos.logback.classic.Logger logBackLogger = getLogBackLogger();
+    appender.stop();
+    logBackLogger.detachAppender(appender);
+    logBackLogger.setLevel(Level.toLevel(logLevel));
+  }
+
+  private static class AssertingAppender extends AppenderBase<ILoggingEvent> {
+
+    final Consumer<ILoggingEvent> assertConsumer;
+
+    public AssertingAppender(Consumer<ILoggingEvent> assertConsumer) {
+      this.assertConsumer = assertConsumer;
+    }
+
+    @Override
+    protected void append(ILoggingEvent loggingEvent) {
+      assertConsumer.accept(loggingEvent);
     }
   }
 
