@@ -2,11 +2,8 @@ package datadog.trace.instrumentation.http_url_connection;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.http_url_connection.HeadersInjectAdapter.SETTER;
-import static datadog.trace.instrumentation.http_url_connection.HttpUrlConnectionDecorator.DECORATE;
+import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HeadersInjectAdapter.SETTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -19,8 +16,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlState;
 import java.net.HttpURLConnection;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -46,18 +43,8 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HttpUrlConnectionDecorator",
-      packageName + ".HeadersInjectAdapter",
-      HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlState",
-      HttpUrlConnectionInstrumentation.class.getName() + "$HttpUrlState$1",
-    };
-  }
-
-  @Override
   public Map<String, String> contextStore() {
-    return singletonMap("java.net.HttpURLConnection", getClass().getName() + "$HttpUrlState");
+    return singletonMap("java.net.HttpURLConnection", HttpUrlState.class.getName());
   }
 
   @Override
@@ -116,70 +103,6 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Default {
       }
 
       CallDepthThreadLocalMap.reset(HttpURLConnection.class);
-    }
-  }
-
-  public static class HttpUrlState {
-
-    public static final String OPERATION_NAME = "http.request";
-
-    public static final ContextStore.Factory<HttpUrlState> FACTORY =
-        new ContextStore.Factory<HttpUrlState>() {
-          @Override
-          public HttpUrlState create() {
-            return new HttpUrlState();
-          }
-        };
-
-    private volatile AgentSpan span = null;
-    private volatile boolean finished = false;
-
-    public AgentSpan start(final HttpURLConnection connection) {
-      span = startSpan(OPERATION_NAME);
-      try (final AgentScope scope = activateSpan(span)) {
-        DECORATE.afterStart(span);
-        DECORATE.onRequest(span, connection);
-        return span;
-      }
-    }
-
-    public boolean hasSpan() {
-      return span != null;
-    }
-
-    public boolean isFinished() {
-      return finished;
-    }
-
-    public void finish() {
-      finished = true;
-    }
-
-    public void finishSpan(final Throwable throwable) {
-      try (final AgentScope scope = activateSpan(span)) {
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-        span.finish();
-        span = null;
-        finished = true;
-      }
-    }
-
-    public void finishSpan(final int responseCode) {
-      /*
-       * responseCode field is sometimes not populated.
-       * We can't call getResponseCode() due to some unwanted side-effects
-       * (e.g. breaks getOutputStream).
-       */
-      if (responseCode > 0) {
-        try (final AgentScope scope = activateSpan(span)) {
-          DECORATE.onResponse(span, responseCode);
-          DECORATE.beforeFinish(span);
-          span.finish();
-          span = null;
-          finished = true;
-        }
-      }
     }
   }
 }

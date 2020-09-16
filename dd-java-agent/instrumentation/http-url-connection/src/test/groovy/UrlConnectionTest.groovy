@@ -9,7 +9,7 @@ import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.PortUtils.UNUSABLE_PORT
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
-import static datadog.trace.instrumentation.http_url_connection.HttpUrlConnectionInstrumentation.HttpUrlState.OPERATION_NAME
+import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlState.OPERATION_NAME
 
 class UrlConnectionTest extends AgentTestRunner {
 

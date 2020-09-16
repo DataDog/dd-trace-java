@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.instrumentation.http_url_connection.HttpUrlConnectionDecorator
+import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
