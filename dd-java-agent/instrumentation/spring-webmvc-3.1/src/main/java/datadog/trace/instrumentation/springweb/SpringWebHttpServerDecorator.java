@@ -24,6 +24,11 @@ import org.springframework.web.servlet.mvc.Controller;
 public class SpringWebHttpServerDecorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
 
+  public static final CharSequence SPRING_HANDLER =
+      UTF8BytesString.createConstant("spring.handler");
+  public static final CharSequence RESPONSE_RENDER =
+      UTF8BytesString.createConstant("response.render");
+
   private static final Function<Pair<String, Object>, CharSequence> RESOURCE_NAME_JOINER =
       new Function<Pair<String, Object>, CharSequence>() {
         @Override

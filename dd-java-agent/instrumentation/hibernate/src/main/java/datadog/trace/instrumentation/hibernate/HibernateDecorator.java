@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.hibernate;
 
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.OrmClientDecorator;
 import java.lang.annotation.Annotation;
 import java.util.HashSet;
@@ -8,6 +9,8 @@ import java.util.List;
 import java.util.Set;
 
 public class HibernateDecorator extends OrmClientDecorator {
+  public static final CharSequence HIBERNATE_SESSION =
+      UTF8BytesString.createConstant("hibernate.session");
   public static final HibernateDecorator DECORATOR = new HibernateDecorator();
 
   @Override

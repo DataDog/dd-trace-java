@@ -7,7 +7,6 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.CommonTagValues;
 import datadog.trace.bootstrap.instrumentation.api.DDComponents;
-import datadog.trace.bootstrap.instrumentation.api.DDSpanNames;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.sampling.RateByServiceSampler;
@@ -48,7 +47,6 @@ public class StringTables {
     internConstantsUTF8(InstrumentationTags.class, UTF8_INTERN_KEYS_TABLE, null);
     internConstantsUTF8(DDSpanTypes.class, UTF8_INTERN_TAGS_TABLE, TAGS_FIRST_CHAR_IS_PRESENT);
     internConstantsUTF8(DDComponents.class, UTF8_INTERN_TAGS_TABLE, TAGS_FIRST_CHAR_IS_PRESENT);
-    internConstantsUTF8(DDSpanNames.class, UTF8_INTERN_TAGS_TABLE, TAGS_FIRST_CHAR_IS_PRESENT);
     internConstantsUTF8(CommonTagValues.class, UTF8_INTERN_TAGS_TABLE, TAGS_FIRST_CHAR_IS_PRESENT);
     intern(
         UTF8_INTERN_TAGS_TABLE, Config.get().getServiceName(), UTF_8, TAGS_FIRST_CHAR_IS_PRESENT);

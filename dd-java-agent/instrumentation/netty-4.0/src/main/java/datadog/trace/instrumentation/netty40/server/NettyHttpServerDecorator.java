@@ -4,6 +4,7 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.HOST;
 
 import datadog.trace.bootstrap.instrumentation.api.DefaultURIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.HttpRequest;
@@ -16,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class NettyHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, Channel, HttpResponse> {
+  public static final CharSequence NETTY_CONNECT = UTF8BytesString.createConstant("netty.connect");
+  public static final CharSequence NETTY_REQUEST = UTF8BytesString.createConstant("netty.request");
   public static final NettyHttpServerDecorator DECORATE = new NettyHttpServerDecorator();
 
   @Override

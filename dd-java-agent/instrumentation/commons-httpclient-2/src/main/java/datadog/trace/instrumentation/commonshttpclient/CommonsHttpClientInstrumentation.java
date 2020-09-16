@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.commonshttpclient.HttpHeadersInjectAdapter.SETTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -70,7 +71,7 @@ public class CommonsHttpClientInstrumentation extends Instrumenter.Default {
         return null;
       }
 
-      final AgentSpan span = startSpan("http.request");
+      final AgentSpan span = startSpan(HTTP_REQUEST);
       final AgentScope scope = activateSpan(span);
 
       DECORATE.afterStart(span);

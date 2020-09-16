@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.playws.HeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.PLAY_WS_REQUEST;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -24,7 +25,7 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
         @Advice.Argument(0) final Request request,
         @Advice.Argument(value = 1, readOnly = false) AsyncHandler asyncHandler) {
 
-      final AgentSpan span = startSpan("play-ws.request");
+      final AgentSpan span = startSpan(PLAY_WS_REQUEST);
       span.setTag(InstrumentationTags.DD_MEASURED, true);
 
       DECORATE.afterStart(span);

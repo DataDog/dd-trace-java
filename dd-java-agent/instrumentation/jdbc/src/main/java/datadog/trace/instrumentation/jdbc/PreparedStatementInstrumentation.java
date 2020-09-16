@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCUtils.connectionFromStatement;
 import static java.util.Collections.singletonMap;
@@ -72,7 +73,7 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Default
         return null;
       }
 
-      final AgentSpan span = startSpan("database.query");
+      final AgentSpan span = startSpan(DATABASE_QUERY);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, connection);
       DECORATE.onPreparedStatement(span, statement);

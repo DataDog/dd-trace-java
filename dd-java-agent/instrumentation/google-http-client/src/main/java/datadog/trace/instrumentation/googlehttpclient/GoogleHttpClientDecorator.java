@@ -2,11 +2,13 @@ package datadog.trace.instrumentation.googlehttpclient;
 
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
+  public static final CharSequence HTTP_REQUEST = UTF8BytesString.createConstant("http.request");
   public static final GoogleHttpClientDecorator DECORATE = new GoogleHttpClientDecorator();
 
   @Override

@@ -4,8 +4,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.DDSpanNames.HTTP_REQUEST;
 import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.grizzly.client.InjectAdapter.SETTER;
 
 import com.ning.http.client.AsyncHandler;

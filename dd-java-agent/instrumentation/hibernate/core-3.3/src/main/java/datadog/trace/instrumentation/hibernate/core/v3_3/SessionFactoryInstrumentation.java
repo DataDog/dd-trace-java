@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.hibernate.HibernateDecorator.DECORATOR;
+import static datadog.trace.instrumentation.hibernate.HibernateDecorator.HIBERNATE_SESSION;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -61,7 +62,7 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void openSession(@Advice.Return final Object session) {
 
-      final AgentSpan span = startSpan("hibernate.session");
+      final AgentSpan span = startSpan(HIBERNATE_SESSION);
       DECORATOR.afterStart(span);
       DECORATOR.onConnection(span, session);
 

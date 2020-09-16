@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.lettuce5;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.REDIS_QUERY;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -14,7 +15,7 @@ public class ConnectionFutureAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(1) final RedisURI redisUri) {
-    final AgentSpan span = startSpan("redis.query");
+    final AgentSpan span = startSpan(REDIS_QUERY);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, redisUri);
     return activateSpan(span);

@@ -120,8 +120,8 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
     TEST_WRITER.each {
       it.sort({
         a, b ->
-          boolean aIsCouchbaseOperation = a.operationName == "couchbase.call"
-          boolean bIsCouchbaseOperation = b.operationName == "couchbase.call"
+          boolean aIsCouchbaseOperation = a.operationName.toString() == "couchbase.call"
+          boolean bIsCouchbaseOperation = b.operationName.toString() == "couchbase.call"
 
           if (aIsCouchbaseOperation && !bIsCouchbaseOperation) {
             return 1

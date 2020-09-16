@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.googlehttpclient.HeadersInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -85,7 +86,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
       RequestState state = contextStore.get(request);
 
       if (state == null) {
-        state = new RequestState(startSpan("http.request"));
+        state = new RequestState(startSpan(HTTP_REQUEST));
         contextStore.put(request, state);
       }
 
@@ -134,7 +135,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(@Advice.This final HttpRequest request) {
-      final AgentSpan span = startSpan("http.request");
+      final AgentSpan span = startSpan(HTTP_REQUEST);
 
       final ContextStore<HttpRequest, RequestState> contextStore =
           InstrumentationContext.get(HttpRequest.class, RequestState.class);

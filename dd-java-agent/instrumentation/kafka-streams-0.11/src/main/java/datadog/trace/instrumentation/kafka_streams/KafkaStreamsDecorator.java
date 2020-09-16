@@ -8,10 +8,12 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import org.apache.kafka.streams.processor.internals.StampedRecord;
 
 public class KafkaStreamsDecorator extends ClientDecorator {
+  public static final CharSequence KAFKA_CONSUME = UTF8BytesString.createConstant("kafka.consume");
   public static final KafkaStreamsDecorator CONSUMER_DECORATE = new KafkaStreamsDecorator();
 
   private static final DDCache<CharSequence, CharSequence> RESOURCE_NAME_CACHE =

@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springwebflux.client.HttpHeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator.HTTP_REQUEST;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -38,9 +39,9 @@ public class WebClientTracingFilter implements ExchangeFilterFunction {
   public Mono<ClientResponse> filter(final ClientRequest request, final ExchangeFunction next) {
     final AgentSpan span;
     if (activeSpan() != null) {
-      span = startSpan("http.request", activeSpan().context());
+      span = startSpan(HTTP_REQUEST, activeSpan().context());
     } else {
-      span = startSpan("http.request");
+      span = startSpan(HTTP_REQUEST);
     }
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
     span.setTag(InstrumentationTags.DD_MEASURED, true);

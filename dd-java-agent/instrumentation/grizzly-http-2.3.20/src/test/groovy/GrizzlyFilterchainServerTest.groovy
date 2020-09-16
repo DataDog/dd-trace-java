@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.bootstrap.instrumentation.api.DDSpanNames
+
 import datadog.trace.instrumentation.grizzlyhttp232.GrizzlyDecorator
 import org.glassfish.grizzly.filterchain.BaseFilter
 import org.glassfish.grizzly.filterchain.FilterChain
@@ -65,7 +65,7 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
 
   @Override
   String expectedOperationName() {
-    return DDSpanNames.GRIZZLY_REQUEST
+    return GrizzlyDecorator.GRIZZLY_REQUEST.toString()
   }
 
   @Override

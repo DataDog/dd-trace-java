@@ -80,7 +80,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
 
     TEST_WRITER.each {
       def renderSpan = it.find {
-        it.operationName == "response.render"
+        it.operationName.toString() == "response.render"
       }
       if (renderSpan) {
         SpanAssert.assertSpan(renderSpan) {
@@ -98,7 +98,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
         it.remove(renderSpan)
       }
       def responseSpan = it.find {
-        it.operationName == "servlet.response"
+        it.operationName.toString() == "servlet.response"
       }
       if (responseSpan) {
         SpanAssert.assertSpan(responseSpan) {

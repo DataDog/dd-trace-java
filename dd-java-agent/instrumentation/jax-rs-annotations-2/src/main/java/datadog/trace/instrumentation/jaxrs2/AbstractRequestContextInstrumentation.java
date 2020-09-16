@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DECORATE;
+import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.JAX_RS_REQUEST_ABORT;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -73,7 +74,7 @@ public abstract class AbstractRequestContextInstrumentation extends Instrumenter
 
         if (span == null) {
           parent = activeSpan();
-          span = startSpan("jax-rs.request.abort");
+          span = startSpan(JAX_RS_REQUEST_ABORT);
 
           final AgentScope scope = activateSpan(span);
           scope.setAsyncPropagation(true);

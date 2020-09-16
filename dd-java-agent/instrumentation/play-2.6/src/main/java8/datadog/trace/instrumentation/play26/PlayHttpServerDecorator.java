@@ -4,6 +4,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -18,6 +19,7 @@ import scala.Option;
 
 @Slf4j
 public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Request, Result> {
+  public static final CharSequence PLAY_REQUEST = UTF8BytesString.createConstant("play.request");
   public static final PlayHttpServerDecorator DECORATE = new PlayHttpServerDecorator();
 
   private static final Method typedKeyGetUnderlying;

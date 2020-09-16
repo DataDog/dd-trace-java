@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.springwebflux.client;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -13,6 +14,8 @@ import org.springframework.web.reactive.function.client.ClientResponse;
 @Slf4j
 public class SpringWebfluxHttpClientDecorator
     extends HttpClientDecorator<ClientRequest, ClientResponse> {
+
+  public static final CharSequence HTTP_REQUEST = UTF8BytesString.createConstant("http.request");
 
   private static final MethodHandle RAW_STATUS_CODE = findRawStatusCode();
 

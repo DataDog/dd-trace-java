@@ -2,10 +2,15 @@ package datadog.trace.instrumentation.jaxrs.v1;
 
 import com.sun.jersey.api.client.ClientRequest;
 import com.sun.jersey.api.client.ClientResponse;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 
 public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, ClientResponse> {
+
+  public static final CharSequence JAX_RS_CLIENT_CALL =
+      UTF8BytesString.createConstant("jax-rs.client.call");
+
   public static final JaxRsClientV1Decorator DECORATE = new JaxRsClientV1Decorator();
 
   @Override

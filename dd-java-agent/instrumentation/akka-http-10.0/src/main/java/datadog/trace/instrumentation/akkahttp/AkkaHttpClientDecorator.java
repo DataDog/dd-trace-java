@@ -2,11 +2,14 @@ package datadog.trace.instrumentation.akkahttp;
 
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 public class AkkaHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
+  public static final CharSequence AKKA_CLIENT_REQUEST =
+      UTF8BytesString.createConstant("akka-http.client.request");
   public static final AkkaHttpClientDecorator DECORATE = new AkkaHttpClientDecorator();
 
   @Override

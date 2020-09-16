@@ -4,11 +4,13 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.protocol.RedisCommand;
 
 public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecorator<RedisURI> {
+  public static final CharSequence REDIS_QUERY = UTF8BytesString.createConstant("redis.query");
   public static final LettuceClientDecorator DECORATE = new LettuceClientDecorator();
 
   @Override

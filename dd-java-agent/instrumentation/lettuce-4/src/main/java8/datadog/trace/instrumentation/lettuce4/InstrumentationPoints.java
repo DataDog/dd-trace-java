@@ -11,6 +11,7 @@ import static com.lambdaworks.redis.protocol.CommandType.SHUTDOWN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.lettuce4.LettuceClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.lettuce4.LettuceClientDecorator.REDIS_QUERY;
 
 import com.lambdaworks.redis.RedisURI;
 import com.lambdaworks.redis.protocol.AsyncCommand;
@@ -33,7 +34,7 @@ public final class InstrumentationPoints {
   public static final String AGENT_CRASHING_COMMAND_PREFIX = "COMMAND-NAME:";
 
   public static AgentScope beforeCommand(final RedisCommand<?, ?, ?> command) {
-    final AgentSpan span = startSpan("redis.query");
+    final AgentSpan span = startSpan(REDIS_QUERY);
     DECORATE.afterStart(span);
     DECORATE.onCommand(span, command);
     return activateSpan(span);
@@ -71,7 +72,7 @@ public final class InstrumentationPoints {
   }
 
   public static AgentScope beforeConnect(final RedisURI redisURI) {
-    final AgentSpan span = startSpan("redis.query");
+    final AgentSpan span = startSpan(REDIS_QUERY);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, redisURI);
     return activateSpan(span);

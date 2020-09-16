@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.okhttp2.OkHttpClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.okhttp2.OkHttpClientDecorator.OKHTTP_REQUEST;
 import static datadog.trace.instrumentation.okhttp2.RequestBuilderInjectAdapter.SETTER;
 
 import com.squareup.okhttp.Interceptor;
@@ -17,7 +18,7 @@ import java.io.IOException;
 public class TracingInterceptor implements Interceptor {
   @Override
   public Response intercept(final Chain chain) throws IOException {
-    final AgentSpan span = startSpan("okhttp.request");
+    final AgentSpan span = startSpan(OKHTTP_REQUEST);
     span.setTag(InstrumentationTags.DD_MEASURED, true);
 
     try (final AgentScope scope = activateSpan(span)) {

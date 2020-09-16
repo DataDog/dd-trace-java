@@ -1,12 +1,15 @@
 package datadog.trace.instrumentation.rediscala;
 
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import redis.RedisCommand;
 import redis.protocol.RedisReply;
 
 public class RediscalaClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<RedisCommand<? extends RedisReply, ?>> {
+
+  public static final CharSequence REDIS_COMMAND = UTF8BytesString.createConstant("redis.command");
 
   private static final String SERVICE_NAME = "redis";
   private static final String COMPONENT_NAME = SERVICE_NAME + "-command";

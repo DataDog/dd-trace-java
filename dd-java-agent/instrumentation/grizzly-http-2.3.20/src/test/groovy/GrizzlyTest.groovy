@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.bootstrap.instrumentation.api.DDSpanNames
+
 import datadog.trace.instrumentation.grizzlyhttp232.GrizzlyDecorator
 import org.glassfish.grizzly.http.server.HttpServer
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory
@@ -44,7 +44,7 @@ class GrizzlyTest extends HttpServerTest<HttpServer> {
 
   @Override
   String expectedOperationName() {
-    return DDSpanNames.GRIZZLY_REQUEST
+    return GrizzlyDecorator.GRIZZLY_REQUEST.toString()
   }
 
   static class SimpleExceptionMapper implements ExceptionMapper<Throwable> {

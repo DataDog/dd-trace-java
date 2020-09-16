@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.playws;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -7,6 +8,8 @@ import play.shaded.ahc.org.asynchttpclient.Request;
 import play.shaded.ahc.org.asynchttpclient.Response;
 
 public class PlayWSClientDecorator extends HttpClientDecorator<Request, Response> {
+  public static final CharSequence PLAY_WS_REQUEST =
+      UTF8BytesString.createConstant("play-ws.request");
   public static final PlayWSClientDecorator DECORATE = new PlayWSClientDecorator();
 
   @Override

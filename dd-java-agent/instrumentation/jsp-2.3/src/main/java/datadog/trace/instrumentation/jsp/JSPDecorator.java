@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jsp;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -13,6 +14,8 @@ import org.apache.jasper.JspCompilationContext;
 import org.slf4j.LoggerFactory;
 
 public class JSPDecorator extends BaseDecorator {
+  public static final CharSequence JSP_COMPILE = UTF8BytesString.createConstant("jsp.compile");
+  public static final CharSequence JSP_RENDER = UTF8BytesString.createConstant("jsp.render");
   public static JSPDecorator DECORATE = new JSPDecorator();
 
   @Override

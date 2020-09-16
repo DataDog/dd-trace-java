@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet3;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -11,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class Servlet3Decorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
+  public static final CharSequence SERVLET_REQUEST =
+      UTF8BytesString.createConstant("servlet.request");
   public static final Servlet3Decorator DECORATE = new Servlet3Decorator();
 
   @Override

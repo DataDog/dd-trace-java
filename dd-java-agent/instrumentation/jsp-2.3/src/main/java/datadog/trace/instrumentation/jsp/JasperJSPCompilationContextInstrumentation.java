@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jsp;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jsp.JSPDecorator.DECORATE;
+import static datadog.trace.instrumentation.jsp.JSPDecorator.JSP_COMPILE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -50,7 +51,7 @@ public final class JasperJSPCompilationContextInstrumentation extends Instrument
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter() {
-      final AgentSpan span = startSpan("jsp.compile");
+      final AgentSpan span = startSpan(JSP_COMPILE);
       DECORATE.afterStart(span);
       return activateSpan(span);
     }

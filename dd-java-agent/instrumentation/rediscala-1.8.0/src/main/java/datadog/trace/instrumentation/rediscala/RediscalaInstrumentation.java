@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.rediscala.RediscalaClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.rediscala.RediscalaClientDecorator.REDIS_COMMAND;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -75,7 +76,7 @@ public final class RediscalaInstrumentation extends Instrumenter.Default {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.Argument(0) final RedisCommand cmd) {
-      final AgentSpan span = startSpan("redis.command");
+      final AgentSpan span = startSpan(REDIS_COMMAND);
       DECORATE.afterStart(span);
       DECORATE.onStatement(span, DECORATE.spanNameForClass(cmd.getClass()));
       return activateSpan(span);

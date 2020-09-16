@@ -4,11 +4,14 @@ import static datadog.trace.bootstrap.instrumentation.api.DDComponents.GRIZZLY_H
 
 import com.ning.http.client.Request;
 import com.ning.http.client.Response;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 public class ClientDecorator extends HttpClientDecorator<Request, Response> {
+
+  public static final CharSequence HTTP_REQUEST = UTF8BytesString.createConstant("http.request");
 
   public static final ClientDecorator DECORATE = new ClientDecorator();
 

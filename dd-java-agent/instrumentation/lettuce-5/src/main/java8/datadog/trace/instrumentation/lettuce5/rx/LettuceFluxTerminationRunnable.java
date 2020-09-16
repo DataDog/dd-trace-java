@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.lettuce5.rx;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.REDIS_QUERY;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.lettuce.core.protocol.RedisCommand;
@@ -83,7 +84,7 @@ public class LettuceFluxTerminationRunnable implements Consumer<Signal>, Runnabl
 
     @Override
     public void accept(final Subscription subscription) {
-      final AgentSpan span = startSpan("redis.query");
+      final AgentSpan span = startSpan(REDIS_QUERY);
       owner.span = span;
       DECORATE.afterStart(span);
       DECORATE.onCommand(span, command);

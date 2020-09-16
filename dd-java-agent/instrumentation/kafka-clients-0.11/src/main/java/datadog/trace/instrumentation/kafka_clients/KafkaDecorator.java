@@ -16,12 +16,16 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.record.TimestampType;
 
 public class KafkaDecorator extends ClientDecorator {
+
+  public static final CharSequence KAFKA_CONSUME = UTF8BytesString.createConstant("kafka.consume");
+  public static final CharSequence KAFKA_PRODUCE = UTF8BytesString.createConstant("kafka.produce");
 
   private final String spanKind;
   private final String spanType;

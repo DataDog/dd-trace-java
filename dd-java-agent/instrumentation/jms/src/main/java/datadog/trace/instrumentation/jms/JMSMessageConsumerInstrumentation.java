@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_CONSUME;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -84,10 +85,9 @@ public final class JMSMessageConsumerInstrumentation extends Instrumenter.Defaul
       final AgentSpan span;
       if (message != null) {
         final Context extractedContext = propagate().extract(message, GETTER);
-        span =
-            startSpan("jms.consume", extractedContext, TimeUnit.MILLISECONDS.toMicros(startTime));
+        span = startSpan(JMS_CONSUME, extractedContext, TimeUnit.MILLISECONDS.toMicros(startTime));
       } else {
-        span = startSpan("jms.consume", TimeUnit.MILLISECONDS.toMicros(startTime));
+        span = startSpan(JMS_CONSUME, TimeUnit.MILLISECONDS.toMicros(startTime));
       }
       span.setTag("span.origin.type", consumer.getClass().getName());
 

@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.CONSUMER_DECORATE;
+import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_CONSUME;
 import static datadog.trace.instrumentation.kafka_streams.TextMapExtractAdapter.GETTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -74,7 +75,7 @@ public class KafkaStreamsProcessorInstrumentation {
 
         final Context extractedContext = propagate().extract(record.value.headers(), GETTER);
 
-        final AgentSpan span = startSpan("kafka.consume", extractedContext);
+        final AgentSpan span = startSpan(KAFKA_CONSUME, extractedContext);
         CONSUMER_DECORATE.afterStart(span);
         CONSUMER_DECORATE.onConsume(span, record);
 

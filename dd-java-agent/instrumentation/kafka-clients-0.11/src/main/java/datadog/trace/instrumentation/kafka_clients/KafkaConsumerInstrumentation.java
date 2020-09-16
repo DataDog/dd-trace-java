@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.CONSUMER_DECORATE;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_CONSUME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -76,7 +77,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void wrap(@Advice.Return(readOnly = false) Iterable<ConsumerRecord> iterable) {
       if (iterable != null) {
-        iterable = new TracingIterable(iterable, "kafka.consume", CONSUMER_DECORATE);
+        iterable = new TracingIterable(iterable, KAFKA_CONSUME, CONSUMER_DECORATE);
       }
     }
   }
@@ -86,7 +87,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void wrap(@Advice.Return(readOnly = false) List<ConsumerRecord> iterable) {
       if (iterable != null) {
-        iterable = new TracingList(iterable, "kafka.consume", CONSUMER_DECORATE);
+        iterable = new TracingList(iterable, KAFKA_CONSUME, CONSUMER_DECORATE);
       }
     }
   }
@@ -96,7 +97,7 @@ public final class KafkaConsumerInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void wrap(@Advice.Return(readOnly = false) Iterator<ConsumerRecord> iterator) {
       if (iterator != null) {
-        iterator = new TracingIterator(iterator, "kafka.consume", CONSUMER_DECORATE);
+        iterator = new TracingIterator(iterator, KAFKA_CONSUME, CONSUMER_DECORATE);
       }
     }
   }

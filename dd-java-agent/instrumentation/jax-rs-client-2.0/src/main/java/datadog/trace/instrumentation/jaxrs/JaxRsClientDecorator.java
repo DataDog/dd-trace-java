@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jaxrs;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import javax.ws.rs.client.ClientRequestContext;
@@ -7,6 +8,9 @@ import javax.ws.rs.client.ClientResponseContext;
 
 public class JaxRsClientDecorator
     extends HttpClientDecorator<ClientRequestContext, ClientResponseContext> {
+  public static final CharSequence JAX_RS_CLIENT_CALL =
+      UTF8BytesString.createConstant("jax-rs.client.call");
+
   public static final JaxRsClientDecorator DECORATE = new JaxRsClientDecorator();
 
   @Override

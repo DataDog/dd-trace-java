@@ -16,7 +16,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 @Slf4j
 public class TracingIterator implements Iterator<ConsumerRecord> {
   private final Iterator<ConsumerRecord> delegateIterator;
-  private final String operationName;
+  private final CharSequence operationName;
   private final KafkaDecorator decorator;
 
   /**
@@ -27,7 +27,7 @@ public class TracingIterator implements Iterator<ConsumerRecord> {
 
   public TracingIterator(
       final Iterator<ConsumerRecord> delegateIterator,
-      final String operationName,
+      final CharSequence operationName,
       final KafkaDecorator decorator) {
     this.delegateIterator = delegateIterator;
     this.operationName = operationName;

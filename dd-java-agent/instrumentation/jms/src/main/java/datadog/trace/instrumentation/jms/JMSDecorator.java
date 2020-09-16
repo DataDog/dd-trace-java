@@ -5,6 +5,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.lang.reflect.Method;
 import javax.jms.Destination;
@@ -15,6 +16,10 @@ import javax.jms.TemporaryTopic;
 import javax.jms.Topic;
 
 public final class JMSDecorator extends ClientDecorator {
+
+  public static final CharSequence JMS_CONSUME = UTF8BytesString.createConstant("jms.consume");
+  public static final CharSequence JMS_ONMESSAGE = UTF8BytesString.createConstant("jms.onMessage");
+  public static final CharSequence JMS_PRODUCE = UTF8BytesString.createConstant("jms.produce");
 
   private final String spanKind;
   private final String spanType;

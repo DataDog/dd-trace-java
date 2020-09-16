@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.TWILIO_SDK;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -95,7 +96,7 @@ public class TwilioSyncInstrumentation extends Instrumenter.Default {
         return null;
       }
 
-      final AgentSpan span = startSpan("twilio.sdk");
+      final AgentSpan span = startSpan(TWILIO_SDK);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 

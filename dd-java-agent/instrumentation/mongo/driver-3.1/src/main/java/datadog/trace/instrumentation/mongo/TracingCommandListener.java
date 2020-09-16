@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.mongo;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.mongo.MongoClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.mongo.MongoClientDecorator.MONGO_QUERY;
 
 import com.mongodb.event.CommandFailedEvent;
 import com.mongodb.event.CommandListener;
@@ -21,7 +22,7 @@ public class TracingCommandListener implements CommandListener {
 
   @Override
   public void commandStarted(final CommandStartedEvent event) {
-    final AgentSpan span = startSpan("mongo.query");
+    final AgentSpan span = startSpan(MONGO_QUERY);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, event);

@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.DECORATE;
+import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.NETTY_REQUEST;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -38,7 +39,7 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     final Context context =
         propagate().extract(request.headers(), ContextVisitors.stringValuesEntrySet());
 
-    final AgentSpan span = startSpan("netty.request", context);
+    final AgentSpan span = startSpan(NETTY_REQUEST, context);
     span.setTag(InstrumentationTags.DD_MEASURED, true);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);

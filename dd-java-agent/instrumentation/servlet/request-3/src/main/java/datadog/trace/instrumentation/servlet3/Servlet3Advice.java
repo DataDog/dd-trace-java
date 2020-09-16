@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet3.HttpServletRequestExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
+import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.SERVLET_REQUEST;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
@@ -48,7 +49,7 @@ public class Servlet3Advice {
     final AgentSpan.Context extractedContext = propagate().extract(httpServletRequest, GETTER);
 
     final AgentSpan span =
-        startSpan("servlet.request", extractedContext)
+        startSpan(SERVLET_REQUEST, extractedContext)
             .setTag("span.origin.type", servlet.getClass().getName())
             .setTag(InstrumentationTags.DD_MEASURED, true);
 

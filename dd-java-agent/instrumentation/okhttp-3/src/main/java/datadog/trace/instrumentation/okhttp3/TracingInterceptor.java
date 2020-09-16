@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator.OKHTTP_REQUEST;
 import static datadog.trace.instrumentation.okhttp3.RequestBuilderInjectAdapter.SETTER;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -23,7 +24,7 @@ public class TracingInterceptor implements Interceptor {
       return chain.proceed(chain.request());
     }
 
-    final AgentSpan span = startSpan("okhttp.request");
+    final AgentSpan span = startSpan(OKHTTP_REQUEST);
     span.setTag(InstrumentationTags.DD_MEASURED, true);
 
     try (final AgentScope scope = activateSpan(span)) {

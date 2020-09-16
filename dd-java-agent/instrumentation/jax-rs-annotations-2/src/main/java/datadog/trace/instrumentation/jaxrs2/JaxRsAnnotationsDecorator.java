@@ -5,6 +5,7 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -14,6 +15,10 @@ import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
 
 public class JaxRsAnnotationsDecorator extends BaseDecorator {
+
+  public static final CharSequence JAX_RS_REQUEST_ABORT =
+      UTF8BytesString.createConstant("jax-rs.request.abort");
+
   public static final String ABORT_FILTER_CLASS =
       "datadog.trace.instrumentation.jaxrs2.filter.abort.class";
   public static final String ABORT_HANDLED =

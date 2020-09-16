@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.elasticsearch.ElasticsearchRestClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.elasticsearch.ElasticsearchRestClientDecorator.ELASTICSEARCH_REST_QUERY;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -61,7 +62,7 @@ public class Elasticsearch5RestClientInstrumentation extends Instrumenter.Defaul
         @Advice.Argument(1) final String endpoint,
         @Advice.Argument(value = 5, readOnly = false) ResponseListener responseListener) {
 
-      final AgentSpan span = startSpan("elasticsearch.rest.query");
+      final AgentSpan span = startSpan(ELASTICSEARCH_REST_QUERY);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, method, endpoint);
 

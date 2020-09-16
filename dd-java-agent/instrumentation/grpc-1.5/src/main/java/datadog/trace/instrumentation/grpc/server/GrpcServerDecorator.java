@@ -2,10 +2,14 @@ package datadog.trace.instrumentation.grpc.server;
 
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
 import io.grpc.Status;
 
 public class GrpcServerDecorator extends ServerDecorator {
+
+  public static final CharSequence GRPC_SERVER = UTF8BytesString.createConstant("grpc.server");
+  public static final CharSequence GRPC_MESSAGE = UTF8BytesString.createConstant("grpc.message");
   public static final GrpcServerDecorator DECORATE = new GrpcServerDecorator();
 
   @Override

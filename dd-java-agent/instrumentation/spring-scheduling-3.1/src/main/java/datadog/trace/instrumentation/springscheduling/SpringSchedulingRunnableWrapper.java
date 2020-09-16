@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.springscheduling;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.DECORATE;
+import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.SCHEDULED_CALL;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -16,7 +17,7 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
 
   @Override
   public void run() {
-    final AgentSpan span = startSpan("scheduled.call");
+    final AgentSpan span = startSpan(SCHEDULED_CALL);
     DECORATE.afterStart(span);
 
     try (final AgentScope scope = activateSpan(span)) {

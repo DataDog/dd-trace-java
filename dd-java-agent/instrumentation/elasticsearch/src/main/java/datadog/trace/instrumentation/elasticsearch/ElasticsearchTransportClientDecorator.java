@@ -5,9 +5,14 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 
 public class ElasticsearchTransportClientDecorator extends DatabaseClientDecorator {
+
+  public static final CharSequence ELASTICSEARCH_QUERY =
+      UTF8BytesString.createConstant("elasticsearch.query");
+
   public static final ElasticsearchTransportClientDecorator DECORATE =
       new ElasticsearchTransportClientDecorator();
 

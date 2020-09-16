@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
+import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DISPATCHER_HANDLE_HANDLER;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -29,7 +30,7 @@ public class DispatcherHandlerAdvice {
       exchange.getAttributes().put(AdviceUtils.PARENT_SPAN_ATTRIBUTE, parentSpan);
     }
 
-    final AgentSpan span = startSpan("DispatcherHandler.handle");
+    final AgentSpan span = startSpan(DISPATCHER_HANDLE_HANDLER);
     span.setTag(InstrumentationTags.DD_MEASURED, true);
     DECORATE.afterStart(span);
     exchange.getAttributes().put(AdviceUtils.SPAN_ATTRIBUTE, span);

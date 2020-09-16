@@ -10,7 +10,7 @@ public class TracingList extends TracingIterable implements List<ConsumerRecord>
 
   public TracingList(
       final List<ConsumerRecord> delegate,
-      final String operationName,
+      final CharSequence operationName,
       final KafkaDecorator decorator) {
     super(delegate, operationName, decorator);
     this.delegate = delegate;

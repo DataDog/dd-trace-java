@@ -14,8 +14,10 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
-  public static final JDBCDecorator DECORATE = new JDBCDecorator();
 
+  public static final JDBCDecorator DECORATE = new JDBCDecorator();
+  public static final CharSequence DATABASE_QUERY =
+      UTF8BytesString.createConstant("database.query");
   private static final UTF8BytesString DB_QUERY = UTF8BytesString.createConstant("DB Query");
   private static final UTF8BytesString JDBC_STATEMENT =
       UTF8BytesString.createConstant("java-jdbc-statement");

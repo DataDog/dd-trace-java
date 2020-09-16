@@ -6,9 +6,14 @@ import com.datastax.driver.core.Session;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
 public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
+
+  public static final CharSequence CASSANDRA_EXECUTE =
+      UTF8BytesString.createConstant("cassandra.execute");
+
   public static final CassandraClientDecorator DECORATE = new CassandraClientDecorator();
 
   @Override

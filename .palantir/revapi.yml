@@ -622,6 +622,9 @@ acceptedBreaks:
     - code: "java.class.removed"
       old: "class datadog.trace.core.monitor.Monitor"
       justification: "internal api"
+    - code: "java.class.removed"
+      old: "class datadog.trace.core.util.ThreadCpuTimeAccess"
+      justification: "internal api"
     - code: "java.field.removed"
       old: "field datadog.common.exec.DaemonThreadFactory.TRACE_WRITER"
       justification: "erm"
@@ -643,6 +646,8 @@ acceptedBreaks:
       old: "method java.lang.Float datadog.trace.api.Config::getFloatSettingFromEnvironment(java.lang.String,\
         \ java.lang.Float)"
       justification: "config cleanup"
+  "0.62.0":
+    com.datadoghq:dd-trace-ot:
     - code: "java.class.removed"
-      old: "class datadog.trace.core.util.ThreadCpuTimeAccess"
+      old: "class datadog.trace.bootstrap.instrumentation.api.DDSpanNames"
       justification: "internal api"
