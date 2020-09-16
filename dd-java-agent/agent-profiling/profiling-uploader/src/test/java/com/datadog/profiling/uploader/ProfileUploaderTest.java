@@ -52,7 +52,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.zip.GZIPInputStream;
 import net.jpountz.lz4.LZ4FrameInputStream;
 import okhttp3.ConnectionSpec;
@@ -501,20 +500,16 @@ public class ProfileUploaderTest {
 
   @Test
   public void testLogLevelInfoFailedUpload() throws IOException, InterruptedException {
-    AssertingAppender appender =
-        new AssertingAppender(
-            loggingEvent -> {
-              if (loggingEvent.getLevel() == Level.WARN) {
-                assertEquals(
-                    "Failed to upload profile: unexpected response code Server Error 500",
-                    loggingEvent.getFormattedMessage());
-              }
-            });
-    setupLogger("INFO", appender);
+    TestAppender appender = new TestAppender();
+    Level oldLevel = setupLogger(Level.INFO, appender);
     try {
       test500Response();
+      assertEquals(1, appender.logEvents.size());
+      assertEquals(
+          "Failed to upload profile: unexpected response code Server Error 500",
+          appender.logEvents.get(0).getFormattedMessage());
     } finally {
-      cleanupLogger("DEBUG", appender);
+      cleanupLogger(oldLevel, appender);
     }
   }
 
@@ -523,31 +518,30 @@ public class ProfileUploaderTest {
     return (ch.qos.logback.classic.Logger) logger;
   }
 
-  private static void setupLogger(String logLevel, AppenderBase<ILoggingEvent> appender) {
+  private static Level setupLogger(Level logLevel, AppenderBase<ILoggingEvent> appender) {
     ch.qos.logback.classic.Logger logBackLogger = getLogBackLogger();
+    Level oldLevel = logBackLogger.getLevel();
     appender.start();
     logBackLogger.addAppender(appender);
-    logBackLogger.setLevel(Level.toLevel(logLevel));
+    logBackLogger.setLevel(logLevel);
+    return oldLevel;
   }
 
-  private static void cleanupLogger(String logLevel, AppenderBase<ILoggingEvent> appender) {
+  private static void cleanupLogger(Level logLevel, AppenderBase<ILoggingEvent> appender) {
     ch.qos.logback.classic.Logger logBackLogger = getLogBackLogger();
     appender.stop();
     logBackLogger.detachAppender(appender);
-    logBackLogger.setLevel(Level.toLevel(logLevel));
+    logBackLogger.setLevel(logLevel);
   }
 
-  private static class AssertingAppender extends AppenderBase<ILoggingEvent> {
-
-    final Consumer<ILoggingEvent> assertConsumer;
-
-    public AssertingAppender(Consumer<ILoggingEvent> assertConsumer) {
-      this.assertConsumer = assertConsumer;
-    }
+  private static class TestAppender extends AppenderBase<ILoggingEvent> {
+    List<ILoggingEvent> logEvents = new ArrayList<>();
 
     @Override
     protected void append(ILoggingEvent loggingEvent) {
-      assertConsumer.accept(loggingEvent);
+      if (loggingEvent.getLevel() == Level.WARN) {
+        logEvents.add(loggingEvent);
+      }
     }
   }
 
