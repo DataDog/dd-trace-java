@@ -503,11 +503,15 @@ public class ProfileUploaderTest {
     TestAppender appender = new TestAppender();
     Level oldLevel = setupLogger(Level.INFO, appender);
     try {
-      test500Response();
+      testConnectionRefused();
+      appender.await();
       assertEquals(1, appender.logEvents.size());
-      assertEquals(
-          "Failed to upload profile: unexpected response code Server Error 500",
-          appender.logEvents.get(0).getFormattedMessage());
+      assertTrue(
+          appender
+              .logEvents
+              .get(0)
+              .getFormattedMessage()
+              .endsWith("(Will not log errors for 5 minutes)"));
     } finally {
       cleanupLogger(oldLevel, appender);
     }
@@ -535,12 +539,26 @@ public class ProfileUploaderTest {
   }
 
   private static class TestAppender extends AppenderBase<ILoggingEvent> {
-    List<ILoggingEvent> logEvents = new ArrayList<>();
+    final List<ILoggingEvent> logEvents = new ArrayList<>();
+    final Object lock = new Object();
 
     @Override
     protected void append(ILoggingEvent loggingEvent) {
       if (loggingEvent.getLevel() == Level.WARN) {
-        logEvents.add(loggingEvent);
+        synchronized (lock) {
+          logEvents.add(loggingEvent);
+          lock.notifyAll();
+        }
+      }
+    }
+
+    public void await() {
+      try {
+        synchronized (lock) {
+          lock.wait(Duration.ofSeconds(5).toMillis());
+        }
+      } catch (InterruptedException ex) {
+        Thread.currentThread().interrupt();
       }
     }
   }
