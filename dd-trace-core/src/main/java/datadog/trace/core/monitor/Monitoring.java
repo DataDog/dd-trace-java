@@ -2,6 +2,7 @@ package datadog.trace.core.monitor;
 
 import static java.lang.management.ManagementFactory.getThreadMXBean;
 
+import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import java.util.concurrent.TimeUnit;
 
@@ -13,16 +14,16 @@ public final class Monitoring {
   private final long flushAfterNanos;
   private final boolean enabled;
 
-  public Monitoring(StatsDClient statsd, long flushInterval, TimeUnit flushUnit) {
+  public Monitoring(final StatsDClient statsd, final long flushInterval, final TimeUnit flushUnit) {
     this.statsd = statsd;
-    this.flushAfterNanos = flushUnit.toNanos(flushInterval);
-    this.enabled = true;
+    flushAfterNanos = flushUnit.toNanos(flushInterval);
+    enabled = true;
   }
 
   private Monitoring() {
-    this.statsd = null;
-    this.flushAfterNanos = 0;
-    this.enabled = false;
+    statsd = new NoOpStatsDClient();
+    flushAfterNanos = 0;
+    enabled = false;
   }
 
   public Recording newTimer(final String name) {
@@ -32,7 +33,7 @@ public final class Monitoring {
     return new Timer(name, statsd, flushAfterNanos);
   }
 
-  public Recording newTimer(final String name, String... tags) {
+  public Recording newTimer(final String name, final String... tags) {
     if (!enabled) {
       return NoOpRecording.NO_OP;
     }
@@ -52,7 +53,7 @@ public final class Monitoring {
         });
   }
 
-  public Recording newCPUTimer(String name) {
+  public Recording newCPUTimer(final String name) {
     if (!enabled) {
       return NoOpRecording.NO_OP;
     }
@@ -62,7 +63,7 @@ public final class Monitoring {
     return newTimer(name);
   }
 
-  public Counter newCounter(String name) {
+  public Counter newCounter(final String name) {
     return new Counter(name, statsd);
   }
 }
