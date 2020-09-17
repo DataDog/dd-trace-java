@@ -18,6 +18,7 @@ package com.datadog.profiling.uploader;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.PidHelper;
+import com.datadog.profiling.uploader.util.RatelimitedLogger;
 import com.datadog.profiling.uploader.util.StreamUtils;
 import com.datadog.profiling.util.ProfilingThreadFactory;
 import datadog.common.container.ContainerInfo;
@@ -37,7 +38,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Call;
@@ -47,7 +47,6 @@ import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
 import okhttp3.Dispatcher;
 import okhttp3.Headers;
-import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
@@ -93,51 +92,40 @@ public final class ProfileUploader {
           "Content-Disposition", "form-data; name=\"" + DATA_PARAM + "\"; filename=\"profile\"");
 
   private static final long NANOSECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toNanos(5);
-  private static final Callback RESPONSE_CALLBACK =
-      new Callback() {
-        final AtomicLong previousErrorLogNanos = new AtomicLong();
 
-        @Override
-        public void onFailure(final Call call, final IOException e) {
-          HttpUrl url = call.request().url();
-          if (log.isDebugEnabled()) {
-            log.debug("Failed to upload profile to {}", url, e);
-            return;
-          }
-          if (log.isWarnEnabled()) {
-            long previous = previousErrorLogNanos.get();
-            long now = System.nanoTime();
-            if (now - previous >= NANOSECONDS_BETWEEN_ERROR_LOG) {
-              if (previousErrorLogNanos.compareAndSet(previous, now)) {
-                log.warn(
-                    "Failed to upload profile to {} {} (Will not log errors for 5 minutes)",
-                    url,
-                    e.toString());
-              }
-            }
-          }
+  private static final class ResponseCallback implements Callback {
+
+    private final RatelimitedLogger ratelimitedLogger;
+
+    public ResponseCallback(final RatelimitedLogger ratelimitedLogger) {
+      this.ratelimitedLogger = ratelimitedLogger;
+    }
+
+    @Override
+    public void onFailure(final Call call, final IOException e) {
+      ratelimitedLogger.warn("Failed to upload profile to {}", call.request().url(), e);
+    }
+
+    @Override
+    public void onResponse(final Call call, final Response response) {
+      if (response.isSuccessful()) {
+        log.debug("Upload done");
+      } else {
+        final String apiKey = call.request().header(HEADER_DD_API_KEY);
+        if (response.code() == 404 && apiKey == null) {
+          // if no API key and not found error we assume we're sending to the agent
+          log.warn(
+              "Datadog Agent is not accepting profiles. Agent-based profiling deployments require Datadog Agent >= 7.20");
         }
 
-        @Override
-        public void onResponse(final Call call, final Response response) {
-          if (response.isSuccessful()) {
-            log.debug("Upload done");
-          } else {
-            String apiKey = call.request().header(HEADER_DD_API_KEY);
-            if (response.code() == 404 && apiKey == null) {
-              // if no API key and not found error we assume we're sending to the agent
-              log.warn(
-                  "Datadog Agent is not accepting profiles. Agent-based profiling deployments require Datadog Agent >= 7.20");
-            }
-
-            log.warn(
-                "Failed to upload profile: unexpected response code {} {}",
-                response.message(),
-                response.code());
-          }
-          response.close();
-        }
-      };
+        log.warn(
+            "Failed to upload profile: unexpected response code {} {}",
+            response.message(),
+            response.code());
+      }
+      response.close();
+    }
+  }
 
   static final int SEED_EXPECTED_REQUEST_SIZE = 2 * 1024 * 1024; // 2MB;
   static final int REQUEST_SIZE_HISTORY_SIZE = 10;
@@ -145,6 +133,7 @@ public final class ProfileUploader {
 
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
+  private final Callback responseCallback;
   private final String apiKey;
   private final String url;
   private final String containerId;
@@ -153,16 +142,21 @@ public final class ProfileUploader {
   private final Deque<Integer> requestSizeHistory;
 
   public ProfileUploader(final Config config) {
-    this(config, ContainerInfo.get().getContainerId());
+    this(
+        config,
+        new RatelimitedLogger(log, NANOSECONDS_BETWEEN_ERROR_LOG),
+        ContainerInfo.get().getContainerId());
   }
 
   /**
    * Note that this method is only visible for testing and should not be used from outside this
    * class.
    */
-  ProfileUploader(final Config config, final String containerId) {
+  ProfileUploader(
+      final Config config, final RatelimitedLogger ratelimitedLogger, final String containerId) {
     url = config.getFinalProfilingUrl();
     apiKey = config.getApiKey();
+    responseCallback = new ResponseCallback(ratelimitedLogger);
     this.containerId = containerId;
 
     log.debug("Started ProfileUploader with target url {}", url);
@@ -370,7 +364,7 @@ public final class ProfileUploader {
     if (containerId != null) {
       requestBuilder.addHeader(HEADER_DD_CONTAINER_ID, containerId);
     }
-    client.newCall(requestBuilder.build()).enqueue(RESPONSE_CALLBACK);
+    client.newCall(requestBuilder.build()).enqueue(responseCallback);
   }
 
   private int getExpectedRequestSize() {

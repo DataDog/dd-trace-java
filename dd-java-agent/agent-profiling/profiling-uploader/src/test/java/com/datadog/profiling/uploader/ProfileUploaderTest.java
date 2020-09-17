@@ -20,6 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -28,13 +30,11 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.AppenderBase;
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.testing.ProfilingTestUtils;
 import com.datadog.profiling.uploader.util.PidHelper;
+import com.datadog.profiling.uploader.util.RatelimitedLogger;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -45,6 +45,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.ConnectException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -68,8 +69,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Unit tests for the recording uploader. */
 @ExtendWith(MockitoExtension.class)
@@ -116,6 +115,7 @@ public class ProfileUploaderTest {
   private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
 
   @Mock private Config config;
+  @Mock private RatelimitedLogger ratelimitedLogger;
 
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;
@@ -132,7 +132,7 @@ public class ProfileUploaderTest {
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
 
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, ratelimitedLogger, "containerId");
   }
 
   @AfterEach
@@ -201,7 +201,7 @@ public class ProfileUploaderTest {
 
   @Test
   public void testRequestWithContainerId() throws IOException, InterruptedException {
-    uploader = new ProfileUploader(config, "container-id");
+    uploader = new ProfileUploader(config, ratelimitedLogger, "container-id");
 
     server.enqueue(new MockResponse().setResponseCode(200));
     uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
@@ -318,7 +318,7 @@ public class ProfileUploaderTest {
 
     uploader = new ProfileUploader(config);
 
-    List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
+    final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 1);
     assertTrue(connectionSpecs.contains(ConnectionSpec.CLEARTEXT));
   }
@@ -329,7 +329,7 @@ public class ProfileUploaderTest {
 
     uploader = new ProfileUploader(config);
 
-    List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
+    final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 2);
     assertTrue(connectionSpecs.contains(ConnectionSpec.MODERN_TLS));
     assertTrue(connectionSpecs.contains(ConnectionSpec.CLEARTEXT));
@@ -368,6 +368,11 @@ public class ProfileUploaderTest {
 
     verify(recording.getStream()).close();
     verify(recording).release();
+
+    // Shutting down uploader ensures all callbacks are called on http client
+    uploader.shutdown();
+    verify(ratelimitedLogger)
+        .warn(eq("Failed to upload profile to {}"), eq(url), any(ConnectException.class));
   }
 
   @Test
@@ -496,71 +501,6 @@ public class ProfileUploaderTest {
 
     verify(recording.getStream()).close();
     verify(recording).release();
-  }
-
-  @Test
-  public void testLogLevelInfoFailedUpload() throws IOException, InterruptedException {
-    TestAppender appender = new TestAppender();
-    Level oldLevel = setupLogger(Level.INFO, appender);
-    try {
-      testConnectionRefused();
-      appender.await();
-      assertEquals(1, appender.logEvents.size());
-      assertTrue(
-          appender
-              .logEvents
-              .get(0)
-              .getFormattedMessage()
-              .endsWith("(Will not log errors for 5 minutes)"));
-    } finally {
-      cleanupLogger(oldLevel, appender);
-    }
-  }
-
-  private static ch.qos.logback.classic.Logger getLogBackLogger() {
-    Logger logger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    return (ch.qos.logback.classic.Logger) logger;
-  }
-
-  private static Level setupLogger(Level logLevel, AppenderBase<ILoggingEvent> appender) {
-    ch.qos.logback.classic.Logger logBackLogger = getLogBackLogger();
-    Level oldLevel = logBackLogger.getLevel();
-    appender.start();
-    logBackLogger.addAppender(appender);
-    logBackLogger.setLevel(logLevel);
-    return oldLevel;
-  }
-
-  private static void cleanupLogger(Level logLevel, AppenderBase<ILoggingEvent> appender) {
-    ch.qos.logback.classic.Logger logBackLogger = getLogBackLogger();
-    appender.stop();
-    logBackLogger.detachAppender(appender);
-    logBackLogger.setLevel(logLevel);
-  }
-
-  private static class TestAppender extends AppenderBase<ILoggingEvent> {
-    final List<ILoggingEvent> logEvents = new ArrayList<>();
-    final Object lock = new Object();
-
-    @Override
-    protected void append(ILoggingEvent loggingEvent) {
-      if (loggingEvent.getLevel() == Level.WARN) {
-        synchronized (lock) {
-          logEvents.add(loggingEvent);
-          lock.notifyAll();
-        }
-      }
-    }
-
-    public void await() {
-      try {
-        synchronized (lock) {
-          lock.wait(Duration.ofSeconds(5).toMillis());
-        }
-      } catch (InterruptedException ex) {
-        Thread.currentThread().interrupt();
-      }
-    }
   }
 
   private RecordingData mockRecordingData(final String recordingResource) throws IOException {
