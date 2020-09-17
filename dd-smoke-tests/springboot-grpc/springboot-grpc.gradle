@@ -47,6 +47,7 @@ dependencies {
   main_java8Compile 'io.grpc:grpc-protobuf:1.31.1'
   main_java8Compile 'io.grpc:grpc-stub:1.31.1'
   main_java8Compile 'org.apache.tomcat:annotations-api:6.0.53'
+  main_java8Compile 'com.google.cloud:google-cloud-spanner:1.61.0'
 
   testCompile project(':dd-smoke-tests')
 }
