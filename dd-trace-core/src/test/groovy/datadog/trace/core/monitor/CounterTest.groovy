@@ -2,6 +2,7 @@ package datadog.trace.core.monitor
 
 import com.timgroup.statsd.StatsDClient
 import datadog.trace.util.test.DDSpecification
+import org.junit.Assert
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
@@ -27,5 +28,26 @@ class CounterTest extends DDSpecification {
     then:
     1 * statsd.count("my_counter", 1000, ["cause:bad_stuff_happened"])
     0 * _
+  }
+
+  def "disabled monitoring produces no op counters" () {
+    setup:
+    Monitoring monitoring = Monitoring.DISABLED
+    when:
+    Counter counter = monitoring.newCounter("foo")
+    then:
+    counter instanceof NoOpCounter
+  }
+
+  def "no-op counters are safe" () {
+    setup:
+    Counter counter = Monitoring.DISABLED.newCounter("foo")
+    expect:
+    try {
+      counter.increment(1)
+      counter.incrementErrorCount("cause", 1)
+    } catch (Throwable t) {
+      Assert.fail(t.getMessage())
+    }
   }
 }

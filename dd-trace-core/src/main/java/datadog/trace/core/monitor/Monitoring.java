@@ -14,16 +14,16 @@ public final class Monitoring {
   private final long flushAfterNanos;
   private final boolean enabled;
 
-  public Monitoring(final StatsDClient statsd, final long flushInterval, final TimeUnit flushUnit) {
+  public Monitoring(final StatsDClient statsd, long flushInterval, TimeUnit flushUnit) {
     this.statsd = statsd;
-    flushAfterNanos = flushUnit.toNanos(flushInterval);
-    enabled = true;
+    this.flushAfterNanos = flushUnit.toNanos(flushInterval);
+    this.enabled = true;
   }
 
   private Monitoring() {
-    statsd = new NoOpStatsDClient();
-    flushAfterNanos = 0;
-    enabled = false;
+    this.statsd = new NoOpStatsDClient();
+    this.flushAfterNanos = 0;
+    this.enabled = false;
   }
 
   public Recording newTimer(final String name) {
@@ -64,6 +64,9 @@ public final class Monitoring {
   }
 
   public Counter newCounter(final String name) {
-    return new Counter(name, statsd);
+    if (!enabled) {
+      return NoOpCounter.NO_OP;
+    }
+    return new StatsDCounter(name, statsd);
   }
 }
