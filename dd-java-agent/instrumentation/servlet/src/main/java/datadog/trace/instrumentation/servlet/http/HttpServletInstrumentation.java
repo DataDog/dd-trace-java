@@ -5,9 +5,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.ex
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.servlet.SpanNameCache.SERVLET_PREFIX;
+import static datadog.trace.instrumentation.servlet.SpanNameCache.SPAN_NAME_CACHE;
 import static datadog.trace.instrumentation.servlet.http.HttpServletDecorator.DECORATE;
-import static datadog.trace.instrumentation.servlet.http.HttpServletDecorator.SERVLET_PREFIX;
-import static datadog.trace.instrumentation.servlet.http.HttpServletDecorator.SPAN_NAME_CACHE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -52,7 +52,7 @@ public final class HttpServletInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpServletDecorator",
+      "datadog.trace.instrumentation.servlet.SpanNameCache", packageName + ".HttpServletDecorator",
     };
   }
 
