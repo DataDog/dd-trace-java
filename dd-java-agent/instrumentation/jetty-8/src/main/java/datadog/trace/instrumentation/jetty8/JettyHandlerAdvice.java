@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty8.HttpServletRequestExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.jetty8.JettyDecorator.DECORATE;
+import static datadog.trace.instrumentation.jetty8.JettyDecorator.JETTY_REQUEST;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
@@ -34,7 +35,7 @@ public class JettyHandlerAdvice {
     final AgentSpan.Context extractedContext = propagate().extract(req, GETTER);
 
     final AgentSpan span =
-        startSpan("jetty.request", extractedContext)
+        startSpan(JETTY_REQUEST, extractedContext)
             .setTag("span.origin.type", source.getClass().getName())
             .setTag(InstrumentationTags.DD_MEASURED, true);
     DECORATE.afterStart(span);

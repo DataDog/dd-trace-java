@@ -319,28 +319,28 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   @Override
-  public CoreSpanBuilder buildSpan(final String operationName) {
+  public CoreSpanBuilder buildSpan(final CharSequence operationName) {
     return new CoreSpanBuilder(operationName);
   }
 
   @Override
-  public AgentSpan startSpan(final String spanName) {
+  public AgentSpan startSpan(final CharSequence spanName) {
     return buildSpan(spanName).start();
   }
 
   @Override
-  public AgentSpan startSpan(final String spanName, final long startTimeMicros) {
+  public AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
     return buildSpan(spanName).withStartTimestamp(startTimeMicros).start();
   }
 
   @Override
-  public AgentSpan startSpan(final String spanName, final AgentSpan.Context parent) {
+  public AgentSpan startSpan(final CharSequence spanName, final AgentSpan.Context parent) {
     return buildSpan(spanName).ignoreActiveSpan().asChildOf(parent).start();
   }
 
   @Override
   public AgentSpan startSpan(
-      final String spanName, final AgentSpan.Context parent, final long startTimeMicros) {
+      final CharSequence spanName, final AgentSpan.Context parent, final long startTimeMicros) {
     return buildSpan(spanName)
         .ignoreActiveSpan()
         .asChildOf(parent)
@@ -647,7 +647,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   /** Spans are built using this builder */
   public class CoreSpanBuilder implements AgentTracer.SpanBuilder {
-    private final String operationName;
+    private final CharSequence operationName;
 
     // Builder attributes
     private Map<String, Object> tags;
@@ -659,7 +659,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private String spanType;
     private boolean ignoreScope = false;
 
-    public CoreSpanBuilder(final String operationName) {
+    public CoreSpanBuilder(final CharSequence operationName) {
       this.operationName = operationName;
     }
 
@@ -830,7 +830,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
         serviceName = CoreTracer.this.serviceName;
       }
 
-      final String operationName = this.operationName != null ? this.operationName : resourceName;
+      final CharSequence operationName =
+          this.operationName != null ? this.operationName : resourceName;
 
       final int tagsSize =
           (null == tags ? 0 : tags.size())

@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.servlet.ServletRequestSetter.SETTER;
 import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.DECORATE;
+import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.SERVLET_RESPONSE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
@@ -79,7 +80,7 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
         return null;
       }
 
-      final AgentSpan span = startSpan("servlet.response");
+      final AgentSpan span = startSpan(SERVLET_RESPONSE);
       DECORATE.afterStart(span);
 
       span.setTag(DDTags.RESOURCE_NAME, "HttpServletResponse." + method);

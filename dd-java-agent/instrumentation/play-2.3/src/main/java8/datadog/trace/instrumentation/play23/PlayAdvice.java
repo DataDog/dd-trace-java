@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.play23.PlayHeaders.GETTER;
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.DECORATE;
+import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.PLAY_REQUEST;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -24,11 +25,11 @@ public class PlayAdvice {
     final AgentSpan span;
     if (activeSpan() == null) {
       final Context extractedContext = propagate().extract(req.headers(), GETTER);
-      span = startSpan("play.request", extractedContext);
+      span = startSpan(PLAY_REQUEST, extractedContext);
     } else {
       // An upstream framework (e.g. akka-http, netty) has already started the span.
       // Do not extract the context.
-      span = startSpan("play.request");
+      span = startSpan(PLAY_REQUEST);
     }
     span.setTag(InstrumentationTags.DD_MEASURED, true);
     DECORATE.afterStart(span);

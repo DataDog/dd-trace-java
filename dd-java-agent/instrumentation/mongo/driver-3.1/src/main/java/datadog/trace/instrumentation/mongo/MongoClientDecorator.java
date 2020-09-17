@@ -8,6 +8,7 @@ import com.mongodb.event.CommandStartedEvent;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import java.util.Arrays;
 import java.util.List;
@@ -19,6 +20,8 @@ import org.bson.BsonValue;
 
 public class MongoClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<CommandStartedEvent> {
+  public static final UTF8BytesString MONGO_QUERY = UTF8BytesString.createConstant("mongo.query");
+
   public static final MongoClientDecorator DECORATE = new MongoClientDecorator();
 
   @Override

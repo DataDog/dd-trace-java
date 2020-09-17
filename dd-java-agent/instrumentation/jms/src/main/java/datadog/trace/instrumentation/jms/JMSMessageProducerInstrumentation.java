@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_PRODUCE;
 import static datadog.trace.instrumentation.jms.JMSDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -88,7 +89,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
       }
 
       final AgentSpan span =
-          startSpan("jms.produce").setTag("span.origin.type", producer.getClass().getName());
+          startSpan(JMS_PRODUCE).setTag("span.origin.type", producer.getClass().getName());
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, message, defaultDestination);
 
@@ -124,7 +125,7 @@ public final class JMSMessageProducerInstrumentation extends Instrumenter.Defaul
       }
 
       final AgentSpan span =
-          startSpan("jms.produce").setTag("span.origin.type", producer.getClass().getName());
+          startSpan(JMS_PRODUCE).setTag("span.origin.type", producer.getClass().getName());
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, message, destination);
 

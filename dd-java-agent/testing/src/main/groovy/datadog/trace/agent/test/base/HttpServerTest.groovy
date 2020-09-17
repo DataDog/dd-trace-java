@@ -595,7 +595,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     TEST_WRITER.waitForTraces(size * 2)
     // TEST_WRITER is a CopyOnWriteArrayList, which doesn't support remove()
     def toRemove = TEST_WRITER.findAll {
-      it.size() == 1 && it.get(0).operationName == "TEST_SPAN"
+      it.size() == 1 && it.get(0).operationName.toString() == "TEST_SPAN"
     }
     toRemove.each {
       assertTrace(it, 1) {
@@ -608,7 +608,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     if (reorderHandlerSpan()) {
       TEST_WRITER.each {
         def controllerSpan = it.find {
-          it.operationName == reorderHandlerSpan()
+          it.operationName.toString() == reorderHandlerSpan()
         }
         if (controllerSpan) {
           it.remove(controllerSpan)
@@ -621,7 +621,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
       // Some frameworks close the handler span before the controller returns, so we need to manually reorder it.
       TEST_WRITER.each {
         def controllerSpan = it.find {
-          it.operationName == "controller"
+          it.operationName.toString() == "controller"
         }
         if (controllerSpan) {
           it.remove(controllerSpan)

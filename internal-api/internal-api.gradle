@@ -12,7 +12,6 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.InstrumentationTags",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopContinuation",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan",
-  "datadog.trace.bootstrap.instrumentation.api.DDSpanNames",
   "datadog.trace.bootstrap.instrumentation.api.DDComponents",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",

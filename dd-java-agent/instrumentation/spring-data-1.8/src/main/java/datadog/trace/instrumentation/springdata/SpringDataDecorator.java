@@ -4,10 +4,13 @@ package datadog.trace.instrumentation.springdata;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.lang.reflect.Method;
 
 public final class SpringDataDecorator extends ClientDecorator {
+  public static final CharSequence REPOSITORY_OPERATION =
+      UTF8BytesString.createConstant("repository.operation");
   public static final SpringDataDecorator DECORATOR = new SpringDataDecorator();
 
   private SpringDataDecorator() {}

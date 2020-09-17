@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.AMQP_COMMAND;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.DECORATE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.PRODUCER_DECORATE;
@@ -121,7 +122,7 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       final Connection connection = channel.getConnection();
 
       final AgentSpan span =
-          startSpan("amqp.command")
+          startSpan(AMQP_COMMAND)
               .setTag(DDTags.RESOURCE_NAME, method)
               .setTag(Tags.PEER_PORT, connection.getPort())
               .setTag(InstrumentationTags.DD_MEASURED, true);
@@ -244,9 +245,9 @@ public class RabbitChannelInstrumentation extends Instrumenter.Default {
       // OnMethodEnter
       final AgentSpan span;
       if (parentContext != null) {
-        span = startSpan("amqp.command", parentContext, TimeUnit.MILLISECONDS.toMicros(startTime));
+        span = startSpan(AMQP_COMMAND, parentContext, TimeUnit.MILLISECONDS.toMicros(startTime));
       } else {
-        span = startSpan("amqp.command", TimeUnit.MILLISECONDS.toMicros(startTime));
+        span = startSpan(AMQP_COMMAND, TimeUnit.MILLISECONDS.toMicros(startTime));
       }
       span.setTag(InstrumentationTags.DD_MEASURED, true);
       if (response != null) {

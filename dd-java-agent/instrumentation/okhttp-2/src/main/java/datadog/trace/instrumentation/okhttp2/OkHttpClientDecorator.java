@@ -2,11 +2,14 @@ package datadog.trace.instrumentation.okhttp2;
 
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response> {
+  public static final CharSequence OKHTTP_REQUEST =
+      UTF8BytesString.createConstant("okhttp.request");
   public static final OkHttpClientDecorator DECORATE = new OkHttpClientDecorator();
 
   @Override

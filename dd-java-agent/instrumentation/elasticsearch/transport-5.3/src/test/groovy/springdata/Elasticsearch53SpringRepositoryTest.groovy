@@ -424,7 +424,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     TEST_WRITER.waitForTraces(number)
     for (List<DDSpan> trace : TEST_WRITER) {
       // need to normalize span ordering since they are finished by different threads
-      if (trace.size() > 1 && trace[1].operationName == "repository.operation") {
+      if (trace.size() > 1 && trace[1].operationName.toString() == "repository.operation") {
         def tmp = trace[1]
         trace[1] = trace[0]
         trace[0] = tmp

@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.rabbitmq.amqp;
 
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_COMMAND;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_EXCHANGE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_QUEUE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_ROUTING_KEY;
@@ -13,9 +12,12 @@ import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.DDComponents;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 
 public class RabbitDecorator extends ClientDecorator {
+
+  public static final CharSequence AMQP_COMMAND = UTF8BytesString.createConstant("amqp.command");
 
   public static final RabbitDecorator DECORATE =
       new RabbitDecorator(Tags.SPAN_KIND_CLIENT, DDSpanTypes.MESSAGE_CLIENT);
@@ -68,7 +70,7 @@ public class RabbitDecorator extends ClientDecorator {
     span.setTag(DDTags.RESOURCE_NAME, "basic.publish " + exchangeName + " -> " + routing);
     span.setTag(DDTags.SPAN_TYPE, DDSpanTypes.MESSAGE_PRODUCER);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_PRODUCER);
-    span.setTag(AMQP_COMMAND, "basic.publish");
+    span.setTag(AMQP_COMMAND.toString(), "basic.publish");
     span.setTag(AMQP_EXCHANGE, exchange);
     span.setTag(AMQP_ROUTING_KEY, routingKey);
   }
@@ -77,7 +79,7 @@ public class RabbitDecorator extends ClientDecorator {
     final String queueName = queue.startsWith("amq.gen-") ? "<generated>" : queue;
     span.setTag(DDTags.RESOURCE_NAME, "basic.get " + queueName);
 
-    span.setTag(AMQP_COMMAND, "basic.get");
+    span.setTag(AMQP_COMMAND.toString(), "basic.get");
     span.setTag(AMQP_QUEUE, queue);
   }
 
@@ -89,7 +91,7 @@ public class RabbitDecorator extends ClientDecorator {
       queueName = "<generated>";
     }
     span.setTag(DDTags.RESOURCE_NAME, "basic.deliver " + queueName);
-    span.setTag(AMQP_COMMAND, "basic.deliver");
+    span.setTag(AMQP_COMMAND.toString(), "basic.deliver");
 
     if (envelope != null) {
       span.setTag(AMQP_EXCHANGE, envelope.getExchange());
@@ -104,7 +106,7 @@ public class RabbitDecorator extends ClientDecorator {
       // Don't overwrite the name already set.
       span.setTag(DDTags.RESOURCE_NAME, name);
     }
-    span.setTag(AMQP_COMMAND, name);
+    span.setTag(AMQP_COMMAND.toString(), name);
   }
 
   public TracedDelegatingConsumer wrapConsumer(String queue, Consumer consumer) {

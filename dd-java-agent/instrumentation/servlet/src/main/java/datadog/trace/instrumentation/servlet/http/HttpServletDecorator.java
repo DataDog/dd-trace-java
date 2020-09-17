@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.servlet.http;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public class HttpServletDecorator extends BaseDecorator {
+
   public static final HttpServletDecorator DECORATE = new HttpServletDecorator();
 
   @Override

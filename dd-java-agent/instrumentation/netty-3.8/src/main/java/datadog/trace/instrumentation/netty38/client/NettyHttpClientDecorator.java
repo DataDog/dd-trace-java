@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.netty38.client;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.HOST;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -11,6 +12,10 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 
 @Slf4j
 public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
+
+  public static final CharSequence NETTY_CLIENT_REQUEST =
+      UTF8BytesString.createConstant("netty.client.request");
+
   public static final NettyHttpClientDecorator DECORATE = new NettyHttpClientDecorator();
 
   @Override

@@ -17,23 +17,23 @@ import java.util.concurrent.atomic.AtomicReference;
 public class AgentTracer {
 
   // Implicit parent
-  public static AgentSpan startSpan(final String spanName) {
+  public static AgentSpan startSpan(final CharSequence spanName) {
     return get().startSpan(spanName);
   }
 
   // Implicit parent
-  public static AgentSpan startSpan(final String spanName, final long startTimeMicros) {
+  public static AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
     return get().startSpan(spanName, startTimeMicros);
   }
 
   // Explicit parent
-  public static AgentSpan startSpan(final String spanName, final AgentSpan.Context parent) {
+  public static AgentSpan startSpan(final CharSequence spanName, final AgentSpan.Context parent) {
     return get().startSpan(spanName, parent);
   }
 
   // Explicit parent
   public static AgentSpan startSpan(
-      final String spanName, final AgentSpan.Context parent, final long startTimeMicros) {
+      final CharSequence spanName, final AgentSpan.Context parent, final long startTimeMicros) {
     return get().startSpan(spanName, parent, startTimeMicros);
   }
 
@@ -81,13 +81,13 @@ public class AgentTracer {
   private AgentTracer() {}
 
   public interface TracerAPI extends datadog.trace.api.Tracer, AgentPropagation {
-    AgentSpan startSpan(String spanName);
+    AgentSpan startSpan(CharSequence spanName);
 
-    AgentSpan startSpan(String spanName, long startTimeMicros);
+    AgentSpan startSpan(CharSequence spanName, long startTimeMicros);
 
-    AgentSpan startSpan(String spanName, AgentSpan.Context parent);
+    AgentSpan startSpan(CharSequence spanName, AgentSpan.Context parent);
 
-    AgentSpan startSpan(String spanName, AgentSpan.Context parent, long startTimeMicros);
+    AgentSpan startSpan(CharSequence spanName, AgentSpan.Context parent, long startTimeMicros);
 
     AgentScope activateSpan(AgentSpan span, ScopeSource source);
 
@@ -99,7 +99,7 @@ public class AgentTracer {
 
     AgentSpan noopSpan();
 
-    SpanBuilder buildSpan(String spanName);
+    SpanBuilder buildSpan(CharSequence spanName);
 
     void close();
   }
@@ -135,23 +135,23 @@ public class AgentTracer {
     protected NoopTracerAPI() {}
 
     @Override
-    public AgentSpan startSpan(final String spanName) {
+    public AgentSpan startSpan(final CharSequence spanName) {
       return NoopAgentSpan.INSTANCE;
     }
 
     @Override
-    public AgentSpan startSpan(final String spanName, final long startTimeMicros) {
+    public AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
       return NoopAgentSpan.INSTANCE;
     }
 
     @Override
-    public AgentSpan startSpan(final String spanName, final Context parent) {
+    public AgentSpan startSpan(final CharSequence spanName, final Context parent) {
       return NoopAgentSpan.INSTANCE;
     }
 
     @Override
     public AgentSpan startSpan(
-        final String spanName, final Context parent, final long startTimeMicros) {
+        final CharSequence spanName, final Context parent, final long startTimeMicros) {
       return NoopAgentSpan.INSTANCE;
     }
 
@@ -181,7 +181,7 @@ public class AgentTracer {
     }
 
     @Override
-    public SpanBuilder buildSpan(final String spanName) {
+    public SpanBuilder buildSpan(final CharSequence spanName) {
       return null;
     }
 

@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.servlet.filter.FilterDecorator.DECORATE;
+import static datadog.trace.instrumentation.servlet.filter.FilterDecorator.SERVLET_FILTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -72,7 +73,7 @@ public final class FilterInstrumentation extends Instrumenter.Default {
         return null;
       }
 
-      final AgentSpan span = startSpan("servlet.filter");
+      final AgentSpan span = startSpan(SERVLET_FILTER);
       DECORATE.afterStart(span);
 
       // Here we use "this" instead of "the method target" to distinguish abstract filter instances.

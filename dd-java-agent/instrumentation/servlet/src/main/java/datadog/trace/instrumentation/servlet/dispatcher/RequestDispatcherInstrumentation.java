@@ -9,6 +9,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet.ServletRequestSetter.SETTER;
+import static datadog.trace.instrumentation.servlet.SpanNameCache.SERVLET_PREFIX;
+import static datadog.trace.instrumentation.servlet.SpanNameCache.SPAN_NAME_CACHE;
 import static datadog.trace.instrumentation.servlet.dispatcher.RequestDispatcherDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -51,6 +53,7 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
   public String[] helperClassNames() {
     return new String[] {
       "datadog.trace.instrumentation.servlet.ServletRequestSetter",
+      "datadog.trace.instrumentation.servlet.SpanNameCache",
       packageName + ".RequestDispatcherDecorator",
     };
   }
@@ -99,7 +102,8 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
         parent = servletSpan.context();
       }
 
-      final AgentSpan span = startSpan("servlet." + method, parent);
+      final AgentSpan span =
+          startSpan(SPAN_NAME_CACHE.computeIfAbsent(method, SERVLET_PREFIX), parent);
       DECORATE.afterStart(span);
 
       final String target =

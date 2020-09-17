@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.apachehttpclient.HttpHeadersInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -154,7 +155,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
 
   public static class HelperMethods {
     public static AgentScope doMethodEnter(final HttpUriRequest request) {
-      final AgentSpan span = startSpan("http.request");
+      final AgentSpan span = startSpan(HTTP_REQUEST);
       span.setTag(InstrumentationTags.DD_MEASURED, true);
       final AgentScope scope = activateSpan(span);
 

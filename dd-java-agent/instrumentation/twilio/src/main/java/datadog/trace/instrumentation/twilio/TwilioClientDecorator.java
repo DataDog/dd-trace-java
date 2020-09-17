@@ -6,6 +6,7 @@ import com.twilio.rest.api.v2010.account.Message;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
@@ -14,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 /** Decorate Twilio span's with relevant contextual information. */
 @Slf4j
 public class TwilioClientDecorator extends ClientDecorator {
+
+  public static final CharSequence TWILIO_SDK = UTF8BytesString.createConstant("twilio.sdk");
 
   public static final TwilioClientDecorator DECORATE = new TwilioClientDecorator();
 

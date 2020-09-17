@@ -5,13 +5,13 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 public class TracingIterable implements Iterable<ConsumerRecord> {
   private final Iterable<ConsumerRecord> delegate;
-  private final String operationName;
+  private final CharSequence operationName;
   private final KafkaDecorator decorator;
   private boolean firstIterator = true;
 
   public TracingIterable(
       final Iterable<ConsumerRecord> delegate,
-      final String operationName,
+      final CharSequence operationName,
       final KafkaDecorator decorator) {
     this.delegate = delegate;
     this.operationName = operationName;

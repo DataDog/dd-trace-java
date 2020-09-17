@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jedis.JedisClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.jedis.JedisClientDecorator.REDIS_COMMAND;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -65,7 +66,7 @@ public final class JedisInstrumentation extends Instrumenter.Default {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.Argument(1) final Command command) {
-      final AgentSpan span = startSpan("redis.command");
+      final AgentSpan span = startSpan(REDIS_COMMAND);
       DECORATE.afterStart(span);
       DECORATE.onStatement(span, command.name());
       return activateSpan(span);

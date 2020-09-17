@@ -5,6 +5,7 @@ package datadog.trace.instrumentation.springdata;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springdata.SpringDataDecorator.DECORATOR;
+import static datadog.trace.instrumentation.springdata.SpringDataDecorator.REPOSITORY_OPERATION;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
@@ -106,7 +107,7 @@ public final class SpringRepositoryInstrumentation extends Instrumenter.Default 
         return methodInvocation.proceed();
       }
 
-      final AgentSpan span = startSpan("repository.operation");
+      final AgentSpan span = startSpan(REPOSITORY_OPERATION);
       DECORATOR.afterStart(span);
       DECORATOR.onOperation(span, invokedMethod);
 

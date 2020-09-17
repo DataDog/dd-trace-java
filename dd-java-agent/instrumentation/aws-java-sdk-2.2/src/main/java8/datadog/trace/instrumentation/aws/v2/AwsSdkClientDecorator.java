@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.aws.v2;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import software.amazon.awssdk.awscore.AwsResponse;
@@ -15,6 +16,8 @@ import software.amazon.awssdk.http.SdkHttpResponse;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, SdkHttpResponse> {
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
+
+  public static final CharSequence AWS_HTTP = UTF8BytesString.createConstant("aws.http");
 
   static final String COMPONENT_NAME = "java-aws-sdk";
 

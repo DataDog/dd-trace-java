@@ -88,7 +88,7 @@ public class DDSpanContext implements AgentSpan.Context {
       final DDId spanId,
       final DDId parentId,
       final String serviceName,
-      final String operationName,
+      final CharSequence operationName,
       final CharSequence resourceName,
       final int samplingPriority,
       final String origin,

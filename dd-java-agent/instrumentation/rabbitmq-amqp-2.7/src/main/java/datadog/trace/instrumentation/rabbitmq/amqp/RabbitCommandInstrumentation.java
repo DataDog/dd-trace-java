@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.rabbitmq.amqp;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.AMQP_COMMAND;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -58,7 +59,7 @@ public class RabbitCommandInstrumentation extends Instrumenter.Default {
       final AgentSpan span = activeSpan();
 
       if (span != null && command.getMethod() != null) {
-        if (span.getSpanName().equals("amqp.command")) {
+        if (span.getSpanName().equals(AMQP_COMMAND)) {
           DECORATE.onCommand(span, command);
         }
       }

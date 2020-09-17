@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.DATABASE_CONNECTION;
 import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -57,10 +58,10 @@ public final class DataSourceInstrumentation extends Instrumenter.Default {
         return null;
       }
 
-      final AgentSpan span = startSpan("database.connection");
+      final AgentSpan span = startSpan(DATABASE_CONNECTION);
       DECORATE.afterStart(span);
 
-      span.setTag(DDTags.RESOURCE_NAME, ds.getClass().getSimpleName() + ".getConnection");
+      span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(ds.getClass(), "getConnection"));
 
       final AgentScope agentScope = activateSpan(span);
       agentScope.setAsyncPropagation(true);

@@ -2,12 +2,14 @@ package datadog.trace.instrumentation.jetty8;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 public class JettyDecorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
+  public static final CharSequence JETTY_REQUEST = UTF8BytesString.createConstant("jetty.request");
   public static final JettyDecorator DECORATE = new JettyDecorator();
 
   @Override

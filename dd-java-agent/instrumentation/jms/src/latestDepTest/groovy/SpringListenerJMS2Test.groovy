@@ -38,7 +38,7 @@ class SpringListenerJMS2Test extends AgentTestRunner {
 
     TEST_WRITER.waitForTraces(3)
     // Manually reorder if reported in the wrong order.
-    if (TEST_WRITER[1][0].operationName == "jms.produce") {
+    if (TEST_WRITER[1][0].operationName.toString() == "jms.produce") {
       def producerTrace = TEST_WRITER[1]
       TEST_WRITER[1] = TEST_WRITER[0]
       TEST_WRITER[0] = producerTrace

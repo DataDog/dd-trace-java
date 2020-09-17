@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.ratpack;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.ratpack.RatpackServerDecorator.DECORATE;
+import static datadog.trace.instrumentation.ratpack.RatpackServerDecorator.RATPACK_HANDLER;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -33,7 +34,7 @@ public final class TracingHandler implements Handler {
     final AgentSpan nettySpan = spanAttribute.get();
 
     // Relying on executor instrumentation to assume the netty span is in context as the parent.
-    final AgentSpan ratpackSpan = startSpan("ratpack.handler");
+    final AgentSpan ratpackSpan = startSpan(RATPACK_HANDLER);
     ratpackSpan.setTag(InstrumentationTags.DD_MEASURED, true);
     DECORATE.afterStart(ratpackSpan);
     DECORATE.onConnection(ratpackSpan, request);

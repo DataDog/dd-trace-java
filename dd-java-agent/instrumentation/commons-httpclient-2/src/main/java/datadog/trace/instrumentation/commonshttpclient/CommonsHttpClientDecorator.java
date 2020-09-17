@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.commonshttpclient;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -8,6 +9,7 @@ import org.apache.commons.httpclient.StatusLine;
 import org.apache.commons.httpclient.URIException;
 
 public class CommonsHttpClientDecorator extends HttpClientDecorator<HttpMethod, HttpMethod> {
+  public static final CharSequence HTTP_REQUEST = UTF8BytesString.createConstant("http.request");
   public static final CommonsHttpClientDecorator DECORATE = new CommonsHttpClientDecorator();
 
   @Override

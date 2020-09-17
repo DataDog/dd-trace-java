@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DECORATE;
+import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.JAX_RS_REQUEST_ABORT;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -30,7 +31,7 @@ public class DefaultRequestContextInstrumentation extends AbstractRequestContext
 
       if (context.getProperty(JaxRsAnnotationsDecorator.ABORT_HANDLED) == null) {
         final AgentSpan parent = activeSpan();
-        final AgentSpan span = startSpan("jax-rs.request.abort");
+        final AgentSpan span = startSpan(JAX_RS_REQUEST_ABORT);
 
         // Save spans so a more specific instrumentation can run later
         context.setProperty(JaxRsAnnotationsDecorator.ABORT_PARENT, parent);

@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jms.JMSDecorator.CONSUMER_DECORATE;
+import static datadog.trace.instrumentation.jms.JMSDecorator.JMS_ONMESSAGE;
 import static datadog.trace.instrumentation.jms.MessageExtractAdapter.GETTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -69,7 +70,7 @@ public final class JMSMessageListenerInstrumentation extends Instrumenter.Defaul
       final Context extractedContext = propagate().extract(message, GETTER);
 
       final AgentSpan span =
-          startSpan("jms.onMessage", extractedContext)
+          startSpan(JMS_ONMESSAGE, extractedContext)
               .setTag("span.origin.type", listener.getClass().getName());
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onReceive(span, message);

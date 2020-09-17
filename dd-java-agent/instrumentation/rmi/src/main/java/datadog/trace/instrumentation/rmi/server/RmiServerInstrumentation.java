@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.rmi.ThreadLocalContext.THREAD_LOCAL_CONTEXT;
 import static datadog.trace.instrumentation.rmi.server.RmiServerDecorator.DECORATE;
+import static datadog.trace.instrumentation.rmi.server.RmiServerDecorator.RMI_REQUEST;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -55,9 +56,9 @@ public final class RmiServerInstrumentation extends Instrumenter.Default {
 
       final AgentSpan span;
       if (context == null) {
-        span = startSpan("rmi.request");
+        span = startSpan(RMI_REQUEST);
       } else {
-        span = startSpan("rmi.request", context);
+        span = startSpan(RMI_REQUEST, context);
       }
 
       span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(method))

@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.datastax.cassandra;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.datastax.cassandra.CassandraClientDecorator.CASSANDRA_EXECUTE;
 import static datadog.trace.instrumentation.datastax.cassandra.CassandraClientDecorator.DECORATE;
 
 import com.datastax.driver.core.BoundStatement;
@@ -237,7 +238,7 @@ public class TracingSession implements Session {
   }
 
   private AgentScope startSpanWithScope(final String query) {
-    final AgentSpan span = startSpan("cassandra.execute");
+    final AgentSpan span = startSpan(CASSANDRA_EXECUTE);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, session);
     DECORATE.onStatement(span, query);

@@ -110,7 +110,7 @@ class SpringTemplateJMS2Test extends AgentTestRunner {
 
     TEST_WRITER.waitForTraces(4)
     // Manually reorder if reported in the wrong order.
-    if (TEST_WRITER[3][0].operationName == "jms.produce") {
+    if (TEST_WRITER[3][0].operationName.toString() == "jms.produce") {
       def producerTrace = TEST_WRITER[3]
       TEST_WRITER[3] = TEST_WRITER[2]
       TEST_WRITER[2] = producerTrace
