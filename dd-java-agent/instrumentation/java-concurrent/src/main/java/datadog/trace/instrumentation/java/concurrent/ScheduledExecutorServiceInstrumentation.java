@@ -67,10 +67,13 @@ public class ScheduledExecutorServiceInstrumentation extends Instrumenter.Defaul
         @Advice.This final Executor executor,
         @Advice.Argument(value = 0, readOnly = false) Runnable task) {
       final TraceScope scope = activeScope();
-      task = new RunnableWrapper(task);
-      final ContextStore<Runnable, State> contextStore =
-          InstrumentationContext.get(Runnable.class, State.class);
-      return ExecutorInstrumentationUtils.setupState(contextStore, task, scope);
+      if (null != scope) {
+        task = new RunnableWrapper(task);
+        final ContextStore<Runnable, State> contextStore =
+            InstrumentationContext.get(Runnable.class, State.class);
+        return ExecutorInstrumentationUtils.setupState(contextStore, task, scope);
+      }
+      return null;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -95,10 +98,13 @@ public class ScheduledExecutorServiceInstrumentation extends Instrumenter.Defaul
         @Advice.This final Executor executor,
         @Advice.Argument(value = 0, readOnly = false) Callable task) {
       final TraceScope scope = activeScope();
-      task = new CallableWrapper(task);
-      final ContextStore<Callable, State> contextStore =
-          InstrumentationContext.get(Callable.class, State.class);
-      return ExecutorInstrumentationUtils.setupState(contextStore, task, scope);
+      if (null != scope) {
+        task = new CallableWrapper(task);
+        final ContextStore<Callable, State> contextStore =
+            InstrumentationContext.get(Callable.class, State.class);
+        return ExecutorInstrumentationUtils.setupState(contextStore, task, scope);
+      }
+      return null;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
