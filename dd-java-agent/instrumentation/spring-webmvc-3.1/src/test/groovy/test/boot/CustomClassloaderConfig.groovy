@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 class CustomClassloaderConfig {
-  
+
   @Bean
   BeanFactoryPostProcessor postProcessor() {
     return new BeanFactoryPostProcessor() {
@@ -36,6 +36,6 @@ class DatadogFilteringClassloader extends URLClassLoader {
       throw new ClassNotFoundException()
     }
 
-    return super.loadClass(className, resolve);
+    return super.loadClass(className, resolve)
   }
 }
