@@ -52,13 +52,11 @@ public class ExecutorInstrumentationUtils {
 
     final State state = contextStore.putIfAbsent(task, State.FACTORY);
 
-    final TraceScope.Continuation continuation = scope.capture();
-    if (state.setContinuation(continuation)) {
-      if (log.isDebugEnabled()) {
-        log.debug("created continuation {} from scope {}, state: {}", continuation, scope, state);
-      }
-    } else {
-      continuation.cancel();
+    if (!state.captureAndSetContinuation(scope)) {
+      log.debug(
+          "continuation was already set for {} in scope {}, no continuation captured.",
+          task,
+          scope);
     }
 
     return state;
