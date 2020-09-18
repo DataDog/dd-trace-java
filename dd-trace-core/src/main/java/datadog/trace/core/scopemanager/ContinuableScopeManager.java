@@ -166,7 +166,6 @@ public class ContinuableScopeManager implements AgentScopeManager {
       final boolean onTop = scopeStack.checkTop(this);
       if (!onTop) {
         if (log.isDebugEnabled()) {
-          // Using noFixupTop because I don't want to have code with side effects in logging code
           log.debug(
               "Tried to close {} scope when not on top.  Current top: {}", this, scopeStack.top());
         }
@@ -262,7 +261,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
   }
 
   /**
-   * The invariant is that the top a non-empty stack is always active Anytime a scope is closed,
+   * The invariant is that the top of a non-empty stack is always active. Anytime a scope is closed,
    * cleanup() is called to ensure the invariant
    */
   static final class ScopeStack {
@@ -385,7 +384,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     // Called by ContinuableScopeManager when a continued scope is closed
-    // Can't use camcel() because of the "used" check
+    // Can't use cancel() because of the "used" check
     private void cancelFromContinuedScopeClose() {
       trace.cancelContinuation(this);
     }
