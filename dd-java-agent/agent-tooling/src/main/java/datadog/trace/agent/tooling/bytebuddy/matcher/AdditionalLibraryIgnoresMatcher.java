@@ -87,7 +87,12 @@ public class AdditionalLibraryIgnoresMatcher<T extends TypeDescription>
       if (name.startsWith("org.springframework.beans.")) {
         if (name.equals("org.springframework.beans.factory.support.DisposableBeanAdapter")
             || name.startsWith(
-                "org.springframework.beans.factory.groovy.GroovyBeanDefinitionReader$")) {
+                "org.springframework.beans.factory.groovy.GroovyBeanDefinitionReader$")
+            || name.equals("org.springframework.beans.factory.support.AbstractBeanFactory")
+            || name.equals(
+                "org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory")
+            || name.equals(
+                "org.springframework.beans.factory.support.DefaultListableBeanFactory")) {
           return false;
         }
         return true;
