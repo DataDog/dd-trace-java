@@ -270,15 +270,11 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     ContinuableScope[] stack = new ContinuableScope[MIN_STACK_LENGTH];
     // The position of the top-most scope guaranteed to be active
-    // -1 if empty
-    int topPos = -1;
+    // 0 if empty
+    int topPos = 0;
 
     /** top - accesses the top of the ScopeStack */
     final ContinuableScope top() {
-      if (topPos == -1) {
-        return null;
-      }
-
       return stack[topPos];
     }
 
@@ -289,7 +285,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       topPos = Math.min(topPos, stack.length);
 
       boolean changedTop = false;
-      while (topPos >= 0) {
+      while (topPos > 0) {
         final ContinuableScope curScope = stack[topPos];
         if (curScope.alive()) {
           if (changedTop) {
@@ -301,7 +297,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
         // no longer alive -- trigger listener & null out
         curScope.onProperClose();
         stack[topPos] = null;
-        topPos -= 1;
+        --topPos;
         changedTop = true;
       }
 
@@ -322,17 +318,17 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     /** Fast check to see if the expectedScope is on top the stack */
     final boolean checkTop(final ContinuableScope expectedScope) {
-      return topPos != -1 && expectedScope.equals(stack[topPos]);
+      return expectedScope.equals(stack[topPos]);
     }
 
     /** Returns the current stack depth */
     final int depth() {
-      return topPos + 1;
+      return topPos;
     }
 
     // DQH - regrettably needed for pre-existing tests
     final void clear() {
-      topPos = -1;
+      topPos = 0;
       Arrays.fill(stack, null);
     }
   }
