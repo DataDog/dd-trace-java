@@ -6,6 +6,9 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
 
+import java.lang.management.ManagementFactory
+import java.lang.management.ThreadInfo
+import java.lang.management.ThreadMXBean
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -101,6 +104,16 @@ abstract class AbstractSmokeTest extends Specification {
   def cleanupSpec() {
     testedProcess?.waitForOrKill(1)
     stopServer()
+    threadDump()
+  }
+
+  private static String threadDump() {
+    StringBuffer threadDump = new StringBuffer(System.lineSeparator())
+    ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean()
+    for (ThreadInfo threadInfo : threadMXBean.dumpAllThreads(true, true)) {
+      threadDump.append(threadInfo.toString())
+    }
+    System.out.println("!!!" + threadDump.toString())
   }
 
   def getProfilingUrl() {
@@ -116,6 +129,8 @@ abstract class AbstractSmokeTest extends Specification {
 
   def stopServer() {
     // do nothing; 'server' is autocleanup
+    server.stop()
+    server.close()
   }
 
   /**
