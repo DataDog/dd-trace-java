@@ -28,7 +28,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class ScheduledExecutorServiceInstrumentation extends Instrumenter.Default {
 
   public ScheduledExecutorServiceInstrumentation() {
-    super("java.util.concurrent.ScheduledThreadPoolExecutor");
+    super("java-concurrent", "scheduled-executor");
   }
 
   @Override
