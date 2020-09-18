@@ -414,10 +414,30 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
 
     @Override
+    public TraceScope activateIfPossible() {
+      if (used.compareAndSet(false, true)) {
+        final AgentScope scope = scopeManager.handleSpan(this, spanUnderScope, source);
+        log.debug("t_id={} -> activating continuation {}", spanUnderScope.getTraceId(), this);
+        return scope;
+      } else {
+        return null;
+      }
+    }
+
+    @Override
     public void cancel() {
+      cancel(true);
+    }
+
+    @Override
+    public void cancelIfPossible() {
+      cancel(false);
+    }
+
+    private void cancel(boolean exclusive) {
       if (used.compareAndSet(false, true)) {
         trace.cancelContinuation(this);
-      } else {
+      } else if (exclusive) {
         log.debug("Failed to close continuation {}. Already used.", this);
       }
     }

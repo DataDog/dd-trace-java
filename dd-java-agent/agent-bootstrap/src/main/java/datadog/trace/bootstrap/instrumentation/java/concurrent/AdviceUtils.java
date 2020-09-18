@@ -35,4 +35,24 @@ public class AdviceUtils {
       scope.close();
     }
   }
+
+  /** TODO comment */
+  public static <T> TraceScope startAndContinueTaskScope(
+      final ContextStore<T, State> contextStore, final T task) {
+    final State state = contextStore.get(task);
+    if (state != null) {
+      return state.activateAndContinueContinuation();
+    } else {
+      return null;
+    }
+  }
+
+  /** TODO comment */
+  public static <T> void cancelContinuationIfPossible(
+      final ContextStore<T, State> contextStore, final T task) {
+    State state = contextStore.get(task);
+    if (state != null) {
+      state.cancelContinuationIfPossible();
+    }
+  }
 }

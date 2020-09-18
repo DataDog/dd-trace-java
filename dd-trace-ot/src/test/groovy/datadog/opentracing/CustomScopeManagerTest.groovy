@@ -269,7 +269,16 @@ class TestScopeManager implements ScopeManager {
         }
 
         @Override
+        TraceScope activateIfPossible() {
+          return TestTraceScope.this
+        }
+
+        @Override
         void cancel() {
+        }
+
+        @Override
+        void cancelIfPossible() {
         }
       }
     }

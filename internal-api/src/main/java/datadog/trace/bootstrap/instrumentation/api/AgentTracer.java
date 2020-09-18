@@ -462,7 +462,15 @@ public class AgentTracer {
     }
 
     @Override
+    public TraceScope activateIfPossible() {
+      return null;
+    }
+
+    @Override
     public void cancel() {}
+
+    @Override
+    public void cancelIfPossible() {}
 
     @Override
     public boolean isRegistered() {

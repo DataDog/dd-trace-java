@@ -43,7 +43,20 @@ public interface TraceScope extends Closeable {
      */
     TraceScope activate();
 
+    /**
+     * Activate the continuation if possible, or return null.
+     *
+     * <p>Should be called on the child thread.
+     *
+     * <p>Consider calling this in a try-with-resources initialization block to ensure the returned
+     * scope is closed properly.
+     */
+    TraceScope activateIfPossible();
+
     /** Allow trace to stop waiting on this continuation for reporting. */
     void cancel();
+
+    /** Allow trace to stop waiting on this continuation for reporting. Multiple calls are ok. */
+    void cancelIfPossible();
   }
 }

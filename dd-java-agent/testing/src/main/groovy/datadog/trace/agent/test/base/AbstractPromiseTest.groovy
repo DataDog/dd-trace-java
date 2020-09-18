@@ -1,8 +1,6 @@
 package datadog.trace.agent.test.base
 
-
 import datadog.trace.agent.test.AgentTestRunner
-
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -64,7 +62,6 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
   def "test call with parent delayed complete"() {
     setup:
     def promise = newPromise()
-    def latch = new CountDownLatch(1)
 
     when:
     runUnderTrace("parent") {
@@ -75,25 +72,26 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
       onComplete(mapped) {
         assert it == "$value"
         runUnderTrace("callback") {}
-        latch.countDown()
       }
     }
 
     runUnderTrace("other") {
       complete(promise, value)
-      // This is here to sort the traces so the `parent` always finishes first
-      waitForLatchOrFail(latch)
     }
 
     then:
     get(promise) == value
     assertTraces(2) {
-      trace(0, 3) {
+      // Sort this since the order is undefined
+      def pIndex = trace(0).size() > 1 ? 0 : 1
+      def oIndex = 1 - pIndex
+
+      trace(pIndex, 3) {
         basicSpan(it, 0, "callback", it.span(2))
         basicSpan(it, 1, "mapped", it.span(2))
         basicSpan(it, 2, "parent")
       }
-      trace(1, 1) {
+      trace(oIndex, 1) {
         basicSpan(it, 0, "other")
       }
     }

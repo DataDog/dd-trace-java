@@ -50,4 +50,43 @@ public class State {
   public TraceScope.Continuation getAndResetContinuation() {
     return continuationRef.getAndSet(null);
   }
+
+  public TraceScope activateAndContinueContinuation() {
+    TraceScope scope = null;
+    while (scope == null) {
+      TraceScope.Continuation tscCurrent = continuationRef.get();
+      if (tscCurrent == null) {
+        return null;
+      }
+      scope = tscCurrent.activateIfPossible();
+      if (scope == null) {
+        // Somebody else is activating right now, retry
+        continue;
+      }
+      scope.setAsyncPropagation(true);
+      TraceScope.Continuation tscNew = scope.capture();
+      if (!continuationRef.compareAndSet(tscCurrent, tscNew)) {
+        if (continuationRef.get() != null) {
+          // If we got back anything but a null, there is a bad race and we should log
+          if (log.isDebugEnabled()) {
+            log.debug(
+                "Failed to reactivate continuation because another continuation was set {}: new: {}, old: {}",
+                scope,
+                tscNew,
+                continuationRef.get());
+          }
+        }
+        // Cancel the new continuation since nobody will be using it
+        tscNew.cancel();
+      }
+    }
+    return scope;
+  }
+
+  public void cancelContinuationIfPossible() {
+    final TraceScope.Continuation continuation = continuationRef.getAndSet(null);
+    if (continuation != null) {
+      continuation.cancelIfPossible();
+    }
+  }
 }
