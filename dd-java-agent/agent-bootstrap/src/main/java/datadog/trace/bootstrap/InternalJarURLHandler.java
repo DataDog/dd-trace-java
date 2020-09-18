@@ -25,7 +25,7 @@ public class InternalJarURLHandler extends URLStreamHandler {
 
   private final String name;
   private final FileNotInInternalJar notFound;
-  private final Map<String, Object> packages = new HashMap<>();
+  private final Map<String, Lock> packages = new HashMap<>();
   private final JarFile bootstrapJarFile;
 
   private static final ThreadLocal<StringBuilder> JAR_ENTRY_QUERY =
@@ -56,7 +56,7 @@ public class InternalJarURLHandler extends URLStreamHandler {
               if (name.length() > prefix) {
                 String dir = name.substring(prefix, name.length() - 1);
                 String currentPackage = dir.replace('/', '.');
-                packages.put(currentPackage, new Object());
+                packages.put(currentPackage, new Lock(currentPackage));
               }
             }
           }
@@ -72,11 +72,11 @@ public class InternalJarURLHandler extends URLStreamHandler {
     this.bootstrapJarFile = jarFile;
   }
 
-  Map<String, Object> getPackages() {
+  Map<String, Lock> getPackages() {
     return packages;
   }
 
-  Object getPackageLock(String packageName) {
+  Lock getPackageLock(String packageName) {
     return packages.get(packageName);
   }
 
@@ -152,6 +152,23 @@ public class InternalJarURLHandler extends URLStreamHandler {
     @Override
     public Throwable fillInStackTrace() {
       return this;
+    }
+  }
+
+  /**
+   * This {@link Lock} allows the class loading code to check if failures to find a class should be
+   * delegated to {@code findClass} or if it should fall through to {@code super.loadClass} which is
+   * needed for classes that we inject that live in the {@code java.*} package.
+   */
+  public static final class Lock {
+    private final boolean delegateFailureToFindClass;
+
+    public Lock(String packageName) {
+      this.delegateFailureToFindClass = !packageName.startsWith("java.");
+    }
+
+    public boolean delegateFailureToFindClass() {
+      return delegateFailureToFindClass;
     }
   }
 }
