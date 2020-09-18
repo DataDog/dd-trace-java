@@ -63,6 +63,10 @@ class TagsAssert {
     }
   }
 
+  def errorTags(Throwable error) {
+    errorTags(error.getClass(), error.getMessage())
+  }
+
   def errorTags(Class<Throwable> errorType) {
     errorTags(errorType, null)
   }
