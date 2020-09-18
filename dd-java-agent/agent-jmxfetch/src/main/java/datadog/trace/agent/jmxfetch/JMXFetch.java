@@ -73,6 +73,7 @@ public class JMXFetch {
             .action(Collections.singletonList(ACTION_COLLECT))
             // App should be run as daemon otherwise CLI apps would not exit once main method exits.
             .daemon(true)
+            .embedded(true)
             .confdDirectory(jmxFetchConfigDir)
             .yamlFileList(jmxFetchConfigs)
             .targetDirectInstances(true)
