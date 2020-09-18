@@ -1,10 +1,15 @@
 package datadog.smoketest
 
+import java.util.concurrent.atomic.AtomicInteger
+
 class SpringBootGrpcSyncTest extends SpringBootWithGRPCTest {
-  @Override
-  Set<String> expectedTraces() {
-    return ["[grpc.server[grpc.message]]",
+  private static final Set<String> EXPECTED_TRACES =
+    ["[grpc.server[grpc.message]]",
             "[servlet.request[spring.handler[grpc.client[grpc.message]]]]"].toSet()
+
+  @Override
+  boolean isAcceptable(Map<String, AtomicInteger> traceCounts) {
+    assertTraceCounts(EXPECTED_TRACES, traceCounts)
   }
 
   @Override
