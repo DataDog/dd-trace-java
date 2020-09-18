@@ -29,6 +29,7 @@ class SpringSchedulingTest extends AgentTestRunner {
         }
       }
     }
+    cleanup: context.close()
   }
   
   def "schedule interval test"() {
@@ -54,7 +55,7 @@ class SpringSchedulingTest extends AgentTestRunner {
         }
       }
     }
-
+    cleanup: context.close()
   }
 
   def "schedule lambda test"() {
