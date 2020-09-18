@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public final class RunnableWrapper implements Runnable {
+
   private final Runnable runnable;
 
   public RunnableWrapper(final Runnable runnable) {
@@ -21,11 +22,13 @@ public final class RunnableWrapper implements Runnable {
   }
 
   public static Runnable wrapIfNeeded(final Runnable task) {
-    // We wrap only lambdas' anonymous classes and if given object has not already been wrapped.
-    // Anonymous classes have '/' in class name which is not allowed in 'normal' classes.
-    if (task.getClass().getName().contains("/") && (!(task instanceof RunnableWrapper))) {
-      log.debug("Wrapping runnable task {}", task);
-      return new RunnableWrapper(task);
+    if (!(task instanceof RunnableWrapper)) {
+      // We wrap only lambdas' anonymous classes and if given object has not already been wrapped.
+      // Anonymous classes have '/' in class name which is not allowed in 'normal' classes.
+      final String className = task.getClass().getName();
+      if (className.indexOf('/', className.lastIndexOf('.')) > 0) {
+        return new RunnableWrapper(task);
+      }
     }
     return task;
   }
