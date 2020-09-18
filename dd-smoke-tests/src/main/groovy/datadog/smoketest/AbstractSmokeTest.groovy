@@ -76,6 +76,7 @@ abstract class AbstractSmokeTest extends Specification {
       "-Ddd.profiling.start-delay=${PROFILING_START_DELAY_SECONDS}",
       "-Ddd.profiling.upload.period=${PROFILING_RECORDING_UPLOAD_PERIOD_SECONDS}",
       "-Ddd.profiling.url=${getProfilingUrl()}",
+      "-Ddd.jmxfetch.enabled=false",
       "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
       "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug"
     ]
