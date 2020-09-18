@@ -70,7 +70,7 @@ class AkkaHttpClientInstrumentationTest extends HttpClientTest {
     Http.get(system).singleRequest(null, materializer)
 
     then:
-    thrown NullPointerException
+    def exception = thrown NullPointerException
     assertTraces(1) {
       trace(0, 1) {
         span(0) {
@@ -82,7 +82,7 @@ class AkkaHttpClientInstrumentationTest extends HttpClientTest {
           tags {
             "$Tags.COMPONENT" "akka-http-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            errorTags(NullPointerException)
+            errorTags(exception)
             defaultTags()
           }
         }

@@ -11,7 +11,10 @@ public class UnsafeUtils {
   private static int getJavaVersion() {
     final String javaVersion = System.getProperty("java.version", "0.");
     final int beg = javaVersion.startsWith("1.") ? 2 : 0;
-    final int end = javaVersion.indexOf('.', beg);
+    int end = javaVersion.indexOf('.', beg);
+    if (end < 0) {
+      end = javaVersion.length();
+    }
     return Integer.parseInt(javaVersion.substring(beg, end));
   }
 
