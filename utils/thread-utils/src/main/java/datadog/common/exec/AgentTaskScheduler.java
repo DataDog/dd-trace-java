@@ -93,7 +93,7 @@ public final class AgentTaskScheduler {
           work.run();
         } catch (final Throwable e) {
           if (work != null) {
-            log.warn("Problem running {}", work, e);
+            log.warn("Uncaught exception from {}", work, e);
           }
         } finally {
           if (work != null && work.reschedule()) {
@@ -113,6 +113,7 @@ public final class AgentTaskScheduler {
     private final WeakReference<T> target;
     private final int period;
     private final int taskSequence;
+
     private long time;
 
     public PeriodicTask(
@@ -125,7 +126,8 @@ public final class AgentTaskScheduler {
       this.task = task;
       this.target = new WeakReference<>(target);
       this.period = (int) unit.toNanos(period);
-      taskSequence = TASK_SEQUENCE_GENERATOR.getAndIncrement();
+      this.taskSequence = TASK_SEQUENCE_GENERATOR.getAndIncrement();
+
       time = System.nanoTime() + unit.toNanos(initialDelay);
     }
 
