@@ -98,7 +98,7 @@ class StreamingSampler {
     budgetAlpha = computeIntervalAlpha(CARRIED_OVER_BUDGET_LOOK_BACK);
     countsRef = new AtomicReference<>(new Counts());
 
-    taskScheduler.scheduleAtFixedRate(
+    taskScheduler.weakScheduleAtFixedRate(
         RollWindowTask.INSTANCE,
         this,
         windowDuration.toNanos(),

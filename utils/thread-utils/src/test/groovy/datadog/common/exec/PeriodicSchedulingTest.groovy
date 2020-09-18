@@ -27,7 +27,7 @@ class PeriodicSchedulingTest extends DDSpecification {
     !AgentTaskScheduler.INSTANCE.isShutdown()
 
     when:
-    AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(task, latch, 10, 10, MILLISECONDS)
+    AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(task, latch, 10, 10, MILLISECONDS)
 
     then:
     latch.await(500, MILLISECONDS)
@@ -48,7 +48,7 @@ class PeriodicSchedulingTest extends DDSpecification {
     !AgentTaskScheduler.INSTANCE.isShutdown()
 
     when:
-    AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(task, target.get(), 10, 10, MILLISECONDS)
+    AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(task, target.get(), 10, 10, MILLISECONDS)
     GCUtils.awaitGC(target)
     Thread.sleep(1)
     def snapshot = callCount.get()
@@ -72,7 +72,7 @@ class PeriodicSchedulingTest extends DDSpecification {
     !AgentTaskScheduler.INSTANCE.isShutdown()
 
     when:
-    AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(task, null, 10, 10, MILLISECONDS)
+    AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(task, null, 10, 10, MILLISECONDS)
     Thread.sleep(11)
 
     then:

@@ -22,6 +22,16 @@ public final class AgentTaskScheduler {
     void run(T target);
   }
 
+  public interface Target<T> {
+    T get();
+  }
+
+  private static final class WeakTarget<T> extends WeakReference<T> implements Target<T> {
+    public WeakTarget(final T referent) {
+      super(referent);
+    }
+  }
+
   private final DelayQueue<PeriodicTask<?>> workQueue = new DelayQueue<>();
   private final ThreadFactory threadFactory;
   private volatile Thread worker;
@@ -31,12 +41,25 @@ public final class AgentTaskScheduler {
     this.threadFactory = threadFactory;
   }
 
-  public <T> void scheduleAtFixedRate(
+  public <T> void weakScheduleAtFixedRate(
       final Task<T> task,
       final T target,
       final long initialDelay,
       final long period,
       final TimeUnit unit) {
+    scheduleAtFixedRate(task, new WeakTarget<>(target), initialDelay, period, unit);
+  }
+
+  public <T> void scheduleAtFixedRate(
+      final Task<T> task,
+      final Target<T> target,
+      final long initialDelay,
+      final long period,
+      final TimeUnit unit) {
+
+    if (target == null || target.get() == null) {
+      return;
+    }
 
     if (shutdown) {
       log.warn("Agent task scheduler is shutdown. Will not run {}", describeTask(task, target));
@@ -63,10 +86,8 @@ public final class AgentTaskScheduler {
     return shutdown;
   }
 
-  private static <T> String describeTask(final Task<T> task, final T target) {
-    return "periodic task "
-        + task.getClass().getSimpleName()
-        + (target != null ? " for " + target : "");
+  private static <T> String describeTask(final Task<T> task, final Target<T> target) {
+    return "periodic task " + task.getClass().getSimpleName() + " with target " + target.get();
   }
 
   private final class Shutdown extends Thread {
@@ -110,7 +131,7 @@ public final class AgentTaskScheduler {
   private static final class PeriodicTask<T> implements Delayed {
 
     private final Task<T> task;
-    private final WeakReference<T> target;
+    private final Target<T> target;
     private final int period;
     private final int taskSequence;
 
@@ -118,13 +139,13 @@ public final class AgentTaskScheduler {
 
     public PeriodicTask(
         final Task<T> task,
-        final T target,
+        final Target<T> target,
         final long initialDelay,
         final long period,
         final TimeUnit unit) {
 
       this.task = task;
-      this.target = new WeakReference<>(target);
+      this.target = target;
       this.period = (int) unit.toNanos(period);
       this.taskSequence = TASK_SEQUENCE_GENERATOR.getAndIncrement();
 
@@ -171,7 +192,7 @@ public final class AgentTaskScheduler {
 
     @Override
     public String toString() {
-      return describeTask(task, target.get());
+      return describeTask(task, target);
     }
   }
 }

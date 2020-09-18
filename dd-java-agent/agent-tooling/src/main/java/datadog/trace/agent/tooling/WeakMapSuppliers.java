@@ -36,7 +36,7 @@ class WeakMapSuppliers {
     @Override
     public <K, V> WeakMap<K, V> get() {
       final WeakConcurrentMap<K, V> map = new WeakConcurrentMap<>(false, true);
-      AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+      AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(
           MapCleaningTask.INSTANCE,
           map,
           CLEAN_FREQUENCY_SECONDS,

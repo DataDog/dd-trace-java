@@ -186,7 +186,7 @@ class StreamingSamplerTest {
   public void setup() {
     doNothing()
         .when(taskScheduler)
-        .scheduleAtFixedRate(
+        .weakScheduleAtFixedRate(
             rollWindowTaskCaptor.capture(),
             rollWindowTargetCaptor.capture(),
             eq(WINDOW_DURATION.toNanos()),

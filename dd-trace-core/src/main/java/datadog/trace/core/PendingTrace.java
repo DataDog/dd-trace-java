@@ -356,7 +356,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
         Collections.newSetFromMap(new ConcurrentHashMap<PendingTrace, Boolean>());
 
     public SpanCleaner() {
-      AgentTaskScheduler.INSTANCE.scheduleAtFixedRate(
+      AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(
           SpanCleanerTask.INSTANCE, this, 0, CLEAN_FREQUENCY, TimeUnit.SECONDS);
     }
 
