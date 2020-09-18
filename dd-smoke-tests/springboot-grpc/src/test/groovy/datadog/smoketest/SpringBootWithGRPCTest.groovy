@@ -3,6 +3,8 @@ package datadog.smoketest
 import okhttp3.Request
 import spock.lang.Shared
 
+import java.util.concurrent.atomic.AtomicInteger
+
 abstract class SpringBootWithGRPCTest extends AbstractServerSmokeTest {
 
   @Shared
@@ -30,19 +32,33 @@ abstract class SpringBootWithGRPCTest extends AbstractServerSmokeTest {
 
   def verifyLog() {
     BufferedReader reader = new BufferedReader(new FileReader(output))
-    Set<String> expectedTraces = expectedTraces()
+    Map<String, AtomicInteger> traceCounts = new HashMap<>()
     try {
       String line = reader.readLine()
       while (null != line) {
-        assert expectedTraces.contains(line)
+        traceCounts.computeIfAbsent(line, {
+          new AtomicInteger()
+        }).incrementAndGet()
         line = reader.readLine()
       }
     } finally {
       reader.close()
     }
+    assert isAcceptable(traceCounts)
   }
 
-  abstract Set<String> expectedTraces()
+  abstract boolean isAcceptable(Map<String, AtomicInteger> traceCounts)
+
+  protected boolean assertTraceCounts(Set<String> expected, Map<String, AtomicInteger> traceCounts) {
+    boolean ok = traceCounts.size() == expected.size()
+    if (ok) {
+      for (Map.Entry<String, AtomicInteger> entry : traceCounts.entrySet()) {
+        ok &= expected.contains(entry.getKey())
+        ok &= entry.getValue().get() > 0
+      }
+    }
+    return ok
+  }
 
   abstract String route()
 
