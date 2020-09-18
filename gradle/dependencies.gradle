@@ -20,7 +20,7 @@ ext {
     dogstatsd     : "2.9.0",
     jnr_unixsocket: "0.28",
     commons       : "3.2",
-    mockito       : '3.3.3',
+    mockito       : '3.5.10',
     testcontainers: '1.12.2',
     jmc           : "8.0.0-SNAPSHOT"
   ]
