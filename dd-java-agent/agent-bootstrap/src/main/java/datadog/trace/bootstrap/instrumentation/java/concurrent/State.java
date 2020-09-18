@@ -6,7 +6,20 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class State {
+public final class State {
+
+  private static final class ContinuationClaim implements TraceScope.Continuation {
+
+    @Override
+    public TraceScope activate() {
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public void cancel() {
+      throw new IllegalStateException();
+    }
+  }
 
   public static ContextStore.Factory<State> FACTORY =
       new ContextStore.Factory<State>() {
@@ -16,38 +29,40 @@ public class State {
         }
       };
 
+  private static final TraceScope.Continuation CLAIMED = new ContinuationClaim();
+
   private final AtomicReference<TraceScope.Continuation> continuationRef =
       new AtomicReference<>(null);
 
   private State() {}
 
-  public boolean setContinuation(final TraceScope.Continuation continuation) {
-    final boolean result = continuationRef.compareAndSet(null, continuation);
-    assert result
-        : "Losing the race to set the continuation correlates with bugs. "
-            + continuationRef.get()
-            + " beat "
-            + continuation;
-    if (!result && log.isDebugEnabled()) {
-      log.debug(
-          "Failed to set continuation because another continuation is already set {}: new: {}, old: {}",
-          this,
-          continuation,
-          continuationRef.get());
+  public boolean captureAndSetContinuation(final TraceScope scope) {
+    if (continuationRef.compareAndSet(null, CLAIMED)) {
+      // it's a real pain to do this twice, and this can actually
+      // happen systematically - WITHOUT RACES - because of broken
+      // instrumentation, e.g. SetExecuteRunnableStateAdvice
+      // "double instruments" calls to ScheduledExecutorService.submit/schedule
+      //
+      // lazy write is guaranteed to be seen by getAndSet
+      continuationRef.lazySet(scope.capture());
+      return true;
     }
-    return result;
+    return false;
   }
 
   public void closeContinuation() {
-    final TraceScope.Continuation continuation = continuationRef.getAndSet(null);
-    if (continuation != null) {
-      // We have opened this continuation, we shall not close parent scope when we close it,
-      // otherwise owners of that scope will get confused.
+    TraceScope.Continuation continuation = getAndResetContinuation();
+    if (null != continuation) {
       continuation.cancel();
     }
   }
 
   public TraceScope.Continuation getAndResetContinuation() {
-    return continuationRef.getAndSet(null);
+    TraceScope.Continuation continuation = continuationRef.get();
+    if (null == continuation || CLAIMED == continuation) {
+      return null;
+    }
+    continuationRef.compareAndSet(continuation, null);
+    return continuation;
   }
 }
