@@ -2,6 +2,7 @@ package datadog.trace.core.scopemanager
 
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
@@ -92,5 +93,38 @@ class ScopeManagerDepthTest extends DDSpecification {
 
     where:
     defaultLimit = 100 // Using ConfigDefaults here causes classloading issues
+  }
+
+  def "depth is correctly updated with out of order closing"() {
+    // The decision here is that depth is the top-most open scope
+    // Closed scopes that are not on top still count for depth
+
+    given:
+    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
+    def scopeManager = tracer.scopeManager
+
+    when:
+    AgentSpan firstSpan = tracer.buildSpan("foo").start()
+    AgentScope firstScope = tracer.activateSpan(firstSpan)
+
+    AgentSpan secondSpan = tracer.buildSpan("foo").start()
+    AgentScope secondScope = tracer.activateSpan(secondSpan)
+
+    then:
+    scopeManager.scopeStack().depth() == 2
+
+    when:
+    firstSpan.finish()
+    firstScope.close()
+
+    then:
+    scopeManager.scopeStack().depth() == 2
+
+    when:
+    secondSpan.finish()
+    secondScope.close()
+
+    then:
+    scopeManager.scopeStack().depth() == 0
   }
 }
