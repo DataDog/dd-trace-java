@@ -494,6 +494,54 @@ class ScopeManagerTest extends DDSpecification {
     0 * _
   }
 
+  def "closing scope out of order - multiple activations"() {
+    when:
+    AgentScope scope1 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+
+    then:
+    eventCountingListener.events == [ACTIVATE]
+
+    when:
+    AgentScope scope2 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+
+    then: 'Activating the same span multiple times does not create a new scope'
+    eventCountingListener.events == [ACTIVATE]
+
+    when:
+    AgentSpan thirdSpan = tracer.buildSpan("quux").start()
+    AgentScope thirdScope = tracer.activateSpan(thirdSpan)
+    0 * _
+
+    then:
+    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    tracer.activeSpan() == thirdSpan
+    tracer.activeScope() == thirdScope
+    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    0 * _
+
+    when:
+    scope2.close()
+
+    then: 'Closing a scope once that has been activated multiple times does not close'
+    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    1 * statsDClient.incrementCounter("scope.close.error")
+    0 * _
+
+    when:
+    thirdScope.close()
+    thirdSpan.finish()
+
+    then: 'Closing scope above multiple activated scope does not close it'
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE]
+    0 * _
+
+    when:
+    scope1.close()
+
+    then:
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE]
+  }
+
   @Timeout(value = 60, unit = SECONDS)
   def "Closing a continued scope out of order cancels the continuation"() {
     when:

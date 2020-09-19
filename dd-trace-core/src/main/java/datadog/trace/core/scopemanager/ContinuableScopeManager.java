@@ -150,18 +150,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     public void close() {
       final ScopeStack scopeStack = scopeManager.scopeStack();
 
-      // DQH - Aug 2020 - Preserving our broken reference counting semantics for the
-      // first round of out-of-order handling.
-      // When reference counts are being used, we don't check the stack top --
-      // so potentially we undercount errors
-      // Also we don't report closed until the reference count == 0 which seems
-      // incorrect given the OpenTracing semantics
-      // Both these issues should be corrected at a later date
-
       final boolean alive = decrementReferences();
-      if (alive) {
-        return;
-      }
 
       final boolean onTop = scopeStack.checkTop(this);
       if (!onTop) {
@@ -179,6 +168,10 @@ public class ContinuableScopeManager implements AgentScopeManager {
             throw new RuntimeException("Tried to close scope when not on top");
           }
         }
+      }
+
+      if (alive) {
+        return;
       }
 
       if (null != continuation) {

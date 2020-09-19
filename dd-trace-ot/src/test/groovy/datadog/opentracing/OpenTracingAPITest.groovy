@@ -345,12 +345,16 @@ class OpenTracingAPITest extends DDSpecification {
     Span secondSpan = strictTracer.buildSpan("someOperation").start()
     Scope secondScope = strictTracer.activateSpan(secondSpan)
 
+    then:
+    2 * scopeListener.afterScopeActivated()
+    0 * _
+
+    when:
     firstSpan.finish()
     firstScope.close()
 
     then:
     thrown(RuntimeException)
-    2 * scopeListener.afterScopeActivated()
     1 * statsDClient.incrementCounter("scope.close.error")
     1 * statsDClient.incrementCounter("scope.user.close.error")
     0 * _
