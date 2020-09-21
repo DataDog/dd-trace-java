@@ -12,13 +12,13 @@ import org.spockframework.runtime.model.TextPosition
 import static TraceAssert.assertTrace
 
 class ListWriterAssert {
-  private final ListWriter writer
+  private final List<List<DDSpan>> traces
   private final int size
   private final Set<Integer> assertedIndexes = new HashSet<>()
 
-  private ListWriterAssert(ListWriter writer) {
-    this.writer = writer
-    size = writer.size()
+  private ListWriterAssert(List<List<DDSpan>> traces) {
+    this.traces = traces
+    size = traces.size()
   }
 
   static void assertTraces(ListWriter writer, int expectedSize,
@@ -26,13 +26,17 @@ class ListWriterAssert {
                            @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     try {
       writer.waitForTraces(expectedSize)
-      assert writer.size() == expectedSize
-      def asserter = new ListWriterAssert(writer)
+      def array = writer.toArray()
+      assert array.length == expectedSize
+      def traces = Arrays.asList(array) as List<List<DDSpan>>;
+      traces.sort(TraceSorter.SORTER)
+      def asserter = new ListWriterAssert(traces)
       def clone = (Closure) spec.clone()
       clone.delegate = asserter
       clone.resolveStrategy = Closure.DELEGATE_FIRST
       clone(asserter)
       asserter.assertTracesAllVerified()
+      assert writer.size() == array.length: "ListWriter obtained additional traces while validating."
     } catch (PowerAssertionError e) {
       def stackLine = null
       for (int i = 0; i < e.stackTrace.length; i++) {
@@ -72,5 +76,19 @@ class ListWriterAssert {
 
   void assertTracesAllVerified() {
     assert assertedIndexes.size() == size
+  }
+
+  private static class TraceSorter implements Comparator<List<DDSpan>> {
+    static TraceSorter SORTER = new TraceSorter();
+
+    @Override
+    int compare(List<DDSpan> o1, List<DDSpan> o2) {
+      return Long.compare(traceStart(o1), traceStart(o2))
+    }
+
+    long traceStart(List<DDSpan> trace) {
+      assert !trace.isEmpty()
+      return trace.get(0).localRootSpan.context().trace.startNanoTicks
+    }
   }
 }
