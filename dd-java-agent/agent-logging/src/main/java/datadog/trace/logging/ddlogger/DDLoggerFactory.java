@@ -2,16 +2,13 @@ package datadog.trace.logging.ddlogger;
 
 import datadog.trace.logging.LogLevel;
 import datadog.trace.logging.LogLevelSwitcher;
-import datadog.trace.logging.LoggerHelperFactory;
 import datadog.trace.logging.simplelogger.SLCompatFactory;
-import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 
 public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
 
-  private final AtomicReference<LogLevel> override = new AtomicReference<>();
-  private SwitchableLogLevelFactory helperFactory = null;
+  private volatile SwitchableLogLevelFactory helperFactory = null;
 
   public DDLoggerFactory() {}
 
@@ -20,22 +17,31 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
     this.helperFactory = helperFactory;
   }
 
+  private SwitchableLogLevelFactory getHelperFactory() {
+    SwitchableLogLevelFactory factory = helperFactory;
+    if (factory == null) {
+      synchronized (this) {
+        factory = helperFactory;
+        if (factory == null) {
+          factory = helperFactory = new SwitchableLogLevelFactory(new SLCompatFactory());
+        }
+      }
+    }
+    return factory;
+  }
+
   @Override
   public Logger getLogger(String name) {
-    LoggerHelperFactory c = helperFactory;
-    if (c == null) {
-      c = helperFactory = new SwitchableLogLevelFactory(override, new SLCompatFactory());
-    }
-    return new DDLogger(c, name);
+    return new DDLogger(getHelperFactory(), name);
   }
 
   @Override
   public void switchLevel(LogLevel level) {
-    helperFactory.switchLevel(level);
+    getHelperFactory().switchLevel(level);
   }
 
   @Override
   public void restore() {
-    helperFactory.restore();
+    getHelperFactory().restore();
   }
 }

@@ -13,8 +13,6 @@ excludedClassesCoverage += [
   'datadog.slf4j.impl.StaticMDCBinder',
   'datadog.trace.logging.ddlogger.DDLoggerFactory',
   'datadog.trace.logging.simplelogger.SLCompatFactory',
-  // Can't test all paths in `static` initializer
-  'datadog.trace.logging.ddlogger.SwitchableLogLevelFactory.Opaque',
 ]
 
 dependencies {
