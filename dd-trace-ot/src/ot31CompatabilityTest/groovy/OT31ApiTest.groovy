@@ -36,8 +36,8 @@ class OT31ApiTest extends DDSpecification {
 
     then:
     assertTraces(WRITER, 1) {
-      trace(0, 1) {
-        basicSpan(it, 0, "some name")
+      trace(1) {
+        basicSpan(it, "some name")
       }
     }
   }

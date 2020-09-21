@@ -132,8 +132,8 @@ class AWS1ClientTest extends AgentTestRunner {
     client.requestHandler2s.get(0).getClass().getSimpleName() == "TracingRequestHandler"
 
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           serviceName "java-aws-sdk"
           operationName "aws.http"
           resourceName "$service.$operation"
@@ -158,7 +158,7 @@ class AWS1ClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           operationName "http.request"
           resourceName "$method $path"
           spanType DDSpanTypes.HTTP_CLIENT
@@ -229,8 +229,8 @@ class AWS1ClientTest extends AgentTestRunner {
     thrown SdkClientException
 
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           serviceName "java-aws-sdk"
           operationName "aws.http"
           resourceName "$service.$operation"
@@ -255,7 +255,7 @@ class AWS1ClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           operationName "http.request"
           resourceName "$method /$url"
           spanType DDSpanTypes.HTTP_CLIENT
@@ -297,8 +297,8 @@ class AWS1ClientTest extends AgentTestRunner {
     thrown RuntimeException
 
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "java-aws-sdk"
           operationName "aws.http"
           resourceName "S3.HeadBucket"
@@ -344,8 +344,8 @@ class AWS1ClientTest extends AgentTestRunner {
     thrown AmazonClientException
 
     assertTraces(1) {
-      trace(0, 5) {
-        span(0) {
+      trace(5) {
+        span {
           serviceName "java-aws-sdk"
           operationName "aws.http"
           resourceName "S3.GetObject"
@@ -373,7 +373,7 @@ class AWS1ClientTest extends AgentTestRunner {
           }
         }
         (1..4).each {
-          span(it) {
+          span {
             operationName "http.request"
             resourceName "GET /someBucket/someKey"
             spanType DDSpanTypes.HTTP_CLIENT

@@ -1,11 +1,11 @@
 package server
 
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
 import datadog.trace.instrumentation.play26.PlayHttpServerDecorator
 import play.BuiltInComponents
@@ -88,8 +88,8 @@ class PlayServerTest extends HttpServerTest<Server> {
   }
 
   @Override
-  void handlerSpan(TraceAssert trace, int index, Object parent, ServerEndpoint endpoint = SUCCESS) {
-    trace.span(index) {
+  void handlerSpan(TraceAssert trace, Object parent, ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
       serviceName expectedServiceName()
       operationName "play.request"
       spanType DDSpanTypes.HTTP_SERVER
@@ -113,8 +113,8 @@ class PlayServerTest extends HttpServerTest<Server> {
     }
   }
 
-  void serverSpan(TraceAssert trace, int index, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    trace.span(index) {
+  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
       resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"

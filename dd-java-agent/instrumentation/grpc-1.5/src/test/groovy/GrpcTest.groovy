@@ -57,37 +57,9 @@ class GrpcTest extends AgentTestRunner {
     then:
     response.message == "Hello $name"
     assertTraces(2) {
-      trace(0, 2) {
-        span(0) {
-          operationName "grpc.server"
-          resourceName "example.Greeter/SayHello"
-          spanType DDSpanTypes.RPC
-          childOf trace(1).get(1)
-          errored false
-          tags {
-            "$Tags.COMPONENT" "grpc-server"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "status.code" "OK"
-            defaultTags(true)
-          }
-        }
-        span(1) {
-          operationName "grpc.message"
-          resourceName "grpc.message"
-          spanType DDSpanTypes.RPC
-          childOf span(0)
-          errored false
-          tags {
-            "$Tags.COMPONENT" "grpc-server"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "message.type" "example.Helloworld\$Request"
-            defaultTags()
-          }
-        }
-      }
-      trace(1, 3) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(3) {
+        basicSpan(it, "parent")
+        span {
           operationName "grpc.client"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
@@ -100,7 +72,7 @@ class GrpcTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           operationName "grpc.message"
           resourceName "grpc.message"
           spanType DDSpanTypes.RPC
@@ -110,6 +82,34 @@ class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "message.type" "example.Helloworld\$Response"
+            defaultTags()
+          }
+        }
+      }
+      trace(2) {
+        span {
+          operationName "grpc.server"
+          resourceName "example.Greeter/SayHello"
+          spanType DDSpanTypes.RPC
+          childOf trace(0).get(1)
+          errored false
+          tags {
+            "$Tags.COMPONENT" "grpc-server"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "status.code" "OK"
+            defaultTags(true)
+          }
+        }
+        span {
+          operationName "grpc.message"
+          resourceName "grpc.message"
+          spanType DDSpanTypes.RPC
+          childOf span(0)
+          errored false
+          tags {
+            "$Tags.COMPONENT" "grpc-server"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "message.type" "example.Helloworld\$Request"
             defaultTags()
           }
         }
@@ -146,12 +146,28 @@ class GrpcTest extends AgentTestRunner {
     thrown StatusRuntimeException
 
     assertTraces(2) {
-      trace(0, 2) {
-        span(0) {
+      trace(1) {
+        span {
+          operationName "grpc.client"
+          resourceName "example.Greeter/SayHello"
+          spanType DDSpanTypes.RPC
+          parent()
+          errored true
+          tags {
+            "$Tags.COMPONENT" "grpc-client"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "status.code" "${status.code.name()}"
+            "status.description" description
+            defaultTags()
+          }
+        }
+      }
+      trace(2) {
+        span {
           operationName "grpc.server"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
-          childOf trace(1).get(0)
+          childOf trace(0).get(0)
           errored true
           tags {
             "$Tags.COMPONENT" "grpc-server"
@@ -164,7 +180,7 @@ class GrpcTest extends AgentTestRunner {
             defaultTags(true)
           }
         }
-        span(1) {
+        span {
           operationName "grpc.message"
           resourceName "grpc.message"
           spanType DDSpanTypes.RPC
@@ -174,22 +190,6 @@ class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "message.type" "example.Helloworld\$Request"
-            defaultTags()
-          }
-        }
-      }
-      trace(1, 1) {
-        span(0) {
-          operationName "grpc.client"
-          resourceName "example.Greeter/SayHello"
-          spanType DDSpanTypes.RPC
-          parent()
-          errored true
-          tags {
-            "$Tags.COMPONENT" "grpc-client"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "status.code" "${status.code.name()}"
-            "status.description" description
             defaultTags()
           }
         }
@@ -232,36 +232,8 @@ class GrpcTest extends AgentTestRunner {
     thrown StatusRuntimeException
 
     assertTraces(2) {
-      trace(0, 2) {
-        span(0) {
-          operationName "grpc.server"
-          resourceName "example.Greeter/SayHello"
-          spanType DDSpanTypes.RPC
-          childOf trace(1).get(0)
-          errored true
-          tags {
-            "$Tags.COMPONENT" "grpc-server"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            errorTags error.class, error.message
-            defaultTags(true)
-          }
-        }
-        span(1) {
-          operationName "grpc.message"
-          resourceName "grpc.message"
-          spanType DDSpanTypes.RPC
-          childOf span(0)
-          errored false
-          tags {
-            "$Tags.COMPONENT" "grpc-server"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "message.type" "example.Helloworld\$Request"
-            defaultTags()
-          }
-        }
-      }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           operationName "grpc.client"
           resourceName "example.Greeter/SayHello"
           spanType DDSpanTypes.RPC
@@ -271,6 +243,34 @@ class GrpcTest extends AgentTestRunner {
             "$Tags.COMPONENT" "grpc-client"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "status.code" "UNKNOWN"
+            defaultTags()
+          }
+        }
+      }
+      trace(2) {
+        span {
+          operationName "grpc.server"
+          resourceName "example.Greeter/SayHello"
+          spanType DDSpanTypes.RPC
+          childOf trace(0).get(0)
+          errored true
+          tags {
+            "$Tags.COMPONENT" "grpc-server"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            errorTags error.class, error.message
+            defaultTags(true)
+          }
+        }
+        span {
+          operationName "grpc.message"
+          resourceName "grpc.message"
+          spanType DDSpanTypes.RPC
+          childOf span(0)
+          errored false
+          tags {
+            "$Tags.COMPONENT" "grpc-server"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "message.type" "example.Helloworld\$Request"
             defaultTags()
           }
         }

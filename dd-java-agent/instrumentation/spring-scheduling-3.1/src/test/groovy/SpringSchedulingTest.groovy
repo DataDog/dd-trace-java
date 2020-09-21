@@ -16,8 +16,8 @@ class SpringSchedulingTest extends AgentTestRunner {
     expect:
     assert task != null
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "TriggerTask.run"
           operationName "scheduled.call"
           parent()
@@ -29,9 +29,10 @@ class SpringSchedulingTest extends AgentTestRunner {
         }
       }
     }
-    cleanup: context.close()
+    cleanup:
+    context.close()
   }
-  
+
   def "schedule interval test"() {
     setup:
     def context = new AnnotationConfigApplicationContext(IntervalTaskConfig)
@@ -42,8 +43,8 @@ class SpringSchedulingTest extends AgentTestRunner {
     expect:
     assert task != null
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "IntervalTask.run"
           operationName "scheduled.call"
           parent()
@@ -55,7 +56,8 @@ class SpringSchedulingTest extends AgentTestRunner {
         }
       }
     }
-    cleanup: context.close()
+    cleanup:
+    context.close()
   }
 
   def "schedule lambda test"() {
@@ -67,8 +69,8 @@ class SpringSchedulingTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceNameContains("LambdaTaskConfigurer\$\$Lambda\$")
           operationName "scheduled.call"
           parent()

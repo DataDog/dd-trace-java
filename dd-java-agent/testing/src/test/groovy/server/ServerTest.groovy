@@ -310,7 +310,7 @@ class ServerTest extends AgentTestRunner {
     response.body().string().trim() == "done"
 
     assertTraces(1) {
-      server.distributedRequestTrace(it, 0)
+      server.distributedRequestTrace(it)
     }
 
     cleanup:
@@ -344,8 +344,8 @@ class ServerTest extends AgentTestRunner {
     response.body().string().trim() == "done"
 
     assertTraces(1) {
-      trace(0, 1) {
-        basicSpan(it, 0, "parent")
+      trace(1) {
+        basicSpan(it, "parent")
       }
     }
 
@@ -379,7 +379,7 @@ class ServerTest extends AgentTestRunner {
 
     // parent<->child relation can't be tested because okhttp isnt traced here
     assertTraces(1) {
-      server.distributedRequestTrace(it, 0)
+      server.distributedRequestTrace(it)
     }
 
     cleanup:

@@ -77,8 +77,8 @@ class RediscalaClientTest extends AgentTestRunner {
     then:
     Await.result(value, Duration.apply("3 second")) == true
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           resourceName "Set"
@@ -109,8 +109,8 @@ class RediscalaClientTest extends AgentTestRunner {
     Await.result(write, Duration.apply("3 second")) == true
     Await.result(value, Duration.apply("3 second")) == Option.apply("baz")
     assertTraces(2) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           resourceName "Set"
@@ -123,8 +123,8 @@ class RediscalaClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           resourceName "Get"

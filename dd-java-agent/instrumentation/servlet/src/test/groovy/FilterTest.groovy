@@ -34,9 +34,9 @@ class FilterTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
           operationName "servlet.filter"
           resourceName "${filter.class.simpleName}.doFilter"
           childOf span(0)
@@ -72,9 +72,9 @@ class FilterTest extends AgentTestRunner {
     th == ex
 
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent", null, ex)
-        span(1) {
+      trace(2) {
+        basicSpan(it, "parent", null, ex)
+        span {
           operationName "servlet.filter"
           resourceName "${filter.class.simpleName}.doFilter"
           childOf span(0)

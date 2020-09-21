@@ -54,7 +54,7 @@ class OkHttp3Test extends HttpClientTest {
     then:
     status == 200
     assertTraces(1) {
-      server.distributedRequestTrace(it, 0)
+      server.distributedRequestTrace(it)
     }
 
     where:

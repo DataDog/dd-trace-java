@@ -173,9 +173,9 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
           serviceName renameService ? dbName.toLowerCase() : driver
           operationName "${driver}.query"
           resourceName query
@@ -233,9 +233,9 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
           operationName "${driver}.query"
           serviceName driver
           resourceName query
@@ -285,9 +285,9 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
           operationName "${driver}.query"
           serviceName driver
           resourceName query
@@ -337,9 +337,9 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
           operationName "${driver}.query"
           serviceName driver
           resourceName query
@@ -389,9 +389,9 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     }
     statement.updateCount == 0
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
           operationName "${driver}.query"
           serviceName driver
           resourceName query
@@ -444,9 +444,9 @@ class JDBCInstrumentationTest extends AgentTestRunner {
       return statement.executeUpdate() == 0
     }
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
           operationName "${driver}.query"
           serviceName driver
           resourceName query
@@ -511,9 +511,9 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     rs.next()
     rs.getInt(1) == 3
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
           operationName "${driver}.query"
           serviceName driver
           resourceName query
@@ -574,10 +574,10 @@ class JDBCInstrumentationTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, recursive ? 3 : 2) {
-        basicSpan(it, 0, "parent")
+      trace(recursive ? 3 : 2) {
+        basicSpan(it, "parent")
 
-        span(1) {
+        span {
           operationName "database.connection"
           resourceName "${datasource.class.simpleName}.getConnection"
           childOf span(0)
@@ -587,7 +587,7 @@ class JDBCInstrumentationTest extends AgentTestRunner {
           }
         }
         if (recursive) {
-          span(2) {
+          span {
             operationName "database.connection"
             resourceName "${datasource.class.simpleName}.getConnection"
             childOf span(1)
@@ -628,9 +628,9 @@ class JDBCInstrumentationTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
           operationName "${database}.query"
           serviceName database
           resourceName query
@@ -694,8 +694,8 @@ class JDBCInstrumentationTest extends AgentTestRunner {
       res[i] == 3
     }
     assertTraces(5) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           operationName "${dbType}.query"
           serviceName dbType
           resourceName query
@@ -713,8 +713,8 @@ class JDBCInstrumentationTest extends AgentTestRunner {
         }
       }
       for (int i = 1; i < numQueries; ++i) {
-        trace(i, 1) {
-          span(0) {
+        trace(1) {
+          span {
             operationName "${dbType}.query"
             serviceName dbType
             resourceName query

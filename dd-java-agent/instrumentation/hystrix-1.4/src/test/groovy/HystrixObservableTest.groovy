@@ -66,8 +66,8 @@ class HystrixObservableTest extends AgentTestRunner {
     result == "Hello!"
 
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           operationName "parent"
           resourceName "parent"
           spanType null
@@ -77,7 +77,7 @@ class HystrixObservableTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           operationName "hystrix.cmd"
           resourceName "ExampleGroup.HystrixObservableTest\$1.execute"
           spanType null
@@ -91,7 +91,7 @@ class HystrixObservableTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           operationName "trace.annotation"
           resourceName "HystrixObservableTest\$1.tracedMethod"
           spanType null
@@ -173,8 +173,8 @@ class HystrixObservableTest extends AgentTestRunner {
     result == "Fallback!"
 
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           operationName "parent"
           resourceName "parent"
           spanType null
@@ -184,7 +184,7 @@ class HystrixObservableTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           operationName "hystrix.cmd"
           resourceName "ExampleGroup.HystrixObservableTest\$2.execute"
           spanType null
@@ -199,7 +199,7 @@ class HystrixObservableTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           operationName "hystrix.cmd"
           resourceName "ExampleGroup.HystrixObservableTest\$2.fallback"
           spanType null
@@ -289,8 +289,8 @@ class HystrixObservableTest extends AgentTestRunner {
     err.cause instanceof IllegalArgumentException
 
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           operationName "parent"
           resourceName "parent"
           spanType null
@@ -301,7 +301,7 @@ class HystrixObservableTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           operationName "hystrix.cmd"
           resourceName "FailingGroup.HystrixObservableTest\$3.execute"
           spanType null
@@ -316,7 +316,7 @@ class HystrixObservableTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           operationName "hystrix.cmd"
           resourceName "FailingGroup.HystrixObservableTest\$3.fallback"
           spanType null

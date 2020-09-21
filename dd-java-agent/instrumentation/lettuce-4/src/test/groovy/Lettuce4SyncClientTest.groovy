@@ -91,8 +91,8 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -127,8 +127,8 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
     then:
     thrown RedisConnectionException
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -157,8 +157,8 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
     expect:
     res == "OK"
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -183,8 +183,8 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
     expect:
     res == "TESTVAL"
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -209,8 +209,8 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
     expect:
     res == null
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -235,8 +235,8 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
     expect:
     keyRetrieved != null
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -261,8 +261,8 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
     expect:
     res == 1
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -287,8 +287,8 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
     expect:
     res == "OK"
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -313,8 +313,8 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
     expect:
     res == testHashMap
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -338,8 +338,8 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -363,8 +363,8 @@ class Lettuce4SyncClientTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS

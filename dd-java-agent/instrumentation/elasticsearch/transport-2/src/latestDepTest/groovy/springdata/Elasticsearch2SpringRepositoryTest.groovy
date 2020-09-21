@@ -38,8 +38,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "SearchAction"
           operationName "elasticsearch.query"
@@ -72,8 +72,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
     and:
     assertTraces(2) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "IndexAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -89,8 +89,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "RefreshAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -116,8 +116,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"
@@ -148,8 +148,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
     and:
     assertTraces(3) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "IndexAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -165,8 +165,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "RefreshAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -184,8 +184,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
           }
         }
       }
-      trace(2, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"
@@ -215,8 +215,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
     and:
     assertTraces(3) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "DeleteAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -232,8 +232,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "RefreshAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -251,8 +251,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
           }
         }
       }
-      trace(2, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "SearchAction"
           operationName "elasticsearch.query"

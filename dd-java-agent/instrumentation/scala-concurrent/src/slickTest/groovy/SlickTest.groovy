@@ -16,8 +16,8 @@ class SlickTest extends AgentTestRunner {
     result == SlickUtils.TestValue()
 
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "trace.annotation"
           resourceName "SlickUtils.startQuery"
           parent()
@@ -27,7 +27,7 @@ class SlickTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           operationName "${SlickUtils.Driver()}.query"
           serviceName SlickUtils.Driver()
           resourceName SlickUtils.TestQuery()
@@ -62,13 +62,13 @@ class SlickTest extends AgentTestRunner {
 
     // Expect two traces because two queries have been run
     assertTraces(2) {
-      trace(0, 2, {
-        span(0) {}
-        span(1) { spanType DDSpanTypes.SQL }
+      trace(2, {
+        span {}
+        span { spanType DDSpanTypes.SQL }
       })
-      trace(1, 2, {
-        span(0) {}
-        span(1) { spanType DDSpanTypes.SQL }
+      trace(2, {
+        span {}
+        span { spanType DDSpanTypes.SQL }
       })
     }
   }

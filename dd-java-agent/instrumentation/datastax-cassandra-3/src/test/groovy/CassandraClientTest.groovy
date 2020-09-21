@@ -59,12 +59,12 @@ class CassandraClientTest extends AgentTestRunner {
     expect:
     assertTraces(keyspace ? 2 : 1) {
       if (keyspace) {
-        trace(0, 1) {
-          cassandraSpan(it, 0, "USE $keyspace", null, false)
+        trace(1) {
+          cassandraSpan(it, "USE $keyspace", null, false)
         }
       }
-      trace(keyspace ? 1 : 0, 1) {
-        cassandraSpan(it, 0, statement, keyspace, renameService)
+      trace(1) {
+        cassandraSpan(it, statement, keyspace, renameService)
       }
     }
 
@@ -100,14 +100,14 @@ class CassandraClientTest extends AgentTestRunner {
     callbackExecuted.get()
     assertTraces(keyspace ? 2 : 1) {
       if (keyspace) {
-        trace(0, 1) {
-          cassandraSpan(it, 0, "USE $keyspace", null, false)
+        trace(1) {
+          cassandraSpan(it, "USE $keyspace", null, false)
         }
       }
-      trace(keyspace ? 1 : 0, 2) {
-        basicSpan(it, 0, "parent")
-//        basicSpan(it, 1, "callbackListener", span(0))
-        cassandraSpan(it, 1, statement, keyspace, renameService, span(0))
+      trace(2) {
+        basicSpan(it, "parent")
+//        basicSpan(it, "callbackListener", span(0))
+        cassandraSpan(it, statement, keyspace, renameService, span(0))
       }
     }
 
@@ -123,8 +123,8 @@ class CassandraClientTest extends AgentTestRunner {
     "SELECT * FROM users where name = 'alice' ALLOW FILTERING"                                         | "async_test" | true
   }
 
-  def cassandraSpan(TraceAssert trace, int index, String statement, String keyspace, boolean renameService, Object parentSpan = null, Throwable exception = null) {
-    trace.span(index) {
+  def cassandraSpan(TraceAssert trace, String statement, String keyspace, boolean renameService, Object parentSpan = null, Throwable exception = null) {
+    trace.span {
       serviceName renameService && keyspace ? keyspace : "cassandra"
       operationName "cassandra.query"
       resourceName statement

@@ -51,7 +51,7 @@ abstract class JettyContinuationHandlerTest extends JettyHandlerTest {
 //    }
 //    toRemove.each {
 //      assertTrace(it, 1) {
-//        basicSpan(it, 0, "TEST_SPAN", "ServerEntry")
+//        basicSpan(it, "TEST_SPAN", "ServerEntry")
 //      }
 //    }
 //    assert toRemove.size() == size * 2

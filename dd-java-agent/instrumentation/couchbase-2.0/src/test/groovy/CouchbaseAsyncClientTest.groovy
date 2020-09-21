@@ -30,10 +30,10 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
     then:
     assert hasBucket.get()
-    sortAndAssertTraces(1) {
-      trace(0, 2) {
-        assertCouchbaseCall(it, 0, "Cluster.openBucket", null)
-        assertCouchbaseCall(it, 1, "ClusterManager.hasBucket", null, span(0))
+    assertTraces(1) {
+      trace(2) {
+        assertCouchbaseCall(it, "ClusterManager.hasBucket", null, span(1))
+        assertCouchbaseCall(it, "Cluster.openBucket", null)
       }
     }
 
@@ -68,12 +68,11 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     then:
     inserted.get().content().getString("hello") == "world"
 
-    sortAndAssertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "someTrace")
-
-        assertCouchbaseCall(it, 2, "Cluster.openBucket", null, span(0))
-        assertCouchbaseCall(it, 1, "Bucket.upsert", bucketSettings.name(), span(2))
+    assertTraces(1) {
+      trace(3) {
+        basicSpan(it, "someTrace")
+        assertCouchbaseCall(it, "Bucket.upsert", bucketSettings.name(), span(2))
+        assertCouchbaseCall(it, "Cluster.openBucket", null, span(0))
       }
     }
 
@@ -115,13 +114,13 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     found.get() == inserted.get()
     found.get().content().getString("hello") == "world"
 
-    sortAndAssertTraces(1) {
-      trace(0, 4) {
-        basicSpan(it, 0, "someTrace")
+    assertTraces(1) {
+      trace(4) {
+        basicSpan(it, "someTrace")
 
-        assertCouchbaseCall(it, 3, "Cluster.openBucket", null, span(0))
-        assertCouchbaseCall(it, 2, "Bucket.upsert", bucketSettings.name(), span(3))
-        assertCouchbaseCall(it, 1, "Bucket.get", bucketSettings.name(), span(2))
+        assertCouchbaseCall(it, "Bucket.get", bucketSettings.name(), span(2))
+        assertCouchbaseCall(it, "Bucket.upsert", bucketSettings.name(), span(3))
+        assertCouchbaseCall(it, "Cluster.openBucket", null, span(0))
       }
     }
 
@@ -162,12 +161,12 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     then:
     queryResult.get().get("row") == "value"
 
-    sortAndAssertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "someTrace")
+    assertTraces(1) {
+      trace(3) {
+        basicSpan(it, "someTrace")
 
-        assertCouchbaseCall(it, 2, "Cluster.openBucket", null, span(0))
-        assertCouchbaseCall(it, 1, "Bucket.query", bucketCouchbase.name(), span(2))
+        assertCouchbaseCall(it, "Bucket.query", bucketCouchbase.name(), span(2))
+        assertCouchbaseCall(it, "Cluster.openBucket", null, span(0))
       }
     }
 

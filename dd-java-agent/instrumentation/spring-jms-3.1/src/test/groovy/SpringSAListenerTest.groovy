@@ -14,21 +14,22 @@
  * limitations under the License.
  */
 
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import org.apache.activemq.ActiveMQMessageProducer
-
-import javax.jms.ConnectionFactory
 import org.apache.activemq.ActiveMQMessageConsumer
+import org.apache.activemq.ActiveMQMessageProducer
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.jms.core.JmsTemplate
 import org.springframework.jms.listener.MessageListenerContainer
 import salistener.Config
 import salistener.SATestListener
+
+import javax.jms.ConnectionFactory
 
 class SpringSAListenerTest extends AgentTestRunner {
 
@@ -41,29 +42,20 @@ class SpringSAListenerTest extends AgentTestRunner {
     def template = new JmsTemplate(factory)
     template.convertAndSend("SpringSAListenerJMS", "a message")
 
-
-    TEST_WRITER.waitForTraces(3)
-    // Manually reorder if reported in the wrong order.
-    if (TEST_WRITER[1][0].operationName.toString() == "jms.produce") {
-      def producerTrace = TEST_WRITER[1]
-      TEST_WRITER[1] = TEST_WRITER[0]
-      TEST_WRITER[0] = producerTrace
-    }
-
     expect:
     assertTraces(3) {
-      producerTrace(it, 0, "Queue SpringSAListenerJMS")
-      consumerTrace(it, 1, "Queue SpringSAListenerJMS", false, ActiveMQMessageConsumer)
-      consumerTrace(it, 2, "Queue SpringSAListenerJMS", true, SATestListener)
+      producerTrace(it, "Queue SpringSAListenerJMS")
+      consumerTrace(it, "Queue SpringSAListenerJMS", false, ActiveMQMessageConsumer)
+      consumerTrace(it, "Queue SpringSAListenerJMS", true, SATestListener)
     }
 
     cleanup:
     context.getBean(EmbeddedActiveMQBroker).stop()
   }
 
-  static producerTrace(ListWriterAssert writer, int index, String jmsResourceName) {
-    writer.trace(index, 1) {
-      span(0) {
+  static producerTrace(ListWriterAssert writer, String jmsResourceName) {
+    writer.trace(1) {
+      span {
         serviceName "jms"
         operationName "jms.produce"
         resourceName "Produced for $jmsResourceName"
@@ -81,9 +73,9 @@ class SpringSAListenerTest extends AgentTestRunner {
     }
   }
 
-  static consumerTrace(ListWriterAssert writer, int index, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan = TEST_WRITER[0][0]) {
-    writer.trace(index, 1) {
-      span(0) {
+  static consumerTrace(ListWriterAssert writer, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan = TEST_WRITER[0][0]) {
+    writer.trace(1) {
+      span {
         serviceName "jms"
         if (messageListener) {
           operationName "jms.onMessage"

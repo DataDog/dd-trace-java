@@ -125,9 +125,9 @@ class KafkaStreamsTest extends AgentTestRunner {
       TEST_WRITER[0][0] = tmp
     }
     assertTraces(4) {
-      trace(0, 1) {
+      trace(1) {
         // PRODUCER span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.produce"
           resourceName "Produce Topic $STREAM_PENDING"
@@ -141,9 +141,9 @@ class KafkaStreamsTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
+      trace(1) {
         // CONSUMER span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.consume"
           resourceName "Consume Topic $STREAM_PENDING"
@@ -160,10 +160,10 @@ class KafkaStreamsTest extends AgentTestRunner {
           }
         }
       }
-      trace(2, 2) {
+      trace(2) {
 
         // STREAMING span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.produce"
           resourceName "Produce Topic $STREAM_PROCESSED"
@@ -179,7 +179,7 @@ class KafkaStreamsTest extends AgentTestRunner {
         }
 
         // STREAMING span 1
-        span(1) {
+        span {
           serviceName "kafka"
           operationName "kafka.consume"
           resourceName "Consume Topic $STREAM_PENDING"
@@ -197,9 +197,9 @@ class KafkaStreamsTest extends AgentTestRunner {
           }
         }
       }
-      trace(3, 1) {
+      trace(1) {
         // CONSUMER span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.consume"
           resourceName "Consume Topic $STREAM_PROCESSED"

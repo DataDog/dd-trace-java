@@ -11,14 +11,11 @@ import com.couchbase.mock.BucketConfiguration
 import com.couchbase.mock.CouchbaseMock
 import com.couchbase.mock.http.query.QueryServer
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.SimpleType
 import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
@@ -109,35 +106,8 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
       .socketConnectTimeout(timeout.intValue())
   }
 
-  void sortAndAssertTraces(
-    final int size,
-    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
-
-    TEST_WRITER.waitForTraces(size)
-
-    TEST_WRITER.each {
-      it.sort({
-        a, b ->
-          boolean aIsCouchbaseOperation = a.operationName.toString() == "couchbase.call"
-          boolean bIsCouchbaseOperation = b.operationName.toString() == "couchbase.call"
-
-          if (aIsCouchbaseOperation && !bIsCouchbaseOperation) {
-            return 1
-          } else if (!aIsCouchbaseOperation && bIsCouchbaseOperation) {
-            return -1
-          }
-
-          return a.resourceName.compareTo(b.resourceName)
-      })
-    }
-
-    assertTraces(size, spec)
-  }
-
-  void assertCouchbaseCall(TraceAssert trace, int index, String name, String bucketName = null, Object parentSpan = null) {
-    trace.span(index) {
+  void assertCouchbaseCall(TraceAssert trace, String name, String bucketName = null, Object parentSpan = null) {
+    trace.span {
       serviceName "couchbase"
       resourceName name
       operationName "couchbase.call"

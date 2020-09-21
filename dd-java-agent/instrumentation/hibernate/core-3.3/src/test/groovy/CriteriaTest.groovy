@@ -20,8 +20,8 @@ class CriteriaTest extends AbstractHibernateTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 4) {
-        span(0) {
+      trace(4) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.session"
           operationName "hibernate.session"
@@ -33,7 +33,7 @@ class CriteriaTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.transaction.commit"
           operationName "hibernate.transaction.commit"
@@ -45,7 +45,7 @@ class CriteriaTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.criteria.$methodName"
           operationName "hibernate.criteria.$methodName"
@@ -57,7 +57,7 @@ class CriteriaTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           serviceName "h2"
           spanType "sql"
           childOf span(2)

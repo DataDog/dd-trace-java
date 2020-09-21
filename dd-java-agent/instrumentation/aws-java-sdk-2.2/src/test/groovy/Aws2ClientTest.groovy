@@ -72,8 +72,8 @@ class Aws2ClientTest extends AgentTestRunner {
     response.class.simpleName.startsWith(operation) || response instanceof ResponseInputStream
 
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           serviceName "java-aws-sdk"
           operationName "aws.http"
           resourceName "$service.$operation"
@@ -106,7 +106,7 @@ class Aws2ClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           operationName "http.request"
           resourceName "$method $path"
           spanType DDSpanTypes.HTTP_CLIENT
@@ -181,16 +181,9 @@ class Aws2ClientTest extends AgentTestRunner {
     expect:
     response != null
 
-    // Order is not guaranteed in these traces, so reorder them if needed to put aws trace first
-    if (TEST_WRITER[0][0].serviceName != "java-aws-sdk") {
-      def tmp = TEST_WRITER[0]
-      TEST_WRITER[0] = TEST_WRITER[1]
-      TEST_WRITER[1] = tmp
-    }
-
     assertTraces(2) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "java-aws-sdk"
           operationName "aws.http"
           resourceName "$service.$operation"
@@ -225,8 +218,8 @@ class Aws2ClientTest extends AgentTestRunner {
         }
       }
       // TODO: this should be part of the same trace but netty instrumentation doesn't cooperate
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           operationName "netty.client.request"
           resourceName "$method $path"
           spanType DDSpanTypes.HTTP_CLIENT
@@ -310,8 +303,8 @@ class Aws2ClientTest extends AgentTestRunner {
     thrown SdkClientException
 
     assertTraces(1) {
-      trace(0, 5) {
-        span(0) {
+      trace(5) {
+        span {
           serviceName "java-aws-sdk"
           operationName "aws.http"
           resourceName "S3.GetObject"
@@ -334,7 +327,7 @@ class Aws2ClientTest extends AgentTestRunner {
           }
         }
         (1..4).each {
-          span(it) {
+          span {
             operationName "http.request"
             resourceName "GET /somebucket/somekey"
             spanType DDSpanTypes.HTTP_CLIENT

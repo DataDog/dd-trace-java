@@ -1,8 +1,8 @@
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import org.apache.activemq.ActiveMQConnectionFactory
 import org.apache.activemq.ActiveMQMessageConsumer
 import org.apache.activemq.ActiveMQMessageProducer
@@ -53,8 +53,8 @@ class JMS1Test extends AgentTestRunner {
     expect:
     receivedMessage.text == messageText
     assertTraces(2) {
-      producerTrace(it, 0, jmsResourceName)
-      consumerTrace(it, 1, jmsResourceName, false, ActiveMQMessageConsumer)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, false, ActiveMQMessageConsumer)
     }
 
     cleanup:
@@ -88,8 +88,8 @@ class JMS1Test extends AgentTestRunner {
 
     expect:
     assertTraces(2) {
-      producerTrace(it, 0, jmsResourceName)
-      consumerTrace(it, 1, jmsResourceName, true, consumer.messageListener.class)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, true, consumer.messageListener.class)
     }
     // This check needs to go after all traces have been accounted for
     messageRef.get().text == messageText
@@ -116,8 +116,8 @@ class JMS1Test extends AgentTestRunner {
     expect:
     receivedMessage == null
     assertTraces(1) {
-      trace(0, 1) { // Consumer trace
-        span(0) {
+      trace(1) { // Consumer trace
+        span {
           parent()
           serviceName "jms"
           operationName "jms.consume"
@@ -154,8 +154,8 @@ class JMS1Test extends AgentTestRunner {
     expect:
     receivedMessage == null
     assertTraces(1) {
-      trace(0, 1) { // Consumer trace
-        span(0) {
+      trace(1) { // Consumer trace
+        span {
           parent()
           serviceName "jms"
           operationName "jms.consume"
@@ -204,9 +204,9 @@ class JMS1Test extends AgentTestRunner {
     // write properties in MessagePropertyTextMap when readOnlyProperties = true.
     // The consumer span will also not be linked to the parent.
     assertTraces(2) {
-      producerTrace(it, 0, jmsResourceName)
-      trace(1, 1) { // Consumer trace
-        span(0) {
+      producerTrace(it, jmsResourceName)
+      trace(1) { // Consumer trace
+        span {
           parent()
           serviceName "jms"
           operationName "jms.consume"
@@ -236,9 +236,9 @@ class JMS1Test extends AgentTestRunner {
     session.createTemporaryTopic()   | "Temporary Topic"
   }
 
-  static producerTrace(ListWriterAssert writer, int index, String jmsResourceName) {
-    writer.trace(index, 1) {
-      span(0) {
+  static producerTrace(ListWriterAssert writer, String jmsResourceName) {
+    writer.trace(1) {
+      span {
         serviceName "jms"
         operationName "jms.produce"
         resourceName "Produced for $jmsResourceName"
@@ -256,9 +256,9 @@ class JMS1Test extends AgentTestRunner {
     }
   }
 
-  static consumerTrace(ListWriterAssert writer, int index, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan = TEST_WRITER[0][0]) {
-    writer.trace(index, 1) {
-      span(0) {
+  static consumerTrace(ListWriterAssert writer, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan = TEST_WRITER[0][0]) {
+    writer.trace(1) {
+      span {
         serviceName "jms"
         if (messageListener) {
           operationName "jms.onMessage"

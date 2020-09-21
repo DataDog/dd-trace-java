@@ -29,8 +29,8 @@ class CustomScopeManagerTest extends DDSpecification {
 
     then:
     assertTraces(writer, 1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "someService"
           operationName "someOperation"
           resourceName "someOperation"
@@ -56,8 +56,8 @@ class CustomScopeManagerTest extends DDSpecification {
     then:
     tracer.scopeManager() instanceof TestScopeManager
     assertTraces(writer, 1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "someService"
           operationName "someOperation"
           resourceName "someOperation"
@@ -100,8 +100,8 @@ class CustomScopeManagerTest extends DDSpecification {
     then:
     tracer.scopeManager() instanceof TestScopeManager
     assertTraces(writer, 1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "someService"
           operationName "someOperation"
           resourceName "someOperation"
@@ -140,8 +140,8 @@ class CustomScopeManagerTest extends DDSpecification {
     then:
     tracer.scopeManager() instanceof TestScopeManager
     assertTraces(writer, 1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "someService"
           operationName "someOperation"
           resourceName "someOperation"
@@ -182,8 +182,8 @@ class CustomScopeManagerTest extends DDSpecification {
     then:
     tracer.scopeManager() instanceof TestScopeManager
     assertTraces(writer, 1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "someService"
           operationName "someOperation"
           resourceName "someOperation"

@@ -67,8 +67,8 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     and:
     waitForTracesAndSortSpans(1)
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "repository.operation"
           resourceName "CrudRepository.findAll"
           tags {
@@ -78,7 +78,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           }
         }
 
-        span(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "SearchAction"
           operationName "elasticsearch.query"
@@ -112,32 +112,9 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     repo.index(doc) == doc
 
     and:
-    waitForTracesAndSortSpans(2)
-    // need to normalize trace ordering since they are finished by different threads
-    if (TEST_WRITER[1][0].resourceName.toString() == "PutMappingAction") {
-      def tmp = TEST_WRITER[1]
-      TEST_WRITER[1] = TEST_WRITER[0]
-      TEST_WRITER[0] = tmp
-    }
     assertTraces(2) {
-      trace(0, 1) {
-        span(0) {
-          serviceName "elasticsearch"
-          resourceName "PutMappingAction"
-          operationName "elasticsearch.query"
-          spanType DDSpanTypes.ELASTICSEARCH
-          tags {
-            "$Tags.COMPONENT" "elasticsearch-java"
-            "$Tags.DB_TYPE" "elasticsearch"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "elasticsearch.action" "PutMappingAction"
-            "elasticsearch.request" "PutMappingRequest"
-            defaultTags()
-          }
-        }
-      }
-      trace(1, 3) {
-        span(0) {
+      trace(3) {
+        span {
           resourceName "ElasticsearchRepository.index"
           operationName "repository.operation"
           tags {
@@ -147,7 +124,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           }
         }
 
-        span(1) {
+        span {
           resourceName "RefreshAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -166,7 +143,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           }
         }
 
-        span(2) {
+        span {
           resourceName "IndexAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -188,6 +165,22 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           }
         }
       }
+      trace(1) {
+        span {
+          serviceName "elasticsearch"
+          resourceName "PutMappingAction"
+          operationName "elasticsearch.query"
+          spanType DDSpanTypes.ELASTICSEARCH
+          tags {
+            "$Tags.COMPONENT" "elasticsearch-java"
+            "$Tags.DB_TYPE" "elasticsearch"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "elasticsearch.action" "PutMappingAction"
+            "elasticsearch.request" "PutMappingRequest"
+            defaultTags()
+          }
+        }
+      }
     }
     TEST_WRITER.clear()
 
@@ -197,8 +190,8 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     and:
     waitForTracesAndSortSpans(1)
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           resourceName "CrudRepository.findById"
           operationName "repository.operation"
           tags {
@@ -208,7 +201,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           }
         }
 
-        span(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"
@@ -241,8 +234,8 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     and:
     waitForTracesAndSortSpans(2)
     assertTraces(2) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           resourceName "ElasticsearchRepository.index"
           operationName "repository.operation"
           tags {
@@ -251,7 +244,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           resourceName "RefreshAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -269,7 +262,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           resourceName "IndexAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -291,8 +284,8 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 2) {
-        span(0) {
+      trace(2) {
+        span {
           resourceName "CrudRepository.findById"
           operationName "repository.operation"
           tags {
@@ -302,7 +295,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           }
         }
 
-        span(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"
@@ -334,8 +327,8 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     and:
     waitForTracesAndSortSpans(2)
     assertTraces(2) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           resourceName "CrudRepository.deleteById"
           operationName "repository.operation"
           tags {
@@ -345,7 +338,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           }
         }
 
-        span(1) {
+        span {
           resourceName "RefreshAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -363,7 +356,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           resourceName "DeleteAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -385,8 +378,8 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
         }
       }
 
-      trace(1, 2) {
-        span(0) {
+      trace(2) {
+        span {
           resourceName "CrudRepository.findAll"
           operationName "repository.operation"
           tags {
@@ -396,7 +389,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           }
         }
 
-        span(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "SearchAction"
           operationName "elasticsearch.query"

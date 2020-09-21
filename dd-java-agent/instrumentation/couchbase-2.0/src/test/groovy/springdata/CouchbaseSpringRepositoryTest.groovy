@@ -76,8 +76,8 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
     and:
     assertTraces(1) {
-      trace(0, 1) {
-        assertCouchbaseCall(it, 0, "Bucket.query", bucketCouchbase.name())
+      trace(1) {
+        assertCouchbaseCall(it, "Bucket.query", bucketCouchbase.name())
       }
     }
   }
@@ -92,8 +92,8 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
     then:
     result == doc
     assertTraces(1) {
-      trace(0, 1) {
-        assertCouchbaseCall(it, 0, "Bucket.upsert", bucketCouchbase.name())
+      trace(1) {
+        assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name())
       }
     }
 
@@ -118,11 +118,11 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
     then: // RETRIEVE
     result == doc
-    sortAndAssertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "someTrace")
-        assertCouchbaseCall(it, 2, "Bucket.upsert", bucketCouchbase.name(), span(0))
-        assertCouchbaseCall(it, 1, "Bucket.get", bucketCouchbase.name(), span(0))
+    assertTraces(1) {
+      trace(3) {
+        basicSpan(it, "someTrace")
+        assertCouchbaseCall(it, "Bucket.get", bucketCouchbase.name(), span(0))
+        assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name(), span(0))
       }
     }
 
@@ -147,11 +147,11 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
 
     then:
-    sortAndAssertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "someTrace")
-        assertCouchbaseCall(it, 1, "Bucket.upsert", bucketCouchbase.name(), span(0))
-        assertCouchbaseCall(it, 2, "Bucket.upsert", bucketCouchbase.name(), span(0))
+    assertTraces(1) {
+      trace(3) {
+        basicSpan(it, "someTrace")
+        assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name(), span(0))
+        assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name(), span(0))
       }
     }
 
@@ -177,12 +177,12 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
     then:
     assert !result
-    sortAndAssertTraces(1) {
-      trace(0, 4) {
-        basicSpan(it, 0, "someTrace")
-        assertCouchbaseCall(it, 3, "Bucket.upsert", bucketCouchbase.name(), span(0))
-        assertCouchbaseCall(it, 2, "Bucket.remove", bucketCouchbase.name(), span(0))
-        assertCouchbaseCall(it, 1, "Bucket.query", bucketCouchbase.name(), span(0))
+    assertTraces(1) {
+      trace(4) {
+        basicSpan(it, "someTrace")
+        assertCouchbaseCall(it, "Bucket.query", bucketCouchbase.name(), span(0))
+        assertCouchbaseCall(it, "Bucket.remove", bucketCouchbase.name(), span(0))
+        assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name(), span(0))
       }
     }
   }

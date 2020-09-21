@@ -1,13 +1,13 @@
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 
 class CouchbaseSpanUtil {
   // Reusable span assertion method.  Cannot directly override AbstractCouchbaseTest.assertCouchbaseSpan because
   // Of the class hierarchy of these tests
-  static void assertCouchbaseCall(TraceAssert trace, int index, String name, String bucketName = null, Object parentSpan = null) {
-    trace.span(index) {
+  static void assertCouchbaseCall(TraceAssert trace, String name, String bucketName = null, Object parentSpan = null) {
+    trace.span {
       serviceName "couchbase"
       resourceName name
       operationName "couchbase.call"

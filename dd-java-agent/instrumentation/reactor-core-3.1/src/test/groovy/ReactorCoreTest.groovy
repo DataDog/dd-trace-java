@@ -1,11 +1,8 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.SimpleType
 import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
@@ -48,9 +45,10 @@ class ReactorCoreTest extends AgentTestRunner {
     then:
     result == expected
     and:
-    sortAndAssertTraces(1) {
-      trace(0, workSpans + 2) {
-        span(0) {
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(workSpans + 2) {
+        span {
           resourceName "trace-parent"
           operationName "trace-parent"
           parent()
@@ -60,10 +58,10 @@ class ReactorCoreTest extends AgentTestRunner {
           }
         }
 
-        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
+        basicSpan(it, "publisher-parent", "publisher-parent", span(0))
 
         for (int i = 0; i < workSpans; i++) {
-          span(i + 2) {
+          span {
             resourceName "addOne"
             operationName "addOne"
             childOf(span(1))
@@ -104,9 +102,10 @@ class ReactorCoreTest extends AgentTestRunner {
     def exception = thrown RuntimeException
     exception.message == EXCEPTION_MESSAGE
     and:
-    sortAndAssertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(2) {
+        span {
           resourceName "trace-parent"
           operationName "trace-parent"
           parent()
@@ -122,7 +121,7 @@ class ReactorCoreTest extends AgentTestRunner {
         // impact the spans on reactor integrations such as netty and lettuce, as reactor is
         // more of a context propagation mechanism than something we would be tracking for
         // errors this is ok.
-        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
+        basicSpan(it, "publisher-parent", "publisher-parent", span(0))
       }
     }
 
@@ -140,9 +139,10 @@ class ReactorCoreTest extends AgentTestRunner {
     def exception = thrown RuntimeException
     exception.message == EXCEPTION_MESSAGE
     and:
-    sortAndAssertTraces(1) {
-      trace(0, workSpans + 2) {
-        span(0) {
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(workSpans + 2) {
+        span {
           resourceName "trace-parent"
           operationName "trace-parent"
           parent()
@@ -158,10 +158,10 @@ class ReactorCoreTest extends AgentTestRunner {
         // impact the spans on reactor integrations such as netty and lettuce, as reactor is
         // more of a context propagation mechanism than something we would be tracking for
         // errors this is ok.
-        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
+        basicSpan(it, "publisher-parent", "publisher-parent", span(0))
 
         for (int i = 0; i < workSpans; i++) {
-          span(i + 2) {
+          span {
             resourceName "addOne"
             operationName "addOne"
             childOf(span(1))
@@ -186,8 +186,8 @@ class ReactorCoreTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           resourceName "trace-parent"
           operationName "trace-parent"
           parent()
@@ -197,7 +197,7 @@ class ReactorCoreTest extends AgentTestRunner {
           }
         }
 
-        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
+        basicSpan(it, "publisher-parent", "publisher-parent", span(0))
       }
     }
 
@@ -213,8 +213,8 @@ class ReactorCoreTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, workSpans + 2) {
-        span(0) {
+      trace(workSpans + 2) {
+        span {
           resourceName "trace-parent"
           operationName "trace-parent"
           parent()
@@ -224,10 +224,10 @@ class ReactorCoreTest extends AgentTestRunner {
           }
         }
 
-        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
+        basicSpan(it, "publisher-parent", "publisher-parent", span(0))
 
         for (int i = 0; i < workSpans; i++) {
-          span(i + 2) {
+          span {
             resourceName "addOne"
             operationName "addOne"
             childOf(span(1))
@@ -269,9 +269,10 @@ class ReactorCoreTest extends AgentTestRunner {
     }
 
     then:
-    sortAndAssertTraces(1) {
-      trace(0, (workItems * 2) + 3) {
-        span(0) {
+    assertTraces(1) {
+      sortSpansByStart()
+      trace((workItems * 2) + 3) {
+        span {
           resourceName "trace-parent"
           operationName "trace-parent"
           parent()
@@ -281,11 +282,11 @@ class ReactorCoreTest extends AgentTestRunner {
           }
         }
 
-        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
-        basicSpan(it, 2, "intermediate", "intermediate", span(1))
+        basicSpan(it, "publisher-parent", "publisher-parent", span(0))
+        basicSpan(it, "intermediate", "intermediate", span(1))
 
         for (int i = 0; i < workItems * 2; i++) {
-          span(i + 3) {
+          span {
             resourceName "addOne"
             operationName "addOne"
             childOf(span(i % 2 == 0 ? 1 : 2))
@@ -326,9 +327,10 @@ class ReactorCoreTest extends AgentTestRunner {
     }
 
     then:
-    sortAndAssertTraces(1 + workItems) {
-      trace(0, 2 + workItems) {
-        span(0) {
+    assertTraces(1 + workItems) {
+      sortSpansByStart()
+      trace(2 + workItems) {
+        span {
           resourceName "trace-parent"
           operationName "trace-parent"
           parent()
@@ -338,10 +340,10 @@ class ReactorCoreTest extends AgentTestRunner {
           }
         }
 
-        basicSpan(it, 1, "publisher-parent", "publisher-parent", span(0))
+        basicSpan(it, "publisher-parent", "publisher-parent", span(0))
 
         for (int i = 0; i < workItems; i++) {
-          span(2 + i) {
+          span {
             resourceName "addOne"
             operationName "addOne"
             childOf(span(1))
@@ -353,8 +355,8 @@ class ReactorCoreTest extends AgentTestRunner {
         }
       }
       for (int i = 0; i < workItems; i++) {
-        trace(i + 1, 1) {
-          span(0) {
+        trace(1) {
+          span {
             resourceName "addOne"
             operationName "addOne"
             parent()
@@ -425,26 +427,5 @@ class ReactorCoreTest extends AgentTestRunner {
   @Trace(operationName = "addOne", resourceName = "addOne")
   def static addOneFunc(int i) {
     return i + 1
-  }
-
-  void sortAndAssertTraces(
-    final int size,
-    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
-
-    TEST_WRITER.waitForTraces(size)
-
-    TEST_WRITER.each {
-      it.sort({ a, b ->
-        return a.startTimeNano <=> b.startTimeNano
-      })
-    }
-
-    TEST_WRITER.sort({ a, b ->
-      return a[0].startTimeNano <=> b[0].startTimeNano
-    })
-
-    assertTraces(size, spec)
   }
 }

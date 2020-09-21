@@ -81,10 +81,10 @@ class HttpUrlConnectionTest extends HttpClientTest {
 
     expect:
     assertTraces(3) {
-      server.distributedRequestTrace(it, 0, TEST_WRITER[2][2])
-      server.distributedRequestTrace(it, 1, TEST_WRITER[2][1])
-      trace(2, 3) {
-        span(0) {
+      server.distributedRequestTrace(it, TEST_WRITER[2][2])
+      server.distributedRequestTrace(it, TEST_WRITER[2][1])
+      trace(3) {
+        span {
           operationName "someTrace"
           parent()
           errored false
@@ -92,7 +92,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           if (renameService) {
             serviceName "localhost"
           }
@@ -112,7 +112,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           if (renameService) {
             serviceName "localhost"
           }
@@ -172,8 +172,8 @@ class HttpUrlConnectionTest extends HttpClientTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           operationName "someTrace"
           parent()
           errored false
@@ -181,7 +181,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           if (renameService) {
             serviceName "localhost"
           }
@@ -201,7 +201,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           if (renameService) {
             serviceName "localhost"
           }
@@ -246,8 +246,8 @@ class HttpUrlConnectionTest extends HttpClientTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "someTrace"
           parent()
           errored false
@@ -255,7 +255,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           if (renameService) {
             serviceName "localhost"
           }
@@ -315,9 +315,9 @@ class HttpUrlConnectionTest extends HttpClientTest {
 
     expect:
     assertTraces(2) {
-      server.distributedRequestTrace(it, 0, TEST_WRITER[1][1])
-      trace(1, 2) {
-        span(0) {
+      server.distributedRequestTrace(it, TEST_WRITER[1][1])
+      trace(2) {
+        span {
           operationName "someTrace"
           parent()
           errored false
@@ -325,7 +325,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           if (renameService) {
             serviceName "localhost"
           }

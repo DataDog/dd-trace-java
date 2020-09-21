@@ -24,9 +24,9 @@ class ViewRenderTest extends AgentTestRunner {
     then:
     outputStream.toString().contains("This is an example of a view")
     assertTraces(TEST_WRITER, 1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
           resourceName "View $template"
           operationName "view.render"
           childOf span(0)

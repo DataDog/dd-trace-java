@@ -243,7 +243,7 @@ abstract class JettyDispatchTest extends JettyServlet3Test {
     assert toRemove.size() == size
     toRemove.each {
       assertTrace(it, 1) {
-        basicSpan(it, 0, "TEST_SPAN", "ServerEntry")
+        basicSpan(it, "TEST_SPAN", "ServerEntry")
       }
     }
     TEST_WRITER.removeAll(toRemove)
@@ -256,7 +256,7 @@ abstract class JettyDispatchTest extends JettyServlet3Test {
     dispatchTraces.each { List<DDSpan> dispatchTrace ->
       assertTrace(dispatchTrace, 1) {
         def endpoint = lastRequest
-        span(0) {
+        span {
           serviceName expectedServiceName()
           operationName expectedOperationName()
           resourceName endpoint.status == 404 ? "404" : "GET ${endpoint.resolve(address).path}"

@@ -56,8 +56,8 @@ abstract class JaxRsFilterTest extends AgentTestRunner {
     }
 
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "test.span"
           resourceName parentResourceName
           tags {
@@ -65,7 +65,7 @@ abstract class JaxRsFilterTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           operationName abort ? "jax-rs.request.abort" : "jax-rs.request"
           resourceName controllerName
@@ -115,8 +115,8 @@ abstract class JaxRsFilterTest extends AgentTestRunner {
     responseText == expectedResponse
 
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           operationName "test.span"
           resourceName parentResourceName
           tags {
@@ -124,7 +124,7 @@ abstract class JaxRsFilterTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           operationName "jax-rs.request"
           resourceName controller1Name
@@ -134,7 +134,7 @@ abstract class JaxRsFilterTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf span(1)
           operationName "jax-rs.request"
           resourceName controller2Name

@@ -60,6 +60,14 @@ class ListWriterAssert {
     }
   }
 
+  void sortSpansByStart() {
+    traces.each {
+      it.sort { a, b ->
+        return a.startTimeNano <=> b.startTimeNano
+      }
+    }
+  }
+
   List<DDSpan> trace(int index) {
     return traces.get(index)
   }

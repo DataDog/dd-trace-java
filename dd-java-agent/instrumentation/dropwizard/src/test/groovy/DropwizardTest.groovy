@@ -1,9 +1,9 @@
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator
 import io.dropwizard.Application
 import io.dropwizard.Configuration
@@ -76,8 +76,8 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
   }
 
   @Override
-  void handlerSpan(TraceAssert trace, int index, Object parent, ServerEndpoint endpoint = SUCCESS) {
-    trace.span(index) {
+  void handlerSpan(TraceAssert trace, Object parent, ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
       serviceName expectedServiceName()
       operationName "jax-rs.request"
       resourceName "${testResource().simpleName}.${endpoint.name().toLowerCase()}"
@@ -95,8 +95,8 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
   }
 
   @Override
-  void serverSpan(TraceAssert trace, int index, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    trace.span(index) {
+  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
       resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"

@@ -8,10 +8,10 @@ import com.mongodb.async.client.MongoDatabase
 import com.mongodb.client.result.DeleteResult
 import com.mongodb.client.result.UpdateResult
 import com.mongodb.connection.ClusterSettings
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import org.bson.BsonDocument
 import org.bson.BsonString
 import org.bson.Document
@@ -54,7 +54,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
     then:
     assertTraces(1) {
-      trace(0, 1) {
+      trace(1) {
         mongoSpan(it, 0) {
           assert it.replaceAll(" ", "") == "{\"create\":\"$collectionName\",\"capped\":\"?\"}" ||
             it == "{\"create\": \"$collectionName\", \"capped\": \"?\", \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
@@ -77,7 +77,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
 
     then:
     assertTraces(1) {
-      trace(0, 1) {
+      trace(1) {
         mongoSpan(it, 0, {
           assert it.replaceAll(" ", "") == "{\"create\":\"$collectionName\",\"capped\":\"?\"}" ||
             it == "{\"create\": \"$collectionName\", \"capped\": \"?\", \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
@@ -102,7 +102,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
     then:
     count.get() == 0
     assertTraces(1) {
-      trace(0, 1) {
+      trace(1) {
         mongoSpan(it, 0) {
           assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
             it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
@@ -137,14 +137,14 @@ class MongoAsyncClientTest extends MongoBaseTest {
     then:
     count.get() == 1
     assertTraces(2) {
-      trace(0, 1) {
+      trace(1) {
         mongoSpan(it, 0) {
           assert it.replaceAll(" ", "") == "{\"insert\":\"$collectionName\",\"ordered\":\"?\",\"documents\":[{\"_id\":\"?\",\"password\":\"?\"}]}" ||
             it == "{\"insert\": \"$collectionName\", \"ordered\": \"?\", \"\$db\": \"?\", \"documents\": [{\"_id\": \"?\", \"password\": \"?\"}]}"
           true
         }
       }
-      trace(1, 1) {
+      trace(1) {
         mongoSpan(it, 0) {
           assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
             it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
@@ -188,14 +188,14 @@ class MongoAsyncClientTest extends MongoBaseTest {
     result.get().modifiedCount == 1
     count.get() == 1
     assertTraces(2) {
-      trace(0, 1) {
+      trace(1) {
         mongoSpan(it, 0) {
           assert it.replaceAll(" ", "") == "{\"update\":\"?\",\"ordered\":\"?\",\"updates\":[{\"q\":{\"password\":\"?\"},\"u\":{\"\$set\":{\"password\":\"?\"}}}]}" ||
             it == "{\"update\": \"?\", \"ordered\": \"?\", \"\$db\": \"?\", \"updates\": [{\"q\": {\"password\": \"?\"}, \"u\": {\"\$set\": {\"password\": \"?\"}}}]}"
           true
         }
       }
-      trace(1, 1) {
+      trace(1) {
         mongoSpan(it, 0) {
           assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
             it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
@@ -237,14 +237,14 @@ class MongoAsyncClientTest extends MongoBaseTest {
     result.get().deletedCount == 1
     count.get() == 0
     assertTraces(2) {
-      trace(0, 1) {
+      trace(1) {
         mongoSpan(it, 0) {
           assert it.replaceAll(" ", "") == "{\"delete\":\"?\",\"ordered\":\"?\",\"deletes\":[{\"q\":{\"password\":\"?\"},\"limit\":\"?\"}]}" ||
             it == "{\"delete\": \"?\", \"ordered\": \"?\", \"\$db\": \"?\", \"deletes\": [{\"q\": {\"password\": \"?\"}, \"limit\": \"?\"}]}"
           true
         }
       }
-      trace(1, 1) {
+      trace(1) {
         mongoSpan(it, 0) {
           assert it.replaceAll(" ", "") == "{\"count\":\"$collectionName\",\"query\":{}}" ||
             it == "{\"count\": \"$collectionName\", \"query\": {}, \"\$db\": \"?\", \"\$readPreference\": {\"mode\": \"?\"}}"
@@ -272,7 +272,7 @@ class MongoAsyncClientTest extends MongoBaseTest {
   }
 
   def mongoSpan(TraceAssert trace, int index, Closure<Boolean> statementEval, String instance = "some-description", Object parentSpan = null, Throwable exception = null) {
-    trace.span(index) {
+    trace.span {
       serviceName "mongo"
       operationName "mongo.query"
       resourceName statementEval

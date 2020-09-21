@@ -67,8 +67,8 @@ class Elasticsearch6NodeClientTest extends AgentTestRunner {
     status.name() == "GREEN"
 
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "ClusterHealthAction"
           operationName "elasticsearch.query"
@@ -95,8 +95,8 @@ class Elasticsearch6NodeClientTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"
@@ -160,16 +160,9 @@ class Elasticsearch6NodeClientTest extends AgentTestRunner {
     result.index == indexName
 
     and:
-    // IndexAction and PutMappingAction run in separate threads and order in which
-    // these spans are closed is not defined. So we force the order if it is wrong.
-    if (TEST_WRITER[2][0].resourceName.toString() == "IndexAction") {
-      def tmp = TEST_WRITER[2]
-      TEST_WRITER[2] = TEST_WRITER[3]
-      TEST_WRITER[3] = tmp
-    }
     assertTraces(5) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "CreateIndexAction"
           operationName "elasticsearch.query"
@@ -185,8 +178,8 @@ class Elasticsearch6NodeClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"
@@ -205,24 +198,8 @@ class Elasticsearch6NodeClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(2, 1) {
-        span(0) {
-          serviceName "elasticsearch"
-          resourceName "PutMappingAction"
-          operationName "elasticsearch.query"
-          spanType DDSpanTypes.ELASTICSEARCH
-          tags {
-            "$Tags.COMPONENT" "elasticsearch-java"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "elasticsearch"
-            "elasticsearch.action" "PutMappingAction"
-            "elasticsearch.request" "PutMappingRequest"
-            defaultTags()
-          }
-        }
-      }
-      trace(3, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "IndexAction"
           operationName "elasticsearch.query"
@@ -244,8 +221,24 @@ class Elasticsearch6NodeClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(4, 1) {
-        span(0) {
+      trace(1) {
+        span {
+          serviceName "elasticsearch"
+          resourceName "PutMappingAction"
+          operationName "elasticsearch.query"
+          spanType DDSpanTypes.ELASTICSEARCH
+          tags {
+            "$Tags.COMPONENT" "elasticsearch-java"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "elasticsearch"
+            "elasticsearch.action" "PutMappingAction"
+            "elasticsearch.request" "PutMappingRequest"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"

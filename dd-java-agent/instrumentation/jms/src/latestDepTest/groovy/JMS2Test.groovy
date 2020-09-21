@@ -1,9 +1,9 @@
 import com.google.common.io.Files
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import org.hornetq.api.core.TransportConfiguration
 import org.hornetq.api.core.client.HornetQClient
 import org.hornetq.api.jms.HornetQJMSClient
@@ -90,8 +90,8 @@ class JMS2Test extends AgentTestRunner {
     expect:
     receivedMessage.text == messageText
     assertTraces(2) {
-      producerTrace(it, 0, jmsResourceName)
-      consumerTrace(it, 1, jmsResourceName, false, HornetQMessageConsumer)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, false, HornetQMessageConsumer)
     }
 
     cleanup:
@@ -125,8 +125,8 @@ class JMS2Test extends AgentTestRunner {
 
     expect:
     assertTraces(2) {
-      producerTrace(it, 0, jmsResourceName)
-      consumerTrace(it, 1, jmsResourceName, true, consumer.messageListener.class)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, true, consumer.messageListener.class)
     }
     // This check needs to go after all traces have been accounted for
     messageRef.get().text == messageText
@@ -153,8 +153,8 @@ class JMS2Test extends AgentTestRunner {
     expect:
     receivedMessage == null
     assertTraces(1) {
-      trace(0, 1) { // Consumer trace
-        span(0) {
+      trace(1) { // Consumer trace
+        span {
           parent()
           serviceName "jms"
           operationName "jms.consume"
@@ -191,8 +191,8 @@ class JMS2Test extends AgentTestRunner {
     expect:
     receivedMessage == null
     assertTraces(1) {
-      trace(0, 1) { // Consumer trace
-        span(0) {
+      trace(1) { // Consumer trace
+        span {
           parent()
           serviceName "jms"
           operationName "jms.consume"
@@ -219,9 +219,9 @@ class JMS2Test extends AgentTestRunner {
     session.createTopic("someTopic") | "Topic someTopic"
   }
 
-  static producerTrace(ListWriterAssert writer, int index, String jmsResourceName) {
-    writer.trace(index, 1) {
-      span(0) {
+  static producerTrace(ListWriterAssert writer, String jmsResourceName) {
+    writer.trace(1) {
+      span {
         parent()
         serviceName "jms"
         operationName "jms.produce"
@@ -239,9 +239,9 @@ class JMS2Test extends AgentTestRunner {
     }
   }
 
-  static consumerTrace(ListWriterAssert writer, int index, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan = TEST_WRITER[0][0]) {
-    writer.trace(index, 1) {
-      span(0) {
+  static consumerTrace(ListWriterAssert writer, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan = TEST_WRITER[0][0]) {
+    writer.trace(1) {
+      span {
         childOf parentSpan
         serviceName "jms"
         if (messageListener) {

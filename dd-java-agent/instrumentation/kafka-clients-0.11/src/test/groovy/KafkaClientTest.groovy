@@ -101,10 +101,10 @@ class KafkaClientTest extends AgentTestRunner {
     received.key() == null
 
     assertTraces(2) {
-      trace(0, 3) {
-        basicSpan(it, 0, "parent")
-        basicSpan(it, 1, "producer callback", span(0))
-        span(2) {
+      trace(3) {
+        basicSpan(it, "parent")
+        basicSpan(it, "producer callback", span(0))
+        span {
           serviceName "kafka"
           operationName "kafka.produce"
           resourceName "Produce Topic $SHARED_TOPIC"
@@ -118,9 +118,9 @@ class KafkaClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
+      trace(1) {
         // CONSUMER span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.consume"
           resourceName "Consume Topic $SHARED_TOPIC"
@@ -208,10 +208,10 @@ class KafkaClientTest extends AgentTestRunner {
     received.key() == null
 
     assertTraces(2) {
-      trace(0, 3) {
-        basicSpan(it, 0, "parent")
-        basicSpan(it, 1, "producer callback", span(0))
-        span(2) {
+      trace(3) {
+        basicSpan(it, "parent")
+        basicSpan(it, "producer callback", span(0))
+        span {
           serviceName "kafka"
           operationName "kafka.produce"
           resourceName "Produce Topic $SHARED_TOPIC"
@@ -225,9 +225,9 @@ class KafkaClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
+      trace(1) {
         // CONSUMER span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.consume"
           resourceName "Consume Topic $SHARED_TOPIC"
@@ -308,9 +308,9 @@ class KafkaClientTest extends AgentTestRunner {
     received.key() == null
 
     assertTraces(2) {
-      trace(0, 1) {
+      trace(1) {
         // PRODUCER span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.produce"
           resourceName "Produce Topic $SHARED_TOPIC"
@@ -325,9 +325,9 @@ class KafkaClientTest extends AgentTestRunner {
           }
         }
       }
-      trace (1, 1) {
+      trace(1) {
         // CONSUMER span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.consume"
           resourceName "Consume Topic $SHARED_TOPIC"
@@ -392,9 +392,9 @@ class KafkaClientTest extends AgentTestRunner {
     first.key() == null
 
     assertTraces(2) {
-      trace(0, 1) {
+      trace(1) {
         // PRODUCER span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.produce"
           resourceName "Produce Topic $SHARED_TOPIC"
@@ -409,9 +409,9 @@ class KafkaClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
+      trace(1) {
         // CONSUMER span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.consume"
           resourceName "Consume Topic $SHARED_TOPIC"

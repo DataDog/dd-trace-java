@@ -50,8 +50,8 @@ class OpenTelemetryTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           parent()
           operationName "test-inst"
           if (tagSpan) {
@@ -111,8 +111,8 @@ class OpenTelemetryTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           parent()
           operationName "test-inst"
           resourceName "some name"
@@ -153,8 +153,8 @@ class OpenTelemetryTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           if (expectedId) {
             traceDDId(DDId.ONE)
             parentDDId(DDId.from(expectedId))

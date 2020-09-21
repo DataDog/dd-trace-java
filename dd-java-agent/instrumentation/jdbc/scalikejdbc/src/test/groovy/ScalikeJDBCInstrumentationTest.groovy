@@ -143,9 +143,9 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(3) {
+        basicSpan(it, "parent")
+        span {
           operationName "${driver}.query"
           serviceName driver
           resourceName query
@@ -164,7 +164,7 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           operationName "database.connection"
           serviceName span(2).serviceName
           resourceName "PoolingDataSource.getConnection"

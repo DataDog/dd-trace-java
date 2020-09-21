@@ -63,8 +63,8 @@ class ProcedureCallTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 4) {
-        span(0) {
+      trace(4) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.session"
           operationName "hibernate.session"
@@ -76,7 +76,7 @@ class ProcedureCallTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.transaction.commit"
           operationName "hibernate.transaction.commit"
@@ -88,7 +88,7 @@ class ProcedureCallTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "hibernate"
           resourceName "TEST_PROC"
           operationName "hibernate.procedure.getOutputs"
@@ -100,7 +100,7 @@ class ProcedureCallTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           serviceName "hsqldb"
           spanType "sql"
           childOf span(2)
@@ -138,8 +138,8 @@ class ProcedureCallTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.session"
           operationName "hibernate.session"
@@ -151,7 +151,7 @@ class ProcedureCallTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.transaction.commit"
           operationName "hibernate.transaction.commit"
@@ -163,7 +163,7 @@ class ProcedureCallTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "hibernate"
           resourceName "TEST_PROC"
           operationName "hibernate.procedure.getOutputs"

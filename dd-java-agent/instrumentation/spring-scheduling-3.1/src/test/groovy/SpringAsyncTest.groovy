@@ -5,7 +5,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class SpringAsyncTest extends AgentTestRunner {
 
-  def "context propagated through @async annotation" () {
+  def "context propagated through @async annotation"() {
     setup:
     def context = new AnnotationConfigApplicationContext(AsyncTaskConfig)
     AsyncTask asyncTask = context.getBean(AsyncTask)
@@ -15,16 +15,16 @@ class SpringAsyncTest extends AgentTestRunner {
     }
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           resourceName "root"
         }
-        span(1) {
+        span {
           resourceName "AsyncTask.async"
           threadNameStartsWith "SimpleAsyncTaskExecutor"
           childOf span(0)
         }
-        span(2) {
+        span {
           resourceName "AsyncTask.getInt"
           threadNameStartsWith "SimpleAsyncTaskExecutor"
           childOf span(1)

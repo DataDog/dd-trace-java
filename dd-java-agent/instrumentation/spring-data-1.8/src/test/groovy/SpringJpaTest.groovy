@@ -25,8 +25,8 @@ class SpringJpaTest extends AgentTestRunner {
     then:
     // Asserting that a span is NOT created for toString
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           operationName "toString test"
           tags {
             defaultTags()
@@ -52,8 +52,8 @@ class SpringJpaTest extends AgentTestRunner {
     !repo.findAll().iterator().hasNext() // select
 
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "repository.operation"
           resourceName "JpaRepository.findAll"
           errored false
@@ -63,7 +63,7 @@ class SpringJpaTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) { // select
+        span { // select
           serviceName "hsqldb"
           spanType "sql"
           childOf(span(0))
@@ -88,8 +88,8 @@ class SpringJpaTest extends AgentTestRunner {
     then:
     customer.id != null
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "repository.operation"
           resourceName "CrudRepository.save"
           errored false
@@ -99,7 +99,7 @@ class SpringJpaTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) { // insert
+        span { // insert
           serviceName "hsqldb"
           spanType "sql"
           childOf(span(0))
@@ -124,8 +124,8 @@ class SpringJpaTest extends AgentTestRunner {
     then:
     customer.id == savedId
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           operationName "repository.operation"
           resourceName "CrudRepository.save"
           errored false
@@ -135,7 +135,7 @@ class SpringJpaTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) { //select
+        span { //select
           serviceName "hsqldb"
           spanType "sql"
           childOf(span(0))
@@ -149,7 +149,7 @@ class SpringJpaTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) { //update
+        span { //update
           serviceName "hsqldb"
           spanType "sql"
           childOf(span(0))
@@ -172,8 +172,8 @@ class SpringJpaTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "repository.operation"
           resourceName "JpaCustomerRepository.findByLastName"
           errored false
@@ -183,7 +183,7 @@ class SpringJpaTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) { // select
+        span { // select
           serviceName "hsqldb"
           spanType "sql"
           childOf(span(0))
@@ -206,8 +206,8 @@ class SpringJpaTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           operationName "repository.operation"
           resourceName "CrudRepository.delete"
           errored false
@@ -217,7 +217,7 @@ class SpringJpaTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) { // select
+        span { // select
           serviceName "hsqldb"
           spanType "sql"
           childOf(span(0))
@@ -231,7 +231,7 @@ class SpringJpaTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) { // delete
+        span { // delete
           serviceName "hsqldb"
           spanType "sql"
           childOf(span(0))

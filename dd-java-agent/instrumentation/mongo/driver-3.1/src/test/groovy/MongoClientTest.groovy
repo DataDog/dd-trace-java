@@ -46,7 +46,7 @@ class MongoClientTest extends MongoBaseTest {
 
     then:
     assertTraces(1) {
-      trace(0, 1) {
+      trace(1) {
         mongoSpan(it, 0, "{\"create\":\"$collectionName\",\"capped\":\"?\"}", renameService)
       }
     }
@@ -66,7 +66,7 @@ class MongoClientTest extends MongoBaseTest {
 
     then:
     assertTraces(1) {
-      trace(0, 1) {
+      trace(1) {
         mongoSpan(it, 0, "{\"create\":\"$collectionName\",\"capped\":\"?\"}", false, dbName)
       }
     }
@@ -86,7 +86,7 @@ class MongoClientTest extends MongoBaseTest {
     then:
     count == 0
     assertTraces(1) {
-      trace(0, 1) {
+      trace(1) {
         mongoSpan(it, 0, "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
@@ -112,10 +112,10 @@ class MongoClientTest extends MongoBaseTest {
     then:
     collection.count() == 1
     assertTraces(2) {
-      trace(0, 1) {
+      trace(1) {
         mongoSpan(it, 0, "{\"insert\":\"$collectionName\",\"ordered\":\"?\",\"documents\":[{\"_id\":\"?\",\"password\":\"?\"}]}")
       }
-      trace(1, 1) {
+      trace(1) {
         mongoSpan(it, 0, "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
@@ -146,10 +146,10 @@ class MongoClientTest extends MongoBaseTest {
     result.modifiedCount == 1
     collection.count() == 1
     assertTraces(2) {
-      trace(0, 1) {
+      trace(1) {
         mongoSpan(it, 0, "{\"update\":\"?\",\"ordered\":\"?\",\"updates\":[{\"q\":{\"password\":\"?\"},\"u\":{\"\$set\":{\"password\":\"?\"}}}]}")
       }
-      trace(1, 1) {
+      trace(1) {
         mongoSpan(it, 0, "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
@@ -178,10 +178,10 @@ class MongoClientTest extends MongoBaseTest {
     result.deletedCount == 1
     collection.count() == 0
     assertTraces(2) {
-      trace(0, 1) {
+      trace(1) {
         mongoSpan(it, 0, "{\"delete\":\"?\",\"ordered\":\"?\",\"deletes\":[{\"q\":{\"password\":\"?\"},\"limit\":\"?\"}]}")
       }
-      trace(1, 1) {
+      trace(1) {
         mongoSpan(it, 0, "{\"count\":\"$collectionName\",\"query\":{}}")
       }
     }
@@ -234,7 +234,7 @@ class MongoClientTest extends MongoBaseTest {
   }
 
   def mongoSpan(TraceAssert trace, int index, String statement, boolean renameService = false, String instance = "some-description", Object parentSpan = null, Throwable exception = null) {
-    trace.span(index) {
+    trace.span {
       serviceName renameService ? instance : "mongo"
       operationName "mongo.query"
       resourceName {

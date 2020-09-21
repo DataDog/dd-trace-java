@@ -61,8 +61,8 @@ class RatpackOtherTest extends AgentTestRunner {
     resp.body.string() == route
 
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           resourceName "GET /$route"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
@@ -79,7 +79,7 @@ class RatpackOtherTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           resourceName "GET /$route"
           operationName "ratpack.handler"
           spanType DDSpanTypes.HTTP_SERVER

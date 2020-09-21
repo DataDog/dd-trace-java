@@ -1,6 +1,6 @@
 import datadog.opentracing.DDTracer
-import datadog.trace.core.DDSpan
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.DDSpan
 import datadog.trace.util.test.DDSpecification
 import io.opentracing.Tracer
 import spock.lang.Subject
@@ -30,8 +30,8 @@ class OT33ApiTest extends DDSpecification {
 
     then:
     assertTraces(WRITER, 1) {
-      trace(0, 1) {
-        basicSpan(it, 0, "some name")
+      trace(1) {
+        basicSpan(it, "some name")
       }
     }
   }

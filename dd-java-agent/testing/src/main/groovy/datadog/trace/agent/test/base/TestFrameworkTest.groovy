@@ -22,7 +22,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   void testSpan(TraceAssert trace, int index, final String testSuite, final String testName, final String testStatus, final Map<String, String> testTags = null, final Throwable exception = null) {
     def testFramework = expectedTestFramework()
 
-    trace.span(index) {
+    trace.span {
       parent()
       operationName expectedOperationName()
       resourceName "$testSuite.$testName"

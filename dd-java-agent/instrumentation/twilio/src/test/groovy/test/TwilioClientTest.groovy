@@ -130,8 +130,8 @@ class TwilioClientTest extends AgentTestRunner {
     message.body == "Hello, World!"
 
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "test"
           resourceName "test"
           errored false
@@ -140,7 +140,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "twilio-sdk"
           operationName "twilio.sdk"
           resourceName "api.v2010.account.MessageCreator.create"
@@ -181,8 +181,8 @@ class TwilioClientTest extends AgentTestRunner {
     call.status == Call.Status.COMPLETED
 
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "test"
           resourceName "test"
           errored false
@@ -191,7 +191,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "twilio-sdk"
           operationName "twilio.sdk"
           resourceName "api.v2010.account.CallCreator.create"
@@ -254,8 +254,8 @@ class TwilioClientTest extends AgentTestRunner {
     message.body == "Hello, World!"
 
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           operationName "test"
           resourceName "test"
           errored false
@@ -264,7 +264,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "twilio-sdk"
           operationName "twilio.sdk"
           resourceName "api.v2010.account.MessageCreator.create"
@@ -280,7 +280,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "twilio-sdk"
           operationName "http.request"
           resourceName "POST /?/Accounts/abc/Messages.json"
@@ -358,8 +358,8 @@ class TwilioClientTest extends AgentTestRunner {
     message.body == "Hello, World!"
 
     assertTraces(1) {
-      trace(0, 4) {
-        span(0) {
+      trace(4) {
+        span {
           operationName "test"
           resourceName "test"
           errored false
@@ -368,7 +368,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "twilio-sdk"
           operationName "twilio.sdk"
           resourceName "api.v2010.account.MessageCreator.create"
@@ -384,7 +384,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "twilio-sdk"
           operationName "http.request"
           resourceName "POST /?/Accounts/abc/Messages.json"
@@ -400,7 +400,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           serviceName "twilio-sdk"
           operationName "http.request"
           resourceName "POST /?/Accounts/abc/Messages.json"
@@ -485,8 +485,8 @@ class TwilioClientTest extends AgentTestRunner {
     message.body == "Hello, World!"
 
     assertTraces(1) {
-      trace(0, 5) {
-        span(0) {
+      trace(5) {
+        span {
           operationName "test"
           resourceName "test"
           errored false
@@ -495,7 +495,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "twilio-sdk"
           operationName "twilio.sdk"
           resourceName "api.v2010.account.MessageCreator.createAsync"
@@ -511,7 +511,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "twilio-sdk"
           operationName "twilio.sdk"
           resourceName "api.v2010.account.MessageCreator.create"
@@ -529,7 +529,7 @@ class TwilioClientTest extends AgentTestRunner {
         }
         // Spans are reported in reverse order of completion,
         // so the error span is last even though it happened first.
-        span(3) {
+        span {
           serviceName "twilio-sdk"
           operationName "http.request"
           resourceName "POST /?/Accounts/abc/Messages.json"
@@ -545,7 +545,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(4) {
+        span {
           serviceName "twilio-sdk"
           operationName "http.request"
           resourceName "POST /?/Accounts/abc/Messages.json"
@@ -591,8 +591,8 @@ class TwilioClientTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "test"
           resourceName "test"
           errored true
@@ -602,7 +602,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "twilio-sdk"
           operationName "twilio.sdk"
           resourceName "api.v2010.account.MessageCreator.create"
@@ -636,8 +636,8 @@ class TwilioClientTest extends AgentTestRunner {
     message.body == "Hello, World!"
 
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "twilio-sdk"
           operationName "twilio.sdk"
           resourceName "api.v2010.account.MessageCreator.create"
@@ -688,8 +688,8 @@ class TwilioClientTest extends AgentTestRunner {
     message.body == "Hello, World!"
 
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           operationName "test"
           resourceName "test"
           errored false
@@ -698,7 +698,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "twilio-sdk"
           operationName "twilio.sdk"
           resourceName "api.v2010.account.MessageCreator.createAsync"
@@ -714,7 +714,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "twilio-sdk"
           operationName "twilio.sdk"
           resourceName "api.v2010.account.MessageCreator.create"
@@ -771,8 +771,8 @@ class TwilioClientTest extends AgentTestRunner {
     expect:
 
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           operationName "test"
           resourceName "test"
           errored true
@@ -782,7 +782,7 @@ class TwilioClientTest extends AgentTestRunner {
             errorTags(ApiException, "Testing Failure")
           }
         }
-        span(1) {
+        span {
           serviceName "twilio-sdk"
           operationName "twilio.sdk"
           resourceName "api.v2010.account.MessageCreator.createAsync"
@@ -795,7 +795,7 @@ class TwilioClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "twilio-sdk"
           operationName "twilio.sdk"
           resourceName "api.v2010.account.MessageCreator.create"

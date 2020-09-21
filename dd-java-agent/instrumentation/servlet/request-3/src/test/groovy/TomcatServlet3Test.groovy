@@ -119,9 +119,9 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
     and:
     cleanAndAssertTraces(count) {
       (1..count).eachWithIndex { val, i ->
-        trace(i, 2) {
-          serverSpan(it, 0)
-          controllerSpan(it, 1, span(0))
+        trace(2) {
+          serverSpan(it)
+          controllerSpan(it, span(0))
         }
 
         def (String traceId, String spanId) = accessLogValue.loggedIds[i]
@@ -147,9 +147,9 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
 
     and:
     cleanAndAssertTraces(1) {
-      trace(0, 2) {
-        serverSpan(it, 0, null, null, method, ERROR)
-        controllerSpan(it, 1, span(0))
+      trace(2) {
+        serverSpan(it, null, null, method, ERROR)
+        controllerSpan(it, span(0))
       }
 
       def (String traceId, String spanId) = accessLogValue.loggedIds[0]
@@ -394,7 +394,7 @@ abstract class TomcatDispatchTest extends TomcatServlet3Test {
     assert toRemove.size() == size
     toRemove.each {
       assertTrace(it, 1) {
-        basicSpan(it, 0, "TEST_SPAN", "ServerEntry")
+        basicSpan(it, "TEST_SPAN", "ServerEntry")
       }
     }
     TEST_WRITER.removeAll(toRemove)
@@ -413,7 +413,7 @@ abstract class TomcatDispatchTest extends TomcatServlet3Test {
     dispatchTraces.each { List<DDSpan> dispatchTrace ->
       assertTrace(dispatchTrace, 1) {
         def endpoint = lastRequest
-        span(0) {
+        span {
           serviceName expectedServiceName()
           operationName expectedOperationName()
           resourceName endpoint.status == 404 ? "404" : "GET ${endpoint.resolve(address).path}"

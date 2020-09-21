@@ -25,8 +25,8 @@ class JaxRsAnnotations1InstrumentationTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           operationName "jax-rs.request"
           resourceName "POST /a"
           spanType "web"
@@ -47,8 +47,8 @@ class JaxRsAnnotations1InstrumentationTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "test"
           resourceName name
           parent()
@@ -57,7 +57,7 @@ class JaxRsAnnotations1InstrumentationTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           operationName "jax-rs.request"
           resourceName "${className}.call"
           spanType "web"
@@ -135,8 +135,8 @@ class JaxRsAnnotations1InstrumentationTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           operationName "test"
           resourceName "test"
           tags {

@@ -35,10 +35,10 @@ class RmiTest extends AgentTestRunner {
 
     then:
     response.contains("Hello you")
-    assertTraces(TEST_WRITER, 2) {
-      trace(1, 2) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+    assertTraces(2) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
           resourceName "Greeter.hello"
           operationName "rmi.invoke"
           childOf span(0)
@@ -52,8 +52,8 @@ class RmiTest extends AgentTestRunner {
           }
         }
       }
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           resourceName "Server.hello"
           operationName "rmi.request"
           spanType DDSpanTypes.RPC
@@ -65,7 +65,7 @@ class RmiTest extends AgentTestRunner {
             defaultTags(true)
           }
         }
-        span(1) {
+        span {
           resourceName "Server.someMethod"
           operationName "rmi.request"
           spanType DDSpanTypes.RPC
@@ -115,10 +115,10 @@ class RmiTest extends AgentTestRunner {
 
     then:
     def thrownException = thrown(RuntimeException)
-    assertTraces(TEST_WRITER, 2) {
-      trace(1, 2) {
-        basicSpan(it, 0, "parent", null, thrownException)
-        span(1) {
+    assertTraces(2) {
+      trace(2) {
+        basicSpan(it, "parent", null, thrownException)
+        span {
           resourceName "Greeter.exceptional"
           operationName "rmi.invoke"
           childOf span(0)
@@ -134,8 +134,8 @@ class RmiTest extends AgentTestRunner {
           }
         }
       }
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "Server.exceptional"
           operationName "rmi.request"
           errored true
@@ -169,11 +169,10 @@ class RmiTest extends AgentTestRunner {
 
     then:
     response.contains("Hello you")
-    assertTraces(TEST_WRITER, 2) {
-      def parentSpan = TEST_WRITER[1][1]
-      trace(1, 2) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+    assertTraces(2) {
+      trace(2) {
+        basicSpan(it, "parent")
+        span {
           resourceName "Greeter.hello"
           operationName "rmi.invoke"
           spanType DDSpanTypes.RPC
@@ -186,10 +185,9 @@ class RmiTest extends AgentTestRunner {
           }
         }
       }
-
-      trace(0, 1) {
-        span(0) {
-          childOf parentSpan
+      trace(1) {
+        span {
+          childOf TEST_WRITER[1][1]
           resourceName "ServerLegacy.hello"
           operationName "rmi.request"
           spanType DDSpanTypes.RPC

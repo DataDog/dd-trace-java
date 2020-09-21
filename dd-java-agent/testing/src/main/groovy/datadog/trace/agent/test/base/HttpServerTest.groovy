@@ -241,15 +241,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     cleanAndAssertTraces(count) {
       (1..count).eachWithIndex { val, i ->
         if (hasHandlerSpan()) {
-          trace(i, 3) {
-            serverSpan(it, 0)
-            handlerSpan(it, 1, span(0))
-            controllerSpan(it, 2, span(1))
+          trace(3) {
+            serverSpan(it)
+            handlerSpan(it, span(0))
+            controllerSpan(it, span(1))
           }
         } else {
-          trace(i, 2) {
-            serverSpan(it, 0)
-            controllerSpan(it, 1, span(0))
+          trace(2) {
+            serverSpan(it)
+            controllerSpan(it, span(0))
           }
         }
       }
@@ -278,15 +278,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     and:
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
-        trace(0, 3) {
-          serverSpan(it, 0, traceId, parentId)
-          handlerSpan(it, 1, span(0))
-          controllerSpan(it, 2, span(1))
+        trace(3) {
+          serverSpan(it, traceId, parentId)
+          handlerSpan(it, span(0))
+          controllerSpan(it, span(1))
         }
       } else {
-        trace(0, 2) {
-          serverSpan(it, 0, traceId, parentId)
-          controllerSpan(it, 1, span(0))
+        trace(2) {
+          serverSpan(it, traceId, parentId)
+          controllerSpan(it, span(0))
         }
       }
     }
@@ -310,15 +310,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     and:
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
-        trace(0, 3) {
-          serverSpan(it, 0, null, null, "GET", endpoint)
-          handlerSpan(it, 1, span(0), endpoint)
-          controllerSpan(it, 2, span(1))
+        trace(3) {
+          serverSpan(it, null, null, "GET", endpoint)
+          handlerSpan(it, span(0), endpoint)
+          controllerSpan(it, span(1))
         }
       } else {
-        trace(0, 2) {
-          serverSpan(it, 0, null, null, "GET", endpoint)
-          controllerSpan(it, 1, span(0))
+        trace(2) {
+          serverSpan(it, null, null, "GET", endpoint)
+          controllerSpan(it, span(0))
         }
       }
     }
@@ -342,15 +342,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     and:
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
-        trace(0, 3) {
-          serverSpan(it, 0, null, null, method, PATH_PARAM)
-          handlerSpan(it, 1, span(0), PATH_PARAM)
-          controllerSpan(it, 2, span(1))
+        trace(3) {
+          serverSpan(it, null, null, method, PATH_PARAM)
+          handlerSpan(it, span(0), PATH_PARAM)
+          controllerSpan(it, span(1))
         }
       } else {
-        trace(0, 2) {
-          serverSpan(it, 0, null, null, method, PATH_PARAM)
-          controllerSpan(it, 1, span(0))
+        trace(2) {
+          serverSpan(it, null, null, method, PATH_PARAM)
+          controllerSpan(it, span(0))
         }
       }
     }
@@ -378,15 +378,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     and:
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
-        trace(0, 3) {
-          serverSpan(it, 0, traceId, parentId)
-          handlerSpan(it, 1, span(0))
-          controllerSpan(it, 2, span(1))
+        trace(3) {
+          serverSpan(it, traceId, parentId)
+          handlerSpan(it, span(0))
+          controllerSpan(it, span(1))
         }
       } else {
-        trace(0, 2) {
-          serverSpan(it, 0, traceId, parentId)
-          controllerSpan(it, 1, span(0))
+        trace(2) {
+          serverSpan(it, traceId, parentId)
+          controllerSpan(it, span(0))
         }
       }
     }
@@ -410,15 +410,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     and:
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
-        trace(0, 3) {
-          serverSpan(it, 0, null, null, method, REDIRECT)
-          handlerSpan(it, 1, span(0), REDIRECT)
-          controllerSpan(it, 2, span(1))
+        trace(3) {
+          serverSpan(it, null, null, method, REDIRECT)
+          handlerSpan(it, span(0), REDIRECT)
+          controllerSpan(it, span(1))
         }
       } else {
-        trace(0, 2) {
-          serverSpan(it, 0, null, null, method, REDIRECT)
-          controllerSpan(it, 1, span(0))
+        trace(2) {
+          serverSpan(it, null, null, method, REDIRECT)
+          controllerSpan(it, span(0))
         }
       }
     }
@@ -440,15 +440,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     and:
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
-        trace(0, 3) {
-          serverSpan(it, 0, null, null, method, ERROR)
-          handlerSpan(it, 1, span(0), ERROR)
-          controllerSpan(it, 2, span(1))
+        trace(3) {
+          serverSpan(it, null, null, method, ERROR)
+          handlerSpan(it, span(0), ERROR)
+          controllerSpan(it, span(1))
         }
       } else {
-        trace(0, 2) {
-          serverSpan(it, 0, null, null, method, ERROR)
-          controllerSpan(it, 1, span(0))
+        trace(2) {
+          serverSpan(it, null, null, method, ERROR)
+          controllerSpan(it, span(0))
         }
       }
     }
@@ -473,15 +473,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     and:
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
-        trace(0, 3) {
-          serverSpan(it, 0, null, null, method, EXCEPTION)
-          handlerSpan(it, 1, span(0), EXCEPTION)
-          controllerSpan(it, 2, span(1), EXCEPTION.body)
+        trace(3) {
+          serverSpan(it, null, null, method, EXCEPTION)
+          handlerSpan(it, span(0), EXCEPTION)
+          controllerSpan(it, span(1), EXCEPTION.body)
         }
       } else {
-        trace(0, 2) {
-          serverSpan(it, 0, null, null, method, EXCEPTION)
-          controllerSpan(it, 1, span(0), EXCEPTION.body)
+        trace(2) {
+          serverSpan(it, null, null, method, EXCEPTION)
+          controllerSpan(it, span(0), EXCEPTION.body)
         }
       }
     }
@@ -503,13 +503,13 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     and:
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
-        trace(0, 2) {
-          serverSpan(it, 0, null, null, method, NOT_FOUND)
-          handlerSpan(it, 1, span(0), NOT_FOUND)
+        trace(2) {
+          serverSpan(it, null, null, method, NOT_FOUND)
+          handlerSpan(it, span(0), NOT_FOUND)
         }
       } else {
-        trace(0, 1) {
-          serverSpan(it, 0, null, null, method, NOT_FOUND)
+        trace(1) {
+          serverSpan(it, null, null, method, NOT_FOUND)
         }
       }
     }
@@ -534,15 +534,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     and:
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
-        trace(0, 3) {
-          serverSpan(it, 0, null, null, method, TIMEOUT)
-          handlerSpan(it, 1, span(0), TIMEOUT)
-          controllerSpan(it, 2, span(1))
+        trace(3) {
+          serverSpan(it, null, null, method, TIMEOUT)
+          handlerSpan(it, span(0), TIMEOUT)
+          controllerSpan(it, span(1))
         }
       } else {
-        trace(0, 2) {
-          serverSpan(it, 0, null, null, method, TIMEOUT)
-          controllerSpan(it, 1, span(0))
+        trace(2) {
+          serverSpan(it, null, null, method, TIMEOUT)
+          controllerSpan(it, span(0))
         }
       }
     }
@@ -565,15 +565,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     and:
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
-        trace(0, 3) {
-          serverSpan(it, 0, null, null, method, TIMEOUT_ERROR)
-          handlerSpan(it, 1, span(0), TIMEOUT_ERROR)
-          controllerSpan(it, 2, span(1))
+        trace(3) {
+          serverSpan(it, null, null, method, TIMEOUT_ERROR)
+          handlerSpan(it, span(0), TIMEOUT_ERROR)
+          controllerSpan(it, span(1))
         }
       } else {
-        trace(0, 2) {
-          serverSpan(it, 0, null, null, method, TIMEOUT_ERROR)
-          controllerSpan(it, 1, span(0))
+        trace(2) {
+          serverSpan(it, null, null, method, TIMEOUT_ERROR)
+          controllerSpan(it, span(0))
         }
       }
     }
@@ -599,7 +599,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     }
     toRemove.each {
       assertTrace(it, 1) {
-        basicSpan(it, 0, "TEST_SPAN", "ServerEntry")
+        basicSpan(it, "TEST_SPAN", "ServerEntry")
       }
     }
     assert toRemove.size() == size
@@ -633,8 +633,8 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     assertTraces(size, spec)
   }
 
-  void controllerSpan(TraceAssert trace, int index, Object parent, String errorMessage = null) {
-    trace.span(index) {
+  void controllerSpan(TraceAssert trace, Object parent, String errorMessage = null) {
+    trace.span {
       serviceName expectedServiceName()
       operationName "controller"
       resourceName "controller"
@@ -652,13 +652,13 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     }
   }
 
-  void handlerSpan(TraceAssert trace, int index, Object parent, ServerEndpoint endpoint = SUCCESS) {
+  void handlerSpan(TraceAssert trace, Object parent, ServerEndpoint endpoint = SUCCESS) {
     throw new UnsupportedOperationException("handlerSpan not implemented in " + getClass().name)
   }
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void serverSpan(TraceAssert trace, int index, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    trace.span(index) {
+  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
       resourceName endpoint.resource(method, address, testPathParam())

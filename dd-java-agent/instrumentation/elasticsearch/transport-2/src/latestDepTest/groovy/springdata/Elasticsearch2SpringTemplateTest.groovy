@@ -70,8 +70,8 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "RefreshAction"
           operationName "elasticsearch.query"
@@ -126,16 +126,9 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
     template.queryForList(query, Doc) == [new Doc()]
 
     and:
-    // IndexAction and PutMappingAction run in separate threads and order in which
-    // these spans are closed is not defined. So we force the order if it is wrong.
-    if (TEST_WRITER[3][0].resourceName.toString() == "IndexAction") {
-      def tmp = TEST_WRITER[3]
-      TEST_WRITER[3] = TEST_WRITER[4]
-      TEST_WRITER[4] = tmp
-    }
     assertTraces(7) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "CreateIndexAction"
           operationName "elasticsearch.query"
@@ -151,8 +144,8 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "ClusterHealthAction"
           operationName "elasticsearch.query"
@@ -167,8 +160,8 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
           }
         }
       }
-      trace(2, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "SearchAction"
           operationName "elasticsearch.query"
@@ -185,25 +178,8 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
           }
         }
       }
-      trace(3, 1) {
-        span(0) {
-          serviceName "elasticsearch"
-          resourceName "PutMappingAction"
-          operationName "elasticsearch.query"
-          spanType DDSpanTypes.ELASTICSEARCH
-          tags {
-            "$Tags.COMPONENT" "elasticsearch-java"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "elasticsearch"
-            "elasticsearch.action" "PutMappingAction"
-            "elasticsearch.request" "PutMappingRequest"
-            "elasticsearch.request.indices" indexName
-            defaultTags()
-          }
-        }
-      }
-      trace(4, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "IndexAction"
           operationName "elasticsearch.query"
@@ -220,8 +196,25 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
           }
         }
       }
-      trace(5, 1) {
-        span(0) {
+      trace(1) {
+        span {
+          serviceName "elasticsearch"
+          resourceName "PutMappingAction"
+          operationName "elasticsearch.query"
+          spanType DDSpanTypes.ELASTICSEARCH
+          tags {
+            "$Tags.COMPONENT" "elasticsearch-java"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "elasticsearch"
+            "elasticsearch.action" "PutMappingAction"
+            "elasticsearch.request" "PutMappingRequest"
+            "elasticsearch.request.indices" indexName
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "RefreshAction"
           operationName "elasticsearch.query"
@@ -240,8 +233,8 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
           }
         }
       }
-      trace(6, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "SearchAction"
           operationName "elasticsearch.query"
@@ -324,8 +317,8 @@ class Elasticsearch2SpringTemplateTest extends AgentTestRunner {
     bucketTags == [:]
 
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "SearchAction"
           operationName "elasticsearch.query"

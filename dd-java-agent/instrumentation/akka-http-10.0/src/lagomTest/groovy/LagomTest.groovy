@@ -57,8 +57,8 @@ class LagomTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "akka-http.request"
           resourceName "GET /echo"
           spanType DDSpanTypes.HTTP_SERVER
@@ -72,7 +72,7 @@ class LagomTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           operationName 'trace.annotation'
           resourceName 'EchoServiceImpl.tracedMethod'
@@ -99,8 +99,8 @@ class LagomTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           operationName "akka-http.request"
           resourceName "GET /error"
           spanType DDSpanTypes.HTTP_SERVER

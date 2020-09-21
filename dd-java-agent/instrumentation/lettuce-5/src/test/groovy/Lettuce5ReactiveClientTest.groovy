@@ -1,10 +1,7 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.SimpleType
 import io.lettuce.core.ClientOptions
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulConnection
@@ -92,8 +89,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     then:
     conds.await()
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -121,8 +118,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     then:
     conds.await()
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -158,8 +155,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     then:
     conds.await()
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -193,8 +190,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     then:
     conds.await()
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -218,8 +215,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -244,8 +241,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -283,8 +280,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -308,8 +305,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -336,9 +333,10 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     }
 
     then:
-    sortAndAssertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(3) {
+        span {
           operationName "test-parent"
           resourceName "test-parent"
           errored false
@@ -347,7 +345,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf(span(0))
           serviceName "redis"
           operationName "redis.query"
@@ -362,7 +360,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf(span(0))
           serviceName "redis"
           operationName "redis.query"
@@ -390,9 +388,10 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     }
 
     then:
-    sortAndAssertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(3) {
+        span {
           operationName "test-parent"
           resourceName "test-parent"
           errored false
@@ -401,7 +400,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf(span(0))
           serviceName "redis"
           operationName "redis.query"
@@ -416,7 +415,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf(span(0))
           serviceName "redis"
           operationName "redis.query"
@@ -445,9 +444,10 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
     }
 
     then:
-    sortAndAssertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(3) {
+        span {
           operationName "test-parent"
           resourceName "test-parent"
           errored false
@@ -456,7 +456,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf(span(0))
           serviceName "redis"
           operationName "redis.query"
@@ -471,7 +471,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf(span(0))
           serviceName "redis"
           operationName "redis.query"
@@ -488,23 +488,5 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
         }
       }
     }
-  }
-
-  void sortAndAssertTraces(
-    final int size,
-    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
-
-    TEST_WRITER.waitForTraces(size)
-
-    TEST_WRITER.each {
-      it.sort({
-        a, b ->
-          return a.startTime <=> b.startTime
-      })
-    }
-
-    assertTraces(size, spec)
   }
 }

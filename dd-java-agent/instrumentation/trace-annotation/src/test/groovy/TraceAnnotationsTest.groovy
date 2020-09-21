@@ -21,8 +21,8 @@ class TraceAnnotationsTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "test"
           resourceName "SayTracedHello.sayHello"
           operationName "trace.annotation"
@@ -44,8 +44,8 @@ class TraceAnnotationsTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "test"
           resourceName "SayTracedHello.sayHA"
           operationName "SAY_HA"
@@ -68,8 +68,8 @@ class TraceAnnotationsTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "test"
           resourceName "WORLD"
           operationName "trace.annotation"
@@ -91,8 +91,8 @@ class TraceAnnotationsTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "test"
           resourceName "EARTH"
           operationName "SAY_HA"
@@ -115,8 +115,8 @@ class TraceAnnotationsTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           resourceName "SayTracedHello.sayHELLOsayHA"
           operationName "NEW_TRACE"
           parent()
@@ -126,7 +126,7 @@ class TraceAnnotationsTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           resourceName "SayTracedHello.sayHA"
           operationName "SAY_HA"
           spanType "DB"
@@ -137,7 +137,7 @@ class TraceAnnotationsTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "test"
           resourceName "SayTracedHello.sayHello"
           operationName "trace.annotation"
@@ -159,8 +159,8 @@ class TraceAnnotationsTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           resourceName "WORLD"
           operationName "NEW_TRACE"
           parent()
@@ -170,7 +170,7 @@ class TraceAnnotationsTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           resourceName "SayTracedHello.sayHA"
           operationName "SAY_HA"
           spanType "DB"
@@ -181,7 +181,7 @@ class TraceAnnotationsTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "test"
           resourceName "SayTracedHello.sayHello"
           operationName "trace.annotation"
@@ -203,8 +203,8 @@ class TraceAnnotationsTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           resourceName "WORLD"
           operationName "NEW_TRACE"
           parent()
@@ -214,7 +214,7 @@ class TraceAnnotationsTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           resourceName "EARTH"
           operationName "SAY_HA"
           spanType "DB"
@@ -225,7 +225,7 @@ class TraceAnnotationsTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "test"
           resourceName "SayTracedHello.sayHello"
           operationName "trace.annotation"
@@ -251,8 +251,8 @@ class TraceAnnotationsTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "SayTracedHello.sayERROR"
           operationName "ERROR"
           errored true
@@ -277,8 +277,8 @@ class TraceAnnotationsTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "WORLD"
           operationName "ERROR"
           errored true
@@ -299,8 +299,8 @@ class TraceAnnotationsTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "SayTracedHello\$1.call"
           operationName "trace.annotation"
           tags {
@@ -324,8 +324,8 @@ class TraceAnnotationsTest extends AgentTestRunner {
 
     then:
     assertTraces(2) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "SayTracedHello\$1.call"
           operationName "trace.annotation"
           tags {
@@ -333,8 +333,8 @@ class TraceAnnotationsTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        trace(1, 1) {
-          span(0) {
+        trace(1) {
+          span {
             resourceName "TraceAnnotationsTest\$1.call"
             operationName "trace.annotation"
             tags {
