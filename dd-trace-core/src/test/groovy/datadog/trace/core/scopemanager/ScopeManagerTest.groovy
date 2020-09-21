@@ -14,9 +14,10 @@ import spock.lang.Timeout
 
 import java.lang.ref.WeakReference
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
+import static datadog.trace.core.scopemanager.EventCountingListener.EVENT.ACTIVATE
+import static datadog.trace.core.scopemanager.EventCountingListener.EVENT.CLOSE
 import static datadog.trace.util.gc.GCUtils.awaitGC
 import static java.util.concurrent.TimeUnit.SECONDS
 
@@ -27,6 +28,7 @@ class ScopeManagerTest extends DDSpecification {
   CoreTracer tracer
   ContinuableScopeManager scopeManager
   StatsDClient statsDClient
+  EventCountingListener eventCountingListener
 
   def setup() {
     latch = new CountDownLatch(1)
@@ -39,6 +41,8 @@ class ScopeManagerTest extends DDSpecification {
     statsDClient = Mock()
     tracer = CoreTracer.builder().writer(writer).statsDClient(statsDClient).build()
     scopeManager = tracer.scopeManager
+    eventCountingListener = new EventCountingListener()
+    scopeManager.addScopeListener(eventCountingListener)
   }
 
   def cleanup() {
@@ -330,59 +334,40 @@ class ScopeManagerTest extends DDSpecification {
     scopeManager.active() == newScope
   }
 
-  def "test activating same scope multiple times"() {
-    setup:
-    def eventCountingLister = new EventCountingListener()
-    AtomicInteger activatedCount = eventCountingLister.activatedCount
-    AtomicInteger closedCount = eventCountingLister.closedCount
-
-    scopeManager.addScopeListener(eventCountingLister)
-
+  def "test activating same span multiple times"() {
     when:
     AgentScope scope1 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
 
     then:
-    activatedCount.get() == 1
-    closedCount.get() == 0
+    eventCountingListener.events == [ACTIVATE]
 
     when:
     AgentScope scope2 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
 
     then: 'Activating the same span multiple times does not create a new scope'
-    activatedCount.get() == 1
-    closedCount.get() == 0
+    eventCountingListener.events == [ACTIVATE]
 
     when:
     scope2.close()
 
     then: 'Closing a scope once that has been activated multiple times does not close'
-    activatedCount.get() == 1
-    closedCount.get() == 0
+    eventCountingListener.events == [ACTIVATE]
 
     when:
     scope1.close()
 
     then:
-    activatedCount.get() == 1
-    closedCount.get() == 1
+    eventCountingListener.events == [ACTIVATE, CLOSE]
   }
 
   def "opening and closing multiple scopes"() {
-    setup:
-    def eventCountingLister = new EventCountingListener()
-    AtomicInteger activatedCount = eventCountingLister.activatedCount
-    AtomicInteger closedCount = eventCountingLister.closedCount
-
-    scopeManager.addScopeListener(eventCountingLister)
-
     when:
     AgentSpan span = tracer.buildSpan("foo").start()
     AgentScope continuableScope = tracer.activateSpan(span)
 
     then:
     continuableScope instanceof ContinuableScopeManager.ContinuableScope
-    activatedCount.get() == 1
-    closedCount.get() == 0
+    eventCountingListener.events == [ACTIVATE]
 
     when:
     AgentSpan childSpan = tracer.buildSpan("foo").start()
@@ -390,37 +375,24 @@ class ScopeManagerTest extends DDSpecification {
 
     then:
     childDDScope instanceof ContinuableScopeManager.ContinuableScope
-    activatedCount.get() == 2
-    closedCount.get() == 0
+    eventCountingListener.events == [ACTIVATE, ACTIVATE]
 
     when:
     childDDScope.close()
     childSpan.finish()
 
     then:
-    activatedCount.get() == 2
-    closedCount.get() == 1
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE]
 
     when:
     continuableScope.close()
     span.finish()
 
     then:
-    activatedCount.get() == 2
-    closedCount.get() == 2
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE]
   }
 
-  def "scope not closed when not on top"() {
-    // DQH: This test has been left unchanged from before the change to
-    // make sure all listener behavior is approximately the same.
-
-    setup:
-    def eventCountingLister = new EventCountingListener()
-    AtomicInteger activatedCount = eventCountingLister.activatedCount
-    AtomicInteger closedCount = eventCountingLister.closedCount
-
-    scopeManager.addScopeListener(eventCountingLister)
-
+  def "closing scope out of order - simple"() {
     when:
     AgentSpan firstSpan = tracer.buildSpan("foo").start()
     AgentScope firstScope = tracer.activateSpan(firstSpan)
@@ -432,8 +404,7 @@ class ScopeManagerTest extends DDSpecification {
     firstScope.close()
 
     then:
-    activatedCount.get() == 2
-    closedCount.get() == 0
+    eventCountingListener.events == [ACTIVATE, ACTIVATE]
     1 * statsDClient.incrementCounter("scope.close.error")
     0 * _
 
@@ -442,63 +413,171 @@ class ScopeManagerTest extends DDSpecification {
     secondScope.close()
 
     then:
-    activatedCount.get() == 2
-    closedCount.get() == 1
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, CLOSE]
     0 * _
 
     when:
     firstScope.close()
 
     then:
-    activatedCount.get() == 2
-    closedCount.get() == 2
-    0 * _
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, CLOSE]
+    1 * statsDClient.incrementCounter("scope.close.error")
   }
 
-  def "scope closed out of order 2"() {
+  def "closing scope out of order - complex"() {
+    // Events are checked twice in each case to ensure a call to
+    // tracer.activeScope() or tracer.activeSpan() doesn't change the count
+
     when:
     AgentSpan firstSpan = tracer.buildSpan("foo").start()
     AgentScope firstScope = tracer.activateSpan(firstSpan)
 
     then:
+    eventCountingListener.events == [ACTIVATE]
+
     tracer.activeSpan() == firstSpan
     tracer.activeScope() == firstScope
+    eventCountingListener.events == [ACTIVATE]
+    0 * _
 
     when:
     AgentSpan secondSpan = tracer.buildSpan("bar").start()
     AgentScope secondScope = tracer.activateSpan(secondSpan)
 
     then:
+    eventCountingListener.events == [ACTIVATE, ACTIVATE]
     tracer.activeSpan() == secondSpan
     tracer.activeScope() == secondScope
+    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    0 * _
 
     when:
     AgentSpan thirdSpan = tracer.buildSpan("quux").start()
     AgentScope thirdScope = tracer.activateSpan(thirdSpan)
 
     then:
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE]
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE]
+    0 * _
 
     when:
     secondScope.close()
 
     then:
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE]
     tracer.activeSpan() == thirdSpan
     tracer.activeScope() == thirdScope
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE]
+    1 * statsDClient.incrementCounter("scope.close.error")
+    0 * _
 
     when:
     thirdScope.close()
 
     then:
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE]
     tracer.activeSpan() == firstSpan
     tracer.activeScope() == firstScope
+
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE]
+    0 * _
 
     when:
     firstScope.close()
 
     then:
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE, CLOSE]
     tracer.activeScope() == null
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, ACTIVATE, CLOSE, CLOSE, ACTIVATE, CLOSE]
+    0 * _
+  }
+
+  def "closing scope out of order - multiple activations"() {
+    when:
+    AgentScope scope1 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+
+    then:
+    eventCountingListener.events == [ACTIVATE]
+
+    when:
+    AgentScope scope2 = scopeManager.activate(NoopAgentSpan.INSTANCE, ScopeSource.INSTRUMENTATION)
+
+    then: 'Activating the same span multiple times does not create a new scope'
+    eventCountingListener.events == [ACTIVATE]
+
+    when:
+    AgentSpan thirdSpan = tracer.buildSpan("quux").start()
+    AgentScope thirdScope = tracer.activateSpan(thirdSpan)
+    0 * _
+
+    then:
+    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    tracer.activeSpan() == thirdSpan
+    tracer.activeScope() == thirdScope
+    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    0 * _
+
+    when:
+    scope2.close()
+
+    then: 'Closing a scope once that has been activated multiple times does not close'
+    eventCountingListener.events == [ACTIVATE, ACTIVATE]
+    1 * statsDClient.incrementCounter("scope.close.error")
+    0 * _
+
+    when:
+    thirdScope.close()
+    thirdSpan.finish()
+
+    then: 'Closing scope above multiple activated scope does not close it'
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE]
+    0 * _
+
+    when:
+    scope1.close()
+
+    then:
+    eventCountingListener.events == [ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE]
+  }
+
+  @Timeout(value = 60, unit = SECONDS)
+  def "Closing a continued scope out of order cancels the continuation"() {
+    when:
+    def span = tracer.buildSpan("test").start()
+    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
+    scope.setAsyncPropagation(true)
+    def continuation = scope.capture()
+    scope.close()
+    span.finish()
+
+    then:
+    scopeManager.active() == null
+    spanFinished(span)
+    writer == []
+
+    when:
+    def continuedScope = continuation.activate()
+    AgentSpan secondSpan = tracer.buildSpan("test2").start()
+    AgentScope secondScope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(secondSpan)
+
+    then:
+    scopeManager.active() == secondScope
+
+    when:
+    continuedScope.close()
+
+    then:
+    scopeManager.active() == secondScope
+    writer == []
+
+    when:
+    secondScope.close()
+    secondSpan.finish()
+
+    then:
+    writer == [[secondSpan, span]]
   }
 
   boolean spanFinished(AgentSpan span) {
@@ -507,15 +586,22 @@ class ScopeManagerTest extends DDSpecification {
 }
 
 class EventCountingListener implements ScopeListener {
-  AtomicInteger activatedCount = new AtomicInteger(0)
-  AtomicInteger closedCount = new AtomicInteger(0)
+  enum EVENT {
+    ACTIVATE, CLOSE
+  }
+
+  public final List<EVENT> events = new ArrayList<>()
 
   void afterScopeActivated() {
-    activatedCount.incrementAndGet()
+    synchronized (events) {
+      events.add(ACTIVATE)
+    }
   }
 
   @Override
   void afterScopeClosed() {
-    closedCount.incrementAndGet()
+    synchronized (events) {
+      events.add(CLOSE)
+    }
   }
 }

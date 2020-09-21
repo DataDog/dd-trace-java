@@ -1,7 +1,5 @@
 package datadog.trace.agent.tooling.log;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -45,10 +43,6 @@ public class LogContextScopeListener implements ScopeListener {
 
   @Override
   public void afterScopeClosed() {
-    if (activeSpan() != null) {
-      afterScopeActivated();
-      return;
-    }
     try {
       removeMethod.invoke(null, CorrelationIdentifier.getTraceIdKey());
       removeMethod.invoke(null, CorrelationIdentifier.getSpanIdKey());

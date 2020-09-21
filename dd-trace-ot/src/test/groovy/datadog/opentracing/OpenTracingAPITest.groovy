@@ -316,7 +316,7 @@ class OpenTracingAPITest extends DDSpecification {
     secondScope.close()
 
     then:
-    1 * scopeListener.afterScopeClosed()
+    2 * scopeListener.afterScopeClosed()
     1 * traceInterceptor.onTraceComplete({ it.size() == 2 }) >> { args -> args[0] }
     0 * _
 
@@ -324,7 +324,8 @@ class OpenTracingAPITest extends DDSpecification {
     firstScope.close()
 
     then:
-    1 * scopeListener.afterScopeClosed()
+    1 * statsDClient.incrementCounter("scope.close.error")
+    1 * statsDClient.incrementCounter("scope.user.close.error")
     0 * _
   }
 
@@ -344,12 +345,16 @@ class OpenTracingAPITest extends DDSpecification {
     Span secondSpan = strictTracer.buildSpan("someOperation").start()
     Scope secondScope = strictTracer.activateSpan(secondSpan)
 
+    then:
+    2 * scopeListener.afterScopeActivated()
+    0 * _
+
+    when:
     firstSpan.finish()
     firstScope.close()
 
     then:
     thrown(RuntimeException)
-    2 * scopeListener.afterScopeActivated()
     1 * statsDClient.incrementCounter("scope.close.error")
     1 * statsDClient.incrementCounter("scope.user.close.error")
     0 * _
@@ -359,7 +364,7 @@ class OpenTracingAPITest extends DDSpecification {
     secondScope.close()
 
     then:
-    1 * scopeListener.afterScopeClosed()
+    2 * scopeListener.afterScopeClosed()
     1 * traceInterceptor.onTraceComplete({ it.size() == 2 }) >> { args -> args[0] }
     0 * _
 
@@ -367,7 +372,9 @@ class OpenTracingAPITest extends DDSpecification {
     firstScope.close()
 
     then:
-    1 * scopeListener.afterScopeClosed()
+    thrown(RuntimeException)
+    1 * statsDClient.incrementCounter("scope.close.error")
+    1 * statsDClient.incrementCounter("scope.user.close.error")
     0 * _
 
     cleanup:

@@ -72,7 +72,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
   @Override
   public AgentScope activate(final AgentSpan span, final ScopeSource source) {
-    ScopeStack scopeStack = scopeStack();
+    final ScopeStack scopeStack = scopeStack();
 
     final ContinuableScope active = scopeStack.top();
     if (active != null && active.span.equals(span)) {
@@ -94,7 +94,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
       final Continuation continuation, final AgentSpan span, final ScopeSource source) {
     final ContinuableScope scope = new ContinuableScope(this, continuation, span, source);
     scopeStack().push(scope);
-    scope.afterActivated();
+
     return scope;
   }
 
@@ -148,24 +148,15 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     public void close() {
-      ScopeStack scopeStack = scopeManager.scopeStack();
+      final ScopeStack scopeStack = scopeManager.scopeStack();
 
-      // DQH - Aug 2020 - Preserving our broken reference counting semantics for the
-      // first round of out-of-order handling.
-      // When reference counts are being used, we don't check the stack top --
-      // so potentially we undercount errors
-      // Also we don't report closed until the reference count == 0 which seems
-      // incorrect given the OpenTracing semantics
-      // Both these issues should be corrected at a later date
+      final boolean alive = decrementReferences();
 
-      boolean alive = decrementReferences();
-      if (alive) return;
-
-      boolean onTop = scopeStack.checkTop(this);
+      final boolean onTop = scopeStack.checkTop(this);
       if (!onTop) {
         if (log.isDebugEnabled()) {
-          // Using noFixupTop because I don't want to have code with side effects in logging code
-          log.debug("Tried to close {} scope when not on top. Ignoring!", scopeStack.noFixupTop());
+          log.debug(
+              "Tried to close {} scope when not on top.  Current top: {}", this, scopeStack.top());
         }
 
         scopeManager.statsDClient.incrementCounter("scope.close.error");
@@ -177,19 +168,17 @@ public class ContinuableScopeManager implements AgentScopeManager {
             throw new RuntimeException("Tried to close scope when not on top");
           }
         }
+      }
 
+      if (alive) {
         return;
       }
 
       if (null != continuation) {
-        span.context().getTrace().cancelContinuation(continuation);
+        continuation.cancelFromContinuedScopeClose();
       }
-      scopeStack.blindPop();
 
-      // DQH - As covered above, I feel our close notification semantics are incorrect with
-      // especially where reference counting is concerned.  Unfortunately, sorting out the
-      // semantics will also require sorting out the tests which have codified the ill-behavior.
-      onProperClose();
+      scopeStack.cleanup();
     }
 
     /*
@@ -264,99 +253,64 @@ public class ContinuableScopeManager implements AgentScopeManager {
     }
   }
 
+  /**
+   * The invariant is that the top of a non-empty stack is always active. Anytime a scope is closed,
+   * cleanup() is called to ensure the invariant
+   */
   static final class ScopeStack {
-    ContinuableScope[] stack = new ContinuableScope[16];
+    private static final int MIN_STACK_LENGTH = 16;
+
+    ContinuableScope[] stack = new ContinuableScope[MIN_STACK_LENGTH];
+    // The position of the top-most scope guaranteed to be active
+    // 0 if empty
     int topPos = 0;
 
-    /**
-     * top - accesses the top of the ScopeStack making sure the Scope on-top is still active If the
-     * top scope isn't active, then the stack is popped back to the top-most active Scope
-     */
+    /** top - accesses the top of the ScopeStack */
     final ContinuableScope top() {
-      int priorTopPos = this.topPos;
-      if (priorTopPos == 0) {
-        return null;
-      }
+      return stack[topPos];
+    }
 
+    void cleanup() {
       // localizing & clamping stackPos to enable ArrayBoundsCheck elimination
       // only bothering to do this here because of the loop below
-      ContinuableScope[] stack = this.stack;
-      priorTopPos = Math.min(priorTopPos, stack.length);
+      final ContinuableScope[] stack = this.stack;
+      topPos = Math.min(topPos, stack.length);
 
-      // Peel first iteration
-      ContinuableScope topScope = stack[priorTopPos];
-      if (topScope.alive()) {
-        return topScope;
-      }
-
-      // null out top position, it is no longer alive
-      stack[topPos] = null;
-
-      for (int curPos = topPos - 1; curPos > 0; --curPos) {
-        ContinuableScope curScope = stack[curPos];
+      boolean changedTop = false;
+      while (topPos > 0) {
+        final ContinuableScope curScope = stack[topPos];
         if (curScope.alive()) {
-          // save the position for next time
-          topPos = curPos;
-
-          if (topPos < stack.length / 4) {
-            this.stack = Arrays.copyOf(stack, stack.length / 2);
+          if (changedTop) {
+            curScope.afterActivated();
           }
-
-          return curScope;
+          break;
         }
 
         // no longer alive -- trigger listener & null out
         curScope.onProperClose();
-        stack[curPos] = null;
+        stack[topPos] = null;
+        --topPos;
+        changedTop = true;
       }
 
-      // empty stack -- save topPos for next time
-      topPos = 0;
-      return null;
+      if (topPos < stack.length / 4 && stack.length > MIN_STACK_LENGTH * 4) {
+        this.stack = Arrays.copyOf(stack, stack.length / 2);
+      }
     }
 
-    /**
-     * Similar to top but without the fix-up behavior that skips over any closed Scopes Mostly
-     * useful in logging to avoid side effects, but could be used in other places with caution.
-     */
-    final ContinuableScope noFixupTop() {
-      return stack[topPos];
-    }
-
-    /**
-     * Pushes a new scope unto the stack Currently, the new scope is pushed onto the stack without
-     * any stack fix-up. This works under two assumptions... 1 - Normally, the stack doesn't need
-     * fix-up because the stack is proactively clean by Scope.close 2 - If the stack does need
-     * fix-up, it has probably already been done by calling active to get the parent scope
-     */
+    /** Pushes a new scope unto the stack */
     final void push(final ContinuableScope scope) {
-      // no proactive stack cleaning in push
-      // In most cases, the span construction will have asked for the activeScope
-      // and done any necessary stack clean-up
-
       ++topPos;
       if (topPos == stack.length) {
-        // Could scan the stack for dead activations and compact before expansion.
-        // Probably not worth it
         stack = Arrays.copyOf(stack, stack.length * 2);
       }
       stack[topPos] = scope;
+      scope.afterActivated();
     }
 
-    /**
-     * Fast check to see if the expectedScope is on top the stack -- this is done with any fix-up
-     */
-    final boolean checkTop(ContinuableScope expectedScope) {
+    /** Fast check to see if the expectedScope is on top the stack */
+    final boolean checkTop(final ContinuableScope expectedScope) {
       return expectedScope.equals(stack[topPos]);
-    }
-
-    /**
-     * Blind pop of the top stack entry This is done without fix-up, checking the stack top, or even
-     * a depth check Responsibility lies with the caller to do the diligence of calling depth or
-     * checkTop ahead of calling blindPop.
-     */
-    final void blindPop() {
-      stack[topPos--] = null;
     }
 
     /** Returns the current stack depth */
@@ -420,6 +374,12 @@ public class ContinuableScopeManager implements AgentScopeManager {
       } else {
         log.debug("Failed to close continuation {}. Already used.", this);
       }
+    }
+
+    // Called by ContinuableScopeManager when a continued scope is closed
+    // Can't use cancel() because of the "used" check
+    private void cancelFromContinuedScopeClose() {
+      trace.cancelContinuation(this);
     }
 
     @Override
