@@ -254,8 +254,6 @@ public class Agent {
           AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.TracerInstaller");
       final Method tracerInstallerMethod = tracerInstallerClass.getMethod("installGlobalTracer");
       tracerInstallerMethod.invoke(null);
-      final Method logVersionInfoMethod = tracerInstallerClass.getMethod("logVersionInfo");
-      logVersionInfoMethod.invoke(null);
     } catch (final Throwable ex) {
       log.error("Throwable thrown while installing the Datadog Tracer", ex);
     }
@@ -268,7 +266,7 @@ public class Agent {
   }
 
   private static synchronized void registerDeadlockDetectionEvent(URL bootstrapUrl) {
-    log.info("Initializing JMX thread deadlock detector");
+    log.debug("Initializing JMX thread deadlock detector");
     try {
       ClassLoader classLoader = getProfilingClassloader(bootstrapUrl);
       final Class<?> deadlockFactoryClass =
@@ -285,7 +283,7 @@ public class Agent {
 
   /** Enable JMX based system access provider once it is safe to touch JMX */
   private static synchronized void initializeJmxSystemAccessProvider() {
-    log.info("Initializing JMX system access provider");
+    log.debug("Initializing JMX system access provider");
     if (AGENT_CLASSLOADER == null) {
       throw new IllegalStateException("Datadog agent should have been started already");
     }

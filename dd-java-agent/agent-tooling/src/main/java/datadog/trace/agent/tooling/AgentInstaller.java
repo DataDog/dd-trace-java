@@ -45,8 +45,9 @@ public class AgentInstaller {
   public static void installBytebuddyAgent(final Instrumentation inst) {
     if (Config.get().isTraceEnabled()) {
       installBytebuddyAgent(inst, false, new AgentBuilder.Listener[0]);
+      log.info("Class instrumentation installed");
     } else {
-      log.debug("Tracing is disabled, not installing instrumentations.");
+      log.info("Tracing is disabled, not installing instrumentations.");
     }
   }
 

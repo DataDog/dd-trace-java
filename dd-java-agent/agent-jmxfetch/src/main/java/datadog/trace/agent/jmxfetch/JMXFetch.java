@@ -55,8 +55,8 @@ public class JMXFetch {
     final Map<String, String> globalTags = config.getMergedJmxTags();
     final String reporter = getReporter(config);
 
-    if (log.isInfoEnabled()) {
-      log.info(
+    if (log.isDebugEnabled()) {
+      log.debug(
           "JMXFetch config: {} {} {} {} {} {} {} {}",
           jmxFetchConfigDir,
           jmxFetchConfigs,
