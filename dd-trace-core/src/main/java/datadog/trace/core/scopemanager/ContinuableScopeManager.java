@@ -150,8 +150,6 @@ public class ContinuableScopeManager implements AgentScopeManager {
     public void close() {
       final ScopeStack scopeStack = scopeManager.scopeStack();
 
-      final boolean alive = decrementReferences();
-
       final boolean onTop = scopeStack.checkTop(this);
       if (!onTop) {
         if (log.isDebugEnabled()) {
@@ -170,15 +168,16 @@ public class ContinuableScopeManager implements AgentScopeManager {
         }
       }
 
+      final boolean alive = decrementReferences();
       if (alive) {
         return;
       }
 
+      scopeStack.cleanup();
+
       if (null != continuation) {
         continuation.cancelFromContinuedScopeClose();
       }
-
-      scopeStack.cleanup();
     }
 
     /*
