@@ -1,7 +1,7 @@
 package datadog.trace.agent.test.asserts
 
-import datadog.trace.core.DDSpan
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 import org.codehaus.groovy.runtime.powerassert.PowerAssertionError
@@ -9,12 +9,15 @@ import org.spockframework.runtime.Condition
 import org.spockframework.runtime.ConditionNotSatisfiedError
 import org.spockframework.runtime.model.TextPosition
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import static TraceAssert.assertTrace
 
 class ListWriterAssert {
   private final List<List<DDSpan>> traces
   private final int size
   private final Set<Integer> assertedIndexes = new HashSet<>()
+  private final AtomicInteger traceAssertCount = new AtomicInteger(0)
 
   private ListWriterAssert(List<List<DDSpan>> traces) {
     this.traces = traces
@@ -58,20 +61,22 @@ class ListWriterAssert {
   }
 
   List<DDSpan> trace(int index) {
-    return writer.get(index)
+    return traces.get(index)
   }
 
-  void trace(int index, int expectedSize,
+  void trace(int expectedSize,
              @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TraceAssert'])
              @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    def index = traceAssertCount.getAndIncrement()
+
     if (index >= size) {
       throw new ArrayIndexOutOfBoundsException(index)
     }
-    if (writer.size() != size) {
+    if (traces.size() != size) {
       throw new ConcurrentModificationException("ListWriter modified during assertion")
     }
     assertedIndexes.add(index)
-    assertTrace(writer.get(index), expectedSize, spec)
+    assertTrace(trace(index), expectedSize, spec)
   }
 
   void assertTracesAllVerified() {
