@@ -107,7 +107,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
     worker.close()
   }
 
-  def "should report failure if rules can't be applied to trace" () {
+  def "should report failure if rules can't be applied to trace"() {
     setup:
     Throwable theError = new IllegalStateException("thrown by test")
     TraceProcessor throwingTraceProcessor = Mock(TraceProcessor)
@@ -125,7 +125,7 @@ class TraceProcessingWorkerTest extends DDSpecification {
       errorReported.incrementAndGet()
     }
     TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, monitoring,
-      Mock(PayloadDispatcher), throwingTraceProcessor, FAST_LANE,100, TimeUnit.SECONDS)
+      Mock(PayloadDispatcher), throwingTraceProcessor, FAST_LANE, 100, TimeUnit.SECONDS)
     // prevent heartbeats from helping the flush happen
     worker.start()
 
@@ -137,14 +137,15 @@ class TraceProcessingWorkerTest extends DDSpecification {
       1 == errorReported.get()
     }
 
-    cleanup: worker.close()
+    cleanup:
+    worker.close()
 
     where:
     priority << [SAMPLER_DROP, USER_DROP, SAMPLER_KEEP, USER_KEEP, UNSET]
   }
 
 
-  def "should report failure if serialization fails" () {
+  def "should report failure if serialization fails"() {
     setup:
     Throwable theError = new IllegalStateException("thrown by test")
     PayloadDispatcher throwingDispatcher = Mock(PayloadDispatcher)
@@ -174,7 +175,8 @@ class TraceProcessingWorkerTest extends DDSpecification {
       1 == errorReported.get()
     }
 
-    cleanup: worker.close()
+    cleanup:
+    worker.close()
 
     where:
     priority << [SAMPLER_DROP, USER_DROP, SAMPLER_KEEP, USER_KEEP, UNSET]
@@ -210,47 +212,47 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
 
     where:
-    priority      |   traceCount   | strategy
-    SAMPLER_DROP  |   1            | FAST_LANE
-    USER_DROP     |   1            | FAST_LANE
-    SAMPLER_KEEP  |   1            | FAST_LANE
-    USER_KEEP     |   1            | FAST_LANE
-    UNSET         |   1            | FAST_LANE
-    SAMPLER_DROP  |   10           | FAST_LANE
-    USER_DROP     |   10           | FAST_LANE
-    SAMPLER_KEEP  |   10           | FAST_LANE
-    USER_KEEP     |   10           | FAST_LANE
-    UNSET         |   10           | FAST_LANE
-    SAMPLER_DROP  |   20           | FAST_LANE
-    USER_DROP     |   20           | FAST_LANE
-    SAMPLER_KEEP  |   20           | FAST_LANE
-    USER_KEEP     |   20           | FAST_LANE
-    UNSET         |   20           | FAST_LANE
-    SAMPLER_DROP  |   100          | FAST_LANE
-    USER_DROP     |   100          | FAST_LANE
-    SAMPLER_KEEP  |   100          | FAST_LANE
-    USER_KEEP     |   100          | FAST_LANE
-    UNSET         |   100          | FAST_LANE
-    SAMPLER_DROP  |   1            | DEAD_LETTERS
-    USER_DROP     |   1            | DEAD_LETTERS
-    SAMPLER_KEEP  |   1            | DEAD_LETTERS
-    USER_KEEP     |   1            | DEAD_LETTERS
-    UNSET         |   1            | DEAD_LETTERS
-    SAMPLER_DROP  |   10           | DEAD_LETTERS
-    USER_DROP     |   10           | DEAD_LETTERS
-    SAMPLER_KEEP  |   10           | DEAD_LETTERS
-    USER_KEEP     |   10           | DEAD_LETTERS
-    UNSET         |   10           | DEAD_LETTERS
-    SAMPLER_DROP  |   20           | DEAD_LETTERS
-    USER_DROP     |   20           | DEAD_LETTERS
-    SAMPLER_KEEP  |   20           | DEAD_LETTERS
-    USER_KEEP     |   20           | DEAD_LETTERS
-    UNSET         |   20           | DEAD_LETTERS
-    SAMPLER_DROP  |   100          | DEAD_LETTERS
-    USER_DROP     |   100          | DEAD_LETTERS
-    SAMPLER_KEEP  |   100          | DEAD_LETTERS
-    USER_KEEP     |   100          | DEAD_LETTERS
-    UNSET         |   100          | DEAD_LETTERS
+    priority     | traceCount | strategy
+    SAMPLER_DROP | 1          | FAST_LANE
+    USER_DROP    | 1          | FAST_LANE
+    SAMPLER_KEEP | 1          | FAST_LANE
+    USER_KEEP    | 1          | FAST_LANE
+    UNSET        | 1          | FAST_LANE
+    SAMPLER_DROP | 10         | FAST_LANE
+    USER_DROP    | 10         | FAST_LANE
+    SAMPLER_KEEP | 10         | FAST_LANE
+    USER_KEEP    | 10         | FAST_LANE
+    UNSET        | 10         | FAST_LANE
+    SAMPLER_DROP | 20         | FAST_LANE
+    USER_DROP    | 20         | FAST_LANE
+    SAMPLER_KEEP | 20         | FAST_LANE
+    USER_KEEP    | 20         | FAST_LANE
+    UNSET        | 20         | FAST_LANE
+    SAMPLER_DROP | 100        | FAST_LANE
+    USER_DROP    | 100        | FAST_LANE
+    SAMPLER_KEEP | 100        | FAST_LANE
+    USER_KEEP    | 100        | FAST_LANE
+    UNSET        | 100        | FAST_LANE
+    SAMPLER_DROP | 1          | DEAD_LETTERS
+    USER_DROP    | 1          | DEAD_LETTERS
+    SAMPLER_KEEP | 1          | DEAD_LETTERS
+    USER_KEEP    | 1          | DEAD_LETTERS
+    UNSET        | 1          | DEAD_LETTERS
+    SAMPLER_DROP | 10         | DEAD_LETTERS
+    USER_DROP    | 10         | DEAD_LETTERS
+    SAMPLER_KEEP | 10         | DEAD_LETTERS
+    USER_KEEP    | 10         | DEAD_LETTERS
+    UNSET        | 10         | DEAD_LETTERS
+    SAMPLER_DROP | 20         | DEAD_LETTERS
+    USER_DROP    | 20         | DEAD_LETTERS
+    SAMPLER_KEEP | 20         | DEAD_LETTERS
+    USER_KEEP    | 20         | DEAD_LETTERS
+    UNSET        | 20         | DEAD_LETTERS
+    SAMPLER_DROP | 100        | DEAD_LETTERS
+    USER_DROP    | 100        | DEAD_LETTERS
+    SAMPLER_KEEP | 100        | DEAD_LETTERS
+    USER_KEEP    | 100        | DEAD_LETTERS
+    UNSET        | 100        | DEAD_LETTERS
 
   }
 

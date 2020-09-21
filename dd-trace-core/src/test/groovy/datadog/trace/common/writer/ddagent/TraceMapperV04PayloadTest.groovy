@@ -20,7 +20,7 @@ import static org.msgpack.core.MessageFormat.*
 
 class TraceMapperV04PayloadTest extends DDSpecification {
 
-  def "test traces written correctly" () {
+  def "test traces written correctly"() {
     setup:
     List<List<DDSpanData>> traces = generateRandomTraces(traceCount, lowCardinality)
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4()
@@ -32,7 +32,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
       for (List<DDSpanData> trace : traces) {
         packer.format(trace, traceMapper)
       }
-    } catch(BufferOverflowException e) {
+    } catch (BufferOverflowException e) {
       tracesFitInBuffer = false
     }
     packer.flush()
@@ -43,25 +43,25 @@ class TraceMapperV04PayloadTest extends DDSpecification {
     }
 
     where:
-    bufferSize    |   traceCount   | lowCardinality
-    10 << 10      |       0        | true
-    10 << 10      |       1        | true
-    30 << 10      |       1        | true
-    30 << 10      |       2        | true
-    10 << 10      |       0        | false
-    10 << 10      |       1        | false
-    30 << 10      |       1        | false
-    30 << 10      |       2        | false
-    100 << 10     |       0        | true
-    100 << 10     |       1        | true
-    100 << 10     |       10       | true
-    100 << 10     |       100      | true
-    100 << 10     |       1000     | true
-    100 << 10     |       0        | false
-    100 << 10     |       1        | false
-    100 << 10     |       10       | false
-    100 << 10     |       100      | false
-    100 << 10     |       1000     | false
+    bufferSize | traceCount | lowCardinality
+    10 << 10   | 0          | true
+    10 << 10   | 1          | true
+    30 << 10   | 1          | true
+    30 << 10   | 2          | true
+    10 << 10   | 0          | false
+    10 << 10   | 1          | false
+    30 << 10   | 1          | false
+    30 << 10   | 2          | false
+    100 << 10  | 0          | true
+    100 << 10  | 1          | true
+    100 << 10  | 10         | true
+    100 << 10  | 100        | true
+    100 << 10  | 1000       | true
+    100 << 10  | 0          | false
+    100 << 10  | 1          | false
+    100 << 10  | 10         | false
+    100 << 10  | 100        | false
+    100 << 10  | 1000       | false
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
@@ -204,7 +204,8 @@ class TraceMapperV04PayloadTest extends DDSpecification {
     }
 
     @Override
-    void close() {}
+    void close() {
+    }
   }
 
   private static void assertEqualsWithNullAsEmpty(CharSequence expected, CharSequence actual) {

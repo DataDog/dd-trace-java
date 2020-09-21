@@ -27,6 +27,7 @@ import java.time.Duration
 import java.util.concurrent.Phaser
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 // Do not run tests locally on Java7 since testcontainers are not compatible with Java7
 // It is fine to run on CI because CI provides rabbitmq externally, not through testcontainers
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
@@ -155,8 +156,8 @@ class RabbitMQTest extends AgentTestRunner {
     setup:
     channel.exchangeDeclare(exchangeName, "direct", false)
     String queueName = (messageCount % 2 == 0) ?
-    channel.queueDeclare().getQueue() :
-    channel.queueDeclare("some-queue", false, true, true, null).getQueue()
+      channel.queueDeclare().getQueue() :
+      channel.queueDeclare("some-queue", false, true, true, null).getQueue()
     channel.queueBind(queueName, exchangeName, "")
 
     def phaser = new Phaser()
@@ -219,15 +220,15 @@ class RabbitMQTest extends AgentTestRunner {
     deliveries == (1..messageCount).collect { "msg $it" }
 
     where:
-    exchangeName     | messageCount | setTimestamp
-    "some-exchange"  | 1            | false
-    "some-exchange"  | 2            | false
-    "some-exchange"  | 3            | false
-    "some-exchange"  | 4            | false
-    "some-exchange"  | 1            | true
-    "some-exchange"  | 2            | true
-    "some-exchange"  | 3            | true
-    "some-exchange"  | 4            | true
+    exchangeName    | messageCount | setTimestamp
+    "some-exchange" | 1            | false
+    "some-exchange" | 2            | false
+    "some-exchange" | 3            | false
+    "some-exchange" | 4            | false
+    "some-exchange" | 1            | true
+    "some-exchange" | 2            | true
+    "some-exchange" | 3            | true
+    "some-exchange" | 4            | true
   }
 
   def "test rabbit consume error"() {

@@ -4,7 +4,7 @@ import spock.lang.Specification
 
 import java.util.concurrent.Callable
 
-class WeakCacheTest  extends Specification  {
+class WeakCacheTest extends Specification {
   def supplier = new CounterSupplier()
 
   def weakCache = AgentTooling.newWeakCache()
@@ -46,9 +46,9 @@ class WeakCacheTest  extends Specification  {
 
   def "max size check"() {
     when:
-    def sizeBefore =  weakCacheFor1elem.cache.size()
+    def sizeBefore = weakCacheFor1elem.cache.size()
     def valBefore = weakCacheFor1elem.getIfPresent("key1")
-    def sizeAfter =  weakCacheFor1elem.cache.size()
+    def sizeAfter = weakCacheFor1elem.cache.size()
     def valAfterGet = weakCacheFor1elem.getIfPresentOrCompute("key1", supplier)
     def sizeAfterCompute = weakCacheFor1elem.cache.size()
     weakCacheFor1elem.put("key1", 42)
@@ -70,6 +70,7 @@ class WeakCacheTest  extends Specification  {
 
   class CounterSupplier implements Callable<Integer> {
     def counter = 0
+
     @Override
     Integer call() {
       counter = counter + 1

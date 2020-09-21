@@ -133,20 +133,20 @@ class HaystackHttpExtractorTest extends DDSpecification {
     }
 
     where:
-    traceId                                | spanId                                | expectedTraceId                | expectedSpanId
-    "-1"                                   | "1"                                   | null                           | DDId.ZERO
-    "1"                                    | "-1"                                  | null                           | DDId.ZERO
-    "0"                                    | "1"                                   | null                           | DDId.ZERO
-    "00001"                                | "00001"                               | DDId.ONE                       | DDId.ONE
-    "463ac35c9f6413ad"                     | "463ac35c9f6413ad"                    | DDId.from(5060571933882717101) | DDId.from(5060571933882717101)
-    "463ac35c9f6413ad48485a3953bb6124"     | "1"                                   | DDId.from(5208512171318403364) | DDId.ONE
-    "44617461-646f-6721-463a-c35c9f6413ad" |"44617461-646f-6721-463a-c35c9f6413ad" | DDId.from(5060571933882717101) | DDId.from(5060571933882717101)
-    "f" * 16                               | "1"                                   | DDId.MAX                       | DDId.ONE
-    "a" * 16 + "f" * 16                    | "1"                                   | DDId.MAX                       | DDId.ONE
-    "1" + "f" * 32                         | "1"                                   | null                           | DDId.ONE
-    "0" + "f" * 32                         | "1"                                   | null                           | DDId.ONE
-    "1"                                    | "f" * 16                              | DDId.ONE                       | DDId.MAX
-    "1"                                    | "1" + "f" * 16                        | null                           | DDId.ZERO
-    "1"                                    | "000" + "f" * 16                      | DDId.ONE                       | DDId.MAX
+    traceId                                | spanId                                 | expectedTraceId                | expectedSpanId
+    "-1"                                   | "1"                                    | null                           | DDId.ZERO
+    "1"                                    | "-1"                                   | null                           | DDId.ZERO
+    "0"                                    | "1"                                    | null                           | DDId.ZERO
+    "00001"                                | "00001"                                | DDId.ONE                       | DDId.ONE
+    "463ac35c9f6413ad"                     | "463ac35c9f6413ad"                     | DDId.from(5060571933882717101) | DDId.from(5060571933882717101)
+    "463ac35c9f6413ad48485a3953bb6124"     | "1"                                    | DDId.from(5208512171318403364) | DDId.ONE
+    "44617461-646f-6721-463a-c35c9f6413ad" | "44617461-646f-6721-463a-c35c9f6413ad" | DDId.from(5060571933882717101) | DDId.from(5060571933882717101)
+    "f" * 16                               | "1"                                    | DDId.MAX                       | DDId.ONE
+    "a" * 16 + "f" * 16                    | "1"                                    | DDId.MAX                       | DDId.ONE
+    "1" + "f" * 32                         | "1"                                    | null                           | DDId.ONE
+    "0" + "f" * 32                         | "1"                                    | null                           | DDId.ONE
+    "1"                                    | "f" * 16                               | DDId.ONE                       | DDId.MAX
+    "1"                                    | "1" + "f" * 16                         | null                           | DDId.ZERO
+    "1"                                    | "000" + "f" * 16                       | DDId.ONE                       | DDId.MAX
   }
 }

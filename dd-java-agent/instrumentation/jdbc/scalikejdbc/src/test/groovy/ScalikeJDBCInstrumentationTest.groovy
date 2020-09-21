@@ -181,7 +181,7 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
 
     where:
     driver  | username | query
-    "h2"    | null    | "SELECT 3"
-    "derby" | "APP"   | "SELECT 3 FROM SYSIBM.SYSDUMMY1"
+    "h2"    | null     | "SELECT 3"
+    "derby" | "APP"    | "SELECT 3 FROM SYSIBM.SYSDUMMY1"
   }
 }

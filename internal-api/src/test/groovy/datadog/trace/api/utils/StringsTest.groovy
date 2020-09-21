@@ -10,11 +10,11 @@ class StringsTest extends DDSpecification {
     then:
     s == expected
     where:
-    joiner     |     strings      | expected
-    ","        |  ["a", "b", "c"] | "a,b,c"
-    ","        |  ["a", "b"]      | "a,b"
-    ","        |  ["a"]           | "a"
-    ","        |  []              | ""
+    joiner | strings         | expected
+    ","    | ["a", "b", "c"] | "a,b,c"
+    ","    | ["a", "b"]      | "a,b"
+    ","    | ["a"]           | "a"
+    ","    | []              | ""
   }
 
   def "test join strings varargs"() {
@@ -24,10 +24,10 @@ class StringsTest extends DDSpecification {
     then:
     s == expected
     where:
-    joiner     |     strings      | expected
-    ","        |  ["a", "b", "c"] | "a,b,c"
-    ","        |  ["a", "b"]      | "a,b"
-    ","        |  ["a"]           | "a"
-    ","        |  []              | ""
+    joiner | strings         | expected
+    ","    | ["a", "b", "c"] | "a,b,c"
+    ","    | ["a", "b"]      | "a,b"
+    ","    | ["a"]           | "a"
+    ","    | []              | ""
   }
 }

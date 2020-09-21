@@ -45,10 +45,10 @@ class PayloadDispatcherTest extends DDSpecification {
     1 * api.sendSerializedTraces({ it.representativeCount() == droppedTraces + serializedTraces && it.traceCount() == serializedTraces }) >> DDAgentApi.Response.success(200)
 
     where:
-    droppedTraces |  serializedTraces
-    1              |   1
-    10             |   1
-    10             |   10
+    droppedTraces | serializedTraces
+    1             | 1
+    10            | 1
+    10            | 10
   }
 
   @Timeout(5)
@@ -94,13 +94,13 @@ class PayloadDispatcherTest extends DDSpecification {
     1 * api.sendSerializedTraces({ it.traceCount() == traceCount }) >> DDAgentApi.Response.success(200)
 
     where:
-    traceMapper             | traceCount
-    new TraceMapperV0_4()   |  1
-    new TraceMapperV0_4()   |  10
-    new TraceMapperV0_4()   |  100
-    new TraceMapperV0_5()   |  1
-    new TraceMapperV0_5()   |  10
-    new TraceMapperV0_5()   |  100
+    traceMapper           | traceCount
+    new TraceMapperV0_4() | 1
+    new TraceMapperV0_4() | 10
+    new TraceMapperV0_4() | 100
+    new TraceMapperV0_5() | 1
+    new TraceMapperV0_5() | 10
+    new TraceMapperV0_5() | 100
   }
 
   def "should report failed request to monitor"() {
@@ -123,24 +123,24 @@ class PayloadDispatcherTest extends DDSpecification {
     1 * api.sendSerializedTraces({ it.traceCount() == traceCount && it.representativeCount() == droppedTraces + traceCount }) >> DDAgentApi.Response.failed(400)
 
     where:
-    traceMapper             | traceCount   | droppedTraces
-    new TraceMapperV0_4()   |  1           |   0
-    new TraceMapperV0_4()   |  1           |   1
-    new TraceMapperV0_4()   |  1           |   10
-    new TraceMapperV0_4()   |  10          |   10
-    new TraceMapperV0_4()   |  10          |   100
-    new TraceMapperV0_4()   |  100         |   100
-    new TraceMapperV0_4()   |  100         |   1000
-    new TraceMapperV0_5()   |  1           |   0
-    new TraceMapperV0_5()   |  1           |   1
-    new TraceMapperV0_5()   |  1           |   10
-    new TraceMapperV0_5()   |  10          |   10
-    new TraceMapperV0_5()   |  10          |   100
-    new TraceMapperV0_5()   |  100         |   100
-    new TraceMapperV0_5()   |  100         |   1000
+    traceMapper           | traceCount | droppedTraces
+    new TraceMapperV0_4() | 1          | 0
+    new TraceMapperV0_4() | 1          | 1
+    new TraceMapperV0_4() | 1          | 10
+    new TraceMapperV0_4() | 10         | 10
+    new TraceMapperV0_4() | 10         | 100
+    new TraceMapperV0_4() | 100        | 100
+    new TraceMapperV0_4() | 100        | 1000
+    new TraceMapperV0_5() | 1          | 0
+    new TraceMapperV0_5() | 1          | 1
+    new TraceMapperV0_5() | 1          | 10
+    new TraceMapperV0_5() | 10         | 10
+    new TraceMapperV0_5() | 10         | 100
+    new TraceMapperV0_5() | 100        | 100
+    new TraceMapperV0_5() | 100        | 1000
   }
 
-  def "should drop trace when there is no agent connectivity" () {
+  def "should drop trace when there is no agent connectivity"() {
     setup:
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     DDAgentApi api = Mock(DDAgentApi)

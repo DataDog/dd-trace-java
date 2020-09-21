@@ -20,7 +20,7 @@ import static org.msgpack.core.MessageFormat.*
 
 class TraceMapperV05PayloadTest extends DDSpecification {
 
-  def "test dictionary compressed traces written correctly" () {
+  def "test dictionary compressed traces written correctly"() {
     setup:
     List<List<DDSpanData>> traces = generateRandomTraces(traceCount, lowCardinality)
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize)
@@ -43,36 +43,36 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     }
 
     where:
-    bufferSize    | dictionarySize |   traceCount   | lowCardinality
-    10 << 10      |   10 << 10     |       0        | true
-    10 << 10      |   10 << 10     |       1        | true
-    10 << 10      |   10 << 10     |       10       | true
-    10 << 10      |   10 << 10     |       100      | true
-    10 << 10      |   100 << 10    |       1        | true
-    10 << 10      |   100 << 10    |       10       | true
-    10 << 10      |   100 << 10    |       100      | true
-    10 << 10      |   10 << 10     |       0        | false
-    10 << 10      |   10 << 10     |       1        | false
-    10 << 10      |   10 << 10     |       10       | false
-    10 << 10      |   10 << 10     |       100      | false
-    10 << 10      |   100 << 10    |       1        | false
-    10 << 10      |   100 << 10    |       10       | false
-    10 << 10      |   100 << 10    |       100      | false
-    100 << 10     |   10 << 10     |       0        | true
-    100 << 10     |   10 << 10     |       1        | true
-    100 << 10     |   10 << 10     |       10       | true
-    100 << 10     |   10 << 10     |       100      | true
-    100 << 10     |   100 << 10    |       1        | true
-    100 << 10     |   100 << 10    |       10       | true
-    100 << 10     |   100 << 10    |       100      | true
-    100 << 10     |   10 << 10     |       0        | false
-    100 << 10     |   10 << 10     |       1        | false
-    100 << 10     |   10 << 10     |       10       | false
-    100 << 10     |   10 << 10     |       100      | false
-    100 << 10     |   100 << 10    |       1        | false
-    100 << 10     |   100 << 10    |       10       | false
-    100 << 10     |   100 << 10    |       100      | false
-    100 << 10     |   100 << 10    |       1000     | false
+    bufferSize | dictionarySize | traceCount | lowCardinality
+    10 << 10   | 10 << 10       | 0          | true
+    10 << 10   | 10 << 10       | 1          | true
+    10 << 10   | 10 << 10       | 10         | true
+    10 << 10   | 10 << 10       | 100        | true
+    10 << 10   | 100 << 10      | 1          | true
+    10 << 10   | 100 << 10      | 10         | true
+    10 << 10   | 100 << 10      | 100        | true
+    10 << 10   | 10 << 10       | 0          | false
+    10 << 10   | 10 << 10       | 1          | false
+    10 << 10   | 10 << 10       | 10         | false
+    10 << 10   | 10 << 10       | 100        | false
+    10 << 10   | 100 << 10      | 1          | false
+    10 << 10   | 100 << 10      | 10         | false
+    10 << 10   | 100 << 10      | 100        | false
+    100 << 10  | 10 << 10       | 0          | true
+    100 << 10  | 10 << 10       | 1          | true
+    100 << 10  | 10 << 10       | 10         | true
+    100 << 10  | 10 << 10       | 100        | true
+    100 << 10  | 100 << 10      | 1          | true
+    100 << 10  | 100 << 10      | 10         | true
+    100 << 10  | 100 << 10      | 100        | true
+    100 << 10  | 10 << 10       | 0          | false
+    100 << 10  | 10 << 10       | 1          | false
+    100 << 10  | 10 << 10       | 10         | false
+    100 << 10  | 10 << 10       | 100        | false
+    100 << 10  | 100 << 10      | 1          | false
+    100 << 10  | 100 << 10      | 10         | false
+    100 << 10  | 100 << 10      | 100        | false
+    100 << 10  | 100 << 10      | 1000       | false
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
@@ -210,7 +210,8 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     }
 
     @Override
-    void close() {}
+    void close() {
+    }
   }
 
   private static void assertEqualsWithNullAsEmpty(CharSequence expected, CharSequence actual) {

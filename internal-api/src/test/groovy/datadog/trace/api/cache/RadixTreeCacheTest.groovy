@@ -8,7 +8,7 @@ import static datadog.trace.ThreadUtils.runConcurrently
 
 class RadixTreeCacheTest extends DDSpecification {
 
-  def "cached values are equal to autoboxed values" () {
+  def "cached values are equal to autoboxed values"() {
     setup:
     RadixTreeCache<Integer> cache = new RadixTreeCache<>(4, 4, { it })
     when:
@@ -21,7 +21,7 @@ class RadixTreeCacheTest extends DDSpecification {
   }
 
 
-  def "cached values are equal to computed values" () {
+  def "cached values are equal to computed values"() {
     setup:
     RadixTreeCache<String> cache = new RadixTreeCache<>(4, 4, { it.toString() })
     when:
@@ -33,7 +33,7 @@ class RadixTreeCacheTest extends DDSpecification {
     primitive << [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
   }
 
-  def "cached values are equal to computed values with precomputing" () {
+  def "cached values are equal to computed values with precomputing"() {
     setup:
     RadixTreeCache<String> cache = new RadixTreeCache<>(4, 4,
       { it.toString() }, -1, 9)
@@ -47,7 +47,7 @@ class RadixTreeCacheTest extends DDSpecification {
   }
 
 
-  def "concurrency test" () {
+  def "concurrency test"() {
     setup:
     RadixTreeCache<String> cache = new RadixTreeCache<>(256, 256,
       { it.toString() }, -1, 9)
@@ -58,14 +58,14 @@ class RadixTreeCacheTest extends DDSpecification {
     })
   }
 
-  def "cache ports" () {
+  def "cache ports"() {
     expect:
     Integer.valueOf(port) == RadixTreeCache.PORTS.get(port)
     where:
     port << [0, 80, 443, 4444, 8080, 65535]
   }
 
-  def "cache HTTP statuses" () {
+  def "cache HTTP statuses"() {
     expect:
     Integer.valueOf(status) == RadixTreeCache.HTTP_STATUSES.get(status)
     where:

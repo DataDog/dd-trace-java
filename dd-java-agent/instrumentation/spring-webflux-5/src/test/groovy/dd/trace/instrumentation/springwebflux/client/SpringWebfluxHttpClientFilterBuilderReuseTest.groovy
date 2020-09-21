@@ -11,13 +11,13 @@ class SpringWebfluxHttpClientFilterBuilderReuseTest extends SpringWebfluxHttpCli
 
   @Override
   WebClient createClient(String component) {
-    this.filter  = new CollectingFilter()
+    this.filter = new CollectingFilter()
     this.component = component
     def builder = WebClient.builder()
     // add filters before and after, and check that we move our filter first
     builder.filter(filter)
     builder.build()
-    builder.filters( {
+    builder.filters({
       it.add(0, filter)
     })
 
