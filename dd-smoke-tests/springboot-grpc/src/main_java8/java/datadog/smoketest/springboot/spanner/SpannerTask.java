@@ -13,6 +13,10 @@ public class SpannerTask {
 
   @Async
   public CompletableFuture<ResultSet> spannerResultSet() {
+    return getSpannerResultSet();
+  }
+
+  public CompletableFuture<ResultSet> getSpannerResultSet() {
     SpannerOptions options = SpannerOptions.newBuilder().setProjectId("foo").build();
     Spanner spanner = options.getService();
     DatabaseId db = DatabaseId.of(options.getProjectId(), "", "");

@@ -52,6 +52,12 @@ public class WebController {
     return "bye";
   }
 
+  @RequestMapping("/spanner_no_async")
+  public String spannerNoAsync() {
+    spannerTask.getSpannerResultSet().thenAccept(results -> {}).join();
+    return "bye";
+  }
+
   @RequestMapping("/async_cf_greeting")
   public String asyncCompleteableFutureGreeting() {
     CompletableFuture<String>[] cfs = new CompletableFuture[20];
