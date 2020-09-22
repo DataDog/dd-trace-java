@@ -82,14 +82,16 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
         @Advice.This final Executor executor,
         @Advice.Argument(value = 0, readOnly = false) Runnable task) {
       final TraceScope scope = activeScope();
-      final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);
-      // It is important to check potentially wrapped task if we can instrument task in this
-      // executor. Some executors do not support wrapped tasks.
-      if (ExecutorInstrumentationUtils.shouldAttachStateToTask(newTask, executor)) {
-        task = newTask;
-        final ContextStore<Runnable, State> contextStore =
-            InstrumentationContext.get(Runnable.class, State.class);
-        return ExecutorInstrumentationUtils.setupState(contextStore, newTask, scope);
+      if (null != scope) {
+        final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);
+        // It is important to check potentially wrapped task if we can instrument task in this
+        // executor. Some executors do not support wrapped tasks.
+        if (ExecutorInstrumentationUtils.shouldAttachStateToTask(newTask, executor)) {
+          task = newTask;
+          final ContextStore<Runnable, State> contextStore =
+              InstrumentationContext.get(Runnable.class, State.class);
+          return ExecutorInstrumentationUtils.setupState(contextStore, newTask, scope);
+        }
       }
       return null;
     }
@@ -134,14 +136,16 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
         @Advice.This final Executor executor,
         @Advice.Argument(value = 0, readOnly = false) Runnable task) {
       final TraceScope scope = activeScope();
-      final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);
-      // It is important to check potentially wrapped task if we can instrument task in this
-      // executor. Some executors do not support wrapped tasks.
-      if (ExecutorInstrumentationUtils.shouldAttachStateToTask(newTask, executor)) {
-        task = newTask;
-        final ContextStore<Runnable, State> contextStore =
-            InstrumentationContext.get(Runnable.class, State.class);
-        return ExecutorInstrumentationUtils.setupState(contextStore, newTask, scope);
+      if (null != scope) {
+        final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);
+        // It is important to check potentially wrapped task if we can instrument task in this
+        // executor. Some executors do not support wrapped tasks.
+        if (ExecutorInstrumentationUtils.shouldAttachStateToTask(newTask, executor)) {
+          task = newTask;
+          final ContextStore<Runnable, State> contextStore =
+              InstrumentationContext.get(Runnable.class, State.class);
+          return ExecutorInstrumentationUtils.setupState(contextStore, newTask, scope);
+        }
       }
       return null;
     }
