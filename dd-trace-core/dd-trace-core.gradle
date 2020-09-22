@@ -31,6 +31,7 @@ dependencies {
   compile project(':internal-api')
   compile project(':utils:thread-utils')
   compile project(':utils:container-utils')
+  compile project(':dd-java-agent:agent-logging')
 
   compile group: 'com.datadoghq', name: 'java-dogstatsd-client', version: "${versions.dogstatsd}"
 

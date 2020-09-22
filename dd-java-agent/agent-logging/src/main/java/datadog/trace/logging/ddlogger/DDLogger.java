@@ -1,5 +1,8 @@
-package datadog.trace.logging;
+package datadog.trace.logging.ddlogger;
 
+import datadog.trace.logging.LogLevel;
+import datadog.trace.logging.LoggerHelper;
+import datadog.trace.logging.LoggerHelperFactory;
 import org.slf4j.Logger;
 import org.slf4j.Marker;
 import org.slf4j.helpers.FormattingTuple;

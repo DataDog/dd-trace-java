@@ -11,7 +11,7 @@ excludedClassesCoverage += [
   'datadog.slf4j.impl.StaticLoggerBinder',
   'datadog.slf4j.impl.StaticMarkerBinder',
   'datadog.slf4j.impl.StaticMDCBinder',
-  'datadog.trace.logging.DDLoggerFactory',
+  'datadog.trace.logging.ddlogger.DDLoggerFactory',
   'datadog.trace.logging.simplelogger.SLCompatFactory',
 ]
 

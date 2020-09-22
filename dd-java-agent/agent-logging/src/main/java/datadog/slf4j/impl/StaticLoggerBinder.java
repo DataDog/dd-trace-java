@@ -4,7 +4,7 @@
  */
 package datadog.slf4j.impl;
 
-import datadog.trace.logging.DDLoggerFactory;
+import datadog.trace.logging.ddlogger.DDLoggerFactory;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.spi.LoggerFactoryBinder;
 
