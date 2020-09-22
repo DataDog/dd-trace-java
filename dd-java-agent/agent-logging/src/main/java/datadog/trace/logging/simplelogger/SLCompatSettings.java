@@ -151,10 +151,19 @@ public class SLCompatSettings {
       case "system.out":
         return System.out;
       default:
-        try (FileOutputStream outputStream = new FileOutputStream(logFile);
-            PrintStream printStream = new PrintStream(outputStream)) {
+        FileOutputStream outputStream = null;
+        try {
+          outputStream = new FileOutputStream(logFile);
+          PrintStream printStream = new PrintStream(outputStream, true);
           return printStream;
         } catch (IOException | SecurityException e) {
+          if (outputStream != null) {
+            try {
+              outputStream.close();
+            } catch (IOException ce) {
+              // TODO maybe have support for delayed logging of early failures?
+            }
+          }
           // TODO maybe have support for delayed logging of early failures?
           return System.err;
         }

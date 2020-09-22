@@ -195,4 +195,39 @@ class DDLoggerTest extends Specification {
     "off"   | false | false | false | false | false | true
   }
 
+  def "test log output to a file"() {
+    setup:
+    def dir = File.createTempDir()
+    def file = new File(dir, "log")
+    def props = new Properties()
+    props.setProperty(SLCompatSettings.Keys.DEFAULT_LOG_LEVEL, "DEBUG")
+    props.setProperty(SLCompatSettings.Keys.SHOW_THREAD_NAME, "false")
+    props.setProperty(SLCompatSettings.Keys.LOG_FILE, file.getAbsolutePath())
+    def settings = new SLCompatSettings(props)
+    def factory = new SLCompatFactory(props)
+    def logger = new DDLogger(factory, "bar.baz")
+    logger.trace("test trace")
+    logger.debug("test debug")
+    logger.info("test info")
+    logger.warn("test warn")
+    logger.error("test error")
+    def scanner = new Scanner(file)
+
+    expect:
+    file.exists()
+    scanner.hasNextLine()
+    // We should not log at trace level
+    scanner.nextLine() == "DEBUG bar.baz - test debug"
+    scanner.nextLine() == "INFO bar.baz - test info"
+    scanner.nextLine() == "WARN bar.baz - test warn"
+    scanner.nextLine() == "ERROR bar.baz - test error"
+
+    cleanup:
+    scanner.close()
+    settings.printStream.close()
+    dir.listFiles().each {
+      it.delete()
+    }
+    dir.delete()
+  }
 }
