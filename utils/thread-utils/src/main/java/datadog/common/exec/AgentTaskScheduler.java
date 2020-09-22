@@ -66,15 +66,18 @@ public final class AgentTaskScheduler {
       return;
     }
     if (worker == null) {
-      synchronized (this) {
+      synchronized (workQueue) {
         if (shutdown) {
           log.warn("Agent task scheduler is shutdown. Will not run {}", describeTask(task, target));
           return;
         }
         if (worker == null) {
-          Runtime.getRuntime().addShutdownHook(new Shutdown());
-          worker = threadFactory.newThread(new Worker());
-          worker.start();
+          try {
+            worker = threadFactory.newThread(new Worker());
+            worker.start();
+          } finally {
+            Runtime.getRuntime().addShutdownHook(new Shutdown());
+          }
         }
       }
     }
@@ -95,11 +98,10 @@ public final class AgentTaskScheduler {
     @SneakyThrows
     public void run() {
       shutdown = true;
-      synchronized (this) {
-        if (worker != null) {
-          worker.interrupt();
-          worker.join(SHUTDOWN_WAIT_MILLIS);
-        }
+      final Thread t = worker;
+      if (t != null) {
+        t.interrupt();
+        t.join(SHUTDOWN_WAIT_MILLIS);
       }
     }
   }
