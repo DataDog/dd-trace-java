@@ -7,6 +7,7 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.common.container.ContainerInfo;
 import datadog.common.exec.CommonTaskExecutor;
+import datadog.trace.api.RatelimitedLogger;
 import datadog.trace.common.writer.ddagent.unixdomainsockets.UnixDomainSocketFactory;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.monitor.Counter;
@@ -92,6 +93,8 @@ public class DDAgentApi {
   private HttpUrl tracesUrl;
   private String detectedVersion = null;
   private boolean agentRunning = false;
+  private RatelimitedLogger ratelimitedLogger =
+      new RatelimitedLogger(log, NANOSECONDS_BETWEEN_ERROR_LOG);
 
   public DDAgentApi(
       final String host,
@@ -216,7 +219,6 @@ public class DDAgentApi {
     // count the failed traces
     this.failedTraces += traceCount;
     // these are used to catch and log if there is a failure in debug logging the response body
-    boolean hasLogged = false;
     String agentError = getResponseBody(response);
     if (log.isDebugEnabled()) {
       String sendErrorString =
@@ -232,44 +234,33 @@ public class DDAgentApi {
             response.code(),
             response.message(),
             agentError);
-        hasLogged = true;
       } else if (outer != null) {
         log.debug(sendErrorString, outer);
-        hasLogged = true;
       } else {
         log.debug(sendErrorString);
-        hasLogged = true;
       }
+      return;
     }
-    if (!hasLogged && log.isWarnEnabled()) {
-      long now = System.nanoTime();
-      if (now - this.previousErrorLogNanos >= NANOSECONDS_BETWEEN_ERROR_LOG) {
-        this.previousErrorLogNanos = now;
-        this.logNextSuccess = true;
-        String sendErrorString =
-            createSendLogMessage(
-                traceCount,
-                representativeCount,
-                sizeInBytes,
-                agentError.isEmpty() ? "Error" : agentError);
-        if (response != null) {
-          log.warn(
-              "{} Status: {} {} {}",
-              sendErrorString,
-              response.code(),
-              response.message(),
-              WILL_NOT_LOG_FOR_MESSAGE);
-        } else if (outer != null) {
-          log.warn(
-              "{} {}: {} {}",
-              sendErrorString,
-              outer.getClass().getName(),
-              outer.getMessage(),
-              WILL_NOT_LOG_FOR_MESSAGE);
-        } else {
-          log.warn("{} {}", sendErrorString, WILL_NOT_LOG_FOR_MESSAGE);
-        }
-      }
+    String sendErrorString =
+        createSendLogMessage(
+            traceCount,
+            representativeCount,
+            sizeInBytes,
+            agentError.isEmpty() ? "Error" : agentError);
+    boolean hasLogged;
+    if (response != null) {
+      hasLogged =
+          ratelimitedLogger.warn(
+              "{} Status: {} {}", sendErrorString, response.code(), response.message());
+    } else if (outer != null) {
+      hasLogged =
+          ratelimitedLogger.warn(
+              "{} {}: {}", sendErrorString, outer.getClass().getName(), outer.getMessage());
+    } else {
+      hasLogged = ratelimitedLogger.warn(sendErrorString);
+    }
+    if (hasLogged) {
+      this.logNextSuccess = true;
     }
   }
 

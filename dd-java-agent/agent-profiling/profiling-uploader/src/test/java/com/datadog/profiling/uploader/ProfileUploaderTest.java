@@ -20,6 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -38,10 +40,12 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.common.io.ByteStreams;
 import datadog.trace.api.Config;
+import datadog.trace.api.RatelimitedLogger;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.ConnectException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -111,6 +115,7 @@ public class ProfileUploaderTest {
   private final Duration FOREVER_REQUEST_TIMEOUT = Duration.ofSeconds(1000);
 
   @Mock private Config config;
+  @Mock private RatelimitedLogger ratelimitedLogger;
 
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;
@@ -127,7 +132,7 @@ public class ProfileUploaderTest {
     when(config.getMergedProfilingTags()).thenReturn(TAGS);
     when(config.getProfilingUploadTimeout()).thenReturn((int) REQUEST_TIMEOUT.getSeconds());
 
-    uploader = new ProfileUploader(config);
+    uploader = new ProfileUploader(config, ratelimitedLogger, "containerId");
   }
 
   @AfterEach
@@ -196,7 +201,7 @@ public class ProfileUploaderTest {
 
   @Test
   public void testRequestWithContainerId() throws IOException, InterruptedException {
-    uploader = new ProfileUploader(config, "container-id");
+    uploader = new ProfileUploader(config, ratelimitedLogger, "container-id");
 
     server.enqueue(new MockResponse().setResponseCode(200));
     uploader.upload(RECORDING_TYPE, mockRecordingData(RECORDING_RESOURCE));
@@ -313,7 +318,7 @@ public class ProfileUploaderTest {
 
     uploader = new ProfileUploader(config);
 
-    List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
+    final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 1);
     assertTrue(connectionSpecs.contains(ConnectionSpec.CLEARTEXT));
   }
@@ -324,7 +329,7 @@ public class ProfileUploaderTest {
 
     uploader = new ProfileUploader(config);
 
-    List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
+    final List<ConnectionSpec> connectionSpecs = uploader.getClient().connectionSpecs();
     assertEquals(connectionSpecs.size(), 2);
     assertTrue(connectionSpecs.contains(ConnectionSpec.MODERN_TLS));
     assertTrue(connectionSpecs.contains(ConnectionSpec.CLEARTEXT));
@@ -363,6 +368,11 @@ public class ProfileUploaderTest {
 
     verify(recording.getStream()).close();
     verify(recording).release();
+
+    // Shutting down uploader ensures all callbacks are called on http client
+    uploader.shutdown();
+    verify(ratelimitedLogger)
+        .warn(eq("Failed to upload profile to {}"), eq(url), any(ConnectException.class));
   }
 
   @Test
