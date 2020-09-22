@@ -1,6 +1,8 @@
 package datadog.trace.core.scopemanager
 
 import com.timgroup.statsd.StatsDClient
+import datadog.trace.api.interceptor.MutableSpan
+import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
@@ -580,6 +582,32 @@ class ScopeManagerTest extends DDSpecification {
     writer == [[secondSpan, span]]
   }
 
+  def "exception thrown in TraceInterceptor does not leave scopemanager in bad state"() {
+    when:
+    tracer.addTraceInterceptor(new ExceptionThrowingInterceptor())
+
+    def span = tracer.buildSpan("test").start()
+    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
+    scope.setAsyncPropagation(true)
+    def continuation = scope.capture()
+    scope.close()
+    span.finish()
+
+    then:
+    scopeManager.active() == null
+    spanFinished(span)
+
+    when:
+    def continuedScope = continuation.activate()
+    continuedScope.close()
+
+    then:
+    thrown(RuntimeException)
+    scopeManager.active() == null
+    scopeManager.scopeStack().depth() == 0
+    writer == []
+  }
+
   boolean spanFinished(AgentSpan span) {
     return ((DDSpan) span)?.isFinished()
   }
@@ -603,5 +631,18 @@ class EventCountingListener implements ScopeListener {
     synchronized (events) {
       events.add(CLOSE)
     }
+  }
+}
+
+class ExceptionThrowingInterceptor implements TraceInterceptor {
+
+  @Override
+  Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
+    throw new RuntimeException("Always throws exception")
+  }
+
+  @Override
+  int priority() {
+    return 55
   }
 }

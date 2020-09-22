@@ -13,7 +13,7 @@ import datadog.trace.core.jfr.DDScopeEvent;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
-import java.util.Arrays;
+import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -150,8 +150,6 @@ public class ContinuableScopeManager implements AgentScopeManager {
     public void close() {
       final ScopeStack scopeStack = scopeManager.scopeStack();
 
-      final boolean alive = decrementReferences();
-
       final boolean onTop = scopeStack.checkTop(this);
       if (!onTop) {
         if (log.isDebugEnabled()) {
@@ -170,15 +168,16 @@ public class ContinuableScopeManager implements AgentScopeManager {
         }
       }
 
+      final boolean alive = decrementReferences();
       if (alive) {
         return;
       }
 
+      scopeStack.cleanup();
+
       if (null != continuation) {
         continuation.cancelFromContinuedScopeClose();
       }
-
-      scopeStack.cleanup();
     }
 
     /*
@@ -258,27 +257,17 @@ public class ContinuableScopeManager implements AgentScopeManager {
    * cleanup() is called to ensure the invariant
    */
   static final class ScopeStack {
-    private static final int MIN_STACK_LENGTH = 16;
-
-    ContinuableScope[] stack = new ContinuableScope[MIN_STACK_LENGTH];
-    // The position of the top-most scope guaranteed to be active
-    // 0 if empty
-    int topPos = 0;
+    private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>();
 
     /** top - accesses the top of the ScopeStack */
     final ContinuableScope top() {
-      return stack[topPos];
+      return stack.peek();
     }
 
     void cleanup() {
-      // localizing & clamping stackPos to enable ArrayBoundsCheck elimination
-      // only bothering to do this here because of the loop below
-      final ContinuableScope[] stack = this.stack;
-      topPos = Math.min(topPos, stack.length);
-
+      ContinuableScope curScope = stack.peek();
       boolean changedTop = false;
-      while (topPos > 0) {
-        final ContinuableScope curScope = stack[topPos];
+      while (curScope != null) {
         if (curScope.alive()) {
           if (changedTop) {
             curScope.afterActivated();
@@ -288,40 +277,31 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
         // no longer alive -- trigger listener & null out
         curScope.onProperClose();
-        stack[topPos] = null;
-        --topPos;
+        stack.poll();
         changedTop = true;
-      }
-
-      if (topPos < stack.length / 4 && stack.length > MIN_STACK_LENGTH * 4) {
-        this.stack = Arrays.copyOf(stack, stack.length / 2);
+        curScope = stack.peek();
       }
     }
 
     /** Pushes a new scope unto the stack */
     final void push(final ContinuableScope scope) {
-      ++topPos;
-      if (topPos == stack.length) {
-        stack = Arrays.copyOf(stack, stack.length * 2);
-      }
-      stack[topPos] = scope;
+      stack.push(scope);
       scope.afterActivated();
     }
 
     /** Fast check to see if the expectedScope is on top the stack */
     final boolean checkTop(final ContinuableScope expectedScope) {
-      return expectedScope.equals(stack[topPos]);
+      return expectedScope.equals(stack.peek());
     }
 
     /** Returns the current stack depth */
     final int depth() {
-      return topPos;
+      return stack.size();
     }
 
     // DQH - regrettably needed for pre-existing tests
     final void clear() {
-      topPos = 0;
-      Arrays.fill(stack, null);
+      stack.clear();
     }
   }
 
