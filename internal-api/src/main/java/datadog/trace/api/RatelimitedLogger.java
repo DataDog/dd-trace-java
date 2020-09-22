@@ -7,7 +7,6 @@ import org.slf4j.Logger;
  * Logger that logs message once per given delay if debugging is disabled. If debugging is enabled
  * then it logs every time.
  */
-// FIXME: move this to a place where it can be reused
 public class RatelimitedLogger {
 
   public interface TimeSourceSupplier {
