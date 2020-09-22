@@ -41,8 +41,7 @@ public class ProfilingAgent {
       }
       if (config.getApiKey() != null && !API_KEY_REGEX.test(config.getApiKey())) {
         log.info(
-            "Profiling: API key doesn't match expected format, expected to get a 32 character hex string. Profiling is disabled. {} ",
-            config.getApiKey());
+            "Profiling: API key doesn't match expected format, expected to get a 32 character hex string. Profiling is disabled.");
         return;
       }
 
@@ -67,7 +66,7 @@ public class ProfilingAgent {
                 uploadPeriod,
                 config.isProfilingStartForceFirst());
         profiler.start();
-        log.info("Profiling has started!");
+        log.info("Profiling has started");
 
         try {
           /*

@@ -30,7 +30,6 @@ public class DDTraceCoreInfo {
       v = "unknown";
     }
     VERSION = v;
-    log.info("dd-trace - version: {}", v);
   }
 
   public static void main(final String... args) {

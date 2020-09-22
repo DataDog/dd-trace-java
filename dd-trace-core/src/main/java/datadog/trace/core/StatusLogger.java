@@ -63,6 +63,8 @@ public class StatusLogger {
     @Override
     public void toJson(JsonWriter writer, Config config) throws IOException {
       writer.beginObject();
+      writer.name("version");
+      writer.value(DDTraceCoreInfo.VERSION);
       writer.name("os_name");
       writer.value(System.getProperty("os.name"));
       writer.name("os_version");

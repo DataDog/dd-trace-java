@@ -244,8 +244,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       // The JVM is already shutting down.
     }
 
-    log.info("New instance: {}", this);
-
     final List<AbstractTagInterceptor> tagInterceptors =
         TagInterceptorsFactory.createTagInterceptors();
     for (final AbstractTagInterceptor interceptor : tagInterceptors) {
@@ -491,21 +489,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   public void close() {
     PendingTrace.close();
     writer.close();
-  }
-
-  @Override
-  public String toString() {
-    return "DDTracer-"
-        + Integer.toHexString(hashCode())
-        + "{ serviceName="
-        + serviceName
-        + ", writer="
-        + writer
-        + ", sampler="
-        + sampler
-        + ", defaultSpanTags="
-        + defaultSpanTags
-        + '}';
   }
 
   private static DDScopeEventFactory createScopeEventFactory() {
