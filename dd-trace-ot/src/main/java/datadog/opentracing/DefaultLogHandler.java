@@ -15,14 +15,12 @@ public class DefaultLogHandler implements LogHandler {
   @Override
   public void log(final Map<String, ?> fields, final AgentSpan span) {
     extractError(fields, span);
-    log.debug("`log` method is not implemented. Doing nothing");
   }
 
   @Override
   public void log(
       final long timestampMicroseconds, final Map<String, ?> fields, final AgentSpan span) {
     extractError(fields, span);
-    log.debug("`log` method is not implemented. Doing nothing");
   }
 
   @Override
