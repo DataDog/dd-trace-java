@@ -52,6 +52,32 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     }
   }
 
+  public void waitUntilReported(final DDSpan span) throws InterruptedException, TimeoutException {
+    while (true) {
+      final CountDownLatch latch = new CountDownLatch(size() + 1);
+      synchronized (latches) {
+        latches.add(latch);
+      }
+      if (isReported(span)) {
+        return;
+      }
+      if (!latch.await(20, TimeUnit.SECONDS)) {
+        throw new TimeoutException("Timeout waiting for span to be reported: " + span);
+      }
+    }
+  }
+
+  private boolean isReported(DDSpan span) {
+    for (List<DDSpan> trace : this) {
+      for (DDSpan aSpan : trace) {
+        if (aSpan == span) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   @Override
   public void incrementTraceCount() {
     traceCount.incrementAndGet();

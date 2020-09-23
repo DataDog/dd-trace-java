@@ -9,8 +9,6 @@ import spock.lang.Unroll
 import spock.util.concurrent.BlockingVariable
 import util.AbstractCouchbaseTest
 
-import java.util.concurrent.TimeUnit
-
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -38,8 +36,7 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     }
 
     cleanup:
-    cluster?.disconnect()?.timeout(TIMEOUT, TimeUnit.SECONDS)?.toBlocking()?.single()
-    environment.shutdown()
+    cleanupCluster(cluster, environment)
 
     where:
     bucketSettings << [bucketCouchbase, bucketMemcache]
@@ -77,8 +74,7 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     }
 
     cleanup:
-    cluster?.disconnect()?.timeout(TIMEOUT, TimeUnit.SECONDS)?.toBlocking()?.single()
-    environment.shutdown()
+    cleanupCluster(cluster, environment)
 
     where:
     bucketSettings << [bucketCouchbase, bucketMemcache]
@@ -125,8 +121,7 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     }
 
     cleanup:
-    cluster?.disconnect()?.timeout(TIMEOUT, TimeUnit.SECONDS)?.toBlocking()?.single()
-    environment.shutdown()
+    cleanupCluster(cluster, environment)
 
     where:
     bucketSettings << [bucketCouchbase, bucketMemcache]
@@ -171,7 +166,6 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     }
 
     cleanup:
-    cluster?.disconnect()?.timeout(TIMEOUT, TimeUnit.SECONDS)?.toBlocking()?.single()
-    environment.shutdown()
+    cleanupCluster(cluster, environment)
   }
 }

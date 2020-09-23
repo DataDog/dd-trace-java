@@ -2,9 +2,12 @@ package util
 
 import com.couchbase.client.core.metrics.DefaultLatencyMetricsCollectorConfig
 import com.couchbase.client.core.metrics.DefaultMetricsCollectorConfig
+import com.couchbase.client.java.CouchbaseAsyncCluster
+import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.bucket.BucketType
 import com.couchbase.client.java.cluster.BucketSettings
 import com.couchbase.client.java.cluster.DefaultBucketSettings
+import com.couchbase.client.java.env.CouchbaseEnvironment
 import com.couchbase.client.java.env.DefaultCouchbaseEnvironment
 import com.couchbase.mock.Bucket
 import com.couchbase.mock.BucketConfiguration
@@ -20,8 +23,10 @@ import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 abstract class AbstractCouchbaseTest extends AgentTestRunner {
 
@@ -104,6 +109,24 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
       .searchTimeout(timeout)
       .analyticsTimeout(timeout)
       .socketConnectTimeout(timeout.intValue())
+  }
+
+  protected void cleanupCluster(CouchbaseAsyncCluster cluster, CouchbaseEnvironment environment) {
+    def cleanupSpan = runUnderTrace("cleanup") {
+      cluster?.disconnect()?.timeout(10, TimeUnit.SECONDS)?.toBlocking()?.single()
+      environment.shutdown()
+      activeSpan()
+    }
+    TEST_WRITER.waitUntilReported(cleanupSpan)
+  }
+
+  protected void cleanupCluster(CouchbaseCluster cluster, CouchbaseEnvironment environment) {
+    def cleanupSpan = runUnderTrace("cleanup") {
+      cluster?.disconnect()
+      environment.shutdown()
+      activeSpan()
+    }
+    TEST_WRITER.waitUntilReported(cleanupSpan)
   }
 
   void assertCouchbaseCall(TraceAssert trace, String name, String bucketName = null, Object parentSpan = null) {

@@ -31,7 +31,7 @@ class ListWriterAssert {
       writer.waitForTraces(expectedSize)
       def array = writer.toArray()
       assert array.length == expectedSize
-      def traces = Arrays.asList(array) as List<List<DDSpan>>;
+      def traces = (Arrays.asList(array) as List<List<DDSpan>>)
       traces.sort(TraceSorter.SORTER)
       def asserter = new ListWriterAssert(traces)
       def clone = (Closure) spec.clone()
@@ -92,7 +92,7 @@ class ListWriterAssert {
   }
 
   private static class TraceSorter implements Comparator<List<DDSpan>> {
-    static TraceSorter SORTER = new TraceSorter();
+    static final TraceSorter SORTER = new TraceSorter()
 
     @Override
     int compare(List<DDSpan> o1, List<DDSpan> o2) {

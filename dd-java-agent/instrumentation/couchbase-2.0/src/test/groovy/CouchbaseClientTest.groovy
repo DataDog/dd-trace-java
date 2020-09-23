@@ -28,8 +28,7 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
     }
 
     cleanup:
-    cluster?.disconnect()
-    environment.shutdown()
+    cleanupCluster(cluster, environment)
 
     where:
     bucketSettings << [bucketCouchbase, bucketMemcache]
@@ -74,8 +73,7 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
     }
 
     cleanup:
-    cluster?.disconnect()
-    environment.shutdown()
+    cleanupCluster(cluster, environment)
 
     where:
     bucketSettings << [bucketCouchbase, bucketMemcache]
@@ -113,7 +111,6 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
     }
 
     cleanup:
-    cluster?.disconnect()
-    environment.shutdown()
+    cleanupCluster(cluster, environment)
   }
 }
