@@ -116,17 +116,16 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
     runUnderTrace("someTrace") {
       repo.save(doc)
       result = FIND(repo, "1")
-
-      blockUntilChildSpansFinished(2)
     }
 
     then: // RETRIEVE
     result == doc
     assertTraces(1) {
+      sortSpansByStart()
       trace(3) {
         basicSpan(it, "someTrace")
-        assertCouchbaseCall(it, "Bucket.get", bucketCouchbase.name(), span(0))
         assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name(), span(0))
+        assertCouchbaseCall(it, "Bucket.get", bucketCouchbase.name(), span(0))
       }
     }
   }
@@ -140,13 +139,12 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
       repo.save(doc)
       doc.data = "other data"
       repo.save(doc)
-
-      blockUntilChildSpansFinished(2)
     }
 
 
     then:
     assertTraces(1) {
+      sortSpansByStart()
       trace(3) {
         basicSpan(it, "someTrace")
         assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name(), span(0))
@@ -165,18 +163,17 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
       repo.save(doc)
       repo.delete("1")
       result = repo.findAll().iterator().hasNext()
-
-      blockUntilChildSpansFinished(3)
     }
 
     then:
     assert !result
     assertTraces(1) {
+      sortSpansByStart()
       trace(4) {
         basicSpan(it, "someTrace")
-        assertCouchbaseCall(it, "Bucket.query", bucketCouchbase.name(), span(0))
-        assertCouchbaseCall(it, "Bucket.remove", bucketCouchbase.name(), span(0))
         assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name(), span(0))
+        assertCouchbaseCall(it, "Bucket.remove", bucketCouchbase.name(), span(0))
+        assertCouchbaseCall(it, "Bucket.query", bucketCouchbase.name(), span(0))
       }
     }
   }

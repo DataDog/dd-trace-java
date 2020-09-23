@@ -53,8 +53,6 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
     runUnderTrace("someTrace") {
       inserted = bkt.upsert(JsonDocument.create("helloworld", content))
       found = bkt.get("helloworld")
-
-      blockUntilChildSpansFinished(2)
     }
 
     then:
@@ -62,13 +60,14 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
     found.content().getString("hello") == "world"
 
     assertTraces(2) {
+      sortSpansByStart()
       trace(1) {
         assertCouchbaseCall(it, "Cluster.openBucket")
       }
       trace(3) {
         basicSpan(it, "someTrace")
-        assertCouchbaseCall(it, "Bucket.get", bucketSettings.name(), span(0))
         assertCouchbaseCall(it, "Bucket.upsert", bucketSettings.name(), span(0))
+        assertCouchbaseCall(it, "Bucket.get", bucketSettings.name(), span(0))
       }
     }
 
