@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.BOOTSTRAP_CLASSLOADER;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.failSafe;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
@@ -43,6 +44,7 @@ import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
+import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
 
@@ -367,6 +369,15 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
       AgentBuilder.Identified.Extendable builder) {
 
     if (fieldInjectionEnabled) {
+      ElementMatcher<? super TypeDescription> typeMatcher =
+          failSafe(
+              instrumenter.typeMatcher(),
+              "Instrumentation type matcher unexpected exception: " + getClass().getName());
+      ElementMatcher<ClassLoader> classLoaderMatcher =
+          failSafe(
+              instrumenter.classLoaderMatcher(),
+              "Instrumentation class loader matcher unexpected exception: " + getClass().getName());
+
       for (final Map.Entry<String, String> entry : contextStore.entrySet()) {
         /*
          * For each context store defined in a current instrumentation we create an agent builder
@@ -390,12 +401,13 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
 
           /*
            * For each context store defined in a current instrumentation we create an agent builder
-           * that injects necessary fields.
+           * that injects necessary fields, but only if the instrumentation matcher matches.
            */
           builder =
               builder
-                  .type(safeHasSuperType(named(entry.getKey())), instrumenter.classLoaderMatcher())
-                  .and(safeToInjectFieldsMatcher())
+                  .type(
+                      safeHasSuperType(named(entry.getKey()).and(typeMatcher)), classLoaderMatcher)
+                  .and(safeToInjectFieldsMatcher(entry.getKey(), entry.getValue()))
                   .and(Default.NOT_DECORATOR_MATCHER)
                   .transform(NoOpTransformer.INSTANCE);
 
@@ -416,7 +428,8 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
     return builder;
   }
 
-  private static AgentBuilder.RawMatcher safeToInjectFieldsMatcher() {
+  private static AgentBuilder.RawMatcher safeToInjectFieldsMatcher(
+      final String keyType, final String valueType) {
     return new AgentBuilder.RawMatcher() {
       @Override
       public boolean matches(
@@ -433,9 +446,30 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
          * parents. It looks like current JVM implementation does exactly this but javadoc is not
          * explicit about that.
          */
-        return classBeingRedefined == null
-            || Arrays.asList(classBeingRedefined.getInterfaces())
-                .contains(FieldBackedContextStoreAppliedMarker.class);
+        boolean result =
+            classBeingRedefined == null
+                || Arrays.asList(classBeingRedefined.getInterfaces())
+                    .contains(FieldBackedContextStoreAppliedMarker.class);
+        if (log.isDebugEnabled()) {
+          if (result) {
+            // Only log success the first time we add it to the class
+            if (classBeingRedefined == null) {
+              log.debug(
+                  "Added context-store field to {}: {} -> {}",
+                  typeDescription.getName(),
+                  keyType,
+                  valueType);
+            }
+          } else {
+            // This will log for every failed redefine
+            log.debug(
+                "Failed to add context-store field to {}: {} -> {}",
+                typeDescription.getName(),
+                keyType,
+                valueType);
+          }
+        }
+        return result;
       }
     };
   }

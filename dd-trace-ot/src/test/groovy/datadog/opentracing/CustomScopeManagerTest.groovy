@@ -275,6 +275,11 @@ class TestScopeManager implements ScopeManager {
     }
 
     @Override
+    Continuation captureConcurrent() {
+      return capture()
+    }
+
+    @Override
     boolean isAsyncPropagating() {
       return asyncPropagating
     }

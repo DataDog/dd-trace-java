@@ -22,7 +22,7 @@ public final class RunnableWrapper implements Runnable {
   }
 
   public static Runnable wrapIfNeeded(final Runnable task) {
-    if (!(task instanceof RunnableWrapper)) {
+    if (!(task instanceof RunnableWrapper) && !SelfContained.skip(task)) {
       // We wrap only lambdas' anonymous classes and if given object has not already been wrapped.
       // Anonymous classes have '/' in class name which is not allowed in 'normal' classes.
       final String className = task.getClass().getName();

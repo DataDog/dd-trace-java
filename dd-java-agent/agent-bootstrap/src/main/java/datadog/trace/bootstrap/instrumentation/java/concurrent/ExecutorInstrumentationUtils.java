@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.SelfContained.skip;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.context.TraceScope;
@@ -9,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /** Utils for concurrent instrumentations. */
 @Slf4j
-public class ExecutorInstrumentationUtils {
+public final class ExecutorInstrumentationUtils {
 
   /**
    * Checks if given task should get state attached.
@@ -20,6 +21,10 @@ public class ExecutorInstrumentationUtils {
    */
   public static boolean shouldAttachStateToTask(final Object task, final Executor executor) {
     if (task == null) {
+      return false;
+    }
+
+    if (skip(task)) {
       return false;
     }
 
@@ -83,4 +88,6 @@ public class ExecutorInstrumentationUtils {
       state.closeContinuation();
     }
   }
+
+  private ExecutorInstrumentationUtils() {}
 }

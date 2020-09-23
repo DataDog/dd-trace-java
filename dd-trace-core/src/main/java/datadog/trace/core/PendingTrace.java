@@ -202,6 +202,8 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   public void cancelContinuation(final AgentScope.Continuation continuation) {
     synchronized (continuation) {
       if (continuation.isRegistered()) {
+        log.debug("t_id={} -> cancelling continuation {}", traceId, continuation);
+        //        new IllegalArgumentException().printStackTrace(System.out);
         continuation.cancel(weakContinuations);
         expireReference();
       } else {

@@ -425,6 +425,11 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentScope.Continuation captureConcurrent() {
+      return NoopContinuation.INSTANCE;
+    }
+
+    @Override
     public void close() {}
 
     @Override

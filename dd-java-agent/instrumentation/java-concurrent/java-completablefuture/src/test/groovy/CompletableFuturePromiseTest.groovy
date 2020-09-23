@@ -2,8 +2,12 @@ import datadog.trace.agent.test.base.AbstractPromiseTest
 import spock.lang.Shared
 
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.function.Function
+
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 abstract class CompletableFuturePromiseTest extends AbstractPromiseTest<CompletableFuture<Boolean>, CompletableFuture<String>> {
   @Shared
@@ -37,7 +41,52 @@ abstract class CompletableFuturePromiseTest extends AbstractPromiseTest<Completa
   }
 
   @Override
-  Boolean get(CompletableFuture<Boolean> promise) {
+  boolean get(CompletableFuture<Boolean> promise) {
     return promise.get()
+  }
+
+  @Override
+  boolean picksUpCompletingScope() {
+    return false
+  }
+
+  def "test call with no parent"() {
+    setup:
+    def promise = newPromise()
+    def latch = new CountDownLatch(1)
+
+    when:
+    def mapped = map(promise) {
+      runUnderTrace("mapped") {}
+      "$it"
+    }
+    onComplete(mapped) {
+      assert it == "$value"
+      runUnderTrace("callback") {}
+      latch.countDown()
+    }
+
+    runUnderTrace("other") {
+      complete(promise, value)
+      // This is here to sort the spans so that `mapped` always finishes first
+      waitForLatchOrFail(latch)
+    }
+
+    then:
+    get(promise) == value
+    assertTraces(3) {
+      trace(0, 1) {
+        basicSpan(it, 0, "mapped")
+      }
+      trace(1, 1) {
+        basicSpan(it, 0, "callback")
+      }
+      trace(2, 1) {
+        basicSpan(it, 0, "other")
+      }
+    }
+
+    where:
+    value << [true, false]
   }
 }
