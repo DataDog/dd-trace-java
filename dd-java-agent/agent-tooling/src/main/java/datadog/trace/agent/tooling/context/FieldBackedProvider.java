@@ -874,13 +874,23 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
   private static final class ContextStoreImplementationTemplate
       implements ContextStore<Object, Object> {
     private static final ContextStoreImplementationTemplate INSTANCE =
-        new ContextStoreImplementationTemplate(WeakMap.Provider.newWeakMap());
+        new ContextStoreImplementationTemplate();
 
-    private final WeakMap map;
+    private volatile WeakMap map;
+    private final Object synchronizationInstance = new Object();
 
-    private ContextStoreImplementationTemplate(final WeakMap map) {
-      this.map = map;
+    private WeakMap getMap() {
+      if (null == map) {
+        synchronized (synchronizationInstance) {
+          if (null == map) {
+            this.map = WeakMap.Provider.newWeakMap();
+          }
+        }
+      }
+      return map;
     }
+
+    private ContextStoreImplementationTemplate() {}
 
     @Override
     public Object get(final Object key) {
@@ -940,15 +950,15 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
     }
 
     private Object mapGet(final Object key) {
-      return map.get(key);
+      return getMap().get(key);
     }
 
     private void mapPut(final Object key, final Object value) {
-      map.put(key, value);
+      getMap().put(key, value);
     }
 
     private Object mapSynchronizeInstance(final Object key) {
-      return map;
+      return synchronizationInstance;
     }
 
     public static ContextStore getContextStore(final Class keyClass, final Class contextClass) {
