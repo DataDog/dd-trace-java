@@ -1,6 +1,7 @@
 package datadog.trace.core.util;
 
 import datadog.trace.api.Config;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -63,7 +64,13 @@ public final class SystemAccess {
   }
 
   /** */
-  public static String executeDiagnosticCommand(String command, Object[] args, String[] sig) {
+  public static String executeDiagnosticCommand(
+      final String command, final Object[] args, final String[] sig) {
     return systemAccessProvider.executeDiagnosticCommand(command, args, sig);
+  }
+
+  /** */
+  public static List<String> vmArguments() {
+    return systemAccessProvider.vmArguments();
   }
 }

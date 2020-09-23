@@ -3,6 +3,8 @@ package datadog.trace.core.util;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadMXBean;
+import java.util.Collections;
+import java.util.List;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import lombok.extern.slf4j.Slf4j;
@@ -30,36 +32,49 @@ final class JmxSystemAccessProvider implements SystemAccessProvider {
    */
   @Override
   public int getCurrentPid() {
-    String name = runtimeMXBean.getName();
+    final String name = runtimeMXBean.getName();
     if (name == null) {
       return 0;
     }
-    int idx = name.indexOf('@');
+    final int idx = name.indexOf('@');
     if (idx == -1) {
       return 0;
     }
-    String pid = name.substring(0, idx);
+    final String pid = name.substring(0, idx);
     return Integer.parseInt(pid);
   }
 
   /** */
   @Override
-  public String executeDiagnosticCommand(String command, Object[] args, String[] sig) {
+  public String executeDiagnosticCommand(
+      final String command, final Object[] args, final String[] sig) {
     ObjectName diagnosticCommandMBean = null;
     try {
       diagnosticCommandMBean = new ObjectName("com.sun.management:type=DiagnosticCommand");
-    } catch (MalformedObjectNameException ex) {
-      log.debug("Error during executeDiagnosticCommand: ", ex);
+    } catch (final MalformedObjectNameException ex) {
+      log.warn("Error during executeDiagnosticCommand: ", ex);
       return null;
     }
     try {
-      Object result =
+      final Object result =
           ManagementFactory.getPlatformMBeanServer()
               .invoke(diagnosticCommandMBean, command, args, sig);
       return result != null ? result.toString() : null;
-    } catch (Exception ex) {
-      log.debug("Error invoking diagnostic command: ", ex);
+    } catch (final Throwable ex) {
+      log.warn("Error invoking diagnostic command: ", ex);
       return null;
     }
+  }
+
+  /** */
+  @Override
+  public List<String> vmArguments() {
+    List<String> args = Collections.emptyList();
+    try {
+      args = runtimeMXBean.getInputArguments();
+    } catch (final Throwable ex) {
+      log.warn("Error invoking runtimeMxBean.getInputArguments: ", ex);
+    }
+    return args;
   }
 }

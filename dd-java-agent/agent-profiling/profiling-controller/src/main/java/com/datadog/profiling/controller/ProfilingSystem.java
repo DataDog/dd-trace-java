@@ -16,15 +16,16 @@
 package com.datadog.profiling.controller;
 
 import com.datadog.profiling.util.ProfilingThreadFactory;
-import java.lang.management.ManagementFactory;
+import datadog.trace.core.util.SystemAccess;
+import lombok.extern.slf4j.Slf4j;
+
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import javax.management.ObjectName;
-import lombok.extern.slf4j.Slf4j;
 
 /** Sets up the profiling strategy and schedules the profiling recordings. */
 @Slf4j
@@ -32,6 +33,8 @@ public final class ProfilingSystem {
   static final String RECORDING_NAME = "dd-profiling";
 
   private static final long TERMINATION_TIMEOUT = 10;
+  public static final int DEFAULT_STACK_DEPTH = 256;
+  public static final int MAX_STACK_DEPTH = 1024;
 
   private final ScheduledExecutorService executorService;
   private final Controller controller;
@@ -128,53 +131,53 @@ public final class ProfilingSystem {
     }
   }
 
-  private static void setupStackDepth(int stackdepth) {
-    log.debug("setting stackdepth...");
-    // JMX issue:
-    try {
-      ManagementFactory.getPlatformMBeanServer()
-          .invoke(
-              new ObjectName("com.sun.management:type=DiagnosticCommand"),
-              "jfrConfigure",
-              new Object[] {new String[] {"stackdepth=128"}},
-              new String[] {String[].class.getName()});
-    } catch (Exception ex) {
-      ex.printStackTrace();
-    }
-    /*
-     String name = ManagementFactory.getRuntimeMXBean().getName();
+  private static void setMaxStackDepth() {
+    final String JFR_STACK_DEPTH_ARG = "-XX:FlightRecorderOptions=stackdepth=";
+    int maxFrames = ProfilingSystem.DEFAULT_STACK_DEPTH;
 
-     String pid = name.substring(0, name.indexOf('@'));
-     ProcessBuilder processBuilder =
-         new ProcessBuilder(
-             System.getProperty("java.home")
-                 + File.separatorChar
-                 + "bin"
-                 + File.separatorChar
-                 + (System.getProperty("os.name", "").toLowerCase(Locale.US).contains("windows")
-                     ? "jcmd.exe"
-                     : "jcmd"),
-             pid,
-             "JFR.configure",
-             "stackdepth=" + stackdepth);
-     try {
-       Process process = processBuilder.start();
-       int exitCode = process.waitFor();
-       if (exitCode == 0) {
-         log.info("stackdepth set to {}", stackdepth);
-         return;
-       }
-       log.debug("jcmd exit code: {}", exitCode);
-     } catch (Exception ex) {
-       ex.printStackTrace();
-     }
-    */
+    final Optional<String> stackDepthArg =
+        SystemAccess.vmArguments().stream()
+            .filter(arg -> arg.startsWith(JFR_STACK_DEPTH_ARG))
+            .findFirst();
+
+    // don't set stackdepth if the client has explicitly set it
+    if (stackDepthArg.isPresent()) {
+      try {
+        final int stackDepth =
+            Integer.parseInt(stackDepthArg.get().replace(JFR_STACK_DEPTH_ARG, "").trim());
+
+        // client specified a value considered safe
+        if (stackDepth < MAX_STACK_DEPTH) {
+          log.info("skip setting JFR.configure stackdepth, using " + stackDepthArg.get());
+          return;
+        }
+
+        // limit how deep a stack depth we'll collect
+        log.warn(stackDepthArg.get() + " exceeds maximum value allowed by Datadog agent");
+        maxFrames = MAX_STACK_DEPTH;
+      } catch (final NumberFormatException e) { // "this should never happen"
+        log.warn("malformed arg: " + stackDepthArg.get());
+        maxFrames = DEFAULT_STACK_DEPTH;
+      }
+    }
+
+    log.info("setting JFR.configure stackdepth=" + maxFrames);
+    SystemAccess.executeDiagnosticCommand(
+        "jfrConfigure",
+        new Object[] {new String[] {"stackdepth=" + maxFrames}},
+        new String[] {String[].class.getName()});
   }
 
   private void startProfilingRecording() {
     try {
       final Instant now = Instant.now();
-      setupStackDepth(128);
+
+      // set JFR.configure stackdepth here because
+      // 1) it's prior to starting the recording; once recording starts there is no setting
+      // _max_frames
+      // 2) likely has given JMX a chance to initialize
+      setMaxStackDepth();
+
       recording = controller.createRecording(RECORDING_NAME);
       executorService.scheduleAtFixedRate(
           new SnapshotRecording(now),

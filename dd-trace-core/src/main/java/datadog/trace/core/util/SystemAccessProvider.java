@@ -1,5 +1,7 @@
 package datadog.trace.core.util;
 
+import java.util.List;
+
 /**
  * A pluggable system provider used by {@linkplain SystemAccess}. {@linkplain SystemAccess} may not
  * use JMX classes (even via transitive dependencies) due to potential race in j.u.l initialization.
@@ -18,4 +20,6 @@ public interface SystemAccessProvider {
 
   /** execute a diagnostic command */
   String executeDiagnosticCommand(String command, Object[] args, String[] sig);
+
+  List<String> vmArguments();
 }
