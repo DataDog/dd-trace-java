@@ -3,7 +3,7 @@ package datadog.trace.api
 import datadog.trace.util.test.DDSpecification
 import org.slf4j.Logger
 
-import java.time.Duration
+import static java.util.concurrent.TimeUnit.MINUTES
 
 class RateLimitedLoggerTest extends DDSpecification {
   final delay = 5
@@ -27,7 +27,7 @@ class RateLimitedLoggerTest extends DDSpecification {
 
   def "default warning once"() {
     setup:
-    def defaultRateLimitedLog = new RatelimitedLogger(log, Duration.ofMinutes(5).toNanos())
+    def defaultRateLimitedLog = new RatelimitedLogger(log, MINUTES.toNanos(5))
     log.isWarnEnabled() >> true
 
     when:
