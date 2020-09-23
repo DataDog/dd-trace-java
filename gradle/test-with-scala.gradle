@@ -3,8 +3,8 @@
 apply plugin: 'scala'
 
 dependencies {
-  implementation deps.scala
-  testImplementation deps.scala
+  compileOnly deps.scala
+  testCompile deps.scala
 }
 
 compileTestGroovy {
