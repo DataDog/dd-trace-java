@@ -620,6 +620,9 @@ acceptedBreaks:
   "0.61.0":
     com.datadoghq:dd-trace-ot:
     - code: "java.class.removed"
+      old: "class datadog.common.exec.CommonTaskExecutor"
+      justification: "replaced by AgentTaskScheduler"
+    - code: "java.class.removed"
       old: "class datadog.trace.core.monitor.Monitor"
       justification: "internal api"
     - code: "java.class.removed"

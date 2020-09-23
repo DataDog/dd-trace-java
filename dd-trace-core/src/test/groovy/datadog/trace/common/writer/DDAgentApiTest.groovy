@@ -21,6 +21,7 @@ import spock.lang.Shared
 import spock.lang.Timeout
 
 import java.nio.ByteBuffer
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -318,6 +319,22 @@ class DDAgentApiTest extends DDSpecification {
     "v0.5/traces" | 19 + 1 + 1     | (1..16).collect { [] }
     "v0.5/traces" | 65538 + 1 + 1  | (1..((1 << 16) - 1)).collect { [] }
     "v0.5/traces" | 65541 + 1 + 1  | (1..(1 << 16)).collect { [] }
+  }
+
+  def "Embedded HTTP client rejects async requests"() {
+    setup:
+    def agent = newAgent("v0.5/traces")
+    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
+    client.detectEndpointAndBuildClient()
+    def httpExecutorService = client.httpClient.dispatcher().executorService()
+    when:
+    httpExecutorService.execute({})
+    then:
+    thrown RejectedExecutionException
+    and:
+    httpExecutorService.isShutdown()
+    cleanup:
+    agent.close()
   }
 
   static List<List<TreeMap<String, Object>>> convertList(String agentVersion, byte[] bytes) {
