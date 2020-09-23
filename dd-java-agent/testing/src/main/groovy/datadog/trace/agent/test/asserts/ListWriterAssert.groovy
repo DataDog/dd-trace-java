@@ -32,7 +32,7 @@ class ListWriterAssert {
       def array = writer.toArray()
       assert array.length == expectedSize
       def traces = (Arrays.asList(array) as List<List<DDSpan>>)
-      traces.sort(TraceSorter.SORTER)
+      Collections.sort(traces, TraceSorter.SORTER)
       def asserter = new ListWriterAssert(traces)
       def clone = (Closure) spec.clone()
       clone.delegate = asserter
