@@ -146,7 +146,7 @@ class RabbitMQTest extends AgentTestRunner {
         rabbitSpan(it, "basic.publish <default> -> <generated>")
       }
       trace(1) {
-        rabbitSpan(it, "basic.get <generated>", true, trace(0)[0])
+        rabbitSpan(it, "basic.get <generated>", true, trace(1)[0])
       }
     }
   }

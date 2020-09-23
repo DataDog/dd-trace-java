@@ -186,7 +186,7 @@ class JMS2Test extends AgentTestRunner {
     def consumer = session.createConsumer(destination)
 
     // Receive with timeout
-    TextMessage receivedMessage = consumer.receive(100)
+    TextMessage receivedMessage = consumer.receive(1)
 
     expect:
     receivedMessage == null
