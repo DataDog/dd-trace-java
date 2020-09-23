@@ -3,7 +3,6 @@ package springdata
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import spock.lang.Retry
 import spock.lang.Shared
@@ -13,6 +12,7 @@ import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
@@ -47,14 +47,18 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     }
   }
 
-  def setup() {
-    repo.refresh()
-    TEST_WRITER.clear()
-    runUnderTrace("delete") {
+  def setupSpec() {
+    repo.refresh() // lazy init
+    cleanup()
+  }
+
+  def cleanup() {
+    def cleanupSpan = runUnderTrace("cleanup") {
+      repo.refresh()
       repo.deleteAll()
+      activeSpan()
     }
-    TEST_WRITER.waitForTraces(1)
-    TEST_WRITER.clear()
+    TEST_WRITER.waitUntilReported(cleanupSpan)
   }
 
   def "test empty repo"() {
@@ -65,8 +69,8 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     !result.iterator().hasNext()
 
     and:
-    waitForTracesAndSortSpans(1)
     assertTraces(1) {
+      sortSpansByStart()
       trace(2) {
         span {
           operationName "repository.operation"
@@ -188,8 +192,8 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     repo.findById("1").get() == doc
 
     and:
-    waitForTracesAndSortSpans(1)
     assertTraces(1) {
+      sortSpansByStart()
       trace(2) {
         span {
           resourceName "CrudRepository.findById"
@@ -232,8 +236,8 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     repo.findById("1").get() == doc
 
     and:
-    waitForTracesAndSortSpans(2)
     assertTraces(2) {
+      sortSpansByStart()
       trace(3) {
         span {
           resourceName "ElasticsearchRepository.index"
@@ -241,24 +245,6 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "spring-data"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            defaultTags()
-          }
-        }
-        span {
-          resourceName "RefreshAction"
-          operationName "elasticsearch.query"
-          spanType DDSpanTypes.ELASTICSEARCH
-          childOf(span(0))
-          tags {
-            "$Tags.COMPONENT" "elasticsearch-java"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "elasticsearch"
-            "elasticsearch.action" "RefreshAction"
-            "elasticsearch.request" "RefreshRequest"
-            "elasticsearch.request.indices" indexName
-            "elasticsearch.shard.broadcast.failed" 0
-            "elasticsearch.shard.broadcast.successful" 5
-            "elasticsearch.shard.broadcast.total" 10
             defaultTags()
           }
         }
@@ -280,6 +266,24 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.shard.replication.failed" 0
             "elasticsearch.shard.replication.successful" 1
             "elasticsearch.shard.replication.total" 2
+            defaultTags()
+          }
+        }
+        span {
+          resourceName "RefreshAction"
+          operationName "elasticsearch.query"
+          spanType DDSpanTypes.ELASTICSEARCH
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "elasticsearch-java"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "elasticsearch"
+            "elasticsearch.action" "RefreshAction"
+            "elasticsearch.request" "RefreshRequest"
+            "elasticsearch.request.indices" indexName
+            "elasticsearch.shard.broadcast.failed" 0
+            "elasticsearch.shard.broadcast.successful" 5
+            "elasticsearch.shard.broadcast.total" 10
             defaultTags()
           }
         }
@@ -325,8 +329,8 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     !repo.findAll().iterator().hasNext()
 
     and:
-    waitForTracesAndSortSpans(2)
     assertTraces(2) {
+      sortSpansByStart()
       trace(3) {
         span {
           resourceName "CrudRepository.deleteById"
@@ -334,25 +338,6 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "spring-data"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            defaultTags()
-          }
-        }
-
-        span {
-          resourceName "RefreshAction"
-          operationName "elasticsearch.query"
-          spanType DDSpanTypes.ELASTICSEARCH
-          childOf(span(0))
-          tags {
-            "$Tags.COMPONENT" "elasticsearch-java"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "elasticsearch"
-            "elasticsearch.action" "RefreshAction"
-            "elasticsearch.request" "RefreshRequest"
-            "elasticsearch.request.indices" indexName
-            "elasticsearch.shard.broadcast.failed" 0
-            "elasticsearch.shard.broadcast.successful" 5
-            "elasticsearch.shard.broadcast.total" 10
             defaultTags()
           }
         }
@@ -376,6 +361,24 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             defaultTags()
           }
         }
+        span {
+          resourceName "RefreshAction"
+          operationName "elasticsearch.query"
+          spanType DDSpanTypes.ELASTICSEARCH
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "elasticsearch-java"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "elasticsearch"
+            "elasticsearch.action" "RefreshAction"
+            "elasticsearch.request" "RefreshRequest"
+            "elasticsearch.request.indices" indexName
+            "elasticsearch.shard.broadcast.failed" 0
+            "elasticsearch.shard.broadcast.successful" 5
+            "elasticsearch.shard.broadcast.total" 10
+            defaultTags()
+          }
+        }
       }
 
       trace(2) {
@@ -388,7 +391,6 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             defaultTags()
           }
         }
-
         span {
           serviceName "elasticsearch"
           resourceName "SearchAction"
@@ -411,18 +413,5 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
 
     where:
     indexName = "test-index"
-  }
-
-  def waitForTracesAndSortSpans(int number) {
-    TEST_WRITER.waitForTraces(number)
-    for (List<DDSpan> trace : TEST_WRITER) {
-      // need to normalize span ordering since they are finished by different threads
-      if (trace.size() > 1 && trace[1].operationName.toString() == "repository.operation") {
-        def tmp = trace[1]
-        trace[1] = trace[0]
-        trace[0] = tmp
-      }
-    }
-    return true
   }
 }

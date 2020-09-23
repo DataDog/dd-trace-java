@@ -10,6 +10,7 @@ import spock.lang.Retry
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
@@ -19,14 +20,13 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
   @Shared
   DocRepository repo = applicationContext.getBean(DocRepository)
 
-  def setup() {
-    repo.refresh()
-    TEST_WRITER.clear()
-    runUnderTrace("delete") {
+  def cleanup() {
+    def cleanupSpan = runUnderTrace("cleanup") {
+      repo.refresh()
       repo.deleteAll()
+      activeSpan()
     }
-    TEST_WRITER.waitForTraces(1)
-    TEST_WRITER.clear()
+    TEST_WRITER.waitUntilReported(cleanupSpan)
   }
 
   def "test empty repo"() {

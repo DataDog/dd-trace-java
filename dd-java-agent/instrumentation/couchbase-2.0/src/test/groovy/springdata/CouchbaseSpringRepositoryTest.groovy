@@ -14,6 +14,7 @@ import util.AbstractCouchbaseTest
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Unroll
 class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
@@ -67,6 +68,14 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
     applicationContext.close()
   }
 
+  def cleanup() {
+    def cleanupSpan = runUnderTrace("cleanup") {
+      repo.deleteAll()
+      activeSpan()
+    }
+    TEST_WRITER.waitUntilReported(cleanupSpan)
+  }
+
   def "test empty repo"() {
     when:
     def result = repo.findAll()
@@ -96,11 +105,6 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
         assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name())
       }
     }
-
-    cleanup:
-    TEST_WRITER.clear()
-    repo.deleteAll()
-    TEST_WRITER.waitForTraces(2)
   }
 
   def "test save and retrieve"() {
@@ -125,11 +129,6 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
         assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name(), span(0))
       }
     }
-
-    cleanup:
-    TEST_WRITER.clear()
-    repo.deleteAll()
-    TEST_WRITER.waitForTraces(2)
   }
 
   def "test save and update"() {
@@ -154,11 +153,6 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
         assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name(), span(0))
       }
     }
-
-    cleanup:
-    TEST_WRITER.clear()
-    repo.deleteAll()
-    TEST_WRITER.waitForTraces(2)
   }
 
   def "save and delete"() {
