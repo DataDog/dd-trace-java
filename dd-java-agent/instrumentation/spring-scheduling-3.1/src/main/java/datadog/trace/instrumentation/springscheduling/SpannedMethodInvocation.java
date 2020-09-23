@@ -6,17 +6,18 @@ import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDec
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.context.TraceScope;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Method;
 import org.aopalliance.intercept.MethodInvocation;
 
 public class SpannedMethodInvocation implements MethodInvocation {
 
-  private final AgentSpan parent;
+  private final TraceScope.Continuation continuation;
   private final MethodInvocation delegate;
 
-  public SpannedMethodInvocation(AgentSpan parent, MethodInvocation delegate) {
-    this.parent = parent;
+  public SpannedMethodInvocation(TraceScope.Continuation continuation, MethodInvocation delegate) {
+    this.continuation = continuation;
     this.delegate = delegate;
   }
 
@@ -33,16 +34,22 @@ public class SpannedMethodInvocation implements MethodInvocation {
   @Override
   public Object proceed() throws Throwable {
     CharSequence spanName = DECORATE.spanNameForMethod(delegate.getMethod());
-    final AgentSpan span =
-        parent == null ? startSpan(spanName) : startSpan(spanName, parent.context());
+    return null == continuation ? invokeWithSpan(spanName) : invokeWithContinuation(spanName);
+  }
+
+  private Object invokeWithContinuation(CharSequence spanName) throws Throwable {
+    try (TraceScope scope = continuation.activate()) {
+      scope.setAsyncPropagation(true);
+      return invokeWithSpan(spanName);
+    }
+  }
+
+  private Object invokeWithSpan(CharSequence spanName) throws Throwable {
+    AgentSpan span = startSpan(spanName);
     try (AgentScope scope = activateSpan(span)) {
-      // question: is this necessary? What does it do?
-      // if the delegate does async work is everything OK because of this?
-      // if the delegate does async work, should I need to worry about it here?
       scope.setAsyncPropagation(true);
       return delegate.proceed();
     } finally {
-      // question: Why can't this just be AutoCloseable? Dogma?
       span.finish();
     }
   }
