@@ -39,8 +39,8 @@ class SpringListenerJMS2Test extends AgentTestRunner {
     expect:
     assertTraces(3) {
       producerTrace(it, "Queue SpringListenerJMS2")
-      consumerTrace(it, "Queue SpringListenerJMS2", false, HornetQMessageConsumer)
-      consumerTrace(it, "Queue SpringListenerJMS2", true, MessagingMessageListenerAdapter)
+      consumerTrace(it, "Queue SpringListenerJMS2", false, HornetQMessageConsumer, trace(0)[0])
+      consumerTrace(it, "Queue SpringListenerJMS2", true, MessagingMessageListenerAdapter, trace(0)[0])
     }
   }
 }

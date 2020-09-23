@@ -113,14 +113,13 @@ class RabbitMQTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        // reverse order
         rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
         rabbitSpan(it, "queue.bind", false, span(0))
         rabbitSpan(it, "queue.declare", false, span(0))
         rabbitSpan(it, "exchange.declare", false, span(0))
       }
       trace(1) {
-        rabbitSpan(it, "basic.get <generated>", true, TEST_WRITER[1][1])
+        rabbitSpan(it, "basic.get <generated>", true, trace(0)[1])
       }
     }
 
@@ -147,7 +146,7 @@ class RabbitMQTest extends AgentTestRunner {
         rabbitSpan(it, "basic.publish <default> -> <generated>")
       }
       trace(1) {
-        rabbitSpan(it, "basic.get <generated>", true, TEST_WRITER[1][0])
+        rabbitSpan(it, "basic.get <generated>", true, trace(0)[0])
       }
     }
   }
@@ -338,7 +337,7 @@ class RabbitMQTest extends AgentTestRunner {
         rabbitSpan(it, "basic.publish <default> -> some-routing-queue")
       }
       trace(1) {
-        rabbitSpan(it, "basic.get $queue.name", true, TEST_WRITER[1][0])
+        rabbitSpan(it, "basic.get $queue.name", true, trace(1)[0])
       }
     }
   }

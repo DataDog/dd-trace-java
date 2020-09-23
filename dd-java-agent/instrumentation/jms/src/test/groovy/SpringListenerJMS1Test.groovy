@@ -41,8 +41,8 @@ class SpringListenerJMS1Test extends AgentTestRunner {
     expect:
     assertTraces(3) {
       producerTrace(it, "Queue SpringListenerJMS1")
-      consumerTrace(it, "Queue SpringListenerJMS1", false, ActiveMQMessageConsumer)
-      consumerTrace(it, "Queue SpringListenerJMS1", true, MessagingMessageListenerAdapter)
+      consumerTrace(it, "Queue SpringListenerJMS1", false, ActiveMQMessageConsumer, trace(0)[0])
+      consumerTrace(it, "Queue SpringListenerJMS1", true, MessagingMessageListenerAdapter, trace(0)[0])
     }
 
     cleanup:

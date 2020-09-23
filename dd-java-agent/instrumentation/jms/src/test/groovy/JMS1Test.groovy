@@ -54,7 +54,7 @@ class JMS1Test extends AgentTestRunner {
     receivedMessage.text == messageText
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, false, ActiveMQMessageConsumer)
+      consumerTrace(it, jmsResourceName, false, ActiveMQMessageConsumer, trace(0)[0])
     }
 
     cleanup:
@@ -89,7 +89,7 @@ class JMS1Test extends AgentTestRunner {
     expect:
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, true, consumer.messageListener.class)
+      consumerTrace(it, jmsResourceName, true, consumer.messageListener.class, trace(0)[0])
     }
     // This check needs to go after all traces have been accounted for
     messageRef.get().text == messageText
@@ -256,7 +256,7 @@ class JMS1Test extends AgentTestRunner {
     }
   }
 
-  static consumerTrace(ListWriterAssert writer, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan = TEST_WRITER[0][0]) {
+  static consumerTrace(ListWriterAssert writer, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan) {
     writer.trace(1) {
       span {
         serviceName "jms"

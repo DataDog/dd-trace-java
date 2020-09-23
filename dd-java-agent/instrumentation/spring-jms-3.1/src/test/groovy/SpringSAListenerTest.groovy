@@ -46,8 +46,8 @@ class SpringSAListenerTest extends AgentTestRunner {
     // The framework continues to poll the queue and will generate additional "jms.consume/JMS receive" traces when the receive times out, so we want to ignore these additional traces.
     assertTraces(3, true) {
       producerTrace(it, "Queue SpringSAListenerJMS")
-      consumerTrace(it, "Queue SpringSAListenerJMS", false, ActiveMQMessageConsumer)
-      consumerTrace(it, "Queue SpringSAListenerJMS", true, SATestListener)
+      consumerTrace(it, "Queue SpringSAListenerJMS", false, ActiveMQMessageConsumer, trace(0)[0])
+      consumerTrace(it, "Queue SpringSAListenerJMS", true, SATestListener, trace(0)[0])
     }
 
     cleanup:
@@ -74,7 +74,7 @@ class SpringSAListenerTest extends AgentTestRunner {
     }
   }
 
-  static consumerTrace(ListWriterAssert writer, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan = TEST_WRITER[0][0]) {
+  static consumerTrace(ListWriterAssert writer, String jmsResourceName, boolean messageListener, Class origin, DDSpan parentSpan) {
     writer.trace(1) {
       span {
         serviceName "jms"

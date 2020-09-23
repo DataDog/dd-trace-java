@@ -187,7 +187,7 @@ class RmiTest extends AgentTestRunner {
       }
       trace(1) {
         span {
-          childOf TEST_WRITER[1][1]
+          childOf trace(1)[1]
           resourceName "ServerLegacy.hello"
           operationName "rmi.request"
           spanType DDSpanTypes.RPC

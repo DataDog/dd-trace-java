@@ -126,7 +126,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
-          childOf TEST_WRITER[0][2]
+          childOf trace(0)[2]
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -233,7 +233,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
-          childOf TEST_WRITER[0][2]
+          childOf trace(0)[2]
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -333,7 +333,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
-          childOf TEST_WRITER[0][0]
+          childOf trace(0)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -417,7 +417,7 @@ class KafkaClientTest extends AgentTestRunner {
           resourceName "Consume Topic $SHARED_TOPIC"
           spanType "queue"
           errored false
-          childOf TEST_WRITER[0][0]
+          childOf trace(0)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER

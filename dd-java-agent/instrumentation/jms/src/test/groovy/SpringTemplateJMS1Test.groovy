@@ -19,8 +19,6 @@ class SpringTemplateJMS1Test extends AgentTestRunner {
   @Shared
   EmbeddedActiveMQBroker broker = new EmbeddedActiveMQBroker()
   @Shared
-  String messageText = "a message"
-  @Shared
   JmsTemplate template
   @Shared
   Session session
@@ -51,12 +49,14 @@ class SpringTemplateJMS1Test extends AgentTestRunner {
     receivedMessage.text == messageText
     assertTraces(2) {
       producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, false, ActiveMQMessageConsumer)
+      consumerTrace(it, jmsResourceName, false, ActiveMQMessageConsumer, trace(0)[0])
     }
 
     where:
     destination                               | jmsResourceName
     session.createQueue("SpringTemplateJMS1") | "Queue SpringTemplateJMS1"
+
+    messageText = "a message"
   }
 
   def "send and receive message generates spans"() {
@@ -64,9 +64,6 @@ class SpringTemplateJMS1Test extends AgentTestRunner {
     Thread.start {
       TextMessage msg = template.receive(destination)
       assert msg.text == messageText
-
-      // Make sure that first pair of send/receive traces has landed to simplify assertions
-      TEST_WRITER.waitForTraces(2)
 
       template.send(msg.getJMSReplyTo()) {
         session -> template.getMessageConverter().toMessage("responded!", session)
@@ -80,13 +77,15 @@ class SpringTemplateJMS1Test extends AgentTestRunner {
     receivedMessage.text == "responded!"
     assertTraces(4) {
       producerTrace(it, jmsResourceName)
-      consumerTrace(it, jmsResourceName, false, ActiveMQMessageConsumer)
+      consumerTrace(it, jmsResourceName, false, ActiveMQMessageConsumer, trace(0)[0])
       producerTrace(it, "Temporary Queue") // receive doesn't propagate the trace, so this is a root
-      consumerTrace(it, "Temporary Queue", false, ActiveMQMessageConsumer, TEST_WRITER[2][0])
+      consumerTrace(it, "Temporary Queue", false, ActiveMQMessageConsumer, trace(2)[0])
     }
 
     where:
     destination                               | jmsResourceName
     session.createQueue("SpringTemplateJMS1") | "Queue SpringTemplateJMS1"
+
+    messageText = "a message"
   }
 }

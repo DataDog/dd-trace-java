@@ -117,13 +117,6 @@ class KafkaStreamsTest extends AgentTestRunner {
     received.value() == greeting.toLowerCase()
     received.key() == null
 
-    if (TEST_WRITER[1][0].operationName.toString() == "kafka.produce") {
-      // Make sure that order of first two traces is predetermined.
-      // Unfortunately it looks like we cannot really control it in a better way through the code
-      def tmp = TEST_WRITER[1][0]
-      TEST_WRITER[1][0] = TEST_WRITER[0][0]
-      TEST_WRITER[0][0] = tmp
-    }
     assertTraces(4) {
       trace(1) {
         // PRODUCER span 0
@@ -149,7 +142,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           resourceName "Consume Topic $STREAM_PENDING"
           spanType "queue"
           errored false
-          childOf TEST_WRITER[0][0]
+          childOf trace(0)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -185,7 +178,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           resourceName "Consume Topic $STREAM_PENDING"
           spanType "queue"
           errored false
-          childOf TEST_WRITER[0][0]
+          childOf trace(0)[0]
 
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -205,7 +198,7 @@ class KafkaStreamsTest extends AgentTestRunner {
           resourceName "Consume Topic $STREAM_PROCESSED"
           spanType "queue"
           errored false
-          childOf TEST_WRITER[2][0]
+          childOf trace(2)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
