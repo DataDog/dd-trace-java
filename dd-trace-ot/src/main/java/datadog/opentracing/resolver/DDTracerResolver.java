@@ -1,7 +1,6 @@
 package datadog.opentracing.resolver;
 
 import com.google.auto.service.AutoService;
-import com.google.common.annotations.VisibleForTesting;
 import datadog.opentracing.DDTracer;
 import datadog.trace.api.Config;
 import io.opentracing.Tracer;
@@ -12,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 @AutoService(TracerResolver.class)
 public class DDTracerResolver extends TracerResolver {
 
-  @VisibleForTesting
   Tracer resolve(final Config config) {
     if (config.isTraceResolverEnabled()) {
       log.info("Creating DDTracer with DDTracerResolver");

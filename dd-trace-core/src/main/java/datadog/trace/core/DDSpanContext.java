@@ -1,6 +1,5 @@
 package datadog.trace.core;
 
-import com.google.common.collect.ImmutableMap;
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -407,7 +406,7 @@ public class DDSpanContext implements AgentSpan.Context {
 
   public Map<String, Object> getTags() {
     synchronized (unsafeTags) {
-      return ImmutableMap.copyOf(unsafeTags);
+      return Collections.unmodifiableMap(new HashMap<>(unsafeTags));
     }
   }
 
