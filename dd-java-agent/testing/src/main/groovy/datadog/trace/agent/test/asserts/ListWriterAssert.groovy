@@ -27,6 +27,13 @@ class ListWriterAssert {
   static void assertTraces(ListWriter writer, int expectedSize,
                            @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.ListWriterAssert'])
                            @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    assertTraces(writer, expectedSize, false, spec)
+  }
+
+  static void assertTraces(ListWriter writer, int expectedSize,
+                           boolean ignoreAdditionalTraces,
+                           @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.ListWriterAssert'])
+                           @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     try {
       writer.waitForTraces(expectedSize)
       def array = writer.toArray()
@@ -38,8 +45,20 @@ class ListWriterAssert {
       clone.delegate = asserter
       clone.resolveStrategy = Closure.DELEGATE_FIRST
       clone(asserter)
-      asserter.assertTracesAllVerified()
-      assert writer.size() == array.length: "ListWriter obtained additional traces while validating."
+      if (!ignoreAdditionalTraces) {
+        asserter.assertTracesAllVerified()
+        if (writer.size() > traces.size()) {
+          def extras = new ArrayList<>(writer)
+          extras.removeAll(traces)
+          def message = new StringBuilder("ListWriter obtained ${extras.size()} additional traces while validating:")
+          extras.each {
+            message.append('\n')
+            message.append(it)
+          }
+          message.append('\n')
+          throw new AssertionError(message)
+        }
+      }
     } catch (PowerAssertionError e) {
       def stackLine = null
       for (int i = 0; i < e.stackTrace.length; i++) {
