@@ -14,6 +14,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.GI
 import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.GITLAB_GIT_TAG
 import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.GITLAB_JOB_URL
 import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.GITLAB_PIPELINE_ID
+import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.GITLAB_PIPELINE_NAME
 import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.GITLAB_PIPELINE_NUMBER
 import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.GITLAB_PIPELINE_URL
 import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.GITLAB_PROVIDER_NAME
@@ -24,6 +25,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.JE
 import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.JENKINS_GIT_REPOSITORY_URL
 import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.JENKINS_JOB_URL
 import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.JENKINS_PIPELINE_ID
+import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.JENKINS_PIPELINE_NAME
 import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.JENKINS_PIPELINE_NUMBER
 import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.JENKINS_PIPELINE_URL
 import static datadog.trace.bootstrap.instrumentation.decorator.TestDecorator.JENKINS_PROVIDER_NAME
@@ -63,6 +65,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     setup:
     environmentVariables.set(JENKINS, "jenkins")
     environmentVariables.set(JENKINS_PIPELINE_ID, "jenkins-pipeline-id")
+    environmentVariables.set(JENKINS_PIPELINE_NAME, jenkinsJobName)
     environmentVariables.set(JENKINS_PIPELINE_NUMBER, "jenkins-pipeline-number")
     environmentVariables.set(JENKINS_PIPELINE_URL, "jenkins-pipeline-url")
     environmentVariables.set(JENKINS_JOB_URL, "jenkins-job-url")
@@ -83,6 +86,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setTag(Tags.CI_PROVIDER_NAME, JENKINS_PROVIDER_NAME)
     1 * span.setTag(Tags.CI_PIPELINE_ID, "jenkins-pipeline-id")
+    1 * span.setTag(Tags.CI_PIPELINE_NAME, spanTagName)
     1 * span.setTag(Tags.CI_PIPELINE_NUMBER, "jenkins-pipeline-number")
     1 * span.setTag(Tags.CI_PIPELINE_URL, "jenkins-pipeline-url")
     1 * span.setTag(Tags.CI_JOB_URL, "jenkins-job-url")
@@ -98,23 +102,28 @@ class TestDecoratorTest extends BaseDecoratorTest {
     0 * _
 
     where:
-    jenkinsRepo                                  | spanTagRepo                     | jenkinsBranch            | spanTagBranch | spanTagTag
-    "sample"                                     | "sample"                        | "origin/master"          | "master"      | null
-    "sample"                                     | "sample"                        | "refs/heads/master"      | "master"      | null
-    "sample"                                     | "sample"                        | "refs/heads/feature/one" | "feature/one" | null
-    "sample"                                     | "sample"                        | "origin/tags/0.1.0"      | null          | "0.1.0"
-    "sample"                                     | "sample"                        | "refs/heads/tags/0.1.0"  | null          | "0.1.0"
-    "http://hostname.com/repo.git"               | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
-    "http://user@hostname.com/repo.git"          | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
-    "http://user%E2%82%AC@hostname.com/repo.git" | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
-    "http://user:pwd@hostname.com/repo.git"      | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
-    "git@hostname.com:org/repo.git"              | "git@hostname.com:org/repo.git" | "origin/master"          | "master"      | null
+    jenkinsJobName                                   | spanTagName       | jenkinsRepo                                  | spanTagRepo                     | jenkinsBranch            | spanTagBranch | spanTagTag
+    "jobName"                                        | "jobName"         | "sample"                                     | "sample"                        | "origin/master"          | "master"      | null
+    "jobName/master"                                 | "jobName"         | "sample"                                     | "sample"                        | "refs/heads/master"      | "master"      | null
+    "jobName/another"                                | "jobName/another" | "sample"                                     | "sample"                        | "refs/heads/master"      | "master"      | null
+    "jobName/feature/one"                            | "jobName"         | "sample"                                     | "sample"                        | "refs/heads/feature/one" | "feature/one" | null
+    "jobName/KEY1=VALUE1,KEY2=VALUE2"                | "jobName"         | "sample"                                     | "sample"                        | "refs/heads/master"      | "master"      | null
+    "jobName/KEY1=VALUE1,KEY2=VALUE2/master"         | "jobName"         | "sample"                                     | "sample"                        | "refs/heads/master"      | "master"      | null
+    "jobName/KEY1=VALUE1,KEY2=VALUE2/another-branch" | "jobName"         | "sample"                                     | "sample"                        | "refs/heads/master"      | "master"      | null
+    null                                             | null              | "sample"                                     | "sample"                        | "origin/tags/0.1.0"      | null          | "0.1.0"
+    ""                                               | ""                | "sample"                                     | "sample"                        | "refs/heads/tags/0.1.0"  | null          | "0.1.0"
+    "jobName"                                        | "jobName"         | "http://hostname.com/repo.git"               | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
+    "jobName"                                        | "jobName"         | "http://user@hostname.com/repo.git"          | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
+    "jobName"                                        | "jobName"         | "http://user%E2%82%AC@hostname.com/repo.git" | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
+    "jobName"                                        | "jobName"         | "http://user:pwd@hostname.com/repo.git"      | "http://hostname.com/repo.git"  | "origin/master"          | "master"      | null
+    "jobName"                                        | "jobName"         | "git@hostname.com:org/repo.git"              | "git@hostname.com:org/repo.git" | "origin/master"          | "master"      | null
   }
 
   def "test afterStart in GitLab"() {
     setup:
     environmentVariables.set(GITLAB, "gitlab")
     environmentVariables.set(GITLAB_PIPELINE_ID, "gitlab-pipeline-id")
+    environmentVariables.set(GITLAB_PIPELINE_NAME, "gitlab-pipeline-name")
     environmentVariables.set(GITLAB_PIPELINE_NUMBER, "gitlab-pipeline-number")
     environmentVariables.set(GITLAB_PIPELINE_URL, "gitlab-pipeline-url")
     environmentVariables.set(GITLAB_JOB_URL, "gitlab-job-url")
@@ -136,6 +145,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setTag(Tags.CI_PROVIDER_NAME, GITLAB_PROVIDER_NAME)
     1 * span.setTag(Tags.CI_PIPELINE_ID, "gitlab-pipeline-id")
+    1 * span.setTag(Tags.CI_PIPELINE_NAME, "gitlab-pipeline-name")
     1 * span.setTag(Tags.CI_PIPELINE_NUMBER, "gitlab-pipeline-number")
     1 * span.setTag(Tags.CI_PIPELINE_URL, "gitlab-pipeline-url")
     1 * span.setTag(Tags.CI_JOB_URL, "gitlab-job-url")

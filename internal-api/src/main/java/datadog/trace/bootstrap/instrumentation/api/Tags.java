@@ -36,6 +36,7 @@ public class Tags {
 
   public static final String CI_PROVIDER_NAME = "ci.provider.name";
   public static final String CI_PIPELINE_ID = "ci.pipeline.id";
+  public static final String CI_PIPELINE_NAME = "ci.pipeline.name";
   public static final String CI_PIPELINE_NUMBER = "ci.pipeline.number";
   public static final String CI_PIPELINE_URL = "ci.pipeline.url";
   public static final String CI_JOB_URL = "ci.job.url";
