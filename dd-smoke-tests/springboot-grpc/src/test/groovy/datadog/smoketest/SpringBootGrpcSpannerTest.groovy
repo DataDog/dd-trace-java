@@ -1,7 +1,10 @@
 package datadog.smoketest
 
+import spock.lang.Ignore
+
 import java.util.concurrent.atomic.AtomicInteger
 
+@Ignore("can unignore when strict continuation reference counting is dropped")
 class SpringBootGrpcSpannerTest extends SpringBootWithGRPCTest {
 
   @Override
