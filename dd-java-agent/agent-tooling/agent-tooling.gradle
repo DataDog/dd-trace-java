@@ -15,6 +15,7 @@ dependencies {
   compile group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.15'
   compile deps.bytebuddy
   compile deps.bytebuddyagent
+  compile deps.guava
 
   annotationProcessor deps.autoserviceProcessor
   compileOnly deps.autoserviceAnnotation
