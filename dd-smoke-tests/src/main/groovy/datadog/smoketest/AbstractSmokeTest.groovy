@@ -8,6 +8,7 @@ import spock.lang.Specification
 
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeoutException
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
@@ -98,22 +99,33 @@ abstract class AbstractSmokeTest extends Specification {
   }
 
   def cleanupSpec() {
+    Integer exitValue
     for (int i = 0; i < 10; i++) {
       try {
         if (i == 3) {
+          System.out.println("Destroying instrumented process")
           testedProcess.destroy()
         }
         if (i == 6) {
+          System.out.println("Destroying instrumented process (forced)")
           testedProcess.destroyForcibly()
         }
-        testedProcess.exitValue()
+        exitValue = testedProcess.exitValue()
         break
       }
       catch (Throwable e) {
         sleep 1_000
       }
     }
+
     stopServer()
+
+    if (exitValue != null) {
+      System.out.println("Instrumented process exited with " + exitValue)
+    }
+    else {
+      throw new TimeoutException("Instrumented process failed to exit")
+    }
   }
 
   def getProfilingUrl() {
