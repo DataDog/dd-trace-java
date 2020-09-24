@@ -107,6 +107,7 @@ abstract class AbstractSmokeTest extends Specification {
           testedProcess.destroyForcibly()
         }
         testedProcess.exitValue()
+        break
       }
       catch (Throwable e) {
         sleep 1_000
