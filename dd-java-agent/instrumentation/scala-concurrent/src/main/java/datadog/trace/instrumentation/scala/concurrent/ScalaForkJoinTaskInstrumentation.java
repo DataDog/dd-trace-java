@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.scala.concurrent;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
@@ -41,12 +40,6 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Default
 
   public ScalaForkJoinTaskInstrumentation() {
     super("java_concurrent", "scala_concurrent");
-  }
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed(TASK_CLASS_NAME);
   }
 
   @Override

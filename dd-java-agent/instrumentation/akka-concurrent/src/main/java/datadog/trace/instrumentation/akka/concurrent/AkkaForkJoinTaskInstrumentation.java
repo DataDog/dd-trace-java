@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
@@ -41,12 +40,6 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default 
 
   public AkkaForkJoinTaskInstrumentation() {
     super("java_concurrent", "akka_concurrent");
-  }
-
-  @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    // Optimization for expensive typeMatcher.
-    return hasClassesNamed(TASK_CLASS_NAME);
   }
 
   @Override
