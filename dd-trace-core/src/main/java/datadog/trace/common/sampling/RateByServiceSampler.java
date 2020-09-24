@@ -63,7 +63,8 @@ public class RateByServiceSampler implements Sampler, PrioritySampler, DDAgentRe
   }
 
   private static String getSpanEnv(final DDSpan span) {
-    return null == span.getTags().get("env") ? "" : String.valueOf(span.getTags().get("env"));
+    Object env = span.getTag("env");
+    return null == env ? "" : String.valueOf(env);
   }
 
   @Override
