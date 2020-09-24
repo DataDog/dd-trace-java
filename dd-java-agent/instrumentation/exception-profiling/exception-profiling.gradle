@@ -12,8 +12,6 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
 dependencies {
-  compile project(':dd-java-agent:agent-tooling')
-
   testCompile deps.junit5
   testCompile deps.jmc
   testCompile deps.commonsMath
