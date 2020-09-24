@@ -68,7 +68,7 @@ public class ScheduledExecutorServiceInstrumentation extends Instrumenter.Defaul
         @Advice.Argument(value = 0, readOnly = false) Runnable task) {
       final TraceScope scope = activeScope();
       if (null != scope) {
-        task = new RunnableWrapper(task);
+        task = RunnableWrapper.wrapIfNeeded(task);
         final ContextStore<Runnable, State> contextStore =
             InstrumentationContext.get(Runnable.class, State.class);
         return ExecutorInstrumentationUtils.setupState(contextStore, task, scope);
@@ -99,7 +99,7 @@ public class ScheduledExecutorServiceInstrumentation extends Instrumenter.Defaul
         @Advice.Argument(value = 0, readOnly = false) Callable task) {
       final TraceScope scope = activeScope();
       if (null != scope) {
-        task = new CallableWrapper(task);
+        task = CallableWrapper.wrapIfNeeded(task);
         final ContextStore<Callable, State> contextStore =
             InstrumentationContext.get(Callable.class, State.class);
         return ExecutorInstrumentationUtils.setupState(contextStore, task, scope);
