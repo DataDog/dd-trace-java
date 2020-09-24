@@ -98,7 +98,20 @@ abstract class AbstractSmokeTest extends Specification {
   }
 
   def cleanupSpec() {
-    testedProcess?.waitForOrKill(1)
+    for (int i = 0; i < 10; i++) {
+      try {
+        if (i == 3) {
+          testedProcess.destroy()
+        }
+        if (i == 6) {
+          testedProcess.destroyForcibly()
+        }
+        testedProcess.exitValue()
+      }
+      catch (Throwable e) {
+        sleep 1_000
+      }
+    }
     stopServer()
   }
 
