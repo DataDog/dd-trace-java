@@ -117,6 +117,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
 
     and:
     assertTraces(2) {
+      sortSpansByStart()
       trace(3) {
         span {
           resourceName "ElasticsearchRepository.index"
@@ -127,26 +128,6 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             defaultTags()
           }
         }
-
-        span {
-          resourceName "RefreshAction"
-          operationName "elasticsearch.query"
-          spanType DDSpanTypes.ELASTICSEARCH
-          childOf(span(0))
-          tags {
-            "$Tags.COMPONENT" "elasticsearch-java"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "elasticsearch"
-            "elasticsearch.action" "RefreshAction"
-            "elasticsearch.request" "RefreshRequest"
-            "elasticsearch.request.indices" indexName
-            "elasticsearch.shard.broadcast.failed" 0
-            "elasticsearch.shard.broadcast.successful" 5
-            "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
-          }
-        }
-
         span {
           resourceName "IndexAction"
           operationName "elasticsearch.query"
@@ -165,6 +146,24 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             "elasticsearch.shard.replication.failed" 0
             "elasticsearch.shard.replication.successful" 1
             "elasticsearch.shard.replication.total" 2
+            defaultTags()
+          }
+        }
+        span {
+          resourceName "RefreshAction"
+          operationName "elasticsearch.query"
+          spanType DDSpanTypes.ELASTICSEARCH
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "elasticsearch-java"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "elasticsearch"
+            "elasticsearch.action" "RefreshAction"
+            "elasticsearch.request" "RefreshRequest"
+            "elasticsearch.request.indices" indexName
+            "elasticsearch.shard.broadcast.failed" 0
+            "elasticsearch.shard.broadcast.successful" 5
+            "elasticsearch.shard.broadcast.total" 10
             defaultTags()
           }
         }

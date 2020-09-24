@@ -44,6 +44,7 @@ class Config {
       .put("thread_pool.listener.size", 1)
       .put("transport.type", "netty3")
       .put("http.type", "netty3")
+      .put("cluster.info.update.interval", "1d") // set update interval super long
       .build()
 
     println "ES work dir: $tmpDir"
