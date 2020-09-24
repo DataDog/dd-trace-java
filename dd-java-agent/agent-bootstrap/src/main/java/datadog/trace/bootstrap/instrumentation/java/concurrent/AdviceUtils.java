@@ -2,11 +2,31 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.context.TraceScope;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 
 /** Helper utils for Runnable/Callable instrumentation */
 @Slf4j
 public class AdviceUtils {
+
+  private static final ConcurrentHashMap<Class<?>, AtomicInteger> counters =
+      new ConcurrentHashMap<>();
+
+  private static void count(Object task) {
+    if (task instanceof Runnable) {
+      AtomicInteger i = counters.get(task.getClass());
+      if (null == i) {
+        i = new AtomicInteger();
+        AtomicInteger winner = counters.putIfAbsent(task.getClass(), i);
+        if (winner != null) {
+          i = winner;
+        }
+      }
+      i.incrementAndGet();
+      System.err.println("get context for runnable: " + counters);
+    }
+  }
 
   /**
    * Start scope for a given task
@@ -18,6 +38,7 @@ public class AdviceUtils {
    */
   public static <T> TraceScope startTaskScope(
       final ContextStore<T, State> contextStore, final T task) {
+    count(task);
     final State state = contextStore.get(task);
     if (state != null) {
       final TraceScope.Continuation continuation = state.getAndResetContinuation();

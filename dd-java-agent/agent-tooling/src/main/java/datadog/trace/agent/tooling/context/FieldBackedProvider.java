@@ -23,6 +23,8 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.ClassFileVersion;
@@ -876,6 +878,22 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
     private static final ContextStoreImplementationTemplate INSTANCE =
         new ContextStoreImplementationTemplate();
 
+    private static final ConcurrentHashMap<Class<?>, AtomicInteger> counters =
+        new ConcurrentHashMap<>();
+
+    private static void count(Object task) {
+      AtomicInteger i = counters.get(task.getClass());
+      if (null == i) {
+        i = new AtomicInteger();
+        AtomicInteger winner = counters.putIfAbsent(task.getClass(), i);
+        if (winner != null) {
+          i = winner;
+        }
+      }
+      i.incrementAndGet();
+      System.err.println("get context from map for runnable: " + counters);
+    }
+
     private volatile WeakMap map;
     private final Object synchronizationInstance = new Object();
 
@@ -950,6 +968,10 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
     }
 
     private Object mapGet(final Object key) {
+      if (key instanceof Runnable) {
+        count(key);
+        System.err.println("runnable map size: " + getMap().size());
+      }
       return getMap().get(key);
     }
 
