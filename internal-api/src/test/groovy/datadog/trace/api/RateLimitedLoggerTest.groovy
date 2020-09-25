@@ -1,5 +1,6 @@
 package datadog.trace.api
 
+import datadog.trace.api.time.TimeSource
 import datadog.trace.util.test.DDSpecification
 import org.slf4j.Logger
 
@@ -10,7 +11,7 @@ class RateLimitedLoggerTest extends DDSpecification {
   final exception = new RuntimeException("bad thing")
 
   Logger log = Mock(Logger)
-  RatelimitedLogger.TimeSourceSupplier timeSource = Mock(RatelimitedLogger.TimeSourceSupplier)
+  TimeSource timeSource = Mock(TimeSource)
   RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
 
   def "Debug level"() {
@@ -88,6 +89,6 @@ class RateLimitedLoggerTest extends DDSpecification {
     rateLimitedLog.warn("test")
 
     then:
-    1 *  log.warn("test (Will not log errors for 5 minutes)")
+    1 * log.warn("test (Will not log errors for 5 minutes)")
   }
 }

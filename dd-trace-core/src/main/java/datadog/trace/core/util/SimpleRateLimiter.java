@@ -1,55 +1,51 @@
 package datadog.trace.core.util;
 
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
+import datadog.trace.api.utils.MathUtils;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
-/** Rate limiter that only supports non-blocking retrieval of a single token */
+/**
+ * Rate limiter that only supports non-blocking retrieval of a single token at a minimum rate of 1
+ * per second. Tokens are not smoothed across the second
+ */
 public class SimpleRateLimiter {
+  private static final long REFILL_INTERVAL = TimeUnit.SECONDS.toNanos(1);
   private final long capacity;
-  private long tokens;
-  private long lastRefillTime;
-  private final long refillIntervalInNanos;
+  private final AtomicLong tokens;
+  private final AtomicLong lastRefillTime;
   private final TimeSource timeSource;
 
-  public SimpleRateLimiter(long rate, TimeUnit unit) {
-    this(rate, unit, new SystemNanoTimeSource());
+  public SimpleRateLimiter(long rate) {
+    this(rate, SystemTimeSource.INSTANCE);
   }
 
-  protected SimpleRateLimiter(long rate, TimeUnit unit, TimeSource timeSource) {
-    refillIntervalInNanos = unit.toNanos(1) / rate;
-    capacity = rate;
-    tokens = rate;
+  protected SimpleRateLimiter(long rate, TimeSource timeSource) {
     this.timeSource = timeSource;
-    lastRefillTime = timeSource.getTime();
+
+    capacity = Math.max(1, rate);
+
+    tokens = new AtomicLong(capacity);
+
+    lastRefillTime = new AtomicLong(timeSource.get());
   }
 
-  public synchronized boolean tryAcquire() {
-    fill();
+  public boolean tryAcquire() {
+    long now = timeSource.get();
+    long localRefill = lastRefillTime.get();
+    long timeElapsedSinceLastRefill = timeSource.get() - localRefill;
 
-    if (tokens > 0) {
-      tokens--;
-      return true;
-    } else {
-      return false;
+    // Attempt to refill tokens if an interval has passed
+    // Only refill the tokens if this thread wins a race
+    if (timeElapsedSinceLastRefill > REFILL_INTERVAL) {
+      if (lastRefillTime.compareAndSet(localRefill, now)) {
+        tokens.set(capacity);
+      }
+
+      return tryAcquire();
     }
-  }
 
-  private void fill() {
-    long timeElapsedSinceLastRefill = timeSource.getTime() - lastRefillTime;
-    long intervals = timeElapsedSinceLastRefill / refillIntervalInNanos;
-    tokens = Math.min(capacity, tokens + intervals);
-
-    lastRefillTime += intervals * refillIntervalInNanos;
-  }
-
-  // This can probably be extracted to be more generic
-  interface TimeSource {
-    long getTime();
-  }
-
-  static class SystemNanoTimeSource implements TimeSource {
-    @Override
-    public long getTime() {
-      return System.nanoTime();
-    }
+    return MathUtils.boundedDecrement(tokens, 0);
   }
 }
