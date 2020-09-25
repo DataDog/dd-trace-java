@@ -1,5 +1,6 @@
 package datadog.trace.core.serialization.msgpack;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
@@ -17,6 +18,8 @@ public interface Writable {
   void writeUTF8(byte[] string, int offset, int length);
 
   void writeUTF8(byte[] string);
+
+  void writeUTF8(UTF8BytesString string);
 
   void writeBinary(byte[] binary, int offset, int length);
 
