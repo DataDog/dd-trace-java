@@ -19,7 +19,11 @@ class ReferenceCreatorTest extends AgentTestRunner {
     references.get('muzzle.TestClasses$MethodBodyAdvice$B') != null
     references.get('muzzle.TestClasses$MethodBodyAdvice$SomeInterface') != null
     references.get('muzzle.TestClasses$MethodBodyAdvice$SomeImplementation') != null
-    references.keySet().size() == 4
+    references.get('muzzle.TestClasses$MethodBodyAdvice$SomeImplementation') != null
+    references.get('java.lang.Object') != null
+    references.get('java.lang.CharSequence') != null
+    references.get('java.lang.String') != null
+    references.keySet().size() == 7
 
     // interface flags
     references.get('muzzle.TestClasses$MethodBodyAdvice$B').getFlags().contains(Reference.Flag.NON_INTERFACE)

@@ -35,6 +35,8 @@ public class ReferenceCreator extends ClassVisitor {
    */
   private static final String REFERENCE_CREATION_PACKAGE = "datadog.trace.instrumentation.";
 
+  private static final String DATADOG_TRACE_PACKAGE = "datadog.trace.";
+
   public static Map<String, Reference> createReferencesFrom(
       final String entryPointClassName, final ClassLoader loader) {
     return ReferenceCreator.createReferencesFrom(entryPointClassName, loader, true);
@@ -184,7 +186,8 @@ public class ReferenceCreator extends ClassVisitor {
   }
 
   private void addReference(final Reference ref) {
-    if (!ref.getClassName().startsWith("java.")) {
+    // don't create references for classes we build ourselves
+    if (!ref.getClassName().startsWith(DATADOG_TRACE_PACKAGE)) {
       Reference reference = references.get(ref.getClassName());
       if (null == reference) {
         references.put(ref.getClassName(), ref);

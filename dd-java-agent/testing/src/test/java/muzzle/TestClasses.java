@@ -1,5 +1,6 @@
 package muzzle;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import net.bytebuddy.asm.Advice;
 
 public class TestClasses {
@@ -16,6 +17,7 @@ public class TestClasses {
       a.b.aMethodWithArrays(new String[0]);
       B.aStaticMethod();
       A.staticB.aMethod("bar");
+      UTF8BytesString utf8BytesString = UTF8BytesString.create(String.valueOf(o));
     }
 
     public static class A {
