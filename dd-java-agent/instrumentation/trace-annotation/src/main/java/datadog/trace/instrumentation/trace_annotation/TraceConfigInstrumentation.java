@@ -68,8 +68,8 @@ public class TraceConfigInstrumentation implements Instrumenter {
       classMethodsToTrace = Collections.emptyMap();
 
     } else {
-      final Map<String, Set<String>> toTrace = new HashMap<>();
       final String[] classMethods = configString.split(";", -1);
+      final Map<String, Set<String>> toTrace = new HashMap<>(classMethods.length);
       for (final String classMethod : classMethods) {
         if (classMethod.trim().isEmpty()) {
           continue;

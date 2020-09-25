@@ -60,8 +60,8 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Default 
           configString);
       additionalTraceAnnotations = Collections.emptySet();
     } else {
-      final Set<String> annotations = new HashSet<>();
       final String[] annotationClasses = configString.split(";", -1);
+      final Set<String> annotations = new HashSet<>(annotationClasses.length);
       for (final String annotationClass : annotationClasses) {
         if (!annotationClass.trim().isEmpty()) {
           annotations.add(annotationClass.trim());
