@@ -13,7 +13,6 @@ import static datadog.trace.core.StringTables.START;
 import static datadog.trace.core.StringTables.TRACE_ID;
 import static datadog.trace.core.StringTables.TYPE;
 import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.CONSTANT_KEYS;
-import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.CONSTANT_TAGS;
 import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.NO_CACHING;
 import static datadog.trace.core.serialization.msgpack.Util.integerToStringBuffer;
 import static datadog.trace.core.serialization.msgpack.Util.writeLongAsString;
@@ -41,7 +40,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.startMap(12);
       /* 1  */
       writable.writeUTF8(SERVICE);
-      writable.writeString(span.getServiceName(), CONSTANT_TAGS);
+      writable.writeString(span.getServiceName(), NO_CACHING);
       /* 2  */
       writable.writeUTF8(NAME);
       writable.writeObject(span.getOperationName(), NO_CACHING);

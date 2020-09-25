@@ -190,11 +190,8 @@ public final class TraceMapperV0_5 implements TraceMapper {
         String string = String.valueOf(data);
         byte[] utf8 = StringTables.getKeyBytesUTF8(string);
         if (null == utf8) {
-          utf8 = StringTables.getTagBytesUTF8(string);
-          if (null == utf8) {
-            packer.writeString(string, NO_CACHING);
-            return;
-          }
+          packer.writeString(string, NO_CACHING);
+          return;
         }
         packer.writeUTF8(utf8);
       }
