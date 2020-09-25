@@ -80,7 +80,7 @@ abstract class HttpClientTest extends AgentTestRunner {
    */
   abstract int doRequest(String method, URI uri, Map<String, String> headers = [:], Closure callback = null)
 
-  abstract String component()
+  abstract CharSequence component()
 
   Integer statusOnRedirectError() {
     return null

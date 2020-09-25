@@ -36,7 +36,7 @@ class GrizzlyAsyncHttpClientTest extends HttpClientTest {
   }
 
   @Override
-  String component() {
+  CharSequence component() {
     return ClientDecorator.DECORATE.component()
   }
 

@@ -81,7 +81,12 @@ class SpanAssert {
   }
 
   def spanType(String type) {
-    assert span.spanType == type
+    if (null == span.spanType) {
+      // code less readable makes for a better assertion message, don't want NPE
+      assert span.spanType == type
+    } else {
+      assert span.spanType.toString() == type
+    }
     assert span.tags["span.type"] == null
     checked.spanType = true
   }

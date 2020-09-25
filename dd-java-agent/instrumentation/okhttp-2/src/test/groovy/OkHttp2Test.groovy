@@ -39,7 +39,7 @@ class OkHttp2Test extends HttpClientTest {
 
 
   @Override
-  String component() {
+  CharSequence component() {
     return OkHttpClientDecorator.DECORATE.component()
   }
 

@@ -40,7 +40,7 @@ abstract class PlayWSClientTestBase extends HttpClientTest {
   }
 
   @Override
-  String component() {
+  CharSequence component() {
     return PlayWSClientDecorator.DECORATE.component()
   }
 

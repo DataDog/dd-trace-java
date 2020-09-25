@@ -33,7 +33,7 @@ class JaxRsClientV1Test extends HttpClientTest {
   }
 
   @Override
-  String component() {
+  CharSequence component() {
     return JaxRsClientV1Decorator.DECORATE.component()
   }
 

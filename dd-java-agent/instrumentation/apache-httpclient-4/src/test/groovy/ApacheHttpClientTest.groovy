@@ -23,7 +23,7 @@ abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTes
   }
 
   @Override
-  String component() {
+  CharSequence component() {
     return ApacheHttpClientDecorator.DECORATE.component()
   }
 

@@ -45,7 +45,7 @@ class ApacheHttpClientResponseHandlerTest extends HttpClientTest {
   }
 
   @Override
-  String component() {
+  CharSequence component() {
     return ApacheHttpClientDecorator.DECORATE.component()
   }
 }
