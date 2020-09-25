@@ -30,7 +30,8 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
     // and lowercase all other headers
     def ci = request.getHeaders().getClassInfo()
     request.getHeaders().putAll(headers.collectEntries { name, value
-           -> [(name) : (ci.getFieldInfo(name) != null ? [value] : value.toLowerCase())]})
+      -> [(name): (ci.getFieldInfo(name) != null ? [value] : value.toLowerCase())]
+    })
 
     request.setThrowExceptionOnExecuteError(throwExceptionOnError)
 
@@ -63,9 +64,8 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
     then:
     status == 500
     assertTraces(2) {
-      server.distributedRequestTrace(it, 0, trace(1).last())
-      trace(1, size(1)) {
-        span(0) {
+      trace(size(1)) {
+        span {
           resourceName "$method $uri.path"
           spanType DDSpanTypes.HTTP_CLIENT
           errored true
@@ -82,6 +82,7 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
           }
         }
       }
+      server.distributedRequestTrace(it, trace(0).last())
     }
 
     where:

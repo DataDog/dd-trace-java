@@ -1758,7 +1758,7 @@ class ConfigTest extends DDSpecification {
     "42.42" | ClassThrowsExceptionForValueOfMethod // will wrapped in NumberFormatException anyway
   }
 
-  def "revert to RANDOM with invalid id generation strategy" () {
+  def "revert to RANDOM with invalid id generation strategy"() {
     setup:
     def prop = new Properties()
     prop.setProperty(ID_GENERATION_STRATEGY, "LOL")

@@ -59,8 +59,8 @@ class OpenTracingAPITest extends DDSpecification {
     1 * traceInterceptor.onTraceComplete({ it.size() == 1 }) >> { args -> args[0] }
 
     assertTraces(writer, 1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "someService"
           operationName "someOperation"
           resourceName "someOperation"
@@ -94,8 +94,8 @@ class OpenTracingAPITest extends DDSpecification {
     testSpan instanceof MutableSpan
 
     assertTraces(writer, 1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "someService"
           operationName "someOperation"
           resourceName "someOperation"
@@ -134,8 +134,8 @@ class OpenTracingAPITest extends DDSpecification {
     1 * scopeListener.afterScopeClosed()
 
     assertTraces(writer, 1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "someService"
           operationName("someOtherOperation")
           resourceName "someOtherOperation"
@@ -196,8 +196,8 @@ class OpenTracingAPITest extends DDSpecification {
     1 * traceInterceptor.onTraceComplete({ it.size() == 2 }) >> { args -> args[0] }
 
     assertTraces(writer, 1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           serviceName "someService"
           operationName "someOperation"
           resourceName "someOperation"
@@ -205,7 +205,7 @@ class OpenTracingAPITest extends DDSpecification {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "someService"
           operationName "someOperation2"
           resourceName "someOperation2"
@@ -244,8 +244,8 @@ class OpenTracingAPITest extends DDSpecification {
     1 * traceInterceptor.onTraceComplete({ it.size() == 1 }) >> { args -> args[0] }
 
     assertTraces(writer, 1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "someService"
           operationName "someOperation"
           resourceName "someOperation"
@@ -281,8 +281,8 @@ class OpenTracingAPITest extends DDSpecification {
     1 * scopeListener.afterScopeClosed()
 
     assertTraces(writer, 1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "someService"
           operationName "someOperation"
           resourceName "someOperation"
@@ -410,24 +410,24 @@ class OpenTracingAPITest extends DDSpecification {
     extractedContext.toSpanId() == testSpan.context().toSpanId()
 
     assertTraces(writer, 2) {
-      trace(0, 1) {
-        span(0) {
-          serviceName "someService"
-          operationName "serverOperation"
-          resourceName "serverOperation"
-          childOf(trace(1).get(0))
-          tags {
-            defaultTags(true)
-          }
-        }
-      }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "someClientService"
           operationName "clientOperation"
           resourceName "clientOperation"
           tags {
             defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "someService"
+          operationName "serverOperation"
+          resourceName "serverOperation"
+          childOf(trace(0).get(0))
+          tags {
+            defaultTags(true)
           }
         }
       }

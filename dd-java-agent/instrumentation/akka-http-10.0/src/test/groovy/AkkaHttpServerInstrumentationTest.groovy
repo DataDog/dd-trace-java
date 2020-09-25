@@ -37,8 +37,8 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object> 
 //    AkkaHttpTestWebServer.stop()
 //  }
 
-  void serverSpan(TraceAssert trace, int index, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    trace.span(index) {
+  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
       resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"

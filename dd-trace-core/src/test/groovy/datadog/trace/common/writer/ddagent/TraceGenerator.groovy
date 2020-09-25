@@ -52,9 +52,9 @@ class TraceGenerator {
         : ThreadLocalRandom.current().nextDouble())
     }
     return new PojoSpan(
-      "service-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 10),
-      "operation-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 100),
-      UTF8BytesString.create("resource-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 100)),
+      "service-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 10),
+      "operation-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100),
+      UTF8BytesString.create("resource-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100)),
       DDId.from(traceId),
       IdGenerationStrategy.RANDOM.generate(),
       DDId.ZERO,
@@ -64,13 +64,13 @@ class TraceGenerator {
       metrics,
       baggage,
       tags,
-      "type-" + ThreadLocalRandom.current().nextInt(lowCardinality? 1 : 100))
+      "type-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100))
   }
 
   private static String randomString(int maxLength) {
     char[] chars = new char[ThreadLocalRandom.current().nextInt(maxLength)]
     for (int i = 0; i < chars.length; ++i) {
-      char next = (char)ThreadLocalRandom.current().nextInt((int) Character.MAX_VALUE)
+      char next = (char) ThreadLocalRandom.current().nextInt((int) Character.MAX_VALUE)
       if (Character.isSurrogate(next)) {
         if (i < chars.length - 1) {
           chars[i++] = '\uD801'

@@ -94,8 +94,8 @@ class SystemAccessTest extends DDSpecification {
     def pid = SystemAccess.getCurrentPid()
 
     then:
-      pid > 0
-      pid == Integer.parseInt(ManagementFactory.getRuntimeMXBean().getName().split("@")[0])
+    pid > 0
+    pid == Integer.parseInt(ManagementFactory.getRuntimeMXBean().getName().split("@")[0])
 
     cleanup:
     SystemAccess.disableJmx()

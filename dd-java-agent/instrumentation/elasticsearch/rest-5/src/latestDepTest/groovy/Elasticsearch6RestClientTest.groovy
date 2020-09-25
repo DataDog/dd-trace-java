@@ -76,8 +76,8 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
     result.status == "green"
 
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           serviceName "elasticsearch"
           resourceName "GET _cluster/health"
           operationName "elasticsearch.rest.query"
@@ -94,7 +94,7 @@ class Elasticsearch6RestClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GET _cluster/health"
           operationName "http.request"

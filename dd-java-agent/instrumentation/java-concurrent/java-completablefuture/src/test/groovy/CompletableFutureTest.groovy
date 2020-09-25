@@ -95,9 +95,9 @@ class CompletableFutureTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        basicSpan(it, 1, "child", span(0))
+      trace(2) {
+        basicSpan(it, "parent")
+        basicSpan(it, "child", span(0))
       }
     }
   }
@@ -119,9 +119,9 @@ class CompletableFutureTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        basicSpan(it, 1, "child", span(0))
+      trace(2) {
+        basicSpan(it, "parent")
+        basicSpan(it, "child", span(0))
       }
     }
   }
@@ -145,9 +145,9 @@ class CompletableFutureTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        basicSpan(it, 1, "child", span(0))
+      trace(2) {
+        basicSpan(it, "parent")
+        basicSpan(it, "child", span(0))
       }
     }
   }
@@ -173,9 +173,9 @@ class CompletableFutureTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        basicSpan(it, 1, "child", span(0))
+      trace(2) {
+        basicSpan(it, "parent")
+        basicSpan(it, "child", span(0))
       }
     }
   }
@@ -201,9 +201,9 @@ class CompletableFutureTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        basicSpan(it, 1, "child", span(0))
+      trace(2) {
+        basicSpan(it, "parent")
+        basicSpan(it, "child", span(0))
       }
     }
   }
@@ -231,9 +231,9 @@ class CompletableFutureTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        basicSpan(it, 1, "child", span(0))
+      trace(2) {
+        basicSpan(it, "parent")
+        basicSpan(it, "child", span(0))
       }
     }
   }

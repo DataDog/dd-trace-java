@@ -52,9 +52,9 @@ class HttpServletResponseTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 4) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(4) {
+        basicSpan(it, "parent")
+        span {
           operationName "servlet.response"
           resourceName "HttpServletResponse.sendRedirect"
           childOf span(0)
@@ -63,7 +63,7 @@ class HttpServletResponseTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           operationName "servlet.response"
           resourceName "HttpServletResponse.sendError"
           childOf span(0)
@@ -72,7 +72,7 @@ class HttpServletResponseTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           operationName "servlet.response"
           resourceName "HttpServletResponse.sendError"
           childOf span(0)
@@ -110,9 +110,9 @@ class HttpServletResponseTest extends AgentTestRunner {
     th == ex
 
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent", null, ex)
-        span(1) {
+      trace(2) {
+        basicSpan(it, "parent", null, ex)
+        span {
           operationName "servlet.response"
           resourceName "HttpServletResponse.sendRedirect"
           childOf span(0)

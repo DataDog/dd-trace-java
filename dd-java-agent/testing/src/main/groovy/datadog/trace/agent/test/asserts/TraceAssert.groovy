@@ -4,12 +4,15 @@ import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import static SpanAssert.assertSpan
 
 class TraceAssert {
   private final List<DDSpan> trace
   private final int size
   private final Set<Integer> assertedIndexes = new HashSet<>()
+  private final AtomicInteger spanAssertCount = new AtomicInteger(0)
 
   private TraceAssert(trace) {
     this.trace = trace
@@ -32,7 +35,9 @@ class TraceAssert {
     trace.get(index)
   }
 
-  void span(int index, @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.SpanAssert']) @DelegatesTo(value = SpanAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+  void span(@ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.SpanAssert']) @DelegatesTo(value = SpanAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    def index = spanAssertCount.getAndIncrement()
+
     if (index >= size) {
       throw new ArrayIndexOutOfBoundsException(index)
     }

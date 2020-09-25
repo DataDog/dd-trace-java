@@ -63,8 +63,8 @@ class OpenTracing32Test extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           if ([References.CHILD_OF, References.FOLLOWS_FROM].contains(addReference)) {
             parentDDId(DDId.from(2))
           } else {

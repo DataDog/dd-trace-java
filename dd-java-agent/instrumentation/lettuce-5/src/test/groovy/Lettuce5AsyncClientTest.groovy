@@ -113,8 +113,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
     then:
     connection != null
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -152,8 +152,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
     connection == null
     thrown ExecutionException
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -183,8 +183,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
     expect:
     res == "OK"
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -221,8 +221,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
     then:
     conds.await()
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -273,8 +273,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
     then:
     conds.await()
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -311,8 +311,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
     then:
     conds.await()
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -368,8 +368,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
     then:
     conds.await()
     assertTraces(2) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -384,8 +384,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -430,8 +430,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
     completedExceptionally == true
     thrown Exception
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -471,8 +471,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
     conds.await()
     cancelSuccess == true
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -497,8 +497,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -523,8 +523,8 @@ class Lettuce5AsyncClientTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS

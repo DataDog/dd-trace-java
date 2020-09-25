@@ -1,7 +1,7 @@
 package datadog.trace.agent.test.asserts
 
-import datadog.trace.core.DDSpan
 import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 import org.codehaus.groovy.runtime.powerassert.PowerAssertionError
@@ -9,30 +9,56 @@ import org.spockframework.runtime.Condition
 import org.spockframework.runtime.ConditionNotSatisfiedError
 import org.spockframework.runtime.model.TextPosition
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import static TraceAssert.assertTrace
 
 class ListWriterAssert {
-  private final ListWriter writer
+  private final List<List<DDSpan>> traces
   private final int size
   private final Set<Integer> assertedIndexes = new HashSet<>()
+  private final AtomicInteger traceAssertCount = new AtomicInteger(0)
 
-  private ListWriterAssert(ListWriter writer) {
-    this.writer = writer
-    size = writer.size()
+  private ListWriterAssert(List<List<DDSpan>> traces) {
+    this.traces = traces
+    size = traces.size()
   }
 
   static void assertTraces(ListWriter writer, int expectedSize,
                            @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.ListWriterAssert'])
                            @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    assertTraces(writer, expectedSize, false, spec)
+  }
+
+  static void assertTraces(ListWriter writer, int expectedSize,
+                           boolean ignoreAdditionalTraces,
+                           @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.ListWriterAssert'])
+                           @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     try {
       writer.waitForTraces(expectedSize)
-      assert writer.size() == expectedSize
-      def asserter = new ListWriterAssert(writer)
+      def array = writer.toArray()
+      assert array.length == expectedSize
+      def traces = (Arrays.asList(array) as List<List<DDSpan>>)
+      Collections.sort(traces, TraceSorter.SORTER)
+      def asserter = new ListWriterAssert(traces)
       def clone = (Closure) spec.clone()
       clone.delegate = asserter
       clone.resolveStrategy = Closure.DELEGATE_FIRST
       clone(asserter)
-      asserter.assertTracesAllVerified()
+      if (!ignoreAdditionalTraces) {
+        asserter.assertTracesAllVerified()
+        if (writer.size() > traces.size()) {
+          def extras = new ArrayList<>(writer)
+          extras.removeAll(traces)
+          def message = new StringBuilder("ListWriter obtained ${extras.size()} additional traces while validating:")
+          extras.each {
+            message.append('\n')
+            message.append(it)
+          }
+          message.append('\n')
+          throw new AssertionError(message)
+        }
+      }
     } catch (PowerAssertionError e) {
       def stackLine = null
       for (int i = 0; i < e.stackTrace.length; i++) {
@@ -53,24 +79,48 @@ class ListWriterAssert {
     }
   }
 
-  List<DDSpan> trace(int index) {
-    return writer.get(index)
+  void sortSpansByStart() {
+    traces.each {
+      it.sort { a, b ->
+        return a.startTimeNano <=> b.startTimeNano
+      }
+    }
   }
 
-  void trace(int index, int expectedSize,
+  List<DDSpan> trace(int index) {
+    return traces.get(index)
+  }
+
+  void trace(int expectedSize,
              @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.TraceAssert'])
              @DelegatesTo(value = TraceAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    def index = traceAssertCount.getAndIncrement()
+
     if (index >= size) {
       throw new ArrayIndexOutOfBoundsException(index)
     }
-    if (writer.size() != size) {
+    if (traces.size() != size) {
       throw new ConcurrentModificationException("ListWriter modified during assertion")
     }
     assertedIndexes.add(index)
-    assertTrace(writer.get(index), expectedSize, spec)
+    assertTrace(trace(index), expectedSize, spec)
   }
 
   void assertTracesAllVerified() {
     assert assertedIndexes.size() == size
+  }
+
+  private static class TraceSorter implements Comparator<List<DDSpan>> {
+    static final TraceSorter SORTER = new TraceSorter()
+
+    @Override
+    int compare(List<DDSpan> o1, List<DDSpan> o2) {
+      return Long.compare(traceStart(o1), traceStart(o2))
+    }
+
+    long traceStart(List<DDSpan> trace) {
+      assert !trace.isEmpty()
+      return trace.get(0).localRootSpan.context().trace.startNanoTicks
+    }
   }
 }

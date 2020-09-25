@@ -28,16 +28,16 @@ class Utf8ByteStringTest extends DDSpecification {
     }
 
     where:
-    str               |      constant
-    null              |   false
-    "foo"             |   false
-    "bar"             |   false
-    "alongerstring"   |   false
+    str                                                           | constant
+    null                                                          | false
+    "foo"                                                         | false
+    "bar"                                                         | false
+    "alongerstring"                                               | false
     new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | false
-    null              |   true
-    "foo"             |   true
-    "bar"             |   true
-    "alongerstring"   |   true
+    null                                                          | true
+    "foo"                                                         | true
+    "bar"                                                         | true
+    "alongerstring"                                               | true
     new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | true
   }
 
@@ -57,18 +57,18 @@ class Utf8ByteStringTest extends DDSpecification {
     }
 
     where:
-    chars                                          |   constant
-    null                                           | true
-    "foo"                                          | true
-    new StringBuffer("bar")                        | true
-    new StringBuffer("someotherlongstring")        | true
-    UTF8BytesString.create("utf8string")           | true
+    chars                                                         | constant
+    null                                                          | true
+    "foo"                                                         | true
+    new StringBuffer("bar")                                       | true
+    new StringBuffer("someotherlongstring")                       | true
+    UTF8BytesString.create("utf8string")                          | true
     new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | true
-    null                                           | false
-    "foo"                                          | false
-    new StringBuffer("bar")                        | false
-    new StringBuffer("someotherlongstring")        | false
-    UTF8BytesString.create("utf8string")           | false
+    null                                                          | false
+    "foo"                                                         | false
+    new StringBuffer("bar")                                       | false
+    new StringBuffer("someotherlongstring")                       | false
+    UTF8BytesString.create("utf8string")                          | false
     new String(new char[UTF8BytesString.Allocator.PAGE_SIZE + 1]) | false
   }
 }

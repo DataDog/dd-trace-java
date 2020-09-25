@@ -84,8 +84,8 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 5) {
-        span(0) {
+      trace(5) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
@@ -106,7 +106,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -120,7 +120,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf span(1)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -135,7 +135,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           childOf span(1)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -149,7 +149,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(4) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -186,8 +186,8 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
@@ -208,7 +208,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -222,7 +222,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -254,8 +254,8 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 9) {
-        span(0) {
+      trace(9) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
@@ -276,7 +276,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -290,7 +290,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf span(1)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -305,7 +305,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           childOf span(2)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -320,7 +320,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(4) {
+        span {
           childOf span(2)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -334,7 +334,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(5) {
+        span {
           childOf span(2)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -349,7 +349,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(6) {
+        span {
           childOf span(2)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -363,7 +363,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(7) {
+        span {
           childOf span(1)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -377,7 +377,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(8) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -409,8 +409,8 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 7) {
-        span(0) {
+      trace(7) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
@@ -431,7 +431,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -445,7 +445,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf span(1)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -460,7 +460,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           childOf span(2)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -475,7 +475,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(4) {
+        span {
           childOf span(2)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -489,7 +489,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(5) {
+        span {
           childOf span(1)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -503,7 +503,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(6) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -535,8 +535,8 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 4) {
-        span(0) {
+      trace(4) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
@@ -558,7 +558,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -573,7 +573,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf span(1)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -588,7 +588,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -620,8 +620,8 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
@@ -642,7 +642,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -656,7 +656,7 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.compile"

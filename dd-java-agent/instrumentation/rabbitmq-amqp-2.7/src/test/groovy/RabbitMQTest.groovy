@@ -27,6 +27,7 @@ import java.time.Duration
 import java.util.concurrent.Phaser
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 // Do not run tests locally on Java7 since testcontainers are not compatible with Java7
 // It is fine to run on CI because CI provides rabbitmq externally, not through testcontainers
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
@@ -105,21 +106,20 @@ class RabbitMQTest extends AgentTestRunner {
 
     and:
     assertTraces(2) {
-      trace(0, 1) {
-        rabbitSpan(it, "basic.get <generated>", true, TEST_WRITER[1][1])
-      }
-      trace(1, 5) {
-        span(0) {
+      trace(5) {
+        span {
           operationName "parent"
           tags {
             defaultTags()
           }
         }
-        // reverse order
-        rabbitSpan(it, 1, "basic.publish $exchangeName -> $routingKey", false, span(0))
-        rabbitSpan(it, 2, "queue.bind", false, span(0))
-        rabbitSpan(it, 3, "queue.declare", false, span(0))
-        rabbitSpan(it, 4, "exchange.declare", false, span(0))
+        rabbitSpan(it, "basic.publish $exchangeName -> $routingKey", false, span(0))
+        rabbitSpan(it, "queue.bind", false, span(0))
+        rabbitSpan(it, "queue.declare", false, span(0))
+        rabbitSpan(it, "exchange.declare", false, span(0))
+      }
+      trace(1) {
+        rabbitSpan(it, "basic.get <generated>", true, trace(0)[1])
       }
     }
 
@@ -139,14 +139,14 @@ class RabbitMQTest extends AgentTestRunner {
 
     and:
     assertTraces(3) {
-      trace(0, 1) {
+      trace(1) {
         rabbitSpan(it, "queue.declare")
       }
-      trace(1, 1) {
+      trace(1) {
         rabbitSpan(it, "basic.publish <default> -> <generated>")
       }
-      trace(2, 1) {
-        rabbitSpan(it, "basic.get <generated>", true, TEST_WRITER[1][0])
+      trace(1) {
+        rabbitSpan(it, "basic.get <generated>", true, trace(1)[0])
       }
     }
   }
@@ -155,8 +155,8 @@ class RabbitMQTest extends AgentTestRunner {
     setup:
     channel.exchangeDeclare(exchangeName, "direct", false)
     String queueName = (messageCount % 2 == 0) ?
-    channel.queueDeclare().getQueue() :
-    channel.queueDeclare("some-queue", false, true, true, null).getQueue()
+      channel.queueDeclare().getQueue() :
+      channel.queueDeclare("some-queue", false, true, true, null).getQueue()
     channel.queueBind(queueName, exchangeName, "")
 
     def phaser = new Phaser()
@@ -190,25 +190,25 @@ class RabbitMQTest extends AgentTestRunner {
 
     expect:
     assertTraces(4 + (messageCount * 2)) {
-      trace(0, 1) {
+      trace(1) {
         rabbitSpan(it, "exchange.declare")
       }
-      trace(1, 1) {
+      trace(1) {
         rabbitSpan(it, "queue.declare")
       }
-      trace(2, 1) {
+      trace(1) {
         rabbitSpan(it, "queue.bind")
       }
-      trace(3, 1) {
+      trace(1) {
         rabbitSpan(it, "basic.consume")
       }
       (1..messageCount).each {
         def publishSpan = null
-        trace(2 + (it * 2), 1) {
+        trace(1) {
           publishSpan = span(0)
           rabbitSpan(it, "basic.publish $exchangeName -> <all>")
         }
-        trace(3 + (it * 2), 1) {
+        trace(1) {
           // TODO - test with and without feature enabled once Config is easier to control
           rabbitSpan(it, resource, true, publishSpan,
             null, null, setTimestamp, expectE2EDuration)
@@ -219,15 +219,15 @@ class RabbitMQTest extends AgentTestRunner {
     deliveries == (1..messageCount).collect { "msg $it" }
 
     where:
-    exchangeName     | messageCount | setTimestamp
-    "some-exchange"  | 1            | false
-    "some-exchange"  | 2            | false
-    "some-exchange"  | 3            | false
-    "some-exchange"  | 4            | false
-    "some-exchange"  | 1            | true
-    "some-exchange"  | 2            | true
-    "some-exchange"  | 3            | true
-    "some-exchange"  | 4            | true
+    exchangeName    | messageCount | setTimestamp
+    "some-exchange" | 1            | false
+    "some-exchange" | 2            | false
+    "some-exchange" | 3            | false
+    "some-exchange" | 4            | false
+    "some-exchange" | 1            | true
+    "some-exchange" | 2            | true
+    "some-exchange" | 3            | true
+    "some-exchange" | 4            | true
   }
 
   def "test rabbit consume error"() {
@@ -259,24 +259,24 @@ class RabbitMQTest extends AgentTestRunner {
 
     expect:
     assertTraces(6) {
-      trace(0, 1) {
+      trace(1) {
         rabbitSpan(it, "exchange.declare")
       }
-      trace(1, 1) {
+      trace(1) {
         rabbitSpan(it, "queue.declare")
       }
-      trace(2, 1) {
+      trace(1) {
         rabbitSpan(it, "queue.bind")
       }
-      trace(3, 1) {
+      trace(1) {
         rabbitSpan(it, "basic.consume")
       }
       def publishSpan = null
-      trace(4, 1) {
+      trace(1) {
         publishSpan = span(0)
         rabbitSpan(it, "basic.publish $exchangeName -> <all>")
       }
-      trace(5, 1) {
+      trace(1) {
         // TODO - test with and without feature enabled once Config is easier to control
         rabbitSpan(it, "basic.deliver <generated>", true, publishSpan, error,
           error.message, false, expectE2EDuration)
@@ -297,7 +297,7 @@ class RabbitMQTest extends AgentTestRunner {
     and:
 
     assertTraces(1) {
-      trace(0, 1) {
+      trace(1) {
         rabbitSpan(it, command, false, null, throwable, errorMsg)
       }
     }
@@ -330,14 +330,14 @@ class RabbitMQTest extends AgentTestRunner {
 
     and:
     assertTraces(3) {
-      trace(0, 1) {
+      trace(1) {
         rabbitSpan(it, "queue.declare")
       }
-      trace(1, 1) {
+      trace(1) {
         rabbitSpan(it, "basic.publish <default> -> some-routing-queue")
       }
-      trace(2, 1) {
-        rabbitSpan(it, "basic.get $queue.name", true, TEST_WRITER[1][0])
+      trace(1) {
+        rabbitSpan(it, "basic.get $queue.name", true, trace(1)[0])
       }
     }
   }
@@ -352,21 +352,7 @@ class RabbitMQTest extends AgentTestRunner {
     Boolean expectTimestamp = false,
     Boolean expectE2eDuration = false
   ) {
-    rabbitSpan(trace, 0, resource, distributedRootSpan, parentSpan, exception, errorMsg, expectTimestamp, expectE2eDuration)
-  }
-
-  def rabbitSpan(
-    TraceAssert trace,
-    int index,
-    String resource,
-    Boolean distributedRootSpan = false,
-    DDSpan parentSpan = null,
-    Throwable exception = null,
-    String errorMsg = null,
-    Boolean expectTimestamp = false,
-    Boolean expectE2eDuration = false
-  ) {
-    trace.span(index) {
+    trace.span {
       serviceName "rabbitmq"
       operationName "amqp.command"
       resourceName resource

@@ -23,7 +23,7 @@ class TestNGTest extends TestFrameworkTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
+      trace(1) {
         testSpan(it, 0, "org.example.TestSucceed", "test_succeed", TestDecorator.TEST_PASS)
       }
     }
@@ -38,7 +38,7 @@ class TestNGTest extends TestFrameworkTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
+      trace(1) {
         testSpan(it, 0, "org.example.TestInheritance", "test_succeed", TestDecorator.TEST_PASS)
       }
     }
@@ -57,7 +57,7 @@ class TestNGTest extends TestFrameworkTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
+      trace(1) {
         testSpan(it, 0, "org.example.TestFailed", "test_failed", TestDecorator.TEST_FAIL, null, exception)
       }
     }
@@ -79,19 +79,19 @@ class TestNGTest extends TestFrameworkTest {
 
     expect:
     assertTraces(5) {
-      trace(0, 1) {
+      trace(1) {
         testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_FAIL, null, exception)
       }
-      trace(1, 1) {
+      trace(1) {
         testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_FAIL, null, exception)
       }
-      trace(2, 1) {
+      trace(1) {
         testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_PASS)
       }
-      trace(3, 1) {
+      trace(1) {
         testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_PASS)
       }
-      trace(4, 1) {
+      trace(1) {
         testSpan(it, 0, "org.example.TestFailedWithSuccessPercentage", "test_failed_with_success_percentage", TestDecorator.TEST_PASS)
       }
     }
@@ -109,7 +109,7 @@ class TestNGTest extends TestFrameworkTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
+      trace(1) {
         testSpan(it, 0, "org.example.TestError", "test_error", TestDecorator.TEST_FAIL, null, exception)
       }
     }
@@ -127,7 +127,7 @@ class TestNGTest extends TestFrameworkTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
+      trace(1) {
         testSpan(it, 0, "org.example.TestSkipped", "test_skipped", TestDecorator.TEST_SKIP, testTags)
       }
     }

@@ -3,7 +3,6 @@ package springdata
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import spock.lang.Retry
 import spock.lang.Shared
@@ -13,6 +12,7 @@ import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
@@ -47,14 +47,18 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     }
   }
 
-  def setup() {
-    repo.refresh()
-    TEST_WRITER.clear()
-    runUnderTrace("delete") {
+  def setupSpec() {
+    repo.refresh() // lazy init
+    cleanup()
+  }
+
+  def cleanup() {
+    def cleanupSpan = runUnderTrace("cleanup") {
+      repo.refresh()
       repo.deleteAll()
+      activeSpan()
     }
-    TEST_WRITER.waitForTraces(1)
-    TEST_WRITER.clear()
+    TEST_WRITER.waitUntilReported(cleanupSpan)
   }
 
   def "test empty repo"() {
@@ -65,10 +69,10 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     !result.iterator().hasNext()
 
     and:
-    waitForTracesAndSortSpans(1)
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      sortSpansByStart()
+      trace(2) {
+        span {
           operationName "repository.operation"
           resourceName "CrudRepository.findAll"
           tags {
@@ -78,7 +82,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           }
         }
 
-        span(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "SearchAction"
           operationName "elasticsearch.query"
@@ -112,32 +116,10 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     repo.index(doc) == doc
 
     and:
-    waitForTracesAndSortSpans(2)
-    // need to normalize trace ordering since they are finished by different threads
-    if (TEST_WRITER[1][0].resourceName.toString() == "PutMappingAction") {
-      def tmp = TEST_WRITER[1]
-      TEST_WRITER[1] = TEST_WRITER[0]
-      TEST_WRITER[0] = tmp
-    }
     assertTraces(2) {
-      trace(0, 1) {
-        span(0) {
-          serviceName "elasticsearch"
-          resourceName "PutMappingAction"
-          operationName "elasticsearch.query"
-          spanType DDSpanTypes.ELASTICSEARCH
-          tags {
-            "$Tags.COMPONENT" "elasticsearch-java"
-            "$Tags.DB_TYPE" "elasticsearch"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "elasticsearch.action" "PutMappingAction"
-            "elasticsearch.request" "PutMappingRequest"
-            defaultTags()
-          }
-        }
-      }
-      trace(1, 3) {
-        span(0) {
+      sortSpansByStart()
+      trace(3) {
+        span {
           resourceName "ElasticsearchRepository.index"
           operationName "repository.operation"
           tags {
@@ -146,27 +128,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             defaultTags()
           }
         }
-
-        span(1) {
-          resourceName "RefreshAction"
-          operationName "elasticsearch.query"
-          spanType DDSpanTypes.ELASTICSEARCH
-          childOf(span(0))
-          tags {
-            "$Tags.COMPONENT" "elasticsearch-java"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "elasticsearch"
-            "elasticsearch.action" "RefreshAction"
-            "elasticsearch.request" "RefreshRequest"
-            "elasticsearch.request.indices" indexName
-            "elasticsearch.shard.broadcast.failed" 0
-            "elasticsearch.shard.broadcast.successful" 5
-            "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
-          }
-        }
-
-        span(2) {
+        span {
           resourceName "IndexAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -187,6 +149,40 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             defaultTags()
           }
         }
+        span {
+          resourceName "RefreshAction"
+          operationName "elasticsearch.query"
+          spanType DDSpanTypes.ELASTICSEARCH
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "elasticsearch-java"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "elasticsearch"
+            "elasticsearch.action" "RefreshAction"
+            "elasticsearch.request" "RefreshRequest"
+            "elasticsearch.request.indices" indexName
+            "elasticsearch.shard.broadcast.failed" 0
+            "elasticsearch.shard.broadcast.successful" 5
+            "elasticsearch.shard.broadcast.total" 10
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
+          serviceName "elasticsearch"
+          resourceName "PutMappingAction"
+          operationName "elasticsearch.query"
+          spanType DDSpanTypes.ELASTICSEARCH
+          tags {
+            "$Tags.COMPONENT" "elasticsearch-java"
+            "$Tags.DB_TYPE" "elasticsearch"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "elasticsearch.action" "PutMappingAction"
+            "elasticsearch.request" "PutMappingRequest"
+            defaultTags()
+          }
+        }
       }
     }
     TEST_WRITER.clear()
@@ -195,10 +191,10 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     repo.findById("1").get() == doc
 
     and:
-    waitForTracesAndSortSpans(1)
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      sortSpansByStart()
+      trace(2) {
+        span {
           resourceName "CrudRepository.findById"
           operationName "repository.operation"
           tags {
@@ -208,7 +204,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           }
         }
 
-        span(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"
@@ -239,10 +235,10 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     repo.findById("1").get() == doc
 
     and:
-    waitForTracesAndSortSpans(2)
     assertTraces(2) {
-      trace(0, 3) {
-        span(0) {
+      sortSpansByStart()
+      trace(3) {
+        span {
           resourceName "ElasticsearchRepository.index"
           operationName "repository.operation"
           tags {
@@ -251,25 +247,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
-          resourceName "RefreshAction"
-          operationName "elasticsearch.query"
-          spanType DDSpanTypes.ELASTICSEARCH
-          childOf(span(0))
-          tags {
-            "$Tags.COMPONENT" "elasticsearch-java"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "elasticsearch"
-            "elasticsearch.action" "RefreshAction"
-            "elasticsearch.request" "RefreshRequest"
-            "elasticsearch.request.indices" indexName
-            "elasticsearch.shard.broadcast.failed" 0
-            "elasticsearch.shard.broadcast.successful" 5
-            "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
-          }
-        }
-        span(2) {
+        span {
           resourceName "IndexAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -290,9 +268,27 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             defaultTags()
           }
         }
+        span {
+          resourceName "RefreshAction"
+          operationName "elasticsearch.query"
+          spanType DDSpanTypes.ELASTICSEARCH
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "elasticsearch-java"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "elasticsearch"
+            "elasticsearch.action" "RefreshAction"
+            "elasticsearch.request" "RefreshRequest"
+            "elasticsearch.request.indices" indexName
+            "elasticsearch.shard.broadcast.failed" 0
+            "elasticsearch.shard.broadcast.successful" 5
+            "elasticsearch.shard.broadcast.total" 10
+            defaultTags()
+          }
+        }
       }
-      trace(1, 2) {
-        span(0) {
+      trace(2) {
+        span {
           resourceName "CrudRepository.findById"
           operationName "repository.operation"
           tags {
@@ -302,7 +298,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
           }
         }
 
-        span(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"
@@ -332,10 +328,10 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
     !repo.findAll().iterator().hasNext()
 
     and:
-    waitForTracesAndSortSpans(2)
     assertTraces(2) {
-      trace(0, 3) {
-        span(0) {
+      sortSpansByStart()
+      trace(3) {
+        span {
           resourceName "CrudRepository.deleteById"
           operationName "repository.operation"
           tags {
@@ -344,26 +340,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             defaultTags()
           }
         }
-
-        span(1) {
-          resourceName "RefreshAction"
-          operationName "elasticsearch.query"
-          spanType DDSpanTypes.ELASTICSEARCH
-          childOf(span(0))
-          tags {
-            "$Tags.COMPONENT" "elasticsearch-java"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "elasticsearch"
-            "elasticsearch.action" "RefreshAction"
-            "elasticsearch.request" "RefreshRequest"
-            "elasticsearch.request.indices" indexName
-            "elasticsearch.shard.broadcast.failed" 0
-            "elasticsearch.shard.broadcast.successful" 5
-            "elasticsearch.shard.broadcast.total" 10
-            defaultTags()
-          }
-        }
-        span(2) {
+        span {
           resourceName "DeleteAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -383,10 +360,28 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             defaultTags()
           }
         }
+        span {
+          resourceName "RefreshAction"
+          operationName "elasticsearch.query"
+          spanType DDSpanTypes.ELASTICSEARCH
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "elasticsearch-java"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "elasticsearch"
+            "elasticsearch.action" "RefreshAction"
+            "elasticsearch.request" "RefreshRequest"
+            "elasticsearch.request.indices" indexName
+            "elasticsearch.shard.broadcast.failed" 0
+            "elasticsearch.shard.broadcast.successful" 5
+            "elasticsearch.shard.broadcast.total" 10
+            defaultTags()
+          }
+        }
       }
 
-      trace(1, 2) {
-        span(0) {
+      trace(2) {
+        span {
           resourceName "CrudRepository.findAll"
           operationName "repository.operation"
           tags {
@@ -395,8 +390,7 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
             defaultTags()
           }
         }
-
-        span(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "SearchAction"
           operationName "elasticsearch.query"
@@ -418,18 +412,5 @@ class Elasticsearch53SpringRepositoryTest extends AgentTestRunner {
 
     where:
     indexName = "test-index"
-  }
-
-  def waitForTracesAndSortSpans(int number) {
-    TEST_WRITER.waitForTraces(number)
-    for (List<DDSpan> trace : TEST_WRITER) {
-      // need to normalize span ordering since they are finished by different threads
-      if (trace.size() > 1 && trace[1].operationName.toString() == "repository.operation") {
-        def tmp = trace[1]
-        trace[1] = trace[0]
-        trace[0] = tmp
-      }
-    }
-    return true
   }
 }

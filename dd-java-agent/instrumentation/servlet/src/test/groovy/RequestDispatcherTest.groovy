@@ -1,4 +1,3 @@
-
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.core.DDSpan
 
@@ -28,11 +27,11 @@ class RequestDispatcherTest extends AgentTestRunner {
     then:
     2 * request.getAttribute(DD_SPAN_ATTRIBUTE)
     assertTraces(2) {
-      trace(0, 1) {
-        basicSpan(it, 0, "forward-child")
+      trace(1) {
+        basicSpan(it, "forward-child")
       }
-      trace(1, 1) {
-        basicSpan(it, 0, "include-child")
+      trace(1) {
+        basicSpan(it, "include-child")
       }
     }
   }
@@ -46,9 +45,9 @@ class RequestDispatcherTest extends AgentTestRunner {
     then:
     1 * request.getAttribute(DD_SPAN_ATTRIBUTE)
     assertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(3) {
+        basicSpan(it, "parent")
+        span {
           operationName "servlet.$operation"
           resourceName target
           childOf span(0)
@@ -57,7 +56,7 @@ class RequestDispatcherTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        basicSpan(it, 2, "$operation-child", span(1))
+        basicSpan(it, "$operation-child", span(1))
       }
     }
 
@@ -98,9 +97,9 @@ class RequestDispatcherTest extends AgentTestRunner {
 
     1 * request.getAttribute(DD_SPAN_ATTRIBUTE)
     assertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "parent", null, ex)
-        span(1) {
+      trace(3) {
+        basicSpan(it, "parent", null, ex)
+        span {
           operationName "servlet.$operation"
           resourceName target
           childOf span(0)
@@ -111,7 +110,7 @@ class RequestDispatcherTest extends AgentTestRunner {
             errorTags(ex.class, ex.message)
           }
         }
-        basicSpan(it, 2, "$operation-child", span(1))
+        basicSpan(it, "$operation-child", span(1))
       }
     }
 

@@ -62,7 +62,7 @@ class FixedSizeCacheTest extends DDSpecification {
     new TKey(6, 6, "foo")     | "six_value"    | 3
     new TKey(1, 11, "eleven") | "eleven_value" | 4
     new TKey(4, 4, "four")    | "four_value"   | 4
-    null                      | null           | 3     
+    null                      | null           | 3
   }
 
   def "should handle concurrent usage"() {
@@ -97,7 +97,7 @@ class FixedSizeCacheTest extends DDSpecification {
     conds.await(30.0) // the test is really fast locally, but I don't know how fast CI is
 
     where:
-    cacheImpl << [{capacity -> DDCaches.newFixedSizeCache(capacity) }, {capacity -> DDCaches.newUnboundedCache(capacity)}]
+    cacheImpl << [{ capacity -> DDCaches.newFixedSizeCache(capacity) }, { capacity -> DDCaches.newUnboundedCache(capacity) }]
   }
 
   private class TVC implements Function<TKey, String> {

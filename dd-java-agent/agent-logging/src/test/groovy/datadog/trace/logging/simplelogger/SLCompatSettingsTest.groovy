@@ -47,13 +47,13 @@ class SLCompatSettingsTest extends Specification {
     SLCompatSettings.getBoolean(props, fallbackProps, name, dBool) == expected
 
     where:
-    pStr   | fStr    | dBool | expected
-    null   | null    | true  | true
-    "true" | null    | false | true
-    "true" | "foo"   | false | true
-    null   | "true"  | false | true
-    "foo"  | "true"  | true  | false // any String not matching "true" is false
-    null   | "foo"   | true  | false // any String not matching "true" is false
+    pStr   | fStr   | dBool | expected
+    null   | null   | true  | true
+    "true" | null   | false | true
+    "true" | "foo"  | false | true
+    null   | "true" | false | true
+    "foo"  | "true" | true  | false // any String not matching "true" is false
+    null   | "foo"  | true  | false // any String not matching "true" is false
   }
 
   def "test defaults"() {
@@ -140,33 +140,33 @@ class SLCompatSettingsTest extends Specification {
     def settings = new SLCompatSettings(props)
 
     then:
-    names.collect {settings.logNameForName(it) } == expected
+    names.collect { settings.logNameForName(it) } == expected
 
     where:
-    showShort | show | expected
-    false | false | ["", "", ""]
-    false | true  | ["foo", "foo.bar", "foo.bar.baz"]
-    true  | true  | ["foo", "bar", "baz"]
-    true  | false | ["foo", "bar", "baz"]
+    showShort | show  | expected
+    false     | false | ["", "", ""]
+    false     | true  | ["foo", "foo.bar", "foo.bar.baz"]
+    true      | true  | ["foo", "bar", "baz"]
+    true      | false | ["foo", "bar", "baz"]
   }
 
   def "test logLevelForName"() {
     when:
     def names = ["foo", "foo.bar", "foo.bar.baz"]
     Properties props = new Properties()
-    logProperties.each {props.setProperty(SLCompatSettings.Keys.LOG_KEY_PREFIX + it.key, it.value) }
+    logProperties.each { props.setProperty(SLCompatSettings.Keys.LOG_KEY_PREFIX + it.key, it.value) }
     def settings = new SLCompatSettings(props)
 
     then:
-    names.collect {settings.logLevelForName(it) } == expected
+    names.collect { settings.logLevelForName(it) } == expected
 
     where:
-    logProperties | expected
-    [:] | [LogLevel.INFO, LogLevel.INFO, LogLevel.INFO]
-    ["foo":"debug"] | [LogLevel.DEBUG, LogLevel.DEBUG, LogLevel.DEBUG]
-    ["foo.bar":"debug"] | [LogLevel.INFO, LogLevel.DEBUG, LogLevel.DEBUG]
-    ["foo.bar":"debug", "foo.bar.baz":"warn"] | [LogLevel.INFO, LogLevel.DEBUG, LogLevel.WARN]
-    ["bar":"trace", "foo.bar.baz":"warn"] | [LogLevel.INFO, LogLevel.INFO, LogLevel.WARN]
+    logProperties                               | expected
+    [:]                                         | [LogLevel.INFO, LogLevel.INFO, LogLevel.INFO]
+    ["foo": "debug"]                            | [LogLevel.DEBUG, LogLevel.DEBUG, LogLevel.DEBUG]
+    ["foo.bar": "debug"]                        | [LogLevel.INFO, LogLevel.DEBUG, LogLevel.DEBUG]
+    ["foo.bar": "debug", "foo.bar.baz": "warn"] | [LogLevel.INFO, LogLevel.DEBUG, LogLevel.WARN]
+    ["bar": "trace", "foo.bar.baz": "warn"]     | [LogLevel.INFO, LogLevel.INFO, LogLevel.WARN]
   }
 
   def "test DTFormatter"() {

@@ -2,29 +2,31 @@ package util
 
 import com.couchbase.client.core.metrics.DefaultLatencyMetricsCollectorConfig
 import com.couchbase.client.core.metrics.DefaultMetricsCollectorConfig
+import com.couchbase.client.java.CouchbaseAsyncCluster
+import com.couchbase.client.java.CouchbaseCluster
 import com.couchbase.client.java.bucket.BucketType
 import com.couchbase.client.java.cluster.BucketSettings
 import com.couchbase.client.java.cluster.DefaultBucketSettings
+import com.couchbase.client.java.env.CouchbaseEnvironment
 import com.couchbase.client.java.env.DefaultCouchbaseEnvironment
 import com.couchbase.mock.Bucket
 import com.couchbase.mock.BucketConfiguration
 import com.couchbase.mock.CouchbaseMock
 import com.couchbase.mock.http.query.QueryServer
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
-import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.SimpleType
 import spock.lang.Shared
 
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 abstract class AbstractCouchbaseTest extends AgentTestRunner {
 
@@ -109,35 +111,26 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
       .socketConnectTimeout(timeout.intValue())
   }
 
-  void sortAndAssertTraces(
-    final int size,
-    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
-
-    TEST_WRITER.waitForTraces(size)
-
-    TEST_WRITER.each {
-      it.sort({
-        a, b ->
-          boolean aIsCouchbaseOperation = a.operationName.toString() == "couchbase.call"
-          boolean bIsCouchbaseOperation = b.operationName.toString() == "couchbase.call"
-
-          if (aIsCouchbaseOperation && !bIsCouchbaseOperation) {
-            return 1
-          } else if (!aIsCouchbaseOperation && bIsCouchbaseOperation) {
-            return -1
-          }
-
-          return a.resourceName.compareTo(b.resourceName)
-      })
+  protected void cleanupCluster(CouchbaseAsyncCluster cluster, CouchbaseEnvironment environment) {
+    def cleanupSpan = runUnderTrace("cleanup") {
+      cluster?.disconnect()?.timeout(10, TimeUnit.SECONDS)?.toBlocking()?.single()
+      environment.shutdown()
+      activeSpan()
     }
-
-    assertTraces(size, spec)
+    TEST_WRITER.waitUntilReported(cleanupSpan)
   }
 
-  void assertCouchbaseCall(TraceAssert trace, int index, String name, String bucketName = null, Object parentSpan = null) {
-    trace.span(index) {
+  protected void cleanupCluster(CouchbaseCluster cluster, CouchbaseEnvironment environment) {
+    def cleanupSpan = runUnderTrace("cleanup") {
+      cluster?.disconnect()
+      environment.shutdown()
+      activeSpan()
+    }
+    TEST_WRITER.waitUntilReported(cleanupSpan)
+  }
+
+  void assertCouchbaseCall(TraceAssert trace, String name, String bucketName = null, Object parentSpan = null) {
+    trace.span {
       serviceName "couchbase"
       resourceName name
       operationName "couchbase.call"

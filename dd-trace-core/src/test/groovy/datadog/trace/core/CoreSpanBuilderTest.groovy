@@ -303,8 +303,8 @@ class CoreSpanBuilderTest extends DDSpecification {
     span.context().origin == extractedContext.origin
     span.context().baggageItems == extractedContext.baggage
     span.context().tags == extractedContext.tags + [(RUNTIME_ID_TAG)  : config.getRuntimeId(),
-                                                            (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
-                                                            (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
+                                                    (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
+                                                    (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
 
     where:
     extractedContext                                                                                                                    | _
@@ -324,8 +324,8 @@ class CoreSpanBuilderTest extends DDSpecification {
     span.context().origin == tagContext.origin
     span.context().baggageItems == [:]
     span.context().tags == tagContext.tags + [(RUNTIME_ID_TAG)  : config.getRuntimeId(),
-                                                      (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
-                                                      (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
+                                              (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE,
+                                              (THREAD_NAME)     : thread.name, (THREAD_ID): thread.id]
 
     where:
     tagContext                                                                   | _

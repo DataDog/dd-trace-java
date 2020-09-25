@@ -76,8 +76,8 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
   }
 
   @Override
-  void serverSpan(TraceAssert trace, int index, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    trace.span(index) {
+  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
       resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"

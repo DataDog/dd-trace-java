@@ -90,9 +90,9 @@ class FinatraServer270Test extends HttpServerTest<HttpServer> {
     return "finatra.request"
   }
 
-  void handlerSpan(TraceAssert trace, int index, Object parent, ServerEndpoint endpoint = SUCCESS) {
+  void handlerSpan(TraceAssert trace, Object parent, ServerEndpoint endpoint = SUCCESS) {
     def errorEndpoint = endpoint == EXCEPTION || endpoint == ERROR
-    trace.span(index) {
+    trace.span {
       serviceName expectedServiceName()
       operationName "finatra.controller"
       resourceName "FinatraController"

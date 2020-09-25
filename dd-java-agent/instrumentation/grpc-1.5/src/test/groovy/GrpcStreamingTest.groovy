@@ -111,38 +111,8 @@ class GrpcStreamingTest extends AgentTestRunner {
     clientReceived == serverRange.collect { clientRange.collect { "call $it" } }.flatten().sort()
 
     assertTraces(2) {
-      trace(0, clientMessageCount + 1) {
-        span(0) {
-          operationName "grpc.server"
-          resourceName "example.Greeter/Conversation"
-          spanType DDSpanTypes.RPC
-          childOf trace(1).get(0)
-          errored false
-          tags {
-            "$Tags.COMPONENT" "grpc-server"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "status.code" "OK"
-            defaultTags(true)
-          }
-        }
-        clientRange.each {
-          span(it) {
-            operationName "grpc.message"
-            resourceName "grpc.message"
-            spanType DDSpanTypes.RPC
-            childOf span(0)
-            errored false
-            tags {
-              "$Tags.COMPONENT" "grpc-server"
-              "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-              "message.type" "example.Helloworld\$Response"
-              defaultTags()
-            }
-          }
-        }
-      }
-      trace(1, (clientMessageCount * serverMessageCount) + 1) {
-        span(0) {
+      trace((clientMessageCount * serverMessageCount) + 1) {
+        span {
           operationName "grpc.client"
           resourceName "example.Greeter/Conversation"
           spanType DDSpanTypes.RPC
@@ -156,7 +126,7 @@ class GrpcStreamingTest extends AgentTestRunner {
           }
         }
         (1..(clientMessageCount * serverMessageCount)).each {
-          span(it) {
+          span {
             operationName "grpc.message"
             resourceName "grpc.message"
             spanType DDSpanTypes.RPC
@@ -165,6 +135,36 @@ class GrpcStreamingTest extends AgentTestRunner {
             tags {
               "$Tags.COMPONENT" "grpc-client"
               "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+              "message.type" "example.Helloworld\$Response"
+              defaultTags()
+            }
+          }
+        }
+      }
+      trace(clientMessageCount + 1) {
+        span {
+          operationName "grpc.server"
+          resourceName "example.Greeter/Conversation"
+          spanType DDSpanTypes.RPC
+          childOf trace(0).get(0)
+          errored false
+          tags {
+            "$Tags.COMPONENT" "grpc-server"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
+            "status.code" "OK"
+            defaultTags(true)
+          }
+        }
+        clientRange.each {
+          span {
+            operationName "grpc.message"
+            resourceName "grpc.message"
+            spanType DDSpanTypes.RPC
+            childOf span(0)
+            errored false
+            tags {
+              "$Tags.COMPONENT" "grpc-server"
+              "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
               "message.type" "example.Helloworld\$Response"
               defaultTags()
             }

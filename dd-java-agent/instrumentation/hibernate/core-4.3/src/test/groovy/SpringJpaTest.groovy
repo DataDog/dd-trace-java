@@ -27,8 +27,8 @@ class SpringJpaTest extends AgentTestRunner {
     !repo.findAll().iterator().hasNext()
 
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "hsqldb"
           resourceName "select customer0_.id as id1_0_, customer0_.firstName as firstNam2_0_, customer0_.lastName as lastName3_0_ from Customer customer0_"
           spanType "sql"
@@ -56,8 +56,8 @@ class SpringJpaTest extends AgentTestRunner {
     def extraTrace = TEST_WRITER.size() == 2
     assertTraces(extraTrace ? 2 : 1) {
       if (extraTrace) {
-        trace(0, 1) {
-          span(0) {
+        trace(1) {
+          span {
             serviceName "hsqldb"
             resourceName "call next value for hibernate_sequence"
             spanType "sql"
@@ -73,8 +73,8 @@ class SpringJpaTest extends AgentTestRunner {
           }
         }
       }
-      trace(extraTrace ? 1 : 0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "hsqldb"
           resourceName ~/insert into Customer \(.*\) values \(.*, \?, \?\)/
           spanType "sql"
@@ -99,8 +99,8 @@ class SpringJpaTest extends AgentTestRunner {
     then:
     customer.id == savedId
     assertTraces(2) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "hsqldb"
           resourceName "select customer0_.id as id1_0_0_, customer0_.firstName as firstNam2_0_0_, customer0_.lastName as lastName3_0_0_ from Customer customer0_ where customer0_.id=?"
           spanType "sql"
@@ -115,8 +115,8 @@ class SpringJpaTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "hsqldb"
           resourceName "update Customer set firstName=?, lastName=? where id=?"
           spanType "sql"
@@ -141,8 +141,8 @@ class SpringJpaTest extends AgentTestRunner {
     customer.id == savedId
     customer.firstName == "Bill"
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "hsqldb"
           resourceName "select customer0_.id as id1_0_, customer0_.firstName as firstNam2_0_, customer0_.lastName as lastName3_0_ from Customer customer0_ where customer0_.lastName=?"
           spanType "sql"
@@ -165,8 +165,8 @@ class SpringJpaTest extends AgentTestRunner {
 
     then:
     assertTraces(2) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "hsqldb"
           resourceName "select customer0_.id as id1_0_0_, customer0_.firstName as firstNam2_0_0_, customer0_.lastName as lastName3_0_0_ from Customer customer0_ where customer0_.id=?"
           spanType "sql"
@@ -181,8 +181,8 @@ class SpringJpaTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "hsqldb"
           resourceName "delete from Customer where id=?"
           spanType "sql"

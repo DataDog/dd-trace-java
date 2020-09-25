@@ -18,10 +18,10 @@ class NameMatchersTest extends DDSpecification {
     result == expected
 
     where:
-    name         | expected
-    "foo"        | true
-    "bar"        | true
-    "missing"    | false
+    name      | expected
+    "foo"     | true
+    "bar"     | true
+    "missing" | false
   }
 
 
@@ -38,9 +38,9 @@ class NameMatchersTest extends DDSpecification {
     result == expected
 
     where:
-    name         | expected
-    "foo"        | false
-    "bar"        | false
-    "missing"    | true
+    name      | expected
+    "foo"     | false
+    "bar"     | false
+    "missing" | true
   }
 }

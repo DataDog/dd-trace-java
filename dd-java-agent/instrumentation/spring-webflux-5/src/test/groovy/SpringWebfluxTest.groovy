@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -7,8 +6,6 @@ import dd.trace.instrumentation.springwebflux.server.EchoHandlerFunction
 import dd.trace.instrumentation.springwebflux.server.FooModel
 import dd.trace.instrumentation.springwebflux.server.SpringWebFluxTestApplication
 import dd.trace.instrumentation.springwebflux.server.TestController
-import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.SimpleType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -49,9 +46,10 @@ class SpringWebfluxTest extends AgentTestRunner {
     then:
     response.code == 200
     response.body().string() == expectedResponseBody
-    sortAndAssertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(2) {
+        span {
           resourceName "GET $urlPathWithVariables"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
@@ -67,7 +65,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           if (annotatedMethod == null) {
             // Functional API
             resourceNameContains(SPRING_APP_CLASS_ANON_NESTED_CLASS_PREFIX, ".handle")
@@ -121,10 +119,10 @@ class SpringWebfluxTest extends AgentTestRunner {
     then:
     response.code == 200
     response.body().string() == expectedResponseBody
-    sortAndAssertTraces(1) {
-      println TEST_WRITER
-      trace(0, 3) {
-        span(0) {
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(3) {
+        span {
           resourceName "GET $urlPathWithVariables"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
@@ -140,7 +138,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           if (annotatedMethod == null) {
             // Functional API
             resourceNameContains(SPRING_APP_CLASS_ANON_NESTED_CLASS_PREFIX, ".handle")
@@ -168,7 +166,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           if (annotatedMethod == null) {
             // Functional API
             resourceName "SpringWebFluxTestApplication.tracedMethod"
@@ -209,9 +207,10 @@ class SpringWebfluxTest extends AgentTestRunner {
 
     then:
     response.code == 404
-    sortAndAssertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(2) {
+        span {
           resourceName "GET /**"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
@@ -227,7 +226,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           resourceName "ResourceWebHandler.handle"
           operationName "ResourceWebHandler.handle"
           spanType DDSpanTypes.HTTP_SERVER
@@ -258,9 +257,10 @@ class SpringWebfluxTest extends AgentTestRunner {
     then:
     response.code() == 202
     response.body().string() == echoString
-    sortAndAssertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(3) {
+        span {
           resourceName "POST /echo"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
@@ -276,7 +276,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           resourceName EchoHandlerFunction.getSimpleName() + ".handle"
           operationName EchoHandlerFunction.getSimpleName() + ".handle"
           spanType DDSpanTypes.HTTP_SERVER
@@ -291,7 +291,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           resourceName "echo"
           operationName "echo"
           childOf(span(1))
@@ -314,9 +314,10 @@ class SpringWebfluxTest extends AgentTestRunner {
 
     then:
     response.code() == 500
-    sortAndAssertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(2) {
+        span {
           resourceName "GET $urlPathWithVariables"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
@@ -333,7 +334,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           if (annotatedMethod == null) {
             // Functional API
             resourceNameContains(SPRING_APP_CLASS_ANON_NESTED_CLASS_PREFIX, ".handle")
@@ -386,10 +387,11 @@ class SpringWebfluxTest extends AgentTestRunner {
 
     then:
     response.code == 200
-    sortAndAssertTraces(2) {
+    assertTraces(2) {
+      sortSpansByStart()
       // TODO: why order of spans is different in these traces?
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           resourceName "GET /double-greet-redirect"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
@@ -405,7 +407,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           resourceName "RedirectComponent.lambda"
           operationName "RedirectComponent.lambda"
           spanType DDSpanTypes.HTTP_SERVER
@@ -422,8 +424,8 @@ class SpringWebfluxTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 2) {
-        span(0) {
+      trace(2) {
+        span {
           resourceName "GET /double-greet"
           operationName "netty.request"
           spanType DDSpanTypes.HTTP_SERVER
@@ -439,7 +441,7 @@ class SpringWebfluxTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           resourceNameContains(SpringWebFluxTestApplication.getSimpleName() + "\$", ".handle")
           operationNameContains(SpringWebFluxTestApplication.getSimpleName() + "\$", ".handle")
           spanType DDSpanTypes.HTTP_SERVER
@@ -469,10 +471,11 @@ class SpringWebfluxTest extends AgentTestRunner {
     then:
     responses.every { it.code == 200 }
     responses.every { it.body().string() == expectedResponseBody }
-    sortAndAssertTraces(responses.size()) {
+    assertTraces(responses.size()) {
+      sortSpansByStart()
       responses.eachWithIndex { def response, int i ->
-        trace(i, 2) {
-          span(0) {
+        trace(2) {
+          span {
             resourceName "GET $urlPathWithVariables"
             operationName "netty.request"
             spanType DDSpanTypes.HTTP_SERVER
@@ -488,7 +491,7 @@ class SpringWebfluxTest extends AgentTestRunner {
               defaultTags()
             }
           }
-          span(1) {
+          span {
             if (annotatedMethod == null) {
               // Functional API
               resourceNameContains(SPRING_APP_CLASS_ANON_NESTED_CLASS_PREFIX, ".handle")
@@ -524,23 +527,5 @@ class SpringWebfluxTest extends AgentTestRunner {
     testName                          | urlPath          | urlPathWithVariables | annotatedMethod | expectedResponseBody
     "functional API delayed response" | "/greet-delayed" | "/greet-delayed"     | null            | SpringWebFluxTestApplication.GreetingHandler.DEFAULT_RESPONSE
     "annotation API delayed response" | "/foo-delayed"   | "/foo-delayed"       | "getFooDelayed" | new FooModel(3L, "delayed").toString()
-  }
-
-  void sortAndAssertTraces(
-    final int size,
-    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
-
-    TEST_WRITER.waitForTraces(size)
-
-    TEST_WRITER.each {
-      it.sort({
-        a, b ->
-          return a.startTime <=> b.startTime
-      })
-    }
-
-    assertTraces(size, spec)
   }
 }

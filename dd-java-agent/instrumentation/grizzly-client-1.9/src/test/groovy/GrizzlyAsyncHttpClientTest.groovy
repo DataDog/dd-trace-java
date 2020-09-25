@@ -1,5 +1,3 @@
-
-
 import com.ning.http.client.AsyncCompletionHandler
 import com.ning.http.client.AsyncHttpClient
 import com.ning.http.client.Request

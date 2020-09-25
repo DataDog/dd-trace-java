@@ -74,8 +74,8 @@ class HystrixObservableChainTest extends AgentTestRunner {
     result == "HELLO!"
 
     assertTraces(1) {
-      trace(0, 5) {
-        span(0) {
+      trace(5) {
+        span {
           operationName "parent"
           resourceName "parent"
           spanType null
@@ -85,7 +85,7 @@ class HystrixObservableChainTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           operationName "hystrix.cmd"
           resourceName "OtherGroup.HystrixObservableChainTest\$2.execute"
           spanType null
@@ -99,7 +99,7 @@ class HystrixObservableChainTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           operationName "trace.annotation"
           resourceName "HystrixObservableChainTest\$2.tracedMethod"
           spanType null
@@ -110,7 +110,7 @@ class HystrixObservableChainTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           operationName "hystrix.cmd"
           resourceName "ExampleGroup.HystrixObservableChainTest\$1.execute"
           spanType null
@@ -124,7 +124,7 @@ class HystrixObservableChainTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(4) {
+        span {
           operationName "trace.annotation"
           resourceName "HystrixObservableChainTest\$1.tracedMethod"
           spanType null

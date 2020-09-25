@@ -14,6 +14,7 @@ import util.AbstractCouchbaseTest
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Unroll
 class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
@@ -67,6 +68,14 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
     applicationContext.close()
   }
 
+  def cleanup() {
+    def cleanupSpan = runUnderTrace("cleanup") {
+      repo.deleteAll()
+      activeSpan()
+    }
+    TEST_WRITER.waitUntilReported(cleanupSpan)
+  }
+
   def "test empty repo"() {
     when:
     def result = repo.findAll()
@@ -76,8 +85,8 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
 
     and:
     assertTraces(1) {
-      trace(0, 1) {
-        assertCouchbaseCall(it, 0, "Bucket.query", bucketCouchbase.name())
+      trace(1) {
+        assertCouchbaseCall(it, "Bucket.query", bucketCouchbase.name())
       }
     }
   }
@@ -92,15 +101,10 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
     then:
     result == doc
     assertTraces(1) {
-      trace(0, 1) {
-        assertCouchbaseCall(it, 0, "Bucket.upsert", bucketCouchbase.name())
+      trace(1) {
+        assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name())
       }
     }
-
-    cleanup:
-    TEST_WRITER.clear()
-    repo.deleteAll()
-    TEST_WRITER.waitForTraces(2)
   }
 
   def "test save and retrieve"() {
@@ -112,24 +116,18 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
     runUnderTrace("someTrace") {
       repo.save(doc)
       result = FIND(repo, "1")
-
-      blockUntilChildSpansFinished(2)
     }
 
     then: // RETRIEVE
     result == doc
-    sortAndAssertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "someTrace")
-        assertCouchbaseCall(it, 2, "Bucket.upsert", bucketCouchbase.name(), span(0))
-        assertCouchbaseCall(it, 1, "Bucket.get", bucketCouchbase.name(), span(0))
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(3) {
+        basicSpan(it, "someTrace")
+        assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name(), span(0))
+        assertCouchbaseCall(it, "Bucket.get", bucketCouchbase.name(), span(0))
       }
     }
-
-    cleanup:
-    TEST_WRITER.clear()
-    repo.deleteAll()
-    TEST_WRITER.waitForTraces(2)
   }
 
   def "test save and update"() {
@@ -141,24 +139,18 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
       repo.save(doc)
       doc.data = "other data"
       repo.save(doc)
-
-      blockUntilChildSpansFinished(2)
     }
 
 
     then:
-    sortAndAssertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "someTrace")
-        assertCouchbaseCall(it, 1, "Bucket.upsert", bucketCouchbase.name(), span(0))
-        assertCouchbaseCall(it, 2, "Bucket.upsert", bucketCouchbase.name(), span(0))
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(3) {
+        basicSpan(it, "someTrace")
+        assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name(), span(0))
+        assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name(), span(0))
       }
     }
-
-    cleanup:
-    TEST_WRITER.clear()
-    repo.deleteAll()
-    TEST_WRITER.waitForTraces(2)
   }
 
   def "save and delete"() {
@@ -171,18 +163,17 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
       repo.save(doc)
       repo.delete("1")
       result = repo.findAll().iterator().hasNext()
-
-      blockUntilChildSpansFinished(3)
     }
 
     then:
     assert !result
-    sortAndAssertTraces(1) {
-      trace(0, 4) {
-        basicSpan(it, 0, "someTrace")
-        assertCouchbaseCall(it, 3, "Bucket.upsert", bucketCouchbase.name(), span(0))
-        assertCouchbaseCall(it, 2, "Bucket.remove", bucketCouchbase.name(), span(0))
-        assertCouchbaseCall(it, 1, "Bucket.query", bucketCouchbase.name(), span(0))
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(4) {
+        basicSpan(it, "someTrace")
+        assertCouchbaseCall(it, "Bucket.upsert", bucketCouchbase.name(), span(0))
+        assertCouchbaseCall(it, "Bucket.remove", bucketCouchbase.name(), span(0))
+        assertCouchbaseCall(it, "Bucket.query", bucketCouchbase.name(), span(0))
       }
     }
   }

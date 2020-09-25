@@ -175,6 +175,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
   }
 
+  @Timeout(30)
   def "test default buffer size"() {
     setup:
     def api = apiWithVersion(agentVersion)

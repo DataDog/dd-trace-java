@@ -1,9 +1,9 @@
 package datadog.trace.agent.test.server.http
 
-import datadog.trace.core.DDSpan
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.core.DDSpan
 import org.eclipse.jetty.http.HttpMethods
 import org.eclipse.jetty.server.Handler
 import org.eclipse.jetty.server.Request
@@ -93,9 +93,9 @@ class TestHttpServer implements AutoCloseable {
     clone(handlers)
   }
 
-  static distributedRequestTrace(ListWriterAssert traces, int index, DDSpan parentSpan = null) {
-    traces.trace(index, 1) {
-      span(0) {
+  static distributedRequestTrace(ListWriterAssert traces, DDSpan parentSpan = null) {
+    traces.trace(1) {
+      span {
         operationName "test-http-server"
         errored false
         if (parentSpan == null) {

@@ -95,10 +95,10 @@ abstract class HttpClientTest extends AgentTestRunner {
     then:
     status == 200
     assertTraces(2) {
-      server.distributedRequestTrace(it, 0, trace(1).last())
-      trace(1, size(1)) {
-        clientSpan(it, 0, null, method, false, tagQueryString, url)
+      trace(size(1)) {
+        clientSpan(it, null, method, false, tagQueryString, url)
       }
+      server.distributedRequestTrace(it, trace(0).last())
     }
 
     where:
@@ -123,11 +123,11 @@ abstract class HttpClientTest extends AgentTestRunner {
     then:
     status == 200
     assertTraces(2) {
-      server.distributedRequestTrace(it, 0, trace(1).last())
-      trace(1, size(2)) {
-        basicSpan(it, 0, "parent")
-        clientSpan(it, 1, span(0), method)
+      trace(size(2)) {
+        basicSpan(it, "parent")
+        clientSpan(it, span(0), method)
       }
+      server.distributedRequestTrace(it, trace(0).last())
     }
 
     where:
@@ -145,10 +145,10 @@ abstract class HttpClientTest extends AgentTestRunner {
     then:
     status == 200
     assertTraces(2) {
-      server.distributedRequestTrace(it, 0, trace(1).last())
-      trace(1, size(1)) {
-        clientSpan(it, 0, null, method, true)
+      trace(size(1)) {
+        clientSpan(it, null, method, true)
       }
+      server.distributedRequestTrace(it, trace(0).last())
     }
 
     where:
@@ -167,9 +167,9 @@ abstract class HttpClientTest extends AgentTestRunner {
     status == 200
     // only one trace (client).
     assertTraces(1) {
-      trace(0, size(2)) {
-        basicSpan(it, 0, "parent")
-        clientSpan(it, 1, span(0), method, renameService)
+      trace(size(2)) {
+        basicSpan(it, "parent")
+        clientSpan(it, span(0), method, renameService)
       }
     }
 
@@ -195,10 +195,10 @@ abstract class HttpClientTest extends AgentTestRunner {
     status == 200
     // only one trace (client).
     assertTraces(1) {
-      trace(0, size(3)) {
-        basicSpan(it, 0, "parent")
-        basicSpan(it, 1, "child", span(0))
-        clientSpan(it, 2, span(0), method)
+      trace(size(3)) {
+        basicSpan(it, "parent")
+        basicSpan(it, "child", span(0))
+        clientSpan(it, span(0), method)
       }
     }
 
@@ -233,11 +233,11 @@ abstract class HttpClientTest extends AgentTestRunner {
     status == 200
     // only one trace (client).
     assertTraces(2) {
-      trace(0, size(1)) {
-        clientSpan(it, 0, null, method)
+      trace(size(1)) {
+        clientSpan(it, null, method)
       }
-      trace(1, 1) {
-        basicSpan(it, 0, "callback")
+      trace(1) {
+        basicSpan(it, "callback")
       }
     }
 
@@ -259,11 +259,11 @@ abstract class HttpClientTest extends AgentTestRunner {
     then:
     status == 200
     assertTraces(3) {
-      server.distributedRequestTrace(it, 0, trace(2).last())
-      server.distributedRequestTrace(it, 1, trace(2).last())
-      trace(2, size(1)) {
-        clientSpan(it, 0, null, method, false, false, uri)
+      trace(size(1)) {
+        clientSpan(it, null, method, false, false, uri)
       }
+      server.distributedRequestTrace(it, trace(0).last())
+      server.distributedRequestTrace(it, trace(0).last())
     }
 
     where:
@@ -281,12 +281,12 @@ abstract class HttpClientTest extends AgentTestRunner {
     then:
     status == 200
     assertTraces(4) {
-      server.distributedRequestTrace(it, 0, trace(3).last())
-      server.distributedRequestTrace(it, 1, trace(3).last())
-      server.distributedRequestTrace(it, 2, trace(3).last())
-      trace(3, size(1)) {
-        clientSpan(it, 0, null, method, false, false, uri)
+      trace(size(1)) {
+        clientSpan(it, null, method, false, false, uri)
       }
+      server.distributedRequestTrace(it, trace(0).last())
+      server.distributedRequestTrace(it, trace(0).last())
+      server.distributedRequestTrace(it, trace(0).last())
     }
 
     where:
@@ -307,11 +307,11 @@ abstract class HttpClientTest extends AgentTestRunner {
 
     and:
     assertTraces(3) {
-      server.distributedRequestTrace(it, 0, trace(2).last())
-      server.distributedRequestTrace(it, 1, trace(2).last())
-      trace(2, size(1)) {
-        clientSpan(it, 0, null, method, false, false, uri, statusOnRedirectError(), thrownException)
+      trace(size(1)) {
+        clientSpan(it, null, method, false, false, uri, statusOnRedirectError(), thrownException)
       }
+      server.distributedRequestTrace(it, trace(0).last())
+      server.distributedRequestTrace(it, trace(0).last())
     }
 
     where:
@@ -329,11 +329,11 @@ abstract class HttpClientTest extends AgentTestRunner {
     then:
     status == 200
     assertTraces(3) {
-      server.distributedRequestTrace(it, 0, trace(2).last())
-      server.distributedRequestTrace(it, 1, trace(2).last())
-      trace(2, size(1)) {
-        clientSpan(it, 0, null, method, false, false, uri)
+      trace(size(1)) {
+        clientSpan(it, null, method, false, false, uri)
       }
+      server.distributedRequestTrace(it, trace(0).last())
+      server.distributedRequestTrace(it, trace(0).last())
     }
 
     where:
@@ -356,9 +356,9 @@ abstract class HttpClientTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent", null, thrownException)
-        clientSpan(it, 1, span(0), method, false, false, uri, null, thrownException)
+      trace(2) {
+        basicSpan(it, "parent", null, thrownException)
+        clientSpan(it, span(0), method, false, false, uri, null, thrownException)
       }
     }
 
@@ -381,9 +381,9 @@ abstract class HttpClientTest extends AgentTestRunner {
     def ex = thrown(Exception)
     def thrownException = ex instanceof ExecutionException ? ex.cause : ex
     assertTraces(1) {
-      trace(0, size(2)) {
-        basicSpan(it, 0, "parent", null, thrownException)
-        clientSpan(it, 1, span(0), method, false, false, uri, null, thrownException)
+      trace(size(2)) {
+        basicSpan(it, "parent", null, thrownException)
+        clientSpan(it, span(0), method, false, false, uri, null, thrownException)
       }
     }
 
@@ -405,9 +405,9 @@ abstract class HttpClientTest extends AgentTestRunner {
     def ex = thrown(Exception)
     def thrownException = ex instanceof ExecutionException ? ex.cause : ex
     assertTraces(1) {
-      trace(0, size(2)) {
-        basicSpan(it, 0, "parent", null, thrownException)
-        clientSpan(it, 1, span(0), method, false, false, uri, null, thrownException)
+      trace(size(2)) {
+        basicSpan(it, "parent", null, thrownException)
+        clientSpan(it, span(0), method, false, false, uri, null, thrownException)
       }
     }
 
@@ -428,8 +428,8 @@ abstract class HttpClientTest extends AgentTestRunner {
     then:
     status == 200
     assertTraces(1) {
-      trace(0, size(1)) {
-        clientSpan(it, 0, null, method, false, false, uri)
+      trace(size(1)) {
+        clientSpan(it, null, method, false, false, uri)
       }
     }
 
@@ -438,8 +438,8 @@ abstract class HttpClientTest extends AgentTestRunner {
   }
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void clientSpan(TraceAssert trace, int index, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, Throwable exception = null) {
-    trace.span(index) {
+  void clientSpan(TraceAssert trace, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, Throwable exception = null) {
+    trace.span {
       if (parentSpan == null) {
         parent()
       } else {

@@ -19,8 +19,6 @@ class SpringTemplateJMS1Test extends AgentTestRunner {
   @Shared
   EmbeddedActiveMQBroker broker = new EmbeddedActiveMQBroker()
   @Shared
-  String messageText = "a message"
-  @Shared
   JmsTemplate template
   @Shared
   Session session
@@ -50,13 +48,15 @@ class SpringTemplateJMS1Test extends AgentTestRunner {
     expect:
     receivedMessage.text == messageText
     assertTraces(2) {
-      producerTrace(it, 0, jmsResourceName)
-      consumerTrace(it, 1, jmsResourceName, false, ActiveMQMessageConsumer)
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, false, ActiveMQMessageConsumer, trace(0)[0])
     }
 
     where:
     destination                               | jmsResourceName
     session.createQueue("SpringTemplateJMS1") | "Queue SpringTemplateJMS1"
+
+    messageText = "a message"
   }
 
   def "send and receive message generates spans"() {
@@ -64,9 +64,6 @@ class SpringTemplateJMS1Test extends AgentTestRunner {
     Thread.start {
       TextMessage msg = template.receive(destination)
       assert msg.text == messageText
-
-      // Make sure that first pair of send/receive traces has landed to simplify assertions
-      TEST_WRITER.waitForTraces(2)
 
       template.send(msg.getJMSReplyTo()) {
         session -> template.getMessageConverter().toMessage("responded!", session)
@@ -76,30 +73,19 @@ class SpringTemplateJMS1Test extends AgentTestRunner {
       session -> template.getMessageConverter().toMessage(messageText, session)
     }
 
-    TEST_WRITER.waitForTraces(4)
-    // Manually reorder if reported in the wrong order.
-    if (TEST_WRITER[1][0].operationName.toString() == "jms.produce") {
-      def producerTrace = TEST_WRITER[1]
-      TEST_WRITER[1] = TEST_WRITER[0]
-      TEST_WRITER[0] = producerTrace
-    }
-    if (TEST_WRITER[3][0].operationName.toString() == "jms.produce") {
-      def producerTrace = TEST_WRITER[3]
-      TEST_WRITER[3] = TEST_WRITER[2]
-      TEST_WRITER[2] = producerTrace
-    }
-
     expect:
     receivedMessage.text == "responded!"
     assertTraces(4) {
-      producerTrace(it, 0, jmsResourceName)
-      consumerTrace(it, 1, jmsResourceName, false, ActiveMQMessageConsumer)
-      producerTrace(it, 2, "Temporary Queue") // receive doesn't propagate the trace, so this is a root
-      consumerTrace(it, 3, "Temporary Queue", false, ActiveMQMessageConsumer, TEST_WRITER[2][0])
+      producerTrace(it, jmsResourceName)
+      consumerTrace(it, jmsResourceName, false, ActiveMQMessageConsumer, trace(0)[0])
+      producerTrace(it, "Temporary Queue") // receive doesn't propagate the trace, so this is a root
+      consumerTrace(it, "Temporary Queue", false, ActiveMQMessageConsumer, trace(2)[0])
     }
 
     where:
     destination                               | jmsResourceName
     session.createQueue("SpringTemplateJMS1") | "Queue SpringTemplateJMS1"
+
+    messageText = "a message"
   }
 }

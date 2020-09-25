@@ -9,8 +9,6 @@ import spock.lang.Unroll
 import spock.util.concurrent.BlockingVariable
 import util.AbstractCouchbaseTest
 
-import java.util.concurrent.TimeUnit
-
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
@@ -30,16 +28,16 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
     then:
     assert hasBucket.get()
-    sortAndAssertTraces(1) {
-      trace(0, 2) {
-        assertCouchbaseCall(it, 0, "Cluster.openBucket", null)
-        assertCouchbaseCall(it, 1, "ClusterManager.hasBucket", null, span(0))
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(2) {
+        assertCouchbaseCall(it, "Cluster.openBucket", null)
+        assertCouchbaseCall(it, "ClusterManager.hasBucket", null, span(0))
       }
     }
 
     cleanup:
-    cluster?.disconnect()?.timeout(TIMEOUT, TimeUnit.SECONDS)?.toBlocking()?.single()
-    environment.shutdown()
+    cleanupCluster(cluster, environment)
 
     where:
     bucketSettings << [bucketCouchbase, bucketMemcache]
@@ -61,25 +59,22 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
       cluster.openBucket(bucketSettings.name(), bucketSettings.password()).subscribe({ bkt ->
         bkt.upsert(JsonDocument.create("helloworld", content)).subscribe({ result -> inserted.set(result) })
       })
-
-      blockUntilChildSpansFinished(2) // Improve span ordering consistency
     }
 
     then:
     inserted.get().content().getString("hello") == "world"
 
-    sortAndAssertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "someTrace")
-
-        assertCouchbaseCall(it, 2, "Cluster.openBucket", null, span(0))
-        assertCouchbaseCall(it, 1, "Bucket.upsert", bucketSettings.name(), span(2))
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(3) {
+        basicSpan(it, "someTrace")
+        assertCouchbaseCall(it, "Cluster.openBucket", null, span(0))
+        assertCouchbaseCall(it, "Bucket.upsert", bucketSettings.name(), span(1))
       }
     }
 
     cleanup:
-    cluster?.disconnect()?.timeout(TIMEOUT, TimeUnit.SECONDS)?.toBlocking()?.single()
-    environment.shutdown()
+    cleanupCluster(cluster, environment)
 
     where:
     bucketSettings << [bucketCouchbase, bucketMemcache]
@@ -106,8 +101,6 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
               })
           })
       })
-
-      blockUntilChildSpansFinished(3) // Improve span ordering consistency
     }
 
     // Create a JSON document and store it with the ID "helloworld"
@@ -115,19 +108,19 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     found.get() == inserted.get()
     found.get().content().getString("hello") == "world"
 
-    sortAndAssertTraces(1) {
-      trace(0, 4) {
-        basicSpan(it, 0, "someTrace")
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(4) {
+        basicSpan(it, "someTrace")
 
-        assertCouchbaseCall(it, 3, "Cluster.openBucket", null, span(0))
-        assertCouchbaseCall(it, 2, "Bucket.upsert", bucketSettings.name(), span(3))
-        assertCouchbaseCall(it, 1, "Bucket.get", bucketSettings.name(), span(2))
+        assertCouchbaseCall(it, "Cluster.openBucket", null, span(0))
+        assertCouchbaseCall(it, "Bucket.upsert", bucketSettings.name(), span(1))
+        assertCouchbaseCall(it, "Bucket.get", bucketSettings.name(), span(2))
       }
     }
 
     cleanup:
-    cluster?.disconnect()?.timeout(TIMEOUT, TimeUnit.SECONDS)?.toBlocking()?.single()
-    environment.shutdown()
+    cleanupCluster(cluster, environment)
 
     where:
     bucketSettings << [bucketCouchbase, bucketMemcache]
@@ -155,24 +148,21 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
             .single()
             .subscribe({ row -> queryResult.set(row.value()) })
       })
-
-      blockUntilChildSpansFinished(2) // Improve span ordering consistency
     }
 
     then:
     queryResult.get().get("row") == "value"
 
-    sortAndAssertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "someTrace")
-
-        assertCouchbaseCall(it, 2, "Cluster.openBucket", null, span(0))
-        assertCouchbaseCall(it, 1, "Bucket.query", bucketCouchbase.name(), span(2))
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(3) {
+        basicSpan(it, "someTrace")
+        assertCouchbaseCall(it, "Cluster.openBucket", null, span(0))
+        assertCouchbaseCall(it, "Bucket.query", bucketCouchbase.name(), span(1))
       }
     }
 
     cleanup:
-    cluster?.disconnect()?.timeout(TIMEOUT, TimeUnit.SECONDS)?.toBlocking()?.single()
-    environment.shutdown()
+    cleanupCluster(cluster, environment)
   }
 }

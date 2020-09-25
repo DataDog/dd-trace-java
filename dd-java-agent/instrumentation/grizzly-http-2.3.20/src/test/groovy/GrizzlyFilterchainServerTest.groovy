@@ -96,11 +96,11 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
 
   FilterChain setUpFilterChain() {
     return FilterChainBuilder.stateless()
-              .add(createTransportFilter())
-              .add(createIdleTimeoutFilter())
-              .add(new HttpServerFilter())
-              .add(new LastFilter())
-              .build()
+      .add(createTransportFilter())
+      .add(createIdleTimeoutFilter())
+      .add(new HttpServerFilter())
+      .add(new LastFilter())
+      .build()
   }
 
   TransportFilter createTransportFilter() {
@@ -122,8 +122,8 @@ class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
           HttpRequestPacket request = (HttpRequestPacket) httpContent.getHttpHeader()
           ResponseParameters responseParameters = buildResponse(request)
           HttpResponsePacket.Builder builder = HttpResponsePacket.builder(request)
-                            .status(responseParameters.getStatus())
-                            .header("Content-Length", valueOf(responseParameters.getResponseBody().length))
+            .status(responseParameters.getStatus())
+            .header("Content-Length", valueOf(responseParameters.getResponseBody().length))
           responseParameters.fillHeaders(builder)
           HttpResponsePacket responsePacket = builder.build()
           controller(responseParameters.getEndpoint()) {

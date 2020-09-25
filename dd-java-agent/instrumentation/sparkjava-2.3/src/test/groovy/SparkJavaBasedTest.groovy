@@ -42,8 +42,8 @@ class SparkJavaBasedTest extends AgentTestRunner {
     response.body().string() == "Hello asdf1234"
 
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           operationName "jetty.request"
           resourceName "GET /param/:param"
           spanType DDSpanTypes.HTTP_SERVER

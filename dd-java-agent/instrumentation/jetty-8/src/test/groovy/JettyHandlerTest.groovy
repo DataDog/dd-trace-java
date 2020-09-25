@@ -115,9 +115,9 @@ class JettyHandlerTest extends HttpServerTest<Server> {
   }
 
   @Override
-  void serverSpan(TraceAssert trace, int index, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
     def handlerName = handler().class.name
-    trace.span(index) {
+    trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
       resourceName endpoint.resource(method, address, testPathParam())

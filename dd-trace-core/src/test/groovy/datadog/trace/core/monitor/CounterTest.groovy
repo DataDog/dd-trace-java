@@ -8,7 +8,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 class CounterTest extends DDSpecification {
 
-  def "counter counts stuff" () {
+  def "counter counts stuff"() {
     StatsDClient statsd = Mock(StatsDClient)
     Monitoring monitoring = new Monitoring(statsd, 100, MILLISECONDS)
     def counter = monitoring.newCounter("my_counter")
@@ -19,7 +19,7 @@ class CounterTest extends DDSpecification {
     0 * _
   }
 
-  def "counter tags error counts with cause" () {
+  def "counter tags error counts with cause"() {
     StatsDClient statsd = Mock(StatsDClient)
     Monitoring monitoring = new Monitoring(statsd, 100, MILLISECONDS)
     def counter = monitoring.newCounter("my_counter")
@@ -30,7 +30,7 @@ class CounterTest extends DDSpecification {
     0 * _
   }
 
-  def "disabled monitoring produces no op counters" () {
+  def "disabled monitoring produces no op counters"() {
     setup:
     Monitoring monitoring = Monitoring.DISABLED
     when:
@@ -39,7 +39,7 @@ class CounterTest extends DDSpecification {
     counter instanceof NoOpCounter
   }
 
-  def "no-op counters are safe" () {
+  def "no-op counters are safe"() {
     setup:
     Counter counter = Monitoring.DISABLED.newCounter("foo")
     expect:

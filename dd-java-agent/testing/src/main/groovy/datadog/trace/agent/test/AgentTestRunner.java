@@ -251,7 +251,18 @@ public abstract class AgentTestRunner extends DDSpecification {
               options = "datadog.trace.agent.test.asserts.ListWriterAssert")
           @DelegatesTo(value = ListWriterAssert.class, strategy = Closure.DELEGATE_FIRST)
           final Closure spec) {
-    ListWriterAssert.assertTraces(TEST_WRITER, size, spec);
+    assertTraces(size, false, spec);
+  }
+
+  public static void assertTraces(
+      final int size,
+      final boolean ignoreAdditionalTraces,
+      @ClosureParams(
+              value = SimpleType.class,
+              options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+          @DelegatesTo(value = ListWriterAssert.class, strategy = Closure.DELEGATE_FIRST)
+          final Closure spec) {
+    ListWriterAssert.assertTraces(TEST_WRITER, size, ignoreAdditionalTraces, spec);
   }
 
   @SneakyThrows

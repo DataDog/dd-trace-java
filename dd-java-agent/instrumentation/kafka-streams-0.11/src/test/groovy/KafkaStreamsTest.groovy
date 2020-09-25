@@ -117,17 +117,10 @@ class KafkaStreamsTest extends AgentTestRunner {
     received.value() == greeting.toLowerCase()
     received.key() == null
 
-    if (TEST_WRITER[1][0].operationName.toString() == "kafka.produce") {
-      // Make sure that order of first two traces is predetermined.
-      // Unfortunately it looks like we cannot really control it in a better way through the code
-      def tmp = TEST_WRITER[1][0]
-      TEST_WRITER[1][0] = TEST_WRITER[0][0]
-      TEST_WRITER[0][0] = tmp
-    }
     assertTraces(4) {
-      trace(0, 1) {
+      trace(1) {
         // PRODUCER span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.produce"
           resourceName "Produce Topic $STREAM_PENDING"
@@ -141,15 +134,15 @@ class KafkaStreamsTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
+      trace(1) {
         // CONSUMER span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.consume"
           resourceName "Consume Topic $STREAM_PENDING"
           spanType "queue"
           errored false
-          childOf TEST_WRITER[0][0]
+          childOf trace(0)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -160,10 +153,10 @@ class KafkaStreamsTest extends AgentTestRunner {
           }
         }
       }
-      trace(2, 2) {
+      trace(2) {
 
         // STREAMING span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.produce"
           resourceName "Produce Topic $STREAM_PROCESSED"
@@ -179,13 +172,13 @@ class KafkaStreamsTest extends AgentTestRunner {
         }
 
         // STREAMING span 1
-        span(1) {
+        span {
           serviceName "kafka"
           operationName "kafka.consume"
           resourceName "Consume Topic $STREAM_PENDING"
           spanType "queue"
           errored false
-          childOf TEST_WRITER[0][0]
+          childOf trace(0)[0]
 
           tags {
             "$Tags.COMPONENT" "java-kafka"
@@ -197,15 +190,15 @@ class KafkaStreamsTest extends AgentTestRunner {
           }
         }
       }
-      trace(3, 1) {
+      trace(1) {
         // CONSUMER span 0
-        span(0) {
+        span {
           serviceName "kafka"
           operationName "kafka.consume"
           resourceName "Consume Topic $STREAM_PROCESSED"
           spanType "queue"
           errored false
-          childOf TEST_WRITER[2][0]
+          childOf trace(2)[0]
           tags {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER

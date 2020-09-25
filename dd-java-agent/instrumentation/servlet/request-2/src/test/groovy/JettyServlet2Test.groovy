@@ -84,8 +84,8 @@ class JettyServlet2Test extends HttpServerTest<Server> {
   }
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void serverSpan(TraceAssert trace, int index, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    trace.span(index) {
+  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
       resourceName endpoint.resource(method, address, testPathParam())

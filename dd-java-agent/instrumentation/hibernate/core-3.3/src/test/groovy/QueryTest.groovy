@@ -25,8 +25,8 @@ class QueryTest extends AbstractHibernateTest {
     expect:
     assertTraces(requiresTransaction ? 1 : 2) {
       // With Transaction
-      trace(0, 4) {
-        span(0) {
+      trace(4) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.session"
           operationName "hibernate.session"
@@ -38,7 +38,7 @@ class QueryTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.transaction.commit"
           operationName "hibernate.transaction.commit"
@@ -50,7 +50,7 @@ class QueryTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "hibernate"
           resourceName "$resource"
           operationName "hibernate.$queryMethodName"
@@ -62,7 +62,7 @@ class QueryTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           serviceName "h2"
           spanType "sql"
           childOf span(2)
@@ -79,8 +79,8 @@ class QueryTest extends AbstractHibernateTest {
       }
       if (!requiresTransaction) {
         // Without Transaction
-        trace(1, 3) {
-          span(0) {
+        trace(3) {
+          span {
             serviceName "hibernate"
             resourceName "hibernate.session"
             operationName "hibernate.session"
@@ -92,7 +92,7 @@ class QueryTest extends AbstractHibernateTest {
               defaultTags()
             }
           }
-          span(1) {
+          span {
             serviceName "hibernate"
             resourceName "$resource"
             operationName "hibernate.$queryMethodName"
@@ -104,7 +104,7 @@ class QueryTest extends AbstractHibernateTest {
               defaultTags()
             }
           }
-          span(2) {
+          span {
             serviceName "h2"
             spanType "sql"
             childOf span(1)
@@ -161,8 +161,8 @@ class QueryTest extends AbstractHibernateTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 4) {
-        span(0) {
+      trace(4) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.session"
           operationName "hibernate.session"
@@ -174,7 +174,7 @@ class QueryTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.transaction.commit"
           operationName "hibernate.transaction.commit"
@@ -186,7 +186,7 @@ class QueryTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "hibernate"
           resourceName "from Value"
           operationName "hibernate.iterate"
@@ -198,7 +198,7 @@ class QueryTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           serviceName "h2"
           spanType "sql"
           childOf span(2)

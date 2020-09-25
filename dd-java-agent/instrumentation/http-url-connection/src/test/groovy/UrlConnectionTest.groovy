@@ -30,8 +30,8 @@ class UrlConnectionTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "someTrace"
           parent()
           errored true
@@ -40,7 +40,7 @@ class UrlConnectionTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           if (renameService) {
             serviceName "localhost"
           }
@@ -87,8 +87,8 @@ class UrlConnectionTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "someTrace"
           parent()
           errored true
@@ -97,7 +97,7 @@ class UrlConnectionTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           operationName "file.request"
           resourceName "file:$url.path"
           spanType DDSpanTypes.HTTP_CLIENT
@@ -135,8 +135,8 @@ class UrlConnectionTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           operationName "someTrace"
           parent()
           errored true

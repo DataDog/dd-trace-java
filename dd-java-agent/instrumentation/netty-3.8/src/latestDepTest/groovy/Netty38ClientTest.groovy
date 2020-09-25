@@ -82,10 +82,10 @@ class Netty38ClientTest extends HttpClientTest {
 
     and:
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent", null, thrownException)
+      trace(2) {
+        basicSpan(it, "parent", null, thrownException)
 
-        span(1) {
+        span {
           operationName "netty.connect"
           resourceName "netty.connect"
           childOf span(0)

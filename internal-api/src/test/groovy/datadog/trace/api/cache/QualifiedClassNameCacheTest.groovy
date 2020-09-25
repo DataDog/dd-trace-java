@@ -7,7 +7,7 @@ import datadog.trace.util.test.DDSpecification
 
 class QualifiedClassNameCacheTest extends DDSpecification {
 
-  def "test cached string operations" () {
+  def "test cached string operations"() {
     when:
     QualifiedClassNameCache cache = new QualifiedClassNameCache(new Function<Class<?>, String>() {
       @Override
@@ -20,13 +20,13 @@ class QualifiedClassNameCacheTest extends DDSpecification {
     then:
     qualified == expected
     where:
-    type    |    prefix    |  func                                                 |   expected
-    String  |    "foo."    |  Functions.Suffix.ZERO                                | "foo.String"
-    String  |    ".foo"    |  Functions.Prefix.ZERO                                | "String.foo"
-    String  |    "foo"     |  Functions.SuffixJoin.of(".")                         | "foo.String"
-    String  |    "foo"     |  Functions.PrefixJoin.of(".")                         | "String.foo"
-    String  |    "foo"     |  Functions.SuffixJoin.of(".", new Replace("oo", ""))  | "f.String"
-    String  |    "foo"     |  Functions.PrefixJoin.of(".", new Replace("oo", ""))  | "String.f"
+    type   | prefix | func                                                | expected
+    String | "foo." | Functions.Suffix.ZERO                               | "foo.String"
+    String | ".foo" | Functions.Prefix.ZERO                               | "String.foo"
+    String | "foo"  | Functions.SuffixJoin.of(".")                        | "foo.String"
+    String | "foo"  | Functions.PrefixJoin.of(".")                        | "String.foo"
+    String | "foo"  | Functions.SuffixJoin.of(".", new Replace("oo", "")) | "f.String"
+    String | "foo"  | Functions.PrefixJoin.of(".", new Replace("oo", "")) | "String.f"
   }
 
   def "test get cached class name"() {
@@ -41,9 +41,9 @@ class QualifiedClassNameCacheTest extends DDSpecification {
     cache.getClassName(type) == expected
 
     where:
-    type             | expected
-    String           | "String"
-    Functions.Zero   | "Zero"
+    type           | expected
+    String         | "String"
+    Functions.Zero | "Zero"
   }
 
   class Replace implements Function<String, String> {

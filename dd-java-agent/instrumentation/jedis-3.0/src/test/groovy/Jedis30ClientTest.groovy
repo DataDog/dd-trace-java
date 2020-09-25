@@ -50,8 +50,8 @@ class Jedis30ClientTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           resourceName "SET"
@@ -76,8 +76,8 @@ class Jedis30ClientTest extends AgentTestRunner {
     value == "bar"
 
     assertTraces(2) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           resourceName "SET"
@@ -90,8 +90,8 @@ class Jedis30ClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           resourceName "GET"
@@ -116,8 +116,8 @@ class Jedis30ClientTest extends AgentTestRunner {
     value == "foo"
 
     assertTraces(2) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           resourceName "SET"
@@ -130,8 +130,8 @@ class Jedis30ClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "redis"
           operationName "redis.query"
           resourceName "RANDOMKEY"

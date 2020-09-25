@@ -11,7 +11,7 @@ class SpringWebfluxHttpClientFilterTest extends SpringWebfluxHttpClientBase {
 
   @Override
   WebClient createClient(String component) {
-    filter  = new CollectingFilter()
+    filter = new CollectingFilter()
     this.component = component
     return WebClient.builder().filter(filter).build()
   }

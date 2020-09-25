@@ -182,11 +182,11 @@ class DDSpanSerializationTest extends DDSpecification {
     }
 
     where:
-    baggage       | tags           | expected
-    [:]           | [:]            | [:]
-    [foo: "bbar"] | [:]            | [foo: "bbar"]
-    [foo: "bbar"] | [bar: "tfoo"]  | [foo: "bbar", bar: "tfoo"]
-    [foo: "bbar"] | [foo: "tbar"]  | [foo: "tbar"]
+    baggage       | tags          | expected
+    [:]           | [:]           | [:]
+    [foo: "bbar"] | [:]           | [foo: "bbar"]
+    [foo: "bbar"] | [bar: "tfoo"] | [foo: "bbar", bar: "tfoo"]
+    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]
   }
 
 
@@ -251,11 +251,11 @@ class DDSpanSerializationTest extends DDSpecification {
     assert unpackedMeta == expected
 
     where:
-    baggage       | tags           | expected
-    [:]           | [:]            | [:]
-    [foo: "bbar"] | [:]            | [foo: "bbar"]
-    [foo: "bbar"] | [bar: "tfoo"]  | [foo: "bbar", bar: "tfoo"]
-    [foo: "bbar"] | [foo: "tbar"]  | [foo: "tbar"]
+    baggage       | tags          | expected
+    [:]           | [:]           | [:]
+    [foo: "bbar"] | [:]           | [foo: "bbar"]
+    [foo: "bbar"] | [bar: "tfoo"] | [foo: "bbar", bar: "tfoo"]
+    [foo: "bbar"] | [foo: "tbar"] | [foo: "tbar"]
   }
 
   private class CaptureBuffer implements ByteBufferConsumer {

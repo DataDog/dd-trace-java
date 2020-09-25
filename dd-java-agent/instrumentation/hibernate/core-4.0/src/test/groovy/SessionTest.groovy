@@ -40,8 +40,8 @@ class SessionTest extends AbstractHibernateTest {
     expect:
     assertTraces(sessionImplementations.size()) {
       for (int i = 0; i < sessionImplementations.size(); i++) {
-        trace(i, 4) {
-          span(0) {
+        trace(4) {
+          span {
             serviceName "hibernate"
             resourceName "hibernate.session"
             operationName "hibernate.session"
@@ -53,7 +53,7 @@ class SessionTest extends AbstractHibernateTest {
               defaultTags()
             }
           }
-          span(1) {
+          span {
             serviceName "hibernate"
             resourceName "hibernate.transaction.commit"
             operationName "hibernate.transaction.commit"
@@ -65,7 +65,7 @@ class SessionTest extends AbstractHibernateTest {
               defaultTags()
             }
           }
-          span(2) {
+          span {
             serviceName "hibernate"
             resourceName resource
             operationName "hibernate.$methodName"
@@ -77,7 +77,7 @@ class SessionTest extends AbstractHibernateTest {
               defaultTags()
             }
           }
-          span(3) {
+          span {
             serviceName "h2"
             spanType "sql"
             childOf span(2)
@@ -140,8 +140,8 @@ class SessionTest extends AbstractHibernateTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 5) {
-        span(0) {
+      trace(5) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.session"
           operationName "hibernate.session"
@@ -153,7 +153,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.transaction.commit"
           operationName "hibernate.transaction.commit"
@@ -165,7 +165,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "h2"
           spanType "sql"
           childOf span(1)
@@ -179,7 +179,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           serviceName "hibernate"
           resourceName resource
           operationName "hibernate.$methodName"
@@ -191,7 +191,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(4) {
+        span {
           serviceName "h2"
           spanType "sql"
           childOf span(3)
@@ -241,8 +241,8 @@ class SessionTest extends AbstractHibernateTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.session"
           operationName "hibernate.session"
@@ -254,7 +254,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.transaction.commit"
           operationName "hibernate.transaction.commit"
@@ -266,7 +266,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.replicate"
           operationName "hibernate.replicate"
@@ -303,8 +303,8 @@ class SessionTest extends AbstractHibernateTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 4) {
-        span(0) {
+      trace(4) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.session"
           operationName "hibernate.session"
@@ -316,7 +316,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.transaction.commit"
           operationName "hibernate.transaction.commit"
@@ -328,7 +328,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "h2"
           spanType "sql"
           childOf span(1)
@@ -342,7 +342,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           serviceName "hibernate"
           resourceName resource
           operationName "hibernate.$methodName"
@@ -401,8 +401,8 @@ class SessionTest extends AbstractHibernateTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 4) {
-        span(0) {
+      trace(4) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.session"
           operationName "hibernate.session"
@@ -414,7 +414,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.transaction.commit"
           operationName "hibernate.transaction.commit"
@@ -426,7 +426,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "hibernate"
           resourceName "$resource"
           operationName "hibernate.query.list"
@@ -438,7 +438,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           serviceName "h2"
           spanType "sql"
           childOf span(2)
@@ -489,14 +489,14 @@ class SessionTest extends AbstractHibernateTest {
 
     expect:
     assertTraces(1) {
-      trace(0, 12) {
-        span(0) {
+      trace(12) {
+        span {
           operationName "overlapping Sessions"
           tags {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.session"
           operationName "hibernate.session"
@@ -508,7 +508,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.session"
           operationName "hibernate.session"
@@ -520,7 +520,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.transaction.commit"
           operationName "hibernate.transaction.commit"
@@ -532,7 +532,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(4) {
+        span {
           serviceName "h2"
           spanType "sql"
           childOf span(3)
@@ -546,7 +546,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(5) {
+        span {
           serviceName "h2"
           spanType "sql"
           childOf span(3)
@@ -560,7 +560,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(6) {
+        span {
           serviceName "hibernate"
           resourceName "hibernate.session"
           operationName "hibernate.session"
@@ -572,7 +572,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(7) {
+        span {
           serviceName "hibernate"
           resourceName "Value"
           operationName "hibernate.delete"
@@ -584,7 +584,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(8) {
+        span {
           serviceName "hibernate"
           resourceName "Value"
           operationName "hibernate.save"
@@ -596,7 +596,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(9) {
+        span {
           serviceName "hibernate"
           resourceName "Value"
           operationName "hibernate.insert"
@@ -608,7 +608,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(10) {
+        span {
           serviceName "h2"
           spanType "sql"
           childOf span(9)
@@ -622,7 +622,7 @@ class SessionTest extends AbstractHibernateTest {
             defaultTags()
           }
         }
-        span(11) {
+        span {
           serviceName "hibernate"
           resourceName "Value"
           operationName "hibernate.save"

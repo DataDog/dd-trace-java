@@ -10,6 +10,7 @@ import spock.lang.Retry
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
@@ -19,14 +20,13 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
   @Shared
   DocRepository repo = applicationContext.getBean(DocRepository)
 
-  def setup() {
-    repo.refresh()
-    TEST_WRITER.clear()
-    runUnderTrace("delete") {
+  def cleanup() {
+    def cleanupSpan = runUnderTrace("cleanup") {
+      repo.refresh()
       repo.deleteAll()
+      activeSpan()
     }
-    TEST_WRITER.waitForTraces(1)
-    TEST_WRITER.clear()
+    TEST_WRITER.waitUntilReported(cleanupSpan)
   }
 
   def "test empty repo"() {
@@ -38,8 +38,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "SearchAction"
           operationName "elasticsearch.query"
@@ -72,8 +72,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
     and:
     assertTraces(2) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "IndexAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -92,8 +92,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "RefreshAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -119,8 +119,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"
@@ -154,8 +154,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
     and:
     assertTraces(3) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "IndexAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -174,8 +174,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "RefreshAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -193,8 +193,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
           }
         }
       }
-      trace(2, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"
@@ -227,8 +227,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
 
     and:
     assertTraces(3) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "DeleteAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -247,8 +247,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           resourceName "RefreshAction"
           operationName "elasticsearch.query"
           spanType DDSpanTypes.ELASTICSEARCH
@@ -266,8 +266,8 @@ class Elasticsearch2SpringRepositoryTest extends AgentTestRunner {
           }
         }
       }
-      trace(2, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "SearchAction"
           operationName "elasticsearch.query"

@@ -22,7 +22,7 @@ import static org.elasticsearch.cluster.ClusterName.CLUSTER_NAME_SETTING
 @Retry(count = 3, delay = 1000, mode = Retry.Mode.SETUP_FEATURE_CLEANUP)
 class Elasticsearch6TransportClientTest extends AgentTestRunner {
   public static final long TIMEOUT = 10000; // 10 seconds
-  
+
   @Shared
   TransportAddress tcpPublishAddress
   @Shared
@@ -47,7 +47,7 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
     testNode = new Node(InternalSettingsPreparer.prepareEnvironment(settings, null), [Netty4Plugin])
     testNode.start()
     tcpPublishAddress = testNode.injector().getInstance(TransportService).boundAddress().publishAddress()
-    
+
     client = new PreBuiltTransportClient(
       Settings.builder()
       // Since we use listeners to close spans this should make our span closing deterministic which is good for tests
@@ -82,8 +82,8 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
     status.name() == "GREEN"
 
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "ClusterHealthAction"
           operationName "elasticsearch.query"
@@ -113,8 +113,8 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
 
     and:
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"
@@ -178,16 +178,9 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
     result.index == indexName
 
     and:
-    // IndexAction and PutMappingAction run in separate threads and order in which
-    // these spans are closed is not defined. So we force the order if it is wrong.
-    if (TEST_WRITER[2][0].resourceName.toString() == "IndexAction") {
-      def tmp = TEST_WRITER[2]
-      TEST_WRITER[2] = TEST_WRITER[3]
-      TEST_WRITER[3] = tmp
-    }
     assertTraces(5) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "CreateIndexAction"
           operationName "elasticsearch.query"
@@ -206,8 +199,8 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(1, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"
@@ -229,24 +222,8 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(2, 1) {
-        span(0) {
-          serviceName "elasticsearch"
-          resourceName "PutMappingAction"
-          operationName "elasticsearch.query"
-          spanType DDSpanTypes.ELASTICSEARCH
-          tags {
-            "$Tags.COMPONENT" "elasticsearch-java"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
-            "$Tags.DB_TYPE" "elasticsearch"
-            "elasticsearch.action" "PutMappingAction"
-            "elasticsearch.request" "PutMappingRequest"
-            defaultTags()
-          }
-        }
-      }
-      trace(3, 1) {
-        span(0) {
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "IndexAction"
           operationName "elasticsearch.query"
@@ -271,8 +248,24 @@ class Elasticsearch6TransportClientTest extends AgentTestRunner {
           }
         }
       }
-      trace(4, 1) {
-        span(0) {
+      trace(1) {
+        span {
+          serviceName "elasticsearch"
+          resourceName "PutMappingAction"
+          operationName "elasticsearch.query"
+          spanType DDSpanTypes.ELASTICSEARCH
+          tags {
+            "$Tags.COMPONENT" "elasticsearch-java"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.DB_TYPE" "elasticsearch"
+            "elasticsearch.action" "PutMappingAction"
+            "elasticsearch.request" "PutMappingRequest"
+            defaultTags()
+          }
+        }
+      }
+      trace(1) {
+        span {
           serviceName "elasticsearch"
           resourceName "GetAction"
           operationName "elasticsearch.query"

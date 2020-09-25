@@ -72,8 +72,8 @@ class AkkaHttpClientInstrumentationTest extends HttpClientTest {
     then:
     def exception = thrown NullPointerException
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           parent()
           operationName "akka-http.client.request"
           resourceName "akka-http.client.request"

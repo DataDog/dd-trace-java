@@ -37,9 +37,9 @@ class HttpServletTest extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(3) {
+        basicSpan(it, "parent")
+        span {
           operationName "servlet.service"
           resourceName "HttpServlet.service"
           childOf span(0)
@@ -48,7 +48,7 @@ class HttpServletTest extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           operationName "servlet.doGet"
           resourceName "${expectedResourceName}.doGet"
           childOf span(1)
@@ -90,9 +90,9 @@ class HttpServletTest extends AgentTestRunner {
     th == ex
 
     assertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "parent", null, ex)
-        span(1) {
+      trace(3) {
+        basicSpan(it, "parent", null, ex)
+        span {
           operationName "servlet.service"
           resourceName "HttpServlet.service"
           childOf span(0)
@@ -103,7 +103,7 @@ class HttpServletTest extends AgentTestRunner {
             errorTags(ex.class, ex.message)
           }
         }
-        span(2) {
+        span {
           operationName "servlet.doGet"
           resourceName "${servlet.class.name}.doGet"
           childOf span(1)

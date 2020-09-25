@@ -38,8 +38,8 @@ class DynamicRoutingTest extends ServletFilterTest {
   }
 
   @Override
-  void handlerSpan(TraceAssert trace, int index, Object parent, ServerEndpoint endpoint = SUCCESS) {
-    trace.span(index) {
+  void handlerSpan(TraceAssert trace, Object parent, ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
       serviceName expectedServiceName()
       operationName "spring.handler"
       resourceName "TestController.${formatEndpoint(endpoint)}"
@@ -58,8 +58,8 @@ class DynamicRoutingTest extends ServletFilterTest {
   }
 
   @Override
-  void serverSpan(TraceAssert trace, int index, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    trace.span(index) {
+  void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
       resourceName endpoint.resource(method, address, testPathParam())

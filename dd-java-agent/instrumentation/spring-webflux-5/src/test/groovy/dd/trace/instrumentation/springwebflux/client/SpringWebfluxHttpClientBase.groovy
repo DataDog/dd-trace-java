@@ -20,6 +20,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
 
   abstract WebClient createClient(String component)
+
   abstract void check()
 
   @Override
@@ -52,11 +53,12 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
 
   @Override
   // parent spanRef must be cast otherwise it breaks debugging classloading (junit loads it early)
-  void clientSpan(TraceAssert trace, int index, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, Throwable exception = null) {
-    super.clientSpan(trace, index, parentSpan, method, renameService, tagQueryString, uri, status, exception)
+  void clientSpan(TraceAssert trace, Object parentSpan, String method = "GET", boolean renameService = false, boolean tagQueryString = false, URI uri = server.address.resolve("/success"), Integer status = 200, Throwable exception = null) {
+    def leafParentId = trace.spanAssertCount.get()
+    super.clientSpan(trace, parentSpan, method, renameService, tagQueryString, uri, status, exception)
     if (!exception) {
-      trace.span(index + 1) {
-        childOf(trace.span(index))
+      trace.span {
+        childOf(trace.span(leafParentId))
         if (renameService) {
           serviceName("localhost")
         }

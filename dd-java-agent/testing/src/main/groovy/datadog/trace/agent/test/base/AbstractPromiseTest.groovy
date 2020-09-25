@@ -39,10 +39,10 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
     then:
     get(promise) == value
     assertTraces(1) {
-      trace(0, 3) {
-        basicSpan(it, 0, "parent")
-        basicSpan(it, 1, "other", it.span(0))
-        basicSpan(it, 2, "callback", it.span(0))
+      trace(3) {
+        basicSpan(it, "parent")
+        basicSpan(it, "other", it.span(0))
+        basicSpan(it, "callback", it.span(0))
       }
     }
 
@@ -71,12 +71,12 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
     then:
     get(promise) == value
     assertTraces(2) {
-      trace(0, 2) {
-        basicSpan(it, 0, "callback", it.span(1))
-        basicSpan(it, 1, "parent")
+      trace(2) {
+        basicSpan(it, "callback", it.span(1))
+        basicSpan(it, "parent")
       }
-      trace(1, 1) {
-        basicSpan(it, 0, "other")
+      trace(1) {
+        basicSpan(it, "other")
       }
     }
 
@@ -104,9 +104,9 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
     then:
     get(promise) == value
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent")
-        basicSpan(it, 1, "callback", it.span(0))
+      trace(2) {
+        basicSpan(it, "parent")
+        basicSpan(it, "callback", it.span(0))
       }
     }
 
@@ -133,10 +133,10 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
     then:
     get(promise) == value
     assertTraces(1) {
-      trace(0, 2) {
+      trace(2) {
         // TODO: is this really the behavior we want?
-        basicSpan(it, 0, "other")
-        basicSpan(it, 1, "callback", it.span(0))
+        basicSpan(it, "other")
+        basicSpan(it, "callback", it.span(0))
       }
     }
 

@@ -93,10 +93,10 @@ class Netty41ClientTest extends HttpClientTest {
 
     and:
     assertTraces(1) {
-      trace(0, 2) {
-        basicSpan(it, 0, "parent", null, thrownException)
+      trace(2) {
+        basicSpan(it, "parent", null, thrownException)
 
-        span(1) {
+        span {
           operationName "netty.connect"
           resourceName "netty.connect"
           childOf span(0)
@@ -198,10 +198,9 @@ class Netty41ClientTest extends HttpClientTest {
     then:
     status == 200
     assertTraces(2) {
-      server.distributedRequestTrace(it, 0, trace(1).last())
-      trace(1, size(3)) {
-        basicSpan(it, 0, "parent")
-        span(1) {
+      trace(size(3)) {
+        basicSpan(it, "parent")
+        span {
           childOf((DDSpan) span(0))
           operationName "trace.annotation"
           resourceName "AnnotatedClass.makeRequestUnderTrace"
@@ -211,8 +210,9 @@ class Netty41ClientTest extends HttpClientTest {
             defaultTags()
           }
         }
-        clientSpan(it, 2, span(1), method)
+        clientSpan(it, span(1), method)
       }
+      server.distributedRequestTrace(it, trace(0).last())
     }
 
     where:

@@ -91,8 +91,8 @@ class AgentTestRunnerTest extends AgentTestRunner {
     then:
     !TRANSFORMED_CLASSES_NAMES.contains(subject.class.name)
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           operationName "parent"
         }
       }
@@ -115,12 +115,12 @@ class AgentTestRunnerTest extends AgentTestRunner {
 
     expect:
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           operationName "parent"
           parent()
         }
-        span(1) {
+        span {
           operationName "child"
           childOf(span(0))
         }

@@ -85,8 +85,8 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
@@ -107,7 +107,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -121,7 +121,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -160,8 +160,8 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
@@ -182,7 +182,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -196,7 +196,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -232,8 +232,8 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
@@ -254,7 +254,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -268,7 +268,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -301,8 +301,8 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
@@ -330,7 +330,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -351,7 +351,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -389,8 +389,8 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 3) {
-        span(0) {
+      trace(3) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
@@ -411,7 +411,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -425,7 +425,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -457,8 +457,8 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 7) {
-        span(0) {
+      trace(7) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
@@ -479,7 +479,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -493,7 +493,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(2) {
+        span {
           childOf span(1)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -507,7 +507,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(3) {
+        span {
           childOf span(1)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -521,7 +521,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(4) {
+        span {
           childOf span(1)
           serviceName jspWebappContext
           operationName "jsp.render"
@@ -535,7 +535,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(5) {
+        span {
           childOf span(1)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -549,7 +549,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(6) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -581,8 +581,8 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
 
     then:
     assertTraces(1) {
-      trace(0, 2) {
-        span(0) {
+      trace(2) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
@@ -604,7 +604,7 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             defaultTags()
           }
         }
-        span(1) {
+        span {
           childOf span(0)
           serviceName jspWebappContext
           operationName "jsp.compile"
@@ -643,8 +643,8 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
     then:
     res.code() == HttpStatus.OK_200
     assertTraces(1) {
-      trace(0, 1) {
-        span(0) {
+      trace(1) {
+        span {
           parent()
           serviceName jspWebappContext
           operationName "servlet.request"
