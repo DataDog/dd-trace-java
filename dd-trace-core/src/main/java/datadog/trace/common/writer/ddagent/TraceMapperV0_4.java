@@ -65,7 +65,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeLong(span.getDurationNano());
       /* 9  */
       writable.writeUTF8(TYPE);
-      writable.writeString(span.getType(), CONSTANT_TAGS);
+      writable.writeString(span.getType(), NO_CACHING);
       /* 10 */
       writable.writeUTF8(ERROR);
       writable.writeInt(span.getError());
