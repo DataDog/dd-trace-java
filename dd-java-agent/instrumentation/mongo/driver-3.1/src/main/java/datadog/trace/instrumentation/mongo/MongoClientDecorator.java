@@ -5,9 +5,9 @@ import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.connection.ConnectionId;
 import com.mongodb.connection.ServerId;
 import com.mongodb.event.CommandStartedEvent;
+import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import java.util.Arrays;
@@ -20,7 +20,7 @@ import org.bson.BsonValue;
 
 public class MongoClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<CommandStartedEvent> {
-  public static final UTF8BytesString JAVA_MONGO = UTF8BytesString.createConstant("java-mongo");
+
   public static final UTF8BytesString MONGO_QUERY = UTF8BytesString.createConstant("mongo.query");
 
   public static final MongoClientDecorator DECORATE = new MongoClientDecorator();
@@ -37,12 +37,12 @@ public class MongoClientDecorator
 
   @Override
   protected CharSequence component() {
-    return JAVA_MONGO;
+    return "java-mongo";
   }
 
   @Override
   protected CharSequence spanType() {
-    return InternalSpanTypes.MONGO;
+    return DDSpanTypes.MONGO;
   }
 
   @Override
