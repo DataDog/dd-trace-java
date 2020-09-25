@@ -19,7 +19,7 @@ class TraceUtils {
       return new String[0]
     }
 
-    protected String spanType() {
+    protected CharSequence spanType() {
       return null
     }
 

@@ -14,7 +14,7 @@ public class HttpServletResponseDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String spanType() {
+  protected CharSequence spanType() {
     return null;
   }
 

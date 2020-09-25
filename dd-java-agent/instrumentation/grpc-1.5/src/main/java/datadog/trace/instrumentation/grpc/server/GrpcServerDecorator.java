@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.grpc.server;
 
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
 import io.grpc.Status;
@@ -18,8 +18,8 @@ public class GrpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.RPC;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.RPC;
   }
 
   @Override

@@ -69,7 +69,7 @@ class OrmClientDecoratorTest extends DatabaseClientDecoratorTest {
       }
 
       @Override
-      protected String spanType() {
+      protected CharSequence spanType() {
         return "test-type"
       }
 

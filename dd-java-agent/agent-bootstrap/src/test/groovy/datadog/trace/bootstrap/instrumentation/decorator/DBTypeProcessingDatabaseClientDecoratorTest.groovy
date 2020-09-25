@@ -52,7 +52,7 @@ class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
       }
 
       @Override
-      protected String spanType() {
+      protected CharSequence spanType() {
         return "test-type"
       }
 

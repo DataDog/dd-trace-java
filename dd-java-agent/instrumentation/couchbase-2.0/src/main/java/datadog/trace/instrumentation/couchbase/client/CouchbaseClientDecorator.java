@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.couchbase.client;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 
 class CouchbaseClientDecorator extends DatabaseClientDecorator {
@@ -32,8 +32,8 @@ class CouchbaseClientDecorator extends DatabaseClientDecorator {
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.COUCHBASE;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.COUCHBASE;
   }
 
   @Override

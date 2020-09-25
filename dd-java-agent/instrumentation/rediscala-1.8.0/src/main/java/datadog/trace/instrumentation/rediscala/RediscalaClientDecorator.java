@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.rediscala;
 
-import datadog.trace.api.DDSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import redis.RedisCommand;
@@ -32,8 +32,8 @@ public class RediscalaClientDecorator
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.REDIS;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.REDIS;
   }
 
   @Override

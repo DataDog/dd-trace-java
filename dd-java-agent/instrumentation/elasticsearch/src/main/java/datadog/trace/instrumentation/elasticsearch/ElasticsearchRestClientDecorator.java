@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.elasticsearch;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
@@ -40,8 +40,8 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.ELASTICSEARCH;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.ELASTICSEARCH;
   }
 
   @Override

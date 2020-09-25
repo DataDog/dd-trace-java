@@ -20,7 +20,7 @@ public class DataSourceDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String spanType() {
+  protected CharSequence spanType() {
     return null;
   }
 }

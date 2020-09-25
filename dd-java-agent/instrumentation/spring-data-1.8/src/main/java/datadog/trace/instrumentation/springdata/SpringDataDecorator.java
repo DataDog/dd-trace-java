@@ -26,7 +26,7 @@ public final class SpringDataDecorator extends ClientDecorator {
   }
 
   @Override
-  protected String spanType() {
+  protected CharSequence spanType() {
     return null;
   }
 

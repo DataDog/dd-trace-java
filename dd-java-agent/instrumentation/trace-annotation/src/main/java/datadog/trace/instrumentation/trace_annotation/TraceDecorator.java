@@ -12,7 +12,7 @@ public class TraceDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String spanType() {
+  protected CharSequence spanType() {
     return null;
   }
 

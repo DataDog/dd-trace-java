@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.rmi.client;
 
-import datadog.trace.api.DDSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 
@@ -14,8 +14,8 @@ public class RmiClientDecorator extends ClientDecorator {
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.RPC;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.RPC;
   }
 
   @Override

@@ -47,7 +47,7 @@ class ServerDecoratorTest extends BaseDecoratorTest {
       }
 
       @Override
-      protected String spanType() {
+      protected CharSequence spanType() {
         return "test-type"
       }
 

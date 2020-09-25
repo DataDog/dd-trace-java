@@ -84,7 +84,7 @@ public abstract class TestDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String spanType() {
+  protected CharSequence spanType() {
     return DDSpanTypes.TEST;
   }
 

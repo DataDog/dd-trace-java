@@ -40,7 +40,7 @@ public final class JMSDecorator extends ClientDecorator {
   }
 
   @Override
-  protected String spanType() {
+  protected CharSequence spanType() {
     return spanType;
   }
 

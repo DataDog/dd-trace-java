@@ -3,9 +3,9 @@ package datadog.trace.instrumentation.twilio;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.twilio.rest.api.v2010.account.Call;
 import com.twilio.rest.api.v2010.account.Message;
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.lang.reflect.Method;
@@ -23,8 +23,8 @@ public class TwilioClientDecorator extends ClientDecorator {
   static final String COMPONENT_NAME = "twilio-sdk";
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.HTTP_CLIENT;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.HTTP_CLIENT;
   }
 
   @Override

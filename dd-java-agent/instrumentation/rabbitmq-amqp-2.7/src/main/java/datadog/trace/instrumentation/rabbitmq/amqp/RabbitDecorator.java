@@ -57,7 +57,7 @@ public class RabbitDecorator extends ClientDecorator {
   }
 
   @Override
-  protected String spanType() {
+  protected CharSequence spanType() {
     return spanType;
   }
 

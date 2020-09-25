@@ -219,7 +219,7 @@ class BaseDecoratorTest extends DDSpecification {
         }
 
         @Override
-        protected String spanType() {
+        protected CharSequence spanType() {
           return "test-type"
         }
 
@@ -240,7 +240,7 @@ class BaseDecoratorTest extends DDSpecification {
           }
 
           @Override
-          protected String spanType() {
+          protected CharSequence spanType() {
             return "test-type"
           }
 
@@ -260,7 +260,7 @@ class BaseDecoratorTest extends DDSpecification {
           }
 
           @Override
-          protected String spanType() {
+          protected CharSequence spanType() {
             return "test-type"
           }
 

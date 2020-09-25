@@ -49,7 +49,7 @@ public class KafkaDecorator extends ClientDecorator {
   }
 
   @Override
-  protected String spanType() {
+  protected CharSequence spanType() {
     return spanType;
   }
 

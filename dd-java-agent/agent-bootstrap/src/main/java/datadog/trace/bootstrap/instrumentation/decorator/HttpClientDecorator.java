@@ -3,9 +3,9 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -21,8 +21,8 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
   protected abstract int status(RESPONSE response);
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.HTTP_CLIENT;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.HTTP_CLIENT;
   }
 
   @Override
