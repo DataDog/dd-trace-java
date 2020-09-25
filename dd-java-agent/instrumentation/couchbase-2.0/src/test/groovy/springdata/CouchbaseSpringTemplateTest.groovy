@@ -34,18 +34,18 @@ class CouchbaseSpringTemplateTest extends AbstractCouchbaseTest {
   protected CouchbaseEnvironment memcacheEnvironment
 
   def setupSpec() {
-    couchbaseEnvironment = envBuilder(bucketCouchbase).build()
-    memcacheEnvironment = envBuilder(bucketMemcache).build()
+    def setupSpan = runUnderTrace("setup") {
+      couchbaseEnvironment = envBuilder(bucketCouchbase).build()
+      memcacheEnvironment = envBuilder(bucketMemcache).build()
 
-    couchbaseCluster = CouchbaseCluster.create(couchbaseEnvironment, Arrays.asList("127.0.0.1"))
-    memcacheCluster = CouchbaseCluster.create(memcacheEnvironment, Arrays.asList("127.0.0.1"))
-    ClusterManager couchbaseManager = couchbaseCluster.clusterManager(USERNAME, PASSWORD)
-    ClusterManager memcacheManager = memcacheCluster.clusterManager(USERNAME, PASSWORD)
+      couchbaseCluster = CouchbaseCluster.create(couchbaseEnvironment, Arrays.asList("127.0.0.1"))
+      memcacheCluster = CouchbaseCluster.create(memcacheEnvironment, Arrays.asList("127.0.0.1"))
+      ClusterManager couchbaseManager = couchbaseCluster.clusterManager(USERNAME, PASSWORD)
+      ClusterManager memcacheManager = memcacheCluster.clusterManager(USERNAME, PASSWORD)
 
-    Bucket bucketCouchbase = couchbaseCluster.openBucket(bucketCouchbase.name(), bucketCouchbase.password())
-    Bucket bucketMemcache = memcacheCluster.openBucket(bucketMemcache.name(), bucketMemcache.password())
+      Bucket bucketCouchbase = couchbaseCluster.openBucket(bucketCouchbase.name(), bucketCouchbase.password())
+      Bucket bucketMemcache = memcacheCluster.openBucket(bucketMemcache.name(), bucketMemcache.password())
 
-    def setupSpan = runUnderTrace("getting info") {
       templates = [new CouchbaseTemplate(couchbaseManager.info(), bucketCouchbase),
                    new CouchbaseTemplate(memcacheManager.info(), bucketMemcache)]
       activeSpan()

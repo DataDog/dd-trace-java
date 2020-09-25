@@ -19,8 +19,6 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
 
   def "test hasBucket #type"() {
     setup:
-    TEST_WRITER.waitForTraces(1) // from the clusterManager call in "where" below
-    TEST_WRITER.clear()
     def hasBucket = new BlockingVariable<Boolean>(TIMEOUT)
 
     when:
@@ -48,6 +46,11 @@ class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
     cluster = CouchbaseAsyncCluster.create(environment, Arrays.asList("127.0.0.1"))
     manager = cluster.clusterManager(USERNAME, PASSWORD).toBlocking().single()
     type = bucketSettings.type().name()
+
+    waitForTraces = {
+      TEST_WRITER.waitForTraces(1) // from clusterManager above
+      true
+    }()
   }
 
   def "test upsert #type"() {

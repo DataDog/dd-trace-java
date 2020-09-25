@@ -1,6 +1,12 @@
-import datadog.trace.agent.test.AgentTestRunner.{TEST_WRITER, blockUntilChildSpansFinished}
+import datadog.trace.agent.test.AgentTestRunner.{
+  TEST_WRITER,
+  blockUntilChildSpansFinished
+}
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{activeScope, activeSpan}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
+  activeScope,
+  activeSpan
+}
 import datadog.trace.core.DDSpan
 import slick.jdbc.H2Profile.api._
 

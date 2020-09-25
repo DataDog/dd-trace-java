@@ -36,6 +36,11 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   private static final AtomicReference<SpanCleaner> SPAN_CLEANER = new AtomicReference<>();
   private static final PendingTraceBuffer PENDING_TRACE_BUFFER = new PendingTraceBuffer();
 
+  // For use in testing to ensure delayed traces don't leak to the next test.
+  public static void flushBuffer() {
+    PENDING_TRACE_BUFFER.flush();
+  }
+
   private final CoreTracer tracer;
   private final DDId traceId;
 

@@ -13,6 +13,9 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.Statement
 
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
+
 class ProcedureCallTest extends AgentTestRunner {
 
 
@@ -23,24 +26,29 @@ class ProcedureCallTest extends AgentTestRunner {
   protected List<Value> prepopulated
 
   def setupSpec() {
-    sessionFactory = new Configuration().configure().buildSessionFactory()
-    // Pre-populate the DB, so delete/update can be tested.
-    Session writer = sessionFactory.openSession()
-    writer.beginTransaction()
-    prepopulated = new ArrayList<>()
-    for (int i = 0; i < 2; i++) {
-      prepopulated.add(new Value("Hello :) " + i))
-      writer.save(prepopulated.get(i))
-    }
-    writer.getTransaction().commit()
-    writer.close()
+    def setupSpan = runUnderTrace("setup") {
+      sessionFactory = new Configuration().configure().buildSessionFactory()
+      // Pre-populate the DB, so delete/update can be tested.
+      Session writer = sessionFactory.openSession()
+      writer.beginTransaction()
+      prepopulated = new ArrayList<>()
+      for (int i = 0; i < 2; i++) {
+        prepopulated.add(new Value("Hello :) " + i))
+        writer.save(prepopulated.get(i))
+      }
+      writer.getTransaction().commit()
+      writer.close()
 
-    // Create a stored procedure.
-    Connection conn = DriverManager.getConnection("jdbc:hsqldb:mem:test", "sa", "1")
-    Statement stmt = conn.createStatement()
-    stmt.execute("CREATE PROCEDURE TEST_PROC() MODIFIES SQL DATA BEGIN ATOMIC INSERT INTO Value VALUES (420, 'fred'); END")
-    stmt.close()
-    conn.close()
+      // Create a stored procedure.
+      Connection conn = DriverManager.getConnection("jdbc:hsqldb:mem:test", "sa", "1")
+      Statement stmt = conn.createStatement()
+      stmt.execute("CREATE PROCEDURE TEST_PROC() MODIFIES SQL DATA BEGIN ATOMIC INSERT INTO Value VALUES (420, 'fred'); END")
+      stmt.close()
+      conn.close()
+
+      activeSpan()
+    }
+    TEST_WRITER.waitUntilReported(setupSpan)
   }
 
   def cleanupSpec() {
