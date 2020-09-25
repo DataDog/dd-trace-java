@@ -13,6 +13,8 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
 
   public static final CharSequence ELASTICSEARCH_REST_QUERY =
       UTF8BytesString.createConstant("elasticsearch.rest.query");
+  public static final CharSequence ELASTICSEARCH_JAVA =
+      UTF8BytesString.createConstant("elasticsearch-java");
 
   public static final ElasticsearchRestClientDecorator DECORATE =
       new ElasticsearchRestClientDecorator();
@@ -35,8 +37,8 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
   }
 
   @Override
-  protected String component() {
-    return "elasticsearch-java";
+  protected CharSequence component() {
+    return ELASTICSEARCH_JAVA;
   }
 
   @Override

@@ -10,6 +10,8 @@ public class AkkaHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, HttpRequest, HttpResponse> {
   public static final CharSequence AKKA_REQUEST =
       UTF8BytesString.createConstant("akka-http.request");
+  public static final CharSequence AKKA_HTTP_SERVER =
+      UTF8BytesString.createConstant("akka-http-server");
   public static final AkkaHttpServerDecorator DECORATE = new AkkaHttpServerDecorator();
 
   @Override
@@ -18,8 +20,8 @@ public class AkkaHttpServerDecorator
   }
 
   @Override
-  protected String component() {
-    return "akka-http-server";
+  protected CharSequence component() {
+    return AKKA_HTTP_SERVER;
   }
 
   @Override

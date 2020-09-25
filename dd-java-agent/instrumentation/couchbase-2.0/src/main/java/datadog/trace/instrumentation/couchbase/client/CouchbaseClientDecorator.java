@@ -4,10 +4,14 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 
 class CouchbaseClientDecorator extends DatabaseClientDecorator {
   public static final CouchbaseClientDecorator DECORATE = new CouchbaseClientDecorator();
+
+  private static final CharSequence COUCHBASE_CLIENT =
+      UTF8BytesString.createConstant("couchbase-client");
 
   @Override
   public AgentSpan afterStart(AgentSpan span) {
@@ -27,8 +31,8 @@ class CouchbaseClientDecorator extends DatabaseClientDecorator {
   }
 
   @Override
-  protected String component() {
-    return "couchbase-client";
+  protected CharSequence component() {
+    return COUCHBASE_CLIENT;
   }
 
   @Override

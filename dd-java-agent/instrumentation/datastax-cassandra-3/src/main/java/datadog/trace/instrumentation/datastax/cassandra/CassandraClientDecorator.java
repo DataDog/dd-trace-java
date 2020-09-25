@@ -13,6 +13,8 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
 
   public static final CharSequence CASSANDRA_EXECUTE =
       UTF8BytesString.createConstant("cassandra.execute");
+  public static final CharSequence JAVA_CASSANDRA =
+      UTF8BytesString.createConstant("java-cassandra");
 
   public static final CassandraClientDecorator DECORATE = new CassandraClientDecorator();
 
@@ -27,8 +29,8 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
   }
 
   @Override
-  protected String component() {
-    return "java-cassandra";
+  protected CharSequence component() {
+    return JAVA_CASSANDRA;
   }
 
   @Override

@@ -18,9 +18,9 @@ public class TwilioClientDecorator extends ClientDecorator {
 
   public static final CharSequence TWILIO_SDK = UTF8BytesString.createConstant("twilio.sdk");
 
-  public static final TwilioClientDecorator DECORATE = new TwilioClientDecorator();
+  private static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("twilio-sdk");
 
-  static final String COMPONENT_NAME = "twilio-sdk";
+  public static final TwilioClientDecorator DECORATE = new TwilioClientDecorator();
 
   @Override
   protected CharSequence spanType() {
@@ -29,17 +29,17 @@ public class TwilioClientDecorator extends ClientDecorator {
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {COMPONENT_NAME};
+    return new String[] {COMPONENT_NAME.toString()};
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return COMPONENT_NAME;
   }
 
   @Override
   protected String service() {
-    return COMPONENT_NAME;
+    return COMPONENT_NAME.toString();
   }
 
   /** Decorate trace based on service execution metadata. */

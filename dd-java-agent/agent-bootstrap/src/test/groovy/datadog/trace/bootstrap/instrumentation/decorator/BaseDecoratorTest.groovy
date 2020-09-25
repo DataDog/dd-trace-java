@@ -224,7 +224,7 @@ class BaseDecoratorTest extends DDSpecification {
         }
 
         @Override
-        protected String component() {
+        protected CharSequence component() {
           return "test-component"
         }
 
@@ -245,7 +245,7 @@ class BaseDecoratorTest extends DDSpecification {
           }
 
           @Override
-          protected String component() {
+          protected CharSequence component() {
             return "test-component"
           }
 
@@ -265,7 +265,7 @@ class BaseDecoratorTest extends DDSpecification {
           }
 
           @Override
-          protected String component() {
+          protected CharSequence component() {
             return "test-component"
           }
         }

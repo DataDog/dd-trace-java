@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
 
+  public static final CharSequence NETTY_CLIENT = UTF8BytesString.createConstant("netty-client");
   public static final CharSequence NETTY_CLIENT_REQUEST =
       UTF8BytesString.createConstant("netty.client.request");
 
@@ -24,8 +25,8 @@ public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, H
   }
 
   @Override
-  protected String component() {
-    return "netty-client";
+  protected CharSequence component() {
+    return NETTY_CLIENT;
   }
 
   @Override

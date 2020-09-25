@@ -15,6 +15,7 @@ import ratpack.http.Status;
 public class RatpackServerDecorator extends HttpServerDecorator<Request, Request, Response> {
   public static final CharSequence RATPACK_HANDLER =
       UTF8BytesString.createConstant("ratpack.handler");
+  public static final CharSequence RATPACK = UTF8BytesString.createConstant("ratpack");
   public static final RatpackServerDecorator DECORATE = new RatpackServerDecorator();
 
   @Override
@@ -23,8 +24,8 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
   }
 
   @Override
-  protected String component() {
-    return "ratpack";
+  protected CharSequence component() {
+    return RATPACK;
   }
 
   @Override

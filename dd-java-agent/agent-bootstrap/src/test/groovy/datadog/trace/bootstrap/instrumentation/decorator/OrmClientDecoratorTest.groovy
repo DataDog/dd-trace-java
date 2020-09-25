@@ -74,7 +74,7 @@ class OrmClientDecoratorTest extends DatabaseClientDecoratorTest {
       }
 
       @Override
-      protected String component() {
+      protected CharSequence component() {
         return "test-component"
       }
     }

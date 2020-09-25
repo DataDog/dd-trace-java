@@ -29,7 +29,7 @@ public class HibernateDecorator extends OrmClientDecorator {
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return "java-hibernate";
   }
 

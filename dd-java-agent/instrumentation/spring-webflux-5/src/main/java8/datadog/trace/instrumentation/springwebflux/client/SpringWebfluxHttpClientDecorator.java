@@ -16,6 +16,11 @@ public class SpringWebfluxHttpClientDecorator
     extends HttpClientDecorator<ClientRequest, ClientResponse> {
 
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.createConstant("http.request");
+  public static final CharSequence SPRING_WEBFLUX_CLIENT =
+      UTF8BytesString.createConstant("spring-webflux-client");
+  public static final CharSequence CANCELLED = UTF8BytesString.createConstant("cancelled");
+  public static final CharSequence CANCELLED_MESSAGE =
+      UTF8BytesString.createConstant("The subscription was cancelled");
 
   private static final MethodHandle RAW_STATUS_CODE = findRawStatusCode();
 
@@ -23,8 +28,8 @@ public class SpringWebfluxHttpClientDecorator
       new SpringWebfluxHttpClientDecorator();
 
   public void onCancel(final AgentSpan span) {
-    span.setTag("event", "cancelled");
-    span.setTag("message", "The subscription was cancelled");
+    span.setTag("event", CANCELLED);
+    span.setTag("message", CANCELLED_MESSAGE);
   }
 
   @Override
@@ -33,8 +38,8 @@ public class SpringWebfluxHttpClientDecorator
   }
 
   @Override
-  protected String component() {
-    return "spring-webflux-client";
+  protected CharSequence component() {
+    return SPRING_WEBFLUX_CLIENT;
   }
 
   @Override

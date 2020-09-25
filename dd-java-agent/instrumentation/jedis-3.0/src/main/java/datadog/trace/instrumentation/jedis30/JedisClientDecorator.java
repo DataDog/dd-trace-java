@@ -10,7 +10,8 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
 
   private static final String SERVICE_NAME = "redis";
-  private static final String COMPONENT_NAME = SERVICE_NAME + "-command";
+  private static final CharSequence COMPONENT_NAME =
+      UTF8BytesString.createConstant("redis-command");
 
   @Override
   protected String[] instrumentationNames() {
@@ -23,7 +24,7 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return COMPONENT_NAME;
   }
 

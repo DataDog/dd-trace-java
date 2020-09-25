@@ -12,7 +12,8 @@ public class RediscalaClientDecorator
   public static final CharSequence REDIS_COMMAND = UTF8BytesString.createConstant("redis.command");
 
   private static final String SERVICE_NAME = "redis";
-  private static final String COMPONENT_NAME = SERVICE_NAME + "-command";
+  private static final CharSequence COMPONENT_NAME =
+      UTF8BytesString.createConstant("redis-command");
 
   public static final RediscalaClientDecorator DECORATE = new RediscalaClientDecorator();
 
@@ -27,7 +28,7 @@ public class RediscalaClientDecorator
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return COMPONENT_NAME;
   }
 

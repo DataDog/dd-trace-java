@@ -9,6 +9,7 @@ import io.grpc.Status;
 public class GrpcServerDecorator extends ServerDecorator {
 
   public static final CharSequence GRPC_SERVER = UTF8BytesString.createConstant("grpc.server");
+  public static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("grpc-server");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.createConstant("grpc.message");
   public static final GrpcServerDecorator DECORATE = new GrpcServerDecorator();
 
@@ -23,8 +24,8 @@ public class GrpcServerDecorator extends ServerDecorator {
   }
 
   @Override
-  protected String component() {
-    return "grpc-server";
+  protected CharSequence component() {
+    return COMPONENT_NAME;
   }
 
   public AgentSpan onClose(final AgentSpan span, final Status status) {

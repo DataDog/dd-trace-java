@@ -1,7 +1,5 @@
 package datadog.trace.instrumentation.grizzly.client;
 
-import static datadog.trace.bootstrap.instrumentation.api.DDComponents.GRIZZLY_HTTP_ASYNC_CLIENT;
-
 import com.ning.http.client.Request;
 import com.ning.http.client.Response;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -12,7 +10,8 @@ import java.net.URISyntaxException;
 public class ClientDecorator extends HttpClientDecorator<Request, Response> {
 
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.createConstant("http.request");
-
+  private static final CharSequence GRIZZLY_HTTP_ASYNC_CLIENT =
+      UTF8BytesString.createConstant("grizzly-http-async-client");
   public static final ClientDecorator DECORATE = new ClientDecorator();
 
   @Override
@@ -21,7 +20,7 @@ public class ClientDecorator extends HttpClientDecorator<Request, Response> {
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return GRIZZLY_HTTP_ASYNC_CLIENT;
   }
 

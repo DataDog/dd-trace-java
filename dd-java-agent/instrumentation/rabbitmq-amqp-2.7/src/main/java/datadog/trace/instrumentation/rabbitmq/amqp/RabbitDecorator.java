@@ -10,7 +10,6 @@ import com.rabbitmq.client.Envelope;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.DDComponents;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
@@ -18,7 +17,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 public class RabbitDecorator extends ClientDecorator {
 
   public static final CharSequence AMQP_COMMAND = UTF8BytesString.createConstant("amqp.command");
-
+  public static final CharSequence RABBITMQ_AMQP = UTF8BytesString.createConstant("rabbitmq-amqp");
   public static final RabbitDecorator DECORATE =
       new RabbitDecorator(Tags.SPAN_KIND_CLIENT, DDSpanTypes.MESSAGE_CLIENT);
 
@@ -47,8 +46,8 @@ public class RabbitDecorator extends ClientDecorator {
   }
 
   @Override
-  protected String component() {
-    return DDComponents.RABBITMQ_AMQP;
+  protected CharSequence component() {
+    return RABBITMQ_AMQP;
   }
 
   @Override

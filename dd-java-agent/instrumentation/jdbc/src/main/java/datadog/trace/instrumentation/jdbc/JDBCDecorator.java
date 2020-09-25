@@ -16,6 +16,7 @@ import java.sql.SQLException;
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
+  public static final CharSequence JAVA_JDBC = UTF8BytesString.createConstant("java-jdbc");
   public static final CharSequence DATABASE_QUERY =
       UTF8BytesString.createConstant("database.query");
   private static final UTF8BytesString DB_QUERY = UTF8BytesString.createConstant("DB Query");
@@ -35,8 +36,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   @Override
-  protected String component() {
-    return "java-jdbc"; // Overridden by onStatement and onPreparedStatement
+  protected CharSequence component() {
+    return JAVA_JDBC; // Overridden by onStatement and onPreparedStatement
   }
 
   @Override

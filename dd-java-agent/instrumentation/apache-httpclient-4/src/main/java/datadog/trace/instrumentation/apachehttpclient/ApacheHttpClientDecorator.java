@@ -9,6 +9,8 @@ import org.apache.http.client.methods.HttpUriRequest;
 public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriRequest, HttpResponse> {
 
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.createConstant("http.request");
+  public static final CharSequence APACHE_HTTP_CLIENT =
+      UTF8BytesString.createConstant("apache-httpclient");
   public static final ApacheHttpClientDecorator DECORATE = new ApacheHttpClientDecorator();
 
   @Override
@@ -17,8 +19,8 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
   }
 
   @Override
-  protected String component() {
-    return "apache-httpclient";
+  protected CharSequence component() {
+    return APACHE_HTTP_CLIENT;
   }
 
   @Override

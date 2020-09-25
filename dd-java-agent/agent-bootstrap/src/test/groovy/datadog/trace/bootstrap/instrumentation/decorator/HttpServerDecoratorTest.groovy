@@ -156,7 +156,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
       }
 
       @Override
-      protected String component() {
+      protected CharSequence component() {
         return "test-component"
       }
 

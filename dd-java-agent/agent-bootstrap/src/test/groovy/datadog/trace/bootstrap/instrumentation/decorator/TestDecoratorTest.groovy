@@ -207,7 +207,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
       }
 
       @Override
-      protected String component() {
+      protected CharSequence component() {
         return "test-component"
       }
     }

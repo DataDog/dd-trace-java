@@ -6,6 +6,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 public class HttpServletResponseDecorator extends BaseDecorator {
   public static final CharSequence SERVLET_RESPONSE =
       UTF8BytesString.createConstant("servlet.response");
+  public static final CharSequence JAVA_WEB_SERVLET_RESPONSE =
+      UTF8BytesString.createConstant("java-web-servlet-response");
   public static final HttpServletResponseDecorator DECORATE = new HttpServletResponseDecorator();
 
   @Override
@@ -19,7 +21,7 @@ public class HttpServletResponseDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String component() {
-    return "java-web-servlet-response";
+  protected CharSequence component() {
+    return JAVA_WEB_SERVLET_RESPONSE;
   }
 }

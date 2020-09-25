@@ -10,6 +10,8 @@ public class Servlet2Decorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, Integer> {
   public static final CharSequence SERVLET_REQUEST =
       UTF8BytesString.createConstant("servlet.request");
+  public static final CharSequence JAVA_WEB_SERVLET =
+      UTF8BytesString.createConstant("java-web-servlet");
   public static final Servlet2Decorator DECORATE = new Servlet2Decorator();
 
   @Override
@@ -18,8 +20,8 @@ public class Servlet2Decorator
   }
 
   @Override
-  protected String component() {
-    return "java-web-servlet";
+  protected CharSequence component() {
+    return JAVA_WEB_SERVLET;
   }
 
   @Override

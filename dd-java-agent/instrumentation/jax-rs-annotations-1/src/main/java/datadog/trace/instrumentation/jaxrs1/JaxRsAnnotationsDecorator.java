@@ -5,6 +5,7 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -23,6 +24,8 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
           return new ConcurrentHashMap<>();
         }
       };
+  public static final CharSequence JAX_RS_CONTROLLER =
+      UTF8BytesString.createConstant("jax-rs-controller");
 
   @Override
   protected String[] instrumentationNames() {
@@ -35,8 +38,8 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String component() {
-    return "jax-rs-controller";
+  protected CharSequence component() {
+    return JAX_RS_CONTROLLER;
   }
 
   public void onJaxRsSpan(

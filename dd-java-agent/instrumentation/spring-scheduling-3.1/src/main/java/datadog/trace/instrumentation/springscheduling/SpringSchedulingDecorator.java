@@ -26,7 +26,7 @@ public class SpringSchedulingDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return "spring-scheduling";
   }
 

@@ -1,9 +1,12 @@
 package datadog.trace.instrumentation.servlet.http;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public class HttpServletDecorator extends BaseDecorator {
 
+  public static final CharSequence JAVA_WEB_SERVLET_SERVICE =
+      UTF8BytesString.createConstant("java-web-servlet-service");
   public static final HttpServletDecorator DECORATE = new HttpServletDecorator();
 
   @Override
@@ -17,7 +20,7 @@ public class HttpServletDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String component() {
-    return "java-web-servlet-service";
+  protected CharSequence component() {
+    return JAVA_WEB_SERVLET_SERVICE;
   }
 }

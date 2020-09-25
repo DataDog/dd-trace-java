@@ -10,6 +10,8 @@ import java.net.URISyntaxException;
 public class AkkaHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
   public static final CharSequence AKKA_CLIENT_REQUEST =
       UTF8BytesString.createConstant("akka-http.client.request");
+  public static final CharSequence AKKA_HTTP_CLIENT =
+      UTF8BytesString.createConstant("akka-http-client");
   public static final AkkaHttpClientDecorator DECORATE = new AkkaHttpClientDecorator();
 
   @Override
@@ -18,8 +20,8 @@ public class AkkaHttpClientDecorator extends HttpClientDecorator<HttpRequest, Ht
   }
 
   @Override
-  protected String component() {
-    return "akka-http-client";
+  protected CharSequence component() {
+    return AKKA_HTTP_CLIENT;
   }
 
   @Override

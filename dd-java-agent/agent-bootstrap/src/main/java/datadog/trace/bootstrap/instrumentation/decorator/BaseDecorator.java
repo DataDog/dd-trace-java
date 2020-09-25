@@ -57,7 +57,7 @@ public abstract class BaseDecorator {
 
   protected abstract CharSequence spanType();
 
-  protected abstract String component();
+  protected abstract CharSequence component();
 
   protected boolean traceAnalyticsDefault() {
     return false;

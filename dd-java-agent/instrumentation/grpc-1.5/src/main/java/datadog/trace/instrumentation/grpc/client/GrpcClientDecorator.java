@@ -8,6 +8,7 @@ import io.grpc.Status;
 
 public class GrpcClientDecorator extends ClientDecorator {
   public static final CharSequence GRPC_CLIENT = UTF8BytesString.createConstant("grpc.client");
+  public static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("grpc-client");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.createConstant("grpc.message");
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
 
@@ -17,8 +18,8 @@ public class GrpcClientDecorator extends ClientDecorator {
   }
 
   @Override
-  protected String component() {
-    return "grpc-client";
+  protected CharSequence component() {
+    return COMPONENT_NAME;
   }
 
   @Override

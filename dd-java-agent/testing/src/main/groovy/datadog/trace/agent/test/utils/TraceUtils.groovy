@@ -23,7 +23,7 @@ class TraceUtils {
       return null
     }
 
-    protected String component() {
+    protected CharSequence component() {
       return null
     }
   }

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.grizzlyhttp232;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.DDComponents.GRIZZLY_FILTER_CHAIN_SERVER;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -17,6 +16,9 @@ import org.glassfish.grizzly.http.HttpResponsePacket;
 
 public class GrizzlyDecorator
     extends HttpServerDecorator<HttpRequestPacket, HttpRequestPacket, HttpResponsePacket> {
+
+  public static final CharSequence GRIZZLY_FILTER_CHAIN_SERVER =
+      UTF8BytesString.createConstant("grizzly-filterchain-server");
 
   public static final CharSequence GRIZZLY_REQUEST =
       UTF8BytesString.createConstant("grizzly.request");
@@ -54,7 +56,7 @@ public class GrizzlyDecorator
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return GRIZZLY_FILTER_CHAIN_SERVER;
   }
 

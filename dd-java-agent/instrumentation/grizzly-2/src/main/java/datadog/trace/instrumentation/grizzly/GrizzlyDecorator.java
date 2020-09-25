@@ -7,6 +7,7 @@ import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.server.Response;
 
 public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Response> {
+  public static final CharSequence GRIZZLY = UTF8BytesString.createConstant("grizzly");
   public static final CharSequence GRIZZLY_REQUEST =
       UTF8BytesString.createConstant("grizzly.request");
   public static final GrizzlyDecorator DECORATE = new GrizzlyDecorator();
@@ -42,7 +43,7 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
   }
 
   @Override
-  protected String component() {
-    return "grizzly";
+  protected CharSequence component() {
+    return GRIZZLY;
   }
 }

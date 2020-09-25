@@ -39,14 +39,14 @@ public class SpringWebHttpServerDecorator
   private static final DDCache<Pair<String, Object>, CharSequence> RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(64);
 
-  private final String component;
+  private final CharSequence component;
 
   public static final SpringWebHttpServerDecorator DECORATE =
-      new SpringWebHttpServerDecorator("spring-web-controller");
+      new SpringWebHttpServerDecorator(UTF8BytesString.createConstant("spring-web-controller"));
   public static final SpringWebHttpServerDecorator DECORATE_RENDER =
-      new SpringWebHttpServerDecorator("spring-webmvc");
+      new SpringWebHttpServerDecorator(UTF8BytesString.createConstant("spring-webmvc"));
 
-  public SpringWebHttpServerDecorator(String component) {
+  public SpringWebHttpServerDecorator(CharSequence component) {
     this.component = component;
   }
 
@@ -56,7 +56,7 @@ public class SpringWebHttpServerDecorator
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return component;
   }
 

@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
 
 public class RmiServerDecorator extends ServerDecorator {
   public static final CharSequence RMI_REQUEST = UTF8BytesString.createConstant("rmi.request");
+  public static final CharSequence RMI_SERVER = UTF8BytesString.createConstant("rmi-server");
   public static final RmiServerDecorator DECORATE = new RmiServerDecorator();
 
   @Override
@@ -19,7 +20,7 @@ public class RmiServerDecorator extends ServerDecorator {
   }
 
   @Override
-  protected String component() {
-    return "rmi-server";
+  protected CharSequence component() {
+    return RMI_SERVER;
   }
 }

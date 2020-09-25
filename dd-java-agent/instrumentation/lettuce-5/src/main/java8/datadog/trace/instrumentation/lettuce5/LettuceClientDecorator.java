@@ -10,6 +10,7 @@ import io.lettuce.core.RedisURI;
 import io.lettuce.core.protocol.RedisCommand;
 
 public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecorator<RedisURI> {
+  public static final CharSequence REDIS_CLIENT = UTF8BytesString.createConstant("redis-client");
   public static final CharSequence REDIS_QUERY = UTF8BytesString.createConstant("redis.query");
   public static final LettuceClientDecorator DECORATE = new LettuceClientDecorator();
 
@@ -24,8 +25,8 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   }
 
   @Override
-  protected String component() {
-    return "redis-client";
+  protected CharSequence component() {
+    return REDIS_CLIENT;
   }
 
   @Override

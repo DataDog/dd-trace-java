@@ -19,7 +19,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   public static final CharSequence AWS_HTTP = UTF8BytesString.createConstant("aws.http");
 
-  static final String COMPONENT_NAME = "java-aws-sdk";
+  static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("java-aws-sdk");
 
   public AgentSpan onSdkRequest(final AgentSpan span, final SdkRequest request) {
     // S3
@@ -70,7 +70,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
   @Override
   protected String service() {
-    return COMPONENT_NAME;
+    return COMPONENT_NAME.toString();
   }
 
   @Override
@@ -79,7 +79,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return COMPONENT_NAME;
   }
 

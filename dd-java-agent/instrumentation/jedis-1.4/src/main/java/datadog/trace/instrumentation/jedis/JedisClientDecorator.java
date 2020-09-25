@@ -7,6 +7,7 @@ import redis.clients.jedis.Protocol;
 
 public class JedisClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<Protocol.Command> {
+  public static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("redis-command");
   public static final CharSequence REDIS_COMMAND = UTF8BytesString.createConstant("redis.command");
   public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
 
@@ -21,8 +22,8 @@ public class JedisClientDecorator
   }
 
   @Override
-  protected String component() {
-    return "redis-command";
+  protected CharSequence component() {
+    return COMPONENT_NAME;
   }
 
   @Override

@@ -11,12 +11,13 @@ import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response> {
 
-  static final String COMPONENT_NAME = "java-aws-sdk";
+  static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("java-aws-sdk");
 
   private final QualifiedClassNameCache cache =
       new QualifiedClassNameCache(
@@ -84,7 +85,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   @Override
   protected String service() {
-    return COMPONENT_NAME;
+    return COMPONENT_NAME.toString();
   }
 
   @Override
@@ -93,7 +94,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return COMPONENT_NAME;
   }
 

@@ -20,6 +20,7 @@ import org.bson.BsonValue;
 
 public class MongoClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<CommandStartedEvent> {
+  public static final UTF8BytesString JAVA_MONGO = UTF8BytesString.createConstant("java-mongo");
   public static final UTF8BytesString MONGO_QUERY = UTF8BytesString.createConstant("mongo.query");
 
   public static final MongoClientDecorator DECORATE = new MongoClientDecorator();
@@ -35,8 +36,8 @@ public class MongoClientDecorator
   }
 
   @Override
-  protected String component() {
-    return "java-mongo";
+  protected CharSequence component() {
+    return JAVA_MONGO;
   }
 
   @Override

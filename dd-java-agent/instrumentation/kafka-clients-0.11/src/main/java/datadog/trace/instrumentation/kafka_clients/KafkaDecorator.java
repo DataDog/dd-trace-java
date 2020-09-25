@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.kafka_clients;
 
-import static datadog.trace.bootstrap.instrumentation.api.DDComponents.JAVA_KAFKA;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
@@ -24,6 +23,7 @@ import org.apache.kafka.common.record.TimestampType;
 
 public class KafkaDecorator extends ClientDecorator {
 
+  public static final CharSequence JAVA_KAFKA = UTF8BytesString.createConstant("java-kafka");
   public static final CharSequence KAFKA_CONSUME = UTF8BytesString.createConstant("kafka.consume");
   public static final CharSequence KAFKA_PRODUCE = UTF8BytesString.createConstant("kafka.produce");
 
@@ -64,7 +64,7 @@ public class KafkaDecorator extends ClientDecorator {
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return JAVA_KAFKA;
   }
 

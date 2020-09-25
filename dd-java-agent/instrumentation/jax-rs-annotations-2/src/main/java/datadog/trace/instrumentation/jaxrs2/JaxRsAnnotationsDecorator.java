@@ -18,6 +18,8 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
 
   public static final CharSequence JAX_RS_REQUEST_ABORT =
       UTF8BytesString.createConstant("jax-rs.request.abort");
+  public static final CharSequence JAX_RS_CONTROLLER =
+      UTF8BytesString.createConstant("jax-rs-controller");
 
   public static final String ABORT_FILTER_CLASS =
       "datadog.trace.instrumentation.jaxrs2.filter.abort.class";
@@ -48,8 +50,8 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String component() {
-    return "jax-rs-controller";
+  protected CharSequence component() {
+    return JAX_RS_CONTROLLER;
   }
 
   public void onJaxRsSpan(

@@ -12,6 +12,8 @@ public class ElasticsearchTransportClientDecorator extends DatabaseClientDecorat
 
   public static final CharSequence ELASTICSEARCH_QUERY =
       UTF8BytesString.createConstant("elasticsearch.query");
+  public static final CharSequence ELASTICSEARCH_JAVA =
+      UTF8BytesString.createConstant("elasticsearch-java");
 
   public static final ElasticsearchTransportClientDecorator DECORATE =
       new ElasticsearchTransportClientDecorator();
@@ -34,8 +36,8 @@ public class ElasticsearchTransportClientDecorator extends DatabaseClientDecorat
   }
 
   @Override
-  protected String component() {
-    return "elasticsearch-java";
+  protected CharSequence component() {
+    return ELASTICSEARCH_JAVA;
   }
 
   @Override

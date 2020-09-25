@@ -1,9 +1,12 @@
 package datadog.trace.instrumentation.servlet.dispatcher;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public class RequestDispatcherDecorator extends BaseDecorator {
   public static final RequestDispatcherDecorator DECORATE = new RequestDispatcherDecorator();
+  public static final CharSequence JAVA_WEB_SERVLET_DISPATCHER =
+      UTF8BytesString.createConstant("java-web-servlet-dispatcher");
 
   @Override
   protected String[] instrumentationNames() {
@@ -16,7 +19,7 @@ public class RequestDispatcherDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String component() {
-    return "java-web-servlet-dispatcher";
+  protected CharSequence component() {
+    return JAVA_WEB_SERVLET_DISPATCHER;
   }
 }
