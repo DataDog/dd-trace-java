@@ -342,6 +342,11 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentSpan setTag(String key, CharSequence value) {
+      return this;
+    }
+
+    @Override
     public AgentSpan setError(final boolean error) {
       return this;
     }
