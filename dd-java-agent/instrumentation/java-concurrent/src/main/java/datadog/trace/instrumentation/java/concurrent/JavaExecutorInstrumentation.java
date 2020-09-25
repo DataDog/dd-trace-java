@@ -81,6 +81,9 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
     public static State enterJobSubmit(
         @Advice.This final Executor executor,
         @Advice.Argument(value = 0, readOnly = false) Runnable task) {
+      // there are cased like ScheduledExecutorService.submit (which we instrument)
+      // which calls ScheduledExecutorService.schedule (which we also instrument)
+      // where all of this could be dodged the second time
       final TraceScope scope = activeScope();
       if (null != scope) {
         final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);

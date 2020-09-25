@@ -3,6 +3,7 @@ package datadog.smoketest.springboot;
 import datadog.smoketest.springboot.grpc.AsynchronousGreeter;
 import datadog.smoketest.springboot.grpc.LocalInterface;
 import datadog.smoketest.springboot.grpc.SynchronousGreeter;
+import datadog.smoketest.springboot.spanner.SpannerTask;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import org.springframework.boot.SpringApplication;
@@ -16,6 +17,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableAsync
 @EnableScheduling
 public class SpringbootGrpcApplication {
+
+  @Bean
+  SpannerTask spannerTask() {
+    return new SpannerTask();
+  }
 
   @Bean
   AsyncTask asyncTask(AsynchronousGreeter greeter) {
