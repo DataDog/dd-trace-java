@@ -704,7 +704,7 @@ public class Config {
   public float getInstrumentationAnalyticsSampleRate(final String... aliases) {
     for (final String alias : aliases) {
       final String configKey = alias + ".analytics.sample-rate";
-      final Float rate = configProvider.getFloat(configKey, "trace." + configKey);
+      final Float rate = configProvider.getFloat("trace." + configKey, configKey);
       if (null != rate) {
         return rate;
       }
@@ -830,7 +830,7 @@ public class Config {
     for (final String name : integrationNames) {
       final String configKey = settingPrefix + name + settingSuffix;
       final boolean configEnabled =
-          configProvider.getBoolean(configKey, defaultEnabled, "trace." + configKey);
+          configProvider.getBoolean("trace." + configKey, defaultEnabled, configKey);
       if (defaultEnabled) {
         anyEnabled &= configEnabled;
       } else {
