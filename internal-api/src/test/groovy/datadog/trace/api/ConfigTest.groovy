@@ -31,6 +31,7 @@ import static datadog.trace.api.Config.JMX_FETCH_STATSD_HOST
 import static datadog.trace.api.Config.JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.Config.JMX_TAGS
 import static datadog.trace.api.Config.PARTIAL_FLUSH_MIN_SPANS
+import static datadog.trace.api.Config.PERF_METRICS_ENABLED
 import static datadog.trace.api.Config.PRIORITIZATION_TYPE
 import static datadog.trace.api.Config.PRIORITY_SAMPLING
 import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_OLD
@@ -116,6 +117,7 @@ class ConfigTest extends DDSpecification {
   private static final DD_TRACE_AGENT_PORT_ENV = "DD_TRACE_AGENT_PORT"
   private static final DD_AGENT_PORT_LEGACY_ENV = "DD_AGENT_PORT"
   private static final DD_TRACE_REPORT_HOSTNAME = "DD_TRACE_REPORT_HOSTNAME"
+  private static final DD_RUNTIME_METRICS_ENABLED_ENV = "DD_RUNTIME_METRICS_ENABLED"
 
   private static final DD_PROFILING_API_KEY_OLD_ENV = "DD_PROFILING_API_KEY"
   private static final DD_PROFILING_API_KEY_VERY_OLD_ENV = "DD_PROFILING_APIKEY"
@@ -1767,6 +1769,23 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.idGenerationStrategy == RANDOM
+  }
+
+  def "DD_RUNTIME_METRICS_ENABLED=false disables all metrics"() {
+    setup:
+    environmentVariables.set(DD_RUNTIME_METRICS_ENABLED_ENV, "false")
+    def prop = new Properties()
+    prop.setProperty(JMX_FETCH_ENABLED, "true")
+    prop.setProperty(HEALTH_METRICS_ENABLED, "true")
+    prop.setProperty(PERF_METRICS_ENABLED, "true")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    !config.jmxFetchEnabled
+    !config.healthMetricsEnabled
+    !config.perfMetricsEnabled
   }
 
   static class ClassThrowsExceptionForValueOfMethod {
