@@ -20,13 +20,15 @@ import lombok.extern.slf4j.Slf4j;
 public class StatusLogger {
 
   public static void logStatus(Config config) {
-    log.info(
-        "DATADOG TRACER CONFIGURATION {}",
-        new Moshi.Builder()
-            .add(ConfigAdapter.FACTORY)
-            .build()
-            .adapter(Config.class)
-            .toJson(config));
+    if (log.isInfoEnabled()) {
+      log.info(
+          "DATADOG TRACER CONFIGURATION {}",
+          new Moshi.Builder()
+              .add(ConfigAdapter.FACTORY)
+              .build()
+              .adapter(Config.class)
+              .toJson(config));
+    }
     if (log.isDebugEnabled()) {
       log.debug("class path: {}", System.getProperty("java.class.path"));
     }
