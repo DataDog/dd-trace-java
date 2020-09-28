@@ -49,7 +49,7 @@ class ApacheHttpAsyncClientNullCallbackTest extends HttpClientTest {
   }
 
   @Override
-  String component() {
+  CharSequence component() {
     return ApacheHttpAsyncClientDecorator.DECORATE.component()
   }
 

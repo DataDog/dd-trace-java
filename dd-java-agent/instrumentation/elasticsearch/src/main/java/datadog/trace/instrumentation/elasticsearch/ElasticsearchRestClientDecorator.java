@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.elasticsearch;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
 
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
@@ -13,6 +13,8 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
 
   public static final CharSequence ELASTICSEARCH_REST_QUERY =
       UTF8BytesString.createConstant("elasticsearch.rest.query");
+  public static final CharSequence ELASTICSEARCH_JAVA =
+      UTF8BytesString.createConstant("elasticsearch-java");
 
   public static final ElasticsearchRestClientDecorator DECORATE =
       new ElasticsearchRestClientDecorator();
@@ -35,13 +37,13 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
   }
 
   @Override
-  protected String component() {
-    return "elasticsearch-java";
+  protected CharSequence component() {
+    return ELASTICSEARCH_JAVA;
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.ELASTICSEARCH;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.ELASTICSEARCH;
   }
 
   @Override

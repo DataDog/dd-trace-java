@@ -1,11 +1,15 @@
 package datadog.trace.bootstrap.instrumentation.httpurlconnection;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 public class HttpUrlConnectionDecorator extends HttpClientDecorator<HttpURLConnection, Integer> {
+
+  private static final CharSequence HTTP_URL_CONNECTION =
+      UTF8BytesString.createConstant("http-url-connection");
 
   public static final HttpUrlConnectionDecorator DECORATE = new HttpUrlConnectionDecorator();
 
@@ -15,8 +19,8 @@ public class HttpUrlConnectionDecorator extends HttpClientDecorator<HttpURLConne
   }
 
   @Override
-  protected String component() {
-    return "http-url-connection";
+  protected CharSequence component() {
+    return HTTP_URL_CONNECTION;
   }
 
   @Override

@@ -19,7 +19,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
 
-  abstract WebClient createClient(String component)
+  abstract WebClient createClient(CharSequence component)
 
   abstract void check()
 
@@ -46,7 +46,7 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
   }
 
   @Override
-  String component() {
+  CharSequence component() {
     return SpringWebfluxHttpClientDecorator.DECORATE.component()
   }
 

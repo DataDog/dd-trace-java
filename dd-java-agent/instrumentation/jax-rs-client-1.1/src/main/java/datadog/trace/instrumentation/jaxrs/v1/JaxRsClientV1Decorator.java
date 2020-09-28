@@ -8,6 +8,7 @@ import java.net.URI;
 
 public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, ClientResponse> {
 
+  public static final CharSequence JAX_RS_CLIENT = UTF8BytesString.createConstant("jax-rs.client");
   public static final CharSequence JAX_RS_CLIENT_CALL =
       UTF8BytesString.createConstant("jax-rs.client.call");
 
@@ -19,8 +20,8 @@ public class JaxRsClientV1Decorator extends HttpClientDecorator<ClientRequest, C
   }
 
   @Override
-  protected String component() {
-    return "jax-rs.client";
+  protected CharSequence component() {
+    return JAX_RS_CLIENT;
   }
 
   @Override

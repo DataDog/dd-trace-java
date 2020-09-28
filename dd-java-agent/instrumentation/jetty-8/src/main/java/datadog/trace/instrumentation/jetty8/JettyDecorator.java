@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletResponse;
 public class JettyDecorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
   public static final CharSequence JETTY_REQUEST = UTF8BytesString.createConstant("jetty.request");
+  public static final CharSequence JETTY_HANDLER = UTF8BytesString.createConstant("jetty-handler");
   public static final JettyDecorator DECORATE = new JettyDecorator();
 
   @Override
@@ -18,8 +19,8 @@ public class JettyDecorator
   }
 
   @Override
-  protected String component() {
-    return "jetty-handler";
+  protected CharSequence component() {
+    return JETTY_HANDLER;
   }
 
   @Override

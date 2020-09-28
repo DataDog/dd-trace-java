@@ -16,6 +16,8 @@ import org.slf4j.LoggerFactory;
 public class JSPDecorator extends BaseDecorator {
   public static final CharSequence JSP_COMPILE = UTF8BytesString.createConstant("jsp.compile");
   public static final CharSequence JSP_RENDER = UTF8BytesString.createConstant("jsp.render");
+  public static final CharSequence JSP_HTTP_SERVLET =
+      UTF8BytesString.createConstant("jsp-http-servlet");
   public static JSPDecorator DECORATE = new JSPDecorator();
 
   @Override
@@ -24,13 +26,13 @@ public class JSPDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String spanType() {
+  protected CharSequence spanType() {
     return null;
   }
 
   @Override
-  protected String component() {
-    return "jsp-http-servlet";
+  protected CharSequence component() {
+    return JSP_HTTP_SERVLET;
   }
 
   public void onCompile(final AgentScope scope, final JspCompilationContext jspCompilationContext) {

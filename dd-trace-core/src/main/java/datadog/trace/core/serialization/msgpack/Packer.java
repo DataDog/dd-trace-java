@@ -2,6 +2,7 @@ package datadog.trace.core.serialization.msgpack;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Map;
@@ -168,7 +169,11 @@ public class Packer implements Writable, MessageFormatter {
   @Override
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void writeObject(Object value, EncodingCache encodingCache) {
-    if (null == value) {
+    // unpeel a very common case, but should try to move away from sending
+    // UTF8BytesString down this codepath at all
+    if (value instanceof UTF8BytesString) {
+      writeUTF8((UTF8BytesString) value);
+    } else if (null == value) {
       writeNull();
     } else {
       Writer writer = codec.get(value.getClass());
@@ -283,6 +288,12 @@ public class Packer implements Writable, MessageFormatter {
   @Override
   public void writeUTF8(byte[] string) {
     writeUTF8(string, 0, string.length);
+  }
+
+  @Override
+  public void writeUTF8(UTF8BytesString string) {
+    writeStringHeader(string.encodedLength());
+    string.transferTo(buffer);
   }
 
   @Override

@@ -25,20 +25,14 @@ public final class TraceMapperV0_5 implements TraceMapper {
   static final byte[] EMPTY =
       ByteBuffer.allocate(3).put((byte) 0x92).put((byte) 0x90).put((byte) 0x90).array();
 
-  private static final class DictionaryFull extends BufferOverflowException {
-    @Override
-    public synchronized Throwable fillInStackTrace() {
-      return this;
-    }
-  }
-
   private static final DictionaryFull DICTIONARY_FULL = new DictionaryFull();
 
   private final ByteBuffer[] dictionary = new ByteBuffer[1];
   private final Packer dictionaryWriter;
   private final DictionaryMapper dictionaryMapper = new DictionaryMapper();
   private final Map<Object, Integer> encoding = new HashMap<>();
-  private int code = 0;
+
+  private final MetaWriter metaWriter = new MetaWriter();
 
   public TraceMapperV0_5() {
     this(2 << 20);
@@ -82,34 +76,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
       /* 9  */
       writable.writeInt(span.getError());
       /* 10  */
-      span.processTagsAndBaggage(
-          new TagsAndBaggageConsumer() {
-            @Override
-            public void accept(Map<String, Object> tags, Map<String, String> baggage) {
-              // since tags can "override" baggage, we need to count the non overlapping ones
-              int size = tags.size();
-              boolean overlap = false;
-              for (String key : baggage.keySet()) {
-                if (!tags.containsKey(key)) {
-                  size++;
-                } else {
-                  overlap = true;
-                }
-              }
-              writable.startMap(size);
-              for (Map.Entry<String, String> entry : baggage.entrySet()) {
-                // tags and baggage may intersect, but tags take priority
-                if (!overlap || !tags.containsKey(entry.getKey())) {
-                  writeDictionaryEncoded(writable, entry.getKey());
-                  writeDictionaryEncoded(writable, entry.getValue());
-                }
-              }
-              for (Map.Entry<String, Object> entry : tags.entrySet()) {
-                writeDictionaryEncoded(writable, entry.getKey());
-                writeDictionaryEncoded(writable, entry.getValue());
-              }
-            }
-          });
+      span.processTagsAndBaggage(metaWriter.withWritable(writable));
       /* 11  */
       writable.startMap(span.getMetrics().size());
       for (Map.Entry<String, Number> entry : span.getMetrics().entrySet()) {
@@ -126,14 +93,12 @@ public final class TraceMapperV0_5 implements TraceMapper {
     Integer encoded = encoding.get(target);
     if (null == encoded) {
       if (!dictionaryWriter.format(target, dictionaryMapper)) {
-        assert code == dictionaryWriter.messageCount()
-            : "wrong number of elements in the dictionary";
         dictionaryWriter.flush();
         // signal the need for a flush because the string table filled up
         // faster than the message content
         throw DICTIONARY_FULL;
       }
-      int dictionaryCode = code++;
+      int dictionaryCode = dictionaryWriter.messageCount() - 1;
       encoding.put(target, dictionaryCode);
       // this call can fail, but the dictionary has been written to now
       // so should make sure dictionary state is consistent first
@@ -165,7 +130,6 @@ public final class TraceMapperV0_5 implements TraceMapper {
   @Override
   public void reset() {
     dictionaryWriter.reset();
-    code = 0;
     dictionary[0] = null;
     encoding.clear();
   }
@@ -190,11 +154,8 @@ public final class TraceMapperV0_5 implements TraceMapper {
         String string = String.valueOf(data);
         byte[] utf8 = StringTables.getKeyBytesUTF8(string);
         if (null == utf8) {
-          utf8 = StringTables.getTagBytesUTF8(string);
-          if (null == utf8) {
-            packer.writeString(string, NO_CACHING);
-            return;
-          }
+          packer.writeString(string, NO_CACHING);
+          return;
         }
         packer.writeUTF8(utf8);
       }
@@ -221,6 +182,58 @@ public final class TraceMapperV0_5 implements TraceMapper {
       writeBufferToChannel(header, channel);
       writeBufferToChannel(dictionary, channel);
       writeBufferToChannel(body, channel);
+    }
+  }
+
+  private static final class DictionaryFull extends BufferOverflowException {
+    @Override
+    public synchronized Throwable fillInStackTrace() {
+      return this;
+    }
+  }
+
+  private final class MetaWriter extends TagsAndBaggageConsumer {
+
+    private Writable writable;
+
+    MetaWriter withWritable(Writable writable) {
+      this.writable = writable;
+      return this;
+    }
+
+    @Override
+    public void accept(Map<String, Object> tags, Map<String, String> baggage) {
+      // since tags can "override" baggage, we need to count the non overlapping ones
+      int size = tags.size();
+      // assume we can't have more than 64 baggage items,
+      // and that iteration order is stable to avoid looking
+      // up in the tags more than necessary
+      long overlaps = 0L;
+      if (!baggage.isEmpty()) {
+        int i = 0;
+        for (Map.Entry<String, String> key : baggage.entrySet()) {
+          if (!tags.containsKey(key.getKey())) {
+            size++;
+          } else {
+            overlaps |= (1L << i);
+          }
+          ++i;
+        }
+      }
+      writable.startMap(size);
+      int i = 0;
+      for (Map.Entry<String, String> entry : baggage.entrySet()) {
+        // tags and baggage may intersect, but tags take priority
+        if ((overlaps & (1L << i)) == 0) {
+          writeDictionaryEncoded(writable, entry.getKey());
+          writeDictionaryEncoded(writable, entry.getValue());
+        }
+        ++i;
+      }
+      for (Map.Entry<String, Object> entry : tags.entrySet()) {
+        writeDictionaryEncoded(writable, entry.getKey());
+        writeDictionaryEncoded(writable, entry.getValue());
+      }
     }
   }
 }

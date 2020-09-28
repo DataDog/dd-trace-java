@@ -15,6 +15,8 @@ import org.apache.http.protocol.HttpCoreContext;
 public class ApacheHttpAsyncClientDecorator extends HttpClientDecorator<HttpRequest, HttpContext> {
 
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.createConstant("http.request");
+  public static final CharSequence APACHE_HTTPASYNCCLIENT =
+      UTF8BytesString.createConstant("apache-httpasyncclient");
 
   public static final ApacheHttpAsyncClientDecorator DECORATE =
       new ApacheHttpAsyncClientDecorator();
@@ -25,8 +27,8 @@ public class ApacheHttpAsyncClientDecorator extends HttpClientDecorator<HttpRequ
   }
 
   @Override
-  protected String component() {
-    return "apache-httpasyncclient";
+  protected CharSequence component() {
+    return APACHE_HTTPASYNCCLIENT;
   }
 
   @Override

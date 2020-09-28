@@ -92,6 +92,8 @@ class TagsAssert {
       assert ((Class) value).isInstance(t)
     } else if (value instanceof Closure) {
       assert ((Closure) value).call(t)
+    } else if (value instanceof UTF8BytesString) {
+      assert t == value.toString()
     } else {
       assert t == value
     }

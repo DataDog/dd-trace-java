@@ -10,6 +10,7 @@ import java.net.URI;
 
 public class FinatraDecorator extends HttpServerDecorator<Request, Request, Response> {
 
+  public static final CharSequence FINATRA = UTF8BytesString.createConstant("finatra");
   public static final CharSequence FINATRA_CONTROLLER =
       UTF8BytesString.createConstant("finatra.controller");
   public static final CharSequence FINATRA_REQUEST =
@@ -17,8 +18,8 @@ public class FinatraDecorator extends HttpServerDecorator<Request, Request, Resp
   public static final FinatraDecorator DECORATE = new FinatraDecorator();
 
   @Override
-  protected String component() {
-    return "finatra";
+  protected CharSequence component() {
+    return FINATRA;
   }
 
   @Override

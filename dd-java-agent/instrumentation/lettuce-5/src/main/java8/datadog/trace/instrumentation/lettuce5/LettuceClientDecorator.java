@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.lettuce5;
 
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
@@ -10,6 +10,7 @@ import io.lettuce.core.RedisURI;
 import io.lettuce.core.protocol.RedisCommand;
 
 public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecorator<RedisURI> {
+  public static final CharSequence REDIS_CLIENT = UTF8BytesString.createConstant("redis-client");
   public static final CharSequence REDIS_QUERY = UTF8BytesString.createConstant("redis.query");
   public static final LettuceClientDecorator DECORATE = new LettuceClientDecorator();
 
@@ -24,13 +25,13 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   }
 
   @Override
-  protected String component() {
-    return "redis-client";
+  protected CharSequence component() {
+    return REDIS_CLIENT;
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.REDIS;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.REDIS;
   }
 
   @Override

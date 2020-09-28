@@ -200,6 +200,12 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
   }
 
   @Override
+  public DDSpan setTag(final String tag, final CharSequence value) {
+    context.setTag(tag, value);
+    return this;
+  }
+
+  @Override
   public DDSpan setTag(final String tag, final Object value) {
     context.setTag(tag, value);
     return this;

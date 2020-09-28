@@ -45,7 +45,7 @@ class RatpackHttpClientTest extends HttpClientTest {
   }
 
   @Override
-  String component() {
+  CharSequence component() {
     return NettyHttpClientDecorator.DECORATE.component()
   }
 

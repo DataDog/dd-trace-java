@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.rediscala;
 
-import datadog.trace.api.DDSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import redis.RedisCommand;
@@ -12,7 +12,8 @@ public class RediscalaClientDecorator
   public static final CharSequence REDIS_COMMAND = UTF8BytesString.createConstant("redis.command");
 
   private static final String SERVICE_NAME = "redis";
-  private static final String COMPONENT_NAME = SERVICE_NAME + "-command";
+  private static final CharSequence COMPONENT_NAME =
+      UTF8BytesString.createConstant("redis-command");
 
   public static final RediscalaClientDecorator DECORATE = new RediscalaClientDecorator();
 
@@ -27,13 +28,13 @@ public class RediscalaClientDecorator
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return COMPONENT_NAME;
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.REDIS;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.REDIS;
   }
 
   @Override

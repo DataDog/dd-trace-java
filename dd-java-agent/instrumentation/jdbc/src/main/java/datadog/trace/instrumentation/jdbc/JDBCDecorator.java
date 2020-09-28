@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.jdbc;
 
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
@@ -16,6 +16,7 @@ import java.sql.SQLException;
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
+  public static final CharSequence JAVA_JDBC = UTF8BytesString.createConstant("java-jdbc");
   public static final CharSequence DATABASE_QUERY =
       UTF8BytesString.createConstant("database.query");
   private static final UTF8BytesString DB_QUERY = UTF8BytesString.createConstant("DB Query");
@@ -35,13 +36,13 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   @Override
-  protected String component() {
-    return "java-jdbc"; // Overridden by onStatement and onPreparedStatement
+  protected CharSequence component() {
+    return JAVA_JDBC; // Overridden by onStatement and onPreparedStatement
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.SQL;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.SQL;
   }
 
   @Override

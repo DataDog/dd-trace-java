@@ -16,6 +16,7 @@ import scala.Option;
 @Slf4j
 public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Request, Result> {
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.createConstant("play.request");
+  public static final CharSequence PLAY_ACTION = UTF8BytesString.createConstant("play-action");
   public static final PlayHttpServerDecorator DECORATE = new PlayHttpServerDecorator();
 
   @Override
@@ -24,8 +25,8 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   }
 
   @Override
-  protected String component() {
-    return "play-action";
+  protected CharSequence component() {
+    return PLAY_ACTION;
   }
 
   @Override

@@ -17,6 +17,7 @@ import javax.jms.Topic;
 
 public final class JMSDecorator extends ClientDecorator {
 
+  public static final CharSequence JMS = UTF8BytesString.createConstant("jms");
   public static final CharSequence JMS_CONSUME = UTF8BytesString.createConstant("jms.consume");
   public static final CharSequence JMS_ONMESSAGE = UTF8BytesString.createConstant("jms.onMessage");
   public static final CharSequence JMS_PRODUCE = UTF8BytesString.createConstant("jms.produce");
@@ -40,7 +41,7 @@ public final class JMSDecorator extends ClientDecorator {
   }
 
   @Override
-  protected String spanType() {
+  protected CharSequence spanType() {
     return spanType;
   }
 
@@ -50,8 +51,8 @@ public final class JMSDecorator extends ClientDecorator {
   }
 
   @Override
-  protected String component() {
-    return "jms";
+  protected CharSequence component() {
+    return JMS;
   }
 
   @Override

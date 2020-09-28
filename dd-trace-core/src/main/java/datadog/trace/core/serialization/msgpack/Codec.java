@@ -1,6 +1,5 @@
 package datadog.trace.core.serialization.msgpack;
 
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.util.Collection;
@@ -74,9 +73,6 @@ public final class Codec extends ClassValue<Writer<?>> {
     }
     if (Boolean.class == clazz) {
       return new BooleanWriter();
-    }
-    if (UTF8BytesString.class == clazz) {
-      return new UTF8ByteStringWriter();
     }
     if (CharSequence.class.isAssignableFrom(clazz)) {
       return CharSequenceWriter.INSTANCE;
@@ -269,15 +265,6 @@ public final class Codec extends ClassValue<Writer<?>> {
     @Override
     public void write(char[] value, Packer packer, EncodingCache encodingCache) {
       packer.writeString(CharBuffer.wrap(value), EncodingCachingStrategies.NO_CACHING);
-    }
-  }
-
-  private static final class UTF8ByteStringWriter implements Writer<UTF8BytesString> {
-
-    @Override
-    public void write(UTF8BytesString value, Packer writable, EncodingCache encodingCache) {
-      writable.writeBinaryHeader(value.encodedLength());
-      value.transferTo(writable.getBuffer());
     }
   }
 

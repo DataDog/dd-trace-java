@@ -9,6 +9,7 @@ import okhttp3.Response;
 public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response> {
   public static final CharSequence OKHTTP_REQUEST =
       UTF8BytesString.createConstant("okhttp.request");
+  public static final CharSequence OKHTTP = UTF8BytesString.createConstant("okhttp");
   public static final OkHttpClientDecorator DECORATE = new OkHttpClientDecorator();
 
   @Override
@@ -22,8 +23,8 @@ public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response
   }
 
   @Override
-  protected String component() {
-    return "okhttp";
+  protected CharSequence component() {
+    return OKHTTP;
   }
 
   @Override

@@ -64,7 +64,7 @@ class CommonsHttpClientTest extends HttpClientTest {
   }
 
   @Override
-  String component() {
+  CharSequence component() {
     return CommonsHttpClientDecorator.DECORATE.component()
   }
 

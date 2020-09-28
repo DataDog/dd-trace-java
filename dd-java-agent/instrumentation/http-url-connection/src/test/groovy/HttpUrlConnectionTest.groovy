@@ -42,7 +42,7 @@ class HttpUrlConnectionTest extends HttpClientTest {
   }
 
   @Override
-  String component() {
+  CharSequence component() {
     return HttpUrlConnectionDecorator.DECORATE.component()
   }
 

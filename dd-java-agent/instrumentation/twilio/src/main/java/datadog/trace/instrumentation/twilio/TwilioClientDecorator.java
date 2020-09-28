@@ -3,9 +3,9 @@ package datadog.trace.instrumentation.twilio;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.twilio.rest.api.v2010.account.Call;
 import com.twilio.rest.api.v2010.account.Message;
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.lang.reflect.Method;
@@ -18,28 +18,28 @@ public class TwilioClientDecorator extends ClientDecorator {
 
   public static final CharSequence TWILIO_SDK = UTF8BytesString.createConstant("twilio.sdk");
 
+  private static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("twilio-sdk");
+
   public static final TwilioClientDecorator DECORATE = new TwilioClientDecorator();
 
-  static final String COMPONENT_NAME = "twilio-sdk";
-
   @Override
-  protected String spanType() {
-    return DDSpanTypes.HTTP_CLIENT;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.HTTP_CLIENT;
   }
 
   @Override
   protected String[] instrumentationNames() {
-    return new String[] {COMPONENT_NAME};
+    return new String[] {COMPONENT_NAME.toString()};
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return COMPONENT_NAME;
   }
 
   @Override
   protected String service() {
-    return COMPONENT_NAME;
+    return COMPONENT_NAME.toString();
   }
 
   /** Decorate trace based on service execution metadata. */

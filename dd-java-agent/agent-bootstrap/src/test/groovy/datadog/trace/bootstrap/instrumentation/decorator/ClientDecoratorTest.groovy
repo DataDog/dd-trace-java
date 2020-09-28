@@ -58,12 +58,12 @@ class ClientDecoratorTest extends BaseDecoratorTest {
       }
 
       @Override
-      protected String spanType() {
+      protected CharSequence spanType() {
         return "test-type"
       }
 
       @Override
-      protected String component() {
+      protected CharSequence component() {
         return "test-component"
       }
 

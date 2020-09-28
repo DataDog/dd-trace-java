@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.jedis30;
 
-import datadog.trace.api.DDSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import redis.clients.jedis.commands.ProtocolCommand;
@@ -10,7 +10,8 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   public static final JedisClientDecorator DECORATE = new JedisClientDecorator();
 
   private static final String SERVICE_NAME = "redis";
-  private static final String COMPONENT_NAME = SERVICE_NAME + "-command";
+  private static final CharSequence COMPONENT_NAME =
+      UTF8BytesString.createConstant("redis-command");
 
   @Override
   protected String[] instrumentationNames() {
@@ -23,13 +24,13 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return COMPONENT_NAME;
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.REDIS;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.REDIS;
   }
 
   @Override

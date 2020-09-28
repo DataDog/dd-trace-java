@@ -44,7 +44,7 @@ class AkkaHttpClientInstrumentationTest extends HttpClientTest {
   }
 
   @Override
-  String component() {
+  CharSequence component() {
     return AkkaHttpClientDecorator.DECORATE.component()
   }
 

@@ -6,6 +6,8 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 public class DataSourceDecorator extends BaseDecorator {
   public static final CharSequence DATABASE_CONNECTION =
       UTF8BytesString.createConstant("database.connection");
+  public static final CharSequence JAVA_JDBC_CONNECTION =
+      UTF8BytesString.createConstant("java-jdbc-connection");
 
   public static final DataSourceDecorator DECORATE = new DataSourceDecorator();
 
@@ -15,12 +17,12 @@ public class DataSourceDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String component() {
-    return "java-jdbc-connection";
+  protected CharSequence component() {
+    return JAVA_JDBC_CONNECTION;
   }
 
   @Override
-  protected String spanType() {
+  protected CharSequence spanType() {
     return null;
   }
 }

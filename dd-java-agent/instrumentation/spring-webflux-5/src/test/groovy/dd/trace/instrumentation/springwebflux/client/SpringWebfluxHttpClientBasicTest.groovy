@@ -7,7 +7,7 @@ import spock.lang.Timeout
 class SpringWebfluxHttpClientBasicTest extends SpringWebfluxHttpClientBase {
 
   @Override
-  WebClient createClient(String component) {
+  WebClient createClient(CharSequence component) {
     return WebClient.builder().build()
   }
 

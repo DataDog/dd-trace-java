@@ -11,6 +11,7 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.Objects;
 
@@ -26,6 +27,8 @@ public class HystrixDecorator extends BaseDecorator {
   private HystrixDecorator() {
     this(Config.get().isHystrixTagsEnabled());
   }
+
+  public static final CharSequence HYSTRIX = UTF8BytesString.createConstant("hystrix");
 
   private static final DDCache<ResourceNameCacheKey, String> RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(64);
@@ -70,13 +73,13 @@ public class HystrixDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String spanType() {
+  protected CharSequence spanType() {
     return null;
   }
 
   @Override
-  protected String component() {
-    return "hystrix";
+  protected CharSequence component() {
+    return HYSTRIX;
   }
 
   public void onCommand(

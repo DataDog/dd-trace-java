@@ -1,11 +1,12 @@
 package datadog.trace.instrumentation.rmi.server;
 
-import datadog.trace.api.DDSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ServerDecorator;
 
 public class RmiServerDecorator extends ServerDecorator {
   public static final CharSequence RMI_REQUEST = UTF8BytesString.createConstant("rmi.request");
+  public static final CharSequence RMI_SERVER = UTF8BytesString.createConstant("rmi-server");
   public static final RmiServerDecorator DECORATE = new RmiServerDecorator();
 
   @Override
@@ -14,12 +15,12 @@ public class RmiServerDecorator extends ServerDecorator {
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.RPC;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.RPC;
   }
 
   @Override
-  protected String component() {
-    return "rmi-server";
+  protected CharSequence component() {
+    return RMI_SERVER;
   }
 }

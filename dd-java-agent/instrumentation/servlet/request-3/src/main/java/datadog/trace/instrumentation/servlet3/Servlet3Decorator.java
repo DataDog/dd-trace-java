@@ -14,6 +14,8 @@ public class Servlet3Decorator
     extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse> {
   public static final CharSequence SERVLET_REQUEST =
       UTF8BytesString.createConstant("servlet.request");
+  public static final CharSequence JAVA_WEB_SERVLET =
+      UTF8BytesString.createConstant("java-web-servlet");
   public static final Servlet3Decorator DECORATE = new Servlet3Decorator();
 
   @Override
@@ -22,8 +24,8 @@ public class Servlet3Decorator
   }
 
   @Override
-  protected String component() {
-    return "java-web-servlet";
+  protected CharSequence component() {
+    return JAVA_WEB_SERVLET;
   }
 
   @Override

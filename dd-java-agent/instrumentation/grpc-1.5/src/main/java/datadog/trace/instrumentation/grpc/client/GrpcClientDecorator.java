@@ -1,13 +1,14 @@
 package datadog.trace.instrumentation.grpc.client;
 
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import io.grpc.Status;
 
 public class GrpcClientDecorator extends ClientDecorator {
   public static final CharSequence GRPC_CLIENT = UTF8BytesString.createConstant("grpc.client");
+  public static final CharSequence COMPONENT_NAME = UTF8BytesString.createConstant("grpc-client");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.createConstant("grpc.message");
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
 
@@ -17,13 +18,13 @@ public class GrpcClientDecorator extends ClientDecorator {
   }
 
   @Override
-  protected String component() {
-    return "grpc-client";
+  protected CharSequence component() {
+    return COMPONENT_NAME;
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.RPC;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.RPC;
   }
 
   @Override

@@ -13,7 +13,6 @@ import static datadog.trace.core.StringTables.START;
 import static datadog.trace.core.StringTables.TRACE_ID;
 import static datadog.trace.core.StringTables.TYPE;
 import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.CONSTANT_KEYS;
-import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.CONSTANT_TAGS;
 import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.NO_CACHING;
 import static datadog.trace.core.serialization.msgpack.Util.integerToStringBuffer;
 import static datadog.trace.core.serialization.msgpack.Util.writeLongAsString;
@@ -32,7 +31,62 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
   static final byte[] EMPTY = ByteBuffer.allocate(1).put((byte) 0x90).array();
 
-  private final byte[] numberByteArray = integerToStringBuffer();
+  private static final class MetaWriter extends TagsAndBaggageConsumer {
+
+    private final byte[] numberByteArray = integerToStringBuffer();
+    private Writable writable;
+
+    MetaWriter withWritable(Writable writable) {
+      this.writable = writable;
+      return this;
+    }
+
+    @Override
+    public void accept(Map<String, Object> tags, Map<String, String> baggage) {
+      // since tags can "override" baggage, we need to count the non overlapping ones
+      int size = tags.size();
+      // assume we can't have more than 64 baggage items,
+      // and that iteration order is stable to avoid looking
+      // up in the tags more than necessary
+      long overlaps = 0L;
+      if (!baggage.isEmpty()) {
+        int i = 0;
+        for (Map.Entry<String, String> key : baggage.entrySet()) {
+          if (!tags.containsKey(key.getKey())) {
+            size++;
+          } else {
+            overlaps |= (1L << i);
+          }
+          ++i;
+        }
+      }
+      writable.startMap(size);
+      int i = 0;
+      for (Map.Entry<String, String> entry : baggage.entrySet()) {
+        // tags and baggage may intersect, but tags take priority
+        if ((overlaps & (1L << i)) == 0) {
+          writable.writeString(entry.getKey(), CONSTANT_KEYS);
+          writable.writeString(entry.getValue(), NO_CACHING);
+        }
+        ++i;
+      }
+      for (Map.Entry<String, Object> entry : tags.entrySet()) {
+        writable.writeString(entry.getKey(), CONSTANT_KEYS);
+        if (entry.getValue() instanceof Long || entry.getValue() instanceof Integer) {
+          // TODO it would be nice not to need to do this, either because
+          //  the agent would accept variably typed tag values, or numeric
+          //  tags get moved to the metrics
+          writeLongAsString(((Number) entry.getValue()).longValue(), writable, numberByteArray);
+        } else if (entry.getValue() instanceof UTF8BytesString) {
+          writable.writeUTF8((UTF8BytesString) entry.getValue());
+        } else {
+          writable.writeString(String.valueOf(entry.getValue()), NO_CACHING);
+        }
+      }
+    }
+  }
+
+  private final MetaWriter metaWriter = new MetaWriter();
 
   @Override
   public void map(List<? extends DDSpanData> trace, final Writable writable) {
@@ -41,7 +95,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.startMap(12);
       /* 1  */
       writable.writeUTF8(SERVICE);
-      writable.writeString(span.getServiceName(), CONSTANT_TAGS);
+      writable.writeString(span.getServiceName(), NO_CACHING);
       /* 2  */
       writable.writeUTF8(NAME);
       writable.writeObject(span.getOperationName(), NO_CACHING);
@@ -65,7 +119,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeLong(span.getDurationNano());
       /* 9  */
       writable.writeUTF8(TYPE);
-      writable.writeString(span.getType(), CONSTANT_TAGS);
+      writable.writeString(span.getType(), NO_CACHING);
       /* 10 */
       writable.writeUTF8(ERROR);
       writable.writeInt(span.getError());
@@ -74,47 +128,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeMap(span.getMetrics(), CONSTANT_KEYS);
       /* 12 */
       writable.writeUTF8(META);
-      span.processTagsAndBaggage(
-          new TagsAndBaggageConsumer() {
-            @Override
-            public void accept(Map<String, Object> tags, Map<String, String> baggage) {
-              // since tags can "override" baggage, we need to count the non overlapping ones
-              int size = tags.size();
-              boolean overlap = false;
-              if (baggage.size() > 0) {
-                for (String key : baggage.keySet()) {
-                  if (!tags.containsKey(key)) {
-                    size++;
-                  } else {
-                    overlap = true;
-                  }
-                }
-              }
-              writable.startMap(size);
-              for (Map.Entry<String, String> entry : baggage.entrySet()) {
-                // tags and baggage may intersect, but tags take priority
-                if (!overlap || !tags.containsKey(entry.getKey())) {
-                  writable.writeString(entry.getKey(), CONSTANT_KEYS);
-                  writable.writeObject(entry.getValue(), NO_CACHING);
-                }
-              }
-              for (Map.Entry<String, Object> entry : tags.entrySet()) {
-                writable.writeString(entry.getKey(), CONSTANT_KEYS);
-                if (entry.getValue() instanceof Long || entry.getValue() instanceof Integer) {
-                  // TODO it would be nice not to need to do this, either because
-                  //  the agent would accept variably typed tag values, or numeric
-                  //  tags get moved to the metrics
-                  writeLongAsString(
-                      ((Number) entry.getValue()).longValue(), writable, numberByteArray);
-                } else if (entry.getValue() instanceof UTF8BytesString) {
-                  // TODO assess whether this is still worth it
-                  writable.writeObject(entry.getValue(), NO_CACHING);
-                } else {
-                  writable.writeString(String.valueOf(entry.getValue()), NO_CACHING);
-                }
-              }
-            }
-          });
+      span.processTagsAndBaggage(metaWriter.withWritable(writable));
     }
   }
 

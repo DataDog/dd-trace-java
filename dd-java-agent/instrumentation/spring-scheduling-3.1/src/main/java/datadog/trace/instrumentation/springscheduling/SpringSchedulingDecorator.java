@@ -21,12 +21,12 @@ public class SpringSchedulingDecorator extends BaseDecorator {
   }
 
   @Override
-  protected String spanType() {
+  protected CharSequence spanType() {
     return null;
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return "spring-scheduling";
   }
 

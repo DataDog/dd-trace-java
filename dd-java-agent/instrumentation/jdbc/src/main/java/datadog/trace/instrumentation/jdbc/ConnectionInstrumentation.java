@@ -61,7 +61,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
       // check if we have seen this String before
       UTF8BytesString utf8Sql = JDBCMaps.preparedStatementsSql.get(sql);
       if (utf8Sql == null) {
-        utf8Sql = UTF8BytesString.create(sql);
+        utf8Sql = UTF8BytesString.createWeak(sql);
         JDBCMaps.preparedStatementsSql.put(sql, utf8Sql);
       }
       JDBCMaps.preparedStatements.putIfAbsent(statement, utf8Sql);

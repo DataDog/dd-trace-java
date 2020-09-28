@@ -114,12 +114,12 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
       }
 
       @Override
-      protected String component() {
+      protected CharSequence component() {
         return "test-component"
       }
 
       @Override
-      protected String spanType() {
+      protected CharSequence spanType() {
         return "test-type"
       }
 

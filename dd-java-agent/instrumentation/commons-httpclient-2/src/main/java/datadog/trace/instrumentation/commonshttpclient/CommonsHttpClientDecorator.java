@@ -10,6 +10,8 @@ import org.apache.commons.httpclient.URIException;
 
 public class CommonsHttpClientDecorator extends HttpClientDecorator<HttpMethod, HttpMethod> {
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.createConstant("http.request");
+  public static final CharSequence COMMONS_HTTP_CLIENT =
+      UTF8BytesString.createConstant("commons-http-client");
   public static final CommonsHttpClientDecorator DECORATE = new CommonsHttpClientDecorator();
 
   @Override
@@ -18,8 +20,8 @@ public class CommonsHttpClientDecorator extends HttpClientDecorator<HttpMethod, 
   }
 
   @Override
-  protected String component() {
-    return "commons-http-client";
+  protected CharSequence component() {
+    return COMMONS_HTTP_CLIENT;
   }
 
   @Override

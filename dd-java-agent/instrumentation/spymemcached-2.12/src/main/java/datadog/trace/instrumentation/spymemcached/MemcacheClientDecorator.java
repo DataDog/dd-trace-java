@@ -1,13 +1,16 @@
 package datadog.trace.instrumentation.spymemcached;
 
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 import net.spy.memcached.MemcachedConnection;
 
 public class MemcacheClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<MemcachedConnection> {
+  private static final CharSequence JAVA_SPYMEMCACHED =
+      UTF8BytesString.createConstant("java-spymemcached");
   public static final MemcacheClientDecorator DECORATE = new MemcacheClientDecorator();
 
   @Override
@@ -21,13 +24,13 @@ public class MemcacheClientDecorator
   }
 
   @Override
-  protected String component() {
-    return "java-spymemcached";
+  protected CharSequence component() {
+    return JAVA_SPYMEMCACHED;
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.MEMCACHED;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.MEMCACHED;
   }
 
   @Override

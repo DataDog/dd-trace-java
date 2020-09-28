@@ -8,6 +8,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
+  public static final CharSequence GOOGLE_HTTP_CLIENT =
+      UTF8BytesString.createConstant("google-http-client");
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.createConstant("http.request");
   public static final GoogleHttpClientDecorator DECORATE = new GoogleHttpClientDecorator();
 
@@ -36,7 +38,7 @@ public class GoogleHttpClientDecorator extends HttpClientDecorator<HttpRequest, 
   }
 
   @Override
-  protected String component() {
-    return "google-http-client";
+  protected CharSequence component() {
+    return GOOGLE_HTTP_CLIENT;
   }
 }

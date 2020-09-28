@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.hibernate;
 
-import datadog.trace.api.DDSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.OrmClientDecorator;
 import java.lang.annotation.Annotation;
@@ -24,12 +24,12 @@ public class HibernateDecorator extends OrmClientDecorator {
   }
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.HIBERNATE;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.HIBERNATE;
   }
 
   @Override
-  protected String component() {
+  protected CharSequence component() {
     return "java-hibernate";
   }
 

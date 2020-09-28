@@ -4,9 +4,9 @@ import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.api.cache.RadixTreeCache.PORTS;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import java.util.regex.Pattern;
@@ -33,8 +33,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE> extends
   protected abstract int status(RESPONSE response);
 
   @Override
-  protected String spanType() {
-    return DDSpanTypes.HTTP_SERVER;
+  protected CharSequence spanType() {
+    return InternalSpanTypes.HTTP_SERVER;
   }
 
   @Override
