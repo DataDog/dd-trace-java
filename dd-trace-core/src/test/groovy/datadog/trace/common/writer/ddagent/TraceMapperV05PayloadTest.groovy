@@ -1,6 +1,6 @@
 package datadog.trace.common.writer.ddagent
 
-
+import datadog.trace.api.DDId
 import datadog.trace.core.DDSpanData
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.Packer
@@ -13,12 +13,97 @@ import org.msgpack.core.MessageUnpacker
 import java.nio.BufferOverflowException
 import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
+import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.common.writer.ddagent.TraceGenerator.generateRandomTraces
 import static org.junit.Assert.assertEquals
 import static org.msgpack.core.MessageFormat.*
 
 class TraceMapperV05PayloadTest extends DDSpecification {
+
+
+  def "dictionary overflow causes a flush"() {
+    setup:
+    // 4x 36 ASCII characters and 2 bytes of msgpack string prefix
+    int dictionarySpacePerTrace = 4 * (36 + 2)
+    int dictionarySize = 10 * 1024
+    int traceCountToOverflowDictionary = dictionarySize / dictionarySpacePerTrace + 1
+    List<List<DDSpanData>> traces = new ArrayList<>(traceCountToOverflowDictionary)
+    for (int i = 0; i < traceCountToOverflowDictionary; ++i) {
+      // these traces must have deterministic size, but each string value
+      // must be unique to ensure no dictionary code reuse
+      traces.add(Collections.singletonList(new TraceGenerator.PojoSpan(
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString(),
+        UUID.randomUUID().toString(),
+        DDId.ZERO,
+        DDId.ZERO,
+        DDId.ZERO,
+        10000,
+        100,
+        0,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        UUID.randomUUID().toString()
+      )))
+    }
+    TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize)
+    List<List<DDSpanData>> flushedTraces = new ArrayList<>(traces)
+    // the last one won't be flushed
+    flushedTraces.remove(traces.size() - 1)
+    PayloadVerifier verifier = new PayloadVerifier(flushedTraces, traceMapper)
+    // 100KB body
+    Packer packer = new Packer(verifier, ByteBuffer.allocate(100 * 1024))
+    when:
+    for (List<DDSpanData> trace : traces) {
+      packer.format(trace, traceMapper)
+    }
+    then:
+    verifier.verifyTracesConsumed()
+  }
+
+  def "body overflow causes a flush"() {
+    setup:
+    // 4x 36 ASCII characters and 2 bytes of msgpack string prefix
+    int dictionarySpacePerTrace = 4 * (36 + 2)
+    // enough space for two traces with distinct string values, plus the header
+    int dictionarySize = dictionarySpacePerTrace * 2 + 5
+    TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize)
+    List<DDSpanData> repeatedTrace = Collections.singletonList(new TraceGenerator.PojoSpan(
+      UUID.randomUUID().toString(),
+      UUID.randomUUID().toString(),
+      UUID.randomUUID().toString(),
+      DDId.ZERO,
+      DDId.ZERO,
+      DDId.ZERO,
+      10000,
+      100,
+      0,
+      Collections.emptyMap(),
+      Collections.emptyMap(),
+      Collections.emptyMap(),
+      UUID.randomUUID().toString()))
+    int traceSize = calculateSize(repeatedTrace)
+    int tracesRequiredToOverflowBody = traceMapper.messageBufferSize() / traceSize
+    List<List<DDSpanData>> traces = new ArrayList<>(tracesRequiredToOverflowBody)
+    for (int i = 0; i < tracesRequiredToOverflowBody; ++i) {
+      traces.add(repeatedTrace)
+    }
+    // the last one won't be flushed
+    List<List<DDSpanData>> flushedTraces = new ArrayList<>(traces)
+    flushedTraces.remove(traces.size() - 1)
+    // need space for the overflowing buffer, the dictionary, and two small array headers
+    PayloadVerifier verifier = new PayloadVerifier(flushedTraces, traceMapper, (2 << 20) + dictionarySize + 1 + 1 + 5)
+    // 2MB body
+    Packer packer = new Packer(verifier, ByteBuffer.allocate(2 << 20))
+    when:
+    for (List<DDSpanData> trace : traces) {
+      packer.format(trace, traceMapper)
+    }
+    then:
+    verifier.verifyTracesConsumed()
+  }
 
   def "test dictionary compressed traces written correctly"() {
     setup:
@@ -79,13 +164,18 @@ class TraceMapperV05PayloadTest extends DDSpecification {
 
     private final List<List<DDSpanData>> expectedTraces
     private final TraceMapperV0_5 mapper
-    private final ByteBuffer captured = ByteBuffer.allocate(200 << 10)
+    private final ByteBuffer captured
 
     private int position = 0
 
     private PayloadVerifier(List<List<DDSpanData>> traces, TraceMapperV0_5 mapper) {
+      this (traces, mapper, 200 << 10)
+    }
+
+    private PayloadVerifier(List<List<DDSpanData>> traces, TraceMapperV0_5 mapper, int size) {
       this.expectedTraces = traces
       this.mapper = mapper
+      this.captured = ByteBuffer.allocate(size)
     }
 
     @Override
@@ -220,5 +310,19 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     } else {
       assertEquals(expected.toString(), actual.toString())
     }
+  }
+
+  static int calculateSize(List<DDSpanData> trace) {
+    ByteBuffer buffer = ByteBuffer.allocate(1024)
+    AtomicInteger size = new AtomicInteger()
+    def packer = new Packer(new ByteBufferConsumer() {
+      @Override
+      void accept(int messageCount, ByteBuffer buffy) {
+        size.set(buffy.limit() - buffy.position() - 1)
+      }
+    }, buffer)
+    packer.format(trace, new TraceMapperV0_5(1024))
+    packer.flush()
+    return size.get()
   }
 }
