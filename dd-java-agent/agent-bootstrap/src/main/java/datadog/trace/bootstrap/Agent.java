@@ -275,7 +275,7 @@ public class Agent {
       final Method registerMethod = deadlockFactoryClass.getMethod("registerEvents");
       registerMethod.invoke(null);
     } catch (final NoClassDefFoundError | ClassNotFoundException e) {
-      log.info("JMX deadlock detection not supported");
+      log.debug("JMX deadlock detection not supported");
     } catch (final Throwable ex) {
       log.error("Unable to initialize JMX thread deadlock detector", ex);
     }
@@ -332,7 +332,7 @@ public class Agent {
       Profiling is compiled for Java8. Loading it on Java7 results in ClassFormatError
       (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
       */
-      log.info("Profiling requires OpenJDK 8 or above - skipping");
+      log.debug("Profiling requires OpenJDK 8 or above - skipping");
     } catch (final Throwable ex) {
       log.error("Throwable thrown while starting profiling agent", ex);
     } finally {

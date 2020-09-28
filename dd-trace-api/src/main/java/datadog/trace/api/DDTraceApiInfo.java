@@ -23,7 +23,7 @@ public class DDTraceApiInfo {
       v = "unknown";
     }
     VERSION = v;
-    log.info("dd-trace-api - version: {}", v);
+    log.debug("dd-trace-api - version: {}", v);
   }
 
   public static void main(final String... args) {
