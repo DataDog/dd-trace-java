@@ -7,7 +7,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.core.monitor.Recording;
 import datadog.trace.core.util.Clock;
-import java.io.Closeable;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -26,23 +25,32 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements AgentTrace {
+  private static final long CLEAN_FREQUENCY = 1;
 
-  static PendingTrace create(final CoreTracer tracer, final DDId traceId) {
-    final PendingTrace pendingTrace = new PendingTrace(tracer, traceId);
-    pendingTrace.addPendingTrace();
-    return pendingTrace;
-  }
+  public static class Factory {
+    private final CoreTracer tracer;
+    private final PendingTraceBuffer pendingTraceBuffer;
 
-  private static final AtomicReference<SpanCleaner> SPAN_CLEANER = new AtomicReference<>();
-  private static final PendingTraceBuffer PENDING_TRACE_BUFFER = new PendingTraceBuffer();
+    public Factory(CoreTracer tracer, PendingTraceBuffer pendingTraceBuffer) {
+      this.tracer = tracer;
+      this.pendingTraceBuffer = pendingTraceBuffer;
+    }
 
-  // For use in testing to ensure delayed traces don't leak to the next test.
-  public static void flushBuffer() {
-    PENDING_TRACE_BUFFER.flush();
+    public PendingTrace create(final DDId traceId) {
+      final PendingTrace pendingTrace = new PendingTrace(tracer, traceId, pendingTraceBuffer);
+      AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(
+          PendingTraceCleanerTask.INSTANCE,
+          pendingTrace,
+          CLEAN_FREQUENCY,
+          CLEAN_FREQUENCY,
+          TimeUnit.SECONDS);
+      return pendingTrace;
+    }
   }
 
   private final CoreTracer tracer;
   private final DDId traceId;
+  private final PendingTraceBuffer pendingTraceBuffer;
 
   // TODO: consider moving these time fields into DDTracer to ensure that traces have precise
   // relative time
@@ -92,9 +100,11 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
    */
   private volatile long lastReferenced = 0;
 
-  private PendingTrace(final CoreTracer tracer, final DDId traceId) {
+  private PendingTrace(
+      final CoreTracer tracer, final DDId traceId, PendingTraceBuffer pendingTraceBuffer) {
     this.tracer = tracer;
     this.traceId = traceId;
+    this.pendingTraceBuffer = pendingTraceBuffer;
 
     startTimeNano = Clock.currentNanoTime();
     startNanoTicks = Clock.currentNanoTicks();
@@ -120,8 +130,10 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     lastReferenced = Clock.currentNanoTicks();
   }
 
-  public long getLastReferenced() {
-    return lastReferenced;
+  public boolean lastReferencedNanosAgo(long nanos) {
+    long currentNanoTicks = Clock.currentNanoTicks();
+    long age = currentNanoTicks - lastReferenced;
+    return nanos < age;
   }
 
   public void registerSpan(final DDSpan span) {
@@ -235,10 +247,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   private void expireReference() {
     final int count = pendingReferenceCount.decrementAndGet();
     if (count == 0) {
-      // FIXME: Does this still make sense to measure?
-      try (Recording recording = tracer.writeTimer()) {
-        PENDING_TRACE_BUFFER.enqueue(this);
-      }
+      pendingTraceBuffer.enqueue(this);
     } else {
       if (tracer.getPartialFlushMinSpans() > 0 && size() > tracer.getPartialFlushMinSpans()) {
         try (Recording recording = tracer.writeTimer()) {
@@ -279,25 +288,29 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
 
   synchronized void write() {
     if (isWritten.compareAndSet(false, true)) {
-      removePendingTrace();
-      if (!isEmpty()) {
-        int size = size();
-        if (log.isDebugEnabled()) {
-          log.debug("Writing {} spans to {}.", size, tracer.writer);
+      try (Recording recording = tracer.writeTimer()) {
+        if (!isEmpty()) {
+          int size = size();
+          if (log.isDebugEnabled()) {
+            log.debug("Writing {} spans to {}.", size, tracer.writer);
+          }
+          List<DDSpan> trace = new ArrayList<>(size);
+          trace.addAll(this);
+          // TODO - strange that tests expect the contents
+          //  NOT to be cleared here. Keeping the spans around
+          //  could lead to them all being promoted by nepotism,
+          //  whereas some of them might avoid this if they're
+          //  dropped when we write
+          tracer.write(trace);
         }
-        List<DDSpan> trace = new ArrayList<>(size);
-        trace.addAll(this);
-        // TODO - strange that tests expect the contents
-        //  NOT to be cleared here. Keeping the spans around
-        //  could lead to them all being promoted by nepotism,
-        //  whereas some of them might avoid this if they're
-        //  dropped when we write
-        tracer.write(trace);
       }
     }
   }
 
   public synchronized boolean clean() {
+    if (isWritten.get()) {
+      return false;
+    }
     Reference ref;
     int count = 0;
     while ((ref = continuationReferenceQueue.poll()) != null) {
@@ -313,7 +326,6 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     while ((ref = spanReferenceQueue.poll()) != null) {
       weakSpans.remove(ref);
       if (isWritten.compareAndSet(false, true)) {
-        removePendingTrace();
         // preserve throughput count.
         // Don't report the trace because the data comes from buggy uses of the api and is suspect.
         tracer.incrementTraceCount();
@@ -342,73 +354,13 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     return completedSpanCount.get();
   }
 
-  private void addPendingTrace() {
-    final SpanCleaner cleaner = SPAN_CLEANER.get();
-    if (cleaner != null) {
-      cleaner.pendingTraces.add(this);
-    }
-  }
+  private static class PendingTraceCleanerTask implements Task<PendingTrace> {
 
-  private void removePendingTrace() {
-    final SpanCleaner cleaner = SPAN_CLEANER.get();
-    if (cleaner != null) {
-      cleaner.pendingTraces.remove(this);
-    }
-  }
-
-  static void initialize() {
-    PENDING_TRACE_BUFFER.start();
-    final SpanCleaner oldCleaner = SPAN_CLEANER.getAndSet(new SpanCleaner());
-    if (oldCleaner != null) {
-      oldCleaner.close();
-    }
-  }
-
-  static void close() {
-    PENDING_TRACE_BUFFER.close();
-    final SpanCleaner cleaner = SPAN_CLEANER.getAndSet(null);
-    if (cleaner != null) {
-      cleaner.close();
-    }
-  }
-
-  // FIXME: it should be possible to simplify this logic and avoid having SpanCleaner and
-  // SpanCleanerTask
-  private static class SpanCleaner implements Runnable, Closeable {
-    private static final long CLEAN_FREQUENCY = 1;
-
-    private final Set<PendingTrace> pendingTraces =
-        Collections.newSetFromMap(new ConcurrentHashMap<PendingTrace, Boolean>());
-
-    public SpanCleaner() {
-      AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(
-          SpanCleanerTask.INSTANCE, this, 0, CLEAN_FREQUENCY, TimeUnit.SECONDS);
-    }
+    static final PendingTraceCleanerTask INSTANCE = new PendingTraceCleanerTask();
 
     @Override
-    public void run() {
-      for (final PendingTrace trace : pendingTraces) {
-        trace.clean();
-      }
-    }
-
-    @Override
-    public void close() {
-      // Make sure that whatever was left over gets cleaned up
-      run();
-    }
-  }
-
-  /*
-   * Important to use explicit class to avoid implicit hard references to cleaners from within executor.
-   */
-  private static class SpanCleanerTask implements Task<SpanCleaner> {
-
-    static final SpanCleanerTask INSTANCE = new SpanCleanerTask();
-
-    @Override
-    public void run(final SpanCleaner target) {
-      target.run();
+    public void run(final PendingTrace target) {
+      target.clean();
     }
   }
 }

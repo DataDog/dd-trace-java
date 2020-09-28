@@ -5,10 +5,10 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 
 class SpanFactory {
-  static writer = new ListWriter()
+  static final WRITER = new ListWriter()
+  static final TRACER = CoreTracer.builder().writer(WRITER).build()
 
   static DDSpan newSpanOf(long timestampMicro, String threadName = Thread.currentThread().name) {
-    def tracer = CoreTracer.builder().writer(writer).build()
     def currentThreadName = Thread.currentThread().getName()
     Thread.currentThread().setName(threadName)
     def context = new DDSpanContext(
@@ -24,8 +24,8 @@ class SpanFactory {
       false,
       "fakeType",
       0,
-      PendingTrace.create(tracer, DDId.ONE),
-      tracer, [:])
+      TRACER.pendingTraceFactory.create(DDId.ONE),
+      TRACER, [:])
     Thread.currentThread().setName(currentThreadName)
     return DDSpan.create(timestampMicro, context)
   }
@@ -44,7 +44,7 @@ class SpanFactory {
       false,
       "fakeType",
       0,
-      PendingTrace.create(tracer, DDId.ONE),
+      tracer.pendingTraceFactory.create(DDId.ONE),
       tracer, [:])
     return DDSpan.create(1, context)
   }
@@ -63,7 +63,7 @@ class SpanFactory {
       false,
       "fakeType",
       0,
-      PendingTrace.create(tracer, DDId.ONE),
+      tracer.pendingTraceFactory.create(DDId.ONE),
       tracer, [:])
     return DDSpan.create(1, context)
   }
@@ -88,7 +88,6 @@ class SpanFactory {
   }
 
   static DDSpan newSpanOf(String serviceName, String envName) {
-    def tracer = CoreTracer.builder().writer(writer).build()
     def context = new DDSpanContext(
       DDId.from(1),
       DDId.from(1),
@@ -102,8 +101,8 @@ class SpanFactory {
       false,
       "fakeType",
       0,
-      PendingTrace.create(tracer, DDId.ONE),
-      tracer,
+      TRACER.pendingTraceFactory.create(DDId.ONE),
+      TRACER,
       [:])
     context.setTag("env", envName)
     return DDSpan.create(0l, context)

@@ -1,5 +1,6 @@
 package datadog.trace.core
 
+import datadog.common.exec.AgentTaskScheduler
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.common.writer.ListWriter
@@ -21,7 +22,7 @@ class PendingTraceTest extends DDSpecification {
   DDId traceId = DDId.from(System.identityHashCode(this))
 
   @Subject
-  PendingTrace trace = PendingTrace.create(tracer, traceId)
+  PendingTrace trace = tracer.pendingTraceFactory.create(traceId)
 
   DDSpan rootSpan = SpanFactory.newSpanOf(trace)
 
@@ -31,7 +32,7 @@ class PendingTraceTest extends DDSpecification {
     assert trace.weakSpans.size() == 1
     assert trace.weakContinuations.size() == 0
     assert trace.isWritten.get() == false
-    assert PendingTrace.SPAN_CLEANER.get().pendingTraces.contains(trace)
+    assert scheduled(trace)
   }
 
   def "single span gets added to trace and written when finished"() {
@@ -129,7 +130,7 @@ class PendingTraceTest extends DDSpecification {
     trace.asList() == [rootSpan]
     writer == []
     writer.traceCount.get() == 1
-    !PendingTrace.SPAN_CLEANER.get().pendingTraces.contains(trace)
+    scheduled(trace) // Doesn't get unscheduled until GC'd
   }
 
   @Timeout(value = 60, unit = TimeUnit.SECONDS)
@@ -161,7 +162,7 @@ class PendingTraceTest extends DDSpecification {
     trace.asList() == [rootSpan]
     writer == [[rootSpan]]
     writer.traceCount.get() == 1
-    !PendingTrace.SPAN_CLEANER.get().pendingTraces.contains(trace)
+    scheduled(trace) // Doesn't get unscheduled until GC'd
   }
 
   def "add unfinished span to trace fails"() {
@@ -177,7 +178,7 @@ class PendingTraceTest extends DDSpecification {
 
   def "register span to wrong trace fails"() {
     setup:
-    def otherTrace = PendingTrace.create(tracer, DDId.from(traceId.toLong() - 10))
+    def otherTrace = tracer.pendingTraceFactory.create(DDId.from(traceId.toLong() - 10))
     otherTrace.registerSpan(new DDSpan(0, rootSpan.context()))
 
     expect:
@@ -188,7 +189,7 @@ class PendingTraceTest extends DDSpecification {
 
   def "add span to wrong trace fails"() {
     setup:
-    def otherTrace = PendingTrace.create(tracer, DDId.from(traceId.toLong() - 10))
+    def otherTrace = tracer.pendingTraceFactory.create(DDId.from(traceId.toLong() - 10))
     rootSpan.finish()
     otherTrace.addSpan(rootSpan)
 
@@ -243,7 +244,7 @@ class PendingTraceTest extends DDSpecification {
     properties.setProperty(PARTIAL_FLUSH_MIN_SPANS, "1")
     def config = Config.get(properties)
     def tracer = CoreTracer.builder().config(config).writer(writer).build()
-    def trace = PendingTrace.create(tracer, traceId)
+    def trace = tracer.pendingTraceFactory.create(traceId)
     def rootSpan = SpanFactory.newSpanOf(trace)
     def child1 = tracer.buildSpan("child1").asChildOf(rootSpan).start()
     def child2 = tracer.buildSpan("child2").asChildOf(rootSpan).start()
@@ -291,7 +292,7 @@ class PendingTraceTest extends DDSpecification {
     properties.setProperty(PARTIAL_FLUSH_MIN_SPANS, "1")
     def config = Config.get(properties)
     def tracer = CoreTracer.builder().config(config).writer(writer).build()
-    def trace = PendingTrace.create(tracer, traceId)
+    def trace = tracer.pendingTraceFactory.create(traceId)
     def rootSpan = SpanFactory.newSpanOf(trace)
     def child1 = tracer.buildSpan("child1").asChildOf(rootSpan).start()
     def child2 = tracer.buildSpan("child2").asChildOf(rootSpan).start()
@@ -331,5 +332,12 @@ class PendingTraceTest extends DDSpecification {
     trace.asList() == [rootSpan]
     writer == [[child2, child1], [rootSpan]]
     writer.traceCount.get() == 2
+  }
+
+  boolean scheduled(PendingTrace trace) {
+    // This might be racy if the task is in progress and not rescheduled.
+    return AgentTaskScheduler.INSTANCE.workQueue.any { task ->
+      task.target instanceof WeakReference && task.target.get() == trace
+    }
   }
 }

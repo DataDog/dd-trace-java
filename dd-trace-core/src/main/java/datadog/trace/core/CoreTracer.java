@@ -83,6 +83,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private static final String LANG_INTERPRETER_VENDOR_STATSD_TAG = "lang_interpreter_vendor";
   private static final String TRACER_VERSION_STATSD_TAG = "tracer_version";
 
+  // FIXME: This is static instead of instance because we don't reliably close the tracer in tests.
+  private static final PendingTraceBuffer PENDING_TRACE_BUFFER = new PendingTraceBuffer();
+
+  static {
+    PENDING_TRACE_BUFFER.start();
+  }
+
   /** Default service name if none provided on the trace or span */
   final String serviceName;
   /** Writer is an charge of reporting traces and spans to the desired endpoint */
@@ -107,6 +114,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Monitoring performanceMonitoring;
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
+  private final PendingTrace.Factory pendingTraceFactory;
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -235,6 +243,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
       this.writer = writer;
     }
 
+    pendingTraceFactory = new PendingTrace.Factory(this, PENDING_TRACE_BUFFER);
     this.writer.start();
 
     shutdownCallback = new ShutdownHook(this);
@@ -251,10 +260,6 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     registerClassLoader(ClassLoader.getSystemClassLoader());
-
-    // Ensure that PendingTrace.SPAN_CLEANER is initialized in this thread:
-    // FIXME: add test to verify the span cleaner thread is started with this call.
-    PendingTrace.initialize();
 
     StatusLogger.logStatus(config);
   }
@@ -487,8 +492,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
   @Override
   public void close() {
-    PendingTrace.close();
+    // FIXME: can't close PENDING_TRACE_BUFFER since it is a static/shared instance.
+    // PENDING_TRACE_BUFFER.close();
     writer.close();
+  }
+
+  @Override
+  public void flush() {
+    PENDING_TRACE_BUFFER.flush();
+    if (writer instanceof DDAgentWriter) {
+      ((DDAgentWriter) writer).flush();
+    }
   }
 
   private static DDScopeEventFactory createScopeEventFactory() {
@@ -806,7 +820,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
         rootSpanTags = localRootSpanTags;
 
-        parentTrace = PendingTrace.create(CoreTracer.this, traceId);
+        parentTrace = pendingTraceFactory.create(traceId);
       }
 
       if (serviceName == null) {

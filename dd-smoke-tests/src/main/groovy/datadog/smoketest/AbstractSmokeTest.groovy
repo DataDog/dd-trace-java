@@ -6,6 +6,8 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
 
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeoutException
@@ -65,8 +67,8 @@ abstract class AbstractSmokeTest extends Specification {
     if (buildDirectory == null || shadowJarPath == null) {
       throw new AssertionError("Expected system properties not found. Smoke tests have to be run from Gradle. Please make sure that is the case.")
     }
-    assert new File(buildDirectory).isDirectory()
-    assert new File(shadowJarPath).isFile()
+    assert Files.isDirectory(Paths.get(buildDirectory))
+    assert Files.isRegularFile(Paths.get(shadowJarPath))
 
     startServer()
     System.out.println("Mock agent started at " + server.address)
@@ -125,8 +127,7 @@ abstract class AbstractSmokeTest extends Specification {
 
     if (exitValue != null) {
       System.out.println("Instrumented process exited with " + exitValue)
-    }
-    else {
+    } else {
       throw new TimeoutException("Instrumented process failed to exit")
     }
   }

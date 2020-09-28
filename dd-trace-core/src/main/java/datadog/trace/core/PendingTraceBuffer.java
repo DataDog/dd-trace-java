@@ -2,52 +2,50 @@ package datadog.trace.core;
 
 import static datadog.common.exec.DaemonThreadFactory.TRACE_MONITOR;
 
-import datadog.trace.core.util.Clock;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.SneakyThrows;
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 
 class PendingTraceBuffer implements AutoCloseable {
+  /** to correspond with DDAgentWriter.BUFFER_SIZE */
+  private static final int BUFFER_SIZE = 1024;
+
   private final long FORCE_SEND_DELAY_MS = TimeUnit.SECONDS.toMillis(5);
   private final long SEND_DELAY_NS = TimeUnit.MILLISECONDS.toNanos(5);
   private final long SLEEP_TIME_MS = 1;
 
-  private final ConcurrentLinkedQueue<PendingTrace> queue = new ConcurrentLinkedQueue<>();
-  private final AtomicReference<Thread> thread = new AtomicReference<>();
+  private final MpscBlockingConsumerArrayQueue<PendingTrace> queue =
+      new MpscBlockingConsumerArrayQueue<>(BUFFER_SIZE);
+  private final Thread worker = TRACE_MONITOR.newThread(new Worker());
+
+  private volatile boolean closed = false;
 
   public void enqueue(PendingTrace pendingTrace) {
-    queue.add(pendingTrace);
+    if (!queue.offer(pendingTrace)) {
+      // Queue is full, so we can't buffer this trace, write it out directly instead.
+      pendingTrace.write();
+    }
   }
 
   public void start() {
-    if (thread.get() == null) {
-      Thread newThread = TRACE_MONITOR.newThread(new Worker());
-      if (thread.compareAndSet(null, newThread)) {
-        newThread.start();
-      }
-    }
+    worker.start();
   }
 
   @Override
   public void close() {
-    Thread toClose = thread.getAndSet(null);
-    if (toClose != null) {
-      toClose.interrupt();
-      try {
-        toClose.join();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-    }
+    closed = true;
+    worker.interrupt();
   }
 
   public void flush() {
-    PendingTrace pendingTrace = queue.poll();
-    while (pendingTrace != null) {
-      pendingTrace.write();
-      pendingTrace = queue.poll();
-    }
+    queue.drain(
+        new MessagePassingQueue.Consumer<PendingTrace>() {
+          @Override
+          public void accept(PendingTrace pendingTrace) {
+            pendingTrace.write();
+          }
+        });
   }
 
   private final class Worker implements Runnable {
@@ -55,20 +53,9 @@ class PendingTraceBuffer implements AutoCloseable {
     @SneakyThrows
     @Override
     public void run() {
-      while (!Thread.interrupted()) {
-        PendingTrace pendingTrace = queue.poll();
+      while (!closed && !Thread.currentThread().isInterrupted()) {
 
-        if (pendingTrace == null) {
-          // Queue is empty.  Lets sleep and try again.
-          sleep();
-          continue;
-        }
-
-        if (pendingTrace.isEmpty()) {
-          // "write" it out to allow cleanup.
-          pendingTrace.write();
-          continue;
-        }
+        PendingTrace pendingTrace = queue.take(); // block until available.
 
         DDSpan rootSpan = pendingTrace.getRootSpan();
 
@@ -80,16 +67,12 @@ class PendingTraceBuffer implements AutoCloseable {
           continue;
         }
 
-        long currentNanoTicks = Clock.currentNanoTicks();
-        long lastReferenced = pendingTrace.getLastReferenced();
-        long delta = currentNanoTicks - lastReferenced;
-
-        if (SEND_DELAY_NS <= delta) {
+        if (pendingTrace.lastReferencedNanosAgo(SEND_DELAY_NS)) {
           // Trace has been unmodified long enough, go ahead and write whatever is finished.
           pendingTrace.write();
         } else {
           // Trace is too new.  Requeue it and sleep to avoid a hot loop.
-          queue.add(pendingTrace);
+          enqueue(pendingTrace);
           sleep();
         }
       }

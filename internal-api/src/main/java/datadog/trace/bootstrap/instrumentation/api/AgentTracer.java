@@ -102,6 +102,8 @@ public class AgentTracer {
     SpanBuilder buildSpan(CharSequence spanName);
 
     void close();
+
+    void flush();
   }
 
   public interface SpanBuilder {
@@ -187,6 +189,9 @@ public class AgentTracer {
 
     @Override
     public void close() {}
+
+    @Override
+    public void flush() {}
 
     @Override
     public String getTraceId() {

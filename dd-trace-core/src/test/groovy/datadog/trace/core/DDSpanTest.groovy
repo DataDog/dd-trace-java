@@ -33,7 +33,7 @@ class DDSpanTest extends DDSpecification {
         false,
         "fakeType",
         0,
-        PendingTrace.create(tracer, DDId.ONE),
+        tracer.pendingTraceFactory.create(DDId.ONE),
         tracer,
         [:])
 
