@@ -836,31 +836,39 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set("DD_ORDER_ANALYTICS_ENABLED", "false")
     environmentVariables.set("DD_TEST_ENV_ANALYTICS_ENABLED", "true")
     environmentVariables.set("DD_DISABLED_ENV_ANALYTICS_ENABLED", "false")
+    environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_ENABLED", "false")
+    environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_ENABLED", "true")
 
     System.setProperty("dd.order.analytics.enabled", "true")
     System.setProperty("dd.test-prop.analytics.enabled", "true")
     System.setProperty("dd.disabled-prop.analytics.enabled", "false")
+    System.setProperty("dd.alias-prop.analytics.enabled", "false")
+    System.setProperty("dd.trace.alias-prop.analytics.enabled", "true")
 
     expect:
     Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled) == expected
 
     where:
-    names                          | defaultEnabled | expected
-    []                             | true           | true
-    []                             | false          | false
-    ["invalid"]                    | true           | true
-    ["invalid"]                    | false          | false
-    ["test-prop"]                  | false          | true
-    ["test-env"]                   | false          | true
-    ["disabled-prop"]              | true           | false
-    ["disabled-env"]               | true           | false
-    ["other", "test-prop"]         | false          | true
-    ["other", "test-env"]          | false          | true
-    ["order"]                      | false          | true
-    ["test-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "test-env"]   | false          | true
-    ["test-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "test-env"]   | true           | false
+    names                           | defaultEnabled | expected
+    []                              | true           | true
+    []                              | false          | false
+    ["invalid"]                     | true           | true
+    ["invalid"]                     | false          | false
+    ["test-prop"]                   | false          | true
+    ["test-env"]                    | false          | true
+    ["disabled-prop"]               | true           | false
+    ["disabled-env"]                | true           | false
+    ["other", "test-prop"]          | false          | true
+    ["other", "test-env"]           | false          | true
+    ["order"]                       | false          | true
+    ["test-prop", "disabled-prop"]  | false          | true
+    ["disabled-env", "test-env"]    | false          | true
+    ["test-prop", "disabled-prop"]  | true           | false
+    ["disabled-env", "test-env"]    | true           | false
+    ["alias-prop", "disabled-prop"] | false          | true
+    ["disabled-env", "alias-env"]   | false          | true
+    ["alias-prop", "disabled-prop"] | true           | false
+    ["disabled-env", "alias-env"]   | true           | false
 
     integrationNames = new TreeSet<>(names)
   }
@@ -1139,9 +1147,13 @@ class ConfigTest extends DDSpecification {
     setup:
     environmentVariables.set("DD_FOO_ANALYTICS_SAMPLE_RATE", "0.5")
     environmentVariables.set("DD_BAR_ANALYTICS_SAMPLE_RATE", "0.9")
+    environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.8")
+    environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.4")
 
     System.setProperty("dd.baz.analytics.sample-rate", "0.7")
     System.setProperty("dd.buzz.analytics.sample-rate", "0.3")
+    System.setProperty("dd.alias-prop.analytics.sample-rate", "0.1")
+    System.setProperty("dd.trace.alias-prop.analytics.sample-rate", "0.2")
 
     when:
     String[] array = services.toArray(new String[0])
@@ -1163,6 +1175,8 @@ class ConfigTest extends DDSpecification {
     ["buzz", "baz"]         | 0.3f
     ["foo", "baz"]          | 0.5f
     ["baz", "foo"]          | 0.7f
+    ["alias-env", "baz"]    | 0.4f
+    ["alias-prop", "foo"]   | 0.2f
   }
 
   def "verify api key loaded from file: #path"() {
