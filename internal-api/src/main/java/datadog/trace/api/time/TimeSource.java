@@ -1,5 +1,5 @@
 package datadog.trace.api.time;
 
 public interface TimeSource {
-  long get();
+  long getNanoTime();
 }

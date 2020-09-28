@@ -36,7 +36,7 @@ public class RatelimitedLogger {
     }
     if (log.isWarnEnabled()) {
       final long previous = previousErrorLogNanos.get();
-      final long now = timeSource.get();
+      final long now = timeSource.getNanoTime();
       if (now - previous >= delay) {
         if (previousErrorLogNanos.compareAndSet(previous, now)) {
           log.warn(format + " (Will not log errors for 5 minutes)", arguments);

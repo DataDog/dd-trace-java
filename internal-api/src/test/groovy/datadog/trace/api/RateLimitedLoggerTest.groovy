@@ -45,7 +45,7 @@ class RateLimitedLoggerTest extends DDSpecification {
   def "warning once"() {
     setup:
     log.isWarnEnabled() >> true
-    timeSource.get() >> delay
+    timeSource.getNanoTime() >> delay
 
     when:
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
@@ -60,7 +60,7 @@ class RateLimitedLoggerTest extends DDSpecification {
   def "warning twice"() {
     setup:
     log.isWarnEnabled() >> true
-    timeSource.get() >>> [delay, delay * 2]
+    timeSource.getNanoTime() >>> [delay, delay * 2]
 
     when:
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
@@ -83,7 +83,7 @@ class RateLimitedLoggerTest extends DDSpecification {
   def "no args"() {
     setup:
     log.isWarnEnabled() >> true
-    timeSource.get() >> delay
+    timeSource.getNanoTime() >> delay
 
     when:
     rateLimitedLog.warn("test")

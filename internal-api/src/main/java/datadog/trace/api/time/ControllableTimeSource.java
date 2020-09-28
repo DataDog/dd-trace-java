@@ -12,7 +12,7 @@ public class ControllableTimeSource implements TimeSource {
   }
 
   @Override
-  public long get() {
+  public long getNanoTime() {
     return currentTime;
   }
 }

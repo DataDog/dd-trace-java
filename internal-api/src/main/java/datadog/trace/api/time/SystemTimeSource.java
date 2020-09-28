@@ -4,7 +4,7 @@ public class SystemTimeSource implements TimeSource {
   public static final TimeSource INSTANCE = new SystemTimeSource();
 
   @Override
-  public long get() {
+  public long getNanoTime() {
     return System.nanoTime();
   }
 }
