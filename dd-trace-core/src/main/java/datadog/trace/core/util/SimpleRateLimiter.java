@@ -34,7 +34,7 @@ public class SimpleRateLimiter {
   public boolean tryAcquire() {
     long now = timeSource.getNanoTime();
     long localRefill = lastRefillTime.get();
-    long timeElapsedSinceLastRefill = timeSource.getNanoTime() - localRefill;
+    long timeElapsedSinceLastRefill = now - localRefill;
 
     // Attempt to refill tokens if an interval has passed
     // Only refill the tokens if this thread wins a race
