@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.failSafe;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -17,6 +18,7 @@ import datadog.trace.api.Config;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
@@ -47,6 +49,7 @@ public interface Instrumenter {
 
   @Slf4j
   abstract class Default implements Instrumenter {
+    private static final ElementMatcher<ClassLoader> ANY_CLASS_LOADER = any();
 
     // Added here instead of AgentInstaller's ignores because it's relatively
     // expensive. https://github.com/DataDog/dd-trace-java/pull/1045
@@ -55,7 +58,8 @@ public interface Instrumenter {
 
     private final SortedSet<String> instrumentationNames;
     private final String instrumentationPrimaryName;
-    private final InstrumentationContextProvider contextProvider;
+    private InstrumentationContextProvider contextProvider;
+    private boolean initialized;
     protected final boolean enabled;
 
     protected final String packageName =
@@ -67,11 +71,35 @@ public interface Instrumenter {
       instrumentationPrimaryName = instrumentationName;
 
       enabled = Config.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
-      Map<String, String> contextStore = contextStore();
-      if (!contextStore.isEmpty()) {
-        contextProvider = new FieldBackedProvider(this, contextStore);
-      } else {
-        contextProvider = NoopContextProvider.INSTANCE;
+    }
+
+    // Since the super(...) call is first in the constructor, we can't really rely on things
+    // being properly initialized in the Instrumentation until the super(...) call has finished
+    // so do the rest of the initialization lazily
+    private void lazyInit() {
+      synchronized (this) {
+        if (!initialized) {
+          Map<ElementMatcher<ClassLoader>, Map<String, String>> contextStores;
+          Map<String, String> allClassLoaderContextStores = contextStoreForAll();
+          Map<String, String> matchedContextStores = contextStore();
+          if (!allClassLoaderContextStores.isEmpty()) {
+            if (contextStore().isEmpty()) {
+              contextStores = singletonMap(ANY_CLASS_LOADER, allClassLoaderContextStores);
+            } else {
+              contextStores = new HashMap<>();
+              contextStores.put(classLoaderMatcher(), matchedContextStores);
+              contextStores.put(ANY_CLASS_LOADER, allClassLoaderContextStores);
+            }
+          } else {
+            contextStores = singletonMap(classLoaderMatcher(), matchedContextStores);
+          }
+          if (!contextStores.isEmpty()) {
+            contextProvider = new FieldBackedProvider(this, contextStores);
+          } else {
+            contextProvider = NoopContextProvider.INSTANCE;
+          }
+          initialized = true;
+        }
       }
     }
 
@@ -81,6 +109,8 @@ public interface Instrumenter {
         log.debug("Instrumentation {} is disabled", this);
         return parentAgentBuilder;
       }
+
+      lazyInit();
 
       AgentBuilder.Identified.Extendable agentBuilder =
           parentAgentBuilder
@@ -200,9 +230,17 @@ public interface Instrumenter {
       return new String[0];
     }
 
-    /** @return A type matcher used to match the classloader under transform */
+    /**
+     * A type matcher used to match the classloader under transform.
+     *
+     * <p>This matcher needs to either implement equality checks or be the same for different
+     * instrumentations that share context stores to avoid enabling the context store
+     * instrumentations multiple times.
+     *
+     * @return A type matcher used to match the classloader under transform.
+     */
     public ElementMatcher<ClassLoader> classLoaderMatcher() {
-      return any();
+      return ANY_CLASS_LOADER;
     }
 
     /** @return A type matcher used to match the class under transform. */
@@ -231,12 +269,22 @@ public interface Instrumenter {
     public abstract Map<? extends ElementMatcher<? super MethodDescription>, String> transformers();
 
     /**
-     * Context stores to define for this instrumentation.
+     * Context stores to define for this instrumentation. Are added to matching class loaders.
      *
      * <p>A map of {class-name -> context-class-name}. Keys (and their subclasses) will be
      * associated with a context of the value.
      */
     public Map<String, String> contextStore() {
+      return Collections.emptyMap();
+    }
+
+    /**
+     * Context stores to define for this instrumentation. Are added to all class loaders.
+     *
+     * <p>A map of {class-name -> context-class-name}. Keys (and their subclasses) will be
+     * associated with a context of the value.
+     */
+    public Map<String, String> contextStoreForAll() {
       return Collections.emptyMap();
     }
 

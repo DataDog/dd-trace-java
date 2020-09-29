@@ -43,7 +43,7 @@ public class HttpUrlConnectionInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  public Map<String, String> contextStore() {
+  public Map<String, String> contextStoreForAll() {
     return singletonMap("java.net.HttpURLConnection", HttpUrlState.class.getName());
   }
 

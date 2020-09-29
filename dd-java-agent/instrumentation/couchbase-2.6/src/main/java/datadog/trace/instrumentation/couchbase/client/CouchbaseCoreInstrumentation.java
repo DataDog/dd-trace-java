@@ -15,7 +15,6 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
-import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -30,13 +29,18 @@ public class CouchbaseCoreInstrumentation extends Instrumenter.Default {
   }
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return CouchbaseNetworkInstrumentation.CLASS_LOADER_MATCHER;
+  }
+
+  @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return named("com.couchbase.client.core.CouchbaseCore");
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap(
+    return singletonMap(
         "com.couchbase.client.core.message.CouchbaseRequest", AgentSpan.class.getName());
   }
 

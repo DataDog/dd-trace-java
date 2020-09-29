@@ -32,7 +32,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumentation {
 
   @Override
-  public Map<String, String> contextStore() {
+  public Map<String, String> contextStoreForAll() {
     final Map<String, String> map = new HashMap<>();
     map.put(Runnable.class.getName(), State.class.getName());
     map.put(Callable.class.getName(), State.class.getName());

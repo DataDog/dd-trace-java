@@ -55,7 +55,7 @@ public class RmiClientContextInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  public Map<String, String> contextStore() {
+  public Map<String, String> contextStoreForAll() {
     // caching if a connection can support enhanced format
     return singletonMap("sun.rmi.transport.Connection", "java.lang.Boolean");
   }

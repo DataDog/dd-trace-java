@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.googlehttpclient;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.googlehttpclient.GoogleHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.googlehttpclient.HeadersInjectAdapter.SETTER;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -21,7 +23,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -35,6 +36,14 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
     super("google-http-client");
   }
 
+  private final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("com.google.api.client.http.HttpRequest");
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return CLASS_LOADER_MATCHER;
+  }
+
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     // HttpRequest is a final class.  Only need to instrument it exactly
@@ -45,8 +54,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "com.google.api.client.http.HttpRequest", RequestState.class.getName());
+    return singletonMap("com.google.api.client.http.HttpRequest", RequestState.class.getName());
   }
 
   @Override

@@ -39,6 +39,8 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default 
 
   static final String TASK_CLASS_NAME = "akka.dispatch.forkjoin.ForkJoinTask";
 
+  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER = hasClassesNamed(TASK_CLASS_NAME);
+
   public AkkaForkJoinTaskInstrumentation() {
     super("java_concurrent", "akka_concurrent");
   }
@@ -46,7 +48,7 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed(TASK_CLASS_NAME);
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override
@@ -56,10 +58,14 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default 
 
   @Override
   public Map<String, String> contextStore() {
+    return singletonMap(TASK_CLASS_NAME, State.class.getName());
+  }
+
+  @Override
+  public Map<String, String> contextStoreForAll() {
     final Map<String, String> map = new HashMap<>();
     map.put(Runnable.class.getName(), State.class.getName());
     map.put(Callable.class.getName(), State.class.getName());
-    map.put(TASK_CLASS_NAME, State.class.getName());
     return Collections.unmodifiableMap(map);
   }
 

@@ -36,7 +36,7 @@ public final class CallableInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  public Map<String, String> contextStore() {
+  public Map<String, String> contextStoreForAll() {
     return singletonMap(Callable.class.getName(), State.class.getName());
   }
 

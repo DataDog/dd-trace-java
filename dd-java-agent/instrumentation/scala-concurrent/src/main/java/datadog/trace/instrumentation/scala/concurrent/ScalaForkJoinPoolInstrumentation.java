@@ -32,6 +32,11 @@ public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Default
   }
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return ScalaForkJoinTaskInstrumentation.CLASS_LOADER_MATCHER;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     // This might need to be an extendsClass matcher...
     return named("scala.concurrent.forkjoin.ForkJoinPool");

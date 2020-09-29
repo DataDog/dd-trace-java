@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.description.method.MethodDescription;
@@ -25,11 +26,14 @@ public final class Servlet2Instrumentation extends Instrumenter.Default {
   }
 
   // this is required to make sure servlet 2 instrumentation won't apply to servlet 3
+  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("javax.servlet.http.HttpServletResponse")
+          .and(not(hasClassesNamed("javax.servlet.AsyncEvent", "javax.servlet.AsyncListener")));
+
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("javax.servlet.http.HttpServlet")
-        .and(not(hasClassesNamed("javax.servlet.AsyncEvent", "javax.servlet.AsyncListener")));
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override
@@ -53,7 +57,7 @@ public final class Servlet2Instrumentation extends Instrumenter.Default {
     contextStores.put(
         "javax.servlet.http.HttpServletResponse", "javax.servlet.http.HttpServletRequest");
     contextStores.put("javax.servlet.ServletResponse", Integer.class.getName());
-    return contextStores;
+    return Collections.unmodifiableMap(contextStores);
   }
 
   /**
