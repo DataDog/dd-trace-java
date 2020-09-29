@@ -132,6 +132,26 @@ public final class ProfilingSystem {
     }
   }
 
+  protected static int stackDepthFromClient(final String userSpecifiedDepth) {
+    try {
+      final int stackDepth = Integer.parseInt(userSpecifiedDepth);
+
+      // client specified a value considered safe
+      if (stackDepth < MAX_STACK_DEPTH) {
+        log.info("skip setting JFR.configure stackdepth, using " + userSpecifiedDepth);
+        return stackDepth;
+      }
+
+      // limit how deep a stack depth we'll collect
+      log.warn(userSpecifiedDepth + " exceeds maximum value allowed by Datadog agent");
+      return MAX_STACK_DEPTH;
+    } catch (final NumberFormatException e) { // "this should never happen"
+      log.warn("malformed arg: " + userSpecifiedDepth);
+    }
+
+    return DEFAULT_STACK_DEPTH;
+  }
+
   private static void setMaxStackDepth() {
     int maxFrames = ProfilingSystem.DEFAULT_STACK_DEPTH;
 
@@ -139,22 +159,7 @@ public final class ProfilingSystem {
     final Optional<String> userSpecifiedStackDepth =
         readJFRStackDepth(SystemAccess.getVMArguments());
     if (userSpecifiedStackDepth.isPresent()) {
-      try {
-        final int stackDepth = Integer.parseInt(userSpecifiedStackDepth.get());
-
-        // client specified a value considered safe
-        if (stackDepth < MAX_STACK_DEPTH) {
-          log.info("skip setting JFR.configure stackdepth, using " + userSpecifiedStackDepth.get());
-          return;
-        }
-
-        // limit how deep a stack depth we'll collect
-        log.warn(userSpecifiedStackDepth.get() + " exceeds maximum value allowed by Datadog agent");
-        maxFrames = MAX_STACK_DEPTH;
-      } catch (final NumberFormatException e) { // "this should never happen"
-        log.warn("malformed arg: " + userSpecifiedStackDepth.get());
-        maxFrames = DEFAULT_STACK_DEPTH;
-      }
+      maxFrames = stackDepthFromClient(userSpecifiedStackDepth.get());
     }
 
     log.info("setting JFR.configure stackdepth=" + maxFrames);

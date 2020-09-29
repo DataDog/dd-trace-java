@@ -393,6 +393,12 @@ public class ProfilingSystemTest {
     assertEquals(expected, depth.get());
   }
 
+  @ParameterizedTest
+  @CsvSource({",256", "foo,256", "512,512", "1025,1024"})
+  public void testStackDepthFromClient(final String input, final int expected) {
+    assertEquals(expected, ProfilingSystem.stackDepthFromClient(input));
+  }
+
   private Answer<Object> generateMockRecordingData(
       final List<RecordingData> generatedRecordingData) {
     return (InvocationOnMock invocation) -> {

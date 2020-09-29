@@ -113,4 +113,72 @@ class SystemAccessTest extends DDSpecification {
     then:
     pid == 0
   }
+
+  def "JMX - getVMArguments"() {
+    setup:
+    ConfigUtils.updateConfig {
+      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+    }
+    SystemAccess.enableJmx()
+
+    when:
+    def vmArgs = SystemAccess.getVMArguments()
+
+    then:
+    vmArgs != null
+    vmArgs.size() > 0
+
+    cleanup:
+    SystemAccess.disableJmx()
+  }
+
+  def "No JMX - getVMArguments"() {
+    setup:
+    ConfigUtils.updateConfig {
+      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+    }
+
+    when:
+    def vmArgs = SystemAccess.getVMArguments()
+
+    then:
+    vmArgs != null
+    vmArgs.size() == 0
+  }
+
+  def "JMX - executeDiagnosticCommand"() {
+    setup:
+    ConfigUtils.updateConfig {
+      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+    }
+    SystemAccess.enableJmx()
+
+    when:
+    SystemAccess.executeDiagnosticCommand(
+      "jfrConfigure",
+      [["stackdepth=64"].toArray() as String[]].toArray() as Object[],
+      [String[].class.getName()].toArray() as String[])
+
+    then:
+    noExceptionThrown()
+
+    cleanup:
+    SystemAccess.disableJmx()
+  }
+
+  def "No JMX - executeDiagnosticCommand"() {
+    setup:
+    ConfigUtils.updateConfig {
+      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+    }
+
+    when:
+    SystemAccess.executeDiagnosticCommand(
+      "jfrConfigure",
+      [["stackdepth=64"].toArray() as String[]].toArray() as Object[],
+      [String[].class.getName()].toArray() as String[])
+
+    then:
+    noExceptionThrown()
+  }
 }
