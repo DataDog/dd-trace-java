@@ -1,8 +1,7 @@
 package datadog.trace.instrumentation.hibernate.core.v3_3;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
-
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.instrumentation.hibernate.HibernateMatchers;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.hibernate.classic.Validatable;
 import org.hibernate.transaction.JBossTransactionManagerLookup;
@@ -16,7 +15,7 @@ public abstract class AbstractHibernateInstrumentation extends Instrumenter.Defa
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("org.hibernate.Session");
+    return HibernateMatchers.CLASS_LOADER_MATCHER;
   }
 
   @Override

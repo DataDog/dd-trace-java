@@ -38,10 +38,13 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
     super("servlet", "servlet-dispatcher");
   }
 
+  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("javax.servlet.RequestDispatcher");
+
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("javax.servlet.RequestDispatcher");
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override

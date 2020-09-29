@@ -32,6 +32,11 @@ public final class AkkaForkJoinPoolInstrumentation extends Instrumenter.Default 
   }
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return AkkaForkJoinTaskInstrumentation.CLASS_LOADER_MATCHER;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     // This might need to be an extendsClass matcher...
     return named("akka.dispatch.forkjoin.ForkJoinPool");

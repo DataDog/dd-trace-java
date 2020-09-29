@@ -30,6 +30,11 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
   }
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return PreparedStatementInstrumentation.CLASS_LOADER_MATCHER;
+  }
+
+  @Override
   public Map<String, String> contextStore() {
     return singletonMap("java.sql.PreparedStatement", UTF8BytesString.class.getName());
   }

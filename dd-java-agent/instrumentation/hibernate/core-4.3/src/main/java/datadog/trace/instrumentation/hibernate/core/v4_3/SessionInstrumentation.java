@@ -31,6 +31,9 @@ public class SessionInstrumentation extends Instrumenter.Default {
     super("hibernate", "hibernate-core");
   }
 
+  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("org.hibernate.Session");
+
   @Override
   public Map<String, String> contextStore() {
     final Map<String, String> map = new HashMap<>();
@@ -51,7 +54,7 @@ public class SessionInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("org.hibernate.Session");
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override

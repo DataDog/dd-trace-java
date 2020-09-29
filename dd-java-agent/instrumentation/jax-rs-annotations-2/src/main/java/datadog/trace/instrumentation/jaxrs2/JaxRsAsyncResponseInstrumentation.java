@@ -28,6 +28,9 @@ public final class JaxRsAsyncResponseInstrumentation extends Instrumenter.Defaul
     super("jax-rs", "jaxrs", "jax-rs-annotations");
   }
 
+  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("javax.ws.rs.container.AsyncResponse");
+
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
@@ -37,7 +40,7 @@ public final class JaxRsAsyncResponseInstrumentation extends Instrumenter.Defaul
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("javax.ws.rs.container.AsyncResponse");
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override

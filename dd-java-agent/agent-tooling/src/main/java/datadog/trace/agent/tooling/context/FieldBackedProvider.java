@@ -43,6 +43,7 @@ import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
+import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
 
@@ -100,6 +101,7 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
   private final Instrumenter.Default instrumenter;
   private final ByteBuddy byteBuddy;
   private final Map<String, String> contextStore;
+  private final Map<ElementMatcher<ClassLoader>, Map<String, String>> matchedContextStores;
 
   /** fields-accessor-interface-name -> fields-accessor-interface-dynamic-type */
   private final Map<String, DynamicType.Unloaded<?>> fieldAccessorInterfaces;
@@ -114,9 +116,21 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
   private final boolean fieldInjectionEnabled;
 
   public FieldBackedProvider(
-      final Instrumenter.Default instrumenter, Map<String, String> contextStore) {
+      final Instrumenter.Default instrumenter,
+      Map<ElementMatcher<ClassLoader>, Map<String, String>> matchedContextStores) {
     this.instrumenter = instrumenter;
-    this.contextStore = contextStore;
+    this.matchedContextStores = matchedContextStores;
+    if (matchedContextStores.isEmpty()) {
+      this.contextStore = Collections.emptyMap();
+    } else if (matchedContextStores.size() == 1) {
+      this.contextStore = matchedContextStores.entrySet().iterator().next().getValue();
+    } else {
+      this.contextStore = new HashMap<>();
+      for (Map.Entry<ElementMatcher<ClassLoader>, Map<String, String>> matcherAndStores :
+          matchedContextStores.entrySet()) {
+        this.contextStore.putAll(matcherAndStores.getValue());
+      }
+    }
     byteBuddy = new ByteBuddy();
     fieldAccessorInterfaces = generateFieldAccessorInterfaces();
     fieldAccessorInterfacesInjector = bootstrapHelperInjector(fieldAccessorInterfaces.values());
@@ -349,16 +363,20 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
   }
 
   /*
-  Set of pairs (context holder, context class) for which we have matchers installed.
-  We use this to make sure we do not install matchers repeatedly for cases when same
-  context class is used by multiple instrumentations.
+   * HashMap from the instrumentations contextClassLoaderMatcher to a set of pairs (context holder, context class)
+   * for which we have matchers installed. We use this to make sure we do not install matchers repeatedly for cases
+   * when same context class is used by multiple instrumentations.
    */
-  private static final Set<Map.Entry<String, String>> INSTALLED_CONTEXT_MATCHERS = new HashSet<>();
+  private static final HashMap<ElementMatcher<ClassLoader>, Set<Map.Entry<String, String>>>
+      INSTALLED_CONTEXT_MATCHERS = new HashMap<>();
+
+  private static final Set<Map.Entry<String, String>> INSTALLED_HELPERS = new HashSet<>();
 
   /** Clear set that prevents multiple matchers for same context class */
   public static void resetContextMatchers() {
     synchronized (INSTALLED_CONTEXT_MATCHERS) {
       INSTALLED_CONTEXT_MATCHERS.clear();
+      INSTALLED_HELPERS.clear();
     }
   }
 
@@ -367,56 +385,81 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
       AgentBuilder.Identified.Extendable builder) {
 
     if (fieldInjectionEnabled) {
-      for (final Map.Entry<String, String> entry : contextStore.entrySet()) {
-        /*
-         * For each context store defined in a current instrumentation we create an agent builder
-         * that injects necessary fields.
-         * Note: this synchronization should not have any impact on performance
-         * since this is done when agent builder is being made, it doesn't affect actual
-         * class transformation.
-         */
-        synchronized (INSTALLED_CONTEXT_MATCHERS) {
-          // FIXME: This makes an assumption that class loader matchers for instrumenters that use
-          // same context classes should be the same - which seems reasonable, but is not checked.
-          // Addressing this properly requires some notion of 'compound intrumenters' which we
-          // currently do not have.
-          if (INSTALLED_CONTEXT_MATCHERS.contains(entry)) {
-            log.debug("Skipping builder for {} {}", instrumenter.getClass().getName(), entry);
-            continue;
-          }
-
-          log.debug("Making builder for {} {}", instrumenter.getClass().getName(), entry);
-          INSTALLED_CONTEXT_MATCHERS.add(entry);
-
+      for (Map.Entry<ElementMatcher<ClassLoader>, Map<String, String>> matcherAndStores :
+          matchedContextStores.entrySet()) {
+        ElementMatcher<ClassLoader> classLoaderMatcher = matcherAndStores.getKey();
+        for (Map.Entry<String, String> entry : matcherAndStores.getValue().entrySet()) {
           /*
            * For each context store defined in a current instrumentation we create an agent builder
            * that injects necessary fields.
+           * Note: this synchronization should not have any impact on performance
+           * since this is done when agent builder is being made, it doesn't affect actual
+           * class transformation.
            */
-          builder =
-              builder
-                  .type(safeHasSuperType(named(entry.getKey())), instrumenter.classLoaderMatcher())
-                  .and(safeToInjectFieldsMatcher())
-                  .and(Default.NOT_DECORATOR_MATCHER)
-                  .transform(NoOpTransformer.INSTANCE);
+          Set<Map.Entry<String, String>> installedContextMatchers;
+          synchronized (INSTALLED_CONTEXT_MATCHERS) {
+            installedContextMatchers = INSTALLED_CONTEXT_MATCHERS.get(classLoaderMatcher);
+            if (installedContextMatchers == null) {
+              installedContextMatchers = new HashSet<>();
+              INSTALLED_CONTEXT_MATCHERS.put(classLoaderMatcher, installedContextMatchers);
+            }
+          }
+          synchronized (installedContextMatchers) {
+            if (installedContextMatchers.contains(entry)) {
+              if (log.isDebugEnabled()) {
+                log.debug(
+                    "Skipping builder for {} with matcher {}: {} -> {}",
+                    instrumenter.getClass().getName(),
+                    classLoaderMatcher,
+                    entry.getKey(),
+                    entry.getValue());
+              }
+              continue;
+            }
 
-          /*
-           * We inject helpers here as well as when instrumentation is applied to ensure that
-           * helpers are present even if instrumented classes are not loaded, but classes with state
-           * fields added are loaded (e.g. sun.net.www.protocol.https.HttpsURLConnectionImpl).
-           */
-          builder = injectHelpersIntoBootstrapClassloader(builder);
+            if (log.isDebugEnabled()) {
+              log.debug(
+                  "Making builder for {} with matcher {}: {} -> {}",
+                  instrumenter.getClass().getName(),
+                  classLoaderMatcher,
+                  entry.getKey(),
+                  entry.getValue());
+            }
+            installedContextMatchers.add(entry);
 
-          builder =
-              builder.transform(
-                  getTransformerForASMVisitor(
-                      getFieldInjectionVisitor(entry.getKey(), entry.getValue())));
+            /*
+             * For each context store defined in a current instrumentation we create an agent builder
+             * that injects necessary fields.
+             */
+            builder =
+                builder
+                    .type(safeHasSuperType(named(entry.getKey())), classLoaderMatcher)
+                    .and(safeToInjectFieldsMatcher(entry.getKey(), entry.getValue()))
+                    .and(Default.NOT_DECORATOR_MATCHER)
+                    .transform(
+                        getTransformerForASMVisitor(
+                            getFieldInjectionVisitor(entry.getKey(), entry.getValue())));
+          }
+
+          synchronized (INSTALLED_HELPERS) {
+            if (!INSTALLED_HELPERS.contains(entry)) {
+              /*
+               * We inject helpers here as well as when instrumentation is applied to ensure that
+               * helpers are present even if instrumented classes are not loaded, but classes with state
+               * fields added are loaded (e.g. sun.net.www.protocol.https.HttpsURLConnectionImpl).
+               */
+              builder = injectHelpersIntoBootstrapClassloader(builder);
+              INSTALLED_HELPERS.add(entry);
+            }
+          }
         }
       }
     }
     return builder;
   }
 
-  private static AgentBuilder.RawMatcher safeToInjectFieldsMatcher() {
+  private static AgentBuilder.RawMatcher safeToInjectFieldsMatcher(
+      final String keyType, final String valueType) {
     return new AgentBuilder.RawMatcher() {
       @Override
       public boolean matches(
@@ -433,9 +476,30 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
          * parents. It looks like current JVM implementation does exactly this but javadoc is not
          * explicit about that.
          */
-        return classBeingRedefined == null
-            || Arrays.asList(classBeingRedefined.getInterfaces())
-                .contains(FieldBackedContextStoreAppliedMarker.class);
+        boolean result =
+            classBeingRedefined == null
+                || Arrays.asList(classBeingRedefined.getInterfaces())
+                    .contains(FieldBackedContextStoreAppliedMarker.class);
+        if (log.isDebugEnabled()) {
+          if (result) {
+            // Only log success the first time we add it to the class
+            if (classBeingRedefined == null) {
+              log.debug(
+                  "Added context-store field to {}: {} -> {}",
+                  typeDescription.getName(),
+                  keyType,
+                  valueType);
+            }
+          } else {
+            // This will log for every failed redefine
+            log.debug(
+                "Failed to add context-store field to {}: {} -> {}",
+                typeDescription.getName(),
+                keyType,
+                valueType);
+          }
+        }
+        return result;
       }
     };
   }
