@@ -48,6 +48,7 @@ dependencies {
   play "com.typesafe.play:play-guice_$scalaVersion:$playVersion"
   play "com.typesafe.play:play-logback_$scalaVersion:$playVersion"
   play "com.typesafe.play:filters-helpers_$scalaVersion:$playVersion"
+  play "com.typesafe.play:play-netty-server_$scalaVersion:$playVersion"
 
   play project(':dd-trace-api')
   play group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'

@@ -2,8 +2,9 @@ package datadog.smoketest
 
 import okhttp3.Request
 import spock.lang.Shared
+import spock.lang.Timeout
 
-class PlaySmokeTest extends AbstractServerSmokeTest {
+abstract class PlaySmokeTest extends AbstractServerSmokeTest {
 
   @Shared
   File playDirectory = new File("${buildDirectory}/stage/playBinary")
@@ -17,19 +18,19 @@ class PlaySmokeTest extends AbstractServerSmokeTest {
       defaultJavaProperties.join(" ")
         + " -Dconfig.file=${workingDirectory}/conf/application.conf -Dhttp.port=${httpPort}"
         + " -Dhttp.address=127.0.0.1"
+        + " -Dplay.server.provider=${serverProvider()}"
         + " -Ddd.writer.type=TraceStructureWriter:${output.getAbsolutePath()}")
     return processBuilder
   }
 
   @Override
   File createTemporaryFile() {
-    File.createTempFile("trace-structure-play", "out")
+    File.createTempFile("trace-structure-play-${serverProviderName()}", "out")
   }
 
-  @Override
-  Set<String> expectedTraces() {
-    return ["[akka-http.request[play.request]]"].toSet()
-  }
+  abstract String serverProviderName()
+
+  abstract String serverProvider()
 
   def "welcome endpoint #n th time"() {
     setup:
