@@ -356,6 +356,8 @@ public class Agent {
 
     if (isDebugMode()) {
       setSystemPropertyDefault(SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY, "DEBUG");
+    } else if (!isStartupLogsEnabled()) {
+      setSystemPropertyDefault(SIMPLE_LOGGER_DEFAULT_LOG_LEVEL_PROPERTY, "WARN");
     }
   }
 
@@ -433,6 +435,21 @@ public class Agent {
       return Boolean.parseBoolean(tracerDebugLevelEnv);
     }
     return false;
+  }
+
+  /**
+   * Determine if we should log startup info messages according to dd.trace.startup.logs
+   *
+   * @return true if we should
+   */
+  private static boolean isStartupLogsEnabled() {
+    final String startupLogsSysprop = "dd.trace.startup.logs";
+    String startupLogsEnabled = System.getProperty(startupLogsSysprop);
+    if (startupLogsEnabled == null) {
+      startupLogsEnabled = System.getenv(startupLogsSysprop.replace('.', '_').toUpperCase());
+    }
+    // assume true unless it's explicitly set to "false"
+    return !"false".equalsIgnoreCase(startupLogsEnabled);
   }
 
   /**
