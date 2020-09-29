@@ -11,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.sql.PreparedStatement;
@@ -58,11 +59,14 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addDBInfo(
         @Advice.Argument(0) final String sql, @Advice.Return final PreparedStatement statement) {
-      // Sometimes the prepared statement is not reused, but the underlying String is reused, so
-      // check if we have seen this String before
-      UTF8BytesString utf8Sql = JDBCMaps.preparedStatementsSql.computeIfAbsent(sql, UTF8_ENCODE);
-      InstrumentationContext.get(PreparedStatement.class, UTF8BytesString.class)
-          .put(statement, utf8Sql);
+      ContextStore<PreparedStatement, UTF8BytesString> contextStore =
+          InstrumentationContext.get(PreparedStatement.class, UTF8BytesString.class);
+      if (null == contextStore.get(statement)) {
+        // Sometimes the prepared statement is not reused, but the underlying String is reused, so
+        // check if we have seen this String before
+        UTF8BytesString utf8Sql = JDBCMaps.preparedStatementsSql.computeIfAbsent(sql, UTF8_ENCODE);
+        contextStore.putIfAbsent(statement, utf8Sql);
+      }
     }
   }
 }
