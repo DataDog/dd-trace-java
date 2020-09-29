@@ -2,7 +2,6 @@ package datadog.smoketest
 
 import okhttp3.Request
 import spock.lang.Shared
-import spock.lang.Timeout
 
 abstract class PlaySmokeTest extends AbstractServerSmokeTest {
 
@@ -25,7 +24,7 @@ abstract class PlaySmokeTest extends AbstractServerSmokeTest {
 
   @Override
   File createTemporaryFile() {
-    File.createTempFile("trace-structure-play-${serverProviderName()}", "out")
+    new File("${buildDirectory}/tmp/trace-structure-play-2.6-${serverProviderName()}.out")
   }
 
   abstract String serverProviderName()

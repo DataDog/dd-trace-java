@@ -6,8 +6,8 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
-def playVersion = "2.6.20"
-def scalaVersion = System.getProperty("scala.binary.version", /* default = */ "2.12")
+def playVersion = "2.5.19"
+def scalaVersion = System.getProperty("scala.binary.version", /* default = */ "2.11")
 
 model {
   components {
@@ -42,16 +42,15 @@ repositories {
 
 apply from: "$rootDir/gradle/java.gradle"
 
-description = 'Play Integration 2.6 Tests.'
+description = 'Play 2.5 Integration Tests.'
 
 dependencies {
-  play "com.typesafe.play:play-guice_$scalaVersion:$playVersion"
   play "com.typesafe.play:play-logback_$scalaVersion:$playVersion"
   play "com.typesafe.play:filters-helpers_$scalaVersion:$playVersion"
-  play "com.typesafe.play:play-netty-server_$scalaVersion:$playVersion"
 
   play project(':dd-trace-api')
   play group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  play group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 
   testCompile project(':dd-smoke-tests')
 }

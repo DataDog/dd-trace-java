@@ -8,7 +8,8 @@ import play.api.mvc._
   * This controller creates an `Action` to handle HTTP requests to the
   * application's welcome greeting
   */
-class HomeController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {
+class HomeController @Inject()(cc: ControllerComponents)
+    extends AbstractController(cc) {
 
   /**
     * Create an Action to return a greeting

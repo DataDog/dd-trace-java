@@ -15,7 +15,17 @@ abstract class AbstractServerSmokeTest extends AbstractSmokeTest {
   int httpPort = PortUtils.randomOpenPort()
 
   @Shared
-  File output = createTemporaryFile()
+  File output = {
+    def file = createTemporaryFile()
+    if (file != null) {
+      if (file.exists()) {
+        file.delete()
+      } else {
+        file.getParentFile().mkdirs()
+      }
+    }
+    return file
+  }.call()
 
   protected OkHttpClient client = OkHttpUtils.client()
 

@@ -1,9 +1,6 @@
 package datadog.smoketest
 
 import okhttp3.Request
-import spock.lang.Shared
-
-import java.util.concurrent.atomic.AtomicInteger
 
 abstract class SpringBootWithGRPCTest extends AbstractServerSmokeTest {
 
