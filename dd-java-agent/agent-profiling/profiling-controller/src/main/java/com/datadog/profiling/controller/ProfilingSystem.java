@@ -21,6 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -132,31 +134,25 @@ public final class ProfilingSystem {
   }
 
   private static void setMaxStackDepth() {
-    final String JFR_STACK_DEPTH_ARG = "-XX:FlightRecorderOptions=stackdepth=";
     int maxFrames = ProfilingSystem.DEFAULT_STACK_DEPTH;
 
-    final Optional<String> stackDepthArg =
-        SystemAccess.vmArguments().stream()
-            .filter(arg -> arg.startsWith(JFR_STACK_DEPTH_ARG))
-            .findFirst();
-
     // don't set stackdepth if the client has explicitly set it
-    if (stackDepthArg.isPresent()) {
+    final Optional<String> userSpecifiedStackDepth = readJFRStackDepth(SystemAccess.vmArguments());
+    if (userSpecifiedStackDepth.isPresent()) {
       try {
-        final int stackDepth =
-            Integer.parseInt(stackDepthArg.get().replace(JFR_STACK_DEPTH_ARG, "").trim());
+        final int stackDepth = Integer.parseInt(userSpecifiedStackDepth.get());
 
         // client specified a value considered safe
         if (stackDepth < MAX_STACK_DEPTH) {
-          log.info("skip setting JFR.configure stackdepth, using " + stackDepthArg.get());
+          log.info("skip setting JFR.configure stackdepth, using " + userSpecifiedStackDepth.get());
           return;
         }
 
         // limit how deep a stack depth we'll collect
-        log.warn(stackDepthArg.get() + " exceeds maximum value allowed by Datadog agent");
+        log.warn(userSpecifiedStackDepth.get() + " exceeds maximum value allowed by Datadog agent");
         maxFrames = MAX_STACK_DEPTH;
       } catch (final NumberFormatException e) { // "this should never happen"
-        log.warn("malformed arg: " + stackDepthArg.get());
+        log.warn("malformed arg: " + userSpecifiedStackDepth.get());
         maxFrames = DEFAULT_STACK_DEPTH;
       }
     }
@@ -166,6 +162,26 @@ public final class ProfilingSystem {
         "jfrConfigure",
         new Object[] {new String[] {"stackdepth=" + maxFrames}},
         new String[] {String[].class.getName()});
+  }
+
+  protected static Optional<String> readJFRStackDepth(final List<String> vmArgs) {
+    final String JFR_OPTIONS_ARG = "-XX:FlightRecorderOptions=";
+    return vmArgs.stream()
+        .filter(arg -> arg.startsWith(JFR_OPTIONS_ARG))
+        .map(arg -> arg.replace(JFR_OPTIONS_ARG, "").trim())
+        .map(opts -> readKVOption(opts.split(","), "stackdepth"))
+        .filter(Objects::nonNull)
+        .findFirst();
+  }
+
+  private static String readKVOption(final String[] kvOpts, final String key) {
+    for (final String kvStr : kvOpts) {
+      final String[] kv = kvStr.split("=");
+      if (kv.length == 2 && kv[0].trim().equals(key)) {
+        return kv[1].trim();
+      }
+    }
+    return null;
   }
 
   private void startProfilingRecording() {

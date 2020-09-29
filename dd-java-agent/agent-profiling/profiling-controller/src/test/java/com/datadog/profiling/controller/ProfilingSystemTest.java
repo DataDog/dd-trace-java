@@ -18,6 +18,7 @@ package com.datadog.profiling.controller;
 import static com.datadog.profiling.controller.RecordingType.CONTINUOUS;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,16 +32,12 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
@@ -48,6 +45,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.mockito.stubbing.Answer;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadLocalRandom;
 
 @ExtendWith(MockitoExtension.class)
 // Proper unused stub detection doesn't work in junit5 yet,
@@ -143,7 +149,7 @@ public class ProfilingSystemTest {
               while (!pool.isShutdown()) {
                 try {
                   Thread.sleep(100);
-                } catch (InterruptedException e) {
+                } catch (final InterruptedException e) {
                   // Ignore InterruptedException to make sure this threads lives through executor
                   // shutdown
                 }
@@ -364,6 +370,28 @@ public class ProfilingSystemTest {
             threadLocalRandom);
 
     assertEquals(startupDelay, system.getStartupDelay());
+  }
+
+  @ParameterizedTest
+  @CsvSource(
+      delimiter = '|',
+      value = {
+        "nothing|",
+        "-XX:FlightRecorderOptions=dumponexit=true|",
+        "-XX:FlightRecorderOptions=stackdepth=64|64",
+        "-XX:FlightRecorderOptions=dumponexit=true,stackdepth=64|64",
+        "-XX:FlightRecorderOptions=stackdepth=64,dumponexit=true|64",
+      })
+  public void testJFROptionsParser(final String option, final String expected) {
+    final List<String> vmArgs = Arrays.asList("nonsense", option);
+    final Optional<String> depth = ProfilingSystem.readJFRStackDepth(vmArgs);
+
+    if (expected == null || expected.equals("")) {
+      assertFalse(depth.isPresent());
+      return;
+    }
+
+    assertEquals(expected, depth.get());
   }
 
   private Answer<Object> generateMockRecordingData(

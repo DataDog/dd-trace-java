@@ -26,7 +26,6 @@ class JFRStackDepthTest extends Specification {
   @Shared
   def shadowJarPath = System.getProperty("datadog.smoketest.agent.shadowJar.path")
 
-  @Shared
   @AutoCleanup
   TestHttpServer server = httpServer {
     handlers {
@@ -45,12 +44,9 @@ class JFRStackDepthTest extends Specification {
   def managementPort = PortUtils.randomOpenPort()
   Process testedProcess
 
-  def setupSpec() {
-    server.start()
-  }
-
   def setup() {
     requests.clear()
+    server.start()
   }
 
   def cleanup() {
@@ -101,7 +97,7 @@ class JFRStackDepthTest extends Specification {
     // using VM args exposing a JMX server to query this configuration crashes JBoss
     // thus the external process call with jcmd
     def jcmdBin = System.getProperty("java.home") + "/bin/jcmd"
-    def jcmdProc = new ProcessBuilder( jcmdBin, "${pid}", "JFR.configure").start()
+    def jcmdProc = new ProcessBuilder(jcmdBin, "${pid}", "JFR.configure").start()
     jcmdProc.waitForOrKill(1000)
 
     return jcmdProc.text.lines()
@@ -122,9 +118,9 @@ class JFRStackDepthTest extends Specification {
     }
 
     where:
-    extraOpts                                   | expected
-    ""                                          | 256
-    "-XX:FlightRecorderOptions=stackdepth=512"  | 512
-    "-XX:FlightRecorderOptions=stackdepth=3000" | 1024
+    extraOpts                                                         | expected
+    ""                                                                | 256
+    "-XX:FlightRecorderOptions=stackdepth=512"                        | 512
+    "-XX:FlightRecorderOptions=globalbuffersize=10MB,stackdepth=3000" | 1024
   }
 }
