@@ -93,7 +93,6 @@ class JFRStackDepthTest extends Specification {
 
     PortUtils.waitForPortToOpen(httpPort, 240, TimeUnit.SECONDS, testedProcess)
 
-    Thread.sleep(1000)
     // can't use testedProcess.pid() as that's just the pid for standalone.sh
     return testedProcess.children().findFirst().get().pid()
   }
