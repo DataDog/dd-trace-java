@@ -1,14 +1,10 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.bootstrap.WeakMap.Provider.newWeakMap;
-
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
-import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -26,5 +22,4 @@ public class JDBCMaps {
   // because connections are rare events in well written applications
   public static final Map<Connection, DBInfo> connectionInfo =
       Collections.synchronizedMap(new WeakHashMap<Connection, DBInfo>());
-  public static final WeakMap<PreparedStatement, UTF8BytesString> preparedStatements = newWeakMap();
 }

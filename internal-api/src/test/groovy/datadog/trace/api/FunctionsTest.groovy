@@ -1,5 +1,6 @@
 package datadog.trace.api
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.util.test.DDSpecification
 
 class FunctionsTest extends DDSpecification {
@@ -28,5 +29,12 @@ class FunctionsTest extends DDSpecification {
     Functions.SuffixJoin.of("~", Functions.zero()) | "x"  | "y"   | "x~y"
     Functions.SuffixJoin.of("~")                   | "x"  | "y"   | "x~y"
 
+  }
+
+  def "test encode UTF8" () {
+    when:
+    UTF8BytesString utf8 = Functions.UTF8_ENCODE.apply("foo")
+    then:
+    utf8.toString() == "foo"
   }
 }

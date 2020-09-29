@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
@@ -12,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.sql.PreparedStatement;
 import java.util.Map;
@@ -28,8 +28,8 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("java.sql.Connection");
+  public Map<String, String> contextStore() {
+    return singletonMap("java.sql.PreparedStatement", UTF8BytesString.class.getName());
   }
 
   @Override
@@ -61,7 +61,8 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
       // Sometimes the prepared statement is not reused, but the underlying String is reused, so
       // check if we have seen this String before
       UTF8BytesString utf8Sql = JDBCMaps.preparedStatementsSql.computeIfAbsent(sql, UTF8_ENCODE);
-      JDBCMaps.preparedStatements.putIfAbsent(statement, utf8Sql);
+      InstrumentationContext.get(PreparedStatement.class, UTF8BytesString.class)
+          .put(statement, utf8Sql);
     }
   }
 }

@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
@@ -109,8 +108,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return super.onStatement(span, statement);
   }
 
-  public AgentSpan onPreparedStatement(final AgentSpan span, final PreparedStatement statement) {
-    final UTF8BytesString sql = JDBCMaps.preparedStatements.get(statement);
+  public AgentSpan onPreparedStatement(final AgentSpan span, UTF8BytesString sql) {
     final UTF8BytesString resourceName = sql == null ? DB_QUERY : sql;
     span.setTag(DDTags.RESOURCE_NAME, resourceName);
     span.setTag(Tags.COMPONENT, JDBC_PREPARED_STATEMENT);
