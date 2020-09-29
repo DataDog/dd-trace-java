@@ -11,6 +11,7 @@ import org.openjdk.jmc.common.item.IItemCollection
 import org.openjdk.jmc.common.item.ItemFilters
 import org.openjdk.jmc.common.unit.UnitLookup
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit
+import spock.lang.IgnoreIf
 
 import java.time.Instant
 import java.util.concurrent.TimeUnit
@@ -18,6 +19,7 @@ import java.util.concurrent.TimeUnit
 class ProfilingIntegrationContinuousProfilesTest extends AbstractProfilingIntegrationTest {
   private static final int REQUEST_WAIT_TIMEOUT = 40
 
+  @IgnoreIf({ jvm.javaVersion == '1.8.0_265' })
   def "test continuous recording"() {
     setup:
     profilingServer.enqueue(new MockResponse().setResponseCode(200))
