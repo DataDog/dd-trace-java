@@ -78,7 +78,7 @@ class CustomScopeManagerTest extends DDSpecification {
     Span testSpan = tracer.buildSpan("someOperation")
       .withTag(DDTags.SERVICE_NAME, "someService")
       .start()
-    tracer.activateSpan(testSpan)
+    coreTracer.activateSpan(((OTSpan) testSpan).getDelegate())
 
     then:
     coreTracer.activeSpan() != null

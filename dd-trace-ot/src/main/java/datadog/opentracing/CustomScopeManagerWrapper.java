@@ -43,6 +43,17 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
   }
 
   @Override
+  public AgentScope activate(
+      final AgentSpan agentSpan, final ScopeSource source, boolean isAsyncPropagating) {
+    final Span span = converter.toSpan(agentSpan);
+    final Scope scope = delegate.activate(span);
+    final AgentScope agentScope = new CustomScopeManagerScope(scope);
+    agentScope.setAsyncPropagation(isAsyncPropagating);
+
+    return agentScope;
+  }
+
+  @Override
   public TraceScope active() {
     return new CustomScopeManagerScope(delegate.active());
   }

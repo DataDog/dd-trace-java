@@ -224,7 +224,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               config.getScopeDepthLimit(),
               createScopeEventFactory(),
               this.statsDClient,
-              config.isScopeStrictMode());
+              config.isScopeStrictMode(),
+              config.isScopeInheritAsyncPropagation());
     } else {
       this.scopeManager = scopeManager;
     }
@@ -347,12 +348,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   public AgentScope activateSpan(final AgentSpan span) {
-    return scopeManager.activate(span, ScopeSource.INSTRUMENTATION);
+    return scopeManager.activate(span, ScopeSource.INSTRUMENTATION, false);
   }
 
   @Override
   public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
     return scopeManager.activate(span, source);
+  }
+
+  @Override
+  public AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating) {
+    return scopeManager.activate(span, source, isAsyncPropagating);
   }
 
   @Override
