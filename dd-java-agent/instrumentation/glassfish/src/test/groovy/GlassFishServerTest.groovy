@@ -4,7 +4,6 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
-import org.apache.catalina.servlets.DefaultServlet
 import org.glassfish.embeddable.BootstrapProperties
 import org.glassfish.embeddable.Deployer
 import org.glassfish.embeddable.GlassFish
@@ -110,7 +109,6 @@ class GlassFishServerTest extends HttpServerTest<GlassFish> {
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "servlet.context" "/$context"
         "servlet.path" endpoint.path
-        "span.origin.type" { it.startsWith("TestServlets\$") || it == DefaultServlet.name }
         if (endpoint.errored) {
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }

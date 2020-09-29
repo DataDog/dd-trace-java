@@ -101,7 +101,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$jspFileName"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$jspFileName"
             defaultTags()
@@ -115,7 +114,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" jspClassName
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             defaultTags()
@@ -176,7 +174,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/getQuery.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/getQuery.jsp"
             defaultTags()
@@ -190,7 +187,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "getQuery_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             defaultTags()
@@ -248,7 +244,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/post.jsp"
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" 200
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/post.jsp"
             defaultTags()
@@ -262,7 +257,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "post_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             defaultTags()
@@ -317,7 +311,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$jspFileName"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$jspFileName"
             "error.type" { String tagExceptionType ->
@@ -338,7 +331,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
           errored true
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" jspClassName
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             "error.type" { String tagExceptionType ->
@@ -405,7 +397,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/includes/includeHtml.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/includes/includeHtml.jsp"
             defaultTags()
@@ -419,7 +410,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "includeHtml_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             defaultTags()
@@ -473,7 +463,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/includes/includeMulti.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/includes/includeMulti.jsp"
             defaultTags()
@@ -487,7 +476,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "includeMulti_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             defaultTags()
@@ -501,7 +489,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "javaLoopH2_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             defaultTags()
@@ -529,7 +516,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "javaLoopH2_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             defaultTags()
@@ -597,7 +583,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$jspFileName"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$jspFileName"
             errorTags(JasperException, String)
@@ -660,7 +645,6 @@ class JSPInstrumentationBasicTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$staticFile"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$staticFile"
             defaultTags()

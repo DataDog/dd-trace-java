@@ -47,7 +47,6 @@ class RmiTest extends AgentTestRunner {
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.COMPONENT" "rmi-client"
-            "span.origin.type" Greeter.canonicalName
             defaultTags()
           }
         }
@@ -61,7 +60,6 @@ class RmiTest extends AgentTestRunner {
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.COMPONENT" "rmi-server"
-            "span.origin.type" server.class.canonicalName
             defaultTags(true)
           }
         }
@@ -72,7 +70,6 @@ class RmiTest extends AgentTestRunner {
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.COMPONENT" "rmi-server"
-            "span.origin.type" server.class.canonicalName
             defaultTags()
           }
         }
@@ -128,7 +125,6 @@ class RmiTest extends AgentTestRunner {
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.COMPONENT" "rmi-client"
-            "span.origin.type" Greeter.canonicalName
             errorTags(RuntimeException, String)
             defaultTags()
           }
@@ -143,7 +139,6 @@ class RmiTest extends AgentTestRunner {
 
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "span.origin.type" server.class.canonicalName
             "$Tags.COMPONENT" "rmi-server"
             errorTags(RuntimeException, String)
             defaultTags(true)
@@ -180,7 +175,6 @@ class RmiTest extends AgentTestRunner {
           tags {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.COMPONENT" "rmi-client"
-            "span.origin.type" Greeter.canonicalName
             defaultTags()
           }
         }
@@ -194,7 +188,6 @@ class RmiTest extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "rmi-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "span.origin.type" server.class.canonicalName
             defaultTags(true)
           }
         }

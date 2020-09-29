@@ -11,7 +11,6 @@ import io.dropwizard.setup.Bootstrap
 import io.dropwizard.setup.Environment
 import io.dropwizard.testing.ConfigOverride
 import io.dropwizard.testing.DropwizardTestSupport
-import org.eclipse.jetty.servlet.ServletHandler
 import spock.lang.Retry
 
 import javax.ws.rs.GET
@@ -116,7 +115,6 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" endpoint.status
-        "span.origin.type" ServletHandler.CachedChain.name
         if (endpoint.errored) {
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }

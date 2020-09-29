@@ -87,7 +87,6 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Default
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, connection);
       DECORATE.onPreparedStatement(span, sql);
-      span.setTag("span.origin.type", statement.getClass().getName());
       return activateSpan(span);
     }
 

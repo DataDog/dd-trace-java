@@ -17,7 +17,6 @@ import org.hornetq.core.remoting.impl.netty.NettyAcceptorFactory
 import org.hornetq.core.server.HornetQServer
 import org.hornetq.core.server.HornetQServers
 import org.hornetq.jms.client.HornetQMessageConsumer
-import org.hornetq.jms.client.HornetQMessageProducer
 import org.hornetq.jms.client.HornetQTextMessage
 import spock.lang.Shared
 
@@ -165,7 +164,6 @@ class JMS2Test extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jms"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "span.origin.type" HornetQMessageConsumer.name
             defaultTags()
           }
         }
@@ -203,7 +201,6 @@ class JMS2Test extends AgentTestRunner {
           tags {
             "$Tags.COMPONENT" "jms"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-            "span.origin.type" HornetQMessageConsumer.name
             defaultTags()
           }
         }
@@ -232,7 +229,6 @@ class JMS2Test extends AgentTestRunner {
         tags {
           "$Tags.COMPONENT" "jms"
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-          "span.origin.type" HornetQMessageProducer.name
           defaultTags()
         }
       }
@@ -257,7 +253,6 @@ class JMS2Test extends AgentTestRunner {
         tags {
           "${Tags.COMPONENT}" "jms"
           "${Tags.SPAN_KIND}" "consumer"
-          "span.origin.type" origin.name
           defaultTags(true)
         }
       }

@@ -38,7 +38,6 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.hsqldb.jdbc.JDBCPreparedStatement"
             defaultTags()
           }
         }
@@ -67,7 +66,6 @@ class SpringJpaTest extends AgentTestRunner {
               "$Tags.DB_TYPE" "hsqldb"
               "$Tags.DB_INSTANCE" "test"
               "$Tags.DB_USER" "sa"
-              "span.origin.type" "org.hsqldb.jdbc.JDBCPreparedStatement"
               defaultTags()
             }
           }
@@ -84,7 +82,6 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.hsqldb.jdbc.JDBCPreparedStatement"
             defaultTags()
           }
         }
@@ -110,7 +107,6 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.hsqldb.jdbc.JDBCPreparedStatement"
             defaultTags()
           }
         }
@@ -126,7 +122,6 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.hsqldb.jdbc.JDBCPreparedStatement"
             defaultTags()
           }
         }
@@ -152,7 +147,6 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.hsqldb.jdbc.JDBCPreparedStatement"
             defaultTags()
           }
         }
@@ -176,7 +170,6 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.hsqldb.jdbc.JDBCPreparedStatement"
             defaultTags()
           }
         }
@@ -192,7 +185,6 @@ class SpringJpaTest extends AgentTestRunner {
             "$Tags.DB_TYPE" "hsqldb"
             "$Tags.DB_INSTANCE" "test"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.hsqldb.jdbc.JDBCPreparedStatement"
             defaultTags()
           }
         }
