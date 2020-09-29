@@ -544,8 +544,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     final DDAgentApi ddAgentApi =
         new DDAgentApi(
-            config.getAgentHost(),
-            config.getAgentPort(),
+            config.getAgentUrl(),
             unixDomainSocket,
             TimeUnit.SECONDS.toMillis(config.getAgentTimeout()),
             Config.get().isTraceAgentV05Enabled(),

@@ -55,7 +55,7 @@ class DDAgentApiTest extends DDSpecification {
   def "sending an empty list of traces returns no errors"() {
     setup:
     def agent = newAgent(agentVersion)
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
+    def client = createAgentApi(agent.address.port)
     def payload = prepareTraces(agentVersion, [])
 
     expect:
@@ -74,7 +74,7 @@ class DDAgentApiTest extends DDSpecification {
   def "get right mapper for latest endpoint"() {
     setup:
     def agent = newAgent(version)
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
+    def client = createAgentApi(agent.address.port)
     def mapper = client.selectTraceMapper()
     expect:
     mapper.getClass().isAssignableFrom(expected)
@@ -103,7 +103,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
+    def client = createAgentApi(agent.address.port)
     Payload payload = prepareTraces("v0.3/traces", [])
     expect:
     def response = client.sendSerializedTraces(payload)
@@ -124,7 +124,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
+    def client = createAgentApi(agent.address.port)
     def payload = prepareTraces(agentVersion, traces)
 
     expect:
@@ -201,7 +201,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
+    def client = createAgentApi(agent.address.port)
     client.addResponseListener(responseListener)
     def payload = prepareTraces(agentVersion, [[], [], []])
 
@@ -231,7 +231,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", v3Agent.address.port, null, 1000, monitoring)
+    def client = createAgentApi(v3Agent.address.port)
     def payload = prepareTraces("v0.4/traces", [])
     expect:
     client.sendSerializedTraces(payload).success()
@@ -258,7 +258,7 @@ class DDAgentApiTest extends DDSpecification {
       }
     }
     def port = badPort ? 999 : agent.address.port
-    def client = new DDAgentApi("localhost", port, null, 1000, monitoring)
+    def client = createAgentApi(port)
     def payload = prepareTraces("v0.4/traces", [])
     def result = client.sendSerializedTraces(payload)
 
@@ -290,7 +290,7 @@ class DDAgentApiTest extends DDSpecification {
         }
       }
     }
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
+    def client = createAgentApi(agent.address.port)
     def payload = prepareTraces(agentVersion, traces)
     when:
     def success = client.sendSerializedTraces(payload).success()
@@ -324,7 +324,7 @@ class DDAgentApiTest extends DDSpecification {
   def "Embedded HTTP client rejects async requests"() {
     setup:
     def agent = newAgent("v0.5/traces")
-    def client = new DDAgentApi("localhost", agent.address.port, null, 1000, monitoring)
+    def client = createAgentApi(agent.address.port)
     client.detectEndpointAndBuildClient()
     def httpExecutorService = client.httpClient.dispatcher().executorService()
     when:
@@ -399,5 +399,9 @@ class DDAgentApiTest extends DDSpecification {
       this.representativeCount = messageCount
       this.traceCount = messageCount
     }
+  }
+
+  DDAgentApi createAgentApi(int port) {
+    return new DDAgentApi("http://localhost:" + port, null, 1000, monitoring)
   }
 }

@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -86,8 +87,7 @@ public class DDAgentApi {
     ENDPOINT_SNIFF_REQUESTS = Collections.unmodifiableMap(requests);
   }
 
-  private final String host;
-  private final int port;
+  private final String agentUrl;
   private final String unixDomainSocketPath;
   private final long timeoutMillis;
   private OkHttpClient httpClient;
@@ -98,14 +98,12 @@ public class DDAgentApi {
       new RatelimitedLogger(log, NANOSECONDS_BETWEEN_ERROR_LOG);
 
   public DDAgentApi(
-      final String host,
-      final int port,
+      final String agentUrl,
       final String unixDomainSocketPath,
       final long timeoutMillis,
       final boolean enableV05Endpoint,
       final Monitoring monitoring) {
-    this.host = host;
-    this.port = port;
+    this.agentUrl = agentUrl;
     this.unixDomainSocketPath = unixDomainSocketPath;
     this.timeoutMillis = timeoutMillis;
     this.endpoints =
@@ -118,12 +116,11 @@ public class DDAgentApi {
   }
 
   public DDAgentApi(
-      final String host,
-      final int port,
+      final String agentUrl,
       final String unixDomainSocketPath,
       final long timeoutMillis,
       final Monitoring monitoring) {
-    this(host, port, unixDomainSocketPath, timeoutMillis, true, monitoring);
+    this(agentUrl, unixDomainSocketPath, timeoutMillis, true, monitoring);
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -387,15 +384,6 @@ public class DDAgentApi {
     }
   }
 
-  private static HttpUrl getUrl(final String host, final int port, final String endPoint) {
-    return new HttpUrl.Builder()
-        .scheme("http")
-        .host(host)
-        .port(port)
-        .addEncodedPathSegments(endPoint)
-        .build();
-  }
-
   private static Request.Builder prepareRequest(final HttpUrl url) {
     final Request.Builder builder =
         new Request.Builder()
@@ -418,11 +406,12 @@ public class DDAgentApi {
     // TODO clean this up
     if (httpClient == null) {
       try (Recording recording = discoveryTimer.start()) {
-        this.agentRunning = isAgentRunning(timeoutMillis);
+        HttpUrl baseUrl = HttpUrl.get(agentUrl);
+        this.agentRunning = isAgentRunning(baseUrl.host(), baseUrl.port(), timeoutMillis);
         // TODO should check agentRunning, but CoreTracerTest depends on being
         //  able to detect an endpoint without an open socket...
         for (String candidate : endpoints) {
-          tracesUrl = getUrl(host, port, candidate);
+          tracesUrl = baseUrl.newBuilder().addEncodedPathSegments(candidate).build();
           this.httpClient =
               buildClientIfAvailable(candidate, tracesUrl, unixDomainSocketPath, timeoutMillis);
           if (null != httpClient) {
@@ -448,7 +437,7 @@ public class DDAgentApi {
     return detectedVersion;
   }
 
-  private boolean isAgentRunning(final long timeoutMillis) {
+  private boolean isAgentRunning(final String host, final int port, final long timeoutMillis) {
     try (Socket socket = new Socket()) {
       socket.connect(new InetSocketAddress(host, port), (int) timeoutMillis);
       log.debug("Agent connectivity ({}:{})", host, port);
