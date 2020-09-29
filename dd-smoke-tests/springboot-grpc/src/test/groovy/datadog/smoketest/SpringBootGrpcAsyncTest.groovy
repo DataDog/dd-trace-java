@@ -8,8 +8,8 @@ class SpringBootGrpcAsyncTest extends SpringBootWithGRPCTest {
      "[servlet.request[spring.handler[grpc.client[grpc.message]]]]"].toSet()
 
   @Override
-  boolean isAcceptable(Map<String, AtomicInteger> traceCounts) {
-    assertTraceCounts(EXPECTED_TRACES, traceCounts)
+  protected Set<String> expectedTraces() {
+    return EXPECTED_TRACES
   }
 
   @Override

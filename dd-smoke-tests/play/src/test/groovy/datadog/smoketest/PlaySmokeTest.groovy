@@ -16,8 +16,19 @@ class PlaySmokeTest extends AbstractServerSmokeTest {
     processBuilder.environment().put("JAVA_OPTS",
       defaultJavaProperties.join(" ")
         + " -Dconfig.file=${workingDirectory}/conf/application.conf -Dhttp.port=${httpPort}"
-        + " -Dhttp.address=127.0.0.1")
+        + " -Dhttp.address=127.0.0.1"
+        + " -Ddd.writer.type=TraceStructureWriter:${output.getAbsolutePath()}")
     return processBuilder
+  }
+
+  @Override
+  File createTemporaryFile() {
+    File.createTempFile("trace-structure-play", "out")
+  }
+
+  @Override
+  Set<String> expectedTraces() {
+    return ["[akka-http.request[play.request]]"].toSet()
   }
 
   def "welcome endpoint #n th time"() {

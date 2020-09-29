@@ -7,9 +7,6 @@ import java.util.concurrent.atomic.AtomicInteger
 
 abstract class SpringBootWithGRPCTest extends AbstractServerSmokeTest {
 
-  @Shared
-  File output = File.createTempFile("trace-structure-" + route(), "out")
-
   @Override
   ProcessBuilder createProcessBuilder() {
     String springBootShadowJar = System.getProperty("datadog.smoketest.springboot-grpc.shadowJar.path")
@@ -22,42 +19,9 @@ abstract class SpringBootWithGRPCTest extends AbstractServerSmokeTest {
     processBuilder.directory(new File(buildDirectory))
   }
 
-
-  def cleanupSpec() {
-    // check the structures written out to the log,
-    // and fail the run if anything unexpected was recorded
-    verifyLog()
-  }
-
-
-  def verifyLog() {
-    BufferedReader reader = new BufferedReader(new FileReader(output))
-    Map<String, AtomicInteger> traceCounts = new HashMap<>()
-    try {
-      String line = reader.readLine()
-      while (null != line) {
-        traceCounts.computeIfAbsent(line, {
-          new AtomicInteger()
-        }).incrementAndGet()
-        line = reader.readLine()
-      }
-    } finally {
-      reader.close()
-    }
-    assert isAcceptable(traceCounts)
-  }
-
-  abstract boolean isAcceptable(Map<String, AtomicInteger> traceCounts)
-
-  protected boolean assertTraceCounts(Set<String> expected, Map<String, AtomicInteger> traceCounts) {
-    boolean ok = traceCounts.size() == expected.size()
-    if (ok) {
-      for (Map.Entry<String, AtomicInteger> entry : traceCounts.entrySet()) {
-        ok &= expected.contains(entry.getKey())
-        ok &= entry.getValue().get() > 0
-      }
-    }
-    return ok
+  @Override
+  File createTemporaryFile() {
+    return File.createTempFile("trace-structure-" + route(), "out")
   }
 
   abstract String route()
@@ -80,5 +44,4 @@ abstract class SpringBootWithGRPCTest extends AbstractServerSmokeTest {
     where:
     n << (1..200)
   }
-
 }
