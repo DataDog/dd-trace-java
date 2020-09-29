@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.PREPARED_STATEMENTS_SQL;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -41,7 +42,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCMaps",
+      packageName + ".JDBCDecorator",
     };
   }
 
@@ -64,7 +65,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
       if (null == contextStore.get(statement)) {
         // Sometimes the prepared statement is not reused, but the underlying String is reused, so
         // check if we have seen this String before
-        UTF8BytesString utf8Sql = JDBCMaps.preparedStatementsSql.computeIfAbsent(sql, UTF8_ENCODE);
+        UTF8BytesString utf8Sql = PREPARED_STATEMENTS_SQL.computeIfAbsent(sql, UTF8_ENCODE);
         contextStore.putIfAbsent(statement, utf8Sql);
       }
     }
