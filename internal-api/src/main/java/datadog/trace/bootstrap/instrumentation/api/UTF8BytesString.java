@@ -24,10 +24,6 @@ public final class UTF8BytesString implements CharSequence {
     return create(chars, false);
   }
 
-  public static UTF8BytesString createWeak(String chars) {
-    return new UTF8BytesString(chars, false, true);
-  }
-
   private static UTF8BytesString create(CharSequence sequence, boolean constant) {
     if (null == sequence) {
       return null;
@@ -50,14 +46,7 @@ public final class UTF8BytesString implements CharSequence {
   }
 
   private UTF8BytesString(CharSequence chars, boolean constant, boolean weak) {
-    if (weak) {
-      // To make sure that we don't get an infinite circle in weak caches that are indexed on this
-      // very String, we create a new wrapper String that we hold on to instead.
-      this.string = chars instanceof String ? new String((String) chars) : String.valueOf(chars);
-    } else {
-      this.string = String.valueOf(chars);
-    }
-
+    this.string = String.valueOf(chars);
     byte[] utf8Bytes = string.getBytes(UTF_8);
     this.length = utf8Bytes.length;
     if (constant) {
