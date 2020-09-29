@@ -21,7 +21,7 @@ final class NoneSystemAccessProvider implements SystemAccessProvider {
   }
 
   @Override
-  public List<String> vmArguments() {
+  public List<String> getVMArguments() {
     return Collections.emptyList();
   }
 }

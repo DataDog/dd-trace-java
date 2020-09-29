@@ -30,7 +30,7 @@ class JFRStackDepthTest extends Specification {
   @AutoCleanup
   TestHttpServer server = httpServer {
     handlers {
-      all() {
+      all {
         requests.add(request)
         response.status(200).send()
       }

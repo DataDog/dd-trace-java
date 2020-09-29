@@ -44,7 +44,7 @@ final class JmxSystemAccessProvider implements SystemAccessProvider {
     return Integer.parseInt(pid);
   }
 
-  /** */
+  /** invokes command on {@code com.sun.management:type=DiagnosticCommand} */
   @Override
   public String executeDiagnosticCommand(
       final String command, final Object[] args, final String[] sig) {
@@ -66,9 +66,9 @@ final class JmxSystemAccessProvider implements SystemAccessProvider {
     }
   }
 
-  /** */
+  /** @return {@linkplain RuntimeMXBean#getInputArguments()} */
   @Override
-  public List<String> vmArguments() {
+  public List<String> getVMArguments() {
     List<String> args = Collections.emptyList();
     try {
       args = runtimeMXBean.getInputArguments();

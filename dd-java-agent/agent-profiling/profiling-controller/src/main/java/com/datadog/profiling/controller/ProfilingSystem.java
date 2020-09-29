@@ -17,8 +17,6 @@ package com.datadog.profiling.controller;
 
 import com.datadog.profiling.util.ProfilingThreadFactory;
 import datadog.trace.core.util.SystemAccess;
-import lombok.extern.slf4j.Slf4j;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -28,6 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 
 /** Sets up the profiling strategy and schedules the profiling recordings. */
 @Slf4j
@@ -137,7 +136,8 @@ public final class ProfilingSystem {
     int maxFrames = ProfilingSystem.DEFAULT_STACK_DEPTH;
 
     // don't set stackdepth if the client has explicitly set it
-    final Optional<String> userSpecifiedStackDepth = readJFRStackDepth(SystemAccess.vmArguments());
+    final Optional<String> userSpecifiedStackDepth =
+        readJFRStackDepth(SystemAccess.getVMArguments());
     if (userSpecifiedStackDepth.isPresent()) {
       try {
         final int stackDepth = Integer.parseInt(userSpecifiedStackDepth.get());

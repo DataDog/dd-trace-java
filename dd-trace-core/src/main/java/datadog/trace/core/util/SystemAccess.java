@@ -1,7 +1,9 @@
 package datadog.trace.core.util;
 
 import datadog.trace.api.Config;
+import java.lang.management.RuntimeMXBean;
 import java.util.List;
+import javax.management.ObjectName;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -63,14 +65,21 @@ public final class SystemAccess {
     return systemAccessProvider.getCurrentPid();
   }
 
-  /** */
+  /**
+   * Invokes command on {@code com.sun.management:type=DiagnosticCommand}. See {@link
+   * javax.management.MBeanServer#invoke(ObjectName, String, Object[], String[])}
+   */
   public static String executeDiagnosticCommand(
       final String command, final Object[] args, final String[] sig) {
     return systemAccessProvider.executeDiagnosticCommand(command, args, sig);
   }
 
-  /** */
-  public static List<String> vmArguments() {
-    return systemAccessProvider.vmArguments();
+  /**
+   * Wrapper for {@linkplain RuntimeMXBean#getInputArguments()}
+   *
+   * @return arguments passed to JVM
+   */
+  public static List<String> getVMArguments() {
+    return systemAccessProvider.getVMArguments();
   }
 }

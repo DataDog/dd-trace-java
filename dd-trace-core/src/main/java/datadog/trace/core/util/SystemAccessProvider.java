@@ -21,5 +21,6 @@ public interface SystemAccessProvider {
   /** execute a diagnostic command */
   String executeDiagnosticCommand(String command, Object[] args, String[] sig);
 
-  List<String> vmArguments();
+  /** get arguments passed to JVM */
+  List<String> getVMArguments();
 }
