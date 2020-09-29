@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.failSafe;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.any;
 import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
@@ -82,7 +83,13 @@ public interface Instrumenter {
           Map<ElementMatcher<ClassLoader>, Map<String, String>> contextStores;
           Map<String, String> allClassLoaderContextStores = contextStoreForAll();
           Map<String, String> matchedContextStores = contextStore();
-          if (!allClassLoaderContextStores.isEmpty()) {
+          if (allClassLoaderContextStores.isEmpty()) {
+            if (matchedContextStores.isEmpty()) {
+              contextStores = emptyMap();
+            } else {
+              contextStores = singletonMap(classLoaderMatcher(), matchedContextStores);
+            }
+          } else {
             if (contextStore().isEmpty()) {
               contextStores = singletonMap(ANY_CLASS_LOADER, allClassLoaderContextStores);
             } else {
@@ -90,8 +97,6 @@ public interface Instrumenter {
               contextStores.put(classLoaderMatcher(), matchedContextStores);
               contextStores.put(ANY_CLASS_LOADER, allClassLoaderContextStores);
             }
-          } else {
-            contextStores = singletonMap(classLoaderMatcher(), matchedContextStores);
           }
           if (!contextStores.isEmpty()) {
             contextProvider = new FieldBackedProvider(this, contextStores);

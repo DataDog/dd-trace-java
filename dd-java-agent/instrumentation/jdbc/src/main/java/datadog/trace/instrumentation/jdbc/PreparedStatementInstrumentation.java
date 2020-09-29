@@ -36,9 +36,12 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Default
     super("jdbc");
   }
 
+  static ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("java.sql.PreparedStatement");
+
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("java.sql.PreparedStatement");
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override
