@@ -2,6 +2,7 @@ package datadog.smoketest
 
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.agent.test.utils.PortUtils
+import org.junit.Assume
 import spock.lang.AutoCleanup
 import spock.lang.Retry
 import spock.lang.Shared
@@ -88,6 +89,9 @@ class JFRStackDepthTest extends Specification {
     testedProcess = processBuilder.start()
 
     PortUtils.waitForPortToOpen(httpPort, 240, TimeUnit.SECONDS, testedProcess)
+
+    // This test can't run on Java 1.8, requires Process::children and Process::pid only present since 1.9
+    Assume.assumeFalse(System.getProperty("java.specification.version") == "1.8")
 
     // can't use testedProcess.pid() as that's just the pid for standalone.sh
     return testedProcess.children().findFirst().get().pid()
