@@ -1,5 +1,6 @@
 package datadog.trace.api
 
+import datadog.trace.api.time.TimeSource
 import datadog.trace.util.test.DDSpecification
 import org.slf4j.Logger
 
@@ -10,7 +11,7 @@ class RateLimitedLoggerTest extends DDSpecification {
   final exception = new RuntimeException("bad thing")
 
   Logger log = Mock(Logger)
-  RatelimitedLogger.TimeSourceSupplier timeSource = Mock(RatelimitedLogger.TimeSourceSupplier)
+  TimeSource timeSource = Mock(TimeSource)
   RatelimitedLogger rateLimitedLog = new RatelimitedLogger(log, delay, timeSource)
 
   def "Debug level"() {
@@ -44,7 +45,7 @@ class RateLimitedLoggerTest extends DDSpecification {
   def "warning once"() {
     setup:
     log.isWarnEnabled() >> true
-    timeSource.get() >> delay
+    timeSource.getNanoTime() >> delay
 
     when:
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
@@ -59,7 +60,7 @@ class RateLimitedLoggerTest extends DDSpecification {
   def "warning twice"() {
     setup:
     log.isWarnEnabled() >> true
-    timeSource.get() >>> [delay, delay * 2]
+    timeSource.getNanoTime() >>> [delay, delay * 2]
 
     when:
     def firstLog = rateLimitedLog.warn("test {} {}", "message", exception)
@@ -82,12 +83,12 @@ class RateLimitedLoggerTest extends DDSpecification {
   def "no args"() {
     setup:
     log.isWarnEnabled() >> true
-    timeSource.get() >> delay
+    timeSource.getNanoTime() >> delay
 
     when:
     rateLimitedLog.warn("test")
 
     then:
-    1 *  log.warn("test (Will not log errors for 5 minutes)")
+    1 * log.warn("test (Will not log errors for 5 minutes)")
   }
 }

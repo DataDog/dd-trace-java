@@ -8,7 +8,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.context.TraceScope;
@@ -30,26 +29,11 @@ import net.bytebuddy.matcher.ElementMatchers;
 @AutoService(Instrumenter.class)
 public final class AsyncPropagatingDisableInstrumentation implements Instrumenter {
 
-  private static final Map<
-          ElementMatcher<? super TypeDescription>, ElementMatcher<? super MethodDescription>>
-      CLASS_AND_METHODS =
-          new ImmutableMap.Builder<
-                  ElementMatcher<? super TypeDescription>,
-                  ElementMatcher<? super MethodDescription>>()
-              .put(extendsClass(named("rx.Scheduler$Worker")), named("schedulePeriodically"))
-              .build();
-
   @Override
   public AgentBuilder instrument(AgentBuilder agentBuilder) {
-
-    for (final Map.Entry<
-            ElementMatcher<? super TypeDescription>, ElementMatcher<? super MethodDescription>>
-        entry : CLASS_AND_METHODS.entrySet()) {
-      agentBuilder =
-          new DisableAsyncInstrumentation(entry.getKey(), entry.getValue())
-              .instrument(agentBuilder);
-    }
-    return agentBuilder;
+    return new DisableAsyncInstrumentation(
+            extendsClass(named("rx.Scheduler$Worker")), named("schedulePeriodically"))
+        .instrument(agentBuilder);
   }
 
   // Not Using AutoService to hook up this instrumentation

@@ -340,7 +340,7 @@ public class Config {
   @Getter private final Map<String, String> traceSamplingServiceRules;
   @Getter private final Map<String, String> traceSamplingOperationRules;
   @Getter private final Double traceSampleRate;
-  @Getter private final Double traceRateLimit;
+  @Getter private final int traceRateLimit;
 
   @Getter private final boolean profilingEnabled;
   @Deprecated private final String profilingUrl;
@@ -562,7 +562,7 @@ public class Config {
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
     traceSampleRate = configProvider.getDouble(TRACE_SAMPLE_RATE);
-    traceRateLimit = configProvider.getDouble(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
+    traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
     profilingUrl = configProvider.getString(PROFILING_URL);

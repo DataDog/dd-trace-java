@@ -22,24 +22,21 @@ ext {
     commons       : "3.2",
     mockito       : '3.5.10',
     testcontainers: '1.12.2',
-    jmc           : "8.0.0-SNAPSHOT"
+    jmc           : "8.0.0-SNAPSHOT",
+    autoservice   : "1.0-rc7"
   ]
 
   deps = [
     // General
-    slf4j         : "org.slf4j:slf4j-api:${versions.slf4j}",
-    guava         : "com.google.guava:guava:$versions.guava",
-    okhttp        : dependencies.create(group: 'com.squareup.okhttp3', name: 'okhttp', version: versions.okhttp),
-    okio          : dependencies.create(group: 'com.squareup.okio', name: 'okio', version: versions.okio),
-    bytebuddy     : dependencies.create(group: 'net.bytebuddy', name: 'byte-buddy', version: versions.bytebuddy),
-    bytebuddyagent: dependencies.create(group: 'net.bytebuddy', name: 'byte-buddy-agent', version: versions.bytebuddy),
-    autoservice   : [
-      dependencies.create(group: 'com.google.auto.service', name: 'auto-service', version: '1.0-rc3'),
-      dependencies.create(group: 'com.google.auto', name: 'auto-common', version: '0.8'),
-      // These are the last versions that support guava 20.0.  Upgrading has odd interactions with shadow.
-      dependencies.create(group: 'com.google.guava', name: 'guava', version: "${versions.guava}"),
-    ],
-    commonsMath   : dependencies.create(group: 'org.apache.commons', name: 'commons-math3', version: versions.commons),
+    slf4j                : "org.slf4j:slf4j-api:${versions.slf4j}",
+    guava                : "com.google.guava:guava:$versions.guava",
+    okhttp               : dependencies.create(group: 'com.squareup.okhttp3', name: 'okhttp', version: versions.okhttp),
+    okio                 : dependencies.create(group: 'com.squareup.okio', name: 'okio', version: versions.okio),
+    bytebuddy            : dependencies.create(group: 'net.bytebuddy', name: 'byte-buddy', version: versions.bytebuddy),
+    bytebuddyagent       : dependencies.create(group: 'net.bytebuddy', name: 'byte-buddy-agent', version: versions.bytebuddy),
+    autoserviceProcessor : dependencies.create(group: 'com.google.auto.service', name: 'auto-service', version: versions.autoservice),
+    autoserviceAnnotation: dependencies.create(group: 'com.google.auto.service', name: 'auto-service-annotations', version: versions.autoservice),
+    commonsMath          : dependencies.create(group: 'org.apache.commons', name: 'commons-math3', version: versions.commons),
 
     // Testing
 

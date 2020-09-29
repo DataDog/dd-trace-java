@@ -1,11 +1,11 @@
 package datadog.trace.common.sampling;
 
-import com.google.common.util.concurrent.RateLimiter;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.sampling.SamplingRule.AlwaysMatchesSamplingRule;
 import datadog.trace.common.sampling.SamplingRule.OperationSamplingRule;
 import datadog.trace.common.sampling.SamplingRule.ServiceSamplingRule;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.util.SimpleRateLimiter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,19 +16,20 @@ import lombok.extern.slf4j.Slf4j;
 public class RuleBasedSampler implements Sampler, PrioritySampler {
   private final List<SamplingRule> samplingRules;
   private final PrioritySampler fallbackSampler;
-  private final RateLimiter rateLimiter;
-  private final double rateLimit;
+  private final SimpleRateLimiter rateLimiter;
+  private final long rateLimit;
 
   public static final String SAMPLING_RULE_RATE = "_dd.rule_psr";
   public static final String SAMPLING_LIMIT_RATE = "_dd.limit_psr";
 
   public RuleBasedSampler(
       final List<SamplingRule> samplingRules,
-      final double rateLimit,
+      final long rateLimit,
       final PrioritySampler fallbackSampler) {
     this.samplingRules = samplingRules;
     this.fallbackSampler = fallbackSampler;
-    rateLimiter = RateLimiter.create(rateLimit);
+    rateLimiter = new SimpleRateLimiter(rateLimit);
+
     this.rateLimit = rateLimit;
   }
 
@@ -36,7 +37,7 @@ public class RuleBasedSampler implements Sampler, PrioritySampler {
       final Map<String, String> serviceRules,
       final Map<String, String> operationRules,
       final Double defaultRate,
-      final double rateLimit) {
+      final long rateLimit) {
 
     final List<SamplingRule> samplingRules = new ArrayList<>();
 

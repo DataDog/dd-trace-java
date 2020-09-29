@@ -15,8 +15,10 @@ dependencies {
   compile group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.15'
   compile deps.bytebuddy
   compile deps.bytebuddyagent
-  annotationProcessor deps.autoservice
-  implementation deps.autoservice
+  compile deps.guava
+
+  annotationProcessor deps.autoserviceProcessor
+  compileOnly deps.autoserviceAnnotation
 
   compile project(':dd-trace-core')
   compile project(':dd-trace-core:jfr-openjdk')

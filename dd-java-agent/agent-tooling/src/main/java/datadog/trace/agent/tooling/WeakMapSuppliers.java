@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling;
 
 import com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap;
-import com.google.common.annotations.VisibleForTesting;
 import datadog.common.exec.AgentTaskScheduler;
 import datadog.common.exec.AgentTaskScheduler.Task;
 import datadog.trace.bootstrap.WeakMap;
@@ -31,7 +30,7 @@ class WeakMapSuppliers {
    */
   static class WeakConcurrent implements WeakMap.Implementation {
 
-    @VisibleForTesting static final long CLEAN_FREQUENCY_SECONDS = 1;
+    static final long CLEAN_FREQUENCY_SECONDS = 1;
 
     @Override
     public <K, V> WeakMap<K, V> get() {
