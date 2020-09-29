@@ -108,13 +108,11 @@ public final class ProfilingSystem {
   }
 
   public final void start() {
-    if (log.isInfoEnabled()) {
-      log.info(
-          "Starting profiling system: startupDelay={}ms, uploadPeriod={}ms, isStartingFirst={}",
-          startupDelay.toMillis(),
-          uploadPeriod.toMillis(),
-          isStartingFirst);
-    }
+    log.debug(
+        "Starting profiling system: startupDelay={}ms, uploadPeriod={}ms, isStartingFirst={}",
+        startupDelay.toMillis(),
+        uploadPeriod.toMillis(),
+        isStartingFirst);
 
     if (isStartingFirst) {
       startProfilingRecording();

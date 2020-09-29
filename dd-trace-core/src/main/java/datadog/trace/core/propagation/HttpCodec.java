@@ -110,7 +110,7 @@ public class HttpCodec {
     try {
       encoded = URLEncoder.encode(value, "UTF-8");
     } catch (final UnsupportedEncodingException e) {
-      log.info("Failed to encode value - {}", value);
+      log.debug("Failed to encode value - {}", value);
     }
     return encoded;
   }
@@ -121,7 +121,7 @@ public class HttpCodec {
     try {
       decoded = URLDecoder.decode(value, "UTF-8");
     } catch (final UnsupportedEncodingException e) {
-      log.info("Failed to decode value - {}", value);
+      log.debug("Failed to decode value - {}", value);
     }
     return decoded;
   }

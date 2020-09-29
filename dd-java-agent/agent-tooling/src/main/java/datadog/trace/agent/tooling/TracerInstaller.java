@@ -28,6 +28,6 @@ public class TracerInstaller {
     } catch (final RuntimeException re) {
       log.warn("Failed to register tracer: {}", tracer, re);
     }
-    log.info("Global tracer installed");
+    log.debug("Global tracer installed");
   }
 }

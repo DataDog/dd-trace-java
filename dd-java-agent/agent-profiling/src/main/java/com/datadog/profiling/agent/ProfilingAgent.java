@@ -36,7 +36,7 @@ public class ProfilingAgent {
         return;
       }
       if (!config.isProfilingEnabled()) {
-        log.info("Profiling: disabled");
+        log.debug("Profiling: disabled");
         return;
       }
       if (config.getApiKey() != null && !API_KEY_REGEX.test(config.getApiKey())) {
@@ -66,7 +66,7 @@ public class ProfilingAgent {
                 uploadPeriod,
                 config.isProfilingStartForceFirst());
         profiler.start();
-        log.info("Profiling has started");
+        log.debug("Profiling has started");
 
         try {
           /*

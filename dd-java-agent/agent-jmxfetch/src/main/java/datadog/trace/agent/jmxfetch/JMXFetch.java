@@ -36,7 +36,7 @@ public class JMXFetch {
   // This is used by tests
   private static void run(final Config config) {
     if (!config.isJmxFetchEnabled()) {
-      log.info("JMXFetch is disabled");
+      log.debug("JMXFetch is disabled");
       return;
     }
 

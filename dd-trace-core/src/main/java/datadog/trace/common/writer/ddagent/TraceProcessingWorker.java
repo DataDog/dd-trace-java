@@ -185,7 +185,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
-      log.info("datadog trace processor exited");
+      log.debug("datadog trace processor exited");
     }
 
     private void runDutyCycle() throws InterruptedException {
