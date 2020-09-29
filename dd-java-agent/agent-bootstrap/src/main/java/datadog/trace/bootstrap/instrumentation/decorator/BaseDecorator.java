@@ -179,7 +179,7 @@ public abstract class BaseDecorator {
    * @param clazz
    * @return
    */
-  public CharSequence spanNameForClass(final Class<?> clazz) {
+  public CharSequence className(final Class<?> clazz) {
     String simpleName = clazz.getSimpleName();
     return simpleName.isEmpty() ? CLASS_NAMES.getClassName(clazz) : simpleName;
   }

@@ -78,7 +78,7 @@ public final class RediscalaInstrumentation extends Instrumenter.Default {
     public static AgentScope onEnter(@Advice.Argument(0) final RedisCommand cmd) {
       final AgentSpan span = startSpan(REDIS_COMMAND);
       DECORATE.afterStart(span);
-      DECORATE.onStatement(span, DECORATE.spanNameForClass(cmd.getClass()));
+      DECORATE.onStatement(span, DECORATE.className(cmd.getClass()));
       return activateSpan(span);
     }
 

@@ -28,7 +28,7 @@ public class AdviceUtils {
   public static String parseOperationName(final Object handler) {
     // TODO standardise this logic (we don't want lambda names in resource names) and make it
     // cacheable
-    final String className = String.valueOf(DECORATE.spanNameForClass(handler.getClass()));
+    final String className = String.valueOf(DECORATE.className(handler.getClass()));
     final String operationName;
     final int lambdaIdx = className.indexOf("$$Lambda$");
 
