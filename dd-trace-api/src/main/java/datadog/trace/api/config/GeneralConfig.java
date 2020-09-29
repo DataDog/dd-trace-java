@@ -25,6 +25,8 @@ public final class GeneralConfig {
   @Deprecated // Use dd.tags instead
   public static final String GLOBAL_TAGS = "trace.global.tags";
 
+  public static final String RUNTIME_METRICS_ENABLED = "runtime.metrics.enabled";
+
   public static final String HEALTH_METRICS_ENABLED = "trace.health.metrics.enabled";
   public static final String HEALTH_METRICS_STATSD_HOST = "trace.health.metrics.statsd.host";
   public static final String HEALTH_METRICS_STATSD_PORT = "trace.health.metrics.statsd.port";
