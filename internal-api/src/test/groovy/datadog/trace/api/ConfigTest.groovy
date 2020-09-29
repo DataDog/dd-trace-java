@@ -836,12 +836,14 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set("DD_ORDER_ANALYTICS_ENABLED", "false")
     environmentVariables.set("DD_TEST_ENV_ANALYTICS_ENABLED", "true")
     environmentVariables.set("DD_DISABLED_ENV_ANALYTICS_ENABLED", "false")
+    // trace prefix form should take precedence over the old non-prefix form
     environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_ENABLED", "false")
     environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_ENABLED", "true")
 
     System.setProperty("dd.order.analytics.enabled", "true")
     System.setProperty("dd.test-prop.analytics.enabled", "true")
     System.setProperty("dd.disabled-prop.analytics.enabled", "false")
+    // trace prefix form should take precedence over the old non-prefix form
     System.setProperty("dd.alias-prop.analytics.enabled", "false")
     System.setProperty("dd.trace.alias-prop.analytics.enabled", "true")
 
@@ -1147,11 +1149,13 @@ class ConfigTest extends DDSpecification {
     setup:
     environmentVariables.set("DD_FOO_ANALYTICS_SAMPLE_RATE", "0.5")
     environmentVariables.set("DD_BAR_ANALYTICS_SAMPLE_RATE", "0.9")
+    // trace prefix form should take precedence over the old non-prefix form
     environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.8")
     environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.4")
 
     System.setProperty("dd.baz.analytics.sample-rate", "0.7")
     System.setProperty("dd.buzz.analytics.sample-rate", "0.3")
+    // trace prefix form should take precedence over the old non-prefix form
     System.setProperty("dd.alias-prop.analytics.sample-rate", "0.1")
     System.setProperty("dd.trace.alias-prop.analytics.sample-rate", "0.2")
 
