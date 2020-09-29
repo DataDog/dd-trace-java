@@ -257,6 +257,56 @@ class OpenTracingAPITest extends DDSpecification {
     }
   }
 
+  def "span inherits async propagation"() {
+    when:
+    Scope outer = tracer.buildSpan("someOperation")
+      .withTag(DDTags.SERVICE_NAME, "someService")
+      .startActive(true)
+
+    then:
+    outer instanceof TraceScope
+    !((TraceScope) outer).isAsyncPropagating()
+
+    when:
+    ((TraceScope) outer).setAsyncPropagation(true)
+    Scope inner = tracer.buildSpan("otherOperation")
+      .withTag(DDTags.SERVICE_NAME, "otherService")
+      .startActive(true)
+
+    then:
+    inner instanceof TraceScope
+    ((TraceScope) outer).isAsyncPropagating()
+    ((TraceScope) inner).isAsyncPropagating()
+
+    when:
+    inner.close()
+    outer.close()
+
+    then:
+    1 * traceInterceptor.onTraceComplete( { it.size() == 2 }) >> { args -> args[0] }
+
+    assertTraces(writer, 1) {
+      trace(2) {
+        span {
+          serviceName "someService"
+          operationName "someOperation"
+          resourceName "someOperation"
+          tags {
+            defaultTags()
+          }
+        }
+        span {
+          serviceName "otherService"
+          operationName "otherOperation"
+          resourceName "otherOperation"
+          tags {
+            defaultTags()
+          }
+        }
+      }
+    }
+  }
+
   def "SpanContext ids equal tracer ids"() {
     when:
     Span testSpan = tracer.buildSpan("someOperation")

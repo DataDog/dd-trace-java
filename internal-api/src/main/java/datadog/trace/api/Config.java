@@ -168,6 +168,8 @@ public class Config {
   public static final String SPLIT_BY_TAGS = TracerConfig.SPLIT_BY_TAGS;
   public static final String SCOPE_DEPTH_LIMIT = TracerConfig.SCOPE_DEPTH_LIMIT;
   public static final String SCOPE_STRICT_MODE = TracerConfig.SCOPE_STRICT_MODE;
+  public static final String SCOPE_INHERIT_ASYNC_PROPAGATION =
+      TracerConfig.SCOPE_INHERIT_ASYNC_PROPAGATION;
   public static final String PARTIAL_FLUSH_MIN_SPANS = TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -301,6 +303,7 @@ public class Config {
   @Getter private final Set<String> splitByTags;
   @Getter private final int scopeDepthLimit;
   @Getter private final boolean scopeStrictMode;
+  @Getter private final boolean scopeInheritAsyncPropagation;
   @Getter private final int partialFlushMinSpans;
   @Getter private final boolean runtimeContextFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
@@ -495,6 +498,8 @@ public class Config {
     scopeDepthLimit = configProvider.getInteger(SCOPE_DEPTH_LIMIT, DEFAULT_SCOPE_DEPTH_LIMIT);
 
     scopeStrictMode = configProvider.getBoolean(SCOPE_STRICT_MODE, false);
+
+    scopeInheritAsyncPropagation = configProvider.getBoolean(SCOPE_INHERIT_ASYNC_PROPAGATION, true);
 
     partialFlushMinSpans =
         configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
