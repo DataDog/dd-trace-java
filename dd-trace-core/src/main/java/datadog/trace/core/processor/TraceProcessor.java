@@ -9,7 +9,6 @@ import datadog.trace.core.processor.rule.ErrorRule;
 import datadog.trace.core.processor.rule.HttpStatusErrorRule;
 import datadog.trace.core.processor.rule.MarkSpanForMetricCalculationRule;
 import datadog.trace.core.processor.rule.ResourceNameRule;
-import datadog.trace.core.processor.rule.SpanTypeRule;
 import datadog.trace.core.processor.rule.URLAsResourceNameRule;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +21,6 @@ public class TraceProcessor {
         // Rules are applied in order.
         new DBStatementRule(),
         new ResourceNameRule(),
-        new SpanTypeRule(),
         new ErrorRule(),
         new HttpStatusErrorRule(),
         new URLAsResourceNameRule(),

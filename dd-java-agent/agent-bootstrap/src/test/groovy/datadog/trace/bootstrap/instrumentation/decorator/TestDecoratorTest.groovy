@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-import datadog.trace.api.DDTags
+
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -48,7 +48,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
-    1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
+    1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
@@ -81,7 +81,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
-    1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
+    1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setTag(Tags.CI_PROVIDER_NAME, JENKINS_PROVIDER_NAME)
@@ -140,7 +140,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
-    1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
+    1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setTag(Tags.CI_PROVIDER_NAME, GITLAB_PROVIDER_NAME)

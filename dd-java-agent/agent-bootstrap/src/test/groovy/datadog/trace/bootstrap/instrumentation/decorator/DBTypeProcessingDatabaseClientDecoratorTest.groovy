@@ -22,7 +22,7 @@ class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
     }
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, "client")
-    1 * span.setTag(DDTags.SPAN_TYPE, "test-type")
+    1 * span.setSpanType("test-type")
     1 * span.setServiceName("test-db")
     1 * span.setOperationName(UTF8BytesString.create("test-db.query"))
     1 * span.setTag("db.type", "test-db") // is this really necessary or a waste of space and cycles?

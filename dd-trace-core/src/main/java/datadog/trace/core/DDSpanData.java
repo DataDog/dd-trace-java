@@ -29,7 +29,7 @@ public interface DDSpanData {
 
   Map<String, Object> getTags();
 
-  String getType();
+  CharSequence getType();
 
   void processTagsAndBaggage(TagsAndBaggageConsumer consumer);
 }

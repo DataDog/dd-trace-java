@@ -54,11 +54,11 @@ public final class ExclusiveSpan {
     context.setErrorFlag(error);
   }
 
-  public String getType() {
+  public CharSequence getType() {
     return context.getSpanType();
   }
 
-  public void setType(final String type) {
+  public void setType(final CharSequence type) {
     context.setSpanType(type);
   }
 

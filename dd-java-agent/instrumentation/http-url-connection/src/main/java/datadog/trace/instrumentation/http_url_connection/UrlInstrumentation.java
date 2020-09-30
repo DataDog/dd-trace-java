@@ -11,11 +11,11 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.InternalJarURLHandler;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.net.URL;
 import java.net.URLStreamHandler;
@@ -67,7 +67,7 @@ public class UrlInstrumentation extends Instrumenter.Default {
         final AgentSpan span =
             startSpan(protocol + ".request")
                 .setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT)
-                .setTag(DDTags.SPAN_TYPE, DDSpanTypes.HTTP_CLIENT)
+                .setSpanType(InternalSpanTypes.HTTP_CLIENT)
                 .setTag(Tags.COMPONENT, COMPONENT);
 
         try (final AgentScope scope = activateSpan(span)) {
