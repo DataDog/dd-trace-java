@@ -155,7 +155,6 @@ public final class ProfilingSystem {
   private static void setMaxStackDepth() {
     int maxFrames = ProfilingSystem.DEFAULT_STACK_DEPTH;
 
-    // don't set stackdepth if the client has explicitly set it
     final Optional<String> userSpecifiedStackDepth =
         readJFRStackDepth(SystemAccess.getVMArguments());
     if (userSpecifiedStackDepth.isPresent()) {

@@ -3,6 +3,7 @@ package datadog.trace.core.util
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Config
 import datadog.trace.util.test.DDSpecification
+import org.junit.Assume
 
 import java.lang.management.ManagementFactory
 
@@ -148,6 +149,7 @@ class SystemAccessTest extends DDSpecification {
 
   def "JMX - executeDiagnosticCommand"() {
     setup:
+    Assume.assumeFalse(System.getProperty("java.specification.version") == "1.7")
     ConfigUtils.updateConfig {
       System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
     }
