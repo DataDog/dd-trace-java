@@ -717,7 +717,8 @@ public class Config {
    */
   public float getInstrumentationAnalyticsSampleRate(final String... aliases) {
     for (final String alias : aliases) {
-      final Float rate = configProvider.getFloat(alias + ".analytics.sample-rate");
+      final String configKey = alias + ".analytics.sample-rate";
+      final Float rate = configProvider.getFloat("trace." + configKey, configKey);
       if (null != rate) {
         return rate;
       }
@@ -841,8 +842,9 @@ public class Config {
     // if default is disabled, we want to disable individually.
     boolean anyEnabled = defaultEnabled;
     for (final String name : integrationNames) {
+      final String configKey = settingPrefix + name + settingSuffix;
       final boolean configEnabled =
-          configProvider.getBoolean(settingPrefix + name + settingSuffix, defaultEnabled);
+          configProvider.getBoolean("trace." + configKey, defaultEnabled, configKey);
       if (defaultEnabled) {
         anyEnabled &= configEnabled;
       } else {
