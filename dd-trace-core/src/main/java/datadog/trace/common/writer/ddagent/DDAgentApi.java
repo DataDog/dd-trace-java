@@ -303,7 +303,7 @@ public class DDAgentApi {
       final HttpUrl url,
       final String unixDomainSocketPath,
       final long timeoutMillis) {
-    final OkHttpClient client = buildHttpClient(unixDomainSocketPath, timeoutMillis);
+    final OkHttpClient client = buildHttpClient(url.scheme(), unixDomainSocketPath, timeoutMillis);
     try {
       return validateClient(endpoint, client, url);
     } catch (final IOException e) {
@@ -333,18 +333,21 @@ public class DDAgentApi {
   }
 
   private static OkHttpClient buildHttpClient(
-      final String unixDomainSocketPath, final long timeoutMillis) {
+      final String scheme, final String unixDomainSocketPath, final long timeoutMillis) {
     OkHttpClient.Builder builder = new OkHttpClient.Builder();
     if (unixDomainSocketPath != null) {
       builder = builder.socketFactory(new UnixDomainSocketFactory(new File(unixDomainSocketPath)));
     }
+
+    if (!"https".equals(scheme)) {
+      // force clear text when using http to avoid failures for JVMs without TLS
+      builder = builder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
+    }
+
     return builder
         .connectTimeout(timeoutMillis, MILLISECONDS)
         .writeTimeout(timeoutMillis, MILLISECONDS)
         .readTimeout(timeoutMillis, MILLISECONDS)
-
-        // We only use http to talk to the agent
-        .connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT))
 
         // We don't do async so this shouldn't matter, but just to be safe...
         .dispatcher(new Dispatcher(RejectingExecutorService.INSTANCE))
