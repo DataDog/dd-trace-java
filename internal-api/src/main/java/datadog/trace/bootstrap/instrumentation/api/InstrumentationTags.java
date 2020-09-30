@@ -50,7 +50,6 @@ public class InstrumentationTags {
   public static final String HYSTRIX_COMMAND = "hystrix.command";
   public static final String HYSTRIX_CIRCUIT_OPEN = "hystrix.circuit-open";
   public static final String HYSTRIX_GROUP = "hystrix.group";
-  public static final String SPAN_ORIGIN_TYPE = "span.origin.type";
   public static final String SERVLET_CONTEXT = "servlet.context";
   public static final String SERVLET_PATH = "servlet.path";
   public static final String SERVLET_DISPATCH = "servlet.dispatch";

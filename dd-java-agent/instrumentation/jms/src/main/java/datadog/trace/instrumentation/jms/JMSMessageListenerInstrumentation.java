@@ -69,9 +69,7 @@ public final class JMSMessageListenerInstrumentation extends Instrumenter.Defaul
 
       final Context extractedContext = propagate().extract(message, GETTER);
 
-      final AgentSpan span =
-          startSpan(JMS_ONMESSAGE, extractedContext)
-              .setTag("span.origin.type", listener.getClass().getName());
+      final AgentSpan span = startSpan(JMS_ONMESSAGE, extractedContext);
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onReceive(span, message);
 

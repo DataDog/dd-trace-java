@@ -116,7 +116,6 @@ class JettyHandlerTest extends HttpServerTest<Server> {
 
   @Override
   void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
-    def handlerName = handler().class.name
     trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
@@ -137,7 +136,6 @@ class JettyHandlerTest extends HttpServerTest<Server> {
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" endpoint.status
-        "span.origin.type" handlerName
         if (endpoint.errored) {
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }

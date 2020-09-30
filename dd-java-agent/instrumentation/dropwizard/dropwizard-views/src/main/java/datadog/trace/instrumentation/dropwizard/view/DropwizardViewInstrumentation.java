@@ -63,8 +63,7 @@ public final class DropwizardViewInstrumentation extends Instrumenter.Default {
       final AgentSpan span =
           startSpan("view.render")
               .setTag(DDTags.RESOURCE_NAME, "View " + view.getTemplateName())
-              .setTag(Tags.COMPONENT, "dropwizard-view")
-              .setTag("span.origin.type", obj.getClass().getSimpleName());
+              .setTag(Tags.COMPONENT, "dropwizard-view");
       return activateSpan(span);
     }
 

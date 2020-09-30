@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import okhttp3.Request
 import okhttp3.RequestBody
-import org.apache.catalina.core.ApplicationFilterChain
 
 import javax.servlet.Servlet
 
@@ -105,7 +104,6 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
           "servlet.context" "/$context"
         }
         "servlet.path" { it == endpoint.path || it == "/dispatch$endpoint.path" }
-        "span.origin.type" { it == servlet.name || it == ApplicationFilterChain.name }
         if (endpoint.errored) {
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }

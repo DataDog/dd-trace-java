@@ -100,7 +100,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/$forwardFromFileName"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/$forwardFromFileName"
             defaultTags()
@@ -114,7 +113,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" jspForwardFromClassName
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             defaultTags()
@@ -128,7 +126,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" jspForwardDestClassName
             "servlet.context" "/$jspWebappContext"
             "jsp.forwardOrigin" "/$forwardFromFileName"
             "jsp.requestURL" baseUrl + "/$forwardDestFileName"
@@ -202,7 +199,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToHtml.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToHtml.jsp"
             defaultTags()
@@ -216,7 +212,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "forwardToHtml_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             defaultTags()
@@ -270,7 +265,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToIncludeMulti.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToIncludeMulti.jsp"
             defaultTags()
@@ -284,7 +278,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "forwardToIncludeMulti_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             defaultTags()
@@ -298,7 +291,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "includeMulti_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.forwardOrigin" "/forwards/forwardToIncludeMulti.jsp"
             "jsp.requestURL" baseUrl + "/includes/includeMulti.jsp"
@@ -313,7 +305,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "javaLoopH2_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.forwardOrigin" "/forwards/forwardToIncludeMulti.jsp"
             "jsp.requestURL" baseUrl + "/includes/includeMulti.jsp"
@@ -342,7 +333,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "javaLoopH2_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.forwardOrigin" "/forwards/forwardToIncludeMulti.jsp"
             "jsp.requestURL" baseUrl + "/includes/includeMulti.jsp"
@@ -425,7 +415,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToJspForward.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 200
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToJspForward.jsp"
             defaultTags()
@@ -439,7 +428,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "forwardToJspForward_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             defaultTags()
@@ -453,7 +441,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "forwardToSimpleJava_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.forwardOrigin" "/forwards/forwardToJspForward.jsp"
             "jsp.requestURL" baseUrl + "/forwards/forwardToSimpleJava.jsp"
@@ -468,7 +455,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "loop_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.forwardOrigin" "/forwards/forwardToJspForward.jsp"
             "jsp.requestURL" baseUrl + "/common/loop.jsp"
@@ -551,7 +537,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToCompileError.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 500
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToCompileError.jsp"
             errorTags(JasperException, String)
@@ -566,7 +551,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
           errored true
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "forwardToCompileError_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             errorTags(JasperException, String)
@@ -636,7 +620,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
             "$Tags.HTTP_URL" "http://localhost:$port/$jspWebappContext/forwards/forwardToNonExistent.jsp"
             "$Tags.HTTP_METHOD" "GET"
             "$Tags.HTTP_STATUS" 404
-            "span.origin.type" "org.apache.catalina.core.ApplicationFilterChain"
             "servlet.context" "/$jspWebappContext"
             "servlet.path" "/forwards/forwardToNonExistent.jsp"
             defaultTags()
@@ -650,7 +633,6 @@ class JSPInstrumentationForwardTests extends AgentTestRunner {
           errored false
           tags {
             "$Tags.COMPONENT" "jsp-http-servlet"
-            "span.origin.type" "forwardToNonExistent_jsp"
             "servlet.context" "/$jspWebappContext"
             "jsp.requestURL" reqUrl
             defaultTags()

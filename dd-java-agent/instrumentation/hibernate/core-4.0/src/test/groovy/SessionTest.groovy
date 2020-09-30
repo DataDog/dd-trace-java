@@ -87,7 +87,6 @@ class SessionTest extends AbstractHibernateTest {
               "$Tags.DB_TYPE" "h2"
               "$Tags.DB_INSTANCE" "db1"
               "$Tags.DB_USER" "sa"
-              "span.origin.type" "org.h2.jdbc.JdbcPreparedStatement"
               defaultTags()
             }
           }
@@ -175,7 +174,6 @@ class SessionTest extends AbstractHibernateTest {
             "$Tags.DB_TYPE" "h2"
             "$Tags.DB_INSTANCE" "db1"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.h2.jdbc.JdbcPreparedStatement"
             defaultTags()
           }
         }
@@ -201,7 +199,6 @@ class SessionTest extends AbstractHibernateTest {
             "$Tags.DB_TYPE" "h2"
             "$Tags.DB_INSTANCE" "db1"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.h2.jdbc.JdbcPreparedStatement"
             defaultTags()
           }
         }
@@ -338,7 +335,6 @@ class SessionTest extends AbstractHibernateTest {
             "$Tags.DB_TYPE" "h2"
             "$Tags.DB_INSTANCE" "db1"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.h2.jdbc.JdbcPreparedStatement"
             defaultTags()
           }
         }
@@ -448,7 +444,6 @@ class SessionTest extends AbstractHibernateTest {
             "$Tags.DB_TYPE" "h2"
             "$Tags.DB_INSTANCE" "db1"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.h2.jdbc.JdbcPreparedStatement"
             defaultTags()
           }
         }
@@ -542,7 +537,6 @@ class SessionTest extends AbstractHibernateTest {
             "$Tags.DB_TYPE" "h2"
             "$Tags.DB_INSTANCE" "db1"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.h2.jdbc.JdbcPreparedStatement"
             defaultTags()
           }
         }
@@ -556,7 +550,6 @@ class SessionTest extends AbstractHibernateTest {
             "$Tags.DB_TYPE" "h2"
             "$Tags.DB_INSTANCE" "db1"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.h2.jdbc.JdbcPreparedStatement"
             defaultTags()
           }
         }
@@ -618,7 +611,6 @@ class SessionTest extends AbstractHibernateTest {
             "$Tags.DB_TYPE" "h2"
             "$Tags.DB_INSTANCE" "db1"
             "$Tags.DB_USER" "sa"
-            "span.origin.type" "org.h2.jdbc.JdbcPreparedStatement"
             defaultTags()
           }
         }

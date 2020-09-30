@@ -160,7 +160,6 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
             if (username != null) {
               "$Tags.DB_USER" username
             }
-            "span.origin.type" String
             defaultTags()
           }
         }

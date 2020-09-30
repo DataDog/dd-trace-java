@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MESSAGE_SIZE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.SPAN_ORIGIN_TYPE;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CONSUMER_DECORATE;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
@@ -84,7 +83,6 @@ public class TracedDelegatingConsumer implements Consumer {
       final AgentSpan span =
           startSpan(AMQP_COMMAND, context)
               .setTag(MESSAGE_SIZE, body == null ? 0 : body.length)
-              .setTag(SPAN_ORIGIN_TYPE, delegate.getClass().getName())
               .setTag(DD_MEASURED, true);
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);

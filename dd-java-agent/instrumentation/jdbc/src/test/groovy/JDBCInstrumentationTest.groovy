@@ -12,7 +12,6 @@ import org.hsqldb.jdbc.JDBCDriver
 import spock.lang.Shared
 import spock.lang.Unroll
 import test.TestConnection
-import test.TestStatement
 
 import javax.sql.DataSource
 import java.sql.CallableStatement
@@ -190,7 +189,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             if (username != null) {
               "$Tags.DB_USER" username
             }
-            "span.origin.type" String
             defaultTags()
           }
         }
@@ -250,7 +248,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             if (username != null) {
               "$Tags.DB_USER" username
             }
-            "span.origin.type" String
             defaultTags()
           }
         }
@@ -302,7 +299,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             if (username != null) {
               "$Tags.DB_USER" username
             }
-            "span.origin.type" String
             defaultTags()
           }
         }
@@ -354,7 +350,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             if (username != null) {
               "$Tags.DB_USER" username
             }
-            "span.origin.type" String
             defaultTags()
           }
         }
@@ -406,7 +401,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             if (username != null) {
               "$Tags.DB_USER" username
             }
-            "span.origin.type" String
             defaultTags()
           }
         }
@@ -461,7 +455,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             if (username != null) {
               "$Tags.DB_USER" username
             }
-            "span.origin.type" String
             defaultTags()
           }
         }
@@ -532,7 +525,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             if (username != null) {
               "$Tags.DB_USER" username
             }
-            "span.origin.type" String
             defaultTags()
           }
         }
@@ -641,7 +633,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             "$Tags.COMPONENT" "java-jdbc-statement"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
             "$Tags.DB_TYPE" database
-            "span.origin.type" TestStatement.name
             defaultTags()
           }
         }
@@ -707,7 +698,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
             "$Tags.DB_TYPE" dbType
             "$Tags.DB_INSTANCE" dbName.toLowerCase()
             "$Tags.DB_USER" "SA"
-            "span.origin.type" String
             defaultTags()
           }
         }
@@ -726,7 +716,6 @@ class JDBCInstrumentationTest extends AgentTestRunner {
               "$Tags.DB_TYPE" dbType
               "$Tags.DB_INSTANCE" dbName.toLowerCase()
               "$Tags.DB_USER" "SA"
-              "span.origin.type" String
               defaultTags()
             }
           }

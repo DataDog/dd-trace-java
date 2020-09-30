@@ -62,10 +62,7 @@ public final class JSPInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.This final Object obj, @Advice.Argument(0) final HttpServletRequest req) {
-      final AgentSpan span =
-          startSpan(JSP_RENDER)
-              .setTag("span.origin.type", obj.getClass().getSimpleName())
-              .setTag("servlet.context", req.getContextPath());
+      final AgentSpan span = startSpan(JSP_RENDER).setTag("servlet.context", req.getContextPath());
       DECORATE.afterStart(span);
       DECORATE.onRender(span, req);
       return activateSpan(span);

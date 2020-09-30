@@ -55,9 +55,7 @@ public class Servlet2Advice {
     final AgentSpan.Context extractedContext = propagate().extract(httpServletRequest, GETTER);
 
     final AgentSpan span =
-        startSpan(SERVLET_REQUEST, extractedContext)
-            .setTag("span.origin.type", servlet.getClass().getName())
-            .setTag(InstrumentationTags.DD_MEASURED, true);
+        startSpan(SERVLET_REQUEST, extractedContext).setTag(InstrumentationTags.DD_MEASURED, true);
 
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, httpServletRequest);
