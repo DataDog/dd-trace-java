@@ -149,7 +149,10 @@ class SystemAccessTest extends DDSpecification {
 
   def "JMX - executeDiagnosticCommand"() {
     setup:
-    Assume.assumeFalse(System.getProperty("java.specification.version") == "1.7")
+    def vmVersion = System.getProperty("java.specification.version")
+    def vmVendor = System.getProperty("java.vendor")
+    Assume.assumeFalse(vmVersion == "1.7")
+    Assume.assumeFalse(vmVersion == "1.8" && vmVendor.contains("IBM"))
     ConfigUtils.updateConfig {
       System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
     }
