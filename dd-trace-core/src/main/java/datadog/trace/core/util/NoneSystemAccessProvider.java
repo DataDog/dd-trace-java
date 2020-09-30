@@ -17,7 +17,7 @@ final class NoneSystemAccessProvider implements SystemAccessProvider {
   @Override
   public String executeDiagnosticCommand(
       final String command, final Object[] args, final String[] sig) {
-    return null;
+    return "Not executed, JMX not initialized.";
   }
 
   @Override

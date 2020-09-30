@@ -68,6 +68,8 @@ public final class SystemAccess {
   /**
    * Invokes command on {@code com.sun.management:type=DiagnosticCommand}. See {@link
    * javax.management.MBeanServer#invoke(ObjectName, String, Object[], String[])}
+   *
+   * @return string result of invoking diagnostic command, null if nothing executed
    */
   public static String executeDiagnosticCommand(
       final String command, final Object[] args, final String[] sig) {

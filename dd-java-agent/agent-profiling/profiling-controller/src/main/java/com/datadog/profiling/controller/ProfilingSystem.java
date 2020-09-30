@@ -162,11 +162,13 @@ public final class ProfilingSystem {
       maxFrames = stackDepthFromClient(userSpecifiedStackDepth.get());
     }
 
-    log.info("setting JFR.configure stackdepth=" + maxFrames);
-    SystemAccess.executeDiagnosticCommand(
-        "jfrConfigure",
-        new Object[] {new String[] {"stackdepth=" + maxFrames}},
-        new String[] {String[].class.getName()});
+    final String result =
+        SystemAccess.executeDiagnosticCommand(
+            "jfrConfigure",
+            new Object[] {new String[] {"stackdepth=" + maxFrames}},
+            new String[] {String[].class.getName()});
+
+    log.info("setting JFR.configure stackdepth: {}", result);
   }
 
   protected static Optional<String> readJFRStackDepth(final List<String> vmArgs) {

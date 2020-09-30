@@ -53,16 +53,16 @@ final class JmxSystemAccessProvider implements SystemAccessProvider {
       diagnosticCommandMBean = new ObjectName("com.sun.management:type=DiagnosticCommand");
     } catch (final MalformedObjectNameException ex) {
       log.warn("Error during executeDiagnosticCommand: ", ex);
-      return null;
+      return ex.getMessage();
     }
     try {
       final Object result =
           ManagementFactory.getPlatformMBeanServer()
               .invoke(diagnosticCommandMBean, command, args, sig);
-      return result != null ? result.toString() : null;
+      return result != null ? result.toString().trim() : null;
     } catch (final Throwable ex) {
       log.warn("Error invoking diagnostic command: ", ex);
-      return null;
+      return ex.getMessage();
     }
   }
 

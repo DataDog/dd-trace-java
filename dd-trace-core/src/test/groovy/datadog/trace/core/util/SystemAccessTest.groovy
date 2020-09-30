@@ -154,12 +154,13 @@ class SystemAccessTest extends DDSpecification {
     SystemAccess.enableJmx()
 
     when:
-    SystemAccess.executeDiagnosticCommand(
+    def result = SystemAccess.executeDiagnosticCommand(
       "jfrConfigure",
-      [["stackdepth=64"].toArray() as String[]].toArray() as Object[],
+      [["stackdepth=128"].toArray() as String[]].toArray() as Object[],
       [String[].class.getName()].toArray() as String[])
 
     then:
+    "Stack depth: 128" == result
     noExceptionThrown()
 
     cleanup:
@@ -173,12 +174,13 @@ class SystemAccessTest extends DDSpecification {
     }
 
     when:
-    SystemAccess.executeDiagnosticCommand(
+    def result = SystemAccess.executeDiagnosticCommand(
       "jfrConfigure",
-      [["stackdepth=64"].toArray() as String[]].toArray() as Object[],
+      [["stackdepth=128"].toArray() as String[]].toArray() as Object[],
       [String[].class.getName()].toArray() as String[])
 
     then:
+    "Not executed, JMX not initialized." == result
     noExceptionThrown()
   }
 }
