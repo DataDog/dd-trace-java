@@ -242,6 +242,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
       (1..count).eachWithIndex { val, i ->
         if (hasHandlerSpan()) {
           trace(3) {
+            sortSpansByStart()
             serverSpan(it)
             handlerSpan(it, span(0))
             controllerSpan(it, span(1))
@@ -279,6 +280,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
         trace(3) {
+          sortSpansByStart()
           serverSpan(it, traceId, parentId)
           handlerSpan(it, span(0))
           controllerSpan(it, span(1))
@@ -311,6 +313,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
         trace(3) {
+          sortSpansByStart()
           serverSpan(it, null, null, "GET", endpoint)
           handlerSpan(it, span(0), endpoint)
           controllerSpan(it, span(1))
@@ -343,6 +346,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
         trace(3) {
+          sortSpansByStart()
           serverSpan(it, null, null, method, PATH_PARAM)
           handlerSpan(it, span(0), PATH_PARAM)
           controllerSpan(it, span(1))
@@ -379,6 +383,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
         trace(3) {
+          sortSpansByStart()
           serverSpan(it, traceId, parentId)
           handlerSpan(it, span(0))
           controllerSpan(it, span(1))
@@ -411,6 +416,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
         trace(3) {
+          sortSpansByStart()
           serverSpan(it, null, null, method, REDIRECT)
           handlerSpan(it, span(0), REDIRECT)
           controllerSpan(it, span(1))
@@ -441,6 +447,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
         trace(3) {
+          sortSpansByStart()
           serverSpan(it, null, null, method, ERROR)
           handlerSpan(it, span(0), ERROR)
           controllerSpan(it, span(1))
@@ -474,6 +481,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
         trace(3) {
+          sortSpansByStart()
           serverSpan(it, null, null, method, EXCEPTION)
           handlerSpan(it, span(0), EXCEPTION)
           controllerSpan(it, span(1), EXCEPTION.body)
@@ -504,6 +512,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
         trace(2) {
+          sortSpansByStart()
           serverSpan(it, null, null, method, NOT_FOUND)
           handlerSpan(it, span(0), NOT_FOUND)
         }
@@ -535,6 +544,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
         trace(3) {
+          sortSpansByStart()
           serverSpan(it, null, null, method, TIMEOUT)
           handlerSpan(it, span(0), TIMEOUT)
           controllerSpan(it, span(1))
@@ -566,6 +576,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     cleanAndAssertTraces(1) {
       if (hasHandlerSpan()) {
         trace(3) {
+          sortSpansByStart()
           serverSpan(it, null, null, method, TIMEOUT_ERROR)
           handlerSpan(it, span(0), TIMEOUT_ERROR)
           controllerSpan(it, span(1))
