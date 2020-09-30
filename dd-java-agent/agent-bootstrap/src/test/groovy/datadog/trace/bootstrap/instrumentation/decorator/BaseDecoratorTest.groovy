@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.trace.agent.test.utils.ConfigUtils
-import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -23,7 +22,7 @@ class BaseDecoratorTest extends DDSpecification {
     decorator.afterStart(span)
 
     then:
-    1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
+    1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.COMPONENT, "test-component")
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)

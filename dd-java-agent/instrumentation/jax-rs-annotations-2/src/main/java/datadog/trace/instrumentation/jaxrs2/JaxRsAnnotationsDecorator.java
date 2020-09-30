@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.jaxrs2;
 
 import datadog.trace.agent.tooling.ClassHierarchyIterable;
-import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -60,7 +60,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
     final String resourceName = getPathResourceName(target, method);
     updateRootSpan(parent, resourceName);
 
-    span.setTag(DDTags.SPAN_TYPE, DDSpanTypes.HTTP_SERVER);
+    span.setSpanType(InternalSpanTypes.HTTP_SERVER);
 
     // When jax-rs is the root, we want to name using the path, otherwise use the class/method.
     final boolean isRootScope = parent == null;

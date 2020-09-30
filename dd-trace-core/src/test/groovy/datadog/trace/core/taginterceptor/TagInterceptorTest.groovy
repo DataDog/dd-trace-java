@@ -233,6 +233,18 @@ class TagInterceptorTest extends DDSpecification {
 
   def "set span type"() {
     when:
+    span.setSpanType(type)
+    span.finish()
+
+    then:
+    span.getSpanType() == type
+
+    where:
+    type = DDSpanTypes.HTTP_CLIENT
+  }
+
+  def "set span type with tag"() {
+    when:
     span.setTag(DDTags.SPAN_TYPE, type)
     span.finish()
 

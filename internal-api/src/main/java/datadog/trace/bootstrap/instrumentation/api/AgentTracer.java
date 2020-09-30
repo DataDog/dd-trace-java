@@ -133,7 +133,7 @@ public class AgentTracer {
 
     SpanBuilder withErrorFlag();
 
-    SpanBuilder withSpanType(String spanType);
+    SpanBuilder withSpanType(CharSequence spanType);
   }
 
   static class NoopTracerAPI implements TracerAPI {
@@ -339,7 +339,7 @@ public class AgentTracer {
     }
 
     @Override
-    public MutableSpan setSpanType(final String type) {
+    public AgentSpan setSpanType(final CharSequence type) {
       return this;
     }
 

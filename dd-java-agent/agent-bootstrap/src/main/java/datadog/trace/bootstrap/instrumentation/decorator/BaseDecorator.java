@@ -70,7 +70,7 @@ public abstract class BaseDecorator {
   public AgentSpan afterStart(final AgentSpan span) {
     assert span != null;
     if (spanType() != null) {
-      span.setTag(DDTags.SPAN_TYPE, spanType());
+      span.setSpanType(spanType());
     }
     span.setTag(Tags.COMPONENT, component());
     if (traceAnalyticsEnabled) {

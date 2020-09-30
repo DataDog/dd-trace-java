@@ -36,7 +36,7 @@ public interface MutableSpan {
 
   String getSpanType();
 
-  MutableSpan setSpanType(final String type);
+  MutableSpan setSpanType(final CharSequence type);
 
   Map<String, Object> getTags();
 

@@ -1,36 +1,37 @@
 package datadog.trace.core.processor.rule;
 
+import static datadog.trace.api.DDSpanTypes.HTTP_CLIENT;
+import static datadog.trace.api.DDSpanTypes.HTTP_SERVER;
+
 import datadog.trace.api.Config;
-import datadog.trace.api.DDSpanTypes;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.ExclusiveSpan;
 import datadog.trace.core.processor.TraceProcessor;
+import java.util.BitSet;
 
 public class HttpStatusErrorRule implements TraceProcessor.Rule {
+
+  private final BitSet serverErrorStatuses = Config.get().getHttpServerErrorStatuses();
+  private final BitSet clientErrorStatuses = Config.get().getHttpClientErrorStatuses();
+
   @Override
   public String[] aliases() {
     return new String[] {};
   }
 
   @Override
-  public void processSpan(final ExclusiveSpan span) {
-    final Object value = span.getTag(Tags.HTTP_STATUS);
-    if (value != null && !span.isError()) {
-      try {
-        final int status =
-            value instanceof Integer ? (int) value : Integer.parseInt(value.toString());
-        if (DDSpanTypes.HTTP_SERVER.equals(span.getType())) {
-          if (Config.get().getHttpServerErrorStatuses().get(status)) {
-            span.setError(true);
-          }
-        } else if (DDSpanTypes.HTTP_CLIENT.equals((span.getType()))) {
-          if (Config.get().getHttpClientErrorStatuses().get(status)) {
-            span.setError(true);
-          }
+  public void processSpan(ExclusiveSpan span) {
+    if (!span.isError()) {
+      CharSequence spanType = span.getType();
+      if (null != spanType) {
+        switch (spanType.toString()) {
+          case HTTP_SERVER:
+            span.setError(serverErrorStatuses.get(span.getHttpStatus()));
+            break;
+          case HTTP_CLIENT:
+            span.setError(clientErrorStatuses.get(span.getHttpStatus()));
+            break;
+          default:
         }
-      } catch (final NumberFormatException ex) {
-        // If using Tags.HTTP_STATUS, value should always be an Integer,
-        // but lets catch NumberFormatException just to be safe.
       }
     }
   }

@@ -6,7 +6,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
-import static datadog.trace.api.DDTags.SPAN_TYPE
 import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND
 
@@ -23,7 +22,7 @@ class ServerDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(LANGUAGE_TAG_KEY, LANGUAGE_TAG_VALUE)
     1 * span.setTag(COMPONENT, "test-component")
     1 * span.setTag(SPAN_KIND, "server")
-    1 * span.setTag(SPAN_TYPE, decorator.spanType())
+    1 * span.setSpanType(decorator.spanType())
     if (decorator.traceAnalyticsEnabled) {
       1 * span.setTag(ANALYTICS_SAMPLE_RATE, 1.0)
     }
