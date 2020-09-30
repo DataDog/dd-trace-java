@@ -31,6 +31,8 @@ public class ProfilingTestApplication {
   private static void tracedMethod() throws InterruptedException {
     System.out.println("Tracing");
     tracedBusyMethod();
+    // request GC which will in turn trigger OldObjectSample events
+    System.gc();
     try {
       throw new IllegalStateException("test");
     } catch (final IllegalStateException ignored) {
