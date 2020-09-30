@@ -94,6 +94,7 @@ class ProfilingIntegrationContinuousProfilesTest extends AbstractProfilingIntegr
     events.apply(ItemFilters.type("datadog.Deadlock")).hasItems()
     events.apply(ItemFilters.type("datadog.DeadlockedThread")).hasItems()
 
+    // check the old object sample events
     events.apply(ItemFilters.type("jdk.OldObjectSample")).hasItems()
   }
 }
