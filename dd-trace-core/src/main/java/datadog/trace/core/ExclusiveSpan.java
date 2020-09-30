@@ -1,5 +1,7 @@
 package datadog.trace.core;
 
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
+
 /** Internal API for a span where the holder has exclusive access to the resources exposed. */
 public final class ExclusiveSpan {
   private final DDSpanContext context;
@@ -60,6 +62,20 @@ public final class ExclusiveSpan {
 
   public void setType(final CharSequence type) {
     context.setSpanType(type);
+  }
+
+  public int getHttpStatus() {
+    Object status = getTag(HTTP_STATUS);
+    if (status instanceof Number) {
+      return ((Number) status).intValue();
+    }
+    if (null != status) {
+      try {
+        return Integer.parseInt(String.valueOf(status));
+      } catch (NumberFormatException ignored) {
+      }
+    }
+    return 0;
   }
 
   /** @return if sampling priority was set by this method invocation */
