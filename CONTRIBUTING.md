@@ -9,6 +9,121 @@ To build the full project from the command line you need to have JDK versions fo
 
 In contrast to the [IntelliJ IDEA setup](#intellij-idea) the default JVM to build and run tests from the command line should be Java 8.
 
+# Building
+
+To build the project without running tests run:
+```bash
+./gradlew clean assemble
+```
+
+To build the entire project with tests (this can take a very long time) run:
+```bash
+./gradlew clean build
+```
+
+# Adding Instrumentations
+
+All instrumentations are in the directory `/dd-java-agent/instrumentation/$framework?/$framework-$minVersion`, where `$framework` is the framework name, and `$minVersion` is the minimum version of the framework supported by the instrumentation.
+In some cases, such as [Hibernate](https://github.com/DataDog/dd-trace-java/tree/master/dd-java-agent/instrumentation/hibernate), there is a submodule containing different version-specific instrumentations, but typically a version-specific module is enough when there is only one instrumentation implemented (e.g. [Akka-HTTP](https://github.com/DataDog/dd-trace-java/tree/master/dd-java-agent/instrumentation/akka-http-10.0)).
+When adding an instrumentation to `/dd-java-agent/instrumentation/$framework?/$framework-$minVersion`, an include must be added to [`settings.gradle`](https://github.com/DataDog/dd-trace-java/blob/master/settings.gradle):
+
+```groovy
+include ':dd-java-agent:instrumentation:$framework?:$framework-$minVersion'
+```
+
+Note that the includes are maintained in alphabetical order.
+
+An instrumentation consists of the following components:
+
+* An _Instrumentation_ 
+    * Must implement `Instrumenter` - note that it is recommended to implement `Instrumenter.Default` in every case.
+    * The instrumentation must be annotated with `@AutoService(Instrumenter.class)` for annotation processing.
+    * The instrumentation must declare a type matcher by implementing the method `typeMatcher()`, which matches the types the instrumentation will transform.
+    * The instrumentation must declare every class it needs to load (except for Datadog bootstrap classes, and for the framework itself) in `helperClassNames()`. 
+      It is recommended to keep the number of classes to a minimum both to reduce deployment size and optimise startup time.
+    * If state must be associated with instances of framework types, a definition of the _context store_ by implementing `contextStore()`. 
+    * The method `transformers()`: this is a map of method matchers to the Bytebuddy advice class which handles matching methods. 
+      For example, if you want to inject an instance of `com.foo.Foo` into a `com.bar.Bar` (or fall back to a weak map backed association if this is impossible) you would return `singletonMap("com.foo.Foo", "com.bar.Bar")`.
+      It may be tempting to write `Foo.class.getName()`, but this will lead to the class being loaded during bootstrapping, which is usually not safe.
+      See the section on the [context store](#context-store) for more details.
+* A _Decorator_. 
+  * This will typically extend one of decorator [implementations](https://github.com/DataDog/dd-trace-java/tree/master/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator), which provide templates for span enrichment behaviour.
+  For example, all instrumentations for HTTP server frameworks have decorators which extend [`HttpServerDecorator`](https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/HttpServerDecorator.java).
+  * The name of this class must be included in the instrumentation's helper class names, as it will need to be loaded with the instrumentation.
+* _Advice_ 
+  * Snippets of code to be inserted at the entry or exit of a method.
+  * Associated with the methods they apply to by the instrumentation's `transformers()` method.
+* Any more classes required to implement the instrumentation, which must be included in the instrumentation's helper class names.
+
+## Verifying Instrumentations
+
+There are four verification strategies, three of which are mandatory.
+
+### Muzzle directive
+A _muzzle directive_ which checks for a range of framework versions that it would be safe to load the instrumentation.
+At the top of the instrumentation's gradle file, the following would be added (see [rediscala](https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/instrumentation/rediscala-1.8.0/rediscala-1.8.0.gradle))
+  ```groovy
+        muzzle {
+          pass {
+            group = "com.github.etaty"
+            module = "rediscala_2.11"
+            versions = "[1.5.0,)"
+            assertInverse = true
+          }
+        
+          pass {
+            group = "com.github.etaty"
+            module = "rediscala_2.12"
+            versions = "[1.8.0,)"
+            assertInverse = true
+          }
+        }
+  ```
+This means that the instrumentation should be safe with `rediscala_2.11` from version `1.5.0` and all later versions, but should fail (and so will not be loaded), for older versions (see `assertInverse`).
+A similar range of versions is specified for `rediscala_2.12`.
+When the agent is built, the muzzle plugin will download versions of the framework and check these directives hold.
+To run muzzle on your instrumentation, run:
+
+```groovy
+ ./gradlew :dd-java-agent:instrumentation:rediscala-1.8.0:muzzle
+```
+* ⚠️ Muzzle does _not_ run tests. 
+  It checks that the types and methods used by the instrumentation are present in particular versions of libraries. 
+  It can be subverted with `MethodHandle` and reflection, so muzzle passing is not the end of the story.
+  
+### Instrumentation Tests
+
+Tests are written in Groovy using the [Spock framework](http://spockframework.org/).
+For instrumentations, `AgentTestRunner` must be extended by the test fixture.
+For e.g. HTTP server frameworks, there are base tests which enforce consistency between different implementations - see [HttpServerTest](https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpServerTest.groovy)
+
+When writing an instrumentation it is much faster to test just the instrumentation rather than build the entire project, for example:
+
+```bash
+./gradlew :dd-java-agent:instrumentation:play-ws-2.1:test  
+```
+
+### Latest Dependency Tests
+
+Adding a directive to the build file lets us get early warning when breaking changes are released by framework maintainers.
+For example, for Play 2.4, based on the following:
+
+```groovy
+  latestDepTestCompile group: 'com.typesafe.play', name: 'play-java_2.11', version: '2.5.+'
+  latestDepTestCompile group: 'com.typesafe.play', name: 'play-java-ws_2.11', version: '2.5.+'
+  latestDepTestCompile(group: 'com.typesafe.play', name: 'play-test_2.11', version: '2.5.+') {
+    exclude group: 'org.eclipse.jetty.websocket', module: 'websocket-client'
+  }
+```
+
+We download the latest dependency and run tests against it.
+
+### Smoke tests
+
+These are tests which run with a real agent jar file set as the `javaagent`.
+See [here](https://github.com/DataDog/dd-trace-java/tree/master/dd-smoke-tests).
+These are optional and not all frameworks have these, but contributions are very welcome.
+
 # Automatic code formatting
 
 This project includes a `.editorconfig` file for basic editor settings.  This file is supported by most common text editors.
