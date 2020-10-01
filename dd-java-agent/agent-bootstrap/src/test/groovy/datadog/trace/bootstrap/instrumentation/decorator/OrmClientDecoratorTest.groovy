@@ -59,6 +59,11 @@ class OrmClientDecoratorTest extends DatabaseClientDecoratorTest {
       }
 
       @Override
+      protected String dbHostname(Object o) {
+        return "test-hostname"
+      }
+
+      @Override
       protected String service() {
         return "test-service"
       }

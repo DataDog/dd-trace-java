@@ -61,6 +61,11 @@ public class ElasticsearchRestClientDecorator extends DatabaseClientDecorator {
     return null;
   }
 
+  @Override
+  protected String dbHostname(Object o) {
+    return null;
+  }
+
   public AgentSpan onRequest(final AgentSpan span, final String method, final String endpoint) {
     span.setTag(Tags.HTTP_METHOD, method);
     span.setTag(Tags.HTTP_URL, endpoint);

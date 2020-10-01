@@ -47,4 +47,9 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   protected String dbInstance(final ProtocolCommand session) {
     return null;
   }
+
+  @Override
+  protected String dbHostname(ProtocolCommand protocolCommand) {
+    return null;
+  }
 }

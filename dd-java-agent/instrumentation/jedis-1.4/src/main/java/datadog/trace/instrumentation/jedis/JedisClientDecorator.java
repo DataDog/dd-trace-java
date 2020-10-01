@@ -45,4 +45,9 @@ public class JedisClientDecorator
   protected String dbInstance(final Protocol.Command session) {
     return null;
   }
+
+  @Override
+  protected String dbHostname(Protocol.Command command) {
+    return null;
+  }
 }

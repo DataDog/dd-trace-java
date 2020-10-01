@@ -76,6 +76,11 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     }
   }
 
+  @Override
+  protected String dbHostname(final DBInfo info) {
+    return info.getHost();
+  }
+
   public AgentSpan onConnection(final AgentSpan span, final Connection connection) {
     DBInfo dbInfo = CONNECTION_INFO.get(connection);
     /**

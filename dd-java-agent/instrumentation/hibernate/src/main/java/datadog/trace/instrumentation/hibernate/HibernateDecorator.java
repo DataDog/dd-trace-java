@@ -49,6 +49,11 @@ public class HibernateDecorator extends OrmClientDecorator {
   }
 
   @Override
+  protected String dbHostname(Object o) {
+    return null;
+  }
+
+  @Override
   public String entityName(final Object entity) {
     if (entity == null) {
       return null;
