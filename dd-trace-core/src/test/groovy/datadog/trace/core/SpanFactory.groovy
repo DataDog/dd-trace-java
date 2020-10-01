@@ -46,7 +46,7 @@ class SpanFactory {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       tracer, [:])
-    return DDSpan.create(1, context)
+    return DDSpan.create(0, context)
   }
 
   static DDSpan newSpanOf(CoreTracer tracer, ThreadLocal<Timer> timer) {
@@ -65,7 +65,7 @@ class SpanFactory {
       0,
       tracer.pendingTraceFactory.create(DDId.ONE),
       tracer, [:])
-    return DDSpan.create(1, context)
+    return DDSpan.create(0, context)
   }
 
   static DDSpan newSpanOf(PendingTrace trace) {
@@ -84,7 +84,27 @@ class SpanFactory {
       0,
       trace,
       trace.tracer, [:])
-    return DDSpan.create(1, context)
+    return DDSpan.create(0, context)
+  }
+
+  static DDSpan newSpanOf(DDSpan parent) {
+    def trace = parent.context().trace
+    def context = new DDSpanContext(
+      trace.traceId,
+      DDId.from(2),
+      parent.context().spanId,
+      "fakeService",
+      "fakeOperation",
+      "fakeResource",
+      PrioritySampling.UNSET,
+      null,
+      Collections.emptyMap(),
+      false,
+      "fakeType",
+      0,
+      trace,
+      trace.tracer, [:])
+    return DDSpan.create(0, context)
   }
 
   static DDSpan newSpanOf(String serviceName, String envName) {

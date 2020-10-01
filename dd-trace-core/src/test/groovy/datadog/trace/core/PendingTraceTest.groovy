@@ -31,8 +31,8 @@ class PendingTraceTest extends DDSpecification {
     assert trace.pendingReferenceCount.get() == 1
     assert trace.weakSpans.size() == 1
     assert trace.weakContinuations.size() == 0
-    assert trace.isWritten.get() == false
-    assert scheduled(trace)
+    assert trace.rootSpanWritten.get() == false
+    assert cleaningScheduled(trace)
   }
 
   def "single span gets added to trace and written when finished"() {
@@ -41,7 +41,7 @@ class PendingTraceTest extends DDSpecification {
     writer.waitForTraces(1)
 
     expect:
-    trace.asList() == [rootSpan]
+    trace.finishedSpans.isEmpty()
     writer == [[rootSpan]]
     writer.traceCount.get() == 1
   }
@@ -60,7 +60,7 @@ class PendingTraceTest extends DDSpecification {
     then:
     trace.pendingReferenceCount.get() == 1
     trace.weakSpans.size() == 1
-    trace.asList() == [child]
+    trace.finishedSpans.asList() == [child]
     writer == []
 
     when:
@@ -70,7 +70,7 @@ class PendingTraceTest extends DDSpecification {
     then:
     trace.pendingReferenceCount.get() == 0
     trace.weakSpans.size() == 0
-    trace.asList() == [rootSpan, child]
+    trace.finishedSpans.isEmpty()
     writer == [[rootSpan, child]]
     writer.traceCount.get() == 1
   }
@@ -89,7 +89,7 @@ class PendingTraceTest extends DDSpecification {
     then:
     trace.pendingReferenceCount.get() == 1
     trace.weakSpans.size() == 1
-    trace.asList() == [rootSpan]
+    trace.finishedSpans.asList() == [rootSpan]
     writer == []
 
     when:
@@ -99,7 +99,7 @@ class PendingTraceTest extends DDSpecification {
     then:
     trace.pendingReferenceCount.get() == 0
     trace.weakSpans.size() == 0
-    trace.asList() == [child, rootSpan]
+    trace.finishedSpans.isEmpty()
     writer == [[child, rootSpan]]
     writer.traceCount.get() == 1
   }
@@ -113,24 +113,24 @@ class PendingTraceTest extends DDSpecification {
     then:
     trace.pendingReferenceCount.get() == 1
     trace.weakSpans.size() == 1
-    trace.asList() == [rootSpan]
+    trace.finishedSpans.asList() == [rootSpan]
     writer == []
 
     when:
     def childRef = new WeakReference<>(child)
     child = null
     GCUtils.awaitGC(childRef)
-    while (trace.pendingReferenceCount.get() > 0) {
+    while (trace.pendingReferenceCount.get() > 0 && !Thread.currentThread().isInterrupted()) {
       trace.clean()
     }
 
     then:
     trace.pendingReferenceCount.get() == 0
     trace.weakSpans.size() == 0
-    trace.asList() == [rootSpan]
+    trace.finishedSpans.asList() == [rootSpan]
     writer == []
     writer.traceCount.get() == 1
-    scheduled(trace) // Doesn't get unscheduled until GC'd
+    cleaningScheduled(trace) // Doesn't get unscheduled until GC'd
   }
 
   @Timeout(value = 60, unit = TimeUnit.SECONDS)
@@ -146,7 +146,7 @@ class PendingTraceTest extends DDSpecification {
     trace.pendingReferenceCount.get() == 1
     trace.weakSpans.size() == 0
     trace.weakContinuations.size() == 1
-    trace.asList() == [rootSpan]
+    trace.finishedSpans.asList() == [rootSpan]
     writer == []
 
     when:
@@ -159,20 +159,20 @@ class PendingTraceTest extends DDSpecification {
     then:
     trace.pendingReferenceCount.get() == 0
     trace.weakSpans.size() == 0
-    trace.asList() == [rootSpan]
+    trace.finishedSpans.isEmpty()
     writer == [[rootSpan]]
     writer.traceCount.get() == 1
-    scheduled(trace) // Doesn't get unscheduled until GC'd
+    cleaningScheduled(trace) // Doesn't get unscheduled until GC'd
   }
 
   def "add unfinished span to trace fails"() {
     setup:
-    trace.addSpan(rootSpan)
+    trace.addFinishedSpan(rootSpan)
 
     expect:
     trace.pendingReferenceCount.get() == 1
     trace.weakSpans.size() == 1
-    trace.asList() == []
+    trace.finishedSpans.asList() == []
     writer.traceCount.get() == 0
   }
 
@@ -184,36 +184,19 @@ class PendingTraceTest extends DDSpecification {
     expect:
     otherTrace.pendingReferenceCount.get() == 0
     otherTrace.weakSpans.size() == 0
-    otherTrace.asList() == []
+    otherTrace.finishedSpans.asList() == []
   }
 
   def "add span to wrong trace fails"() {
     setup:
     def otherTrace = tracer.pendingTraceFactory.create(DDId.from(traceId.toLong() - 10))
     rootSpan.finish()
-    otherTrace.addSpan(rootSpan)
+    otherTrace.addFinishedSpan(rootSpan)
 
     expect:
     otherTrace.pendingReferenceCount.get() == 0
     otherTrace.weakSpans.size() == 0
-    otherTrace.asList() == []
-  }
-
-
-  def "child spans created after trace written"() {
-    setup:
-    rootSpan.finish()
-    writer.waitForTraces(1)
-    // this shouldn't happen, but it's possible users of the api
-    // may incorrectly add spans after the trace is reported.
-    // in those cases we should still decrement the pending trace count
-    DDSpan childSpan = tracer.buildSpan("child").asChildOf(rootSpan).start()
-    childSpan.finish()
-
-    expect:
-    trace.pendingReferenceCount.get() == 0
-    trace.asList() == [rootSpan]
-    writer == [[rootSpan]]
+    otherTrace.finishedSpans.asList() == []
   }
 
   def "child spans created quickly after trace written"() {
@@ -228,7 +211,7 @@ class PendingTraceTest extends DDSpecification {
 
     expect:
     trace.pendingReferenceCount.get() == 0
-    trace.asList() == [childSpan, rootSpan]
+    trace.finishedSpans.isEmpty()
     writer == [[childSpan, rootSpan]]
   }
 
@@ -259,7 +242,7 @@ class PendingTraceTest extends DDSpecification {
     then:
     trace.pendingReferenceCount.get() == 2
     trace.weakSpans.size() == 2
-    trace.asList() == [rootSpan]
+    trace.finishedSpans.asList() == [rootSpan]
     writer == []
     writer.traceCount.get() == 0
 
@@ -270,7 +253,7 @@ class PendingTraceTest extends DDSpecification {
     then:
     trace.pendingReferenceCount.get() == 1
     trace.weakSpans.size() == 1
-    trace.asList() == [rootSpan]
+    trace.finishedSpans.asList() == [rootSpan]
     writer == [[child1]]
     writer.traceCount.get() == 1
 
@@ -281,7 +264,7 @@ class PendingTraceTest extends DDSpecification {
     then:
     trace.pendingReferenceCount.get() == 0
     trace.weakSpans.size() == 0
-    trace.asList() == [child2, rootSpan]
+    trace.finishedSpans.isEmpty()
     writer == [[child1], [child2, rootSpan]]
     writer.traceCount.get() == 2
   }
@@ -307,7 +290,7 @@ class PendingTraceTest extends DDSpecification {
     then:
     trace.pendingReferenceCount.get() == 2
     trace.weakSpans.size() == 2
-    trace.asList() == [child1]
+    trace.finishedSpans.asList() == [child1]
     writer == []
     writer.traceCount.get() == 0
 
@@ -318,7 +301,7 @@ class PendingTraceTest extends DDSpecification {
     then:
     trace.pendingReferenceCount.get() == 1
     trace.weakSpans.size() == 1
-    trace.asList() == []
+    trace.finishedSpans.isEmpty()
     writer == [[child2, child1]]
     writer.traceCount.get() == 1
 
@@ -329,12 +312,12 @@ class PendingTraceTest extends DDSpecification {
     then:
     trace.pendingReferenceCount.get() == 0
     trace.weakSpans.size() == 0
-    trace.asList() == [rootSpan]
+    trace.finishedSpans.isEmpty()
     writer == [[child2, child1], [rootSpan]]
     writer.traceCount.get() == 2
   }
 
-  boolean scheduled(PendingTrace trace) {
+  boolean cleaningScheduled(PendingTrace trace) {
     // This might be racy if the task is in progress and not rescheduled.
     return AgentTaskScheduler.INSTANCE.workQueue.any { task ->
       task.target instanceof WeakReference && task.target.get() == trace

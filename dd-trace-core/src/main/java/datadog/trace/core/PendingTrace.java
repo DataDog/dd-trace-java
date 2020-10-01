@@ -24,19 +24,19 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements AgentTrace {
+public class PendingTrace implements AgentTrace {
   private static final long CLEAN_FREQUENCY = 1;
 
-  public static class Factory {
+  static class Factory {
     private final CoreTracer tracer;
     private final PendingTraceBuffer pendingTraceBuffer;
 
-    public Factory(CoreTracer tracer, PendingTraceBuffer pendingTraceBuffer) {
+    Factory(CoreTracer tracer, PendingTraceBuffer pendingTraceBuffer) {
       this.tracer = tracer;
       this.pendingTraceBuffer = pendingTraceBuffer;
     }
 
-    public PendingTrace create(final DDId traceId) {
+    PendingTrace create(final DDId traceId) {
       final PendingTrace pendingTrace = new PendingTrace(tracer, traceId, pendingTraceBuffer);
       AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(
           PendingTraceCleanerTask.INSTANCE,
@@ -59,18 +59,25 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   /** Nano second ticks value at trace start */
   private final long startNanoTicks;
 
-  private final ReferenceQueue spanReferenceQueue = new ReferenceQueue();
+  private final ConcurrentLinkedDeque<DDSpan> finishedSpans = new ConcurrentLinkedDeque();
+
+  // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
+  private final AtomicInteger completedSpanCount = new AtomicInteger(0);
+
+  @Deprecated private final ReferenceQueue spanReferenceQueue = new ReferenceQueue();
+
+  @Deprecated
   private final Set<WeakReference<DDSpan>> weakSpans =
       Collections.newSetFromMap(new ConcurrentHashMap<WeakReference<DDSpan>, Boolean>());
-  private final ReferenceQueue continuationReferenceQueue = new ReferenceQueue();
+
+  @Deprecated private final ReferenceQueue continuationReferenceQueue = new ReferenceQueue();
+
+  @Deprecated
   private final Set<WeakReference<AgentScope.Continuation>> weakContinuations =
       Collections.newSetFromMap(
           new ConcurrentHashMap<WeakReference<AgentScope.Continuation>, Boolean>());
 
-  private final AtomicInteger pendingReferenceCount = new AtomicInteger(0);
-
-  // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
-  private final AtomicInteger completedSpanCount = new AtomicInteger(0);
+  @Deprecated private final AtomicInteger pendingReferenceCount = new AtomicInteger(0);
 
   // FIXME: In async frameworks we may have situations where traces do not report due to references
   //  being held by async operators. In order to support testing in these cases we should have a way
@@ -91,8 +98,10 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
    */
   private final AtomicReference<WeakReference<DDSpan>> rootSpan = new AtomicReference<>();
 
-  /** Ensure a trace is never written multiple times */
-  private final AtomicBoolean isWritten = new AtomicBoolean(false);
+  private final AtomicBoolean rootSpanWritten = new AtomicBoolean(false);
+
+  // FIXME: This can be removed when we change behavior for gc'd spans.
+  private final AtomicBoolean traceValid = new AtomicBoolean(true);
 
   /**
    * Updated with the latest nanoTicks each time getCurrentTimeNano is called (at the start and
@@ -147,7 +156,9 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
       log.debug("t_id={} -> registered for wrong trace {}", traceId, span);
       return;
     }
-    rootSpan.compareAndSet(null, new WeakReference<>(span));
+    if (!rootSpanWritten.get()) {
+      rootSpan.compareAndSet(null, new WeakReference<>(span));
+    }
     synchronized (span) {
       if (null == span.ref) {
         span.ref = new WeakReference<DDSpan>(span, spanReferenceQueue);
@@ -184,7 +195,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     }
   }
 
-  public void addSpan(final DDSpan span) {
+  public void addFinishedSpan(final DDSpan span) {
     if (span.getDurationNano() == 0) {
       log.debug("t_id={} -> added to trace, but not complete: {}", traceId, span);
       return;
@@ -199,17 +210,24 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
       return;
     }
 
-    if (!isWritten.get()) {
-      addFirst(span);
-    } else {
-      log.debug("t_id={} -> finished after trace reported: {}", traceId, span);
-    }
+    finishedSpans.addFirst(span);
+    completedSpanCount.incrementAndGet();
+
     expireSpan(span);
   }
 
   public DDSpan getRootSpan() {
     final WeakReference<DDSpan> rootRef = rootSpan.get();
     return rootRef == null ? null : rootRef.get();
+  }
+
+  /** @return Long.MAX_VALUE if no spans finished. */
+  long oldestFinishedTime() {
+    long oldest = Long.MAX_VALUE;
+    for (DDSpan span : finishedSpans) {
+      oldest = Math.min(oldest, span.getStartTime() + span.getDurationNano());
+    }
+    return oldest;
   }
 
   /**
@@ -245,8 +263,11 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   }
 
   private void expireReference() {
+    if (!traceValid.get()) {
+      return;
+    }
     final int count = pendingReferenceCount.decrementAndGet();
-    if (count == 0) {
+    if (count == 0 || rootSpanWritten.get()) {
       pendingTraceBuffer.enqueue(this);
     } else {
       if (tracer.getPartialFlushMinSpans() > 0 && size() > tracer.getPartialFlushMinSpans()) {
@@ -256,7 +277,7 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
             if (size > tracer.getPartialFlushMinSpans()) {
               final DDSpan rootSpan = getRootSpan();
               final List<DDSpan> partialTrace = new ArrayList<>(size);
-              final Iterator<DDSpan> it = iterator();
+              final Iterator<DDSpan> it = finishedSpans.iterator();
               while (it.hasNext()) {
                 final DDSpan span = it.next();
                 if (span != rootSpan) {
@@ -287,30 +308,28 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
   }
 
   synchronized void write() {
-    if (isWritten.compareAndSet(false, true)) {
+    rootSpanWritten.set(true);
+    if (!finishedSpans.isEmpty()) {
       try (Recording recording = tracer.writeTimer()) {
-        if (!isEmpty()) {
-          int size = size();
-          if (log.isDebugEnabled()) {
-            log.debug("Writing {} spans to {}.", size, tracer.writer);
-          }
-          List<DDSpan> trace = new ArrayList<>(size);
-          trace.addAll(this);
-          // TODO - strange that tests expect the contents
-          //  NOT to be cleared here. Keeping the spans around
-          //  could lead to them all being promoted by nepotism,
-          //  whereas some of them might avoid this if they're
-          //  dropped when we write
-          tracer.write(trace);
+        int size = size();
+        if (log.isDebugEnabled()) {
+          log.debug("Writing {} spans to {}.", size, tracer.writer);
         }
+        List<DDSpan> trace = new ArrayList<>(size);
+
+        final Iterator<DDSpan> it = finishedSpans.iterator();
+        while (it.hasNext()) {
+          final DDSpan span = it.next();
+          trace.add(span);
+          completedSpanCount.decrementAndGet();
+          it.remove();
+        }
+        tracer.write(trace);
       }
     }
   }
 
   public synchronized boolean clean() {
-    if (isWritten.get()) {
-      return false;
-    }
     Reference ref;
     int count = 0;
     while ((ref = continuationReferenceQueue.poll()) != null) {
@@ -325,13 +344,13 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     count = 0;
     while ((ref = spanReferenceQueue.poll()) != null) {
       weakSpans.remove(ref);
-      if (isWritten.compareAndSet(false, true)) {
+      if (this.traceValid.compareAndSet(true, false)) {
         // preserve throughput count.
         // Don't report the trace because the data comes from buggy uses of the api and is suspect.
         tracer.incrementTraceCount();
       }
       count++;
-      expireReference();
+      pendingReferenceCount.decrementAndGet();
     }
     if (count > 0) {
       // TODO attempt to flatten and report if top level spans are finished. (for accurate metrics)
@@ -343,13 +362,6 @@ public class PendingTrace extends ConcurrentLinkedDeque<DDSpan> implements Agent
     return count > 0;
   }
 
-  @Override
-  public void addFirst(final DDSpan span) {
-    super.addFirst(span);
-    completedSpanCount.incrementAndGet();
-  }
-
-  @Override
   public int size() {
     return completedSpanCount.get();
   }

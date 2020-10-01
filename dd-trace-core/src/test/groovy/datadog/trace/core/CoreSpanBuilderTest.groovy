@@ -269,25 +269,24 @@ class CoreSpanBuilderTest extends DDSpecification {
     // others are just for fun
 
     def root = tracer.buildSpan("fake_O").withServiceName("foo").start()
-    spans.add(root)
 
-    final long tickEnd = System.currentTimeMillis()
+    def lastSpan = root
 
     for (int i = 1; i <= 10; i++) {
-      def span = tracer
+      lastSpan = tracer
         .buildSpan("fake_" + i)
         .withServiceName("foo")
-        .asChildOf(spans.get(i - 1))
+        .asChildOf(lastSpan)
         .start()
-      spans.add(span)
-      span.finish()
+      spans.add(lastSpan)
+      lastSpan.finish()
     }
-    root.finish(tickEnd)
 
     expect:
-    root.context().getTrace().size() == nbSamples + 1
-    root.context().getTrace().containsAll(spans)
-    spans[(int) (Math.random() * nbSamples)].context.trace.containsAll(spans)
+    root.context().getTrace().rootSpan == root
+    root.context().getTrace().size() == nbSamples
+    root.context().getTrace().finishedSpans.containsAll(spans)
+    spans[(int) (Math.random() * nbSamples)].context.trace.finishedSpans.containsAll(spans)
   }
 
   def "ExtractedContext should populate new span details"() {
