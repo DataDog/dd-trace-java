@@ -13,6 +13,7 @@ import datadog.common.container.ServerlessInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDId;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TracerConfig;
@@ -232,7 +233,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
               config.getScopeDepthLimit(),
               createScopeEventFactory(),
               this.statsDClient,
-              config.isScopeStrictMode());
+              config.isScopeStrictMode(),
+              config.isScopeInheritAsyncPropagation());
     } else {
       this.scopeManager = scopeManager;
     }
@@ -352,12 +354,17 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   }
 
   public AgentScope activateSpan(final AgentSpan span) {
-    return scopeManager.activate(span, ScopeSource.INSTRUMENTATION);
+    return scopeManager.activate(span, ScopeSource.INSTRUMENTATION, false);
   }
 
   @Override
   public AgentScope activateSpan(final AgentSpan span, final ScopeSource source) {
     return scopeManager.activate(span, source);
+  }
+
+  @Override
+  public AgentScope activateSpan(AgentSpan span, ScopeSource source, boolean isAsyncPropagating) {
+    return scopeManager.activate(span, source, isAsyncPropagating);
   }
 
   @Override
@@ -552,8 +559,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     final DDAgentApi ddAgentApi =
         new DDAgentApi(
-            config.getAgentHost(),
-            config.getAgentPort(),
+            config.getAgentUrl(),
             unixDomainSocket,
             TimeUnit.SECONDS.toMillis(config.getAgentTimeout()),
             Config.get().isTraceAgentV05Enabled(),
@@ -653,7 +659,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private String serviceName;
     private String resourceName;
     private boolean errorFlag;
-    private String spanType;
+    private CharSequence spanType;
     private boolean ignoreScope = false;
 
     public CoreSpanBuilder(final CharSequence operationName) {
@@ -716,7 +722,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     @Override
-    public CoreSpanBuilder withSpanType(final String spanType) {
+    public CoreSpanBuilder withSpanType(final CharSequence spanType) {
       this.spanType = spanType;
       return this;
     }
@@ -734,16 +740,23 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     @Override
     public CoreSpanBuilder withTag(final String tag, final Object value) {
-      Map<String, Object> tagMap = tags;
-      if (tagMap == null) {
-        tags = tagMap = new LinkedHashMap<>(); // Insertion order is important
+      switch (tag) {
+        case DDTags.SPAN_TYPE:
+          if (value instanceof CharSequence) {
+            return withSpanType((CharSequence) value);
+          }
+        default:
+          Map<String, Object> tagMap = tags;
+          if (tagMap == null) {
+            tags = tagMap = new LinkedHashMap<>(); // Insertion order is important
+          }
+          if (value == null || (value instanceof String && ((String) value).isEmpty())) {
+            tagMap.remove(tag);
+          } else {
+            tagMap.put(tag, value);
+          }
+          return this;
       }
-      if (value == null || (value instanceof String && ((String) value).isEmpty())) {
-        tagMap.remove(tag);
-      } else {
-        tagMap.put(tag, value);
-      }
-      return this;
     }
 
     /**

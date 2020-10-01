@@ -59,7 +59,7 @@ class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
     writer.name("duration");
     writer.value(span.getDurationNano());
     writer.name("type");
-    writer.value(span.getType());
+    writer.value(span.getSpanType());
     writer.name("error");
     writer.value(span.getError());
     writer.name("metrics");

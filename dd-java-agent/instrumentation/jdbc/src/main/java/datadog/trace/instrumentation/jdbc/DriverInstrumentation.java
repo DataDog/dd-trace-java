@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.CONNECTION_INFO;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -40,7 +41,7 @@ public final class DriverInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCMaps",
+      packageName + ".JDBCDecorator",
     };
   }
 
@@ -65,7 +66,7 @@ public final class DriverInstrumentation extends Instrumenter.Default {
         return;
       }
       final DBInfo dbInfo = JDBCConnectionUrlParser.parse(url, props);
-      JDBCMaps.connectionInfo.put(connection, dbInfo);
+      CONNECTION_INFO.put(connection, dbInfo);
     }
   }
 }

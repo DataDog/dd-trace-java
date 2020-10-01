@@ -40,7 +40,8 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("com.twilio.Twilio");
+    return hasClassesNamed(
+        "com.twilio.Twilio", "com.google.common.util.concurrent.ListenableFuture");
   }
 
   /** Match any child class of the base Twilio service classes. */

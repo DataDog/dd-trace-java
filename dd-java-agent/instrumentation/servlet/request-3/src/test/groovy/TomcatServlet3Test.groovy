@@ -11,7 +11,6 @@ import org.apache.catalina.AccessLog
 import org.apache.catalina.Context
 import org.apache.catalina.connector.Request
 import org.apache.catalina.connector.Response
-import org.apache.catalina.core.ApplicationFilterChain
 import org.apache.catalina.core.StandardHost
 import org.apache.catalina.startup.Tomcat
 import org.apache.catalina.valves.ErrorReportValve
@@ -435,9 +434,6 @@ abstract class TomcatDispatchTest extends TomcatServlet3Test {
             "servlet.context" "/$context"
             "servlet.path" endpoint.status == 404 ? endpoint.path : "/dispatch$endpoint.path"
             "servlet.dispatch" endpoint.path
-            "span.origin.type" {
-              it == TestServlet3.DispatchImmediate.name || it == TestServlet3.DispatchAsync.name || it == ApplicationFilterChain.name
-            }
             if (endpoint.errored) {
               "error.msg" { it == null || it == EXCEPTION.body }
               "error.type" { it == null || it == Exception.name }

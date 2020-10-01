@@ -116,7 +116,8 @@ public final class ClassLoaderMatcher {
   private static class ClassLoaderHasClassesNamedMatcher
       extends ElementMatcher.Junction.AbstractBase<ClassLoader> {
 
-    private final WeakCache<ClassLoader, Boolean> cache = AgentTooling.newWeakCache(25);
+    // Initialize this lazily because of startup ordering and muzzle plugin usage patterns
+    private volatile WeakCache<ClassLoader, Boolean> cacheHolder = null;
 
     private final String[] resources;
 
@@ -125,6 +126,17 @@ public final class ClassLoaderMatcher {
       for (int i = 0; i < resources.length; i++) {
         resources[i] = resources[i].replace(".", "/") + ".class";
       }
+    }
+
+    private WeakCache<ClassLoader, Boolean> getCache() {
+      if (cacheHolder == null) {
+        synchronized (this) {
+          if (cacheHolder == null) {
+            cacheHolder = AgentTooling.newWeakCache(25);
+          }
+        }
+      }
+      return cacheHolder;
     }
 
     private boolean hasResources(final ClassLoader cl) {
@@ -143,6 +155,7 @@ public final class ClassLoaderMatcher {
         return false;
       }
       final Boolean cached;
+      WeakCache<ClassLoader, Boolean> cache = getCache();
       if ((cached = cache.getIfPresent(cl)) != null) {
         return cached;
       }

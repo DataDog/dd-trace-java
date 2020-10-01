@@ -64,8 +64,8 @@ public final class ConfigProvider {
     return get(key, null, Boolean.class);
   }
 
-  public final boolean getBoolean(String key, boolean defaultValue) {
-    return get(key, defaultValue, Boolean.class);
+  public final boolean getBoolean(String key, boolean defaultValue, String... aliases) {
+    return get(key, defaultValue, Boolean.class, aliases);
   }
 
   public final Integer getInteger(String key) {
@@ -76,8 +76,8 @@ public final class ConfigProvider {
     return get(key, defaultValue, Integer.class, aliases);
   }
 
-  public final Float getFloat(String key) {
-    return get(key, null, Float.class);
+  public final Float getFloat(String key, String... aliases) {
+    return get(key, null, Float.class, aliases);
   }
 
   public final float getFloat(String key, float defaultValue) {

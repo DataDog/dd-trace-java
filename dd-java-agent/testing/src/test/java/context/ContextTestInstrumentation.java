@@ -49,7 +49,7 @@ public class ContextTestInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  public Map<String, String> contextStore() {
+  public Map<String, String> contextStoreForAll() {
     final Map<String, String> store = new HashMap<>(2);
     store.put(getClass().getName() + "$KeyClass", getClass().getName() + "$Context");
     store.put(getClass().getName() + "$UntransformableKeyClass", getClass().getName() + "$Context");

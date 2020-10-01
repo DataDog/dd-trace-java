@@ -32,7 +32,6 @@ class ViewRenderTest extends AgentTestRunner {
           childOf span(0)
           tags {
             "$Tags.COMPONENT" "dropwizard-view"
-            "span.origin.type" renderer.class.simpleName
             defaultTags()
           }
         }

@@ -15,6 +15,7 @@ public final class TracerConfig {
   public static final String ID_GENERATION_STRATEGY = "id.generation.strategy";
   public static final String WRITER_TYPE = "writer.type";
   public static final String PRIORITIZATION_TYPE = "prioritization.type";
+  public static final String TRACE_AGENT_URL = "trace.agent.url";
   public static final String AGENT_HOST = "agent.host";
   public static final String TRACE_AGENT_PORT = "trace.agent.port";
   public static final String AGENT_PORT_LEGACY = "agent.port";
@@ -40,6 +41,8 @@ public final class TracerConfig {
 
   public static final String SCOPE_DEPTH_LIMIT = "trace.scope.depth.limit";
   public static final String SCOPE_STRICT_MODE = "trace.scope.strict.mode";
+  public static final String SCOPE_INHERIT_ASYNC_PROPAGATION =
+      "trace.scope.inherit.async.propagation";
   public static final String PARTIAL_FLUSH_MIN_SPANS = "trace.partial.flush.min.spans";
   public static final String PROPAGATION_STYLE_EXTRACT = "propagation.style.extract";
   public static final String PROPAGATION_STYLE_INJECT = "propagation.style.inject";

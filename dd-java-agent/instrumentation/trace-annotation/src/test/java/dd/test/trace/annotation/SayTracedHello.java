@@ -23,14 +23,14 @@ public class SayTracedHello {
   @Trace(operationName = "SAY_HA")
   public static String sayHA() {
     activeSpan().setTag(DDTags.SERVICE_NAME, "test");
-    activeSpan().setTag(DDTags.SPAN_TYPE, "DB");
+    activeSpan().setSpanType("DB");
     return "HA!!";
   }
 
   @Trace(operationName = "SAY_HA", resourceName = "EARTH")
   public static String sayHAWithResource() {
     activeSpan().setTag(DDTags.SERVICE_NAME, "test");
-    activeSpan().setTag(DDTags.SPAN_TYPE, "DB");
+    activeSpan().setSpanType("DB");
     return "HA EARTH!!";
   }
 

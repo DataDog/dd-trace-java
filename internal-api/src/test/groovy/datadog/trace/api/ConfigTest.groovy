@@ -31,6 +31,7 @@ import static datadog.trace.api.Config.JMX_FETCH_STATSD_HOST
 import static datadog.trace.api.Config.JMX_FETCH_STATSD_PORT
 import static datadog.trace.api.Config.JMX_TAGS
 import static datadog.trace.api.Config.PARTIAL_FLUSH_MIN_SPANS
+import static datadog.trace.api.Config.PERF_METRICS_ENABLED
 import static datadog.trace.api.Config.PRIORITIZATION_TYPE
 import static datadog.trace.api.Config.PRIORITY_SAMPLING
 import static datadog.trace.api.Config.PROFILING_API_KEY_FILE_OLD
@@ -61,6 +62,7 @@ import static datadog.trace.api.Config.SPAN_TAGS
 import static datadog.trace.api.Config.SPLIT_BY_TAGS
 import static datadog.trace.api.Config.TAGS
 import static datadog.trace.api.Config.TRACE_AGENT_PORT
+import static datadog.trace.api.Config.TRACE_AGENT_URL
 import static datadog.trace.api.Config.TRACE_ENABLED
 import static datadog.trace.api.Config.TRACE_RATE_LIMIT
 import static datadog.trace.api.Config.TRACE_REPORT_HOSTNAME
@@ -116,6 +118,7 @@ class ConfigTest extends DDSpecification {
   private static final DD_TRACE_AGENT_PORT_ENV = "DD_TRACE_AGENT_PORT"
   private static final DD_AGENT_PORT_LEGACY_ENV = "DD_AGENT_PORT"
   private static final DD_TRACE_REPORT_HOSTNAME = "DD_TRACE_REPORT_HOSTNAME"
+  private static final DD_RUNTIME_METRICS_ENABLED_ENV = "DD_RUNTIME_METRICS_ENABLED"
 
   private static final DD_PROFILING_API_KEY_OLD_ENV = "DD_PROFILING_API_KEY"
   private static final DD_PROFILING_API_KEY_VERY_OLD_ENV = "DD_PROFILING_APIKEY"
@@ -137,6 +140,7 @@ class ConfigTest extends DDSpecification {
     config.agentHost == "localhost"
     config.agentPort == 8126
     config.agentUnixDomainSocket == null
+    config.agentUrl == "http://localhost:8126"
     config.prioritySamplingEnabled == true
     config.traceResolverEnabled == true
     config.serviceMapping == [:]
@@ -266,6 +270,7 @@ class ConfigTest extends DDSpecification {
     config.agentHost == "somehost"
     config.agentPort == 123
     config.agentUnixDomainSocket == "somepath"
+    config.agentUrl == "http://somehost:123"
     config.prioritySamplingEnabled == false
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1"]
@@ -388,6 +393,7 @@ class ConfigTest extends DDSpecification {
     config.agentHost == "somehost"
     config.agentPort == 123
     config.agentUnixDomainSocket == "somepath"
+    config.agentUrl == "http://somehost:123"
     config.prioritySamplingEnabled == false
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1"]
@@ -486,6 +492,7 @@ class ConfigTest extends DDSpecification {
     config.prioritizationType == "FastLane"
     config.agentHost == "somewhere"
     config.agentPort == 123
+    config.agentUrl == "http://somewhere:123"
   }
 
   def "default when configured incorrectly"() {
@@ -519,6 +526,7 @@ class ConfigTest extends DDSpecification {
     config.prioritizationType == " "
     config.agentHost == " "
     config.agentPort == 8126
+    config.agentUrl == "http:// :8126"
     config.prioritySamplingEnabled == false
     config.traceResolverEnabled == true
     config.serviceMapping == [:]
@@ -617,6 +625,7 @@ class ConfigTest extends DDSpecification {
     config.agentHost == "somehost"
     config.agentPort == 123
     config.agentUnixDomainSocket == "somepath"
+    config.agentUrl == "http://somehost:123"
     config.prioritySamplingEnabled == false
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1"]
@@ -836,31 +845,41 @@ class ConfigTest extends DDSpecification {
     environmentVariables.set("DD_ORDER_ANALYTICS_ENABLED", "false")
     environmentVariables.set("DD_TEST_ENV_ANALYTICS_ENABLED", "true")
     environmentVariables.set("DD_DISABLED_ENV_ANALYTICS_ENABLED", "false")
+    // trace prefix form should take precedence over the old non-prefix form
+    environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_ENABLED", "false")
+    environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_ENABLED", "true")
 
     System.setProperty("dd.order.analytics.enabled", "true")
     System.setProperty("dd.test-prop.analytics.enabled", "true")
     System.setProperty("dd.disabled-prop.analytics.enabled", "false")
+    // trace prefix form should take precedence over the old non-prefix form
+    System.setProperty("dd.alias-prop.analytics.enabled", "false")
+    System.setProperty("dd.trace.alias-prop.analytics.enabled", "true")
 
     expect:
     Config.get().isTraceAnalyticsIntegrationEnabled(integrationNames, defaultEnabled) == expected
 
     where:
-    names                          | defaultEnabled | expected
-    []                             | true           | true
-    []                             | false          | false
-    ["invalid"]                    | true           | true
-    ["invalid"]                    | false          | false
-    ["test-prop"]                  | false          | true
-    ["test-env"]                   | false          | true
-    ["disabled-prop"]              | true           | false
-    ["disabled-env"]               | true           | false
-    ["other", "test-prop"]         | false          | true
-    ["other", "test-env"]          | false          | true
-    ["order"]                      | false          | true
-    ["test-prop", "disabled-prop"] | false          | true
-    ["disabled-env", "test-env"]   | false          | true
-    ["test-prop", "disabled-prop"] | true           | false
-    ["disabled-env", "test-env"]   | true           | false
+    names                           | defaultEnabled | expected
+    []                              | true           | true
+    []                              | false          | false
+    ["invalid"]                     | true           | true
+    ["invalid"]                     | false          | false
+    ["test-prop"]                   | false          | true
+    ["test-env"]                    | false          | true
+    ["disabled-prop"]               | true           | false
+    ["disabled-env"]                | true           | false
+    ["other", "test-prop"]          | false          | true
+    ["other", "test-env"]           | false          | true
+    ["order"]                       | false          | true
+    ["test-prop", "disabled-prop"]  | false          | true
+    ["disabled-env", "test-env"]    | false          | true
+    ["test-prop", "disabled-prop"]  | true           | false
+    ["disabled-env", "test-env"]    | true           | false
+    ["alias-prop", "disabled-prop"] | false          | true
+    ["disabled-env", "alias-env"]   | false          | true
+    ["alias-prop", "disabled-prop"] | true           | false
+    ["disabled-env", "alias-env"]   | true           | false
 
     integrationNames = new TreeSet<>(names)
   }
@@ -1139,9 +1158,15 @@ class ConfigTest extends DDSpecification {
     setup:
     environmentVariables.set("DD_FOO_ANALYTICS_SAMPLE_RATE", "0.5")
     environmentVariables.set("DD_BAR_ANALYTICS_SAMPLE_RATE", "0.9")
+    // trace prefix form should take precedence over the old non-prefix form
+    environmentVariables.set("DD_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.8")
+    environmentVariables.set("DD_TRACE_ALIAS_ENV_ANALYTICS_SAMPLE_RATE", "0.4")
 
     System.setProperty("dd.baz.analytics.sample-rate", "0.7")
     System.setProperty("dd.buzz.analytics.sample-rate", "0.3")
+    // trace prefix form should take precedence over the old non-prefix form
+    System.setProperty("dd.alias-prop.analytics.sample-rate", "0.1")
+    System.setProperty("dd.trace.alias-prop.analytics.sample-rate", "0.2")
 
     when:
     String[] array = services.toArray(new String[0])
@@ -1163,6 +1188,8 @@ class ConfigTest extends DDSpecification {
     ["buzz", "baz"]         | 0.3f
     ["foo", "baz"]          | 0.5f
     ["baz", "foo"]          | 0.7f
+    ["alias-env", "baz"]    | 0.4f
+    ["alias-prop", "foo"]   | 0.2f
   }
 
   def "verify api key loaded from file: #path"() {
@@ -1767,6 +1794,57 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.idGenerationStrategy == RANDOM
+  }
+
+  def "DD_RUNTIME_METRICS_ENABLED=false disables all metrics"() {
+    setup:
+    environmentVariables.set(DD_RUNTIME_METRICS_ENABLED_ENV, "false")
+    def prop = new Properties()
+    prop.setProperty(JMX_FETCH_ENABLED, "true")
+    prop.setProperty(HEALTH_METRICS_ENABLED, "true")
+    prop.setProperty(PERF_METRICS_ENABLED, "true")
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    !config.jmxFetchEnabled
+    !config.healthMetricsEnabled
+    !config.perfMetricsEnabled
+  }
+
+  def "trace_agent_url overrides either host and port or unix domain"() {
+    setup:
+    System.setProperty(PREFIX + AGENT_UNIX_DOMAIN_SOCKET, "/path/to/socket")
+    if (configuredUrl != null) {
+      System.setProperty(PREFIX + TRACE_AGENT_URL, configuredUrl)
+    } else {
+      System.clearProperty(PREFIX + TRACE_AGENT_URL)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.agentUrl == expectedUrl
+    config.agentHost == expectedHost
+    config.agentPort == expectedPort
+    config.agentUnixDomainSocket == expectedUnixDomainSocket
+
+    where:
+    configuredUrl                     | expectedUrl             | expectedHost | expectedPort | expectedUnixDomainSocket
+    null                              | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
+    ""                                | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
+    "http://localhost:1234"           | "http://localhost:1234" | "localhost"  | 1234         | "/path/to/socket"
+    "http://somehost"                 | "http://somehost:8126"  | "somehost"   | 8126         | "/path/to/socket"
+    "http://somehost:80"              | "http://somehost:80"    | "somehost"   | 80           | "/path/to/socket"
+    "https://somehost:8143"           | "https://somehost:8143" | "somehost"   | 8143         | "/path/to/socket"
+    "unix:///another/socket/path"     | "http://localhost:8126" | "localhost"  | 8126         | "/another/socket/path"
+    "unix:///another%2Fsocket%2Fpath" | "http://localhost:8126" | "localhost"  | 8126         | "/another/socket/path"
+    "http:"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
+    "unix:"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
+    "1234"                            | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
+    ":1234"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
   }
 
   static class ClassThrowsExceptionForValueOfMethod {

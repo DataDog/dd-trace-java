@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
-import com.google.common.collect.ImmutableMap;
+import static datadog.trace.api.DDTags.SPAN_TYPE;
+
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -64,7 +65,7 @@ public class DDSpanContext implements AgentSpan.Context {
   /** Each span have an operation name describing the current span */
   private volatile CharSequence operationName;
   /** The type of the span. If null, the Datadog Agent will report as a custom */
-  private volatile String spanType;
+  private volatile CharSequence spanType;
   /** True indicates that the span reports an error */
   private volatile boolean errorFlag;
   /**
@@ -94,7 +95,7 @@ public class DDSpanContext implements AgentSpan.Context {
       final String origin,
       final Map<String, String> baggageItems,
       final boolean errorFlag,
-      final String spanType,
+      final CharSequence spanType,
       final int tagsSize,
       final PendingTrace trace,
       final CoreTracer tracer,
@@ -204,11 +205,11 @@ public class DDSpanContext implements AgentSpan.Context {
     this.errorFlag = errorFlag;
   }
 
-  public String getSpanType() {
+  public CharSequence getSpanType() {
     return spanType;
   }
 
-  public void setSpanType(final String spanType) {
+  public void setSpanType(final CharSequence spanType) {
     this.spanType = spanType;
   }
 
@@ -339,8 +340,17 @@ public class DDSpanContext implements AgentSpan.Context {
    * @param value the value of the tag. tags with null values are ignored.
    */
   public void setTag(final String tag, final Object value) {
-    synchronized (unsafeTags) {
-      unsafeSetTag(tag, value);
+    // intercept tags we represent as fields but used to store in a weakly typed map
+    switch (tag) {
+      case SPAN_TYPE:
+        if (value instanceof CharSequence) {
+          this.spanType = (CharSequence) value;
+        }
+        break;
+      default:
+        synchronized (unsafeTags) {
+          unsafeSetTag(tag, value);
+        }
     }
   }
 
@@ -351,6 +361,8 @@ public class DDSpanContext implements AgentSpan.Context {
 
     synchronized (unsafeTags) {
       for (final Map.Entry<String, ? extends Object> tag : map.entrySet()) {
+        // not backporting tag fields now represented by fields
+        // because this is internal api
         unsafeSetTag(tag.getKey(), tag.getValue());
       }
     }
@@ -407,7 +419,7 @@ public class DDSpanContext implements AgentSpan.Context {
 
   public Map<String, Object> getTags() {
     synchronized (unsafeTags) {
-      return ImmutableMap.copyOf(unsafeTags);
+      return Collections.unmodifiableMap(new HashMap<>(unsafeTags));
     }
   }
 

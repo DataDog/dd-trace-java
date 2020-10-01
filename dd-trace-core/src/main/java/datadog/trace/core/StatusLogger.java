@@ -6,7 +6,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
-import datadog.trace.api.config.GeneralConfig;
+import datadog.trace.api.DDTraceApiInfo;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -20,13 +20,15 @@ import lombok.extern.slf4j.Slf4j;
 public class StatusLogger {
 
   public static void logStatus(Config config) {
-    log.info(
-        "DATADOG TRACER CONFIGURATION {}",
-        new Moshi.Builder()
-            .add(ConfigAdapter.FACTORY)
-            .build()
-            .adapter(Config.class)
-            .toJson(config));
+    if (log.isInfoEnabled()) {
+      log.info(
+          "DATADOG TRACER CONFIGURATION {}",
+          new Moshi.Builder()
+              .add(ConfigAdapter.FACTORY)
+              .build()
+              .adapter(Config.class)
+              .toJson(config));
+    }
     if (log.isDebugEnabled()) {
       log.debug("class path: {}", System.getProperty("java.class.path"));
     }
@@ -114,7 +116,7 @@ public class StatusLogger {
       writer.name("profiling_enabled");
       writer.value(config.isProfilingEnabled());
       writer.name("dd_version");
-      writer.value(String.valueOf(config.getMergedSpanTags().get(GeneralConfig.VERSION)));
+      writer.value(DDTraceApiInfo.VERSION);
       writer.name("health_checks_enabled");
       writer.value(config.isHealthMetricsEnabled());
       writer.name("configuration_file");

@@ -3,6 +3,7 @@ package datadog.trace.core.util
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Config
 import datadog.trace.util.test.DDSpecification
+import org.junit.Assume
 
 import java.lang.management.ManagementFactory
 
@@ -112,5 +113,79 @@ class SystemAccessTest extends DDSpecification {
 
     then:
     pid == 0
+  }
+
+  def "JMX - getVMArguments"() {
+    setup:
+    ConfigUtils.updateConfig {
+      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+    }
+    SystemAccess.enableJmx()
+
+    when:
+    def vmArgs = SystemAccess.getVMArguments()
+
+    then:
+    vmArgs != null
+    vmArgs.size() > 0
+
+    cleanup:
+    SystemAccess.disableJmx()
+  }
+
+  def "No JMX - getVMArguments"() {
+    setup:
+    ConfigUtils.updateConfig {
+      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+    }
+
+    when:
+    def vmArgs = SystemAccess.getVMArguments()
+
+    then:
+    vmArgs != null
+    vmArgs.size() == 0
+  }
+
+  def "JMX - executeDiagnosticCommand"() {
+    setup:
+    def vmVersion = System.getProperty("java.specification.version")
+    def vmVendor = System.getProperty("java.vendor")
+    Assume.assumeFalse(vmVersion == "1.7")
+    Assume.assumeFalse(vmVersion == "1.8" && vmVendor.contains("IBM"))
+    ConfigUtils.updateConfig {
+      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+    }
+    SystemAccess.enableJmx()
+
+    when:
+    def result = SystemAccess.executeDiagnosticCommand(
+      "jfrConfigure",
+      [["stackdepth=128"].toArray() as String[]].toArray() as Object[],
+      [String[].class.getName()].toArray() as String[])
+
+    then:
+    "Stack depth: 128" == result
+    noExceptionThrown()
+
+    cleanup:
+    SystemAccess.disableJmx()
+  }
+
+  def "No JMX - executeDiagnosticCommand"() {
+    setup:
+    ConfigUtils.updateConfig {
+      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+    }
+
+    when:
+    def result = SystemAccess.executeDiagnosticCommand(
+      "jfrConfigure",
+      [["stackdepth=128"].toArray() as String[]].toArray() as Object[],
+      [String[].class.getName()].toArray() as String[])
+
+    then:
+    "Not executed, JMX not initialized." == result
+    noExceptionThrown()
   }
 }

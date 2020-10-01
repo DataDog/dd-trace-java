@@ -29,6 +29,11 @@ public final class AWSClientInstrumentation extends Instrumenter.Default {
   }
 
   @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return RequestInstrumentation.CLASS_LOADER_MATCHER;
+  }
+
+  @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return named("com.amazonaws.AmazonWebServiceClient")
         .and(declaresField(named("requestHandler2s")));

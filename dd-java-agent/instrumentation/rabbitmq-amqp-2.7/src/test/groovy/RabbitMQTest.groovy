@@ -409,7 +409,6 @@ class RabbitMQTest extends AgentTestRunner {
           case "basic.deliver":
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             "amqp.command" "basic.deliver"
-            "span.origin.type" { it == "RabbitMQTest\$1" || it == "RabbitMQTest\$2" }
             "amqp.exchange" { it == "some-exchange" || it == "some-error-exchange" }
             "message.size" Integer
             break

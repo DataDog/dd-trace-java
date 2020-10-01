@@ -75,9 +75,7 @@ public final class SpringSessionAwareMessageListener extends Instrumenter.Defaul
         @Advice.Argument(0) final Message message, @Advice.This final Object listener) {
 
       final Context extractedContext = propagate().extract(message, GETTER);
-      final AgentSpan span =
-          startSpan(JMS_ONMESSAGE, extractedContext)
-              .setTag("span.origin.type", listener.getClass().getName());
+      final AgentSpan span = startSpan(JMS_ONMESSAGE, extractedContext);
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onReceive(span, message);
 

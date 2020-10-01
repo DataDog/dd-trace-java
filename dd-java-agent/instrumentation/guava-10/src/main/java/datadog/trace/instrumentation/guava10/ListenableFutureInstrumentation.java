@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.guava10;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -26,6 +27,14 @@ public class ListenableFutureInstrumentation extends Instrumenter.Default {
 
   public ListenableFutureInstrumentation() {
     super("guava");
+  }
+
+  private final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("com.google.common.util.concurrent.AbstractFuture");
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override

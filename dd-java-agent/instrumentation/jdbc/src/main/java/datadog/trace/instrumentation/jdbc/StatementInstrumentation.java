@@ -46,7 +46,7 @@ public final class StatementInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCMaps", packageName + ".JDBCUtils", packageName + ".JDBCDecorator",
+      packageName + ".JDBCUtils", packageName + ".JDBCDecorator",
     };
   }
 
@@ -76,7 +76,6 @@ public final class StatementInstrumentation extends Instrumenter.Default {
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, connection);
       DECORATE.onStatement(span, sql);
-      span.setTag("span.origin.type", statement.getClass().getName());
       return activateSpan(span);
     }
 

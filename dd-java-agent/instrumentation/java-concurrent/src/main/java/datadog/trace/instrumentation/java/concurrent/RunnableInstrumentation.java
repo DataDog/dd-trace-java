@@ -35,7 +35,7 @@ public final class RunnableInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  public Map<String, String> contextStore() {
+  public Map<String, String> contextStoreForAll() {
     return singletonMap(Runnable.class.getName(), State.class.getName());
   }
 

@@ -30,10 +30,13 @@ public class CouchbaseNetworkInstrumentation extends Instrumenter.Default {
     super("couchbase");
   }
 
+  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("com.couchbase.client.core.message.CouchbaseRequest");
+
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("com.couchbase.client.core.endpoint.AbstractGenericHandler");
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override

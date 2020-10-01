@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = 'com.twilio.sdk'
     module = 'twilio'
-    versions = "(,)"
+    versions = "(,8.0.0)"
   }
 }
 

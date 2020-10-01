@@ -26,4 +26,6 @@ public class InternalSpanTypes {
   // these are all the same thing but don't want to be taken by surprise by changes in DDSpanTypes
   public static final CharSequence MESSAGE_CONSUMER =
       UTF8BytesString.createConstant(DDSpanTypes.MESSAGE_CONSUMER);
+  public static final CharSequence MESSAGE_PRODUCER =
+      UTF8BytesString.createConstant(DDSpanTypes.MESSAGE_PRODUCER);
 }

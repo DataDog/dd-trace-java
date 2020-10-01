@@ -33,10 +33,13 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
     super("servlet", "servlet-response");
   }
 
+  public static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("javax.servlet.http.HttpServletResponse");
+
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("javax.servlet.http.HttpServletResponse");
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override

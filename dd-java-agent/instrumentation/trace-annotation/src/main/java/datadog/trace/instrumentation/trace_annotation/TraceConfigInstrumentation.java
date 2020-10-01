@@ -5,12 +5,12 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.sa
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.Trace;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -68,8 +68,8 @@ public class TraceConfigInstrumentation implements Instrumenter {
       classMethodsToTrace = Collections.emptyMap();
 
     } else {
-      final Map<String, Set<String>> toTrace = Maps.newHashMap();
       final String[] classMethods = configString.split(";", -1);
+      final Map<String, Set<String>> toTrace = new HashMap<>(classMethods.length);
       for (final String classMethod : classMethods) {
         if (classMethod.trim().isEmpty()) {
           continue;
@@ -79,8 +79,7 @@ public class TraceConfigInstrumentation implements Instrumenter {
         final String method = splitClassMethod[1].trim();
         final String methodNames = method.substring(0, method.length() - 1);
         final String[] splitMethodNames = methodNames.split(",", -1);
-        final Set<String> trimmedMethodNames =
-            Sets.newHashSetWithExpectedSize(splitMethodNames.length);
+        final Set<String> trimmedMethodNames = new HashSet<>();
         for (final String methodName : splitMethodNames) {
           final String trimmedMethodName = methodName.trim();
           if (!trimmedMethodName.isEmpty()) {

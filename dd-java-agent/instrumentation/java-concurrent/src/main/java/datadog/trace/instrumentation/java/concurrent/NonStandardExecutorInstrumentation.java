@@ -21,7 +21,7 @@ public final class NonStandardExecutorInstrumentation extends AbstractExecutorIn
   }
 
   @Override
-  public Map<String, String> contextStore() {
+  public Map<String, String> contextStoreForAll() {
     return singletonMap(Runnable.class.getName(), State.class.getName());
   }
 

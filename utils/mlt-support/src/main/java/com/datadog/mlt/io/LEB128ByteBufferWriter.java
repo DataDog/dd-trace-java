@@ -177,7 +177,7 @@ final class LEB128ByteBufferWriter extends AbstractLEB128Writer {
          * The underlying ByteBuffer was released due to memory pressure.
          * Clear the TLS variable and try recreating the buffer.
          */
-        log.info(
+        log.debug(
             "Cleaning dangling reference to ByteBuffer from thread {}",
             Thread.currentThread().getName());
         BUFFER_REF.remove();

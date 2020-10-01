@@ -29,10 +29,13 @@ public class NettyChannelInstrumentation extends Instrumenter.Default {
     super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
   }
 
+  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("org.jboss.netty.channel.Channel");
+
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("org.jboss.netty.channel.Channel");
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override

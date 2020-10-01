@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.jdbc;
 
 import datadog.trace.api.DDTags;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -10,10 +12,20 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Collections;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
+
+  // use a fixed size cache to avoid creating background cleanup work
+  public static final DDCache<String, UTF8BytesString> PREPARED_STATEMENTS_SQL =
+      DDCaches.newFixedSizeCache(256);
+  // use a weak hash map and expunge when connections happen rather than in the background,
+  // because connections are rare events in well written applications
+  public static final Map<Connection, DBInfo> CONNECTION_INFO =
+      Collections.synchronizedMap(new WeakHashMap<Connection, DBInfo>());
 
   public static final JDBCDecorator DECORATE = new JDBCDecorator();
   public static final CharSequence JAVA_JDBC = UTF8BytesString.createConstant("java-jdbc");
@@ -65,7 +77,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public AgentSpan onConnection(final AgentSpan span, final Connection connection) {
-    DBInfo dbInfo = JDBCMaps.connectionInfo.get(connection);
+    DBInfo dbInfo = CONNECTION_INFO.get(connection);
     /**
      * Logic to get the DBInfo from a JDBC Connection, if the connection was not created via
      * Driver.connect, or it has never seen before, the connectionInfo map will return null and will
@@ -91,7 +103,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
         } catch (final SQLException se) {
           dbInfo = DBInfo.DEFAULT;
         }
-        JDBCMaps.connectionInfo.put(connection, dbInfo);
+        CONNECTION_INFO.put(connection, dbInfo);
       }
     }
 
@@ -109,8 +121,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     return super.onStatement(span, statement);
   }
 
-  public AgentSpan onPreparedStatement(final AgentSpan span, final PreparedStatement statement) {
-    final UTF8BytesString sql = JDBCMaps.preparedStatements.get(statement);
+  public AgentSpan onPreparedStatement(final AgentSpan span, UTF8BytesString sql) {
     final UTF8BytesString resourceName = sql == null ? DB_QUERY : sql;
     span.setTag(DDTags.RESOURCE_NAME, resourceName);
     span.setTag(Tags.COMPONENT, JDBC_PREPARED_STATEMENT);

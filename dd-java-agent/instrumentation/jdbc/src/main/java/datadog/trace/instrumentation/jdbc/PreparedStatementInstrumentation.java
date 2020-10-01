@@ -17,8 +17,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.Map;
@@ -34,9 +36,17 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Default
     super("jdbc");
   }
 
+  static ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("java.sql.PreparedStatement");
+
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("java.sql.PreparedStatement");
+    return CLASS_LOADER_MATCHER;
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("java.sql.PreparedStatement", UTF8BytesString.class.getName());
   }
 
   @Override
@@ -48,7 +58,7 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Default
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCMaps", packageName + ".JDBCUtils", packageName + ".JDBCDecorator",
+      packageName + ".JDBCUtils", packageName + ".JDBCDecorator",
     };
   }
 
@@ -73,11 +83,13 @@ public final class PreparedStatementInstrumentation extends Instrumenter.Default
         return null;
       }
 
+      UTF8BytesString sql =
+          InstrumentationContext.get(PreparedStatement.class, UTF8BytesString.class).get(statement);
+
       final AgentSpan span = startSpan(DATABASE_QUERY);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, connection);
-      DECORATE.onPreparedStatement(span, statement);
-      span.setTag("span.origin.type", statement.getClass().getName());
+      DECORATE.onPreparedStatement(span, sql);
       return activateSpan(span);
     }
 

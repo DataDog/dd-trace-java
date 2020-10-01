@@ -86,7 +86,7 @@ public class FinatraInstrumentation extends Instrumenter.Default {
 
       final AgentSpan span = startSpan(FINATRA_CONTROLLER);
       DECORATE.afterStart(span);
-      span.setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForClass(clazz));
+      span.setTag(DDTags.RESOURCE_NAME, DECORATE.className(clazz));
 
       final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);

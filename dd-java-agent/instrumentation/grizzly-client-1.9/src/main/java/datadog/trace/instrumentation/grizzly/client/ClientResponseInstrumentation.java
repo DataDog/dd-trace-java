@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.grizzly.client;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.hasSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -29,7 +28,7 @@ public final class ClientResponseInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("com.ning.http.client.AsyncCompletionHandler");
+    return ClientRequestInstrumentation.CLASS_LOADER_MATCHER;
   }
 
   @Override

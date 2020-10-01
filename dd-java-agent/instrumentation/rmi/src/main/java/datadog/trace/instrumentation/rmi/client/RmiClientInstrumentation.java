@@ -57,9 +57,7 @@ public final class RmiClientInstrumentation extends Instrumenter.Default {
         return null;
       }
       final AgentSpan span =
-          startSpan(RMI_INVOKE)
-              .setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(method))
-              .setTag("span.origin.type", method.getDeclaringClass().getCanonicalName());
+          startSpan(RMI_INVOKE).setTag(DDTags.RESOURCE_NAME, DECORATE.spanNameForMethod(method));
 
       DECORATE.afterStart(span);
       return activateSpan(span);

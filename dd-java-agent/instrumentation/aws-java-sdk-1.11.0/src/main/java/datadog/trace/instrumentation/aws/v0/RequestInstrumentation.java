@@ -26,10 +26,13 @@ public final class RequestInstrumentation extends Instrumenter.Default {
     super("aws-sdk");
   }
 
+  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("com.amazonaws.AmazonWebServiceRequest");
+
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("com.amazonaws.AmazonWebServiceRequest");
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override

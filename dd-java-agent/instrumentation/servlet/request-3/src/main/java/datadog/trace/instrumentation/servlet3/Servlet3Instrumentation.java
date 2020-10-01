@@ -21,10 +21,13 @@ public final class Servlet3Instrumentation extends Instrumenter.Default {
     super("servlet", "servlet-3");
   }
 
+  private final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("javax.servlet.http.HttpServletResponse");
+
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
     // Optimization for expensive typeMatcher.
-    return hasClassesNamed("javax.servlet.http.HttpServlet");
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override

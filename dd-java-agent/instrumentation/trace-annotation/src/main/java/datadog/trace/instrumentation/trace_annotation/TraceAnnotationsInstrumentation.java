@@ -9,11 +9,13 @@ import static net.bytebuddy.matcher.ElementMatchers.isAnnotatedWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.Sets;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.Trace;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -33,14 +35,13 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Default 
           + PACKAGE_CLASS_NAME_REGEX
           + "\\s*;?\\s*";
 
-  private static final String[] DEFAULT_ANNOTATIONS =
-      new String[] {
-        "com.newrelic.api.agent.Trace",
-        "kamon.annotation.Trace",
-        "com.tracelytics.api.ext.LogMethod",
-        "io.opentracing.contrib.dropwizard.Trace",
-        "org.springframework.cloud.sleuth.annotation.NewSpan"
-      };
+  private static final List<String> DEFAULT_ANNOTATIONS =
+      Arrays.asList(
+          "com.newrelic.api.agent.Trace",
+          "kamon.annotation.Trace",
+          "com.tracelytics.api.ext.LogMethod",
+          "io.opentracing.contrib.dropwizard.Trace",
+          "org.springframework.cloud.sleuth.annotation.NewSpan");
 
   private final Set<String> additionalTraceAnnotations;
   private final ElementMatcher.Junction<NamedElement> methodTraceMatcher;
@@ -50,8 +51,7 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Default 
 
     final String configString = Config.get().getTraceAnnotations();
     if (configString == null) {
-      additionalTraceAnnotations =
-          Collections.unmodifiableSet(Sets.<String>newHashSet(DEFAULT_ANNOTATIONS));
+      additionalTraceAnnotations = Collections.unmodifiableSet(new HashSet<>(DEFAULT_ANNOTATIONS));
     } else if (configString.trim().isEmpty()) {
       additionalTraceAnnotations = Collections.emptySet();
     } else if (!configString.matches(CONFIG_FORMAT)) {
@@ -60,8 +60,8 @@ public final class TraceAnnotationsInstrumentation extends Instrumenter.Default 
           configString);
       additionalTraceAnnotations = Collections.emptySet();
     } else {
-      final Set<String> annotations = Sets.newHashSet();
       final String[] annotationClasses = configString.split(";", -1);
+      final Set<String> annotations = new HashSet<>(annotationClasses.length);
       for (final String annotationClass : annotationClasses) {
         if (!annotationClass.trim().isEmpty()) {
           annotations.add(annotationClass.trim());

@@ -18,6 +18,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.hibernate.SessionState;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -36,7 +37,7 @@ public class SessionFactoryInstrumentation extends AbstractHibernateInstrumentat
     stores.put("org.hibernate.Session", SessionState.class.getName());
     stores.put("org.hibernate.StatelessSession", SessionState.class.getName());
     stores.put("org.hibernate.SharedSessionContract", SessionState.class.getName());
-    return stores;
+    return Collections.unmodifiableMap(stores);
   }
 
   @Override

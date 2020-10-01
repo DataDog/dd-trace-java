@@ -70,7 +70,7 @@ public abstract class BaseDecorator {
   public AgentSpan afterStart(final AgentSpan span) {
     assert span != null;
     if (spanType() != null) {
-      span.setTag(DDTags.SPAN_TYPE, spanType());
+      span.setSpanType(spanType());
     }
     span.setTag(Tags.COMPONENT, component());
     if (traceAnalyticsEnabled) {
@@ -179,7 +179,7 @@ public abstract class BaseDecorator {
    * @param clazz
    * @return
    */
-  public CharSequence spanNameForClass(final Class<?> clazz) {
+  public CharSequence className(final Class<?> clazz) {
     String simpleName = clazz.getSimpleName();
     return simpleName.isEmpty() ? CLASS_NAMES.getClassName(clazz) : simpleName;
   }

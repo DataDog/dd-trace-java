@@ -2,7 +2,6 @@ package datadog.trace.core;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.util.Clock;
@@ -22,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
  * according to the DD agent.
  */
 @Slf4j
-public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
+public class DDSpan implements AgentSpan, DDSpanData {
 
   static DDSpan create(final long timestampMicro, final DDSpanContext context) {
     final DDSpan span = new DDSpan(timestampMicro, context);
@@ -126,7 +125,7 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
 
   @Override
   @Deprecated
-  public MutableSpan getRootSpan() {
+  public AgentSpan getRootSpan() {
     return getLocalRootSpan();
   }
 
@@ -140,7 +139,7 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
     // FIXME [API] AgentSpan or AgentSpan.Context should have a "getTraceId()" type method
     if (otherSpan instanceof DDSpan) {
       // minor optimization to avoid BigInteger.toString()
-      return getTraceId().equals(((DDSpan) otherSpan).getTraceId());
+      return getTraceId().equals(otherSpan.getTraceId());
     }
 
     return false;
@@ -274,7 +273,7 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
   }
 
   @Override
-  public final DDSpan setSpanType(final String type) {
+  public final DDSpan setSpanType(final CharSequence type) {
     context.setSpanType(type);
     return this;
   }
@@ -358,7 +357,8 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
 
   @Override
   public String getSpanType() {
-    return context.getSpanType();
+    CharSequence spanType = context.getSpanType();
+    return null == spanType ? null : spanType.toString();
   }
 
   @Override
@@ -368,7 +368,7 @@ public class DDSpan implements MutableSpan, AgentSpan, DDSpanData {
   }
 
   @Override
-  public String getType() {
+  public CharSequence getType() {
     return context.getSpanType();
   }
 

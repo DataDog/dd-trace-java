@@ -380,7 +380,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     def minimalTrace = createMinimalTrace()
     def version = agentVersion
 
-    def api = new DDAgentApi("localhost", 8192, null, 1000, monitoring) {
+    def api = new DDAgentApi("http://localhost:8192", null, 1000, monitoring) {
 
       String detectEndpointAndBuildClient() {
         return version

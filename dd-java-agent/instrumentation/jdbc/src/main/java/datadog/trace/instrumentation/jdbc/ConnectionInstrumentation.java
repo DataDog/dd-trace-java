@@ -1,8 +1,9 @@
 package datadog.trace.instrumentation.jdbc;
 
-import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.api.Functions.UTF8_ENCODE;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.PREPARED_STATEMENTS_SQL;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -11,6 +12,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.sql.PreparedStatement;
 import java.util.Map;
@@ -28,7 +31,12 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("java.sql.Connection");
+    return PreparedStatementInstrumentation.CLASS_LOADER_MATCHER;
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("java.sql.PreparedStatement", UTF8BytesString.class.getName());
   }
 
   @Override
@@ -39,7 +47,7 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JDBCMaps",
+      packageName + ".JDBCDecorator",
     };
   }
 
@@ -57,14 +65,14 @@ public final class ConnectionInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addDBInfo(
         @Advice.Argument(0) final String sql, @Advice.Return final PreparedStatement statement) {
-      // Sometimes the prepared statement is not reused, but the underlying String is reused, so
-      // check if we have seen this String before
-      UTF8BytesString utf8Sql = JDBCMaps.preparedStatementsSql.get(sql);
-      if (utf8Sql == null) {
-        utf8Sql = UTF8BytesString.createWeak(sql);
-        JDBCMaps.preparedStatementsSql.put(sql, utf8Sql);
+      ContextStore<PreparedStatement, UTF8BytesString> contextStore =
+          InstrumentationContext.get(PreparedStatement.class, UTF8BytesString.class);
+      if (null == contextStore.get(statement)) {
+        // Sometimes the prepared statement is not reused, but the underlying String is reused, so
+        // check if we have seen this String before
+        UTF8BytesString utf8Sql = PREPARED_STATEMENTS_SQL.computeIfAbsent(sql, UTF8_ENCODE);
+        contextStore.putIfAbsent(statement, utf8Sql);
       }
-      JDBCMaps.preparedStatements.putIfAbsent(statement, utf8Sql);
     }
   }
 }

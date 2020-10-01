@@ -40,7 +40,7 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
     super(EXEC_NAME, additionalNames);
 
     if (TRACE_ALL_EXECUTORS) {
-      log.info("Tracing all executors enabled.");
+      log.warn("Tracing all executors enabled. This is not a recommended setting.");
       PERMITTED_EXECUTORS = Collections.emptyList();
       PERMITTED_EXECUTORS_PREFIXES = Collections.emptyList();
     } else {

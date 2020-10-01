@@ -45,10 +45,10 @@ public interface Sampler {
           }
         } else if (config.isPrioritySamplingEnabled()) {
           if (KEEP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
-            log.info("Force Sampling Priority to: SAMPLER_KEEP.");
+            log.debug("Force Sampling Priority to: SAMPLER_KEEP.");
             sampler = new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP);
           } else if (DROP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
-            log.info("Force Sampling Priority to: SAMPLER_DROP.");
+            log.debug("Force Sampling Priority to: SAMPLER_DROP.");
             sampler = new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP);
           } else {
             sampler = new RateByServiceSampler();

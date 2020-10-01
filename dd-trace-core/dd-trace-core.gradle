@@ -24,9 +24,6 @@ testSets {
 }
 
 dependencies {
-  annotationProcessor deps.autoservice
-  implementation deps.autoservice
-
   compile project(':dd-trace-api')
   compile project(':internal-api')
   compile project(':utils:thread-utils')
@@ -36,15 +33,15 @@ dependencies {
 
   compile deps.slf4j
   compile deps.okhttp
+
   compile group: 'org.hdrhistogram', name: 'HdrHistogram', version: '2.1.12'
   compile group: 'com.squareup.moshi', name: 'moshi', version: '1.9.2'
   compile group: 'com.github.jnr', name: 'jnr-unixsocket', version: "${versions.jnr_unixsocket}"
   compile group: 'org.jctools', name: 'jctools-core', version: '3.1.0'
 
-
   // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
-  testAnnotationProcessor deps.autoservice
-  testImplementation deps.autoservice
+  testAnnotationProcessor deps.autoserviceProcessor
+  testCompileOnly deps.autoserviceAnnotation
 
   testCompile project(":dd-java-agent:testing")
   testCompile group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'

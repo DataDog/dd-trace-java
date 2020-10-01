@@ -6,6 +6,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_WRITER_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_HEALTH_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_SPLIT_BY_DOMAIN;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_TAG_QUERY_STRING;
@@ -16,8 +17,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITIZATION_TYPE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
@@ -55,6 +56,7 @@ import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static datadog.trace.api.DDTags.SERVICE;
 import static datadog.trace.api.DDTags.SERVICE_TAG;
 import static datadog.trace.api.IdGenerationStrategy.RANDOM;
+import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HYSTRIX_TAGS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LOGS_MDC_TAGS_INJECTION_ENABLED;
 import static datadog.trace.api.config.TracerConfig.ENABLE_TRACE_AGENT_V05;
@@ -70,6 +72,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -118,6 +122,7 @@ public class Config {
   public static final String ID_GENERATION_STRATEGY = TracerConfig.ID_GENERATION_STRATEGY;
   public static final String WRITER_TYPE = TracerConfig.WRITER_TYPE;
   public static final String PRIORITIZATION_TYPE = TracerConfig.PRIORITIZATION_TYPE;
+  public static final String TRACE_AGENT_URL = TracerConfig.TRACE_AGENT_URL;
   public static final String AGENT_HOST = TracerConfig.AGENT_HOST;
   public static final String TRACE_AGENT_PORT = TracerConfig.TRACE_AGENT_PORT;
   public static final String AGENT_PORT_LEGACY = TracerConfig.AGENT_PORT_LEGACY;
@@ -166,6 +171,8 @@ public class Config {
   public static final String SPLIT_BY_TAGS = TracerConfig.SPLIT_BY_TAGS;
   public static final String SCOPE_DEPTH_LIMIT = TracerConfig.SCOPE_DEPTH_LIMIT;
   public static final String SCOPE_STRICT_MODE = TracerConfig.SCOPE_STRICT_MODE;
+  public static final String SCOPE_INHERIT_ASYNC_PROPAGATION =
+      TracerConfig.SCOPE_INHERIT_ASYNC_PROPAGATION;
   public static final String PARTIAL_FLUSH_MIN_SPANS = TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
   public static final String RUNTIME_CONTEXT_FIELD_INJECTION =
       TraceInstrumentationConfig.RUNTIME_CONTEXT_FIELD_INJECTION;
@@ -236,6 +243,8 @@ public class Config {
   public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =
       TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 
+  private static final String TRACE_AGENT_URL_TEMPLATE = "http://%s:%d";
+
   private static final String PROFILING_REMOTE_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
   private static final String PROFILING_LOCAL_URL_TEMPLATE = "http://%s:%d/profiling/v1/input";
 
@@ -277,6 +286,7 @@ public class Config {
   @Getter private final String writerType;
   @Getter private final String prioritizationType;
   @Getter private final boolean agentConfiguredUsingDefault;
+  @Getter private final String agentUrl;
   @Getter private final String agentHost;
   @Getter private final int agentPort;
   @Getter private final String agentUnixDomainSocket;
@@ -299,6 +309,7 @@ public class Config {
   @Getter private final Set<String> splitByTags;
   @Getter private final int scopeDepthLimit;
   @Getter private final boolean scopeStrictMode;
+  @Getter private final boolean scopeInheritAsyncPropagation;
   @Getter private final int partialFlushMinSpans;
   @Getter private final boolean runtimeContextFieldInjection;
   @Getter private final Set<PropagationStyle> propagationStylesToExtract;
@@ -335,7 +346,7 @@ public class Config {
   @Getter private final Map<String, String> traceSamplingServiceRules;
   @Getter private final Map<String, String> traceSamplingOperationRules;
   @Getter private final Double traceSampleRate;
-  @Getter private final Double traceRateLimit;
+  @Getter private final int traceRateLimit;
 
   @Getter private final boolean profilingEnabled;
   @Deprecated private final String profilingUrl;
@@ -412,9 +423,32 @@ public class Config {
           idGenerationStrategy);
     }
 
+    String agentHostFromEnvironment = null;
+    int agentPortFromEnvironment = -1;
+    String unixDomainFromEnvironment = null;
+    boolean rebuildAgentUrl = false;
+
+    final String agentUrlFromEnvironment = configProvider.getString(TRACE_AGENT_URL);
+    if (agentUrlFromEnvironment != null) {
+      try {
+        final URI parsedAgentUrl = new URI(agentUrlFromEnvironment);
+        agentHostFromEnvironment = parsedAgentUrl.getHost();
+        agentPortFromEnvironment = parsedAgentUrl.getPort();
+        if ("unix".equals(parsedAgentUrl.getScheme())) {
+          unixDomainFromEnvironment = parsedAgentUrl.getPath();
+        }
+      } catch (URISyntaxException e) {
+        log.warn("{} not configured correctly: {}. Ignoring", TRACE_AGENT_URL, e.getMessage());
+      }
+    }
+
+    if (agentHostFromEnvironment == null) {
+      agentHostFromEnvironment = configProvider.getString(AGENT_HOST);
+      rebuildAgentUrl = true;
+    }
+
     // The extra code is to detect when defaults are used for agent configuration
     final boolean agentHostConfiguredUsingDefault;
-    final String agentHostFromEnvironment = configProvider.getString(AGENT_HOST);
     if (agentHostFromEnvironment == null) {
       agentHost = DEFAULT_AGENT_HOST;
       agentHostConfiguredUsingDefault = true;
@@ -423,18 +457,32 @@ public class Config {
       agentHostConfiguredUsingDefault = false;
     }
 
+    if (agentPortFromEnvironment < 0) {
+      agentPort =
+          configProvider.getInteger(TRACE_AGENT_PORT, DEFAULT_TRACE_AGENT_PORT, AGENT_PORT_LEGACY);
+      rebuildAgentUrl = true;
+    } else {
+      agentPort = agentPortFromEnvironment;
+    }
+
+    if (rebuildAgentUrl) {
+      agentUrl = String.format(TRACE_AGENT_URL_TEMPLATE, agentHost, agentPort);
+    } else {
+      agentUrl = agentUrlFromEnvironment;
+    }
+
+    if (unixDomainFromEnvironment == null) {
+      unixDomainFromEnvironment = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
+    }
+
     final boolean socketConfiguredUsingDefault;
-    final String unixDomainFromEnv = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
-    if (unixDomainFromEnv == null) {
+    if (unixDomainFromEnvironment == null) {
       agentUnixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
       socketConfiguredUsingDefault = true;
     } else {
-      agentUnixDomainSocket = unixDomainFromEnv;
+      agentUnixDomainSocket = unixDomainFromEnvironment;
       socketConfiguredUsingDefault = false;
     }
-
-    agentPort =
-        configProvider.getInteger(TRACE_AGENT_PORT, DEFAULT_TRACE_AGENT_PORT, AGENT_PORT_LEGACY);
 
     agentConfiguredUsingDefault =
         agentHostConfiguredUsingDefault
@@ -494,6 +542,8 @@ public class Config {
 
     scopeStrictMode = configProvider.getBoolean(SCOPE_STRICT_MODE, false);
 
+    scopeInheritAsyncPropagation = configProvider.getBoolean(SCOPE_INHERIT_ASYNC_PROPAGATION, true);
+
     partialFlushMinSpans =
         configProvider.getInteger(PARTIAL_FLUSH_MIN_SPANS, DEFAULT_PARTIAL_FLUSH_MIN_SPANS);
 
@@ -508,7 +558,11 @@ public class Config {
         getPropagationStyleSetSettingFromEnvironmentOrDefault(
             PROPAGATION_STYLE_INJECT, DEFAULT_PROPAGATION_STYLE_INJECT);
 
-    jmxFetchEnabled = configProvider.getBoolean(JMX_FETCH_ENABLED, DEFAULT_JMX_FETCH_ENABLED);
+    boolean runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
+
+    jmxFetchEnabled =
+        runtimeMetricsEnabled
+            && configProvider.getBoolean(JMX_FETCH_ENABLED, DEFAULT_JMX_FETCH_ENABLED);
     jmxFetchConfigDir = configProvider.getString(JMX_FETCH_CONFIG_DIR);
     jmxFetchConfigs = configProvider.getList(JMX_FETCH_CONFIG);
     jmxFetchMetricsConfigs = configProvider.getList(JMX_FETCH_METRICS_CONFIGS);
@@ -520,10 +574,13 @@ public class Config {
 
     // Writer.Builder createMonitor will use the values of the JMX fetch & agent to fill-in defaults
     healthMetricsEnabled =
-        configProvider.getBoolean(HEALTH_METRICS_ENABLED, DEFAULT_METRICS_ENABLED);
+        runtimeMetricsEnabled
+            && configProvider.getBoolean(HEALTH_METRICS_ENABLED, DEFAULT_HEALTH_METRICS_ENABLED);
     healthMetricsStatsdHost = configProvider.getString(HEALTH_METRICS_STATSD_HOST);
     healthMetricsStatsdPort = configProvider.getInteger(HEALTH_METRICS_STATSD_PORT);
-    perfMetricsEnabled = configProvider.getBoolean(PERF_METRICS_ENABLED, false);
+    perfMetricsEnabled =
+        runtimeMetricsEnabled
+            && configProvider.getBoolean(PERF_METRICS_ENABLED, DEFAULT_PERF_METRICS_ENABLED);
 
     logsInjectionEnabled =
         configProvider.getBoolean(LOGS_INJECTION_ENABLED, DEFAULT_LOGS_INJECTION_ENABLED);
@@ -548,7 +605,7 @@ public class Config {
     traceSamplingServiceRules = configProvider.getMergedMap(TRACE_SAMPLING_SERVICE_RULES);
     traceSamplingOperationRules = configProvider.getMergedMap(TRACE_SAMPLING_OPERATION_RULES);
     traceSampleRate = configProvider.getDouble(TRACE_SAMPLE_RATE);
-    traceRateLimit = configProvider.getDouble(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
+    traceRateLimit = configProvider.getInteger(TRACE_RATE_LIMIT, DEFAULT_TRACE_RATE_LIMIT);
 
     profilingEnabled = configProvider.getBoolean(PROFILING_ENABLED, DEFAULT_PROFILING_ENABLED);
     profilingUrl = configProvider.getString(PROFILING_URL);
@@ -703,7 +760,8 @@ public class Config {
    */
   public float getInstrumentationAnalyticsSampleRate(final String... aliases) {
     for (final String alias : aliases) {
-      final Float rate = configProvider.getFloat(alias + ".analytics.sample-rate");
+      final String configKey = alias + ".analytics.sample-rate";
+      final Float rate = configProvider.getFloat("trace." + configKey, configKey);
       if (null != rate) {
         return rate;
       }
@@ -827,8 +885,9 @@ public class Config {
     // if default is disabled, we want to disable individually.
     boolean anyEnabled = defaultEnabled;
     for (final String name : integrationNames) {
+      final String configKey = settingPrefix + name + settingSuffix;
       final boolean configEnabled =
-          configProvider.getBoolean(settingPrefix + name + settingSuffix, defaultEnabled);
+          configProvider.getBoolean("trace." + configKey, defaultEnabled, configKey);
       if (defaultEnabled) {
         anyEnabled &= configEnabled;
       } else {

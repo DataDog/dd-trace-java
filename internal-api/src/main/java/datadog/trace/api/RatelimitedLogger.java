@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.api.time.SystemTimeSource;
+import datadog.trace.api.time.TimeSource;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 
@@ -9,30 +11,18 @@ import org.slf4j.Logger;
  */
 public class RatelimitedLogger {
 
-  public interface TimeSourceSupplier {
-    TimeSourceSupplier DEFAULT =
-        new TimeSourceSupplier() {
-          @Override
-          public long get() {
-            return System.nanoTime();
-          }
-        };
-
-    long get();
-  }
-
   private final Logger log;
   private final long delay;
-  private final TimeSourceSupplier timeSource;
+  private final TimeSource timeSource;
 
   private final AtomicLong previousErrorLogNanos = new AtomicLong();
 
   public RatelimitedLogger(final Logger log, final long delay) {
-    this(log, delay, TimeSourceSupplier.DEFAULT);
+    this(log, delay, SystemTimeSource.INSTANCE);
   }
 
   // Visible for testing
-  RatelimitedLogger(final Logger log, final long delay, final TimeSourceSupplier timeSource) {
+  RatelimitedLogger(final Logger log, final long delay, final TimeSource timeSource) {
     this.log = log;
     this.delay = delay;
     this.timeSource = timeSource;
@@ -46,7 +36,7 @@ public class RatelimitedLogger {
     }
     if (log.isWarnEnabled()) {
       final long previous = previousErrorLogNanos.get();
-      final long now = timeSource.get();
+      final long now = timeSource.getNanoTime();
       if (now - previous >= delay) {
         if (previousErrorLogNanos.compareAndSet(previous, now)) {
           log.warn(format + " (Will not log errors for 5 minutes)", arguments);

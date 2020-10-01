@@ -164,7 +164,7 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public MutableSpan setSpanType(final String type) {
+  public MutableSpan setSpanType(final CharSequence type) {
     return delegate.setSpanType(type);
   }
 

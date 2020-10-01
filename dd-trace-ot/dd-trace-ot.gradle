@@ -28,8 +28,8 @@ testSets {
 }
 
 dependencies {
-  annotationProcessor deps.autoservice
-  implementation deps.autoservice
+  annotationProcessor deps.autoserviceProcessor
+  compileOnly deps.autoserviceAnnotation
 
   compile project(':dd-trace-api')
   compile project(':dd-trace-core')
@@ -42,10 +42,6 @@ dependencies {
 
   compile deps.slf4j
   compile deps.okio
-
-  // We have autoservices defined in test subtree, looks like we need this to be able to properly rebuild this
-  testAnnotationProcessor deps.autoservice
-  testImplementation deps.autoservice
 
   testCompile project(":dd-java-agent:testing")
   testCompile group: 'com.github.stefanbirkner', name: 'system-rules', version: '1.19.0'

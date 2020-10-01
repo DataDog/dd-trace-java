@@ -145,6 +145,14 @@ public final class Functions {
     }
   }
 
+  public static final Function<String, UTF8BytesString> UTF8_ENCODE =
+      new Function<String, UTF8BytesString>() {
+        @Override
+        public UTF8BytesString apply(String input) {
+          return UTF8BytesString.create(input);
+        }
+      };
+
   public static final class LowerCase implements Function<String, String> {
 
     public static final LowerCase INSTANCE = new LowerCase();

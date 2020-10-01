@@ -21,7 +21,6 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.apache.activemq.ActiveMQMessageConsumer
-import org.apache.activemq.ActiveMQMessageProducer
 import org.apache.activemq.junit.EmbeddedActiveMQBroker
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.jms.core.JmsTemplate
@@ -67,7 +66,6 @@ class SpringSAListenerTest extends AgentTestRunner {
         tags {
           "$Tags.COMPONENT" "jms"
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
-          "span.origin.type" ActiveMQMessageProducer.name
           defaultTags()
         }
       }
@@ -92,7 +90,6 @@ class SpringSAListenerTest extends AgentTestRunner {
         tags {
           "$Tags.COMPONENT" "jms"
           "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
-          "span.origin.type" origin.name
           defaultTags(true)
         }
       }
