@@ -78,8 +78,7 @@ public class DDAgentWriter implements Writer {
     } else {
       api =
           new DDAgentApi(
-              agentHost,
-              traceAgentPort,
+              String.format("http://%s:%d", agentHost, traceAgentPort),
               unixDomainSocket,
               timeoutMillis,
               Config.get().isTraceAgentV05Enabled(),

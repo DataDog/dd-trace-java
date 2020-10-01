@@ -72,6 +72,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -120,6 +122,7 @@ public class Config {
   public static final String ID_GENERATION_STRATEGY = TracerConfig.ID_GENERATION_STRATEGY;
   public static final String WRITER_TYPE = TracerConfig.WRITER_TYPE;
   public static final String PRIORITIZATION_TYPE = TracerConfig.PRIORITIZATION_TYPE;
+  public static final String TRACE_AGENT_URL = TracerConfig.TRACE_AGENT_URL;
   public static final String AGENT_HOST = TracerConfig.AGENT_HOST;
   public static final String TRACE_AGENT_PORT = TracerConfig.TRACE_AGENT_PORT;
   public static final String AGENT_PORT_LEGACY = TracerConfig.AGENT_PORT_LEGACY;
@@ -240,6 +243,8 @@ public class Config {
   public static final String KAFKA_CLIENT_BASE64_DECODING_ENABLED =
       TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED;
 
+  private static final String TRACE_AGENT_URL_TEMPLATE = "http://%s:%d";
+
   private static final String PROFILING_REMOTE_URL_TEMPLATE = "https://intake.profile.%s/v1/input";
   private static final String PROFILING_LOCAL_URL_TEMPLATE = "http://%s:%d/profiling/v1/input";
 
@@ -281,6 +286,7 @@ public class Config {
   @Getter private final String writerType;
   @Getter private final String prioritizationType;
   @Getter private final boolean agentConfiguredUsingDefault;
+  @Getter private final String agentUrl;
   @Getter private final String agentHost;
   @Getter private final int agentPort;
   @Getter private final String agentUnixDomainSocket;
@@ -417,9 +423,32 @@ public class Config {
           idGenerationStrategy);
     }
 
+    String agentHostFromEnvironment = null;
+    int agentPortFromEnvironment = -1;
+    String unixDomainFromEnvironment = null;
+    boolean rebuildAgentUrl = false;
+
+    final String agentUrlFromEnvironment = configProvider.getString(TRACE_AGENT_URL);
+    if (agentUrlFromEnvironment != null) {
+      try {
+        final URI parsedAgentUrl = new URI(agentUrlFromEnvironment);
+        agentHostFromEnvironment = parsedAgentUrl.getHost();
+        agentPortFromEnvironment = parsedAgentUrl.getPort();
+        if ("unix".equals(parsedAgentUrl.getScheme())) {
+          unixDomainFromEnvironment = parsedAgentUrl.getPath();
+        }
+      } catch (URISyntaxException e) {
+        log.warn("{} not configured correctly: {}. Ignoring", TRACE_AGENT_URL, e.getMessage());
+      }
+    }
+
+    if (agentHostFromEnvironment == null) {
+      agentHostFromEnvironment = configProvider.getString(AGENT_HOST);
+      rebuildAgentUrl = true;
+    }
+
     // The extra code is to detect when defaults are used for agent configuration
     final boolean agentHostConfiguredUsingDefault;
-    final String agentHostFromEnvironment = configProvider.getString(AGENT_HOST);
     if (agentHostFromEnvironment == null) {
       agentHost = DEFAULT_AGENT_HOST;
       agentHostConfiguredUsingDefault = true;
@@ -428,18 +457,32 @@ public class Config {
       agentHostConfiguredUsingDefault = false;
     }
 
+    if (agentPortFromEnvironment < 0) {
+      agentPort =
+          configProvider.getInteger(TRACE_AGENT_PORT, DEFAULT_TRACE_AGENT_PORT, AGENT_PORT_LEGACY);
+      rebuildAgentUrl = true;
+    } else {
+      agentPort = agentPortFromEnvironment;
+    }
+
+    if (rebuildAgentUrl) {
+      agentUrl = String.format(TRACE_AGENT_URL_TEMPLATE, agentHost, agentPort);
+    } else {
+      agentUrl = agentUrlFromEnvironment;
+    }
+
+    if (unixDomainFromEnvironment == null) {
+      unixDomainFromEnvironment = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
+    }
+
     final boolean socketConfiguredUsingDefault;
-    final String unixDomainFromEnv = configProvider.getString(AGENT_UNIX_DOMAIN_SOCKET);
-    if (unixDomainFromEnv == null) {
+    if (unixDomainFromEnvironment == null) {
       agentUnixDomainSocket = DEFAULT_AGENT_UNIX_DOMAIN_SOCKET;
       socketConfiguredUsingDefault = true;
     } else {
-      agentUnixDomainSocket = unixDomainFromEnv;
+      agentUnixDomainSocket = unixDomainFromEnvironment;
       socketConfiguredUsingDefault = false;
     }
-
-    agentPort =
-        configProvider.getInteger(TRACE_AGENT_PORT, DEFAULT_TRACE_AGENT_PORT, AGENT_PORT_LEGACY);
 
     agentConfiguredUsingDefault =
         agentHostConfiguredUsingDefault

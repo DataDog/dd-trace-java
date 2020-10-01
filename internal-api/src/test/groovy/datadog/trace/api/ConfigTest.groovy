@@ -62,6 +62,7 @@ import static datadog.trace.api.Config.SPAN_TAGS
 import static datadog.trace.api.Config.SPLIT_BY_TAGS
 import static datadog.trace.api.Config.TAGS
 import static datadog.trace.api.Config.TRACE_AGENT_PORT
+import static datadog.trace.api.Config.TRACE_AGENT_URL
 import static datadog.trace.api.Config.TRACE_ENABLED
 import static datadog.trace.api.Config.TRACE_RATE_LIMIT
 import static datadog.trace.api.Config.TRACE_REPORT_HOSTNAME
@@ -139,6 +140,7 @@ class ConfigTest extends DDSpecification {
     config.agentHost == "localhost"
     config.agentPort == 8126
     config.agentUnixDomainSocket == null
+    config.agentUrl == "http://localhost:8126"
     config.prioritySamplingEnabled == true
     config.traceResolverEnabled == true
     config.serviceMapping == [:]
@@ -268,6 +270,7 @@ class ConfigTest extends DDSpecification {
     config.agentHost == "somehost"
     config.agentPort == 123
     config.agentUnixDomainSocket == "somepath"
+    config.agentUrl == "http://somehost:123"
     config.prioritySamplingEnabled == false
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1"]
@@ -390,6 +393,7 @@ class ConfigTest extends DDSpecification {
     config.agentHost == "somehost"
     config.agentPort == 123
     config.agentUnixDomainSocket == "somepath"
+    config.agentUrl == "http://somehost:123"
     config.prioritySamplingEnabled == false
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1"]
@@ -488,6 +492,7 @@ class ConfigTest extends DDSpecification {
     config.prioritizationType == "FastLane"
     config.agentHost == "somewhere"
     config.agentPort == 123
+    config.agentUrl == "http://somewhere:123"
   }
 
   def "default when configured incorrectly"() {
@@ -521,6 +526,7 @@ class ConfigTest extends DDSpecification {
     config.prioritizationType == " "
     config.agentHost == " "
     config.agentPort == 8126
+    config.agentUrl == "http:// :8126"
     config.prioritySamplingEnabled == false
     config.traceResolverEnabled == true
     config.serviceMapping == [:]
@@ -619,6 +625,7 @@ class ConfigTest extends DDSpecification {
     config.agentHost == "somehost"
     config.agentPort == 123
     config.agentUnixDomainSocket == "somepath"
+    config.agentUrl == "http://somehost:123"
     config.prioritySamplingEnabled == false
     config.traceResolverEnabled == false
     config.serviceMapping == [a: "1"]
@@ -1804,6 +1811,40 @@ class ConfigTest extends DDSpecification {
     !config.jmxFetchEnabled
     !config.healthMetricsEnabled
     !config.perfMetricsEnabled
+  }
+
+  def "trace_agent_url overrides either host and port or unix domain"() {
+    setup:
+    System.setProperty(PREFIX + AGENT_UNIX_DOMAIN_SOCKET, "/path/to/socket")
+    if (configuredUrl != null) {
+      System.setProperty(PREFIX + TRACE_AGENT_URL, configuredUrl)
+    } else {
+      System.clearProperty(PREFIX + TRACE_AGENT_URL)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.agentUrl == expectedUrl
+    config.agentHost == expectedHost
+    config.agentPort == expectedPort
+    config.agentUnixDomainSocket == expectedUnixDomainSocket
+
+    where:
+    configuredUrl                     | expectedUrl             | expectedHost | expectedPort | expectedUnixDomainSocket
+    null                              | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
+    ""                                | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
+    "http://localhost:1234"           | "http://localhost:1234" | "localhost"  | 1234         | "/path/to/socket"
+    "http://somehost"                 | "http://somehost:8126"  | "somehost"   | 8126         | "/path/to/socket"
+    "http://somehost:80"              | "http://somehost:80"    | "somehost"   | 80           | "/path/to/socket"
+    "https://somehost:8143"           | "https://somehost:8143" | "somehost"   | 8143         | "/path/to/socket"
+    "unix:///another/socket/path"     | "http://localhost:8126" | "localhost"  | 8126         | "/another/socket/path"
+    "unix:///another%2Fsocket%2Fpath" | "http://localhost:8126" | "localhost"  | 8126         | "/another/socket/path"
+    "http:"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
+    "unix:"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
+    "1234"                            | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
+    ":1234"                           | "http://localhost:8126" | "localhost"  | 8126         | "/path/to/socket"
   }
 
   static class ClassThrowsExceptionForValueOfMethod {
