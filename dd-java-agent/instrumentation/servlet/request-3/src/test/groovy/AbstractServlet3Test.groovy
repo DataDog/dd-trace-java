@@ -24,9 +24,9 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
   URI buildAddress() {
     if (dispatch) {
       return new URI("http://localhost:$port/$context/dispatch/")
-    } else {
-      return new URI("http://localhost:$port/$context/")
     }
+
+    return new URI("http://localhost:$port/$context/")
   }
 
   @Override
