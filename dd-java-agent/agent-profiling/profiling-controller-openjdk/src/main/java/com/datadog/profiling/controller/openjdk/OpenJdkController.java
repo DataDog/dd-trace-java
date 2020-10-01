@@ -47,7 +47,6 @@ public final class OpenJdkController implements Controller {
     // factory and can use it.
     Class.forName("jdk.jfr.Recording");
     Class.forName("jdk.jfr.FlightRecorder");
-
     try {
       recordingSettings =
           JfpUtils.readNamedJfpResource(JFP, config.getProfilingTemplateOverrideFile());

@@ -36,7 +36,7 @@ abstract class AbstractSmokeTest extends Specification {
   protected BlockingQueue<TestHttpServer.HandlerApi.RequestApi> traceRequests = new LinkedBlockingQueue<>()
 
   /**
-   * Will be initialized after calling {@linkplain AbstractSomeTest#checkLog} and hold {@literal true}
+   * Will be initialized after calling {@linkplain AbstractSmokeTest#checkLog} and hold {@literal true}
    * if there are any ERROR or WARN lines in the test application log.
    */
   @Shared
@@ -87,8 +87,7 @@ abstract class AbstractSmokeTest extends Specification {
     processBuilder.environment().put("DD_API_KEY", apiKey())
 
     processBuilder.redirectErrorStream(true)
-    File log = new File("${buildDirectory}/reports/testProcess.${this.getClass().getName()}.log")
-    processBuilder.redirectOutput(ProcessBuilder.Redirect.to(log))
+    processBuilder.redirectOutput(ProcessBuilder.Redirect.to(new File(logFilePath)))
 
     testedProcess = processBuilder.start()
   }

@@ -261,14 +261,24 @@ public class Agent {
 
   private static synchronized void startJmx(final URL bootstrapURL) {
     startJmxFetch(bootstrapURL);
-    initializeJmxSystemAccessProvider();
+
+    if (AGENT_CLASSLOADER == null) {
+      throw new IllegalStateException("Datadog agent should have been started already");
+    }
+    initializeJmxSystemAccessProvider(AGENT_CLASSLOADER);
+
+    if (PROFILING_CLASSLOADER == null) {
+      throw new IllegalStateException("Datadog profiling agent should have been started already");
+    }
+    initializeJmxSystemAccessProvider(PROFILING_CLASSLOADER);
+
     registerDeadlockDetectionEvent(bootstrapURL);
   }
 
   private static synchronized void registerDeadlockDetectionEvent(URL bootstrapUrl) {
     log.debug("Initializing JMX thread deadlock detector");
     try {
-      ClassLoader classLoader = getProfilingClassloader(bootstrapUrl);
+      final ClassLoader classLoader = getProfilingClassloader(bootstrapUrl);
       final Class<?> deadlockFactoryClass =
           classLoader.loadClass(
               "com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory");
@@ -282,14 +292,12 @@ public class Agent {
   }
 
   /** Enable JMX based system access provider once it is safe to touch JMX */
-  private static synchronized void initializeJmxSystemAccessProvider() {
-    log.debug("Initializing JMX system access provider");
-    if (AGENT_CLASSLOADER == null) {
-      throw new IllegalStateException("Datadog agent should have been started already");
-    }
+  private static synchronized void initializeJmxSystemAccessProvider(
+      final ClassLoader classLoader) {
+    log.debug("Initializing JMX system access provider for " + classLoader.toString());
     try {
       final Class<?> tracerInstallerClass =
-          AGENT_CLASSLOADER.loadClass("datadog.trace.core.util.SystemAccess");
+          classLoader.loadClass("datadog.trace.core.util.SystemAccess");
       final Method enableJmxMethod = tracerInstallerClass.getMethod("enableJmx");
       enableJmxMethod.invoke(null);
     } catch (final Throwable ex) {
@@ -321,7 +329,7 @@ public class Agent {
       final URL bootstrapURL, final boolean isStartingFirst) {
     final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
     try {
-      ClassLoader classLoader = getProfilingClassloader(bootstrapURL);
+      final ClassLoader classLoader = getProfilingClassloader(bootstrapURL);
       Thread.currentThread().setContextClassLoader(classLoader);
       final Class<?> profilingAgentClass =
           classLoader.loadClass("com.datadog.profiling.agent.ProfilingAgent");
@@ -340,7 +348,7 @@ public class Agent {
     }
   }
 
-  private static synchronized ClassLoader getProfilingClassloader(URL bootstrapURL)
+  private static synchronized ClassLoader getProfilingClassloader(final URL bootstrapURL)
       throws Exception {
     if (PROFILING_CLASSLOADER == null) {
       PROFILING_CLASSLOADER =
@@ -398,7 +406,7 @@ public class Agent {
     final Constructor constructor =
         loaderClass.getDeclaredConstructor(
             URL.class, String.class, ClassLoader.class, ClassLoader.class, ClassLoader.class);
-    ClassLoader classLoader =
+    final ClassLoader classLoader =
         (ClassLoader)
             constructor.newInstance(
                 bootstrapURL, innerJarFilename, BOOTSTRAP_PROXY, parent, PARENT_CLASSLOADER);
