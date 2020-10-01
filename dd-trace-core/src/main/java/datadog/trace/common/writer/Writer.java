@@ -18,6 +18,13 @@ public interface Writer extends Closeable {
   void start();
 
   /**
+   * Requests the writer to send all finished traces and block until complete.
+   *
+   * @return true if completed normally
+   */
+  boolean flush();
+
+  /**
    * Indicates to the writer that no future writing will come and it should terminates all
    * connections and tasks
    */

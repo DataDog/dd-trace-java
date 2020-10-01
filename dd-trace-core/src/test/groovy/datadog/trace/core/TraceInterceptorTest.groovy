@@ -31,7 +31,7 @@ class TraceInterceptorTest extends DDSpecification {
     tracer.interceptors.add(new TraceInterceptor() {
       @Override
       Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
-        return null
+        return []
       }
 
       @Override
@@ -52,7 +52,7 @@ class TraceInterceptorTest extends DDSpecification {
     def newInterceptor = new TraceInterceptor() {
       @Override
       Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
-        return null
+        return []
       }
 
       @Override
@@ -81,7 +81,7 @@ class TraceInterceptorTest extends DDSpecification {
       Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
         called.set(true)
         latch.countDown()
-        return Collections.emptyList()
+        return []
       }
 
       @Override

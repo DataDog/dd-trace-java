@@ -287,9 +287,10 @@ class OpenTracingAPITest extends DDSpecification {
     when:
     inner.close()
     outer.close()
+    writer.waitForTraces(1)
 
     then:
-    1 * traceInterceptor.onTraceComplete( { it.size() == 2 }) >> { args -> args[0] }
+    1 * traceInterceptor.onTraceComplete({ it.size() == 2 }) >> { args -> args[0] }
 
     assertTraces(writer, 1) {
       trace(2) {

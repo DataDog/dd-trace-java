@@ -507,9 +507,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   @Override
   public void flush() {
     PENDING_TRACE_BUFFER.flush();
-    if (writer instanceof DDAgentWriter) {
-      ((DDAgentWriter) writer).flush();
-    }
+    writer.flush();
   }
 
   private static DDScopeEventFactory createScopeEventFactory() {

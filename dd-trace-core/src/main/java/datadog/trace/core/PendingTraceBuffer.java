@@ -37,13 +37,16 @@ class PendingTraceBuffer implements AutoCloseable {
   }
 
   public void flush() {
-    queue.drain(
-        new MessagePassingQueue.Consumer<PendingTrace>() {
-          @Override
-          public void accept(PendingTrace pendingTrace) {
-            pendingTrace.write();
-          }
-        });
+    queue.drain(WriteDrain.WRITE_DRAIN);
+  }
+
+  private static final class WriteDrain implements MessagePassingQueue.Consumer<PendingTrace> {
+    private static final WriteDrain WRITE_DRAIN = new WriteDrain();
+
+    @Override
+    public void accept(PendingTrace pendingTrace) {
+      pendingTrace.write();
+    }
   }
 
   private final class Worker implements Runnable {
