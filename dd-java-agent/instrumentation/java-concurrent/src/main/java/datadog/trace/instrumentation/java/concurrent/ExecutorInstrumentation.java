@@ -59,7 +59,9 @@ public final class ExecutorInstrumentation extends Instrumenter.Default {
     transformers.put(
         isMethod().and(named("execute")).and(takesArgument(0, named(Runnable.class.getName()))),
         getClass().getName() + "$Wrap");
-    transformers.put(isMethod().and(named("reject")), getClass().getName() + "$Reject");
+    transformers.put(
+        isMethod().and(named("reject").and(takesArgument(0, named(Runnable.class.getName())))),
+        getClass().getName() + "$Reject");
     transformers.put(isMethod().and(named("shutdownNow")), getClass().getName() + "$ShutdownNow");
     transformers.put(
         isMethod().and(named("getTask")).and(isPrivate()).and(takesNoArguments()),
