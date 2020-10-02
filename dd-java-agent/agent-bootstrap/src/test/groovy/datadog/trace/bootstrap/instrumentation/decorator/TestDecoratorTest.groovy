@@ -661,7 +661,6 @@ class TestDecoratorTest extends BaseDecoratorTest {
     environmentVariables.set(APPVEYOR_REPO_BRANCH, appveyorBranch)
     environmentVariables.set(APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH, appveyorPRBranch)
     environmentVariables.set(APPVEYOR_REPO_TAG_NAME, appveyorTag)
-
     def decorator = newDecorator()
 
     when:
