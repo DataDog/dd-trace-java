@@ -37,7 +37,14 @@ public final class ExecutorInstrumentation extends Instrumenter.Default {
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return ElementMatchers.<TypeDescription>named("java.util.concurrent.AbstractExecutorService")
         .or(
-            namedNoneOf("java.util.concurrent.ScheduledThreadPoolExecutor")
+            namedNoneOf(
+                    // ScheduledThreadPoolExecutor.execute is fully supported by instrumenting
+                    // FutureTask
+                    "java.util.concurrent.ScheduledThreadPoolExecutor",
+                    // make it really clear that we don't handle any FJP with this instrumentation
+                    "scala.concurrent.forkjoin.ForkJoinPool",
+                    "akka.dispatch.forkjoin.ForkJoinPool",
+                    "java.util.concurrent.ForkJoinPool")
                 .and(safeHasSuperType(named("java.util.concurrent.Executor"))));
   }
 
