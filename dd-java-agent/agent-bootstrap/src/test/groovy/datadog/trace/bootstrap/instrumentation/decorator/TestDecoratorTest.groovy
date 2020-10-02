@@ -302,7 +302,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
-    1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
+    1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setTag(Tags.CI_PROVIDER_NAME, TRAVIS_PROVIDER_NAME)
@@ -363,7 +363,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
-    1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
+    1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setTag(Tags.CI_PROVIDER_NAME, CIRCLECI_PROVIDER_NAME)
@@ -431,7 +431,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
-    1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
+    1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setTag(Tags.CI_PROVIDER_NAME, AZURE_PROVIDER_NAME)
@@ -490,7 +490,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
-    1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
+    1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setTag(Tags.CI_PROVIDER_NAME, GHACTIONS_PROVIDER_NAME)
@@ -549,7 +549,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
-    1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
+    1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setTag(Tags.CI_PROVIDER_NAME, BITBUCKET_PROVIDER_NAME)
@@ -607,7 +607,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
-    1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
+    1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setTag(Tags.CI_PROVIDER_NAME, BUILDKITE_PROVIDER_NAME)
@@ -670,7 +670,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     then:
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
-    1 * span.setTag(DDTags.SPAN_TYPE, decorator.spanType())
+    1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
     1 * span.setTag(Tags.CI_PROVIDER_NAME, APPVEYOR_PROVIDER_NAME)
