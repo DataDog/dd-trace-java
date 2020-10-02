@@ -127,7 +127,8 @@ class CustomScopeManagerTest extends DDSpecification {
 
     when:
     ((TraceScope) scope).setAsyncPropagation(true)
-    TraceScope.Continuation continuation = ((TraceScope) scope).capture()
+    TraceScope.Continuation continuation = concurrent ?
+      ((TraceScope) scope).captureConcurrent() : ((TraceScope) scope).capture()
 
     then:
     ((TraceScope) scope).isAsyncPropagating()
@@ -152,6 +153,9 @@ class CustomScopeManagerTest extends DDSpecification {
         }
       }
     }
+
+    where:
+    concurrent << [false, true]
   }
 
   def "TraceScope interactions from CoreTracer side"() {
@@ -169,7 +173,8 @@ class CustomScopeManagerTest extends DDSpecification {
 
     when:
     coreTracer.activeScope().setAsyncPropagation(true)
-    TraceScope.Continuation continuation = coreTracer.activeScope().capture()
+    TraceScope.Continuation continuation = concurrent ?
+      coreTracer.activeScope().captureConcurrent() : coreTracer.activeScope().capture()
 
     then:
     coreTracer.activeScope().isAsyncPropagating()
@@ -194,6 +199,9 @@ class CustomScopeManagerTest extends DDSpecification {
         }
       }
     }
+
+    where:
+    concurrent << [false, true]
   }
 }
 
@@ -272,6 +280,11 @@ class TestScopeManager implements ScopeManager {
         void cancel() {
         }
       }
+    }
+
+    @Override
+    Continuation captureConcurrent() {
+      return capture()
     }
 
     @Override

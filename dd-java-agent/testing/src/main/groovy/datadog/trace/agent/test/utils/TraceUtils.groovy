@@ -52,8 +52,17 @@ class TraceUtils {
     basicSpan(trace, spanName, spanName, parentSpan, exception)
   }
 
+  static basicSpan(TraceAssert trace, int index, String spanName, Object parentSpan = null, Throwable exception = null) {
+    basicSpan(trace, index, spanName, spanName, parentSpan, exception)
+  }
+
   static basicSpan(TraceAssert trace, String operation, String resource, Object parentSpan = null, Throwable exception = null) {
-    trace.span {
+    int index = trace.nextSpanId()
+    basicSpan(trace, index, operation, resource, parentSpan, exception)
+  }
+
+  static basicSpan(TraceAssert trace, int index, String operation, String resource, Object parentSpan = null, Throwable exception = null) {
+    trace.span(index) {
       if (parentSpan == null) {
         parent()
       } else {
