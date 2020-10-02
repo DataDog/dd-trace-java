@@ -125,6 +125,13 @@ class TestDecoratorTest extends BaseDecoratorTest {
 
   def span = Mock(AgentSpan)
 
+  def setup() {
+    // Clear all environment variables used to decide which CI/Git data
+    // must be set in the Test span (See TestDecorator constructor).
+    // Add the new CI envvar discriminant here if other CI provider is added.
+    environmentVariables.clear(JENKINS, GITLAB, TRAVIS, CIRCLECI, APPVEYOR, AZURE, BITBUCKET, GHACTIONS, BUILDKITE)
+  }
+
   def "test afterStart"() {
     setup:
     def decorator = newDecorator()
