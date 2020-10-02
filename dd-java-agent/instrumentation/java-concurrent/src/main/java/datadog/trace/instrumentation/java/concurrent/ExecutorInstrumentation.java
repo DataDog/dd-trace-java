@@ -6,7 +6,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
+import static net.bytebuddy.matcher.ElementMatchers.nameContains;
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
@@ -37,14 +39,18 @@ public final class ExecutorInstrumentation extends Instrumenter.Default {
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return ElementMatchers.<TypeDescription>named("java.util.concurrent.AbstractExecutorService")
         .or(
-            namedNoneOf(
-                    // ScheduledThreadPoolExecutor.execute is fully supported by instrumenting
-                    // FutureTask
-                    "java.util.concurrent.ScheduledThreadPoolExecutor",
-                    // make it really clear that we don't handle any FJP with this instrumentation
-                    "scala.concurrent.forkjoin.ForkJoinPool",
-                    "akka.dispatch.forkjoin.ForkJoinPool",
-                    "java.util.concurrent.ForkJoinPool")
+            // netty does weird stuff, target it specifically
+            not(nameContains(".netty."))
+                .and(
+                    namedNoneOf(
+                        // ScheduledThreadPoolExecutor.execute is fully supported by instrumenting
+                        // FutureTask
+                        "java.util.concurrent.ScheduledThreadPoolExecutor",
+                        // make it really clear that we don't handle any FJP with this
+                        // instrumentation
+                        "scala.concurrent.forkjoin.ForkJoinPool",
+                        "akka.dispatch.forkjoin.ForkJoinPool",
+                        "java.util.concurrent.ForkJoinPool"))
                 .and(safeHasSuperType(named("java.util.concurrent.Executor"))));
   }
 
