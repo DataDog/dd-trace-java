@@ -45,6 +45,9 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     if (session) {
       1 * span.setTag(Tags.DB_USER, session.user)
       1 * span.setTag(Tags.DB_INSTANCE, session.instance)
+      if (session.hostname != null) {
+        1 * span.setTag(Tags.PEER_HOSTNAME, session.hostname)
+      }
       if (renameService && session.instance) {
         1 * span.setTag(DDTags.SERVICE_NAME, session.instance)
       }
@@ -54,8 +57,8 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     where:
     renameService | session
     false         | null
-    true          | [user: "test-user"]
-    false         | [instance: "test-instance"]
+    true          | [user: "test-user", hostname: "test-hostname"]
+    false         | [instance: "test-instance", hostname: "test-hostname"]
     true          | [user: "test-user", instance: "test-instance"]
   }
 
@@ -136,6 +139,11 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
       @Override
       protected String dbInstance(Map map) {
         return map.instance
+      }
+
+      @Override
+      protected String dbHostname(Map map) {
+        return map.hostname
       }
 
       protected boolean traceAnalyticsDefault() {

@@ -50,6 +50,11 @@ public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecora
   }
 
   @Override
+  protected String dbHostname(RedisURI redisURI) {
+    return redisURI.getHost();
+  }
+
+  @Override
   public AgentSpan onConnection(final AgentSpan span, final RedisURI connection) {
     if (connection != null) {
       span.setTag(Tags.PEER_HOSTNAME, connection.getHost());

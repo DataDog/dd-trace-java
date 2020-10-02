@@ -51,4 +51,9 @@ public class RediscalaClientDecorator
   protected String dbInstance(final RedisCommand<? extends RedisReply, ?> session) {
     return null;
   }
+
+  @Override
+  protected String dbHostname(RedisCommand<? extends RedisReply, ?> redisCommand) {
+    return null;
+  }
 }

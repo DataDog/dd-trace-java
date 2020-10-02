@@ -71,6 +71,11 @@ class DBTypeProcessingDatabaseClientDecoratorTest extends ClientDecoratorTest {
         return map.instance
       }
 
+      @Override
+      protected String dbHostname(Map map) {
+        return map.hostname
+      }
+
       protected boolean traceAnalyticsDefault() {
         return true
       }

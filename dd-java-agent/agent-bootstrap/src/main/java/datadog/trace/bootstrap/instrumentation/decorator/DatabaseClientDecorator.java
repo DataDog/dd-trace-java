@@ -26,6 +26,8 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
 
   protected abstract String dbInstance(CONNECTION connection);
 
+  protected abstract CharSequence dbHostname(CONNECTION connection);
+
   /**
    * This should be called when the connection is being used, not when it's created.
    *
@@ -42,6 +44,11 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
 
       if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
         span.setTag(DDTags.SERVICE_NAME, instanceName);
+      }
+
+      CharSequence hostName = dbHostname(connection);
+      if (hostName != null) {
+        span.setTag(Tags.PEER_HOSTNAME, hostName);
       }
     }
     return span;

@@ -54,4 +54,9 @@ class CouchbaseClientDecorator extends DatabaseClientDecorator {
   protected String dbInstance(final Object o) {
     return null;
   }
+
+  @Override
+  protected String dbHostname(Object o) {
+    return null;
+  }
 }
