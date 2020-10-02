@@ -9,6 +9,7 @@ import static net.bytebuddy.matcher.ElementMatchers.none;
 
 import datadog.trace.agent.tooling.context.FieldBackedProvider;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -95,8 +96,23 @@ public class AgentInstaller {
       agentBuilder = agentBuilder.with(listener);
     }
     int numInstrumenters = 0;
-    for (final Instrumenter instrumenter :
-        ServiceLoader.load(Instrumenter.class, AgentInstaller.class.getClassLoader())) {
+    ServiceLoader<Instrumenter> loader =
+        ServiceLoader.load(Instrumenter.class, AgentInstaller.class.getClassLoader());
+    for (final Instrumenter instrumenter : loader) {
+      if (instrumenter instanceof ExcludeFilterProvider) {
+        ExcludeFilterProvider provider = (ExcludeFilterProvider) instrumenter;
+        if (provider.isEnabled()) {
+          ExcludeFilter.add(provider.excludedClasses());
+          log.debug(
+              "Adding filtered classes from instrumentation {}", instrumenter.getClass().getName());
+        } else {
+          log.debug(
+              "Not adding filtered classes from disabled instrumentation {}",
+              instrumenter.getClass().getName());
+        }
+      }
+    }
+    for (final Instrumenter instrumenter : loader) {
       log.debug("Loading instrumentation {}", instrumenter.getClass().getName());
 
       try {

@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
+
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,7 +24,7 @@ public final class CallableWrapper implements Callable {
   }
 
   public static Callable<?> wrapIfNeeded(final Callable<?> task) {
-    if (!(task instanceof CallableWrapper)) {
+    if (!(task instanceof CallableWrapper) && !ExcludeFilter.exclude(ExcludeType.CALLABLE, task)) {
       // We wrap only lambdas' anonymous classes and if given object has not already been wrapped.
       // Anonymous classes have '/' in class name which is not allowed in 'normal' classes.
       final String className = task.getClass().getName();
