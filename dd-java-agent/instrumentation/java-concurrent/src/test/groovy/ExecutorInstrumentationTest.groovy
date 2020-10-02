@@ -192,12 +192,6 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
         activeScope().setAsyncPropagation(true)
         try {
           for (int i = 0; i < 20; ++i) {
-            // Our current instrumentation instrumentation does not behave very well
-            // if we try to reuse Callable/Runnable. Namely we would be getting 'orphaned'
-            // child traces sometimes since state can contain only one continuation - and
-            // we do not really have a good way for attributing work to correct parent span
-            // if we reuse Callable/Runnable.
-            // Solution for now is to never reuse a Callable/Runnable.
             final JavaAsyncChild child = new JavaAsyncChild(false, true)
             children.add(child)
             try {
@@ -211,7 +205,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
         }
 
         for (Future f : jobFutures) {
-          f.cancel(false)
+          f.cancel(true)
         }
         for (JavaAsyncChild child : children) {
           child.unblock()
