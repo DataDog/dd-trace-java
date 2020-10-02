@@ -47,6 +47,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         if (isCI) {
           "$Tags.CI_PROVIDER_NAME" ciProviderName
           "$Tags.CI_PIPELINE_ID" ciPipelineId
+          "$Tags.CI_PIPELINE_NAME" ciPipelineName
           "$Tags.CI_PIPELINE_NUMBER" ciPipelineNumber
           "$Tags.CI_PIPELINE_URL" ciPipelineUrl
           "$Tags.CI_JOB_URL" ciJobUrl
@@ -72,6 +73,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   String ciProviderName = ciProviderName()
   @Shared
   String ciPipelineId = ciPipelineId()
+  @Shared
+  String ciPipelineName = ciPipelineName()
   @Shared
   String ciPipelineNumber = ciPipelineNumber()
   @Shared
@@ -100,6 +103,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   abstract String ciProviderName()
 
   abstract String ciPipelineId()
+
+  abstract String ciPipelineName()
 
   abstract String ciPipelineNumber()
 

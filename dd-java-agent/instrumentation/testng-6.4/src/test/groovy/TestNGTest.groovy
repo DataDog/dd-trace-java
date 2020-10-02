@@ -167,6 +167,11 @@ class TestNGTest extends TestFrameworkTest {
   }
 
   @Override
+  String ciPipelineName() {
+    return TestNGDecorator.DECORATE.getCiPipelineName()
+  }
+
+  @Override
   String ciPipelineNumber() {
     return TestNGDecorator.DECORATE.getCiPipelineNumber()
   }
