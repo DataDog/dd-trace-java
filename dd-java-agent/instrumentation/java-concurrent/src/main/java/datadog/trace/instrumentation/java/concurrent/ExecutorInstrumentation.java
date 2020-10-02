@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.java.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -11,7 +12,9 @@ import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutionContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,6 +39,11 @@ public final class ExecutorInstrumentation extends Instrumenter.Default {
         .or(
             namedNoneOf("java.util.concurrent.ScheduledThreadPoolExecutor")
                 .and(safeHasSuperType(named("java.util.concurrent.Executor"))));
+  }
+
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap("java.util.concurrent.FutureTask", State.class.getName());
   }
 
   @Override
@@ -76,6 +84,13 @@ public final class ExecutorInstrumentation extends Instrumenter.Default {
     public static void reject(@Advice.Argument(value = 0, readOnly = false) Runnable runnable) {
       if (runnable instanceof ExecutionContext) {
         ((ExecutionContext) runnable).cancel();
+      }
+      if (runnable instanceof FutureTask) {
+        State state =
+            InstrumentationContext.get(FutureTask.class, State.class).get((FutureTask) runnable);
+        if (null != state) {
+          state.closeContinuation();
+        }
       }
     }
   }
