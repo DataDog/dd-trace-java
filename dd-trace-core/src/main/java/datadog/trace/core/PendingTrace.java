@@ -23,6 +23,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * This class implements the following data flow rules when a Span is finished:
+ *
+ * <ul>
+ *   <li>Immediate Write
+ *       <ul>
+ *         <li>is root && pending ref count == 0
+ *         <li>not root && size exceeds partial flush
+ *       </ul>
+ *   <li>Delayed Write
+ *       <ul>
+ *         <li>is root && pending ref count > 0
+ *         <li>not root && root already written
+ *       </ul>
+ * </ul>
+ *
+ * Delayed write is handled by PendingTraceBuffer. <br>
+ */
 @Slf4j
 public class PendingTrace implements AgentTrace {
   private static final long CLEAN_FREQUENCY = 1;
@@ -77,7 +95,7 @@ public class PendingTrace implements AgentTrace {
       Collections.newSetFromMap(
           new ConcurrentHashMap<WeakReference<AgentScope.Continuation>, Boolean>());
 
-  @Deprecated private final AtomicInteger pendingReferenceCount = new AtomicInteger(0);
+  private final AtomicInteger pendingReferenceCount = new AtomicInteger(0);
 
   // FIXME: In async frameworks we may have situations where traces do not report due to references
   //  being held by async operators. In order to support testing in these cases we should have a way
@@ -173,28 +191,6 @@ public class PendingTrace implements AgentTrace {
     }
   }
 
-  private void expireSpan(final DDSpan span) {
-    if (traceId == null || span.context() == null) {
-      log.error(
-          "Failed to expire span ({}) due to null PendingTrace traceId or null span context", span);
-      return;
-    }
-    if (!traceId.equals(span.context().getTraceId())) {
-      log.debug("t_id={} -> span expired for wrong trace {}", traceId, span);
-      return;
-    }
-    synchronized (span) {
-      if (null == span.ref) {
-        log.debug("t_id={} -> not registered in trace: {}", traceId, span);
-      } else {
-        weakSpans.remove(span.ref);
-        span.ref.clear();
-        span.ref = null;
-        expireReference();
-      }
-    }
-  }
-
   public void addFinishedSpan(final DDSpan span) {
     if (span.getDurationNano() == 0) {
       log.debug("t_id={} -> added to trace, but not complete: {}", traceId, span);
@@ -213,7 +209,25 @@ public class PendingTrace implements AgentTrace {
     finishedSpans.addFirst(span);
     completedSpanCount.incrementAndGet();
 
-    expireSpan(span);
+    if (traceId == null || span.context() == null) {
+      log.error(
+          "Failed to expire span ({}) due to null PendingTrace traceId or null span context", span);
+      return;
+    }
+    if (!traceId.equals(span.context().getTraceId())) {
+      log.debug("t_id={} -> span expired for wrong trace {}", traceId, span);
+      return;
+    }
+    synchronized (span) {
+      if (null == span.ref) {
+        log.debug("t_id={} -> not registered in trace: {}", traceId, span);
+      } else {
+        weakSpans.remove(span.ref);
+        span.ref.clear();
+        span.ref = null;
+        expireReference(span == getRootSpan());
+      }
+    }
   }
 
   public DDSpan getRootSpan() {
@@ -255,46 +269,34 @@ public class PendingTrace implements AgentTrace {
     synchronized (continuation) {
       if (continuation.isRegistered()) {
         continuation.cancel(weakContinuations);
-        expireReference();
+        expireReference(false);
       } else {
         log.debug("t_id={} -> not registered in trace: {}", traceId, continuation);
       }
     }
   }
 
-  private void expireReference() {
+  private void expireReference(boolean isRootSpan) {
     if (!traceValid.get()) {
       return;
     }
     final int count = pendingReferenceCount.decrementAndGet();
-    if (count == 0 || rootSpanWritten.get()) {
-      pendingTraceBuffer.enqueue(this);
+    if (isRootSpan) {
+      if (0 < count) {
+        // Finished root with pending work ... delay write
+        pendingTraceBuffer.enqueue(this);
+      } else {
+        // Finished root and no pending work ... write immediately
+        write();
+      }
     } else {
-      if (tracer.getPartialFlushMinSpans() > 0 && size() > tracer.getPartialFlushMinSpans()) {
-        try (Recording recording = tracer.writeTimer()) {
-          synchronized (this) {
-            int size = size();
-            if (size > tracer.getPartialFlushMinSpans()) {
-              final DDSpan rootSpan = getRootSpan();
-              final List<DDSpan> partialTrace = new ArrayList<>(size);
-              final Iterator<DDSpan> it = finishedSpans.iterator();
-              while (it.hasNext()) {
-                final DDSpan span = it.next();
-                if (span != rootSpan) {
-                  partialTrace.add(span);
-                  completedSpanCount.decrementAndGet();
-                  // TODO spans are removed here
-                  //  but not when the whole trace is written!
-                  it.remove();
-                }
-              }
-              if (log.isDebugEnabled()) {
-                log.debug("Writing partial trace {} of size {}", traceId, partialTrace.size());
-              }
-              tracer.write(partialTrace);
-            }
-          }
-        }
+      int partialFlushMinSpans = tracer.getPartialFlushMinSpans();
+      if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
+        // Trace is getting too big, write anything completed.
+        partialFlush();
+      } else if (rootSpanWritten.get()) {
+        // Late arrival span ... delay write
+        pendingTraceBuffer.enqueue(this);
       }
     }
     if (log.isDebugEnabled()) {
@@ -307,26 +309,45 @@ public class PendingTrace implements AgentTrace {
     }
   }
 
-  synchronized void write() {
+  /** Important to note: may be called multiple times. */
+  private void partialFlush() {
+    int size = write(false);
+    if (log.isDebugEnabled()) {
+      log.debug("Writing partial trace {} of size {}", traceId, size);
+    }
+  }
+
+  /** Important to note: may be called multiple times. */
+  void write() {
     rootSpanWritten.set(true);
+    int size = write(false);
+    if (log.isDebugEnabled()) {
+      log.debug("Writing {} spans to {}.", size, tracer.writer);
+    }
+  }
+
+  private int write(boolean isPartial) {
     if (!finishedSpans.isEmpty()) {
       try (Recording recording = tracer.writeTimer()) {
-        int size = size();
-        if (log.isDebugEnabled()) {
-          log.debug("Writing {} spans to {}.", size, tracer.writer);
-        }
-        List<DDSpan> trace = new ArrayList<>(size);
+        synchronized (this) {
+          int size = size();
+          if (!isPartial || size > tracer.getPartialFlushMinSpans()) {
+            List<DDSpan> trace = new ArrayList<>(size);
 
-        final Iterator<DDSpan> it = finishedSpans.iterator();
-        while (it.hasNext()) {
-          final DDSpan span = it.next();
-          trace.add(span);
-          completedSpanCount.decrementAndGet();
-          it.remove();
+            final Iterator<DDSpan> it = finishedSpans.iterator();
+            while (it.hasNext()) {
+              final DDSpan span = it.next();
+              trace.add(span);
+              completedSpanCount.decrementAndGet();
+              it.remove();
+            }
+            tracer.write(trace);
+            return size;
+          }
         }
-        tracer.write(trace);
       }
     }
+    return 0;
   }
 
   public synchronized boolean clean() {
@@ -335,7 +356,7 @@ public class PendingTrace implements AgentTrace {
     while ((ref = continuationReferenceQueue.poll()) != null) {
       weakContinuations.remove(ref);
       count++;
-      expireReference();
+      expireReference(false);
     }
     if (count > 0) {
       log.debug("t_id={} -> {} unfinished continuations garbage collected.", traceId, count);

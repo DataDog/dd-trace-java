@@ -105,35 +105,6 @@ class PendingTraceTest extends DDSpecification {
   }
 
   @Timeout(value = 60, unit = TimeUnit.SECONDS)
-  def "trace does not report when unfinished span discarded"() {
-    when:
-    def child = tracer.buildSpan("child").asChildOf(rootSpan).start()
-    rootSpan.finish()
-
-    then:
-    trace.pendingReferenceCount.get() == 1
-    trace.weakSpans.size() == 1
-    trace.finishedSpans.asList() == [rootSpan]
-    writer == []
-
-    when:
-    def childRef = new WeakReference<>(child)
-    child = null
-    GCUtils.awaitGC(childRef)
-    while (trace.pendingReferenceCount.get() > 0 && !Thread.currentThread().isInterrupted()) {
-      trace.clean()
-    }
-
-    then:
-    trace.pendingReferenceCount.get() == 0
-    trace.weakSpans.size() == 0
-    trace.finishedSpans.asList() == [rootSpan]
-    writer == []
-    writer.traceCount.get() == 1
-    cleaningScheduled(trace) // Doesn't get unscheduled until GC'd
-  }
-
-  @Timeout(value = 60, unit = TimeUnit.SECONDS)
   def "trace is still reported when unfinished continuation discarded"() {
     when:
     def scope = tracer.activateSpan(rootSpan)
@@ -199,7 +170,7 @@ class PendingTraceTest extends DDSpecification {
     otherTrace.finishedSpans.asList() == []
   }
 
-  def "child spans created quickly after trace written"() {
+  def "child spans created after trace written reported separately"() {
     setup:
     rootSpan.finish()
     // this shouldn't happen, but it's possible users of the api
@@ -207,12 +178,12 @@ class PendingTraceTest extends DDSpecification {
     // in those cases we should still decrement the pending trace count
     DDSpan childSpan = tracer.buildSpan("child").asChildOf(rootSpan).start()
     childSpan.finish()
-    writer.waitForTraces(1)
+    writer.waitForTraces(2)
 
     expect:
     trace.pendingReferenceCount.get() == 0
     trace.finishedSpans.isEmpty()
-    writer == [[childSpan, rootSpan]]
+    writer == [[rootSpan], [childSpan]]
   }
 
   def "test getCurrentTimeNano"() {
@@ -227,8 +198,8 @@ class PendingTraceTest extends DDSpecification {
     properties.setProperty(PARTIAL_FLUSH_MIN_SPANS, "1")
     def config = Config.get(properties)
     def tracer = CoreTracer.builder().config(config).writer(writer).build()
-    def trace = tracer.pendingTraceFactory.create(traceId)
-    def rootSpan = SpanFactory.newSpanOf(trace)
+    def rootSpan = tracer.buildSpan("root").start()
+    def trace = rootSpan.context().trace
     def child1 = tracer.buildSpan("child1").asChildOf(rootSpan).start()
     def child2 = tracer.buildSpan("child2").asChildOf(rootSpan).start()
 
@@ -237,12 +208,12 @@ class PendingTraceTest extends DDSpecification {
     trace.weakSpans.size() == 3
 
     when:
-    rootSpan.finish()
+    child2.finish()
 
     then:
     trace.pendingReferenceCount.get() == 2
     trace.weakSpans.size() == 2
-    trace.finishedSpans.asList() == [rootSpan]
+    trace.finishedSpans.asList() == [child2]
     writer == []
     writer.traceCount.get() == 0
 
@@ -253,19 +224,19 @@ class PendingTraceTest extends DDSpecification {
     then:
     trace.pendingReferenceCount.get() == 1
     trace.weakSpans.size() == 1
-    trace.finishedSpans.asList() == [rootSpan]
-    writer == [[child1]]
+    trace.finishedSpans.asList() == []
+    writer == [[child1, child2]]
     writer.traceCount.get() == 1
 
     when:
-    child2.finish()
+    rootSpan.finish()
     writer.waitForTraces(2)
 
     then:
     trace.pendingReferenceCount.get() == 0
     trace.weakSpans.size() == 0
     trace.finishedSpans.isEmpty()
-    writer == [[child1], [child2, rootSpan]]
+    writer == [[child1, child2], [rootSpan]]
     writer.traceCount.get() == 2
   }
 

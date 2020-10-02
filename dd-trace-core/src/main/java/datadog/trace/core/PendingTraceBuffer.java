@@ -10,8 +10,8 @@ class PendingTraceBuffer implements AutoCloseable {
   private static final int BUFFER_SIZE = 1 << 12; // 4096
 
   private final long FORCE_SEND_DELAY_MS = TimeUnit.SECONDS.toMillis(5);
-  private final long SEND_DELAY_NS = TimeUnit.MILLISECONDS.toNanos(5);
-  private final long SLEEP_TIME_MS = 1;
+  private final long SEND_DELAY_NS = TimeUnit.MILLISECONDS.toNanos(500);
+  private final long SLEEP_TIME_MS = 100;
 
   private final MpscBlockingConsumerArrayQueue<PendingTrace> queue =
       new MpscBlockingConsumerArrayQueue<>(BUFFER_SIZE);
@@ -19,6 +19,7 @@ class PendingTraceBuffer implements AutoCloseable {
 
   private volatile boolean closed = false;
 
+  /** if the queue is full, pendingTrace trace will be written immediately. */
   public void enqueue(PendingTrace pendingTrace) {
     if (!queue.offer(pendingTrace)) {
       // Queue is full, so we can't buffer this trace, write it out directly instead.
@@ -62,8 +63,7 @@ class PendingTraceBuffer implements AutoCloseable {
 
           long finishTimestampMillis = TimeUnit.NANOSECONDS.toMillis(oldestFinishedTime);
           if (finishTimestampMillis <= System.currentTimeMillis() - FORCE_SEND_DELAY_MS) {
-            // Root span is getting old. We need to send the trace to avoid being discarded by
-            // agent.
+            // Root span is getting old. Send the trace to avoid being discarded by agent.
             pendingTrace.write();
             continue;
           }
