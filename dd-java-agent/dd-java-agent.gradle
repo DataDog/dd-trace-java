@@ -152,3 +152,15 @@ tasks.withType(Test).configureEach {
 
   dependsOn shadowJar
 }
+
+task('checkAgentJarSize') {
+  doLast {
+    // Arbitrary limit to prevent unintentional increases to the agent jar size
+    // Raise or lower as required
+    assert shadowJar.archiveFile.get().getAsFile().length() < 16 * 1024 * 1024
+  }
+
+  dependsOn shadowJar
+}
+
+check.dependsOn 'checkAgentJarSize'
