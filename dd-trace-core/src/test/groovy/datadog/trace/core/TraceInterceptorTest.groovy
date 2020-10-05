@@ -91,6 +91,7 @@ class TraceInterceptorTest extends DDSpecification {
     })
     tracer.buildSpan("test " + score).start().finish()
     if (score == 0) {
+      // the interceptor didn't get added, so latch will never be released.
       writer.waitForTraces(1)
     } else {
       latch.await(5, TimeUnit.SECONDS)
