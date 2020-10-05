@@ -50,7 +50,6 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
         "akka.dispatch.Dispatcher",
         "akka.dispatch.Dispatcher$LazyExecutorServiceDelegate",
         "akka.dispatch.ExecutionContexts$sameThreadExecutionContext$",
-        "akka.dispatch.forkjoin.ForkJoinPool",
         "akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinPool",
         "akka.dispatch.MessageDispatcher",
         "akka.dispatch.PinnedDispatcher",
@@ -82,7 +81,6 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
         "org.eclipse.jetty.util.thread.ReservedThreadExecutor",
         "org.glassfish.grizzly.threadpool.GrizzlyExecutorService",
         "play.api.libs.streams.Execution$trampoline$",
-        "scala.concurrent.forkjoin.ForkJoinPool",
         "scala.concurrent.Future$InternalCallbackExecutor$",
         "scala.concurrent.impl.ExecutionContextImpl",
       };
