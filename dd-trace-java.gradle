@@ -16,20 +16,7 @@ plugins {
 
 def isCI = System.getenv("CI") != null
 
-scmVersion {
-  tag {
-    prefix = 'v'
-    versionSeparator = ''
-  }
-
-  versionIncrementer 'incrementMinor'
-
-  checks {
-    uncommittedChanges = false
-    aheadOfRemote = true
-    snapshotDependencies = false
-  }
-}
+apply from: "$rootDir/gradle/scm.gradle"
 
 allprojects {
   group = 'com.datadoghq'

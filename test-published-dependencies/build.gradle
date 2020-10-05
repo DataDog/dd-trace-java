@@ -1,0 +1,36 @@
+plugins {
+  id 'java'
+  id 'application'
+
+  id 'com.diffplug.gradle.spotless' version '4.3.0'
+  id 'pl.allegro.tech.build.axion-release' version '1.10.3'
+}
+
+repositories {
+  mavenLocal()
+  jcenter()
+  mavenCentral()
+}
+
+def sharedConfigDirectory = "$rootDir/../gradle"
+rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
+apply from: "$sharedConfigDirectory/spotless.gradle"
+
+scmVersion {
+  repository {
+    directory = project.rootProject.file('../')
+  }
+}
+apply from: "$sharedConfigDirectory/scm.gradle"
+
+def dd_trace_version = scmVersion.version
+
+dependencies {
+  implementation "com.datadoghq:dd-java-agent:${dd_trace_version}"
+  implementation "com.datadoghq:dd-trace-api:${dd_trace_version}"
+  implementation "com.datadoghq:dd-trace-ot:${dd_trace_version}"
+}
+
+application {
+  mainClassName = 'test.published.dependencies.App'
+}

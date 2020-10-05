@@ -1,5 +1,8 @@
 apply plugin: 'com.diffplug.gradle.spotless'
 
+// This definition is needed since the spotless file is used from stand alone projects
+def configPath = rootProject.hasProperty('sharedConfigDirectory') ? sharedConfigDirectory : project.rootProject.rootDir.path + '/gradle'
+
 spotless {
   java {
     googleJavaFormat()
@@ -7,7 +10,7 @@ spotless {
   groovyGradle {
     // same as groovy, but for .gradle (defaults to '*.gradle')
     target '*.gradle'
-    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
+    greclipse().configFile(configPath + '/enforcement/spotless-groovy.properties')
   }
   kotlinGradle {
     // same as kotlin, but for .gradle.kts files (defaults to '*.gradle.kts')
