@@ -1,12 +1,5 @@
 import com.google.common.io.Files
-import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.CorrelationIdentifier
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
-import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
-import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.SimpleType
 import org.apache.catalina.AccessLog
 import org.apache.catalina.Context
 import org.apache.catalina.connector.Request
@@ -23,17 +16,14 @@ import spock.lang.Unroll
 import javax.servlet.Servlet
 import javax.servlet.ServletException
 
-import static datadog.trace.agent.test.asserts.TraceAssert.assertTrace
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 @Unroll
 abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> {
@@ -118,14 +108,24 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
     and:
     cleanAndAssertTraces(count) {
       (1..count).eachWithIndex { val, i ->
-        trace(2) {
-          serverSpan(it)
-          controllerSpan(it, span(0))
+        if (hasHandlerSpan()) {
+          trace(3) {
+            sortSpansByStart()
+            serverSpan(it)
+            handlerSpan(it, span(0))
+            controllerSpan(it, span(1))
+          }
+        } else {
+          trace(2) {
+            serverSpan(it)
+            controllerSpan(it, span(0))
+          }
         }
 
         def (String traceId, String spanId) = accessLogValue.loggedIds[i]
-        assert trace(i).get(0).traceId.toString() == traceId
-        assert trace(i).get(0).spanId.toString() == spanId
+        def idIndex = hasHandlerSpan() ? 1 : 0
+        assert trace(i).get(idIndex).traceId.toString() == traceId
+        assert trace(i).get(idIndex).spanId.toString() == spanId
       }
     }
 
@@ -146,14 +146,24 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
 
     and:
     cleanAndAssertTraces(1) {
-      trace(2) {
-        serverSpan(it, null, null, method, ERROR)
-        controllerSpan(it, span(0))
+      if (hasHandlerSpan()) {
+        trace(3) {
+          sortSpansByStart()
+          serverSpan(it, null, null, method, ERROR)
+          handlerSpan(it, span(0), ERROR)
+          controllerSpan(it, span(1))
+        }
+      } else {
+        trace(2) {
+          serverSpan(it, null, null, method, ERROR)
+          controllerSpan(it, span(0))
+        }
       }
 
       def (String traceId, String spanId) = accessLogValue.loggedIds[0]
-      assert trace(0).get(0).traceId.toString() == traceId
-      assert trace(0).get(0).spanId.toString() == spanId
+      def idIndex = hasHandlerSpan() ? 1 : 0
+      assert trace(0).get(idIndex).traceId.toString() == traceId
+      assert trace(0).get(idIndex).spanId.toString() == spanId
     }
 
     where:
@@ -266,12 +276,16 @@ class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {
 }
 
 // FIXME: not working right now...
-//class TomcatServlet3TestForward extends TomcatDispatchTest {
+//class TomcatServlet3TestForward extends TomcatServlet3Test {
 //  @Override
 //  Class<Servlet> servlet() {
 //    TestServlet3.Sync // dispatch to sync servlet
 //  }
 //
+//
+//boolean isDispatch() {
+//  return true
+//}
 //  @Override
 //  boolean testNotFound() {
 //    false
@@ -291,12 +305,15 @@ class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {
 //}
 
 // FIXME: not working right now...
-//class TomcatServlet3TestInclude extends TomcatDispatchTest {
+//class TomcatServlet3TestInclude extends TomcatServlet3Test {
 //  @Override
 //  Class<Servlet> servlet() {
 //    TestServlet3.Sync // dispatch to sync servlet
 //  }
-//
+///
+//boolean isDispatch() {
+//  return true
+//}
 //  @Override
 //  boolean testNotFound() {
 //    false
@@ -315,10 +332,14 @@ class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {
 //  }
 //}
 
-class TomcatServlet3TestDispatchImmediate extends TomcatDispatchTest {
+class TomcatServlet3TestDispatchImmediate extends TomcatServlet3Test {
   @Override
   Class<Servlet> servlet() {
     TestServlet3.Sync
+  }
+
+  boolean isDispatch() {
+    return true
   }
 
   @Override
@@ -340,10 +361,19 @@ class TomcatServlet3TestDispatchImmediate extends TomcatDispatchTest {
   }
 }
 
-class TomcatServlet3TestDispatchAsync extends TomcatDispatchTest {
+class TomcatServlet3TestDispatchAsync extends TomcatServlet3Test {
   @Override
   Class<Servlet> servlet() {
     TestServlet3.Async
+  }
+
+  boolean isDispatch() {
+    return true
+  }
+
+  @Override
+  boolean testNotFound() {
+    false
   }
 
   @Override
@@ -364,90 +394,5 @@ class TomcatServlet3TestDispatchAsync extends TomcatDispatchTest {
     addServlet(context, "/dispatch" + TIMEOUT.path, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch" + TIMEOUT_ERROR.path, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
-  }
-}
-
-abstract class TomcatDispatchTest extends TomcatServlet3Test {
-  @Override
-  URI buildAddress() {
-    return new URI("http://localhost:$port/$context/dispatch/")
-  }
-
-  @Override
-  void cleanAndAssertTraces(
-    final int size,
-    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
-
-    // If this is failing, make sure HttpServerTestAdvice is applied correctly.
-    if (lastRequest == NOT_FOUND) {
-      TEST_WRITER.waitForTraces(size * 2) // (test and servlet/controller traces
-    } else {
-      TEST_WRITER.waitForTraces(size * 3) // (test, dispatch, and servlet/controller traces
-    }
-    // TEST_WRITER is a CopyOnWriteArrayList, which doesn't support remove()
-    def toRemove = TEST_WRITER.findAll {
-      it.size() == 1 && it.get(0).operationName == "TEST_SPAN"
-    }
-    assert toRemove.size() == size
-    toRemove.each {
-      assertTrace(it, 1) {
-        basicSpan(it, "TEST_SPAN", "ServerEntry")
-      }
-    }
-    TEST_WRITER.removeAll(toRemove)
-
-    if (lastRequest == NOT_FOUND) {
-      // Tomcat won't "dispatch" an unregistered url
-      assertTraces(size, spec)
-      return
-    }
-
-    // Validate dispatch trace
-    def dispatchTraces = TEST_WRITER.findAll {
-      it.size() == 1 && it.get(0).resourceName.contains("/dispatch/")
-    }
-    assert dispatchTraces.size() == size
-    dispatchTraces.each { List<DDSpan> dispatchTrace ->
-      assertTrace(dispatchTrace, 1) {
-        def endpoint = lastRequest
-        span {
-          serviceName expectedServiceName()
-          operationName expectedOperationName()
-          resourceName endpoint.status == 404 ? "404" : "GET ${endpoint.resolve(address).path}"
-          spanType DDSpanTypes.HTTP_SERVER
-          errored endpoint.errored
-          // we can't reliably assert parent or child relationship here since both are tested.
-          tags {
-            "$Tags.COMPONENT" component
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
-            "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
-            "$Tags.HTTP_METHOD" "GET"
-            if (endpoint.status > 0) {
-              "$Tags.HTTP_STATUS" endpoint.status
-            } else {
-              "timeout" 1_000
-            }
-            "servlet.context" "/$context"
-            "servlet.path" endpoint.status == 404 ? endpoint.path : "/dispatch$endpoint.path"
-            "servlet.dispatch" endpoint.path
-            if (endpoint.errored) {
-              "error.msg" { it == null || it == EXCEPTION.body }
-              "error.type" { it == null || it == Exception.name }
-              "error.stack" { it == null || it instanceof String }
-            }
-            if (endpoint.query) {
-              "$DDTags.HTTP_QUERY" endpoint.query
-            }
-            defaultTags(true)
-          }
-        }
-      }
-      // Make sure that the trace has a span with the dispatchTrace as a parent.
-      assert TEST_WRITER.any { it.any { it.parentId == dispatchTrace[0].spanId } }
-    }
   }
 }

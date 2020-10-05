@@ -1,10 +1,3 @@
-import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.DDTags
-import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
-import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.SimpleType
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
@@ -12,7 +5,6 @@ import org.eclipse.jetty.servlet.ServletContextHandler
 import javax.servlet.Servlet
 import javax.servlet.http.HttpServletRequest
 
-import static datadog.trace.agent.test.asserts.TraceAssert.assertTrace
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -21,7 +13,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletContextHandler> {
 
@@ -124,12 +115,15 @@ class JettyServlet3TestFakeAsync extends JettyServlet3Test {
 }
 
 // FIXME: not working right now...
-//class JettyServlet3TestForward extends JettyDispatchTest {
+//class JettyServlet3TestForward extends JettyServlet3Test {
 //  @Override
 //  Class<Servlet> servlet() {
 //    TestServlet3.Sync // dispatch to sync servlet
 //  }
 //
+//boolean isDispatch() {
+//  return true
+//}
 //  @Override
 //  boolean testNotFound() {
 //    false
@@ -149,10 +143,14 @@ class JettyServlet3TestFakeAsync extends JettyServlet3Test {
 //}
 
 // FIXME: not working right now...
-//class JettyServlet3TestInclude extends JettyDispatchTest {
+//class JettyServlet3TestInclude extends JettyServlet3Test {
 //  @Override
 //  Class<Servlet> servlet() {
 //    TestServlet3.Sync // dispatch to sync servlet
+//  }
+//
+//  boolean isDispatch() {
+//    return true
 //  }
 //
 //  @Override
@@ -174,10 +172,14 @@ class JettyServlet3TestFakeAsync extends JettyServlet3Test {
 //}
 
 
-class JettyServlet3TestDispatchImmediate extends JettyDispatchTest {
+class JettyServlet3TestDispatchImmediate extends JettyServlet3Test {
   @Override
   Class<Servlet> servlet() {
     TestServlet3.Sync
+  }
+
+  boolean isDispatch() {
+    return true
   }
 
   @Override
@@ -194,7 +196,7 @@ class JettyServlet3TestDispatchImmediate extends JettyDispatchTest {
   }
 }
 
-class JettyServlet3TestDispatchAsync extends JettyDispatchTest {
+class JettyServlet3TestDispatchAsync extends JettyServlet3Test {
   @Override
   Class<Servlet> servlet() {
     TestServlet3.Async
@@ -202,7 +204,11 @@ class JettyServlet3TestDispatchAsync extends JettyDispatchTest {
 
   @Override
   boolean testTimeout() {
-    true
+    return true
+  }
+  
+  boolean isDispatch() {
+    return true
   }
 
   @Override
@@ -218,80 +224,5 @@ class JettyServlet3TestDispatchAsync extends JettyDispatchTest {
     addServlet(context, "/dispatch" + TIMEOUT.path, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch" + TIMEOUT_ERROR.path, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
-  }
-}
-
-abstract class JettyDispatchTest extends JettyServlet3Test {
-  @Override
-  URI buildAddress() {
-    return new URI("http://localhost:$port/$context/dispatch/")
-  }
-
-  @Override
-  void cleanAndAssertTraces(
-    final int size,
-    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
-
-    // If this is failing, make sure HttpServerTestAdvice is applied correctly.
-    TEST_WRITER.waitForTraces(size * 3) // (test, dispatch, and servlet/controller traces
-    // TEST_WRITER is a CopyOnWriteArrayList, which doesn't support remove()
-    def toRemove = TEST_WRITER.findAll {
-      it.size() == 1 && it.get(0).operationName == "TEST_SPAN"
-    }
-    assert toRemove.size() == size
-    toRemove.each {
-      assertTrace(it, 1) {
-        basicSpan(it, "TEST_SPAN", "ServerEntry")
-      }
-    }
-    TEST_WRITER.removeAll(toRemove)
-
-    // Validate dispatch trace
-    def dispatchTraces = TEST_WRITER.findAll {
-      it.size() == 1 && it.get(0).resourceName.contains("/dispatch/")
-    }
-    assert dispatchTraces.size() == size
-    dispatchTraces.each { List<DDSpan> dispatchTrace ->
-      assertTrace(dispatchTrace, 1) {
-        def endpoint = lastRequest
-        span {
-          serviceName expectedServiceName()
-          operationName expectedOperationName()
-          resourceName endpoint.status == 404 ? "404" : "GET ${endpoint.resolve(address).path}"
-          spanType DDSpanTypes.HTTP_SERVER
-          errored endpoint.errored
-          // we can't reliably assert parent or child relationship here since both are tested.
-          tags {
-            "$Tags.COMPONENT" component
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" } // Optional
-            "$Tags.PEER_PORT" Integer
-            "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
-            "$Tags.HTTP_METHOD" "GET"
-            if (endpoint.status > 0) {
-              "$Tags.HTTP_STATUS" endpoint.status
-            } else {
-              "timeout" 1_000
-            }
-            "servlet.context" "/$context"
-            "servlet.path" endpoint.status == 404 ? endpoint.path : "/dispatch$endpoint.path"
-            "servlet.dispatch" endpoint.path
-            if (endpoint.errored) {
-              "error.msg" { it == null || it == EXCEPTION.body }
-              "error.type" { it == null || it == Exception.name }
-              "error.stack" { it == null || it instanceof String }
-            }
-            if (endpoint.query) {
-              "$DDTags.HTTP_QUERY" endpoint.query
-            }
-            defaultTags(true)
-          }
-        }
-      }
-      // Make sure that the trace has a span with the dispatchTrace as a parent.
-      assert TEST_WRITER.any { it.any { it.parentId == dispatchTrace[0].spanId } }
-    }
   }
 }
