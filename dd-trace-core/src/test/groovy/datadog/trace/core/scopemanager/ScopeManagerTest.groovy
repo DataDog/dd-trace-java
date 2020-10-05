@@ -138,27 +138,26 @@ class ScopeManagerTest extends DDSpecification {
     true      | _
   }
 
-  def "DDScope only creates continuations when propagation is set"() {
+  def "setAsyncPropagation is ignored"() {
     setup:
     def span = tracer.buildSpan("test").start()
-    def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
+    def scope = tracer.activateSpan(span)
+    scope.setAsyncPropagation(asyncPropagating) // ignored
+
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
 
     expect:
-    continuation == null
-
-    when:
-    scope.setAsyncPropagation(true)
-    continuation = scope.capture()
-
-    then:
     continuation != null
 
     cleanup:
     continuation.cancel()
 
     where:
-    concurrent << [false, true]
+    asyncPropagating | concurrent
+    true             | true
+    true             | false
+    false            | true
+    false            | false
   }
 
   def "Continuation.cancel doesn't close parent scope"() {
@@ -355,7 +354,7 @@ class ScopeManagerTest extends DDSpecification {
 
     where:
     concurrent << [false, true]
- }
+  }
 
   def "DDScope put in threadLocal after continuation activation"() {
     setup:

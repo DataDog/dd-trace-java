@@ -23,7 +23,7 @@ class PendingTraceBufferTest extends DDSpecification {
   def bufferSpy = Spy(buffer)
 
   def tracer = Mock(CoreTracer)
-  def scopeManager = new ContinuableScopeManager(10, new DDNoopScopeEventFactory(), new NoOpStatsDClient(), true, true)
+  def scopeManager = new ContinuableScopeManager(10, new DDNoopScopeEventFactory(), new NoOpStatsDClient(), true)
   def factory = new PendingTrace.Factory(tracer, bufferSpy)
   List<TraceScope.Continuation> continuations = []
 
@@ -268,7 +268,7 @@ class PendingTraceBufferTest extends DDSpecification {
   }
 
   def addContinuation(DDSpan span) {
-    def scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION, true)
+    def scope = scopeManager.activate(span, ScopeSource.INSTRUMENTATION)
     continuations << scope.capture()
     scope.close()
     return span
