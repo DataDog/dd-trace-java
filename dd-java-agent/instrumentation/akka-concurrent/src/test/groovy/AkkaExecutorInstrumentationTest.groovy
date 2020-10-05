@@ -21,6 +21,16 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
  */
 class AkkaExecutorInstrumentationTest extends AgentTestRunner {
 
+// TODO need to test these, java concurrent trusts that these have been tested here
+//  (note that dispatchers are executors, not executor services
+//  "akka.actor.ActorSystemImpl$$anon$1",
+//  "akka.dispatch.BalancingDispatcher",
+//  "akka.dispatch.Dispatcher",
+//  "akka.dispatch.Dispatcher$LazyExecutorServiceDelegate",
+//  "akka.dispatch.ExecutionContexts$sameThreadExecutionContext$",
+//  "akka.dispatch.MessageDispatcher",
+//  "akka.dispatch.PinnedDispatcher",
+
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
   @Shared
