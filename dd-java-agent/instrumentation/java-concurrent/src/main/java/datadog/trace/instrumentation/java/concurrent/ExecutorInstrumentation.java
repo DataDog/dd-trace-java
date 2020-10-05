@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static java.util.Collections.singletonMap;
@@ -31,27 +31,50 @@ import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public final class ExecutorInstrumentation extends Instrumenter.Default {
+
+  // reviewers - check a test accompanies inclusion in this list
+  private static final String[] TESTED = {
+    // TODO must test all of these in akka-concurrent
+    "akka.actor.ActorSystemImpl$$anon$1",
+    "akka.dispatch.BalancingDispatcher",
+    "akka.dispatch.Dispatcher",
+    "akka.dispatch.Dispatcher$LazyExecutorServiceDelegate",
+    "akka.dispatch.ExecutionContexts$sameThreadExecutionContext$",
+    "akka.dispatch.MessageDispatcher",
+    "akka.dispatch.PinnedDispatcher",
+
+    // below are all really tested
+    "java.util.concurrent.AbstractExecutorService",
+    "java.util.concurrent.ThreadPoolExecutor",
+    "java.util.concurrent.Executors$DelegatedExecutorService",
+    "java.util.concurrent.Executors$FinalizableDelegatedExecutorService",
+    "java.util.concurrent.CompletableFuture$ThreadPerTaskExecutor",
+    "org.eclipse.jetty.util.thread.QueuedThreadPool",
+    "org.eclipse.jetty.util.thread.ReservedThreadExecutor",
+    "java.util.concurrent.ForkJoinPool",
+    // tested by scala-concurrent
+    "scala.concurrent.forkjoin.ForkJoinPool",
+    // tested by akka-concurrent
+    "akka.dispatch.forkjoin.ForkJoinPool"
+  };
+
+  private static final String[] MUST_SKIP = {
+    // ScheduledThreadPoolExecutor.execute is fully supported by instrumenting
+    // FutureTask, and wrapping calls to execute interferes with this mechanism
+    "java.util.concurrent.ScheduledThreadPoolExecutor"
+  };
+
   public ExecutorInstrumentation() {
     super("java-concurrent", "executor");
   }
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return ElementMatchers.<TypeDescription>named("java.util.concurrent.AbstractExecutorService")
+    return ElementMatchers.<TypeDescription>namedOneOf(TESTED)
         .or(
-            // netty does weird stuff, target it specifically
-            not(nameContains(".netty."))
-                .and(
-                    namedNoneOf(
-                        // ScheduledThreadPoolExecutor.execute is fully supported by instrumenting
-                        // FutureTask
-                        "java.util.concurrent.ScheduledThreadPoolExecutor",
-                        // make it really clear that we don't handle any FJP with this
-                        // instrumentation
-                        "scala.concurrent.forkjoin.ForkJoinPool",
-                        "akka.dispatch.forkjoin.ForkJoinPool",
-                        "java.util.concurrent.ForkJoinPool"))
-                .and(safeHasSuperType(named("java.util.concurrent.Executor"))));
+            namedNoneOf(MUST_SKIP)
+                .and(not(nameContains(".netty.util.concurrent.")))
+                .and(hasInterface(named("java.util.concurrent.Executor"))));
   }
 
   @Override

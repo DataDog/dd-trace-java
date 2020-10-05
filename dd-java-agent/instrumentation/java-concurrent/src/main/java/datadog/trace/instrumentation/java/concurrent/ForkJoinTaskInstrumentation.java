@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.java.concurrent;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -26,7 +28,7 @@ public class ForkJoinTaskInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("java.util.concurrent.ForkJoinTask");
+    return extendsClass(named("java.util.concurrent.ForkJoinTask"));
   }
 
   @Override
@@ -38,6 +40,7 @@ public class ForkJoinTaskInstrumentation extends Instrumenter.Default {
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
     transformers.put(isMethod().and(named("doExec")), getClass().getName() + "$DoExec");
+    transformers.put(isMethod().and(named("fork")), getClass().getName() + "$Fork");
     transformers.put(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
     return transformers;
   }
@@ -59,6 +62,18 @@ public class ForkJoinTaskInstrumentation extends Instrumenter.Default {
     public static void after(@Advice.Enter TraceScope scope) {
       if (null != scope) {
         scope.close();
+      }
+    }
+  }
+
+  public static final class Fork {
+    @Advice.OnMethodEnter
+    public static <T> void fork(@Advice.This ForkJoinTask<T> task) {
+      TraceScope activeScope = activeScope();
+      if (null != activeScope) {
+        InstrumentationContext.get(ForkJoinTask.class, State.class)
+            .putIfAbsent(task, State.FACTORY)
+            .captureAndSetContinuation(activeScope);
       }
     }
   }
