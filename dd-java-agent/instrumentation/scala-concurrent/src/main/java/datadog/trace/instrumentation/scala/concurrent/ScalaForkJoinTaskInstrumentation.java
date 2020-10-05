@@ -66,7 +66,7 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Default
       return null;
     }
 
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter TraceScope scope) {
       if (null != scope) {
         scope.close();
@@ -87,7 +87,7 @@ public final class ScalaForkJoinTaskInstrumentation extends Instrumenter.Default
   }
 
   public static final class Cancel {
-    @Advice.OnMethodExit
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
       State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
       if (null != state) {
