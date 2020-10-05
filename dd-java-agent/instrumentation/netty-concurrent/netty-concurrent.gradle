@@ -1,0 +1,33 @@
+muzzle {
+  pass {
+    group = "io.netty"
+    module = "netty-all"
+    versions = "[3.0.0.Final,)"
+    assertInverse = true
+  }
+  fail {
+    group = "io.netty"
+    module = "netty"
+    versions = "[,]"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+dependencies {
+  compileOnly group: 'io.netty', name: 'netty-all', version: '4.0.0.Final'
+
+  testCompile project(':dd-java-agent:instrumentation:trace-annotation')
+  // using at least this version allows to test UnorderedThreadPoolEventExecutor
+  testCompile group: 'io.netty', name: 'netty-all', version: '4.1.9.Final'
+
+  latestDepTestCompile group: 'io.netty', name: 'netty-all', version: '4.1.+'
+}
