@@ -1,21 +1,19 @@
 package datadog.trace.instrumentation.scala.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static net.bytebuddy.matcher.ElementMatchers.nameMatches;
+import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executor;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -32,61 +30,41 @@ public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Default
   }
 
   @Override
-  public ElementMatcher<ClassLoader> classLoaderMatcher() {
-    return ScalaForkJoinTaskInstrumentation.CLASS_LOADER_MATCHER;
-  }
-
-  @Override
-  public ElementMatcher<TypeDescription> typeMatcher() {
-    // This might need to be an extendsClass matcher...
+  public ElementMatcher<? super TypeDescription> typeMatcher() {
     return named("scala.concurrent.forkjoin.ForkJoinPool");
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME, State.class.getName());
+    return singletonMap("scala.concurrent.forkjoin.ForkJoinTask", State.class.getName());
   }
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
+    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
     transformers.put(
-        named("execute")
-            .and(takesArgument(0, named(ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
-        ScalaForkJoinPoolInstrumentation.class.getName() + "$SetScalaForkJoinStateAdvice");
+        isMethod()
+            .and(named("doSubmit"))
+            .and(isPrivate())
+            .and(takesArgument(0, named("scala.concurrent.forkjoin.ForkJoinTask"))),
+        getClass().getName() + "$StartTask");
     transformers.put(
-        named("submit")
-            .and(takesArgument(0, named(ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
-        ScalaForkJoinPoolInstrumentation.class.getName() + "$SetScalaForkJoinStateAdvice");
-    transformers.put(
-        nameMatches("invoke")
-            .and(takesArgument(0, named(ScalaForkJoinTaskInstrumentation.TASK_CLASS_NAME))),
-        ScalaForkJoinPoolInstrumentation.class.getName() + "$SetScalaForkJoinStateAdvice");
+        isMethod()
+            .and(named("externalPush"))
+            .and(takesArgument(0, named("scala.concurrent.forkjoin.ForkJoinTask"))),
+        getClass().getName() + "$StartTask");
     return transformers;
   }
 
-  public static class SetScalaForkJoinStateAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static State enterJobSubmit(
-        @Advice.This final Executor executor,
-        @Advice.Argument(value = 0, readOnly = false) final ForkJoinTask task) {
-      final TraceScope scope = activeScope();
-      if (ExecutorInstrumentationUtils.shouldAttachStateToTask(task, executor)) {
-        final ContextStore<ForkJoinTask, State> contextStore =
-            InstrumentationContext.get(ForkJoinTask.class, State.class);
-        return ExecutorInstrumentationUtils.setupState(contextStore, task, scope);
+  public static final class StartTask {
+    @Advice.OnMethodEnter
+    public static <T> void before(@Advice.Argument(0) ForkJoinTask<T> task) {
+      TraceScope activeScope = activeScope();
+      if (null != activeScope) {
+        InstrumentationContext.get(ForkJoinTask.class, State.class)
+            .putIfAbsent(task, State.FACTORY)
+            .captureAndSetContinuation(activeScope);
       }
-      return null;
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exitJobSubmit(
-        @Advice.This final Executor executor,
-        @Advice.Enter final State state,
-        @Advice.Thrown final Throwable throwable) {
-      ExecutorInstrumentationUtils.cleanUpOnMethodExit(executor, state, throwable);
     }
   }
 }
