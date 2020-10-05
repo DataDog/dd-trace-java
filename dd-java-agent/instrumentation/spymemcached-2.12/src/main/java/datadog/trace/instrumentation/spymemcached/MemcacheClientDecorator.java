@@ -48,6 +48,11 @@ public class MemcacheClientDecorator
     return null;
   }
 
+  @Override
+  protected String dbHostname(MemcachedConnection connection) {
+    return null;
+  }
+
   public AgentSpan onOperation(final AgentSpan span, final String methodName) {
 
     final char[] chars =

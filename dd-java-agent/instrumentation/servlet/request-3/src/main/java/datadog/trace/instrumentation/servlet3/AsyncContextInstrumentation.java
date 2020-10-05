@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.servlet3;
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet3.HttpServletRequestInjectAdapter.SETTER;
 import static java.util.Collections.singletonMap;
@@ -78,6 +79,8 @@ public final class AsyncContextInstrumentation extends Instrumenter.Default {
         if (request instanceof HttpServletRequest) {
           propagate().inject(span, (HttpServletRequest) request, SETTER);
         }
+
+        request.setAttribute(DD_DISPATCH_SPAN_ATTRIBUTE, span);
         final String path;
         if (args.length == 1 && args[0] instanceof String) {
           path = (String) args[0];

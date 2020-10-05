@@ -60,6 +60,11 @@ public class ElasticsearchTransportClientDecorator extends DatabaseClientDecorat
     return null;
   }
 
+  @Override
+  protected String dbHostname(Object o) {
+    return null;
+  }
+
   public AgentSpan onRequest(final AgentSpan span, final Class action, final Class request) {
     if (action != null) {
       span.setTag(DDTags.RESOURCE_NAME, action.getSimpleName());

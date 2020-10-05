@@ -78,6 +78,16 @@ public class MongoClientDecorator
     return event.getDatabaseName();
   }
 
+  @Override
+  protected String dbHostname(CommandStartedEvent event) {
+    final ConnectionDescription connectionDescription = event.getConnectionDescription();
+    if (connectionDescription != null) {
+      return connectionDescription.getServerAddress().getHost();
+    }
+
+    return null;
+  }
+
   public AgentSpan onStatement(final AgentSpan span, final BsonDocument statement) {
 
     // scrub the Mongo command so that parameters are removed from the string

@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.servlet3;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet3.HttpServletRequestExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
@@ -46,7 +47,14 @@ public class Servlet3Advice {
     InstrumentationContext.get(HttpServletResponse.class, HttpServletRequest.class)
         .put((HttpServletResponse) response, httpServletRequest);
 
-    final AgentSpan.Context extractedContext = propagate().extract(httpServletRequest, GETTER);
+    final AgentSpan.Context extractedContext;
+    Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
+    if (dispatchSpan instanceof AgentSpan) {
+      extractedContext = ((AgentSpan) dispatchSpan).context();
+      request.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
+    } else {
+      extractedContext = propagate().extract(httpServletRequest, GETTER);
+    }
 
     final AgentSpan span =
         startSpan(SERVLET_REQUEST, extractedContext).setTag(InstrumentationTags.DD_MEASURED, true);

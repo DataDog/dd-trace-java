@@ -141,6 +141,11 @@ class JUnit4Test extends TestFrameworkTest {
   }
 
   @Override
+  String ciPipelineName() {
+    return JUnit4Decorator.DECORATE.getCiPipelineName()
+  }
+
+  @Override
   String ciPipelineNumber() {
     return JUnit4Decorator.DECORATE.getCiPipelineNumber()
   }

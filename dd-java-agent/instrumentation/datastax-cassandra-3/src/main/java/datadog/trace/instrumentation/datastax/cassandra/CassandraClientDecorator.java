@@ -53,6 +53,12 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
     return session.getLoggedKeyspace();
   }
 
+  @Override
+  protected String dbHostname(Session session) {
+    // Getting hostname through session.getState() seems to be expensive
+    return null;
+  }
+
   public AgentSpan onResponse(final AgentSpan span, final ResultSet result) {
     if (result != null) {
       final Host host = result.getExecutionInfo().getQueriedHost();

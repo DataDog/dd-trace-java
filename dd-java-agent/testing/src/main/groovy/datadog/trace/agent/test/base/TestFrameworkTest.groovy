@@ -47,10 +47,12 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         if (isCI) {
           "$Tags.CI_PROVIDER_NAME" ciProviderName
           "$Tags.CI_PIPELINE_ID" ciPipelineId
+          "$Tags.CI_PIPELINE_NAME" ciPipelineName
           "$Tags.CI_PIPELINE_NUMBER" ciPipelineNumber
           "$Tags.CI_PIPELINE_URL" ciPipelineUrl
           "$Tags.CI_JOB_URL" ciJobUrl
           "$Tags.CI_WORKSPACE_PATH" ciWorkspacePath
+          "$Tags.BUILD_SOURCE_ROOT" ciWorkspacePath
           "$Tags.GIT_REPOSITORY_URL" gitRepositoryUrl
           "$Tags.GIT_COMMIT_SHA" gitCommit
           "$Tags.GIT_BRANCH" gitBranch
@@ -71,6 +73,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   String ciProviderName = ciProviderName()
   @Shared
   String ciPipelineId = ciPipelineId()
+  @Shared
+  String ciPipelineName = ciPipelineName()
   @Shared
   String ciPipelineNumber = ciPipelineNumber()
   @Shared
@@ -99,6 +103,8 @@ abstract class TestFrameworkTest extends AgentTestRunner {
   abstract String ciProviderName()
 
   abstract String ciPipelineId()
+
+  abstract String ciPipelineName()
 
   abstract String ciPipelineNumber()
 
