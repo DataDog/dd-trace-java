@@ -284,7 +284,9 @@ public class Agent {
               "com.datadog.profiling.controller.openjdk.events.DeadlockEventFactory");
       final Method registerMethod = deadlockFactoryClass.getMethod("registerEvents");
       registerMethod.invoke(null);
-    } catch (final NoClassDefFoundError | ClassNotFoundException e) {
+    } catch (final NoClassDefFoundError
+        | ClassNotFoundException
+        | UnsupportedClassVersionError ignored) {
       log.debug("JMX deadlock detection not supported");
     } catch (final Throwable ex) {
       log.error("Unable to initialize JMX thread deadlock detector", ex);
