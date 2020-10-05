@@ -43,14 +43,14 @@ abstract class CIProviderInfoTest extends DDSpecification {
 
     where:
     ciKeySelector | ciInfoClass
-    JENKINS       | JenkinsInfo.class
-    GITLAB        | GitLabInfo.class
-    TRAVIS        | TravisInfo.class
-    CIRCLECI      | CircleCIInfo.class
-    APPVEYOR      | AppVeyorInfo.class
-    AZURE         | AzurePipelinesInfo.class
-    GHACTIONS     | GithubActionsInfo.class
-    BITBUCKET     | BitBucketInfo.class
-    BUILDKITE     | BuildkiteInfo.class
+    JENKINS       | JenkinsInfo
+    GITLAB        | GitLabInfo
+    TRAVIS        | TravisInfo
+    CIRCLECI      | CircleCIInfo
+    APPVEYOR      | AppVeyorInfo
+    AZURE         | AzurePipelinesInfo
+    GHACTIONS     | GithubActionsInfo
+    BITBUCKET     | BitBucketInfo
+    BUILDKITE     | BuildkiteInfo
   }
 }
