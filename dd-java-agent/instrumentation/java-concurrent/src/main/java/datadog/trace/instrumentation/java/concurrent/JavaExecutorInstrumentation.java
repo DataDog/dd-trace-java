@@ -22,7 +22,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.Future;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -36,7 +35,6 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
     final Map<String, String> map = new HashMap<>();
     map.put(Runnable.class.getName(), State.class.getName());
     map.put(Callable.class.getName(), State.class.getName());
-    map.put(ForkJoinTask.class.getName(), State.class.getName());
     map.put(Future.class.getName(), State.class.getName());
     return Collections.unmodifiableMap(map);
   }
@@ -48,24 +46,15 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
         named("execute").and(takesArgument(0, Runnable.class)).and(takesArguments(1)),
         JavaExecutorInstrumentation.class.getName() + "$SetExecuteRunnableStateAdvice");
     transformers.put(
-        named("execute").and(takesArgument(0, ForkJoinTask.class)),
-        JavaExecutorInstrumentation.class.getName() + "$SetJavaForkJoinStateAdvice");
-    transformers.put(
         named("submit").and(takesArgument(0, Runnable.class)),
         JavaExecutorInstrumentation.class.getName() + "$SetSubmitRunnableStateAdvice");
     transformers.put(
         named("submit").and(takesArgument(0, Callable.class)),
         JavaExecutorInstrumentation.class.getName() + "$SetCallableStateAdvice");
     transformers.put(
-        named("submit").and(takesArgument(0, ForkJoinTask.class)),
-        JavaExecutorInstrumentation.class.getName() + "$SetJavaForkJoinStateAdvice");
-    transformers.put(
         nameMatches("invoke(Any|All)$").and(takesArgument(0, Collection.class)),
         JavaExecutorInstrumentation.class.getName()
             + "$SetCallableStateForCallableCollectionAdvice");
-    transformers.put(
-        nameMatches("invoke").and(takesArgument(0, ForkJoinTask.class)),
-        JavaExecutorInstrumentation.class.getName() + "$SetJavaForkJoinStateAdvice");
     transformers.put(
         named("schedule").and(takesArgument(0, Runnable.class)),
         JavaExecutorInstrumentation.class.getName() + "$SetSubmitRunnableStateAdvice");
@@ -95,30 +84,6 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
               InstrumentationContext.get(Runnable.class, State.class);
           return ExecutorInstrumentationUtils.setupState(contextStore, newTask, scope);
         }
-      }
-      return null;
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exitJobSubmit(
-        @Advice.This final Executor executor,
-        @Advice.Enter final State state,
-        @Advice.Thrown final Throwable throwable) {
-      ExecutorInstrumentationUtils.cleanUpOnMethodExit(executor, state, throwable);
-    }
-  }
-
-  public static class SetJavaForkJoinStateAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static State enterJobSubmit(
-        @Advice.This final Executor executor,
-        @Advice.Argument(value = 0, readOnly = false) final ForkJoinTask task) {
-      final TraceScope scope = activeScope();
-      if (ExecutorInstrumentationUtils.shouldAttachStateToTask(task, executor)) {
-        final ContextStore<ForkJoinTask, State> contextStore =
-            InstrumentationContext.get(ForkJoinTask.class, State.class);
-        return ExecutorInstrumentationUtils.setupState(contextStore, task, scope);
       }
       return null;
     }

@@ -75,7 +75,6 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
         "java.util.concurrent.CompletableFuture$ThreadPerTaskExecutor",
         "java.util.concurrent.Executors$DelegatedExecutorService",
         "java.util.concurrent.Executors$FinalizableDelegatedExecutorService",
-        "java.util.concurrent.ForkJoinPool",
         "java.util.concurrent.ThreadPoolExecutor",
         "kotlinx.coroutines.scheduling.CoroutineScheduler",
         "org.eclipse.jetty.util.thread.QueuedThreadPool",
