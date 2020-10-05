@@ -1,23 +1,15 @@
 package datadog.trace.core;
 
-import datadog.common.exec.AgentTaskScheduler;
-import datadog.common.exec.AgentTaskScheduler.Task;
 import datadog.trace.api.DDId;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.core.monitor.Recording;
 import datadog.trace.core.util.Clock;
-import java.lang.ref.Reference;
-import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -43,7 +35,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class PendingTrace implements AgentTrace {
-  private static final long CLEAN_FREQUENCY = 1;
 
   static class Factory {
     private final CoreTracer tracer;
@@ -55,14 +46,7 @@ public class PendingTrace implements AgentTrace {
     }
 
     PendingTrace create(final DDId traceId) {
-      final PendingTrace pendingTrace = new PendingTrace(tracer, traceId, pendingTraceBuffer);
-      AgentTaskScheduler.INSTANCE.weakScheduleAtFixedRate(
-          PendingTraceCleanerTask.INSTANCE,
-          pendingTrace,
-          CLEAN_FREQUENCY,
-          CLEAN_FREQUENCY,
-          TimeUnit.SECONDS);
-      return pendingTrace;
+      return new PendingTrace(tracer, traceId, pendingTraceBuffer);
     }
   }
 
@@ -81,19 +65,6 @@ public class PendingTrace implements AgentTrace {
 
   // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
   private final AtomicInteger completedSpanCount = new AtomicInteger(0);
-
-  @Deprecated private final ReferenceQueue spanReferenceQueue = new ReferenceQueue();
-
-  @Deprecated
-  private final Set<WeakReference<DDSpan>> weakSpans =
-      Collections.newSetFromMap(new ConcurrentHashMap<WeakReference<DDSpan>, Boolean>());
-
-  @Deprecated private final ReferenceQueue continuationReferenceQueue = new ReferenceQueue();
-
-  @Deprecated
-  private final Set<WeakReference<AgentScope.Continuation>> weakContinuations =
-      Collections.newSetFromMap(
-          new ConcurrentHashMap<WeakReference<AgentScope.Continuation>, Boolean>());
 
   private final AtomicInteger pendingReferenceCount = new AtomicInteger(0);
 
@@ -174,20 +145,14 @@ public class PendingTrace implements AgentTrace {
       log.debug("t_id={} -> registered for wrong trace {}", traceId, span);
       return;
     }
+
     if (!rootSpanWritten.get()) {
       rootSpan.compareAndSet(null, new WeakReference<>(span));
     }
-    synchronized (span) {
-      if (null == span.ref) {
-        span.ref = new WeakReference<DDSpan>(span, spanReferenceQueue);
-        weakSpans.add(span.ref);
-        final int count = pendingReferenceCount.incrementAndGet();
-        if (log.isDebugEnabled()) {
-          log.debug("t_id={} -> registered span {}. count = {}", traceId, span, count);
-        }
-      } else {
-        log.debug("t_id={} -> span already registered {}", traceId, span);
-      }
+
+    final int count = pendingReferenceCount.incrementAndGet();
+    if (log.isDebugEnabled()) {
+      log.debug("t_id={} -> registered span {}. count = {}", traceId, span, count);
     }
   }
 
@@ -202,32 +167,18 @@ public class PendingTrace implements AgentTrace {
       return;
     }
     if (!traceId.equals(span.getTraceId())) {
-      log.debug("t_id={} -> added to a mismatched trace: {}", traceId, span);
+      log.debug("t_id={} -> span expired for wrong trace {}", traceId, span);
       return;
     }
-
-    finishedSpans.addFirst(span);
-    completedSpanCount.incrementAndGet();
-
     if (traceId == null || span.context() == null) {
       log.error(
           "Failed to expire span ({}) due to null PendingTrace traceId or null span context", span);
       return;
     }
-    if (!traceId.equals(span.context().getTraceId())) {
-      log.debug("t_id={} -> span expired for wrong trace {}", traceId, span);
-      return;
-    }
-    synchronized (span) {
-      if (null == span.ref) {
-        log.debug("t_id={} -> not registered in trace: {}", traceId, span);
-      } else {
-        weakSpans.remove(span.ref);
-        span.ref.clear();
-        span.ref = null;
-        expireReference(span == getRootSpan());
-      }
-    }
+
+    finishedSpans.addFirst(span);
+    completedSpanCount.incrementAndGet();
+    expireReference(span == getRootSpan());
   }
 
   public DDSpan getRootSpan() {
@@ -250,30 +201,16 @@ public class PendingTrace implements AgentTrace {
    */
   @Override
   public void registerContinuation(final AgentScope.Continuation continuation) {
-    synchronized (continuation) {
-      if (!continuation.isRegistered()) {
-        weakContinuations.add(continuation.register(continuationReferenceQueue));
-        final int count = pendingReferenceCount.incrementAndGet();
-        if (log.isDebugEnabled()) {
-          log.debug(
-              "t_id={} -> registered continuation {} -- count = {}", traceId, continuation, count);
-        }
-      } else {
-        log.debug("continuation {} already registered in trace {}", continuation, traceId);
-      }
+    final int count = pendingReferenceCount.incrementAndGet();
+    if (log.isDebugEnabled()) {
+      log.debug(
+          "t_id={} -> registered continuation {} -- count = {}", traceId, continuation, count);
     }
   }
 
   @Override
   public void cancelContinuation(final AgentScope.Continuation continuation) {
-    synchronized (continuation) {
-      if (continuation.isRegistered()) {
-        continuation.cancel(weakContinuations);
-        expireReference(false);
-      } else {
-        log.debug("t_id={} -> not registered in trace: {}", traceId, continuation);
-      }
-    }
+    expireReference(false);
   }
 
   private void expireReference(boolean isRootSpan) {
@@ -300,12 +237,7 @@ public class PendingTrace implements AgentTrace {
       }
     }
     if (log.isDebugEnabled()) {
-      log.debug(
-          "t_id={} -> expired reference. count={} spans={} continuations={}",
-          traceId,
-          count,
-          weakSpans.size(),
-          weakContinuations.size());
+      log.debug("t_id={} -> expired reference. pending count={}", traceId, count);
     }
   }
 
@@ -350,50 +282,7 @@ public class PendingTrace implements AgentTrace {
     return 0;
   }
 
-  public synchronized boolean clean() {
-    Reference ref;
-    int count = 0;
-    while ((ref = continuationReferenceQueue.poll()) != null) {
-      weakContinuations.remove(ref);
-      count++;
-      expireReference(false);
-    }
-    if (count > 0) {
-      log.debug("t_id={} -> {} unfinished continuations garbage collected.", traceId, count);
-    }
-
-    count = 0;
-    while ((ref = spanReferenceQueue.poll()) != null) {
-      weakSpans.remove(ref);
-      if (this.traceValid.compareAndSet(true, false)) {
-        // preserve throughput count.
-        // Don't report the trace because the data comes from buggy uses of the api and is suspect.
-        tracer.incrementTraceCount();
-      }
-      count++;
-      pendingReferenceCount.decrementAndGet();
-    }
-    if (count > 0) {
-      // TODO attempt to flatten and report if top level spans are finished. (for accurate metrics)
-      log.debug(
-          "t_id={} -> {} unfinished spans garbage collected. Trace will not be reported.",
-          traceId,
-          count);
-    }
-    return count > 0;
-  }
-
   public int size() {
     return completedSpanCount.get();
-  }
-
-  private static class PendingTraceCleanerTask implements Task<PendingTrace> {
-
-    static final PendingTraceCleanerTask INSTANCE = new PendingTraceCleanerTask();
-
-    @Override
-    public void run(final PendingTrace target) {
-      target.clean();
-    }
   }
 }
