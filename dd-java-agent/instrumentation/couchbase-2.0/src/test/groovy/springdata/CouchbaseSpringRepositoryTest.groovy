@@ -41,24 +41,30 @@ class CouchbaseSpringRepositoryTest extends AbstractCouchbaseTest {
     CouchbaseEnvironment environment = envBuilder(bucketCouchbase).build()
     Cluster couchbaseCluster = CouchbaseCluster.create(environment, Arrays.asList("127.0.0.1"))
 
-    // Create view for SpringRepository's findAll()
-    couchbaseCluster.openBucket(bucketCouchbase.name(), bucketCouchbase.password()).bucketManager()
-      .insertDesignDocument(
-        DesignDocument.create("doc", Collections.singletonList(DefaultView.create("all",
-          '''
+    def setupSpan = runUnderTrace("setup") {
+
+      // Create view for SpringRepository's findAll()
+      couchbaseCluster.openBucket(bucketCouchbase.name(), bucketCouchbase.password()).bucketManager()
+        .insertDesignDocument(
+          DesignDocument.create("doc", Collections.singletonList(DefaultView.create("all",
+            '''
           function (doc, meta) {
              if (doc._class == "springdata.Doc") {
                emit(meta.id, null);
              }
           }
         '''.stripIndent()
-        )))
-      )
-    CouchbaseConfig.setEnvironment(environment)
-    CouchbaseConfig.setBucketSettings(bucketCouchbase)
+          )))
+        )
+      CouchbaseConfig.setEnvironment(environment)
+      CouchbaseConfig.setBucketSettings(bucketCouchbase)
 
-    // Close all buckets and disconnect
-    couchbaseCluster.disconnect()
+      // Close all buckets and disconnect
+      couchbaseCluster.disconnect()
+
+      activeSpan()
+    }
+    TEST_WRITER.waitUntilReported(setupSpan)
 
     applicationContext = new AnnotationConfigApplicationContext(CouchbaseConfig)
     repo = applicationContext.getBean(DocRepository)

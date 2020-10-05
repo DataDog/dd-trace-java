@@ -197,6 +197,7 @@ public abstract class AgentTestRunner extends DDSpecification {
         : "Span is active before test has started: " + getTestTracer().activeSpan();
     log.debug("Starting test: '{}'", getSpecificationContext().getCurrentIteration().getName());
     new MockUtil().attachMock(STATS_D_CLIENT, this);
+    getTestTracer().flush();
     TEST_WRITER.start();
   }
 
@@ -215,6 +216,7 @@ public abstract class AgentTestRunner extends DDSpecification {
 
   @After
   public void detachAfter() {
+    getTestTracer().flush();
     new MockUtil().detachMock(STATS_D_CLIENT);
   }
 

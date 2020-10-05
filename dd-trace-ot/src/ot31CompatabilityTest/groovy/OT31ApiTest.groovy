@@ -13,10 +13,10 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 // This test focuses on things that are different between OpenTracing API 0.31.0 and 0.32.0
 class OT31ApiTest extends DDSpecification {
-  static final WRITER = new ListWriter()
+  def writer = new ListWriter()
 
   @Subject
-  Tracer tracer = DDTracer.builder().writer(WRITER).build()
+  Tracer tracer = DDTracer.builder().writer(writer).build()
 
   def "test startActive"() {
     when:
@@ -35,7 +35,7 @@ class OT31ApiTest extends DDSpecification {
     tracer.buildSpan("some name").startManual().finish()
 
     then:
-    assertTraces(WRITER, 1) {
+    assertTraces(writer, 1) {
       trace(1) {
         basicSpan(it, "some name")
       }

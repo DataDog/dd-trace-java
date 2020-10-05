@@ -176,7 +176,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
   }
 
   @Timeout(30)
-  def "test default buffer size"() {
+  def "test default buffer size for #agentVersion"() {
     setup:
     def api = apiWithVersion(agentVersion)
     def writer = DDAgentWriter.builder()
@@ -195,7 +195,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       writer.write(minimalTrace)
       def start = System.nanoTime()
       // (consumer processes a trace in about 20 microseconds
-      while (System.nanoTime() - start < TimeUnit.MICROSECONDS.toNanos(100)) {
+      while (System.nanoTime() - start < TimeUnit.MICROSECONDS.toNanos(100) && !Thread.currentThread().isInterrupted()) {
         // Busywait because we don't want to fill up the ring buffer
       }
     }

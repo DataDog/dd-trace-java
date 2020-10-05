@@ -37,6 +37,11 @@ class CouchbaseClientTest extends AbstractCouchbaseTest {
     cluster = CouchbaseCluster.create(environment, Arrays.asList("127.0.0.1"))
     manager = cluster.clusterManager(USERNAME, PASSWORD)
     type = bucketSettings.type().name()
+
+    waitForTraces = {
+      TEST_WRITER.waitForTraces(1) // from clusterManager above
+      true
+    }()
   }
 
   def "test upsert and get #type"() {

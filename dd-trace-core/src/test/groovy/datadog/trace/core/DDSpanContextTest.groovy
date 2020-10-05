@@ -7,6 +7,10 @@ import datadog.trace.util.test.DDSpecification
 
 class DDSpanContextTest extends DDSpecification {
 
+  def setup() {
+    SpanFactory.WRITER.start()
+  }
+
   def "null values for tags delete existing tags"() {
     setup:
     def span = SpanFactory.newSpanOf(0)
@@ -15,6 +19,7 @@ class DDSpanContextTest extends DDSpecification {
     context.setTag(name, null)
     context.setErrorFlag(true)
     span.finish()
+    SpanFactory.WRITER.waitForTraces(1)
 
     expect:
     context.getTags() == tags
@@ -37,6 +42,7 @@ class DDSpanContextTest extends DDSpecification {
     def context = span.context
     context.setTag(name, value)
     span.finish()
+    SpanFactory.WRITER.waitForTraces(1)
     def thread = Thread.currentThread()
 
     def expectedTags = [(DDTags.THREAD_NAME): thread.name, (DDTags.THREAD_ID): thread.id]
@@ -60,6 +66,7 @@ class DDSpanContextTest extends DDSpecification {
     def context = span.context
     context.setTag(name, value)
     span.finish()
+    SpanFactory.WRITER.waitForTraces(1)
     def thread = Thread.currentThread()
 
     expect:

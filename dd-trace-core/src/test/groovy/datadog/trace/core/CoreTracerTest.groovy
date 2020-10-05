@@ -10,6 +10,7 @@ import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.DDAgentWriter
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.propagation.DatadogHttpCodec
 import datadog.trace.core.propagation.HttpCodec
@@ -258,13 +259,13 @@ class CoreTracerTest extends DDSpecification {
 
   def "priority sampling when span finishes"() {
     given:
-    Properties properties = new Properties()
-    properties.setProperty("writer.type", "LoggingWriter")
-    def tracer = CoreTracer.builder().withProperties(properties).build()
+    def writer = new ListWriter()
+    def tracer = CoreTracer.builder().writer(writer).build()
 
     when:
     def span = tracer.buildSpan("operation").start()
     span.finish()
+    writer.waitForTraces(1)
 
     then:
     span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
@@ -272,9 +273,8 @@ class CoreTracerTest extends DDSpecification {
 
   def "priority sampling set when child span complete"() {
     given:
-    Properties properties = new Properties()
-    properties.setProperty("writer.type", "LoggingWriter")
-    def tracer = CoreTracer.builder().withProperties(properties).build()
+    def writer = new ListWriter()
+    def tracer = CoreTracer.builder().writer(writer).build()
 
     when:
     def root = tracer.buildSpan("operation").start()
@@ -286,6 +286,7 @@ class CoreTracerTest extends DDSpecification {
 
     when:
     child.finish()
+    writer.waitForTraces(1)
 
     then:
     root.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP

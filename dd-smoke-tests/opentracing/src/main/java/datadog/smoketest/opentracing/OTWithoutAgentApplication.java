@@ -7,7 +7,7 @@ import io.opentracing.Span;
 import io.opentracing.util.GlobalTracer;
 
 public class OTWithoutAgentApplication {
-  public static void main(final String[] args) {
+  public static void main(final String[] args) throws InterruptedException {
     final DDTracer tracer = DDTracer.builder().build();
     GlobalTracer.register(tracer);
     // register the same tracer with the Datadog API
@@ -19,5 +19,8 @@ public class OTWithoutAgentApplication {
     }
 
     span.finish();
+
+    // Allow trace to be reported.
+    Thread.sleep(1000);
   }
 }

@@ -70,8 +70,9 @@ public class DDSpan implements AgentSpan, DDSpanData {
       startTimeNano = context.getTrace().getCurrentTimeNano();
     } else {
       startTimeMicro = timestampMicro;
-      // Timestamp have come from an external clock, so use startTimeNano as a flag
+      // Timestamp has come from an external clock, so use startTimeNano as a flag
       startTimeNano = 0;
+      context.getTrace().touch(); // Update lastReferenced
     }
   }
 
@@ -83,7 +84,7 @@ public class DDSpan implements AgentSpan, DDSpanData {
     // ensure a min duration of 1
     if (this.durationNano.compareAndSet(0, Math.max(1, durationNano))) {
       log.debug("Finished span: {}", this);
-      context.getTrace().addSpan(this);
+      context.getTrace().addFinishedSpan(this);
     } else {
       log.debug("Already finished: {}", this);
     }
@@ -101,6 +102,7 @@ public class DDSpan implements AgentSpan, DDSpanData {
 
   @Override
   public final void finish(final long stoptimeMicros) {
+    context.getTrace().touch(); // Update timestamp
     finishAndAddToTrace(TimeUnit.MICROSECONDS.toNanos(stoptimeMicros - startTimeMicro));
   }
 
@@ -283,6 +285,7 @@ public class DDSpan implements AgentSpan, DDSpanData {
    *
    * @return metrics for this span
    */
+  @Override
   public Map<String, Number> getMetrics() {
     return context.getMetrics();
   }
@@ -307,10 +310,12 @@ public class DDSpan implements AgentSpan, DDSpanData {
     return context.getTraceId();
   }
 
+  @Override
   public DDId getSpanId() {
     return context.getSpanId();
   }
 
+  @Override
   public DDId getParentId() {
     return context.getParentId();
   }
@@ -362,6 +367,7 @@ public class DDSpan implements AgentSpan, DDSpanData {
     return context.getTags();
   }
 
+  @Override
   public CharSequence getType() {
     return context.getSpanType();
   }
@@ -376,6 +382,7 @@ public class DDSpan implements AgentSpan, DDSpanData {
     return context.getErrorFlag();
   }
 
+  @Override
   public int getError() {
     return context.getErrorFlag() ? 1 : 0;
   }

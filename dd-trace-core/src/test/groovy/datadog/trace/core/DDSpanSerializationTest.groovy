@@ -138,7 +138,7 @@ class DDSpanSerializationTest extends DDSpecification {
       false,
       null,
       tags.size(),
-      PendingTrace.create(tracer, DDId.ONE),
+      tracer.pendingTraceFactory.create(DDId.ONE),
       tracer,
       [:])
     context.setAllTags(tags)
@@ -207,7 +207,7 @@ class DDSpanSerializationTest extends DDSpecification {
       false,
       null,
       tags.size(),
-      PendingTrace.create(tracer, DDId.ONE),
+      tracer.pendingTraceFactory.create(DDId.ONE),
       tracer,
       [:])
     context.setAllTags(tags)
@@ -283,7 +283,7 @@ class DDSpanSerializationTest extends DDSpecification {
       false,
       spanType,
       1,
-      PendingTrace.create(tracer, DDId.ONE),
+      tracer.pendingTraceFactory.create(DDId.ONE),
       tracer,
       [:])
     ctx.setAllTags(["k1": "v1"])

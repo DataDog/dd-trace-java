@@ -2,6 +2,7 @@ package datadog.trace.api.writer
 
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.PrintingWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.SpanFactory
@@ -12,7 +13,7 @@ import java.nio.charset.StandardCharsets
 
 class PrintingWriterTest extends DDSpecification {
 
-  def tracer = Mock(CoreTracer)
+  def tracer = CoreTracer.builder().writer(new ListWriter()).build()
   def sampleTrace = [SpanFactory.newSpanOf(tracer), SpanFactory.newSpanOf(tracer)]
   def secondTrace = [SpanFactory.newSpanOf(tracer)]
 

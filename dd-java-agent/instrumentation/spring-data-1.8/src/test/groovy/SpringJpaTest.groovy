@@ -1,4 +1,5 @@
 // This file includes software developed at SignalFx
+
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
@@ -7,6 +8,7 @@ import spring.jpa.JpaCustomerRepository
 import spring.jpa.JpaPersistenceConfig
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class SpringJpaTest extends AgentTestRunner {
   def "test object method"() {
@@ -37,10 +39,14 @@ class SpringJpaTest extends AgentTestRunner {
   }
 
   def "test CRUD"() {
+    JpaCustomerRepository repo
     // moved inside test -- otherwise, miss the opportunity to instrument
-    def context = new AnnotationConfigApplicationContext(JpaPersistenceConfig)
-    def repo = context.getBean(JpaCustomerRepository)
-
+    def setupSpan = runUnderTrace("setup") {
+      def context = new AnnotationConfigApplicationContext(JpaPersistenceConfig)
+      repo = context.getBean(JpaCustomerRepository)
+      activeSpan()
+    }
+    TEST_WRITER.waitUntilReported(setupSpan)
     // when Spring JPA sets up, it issues metadata queries -- clear those traces
     TEST_WRITER.clear()
 

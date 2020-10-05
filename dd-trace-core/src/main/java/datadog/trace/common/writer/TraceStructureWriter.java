@@ -73,6 +73,12 @@ public class TraceStructureWriter implements Writer {
   public void start() {}
 
   @Override
+  public boolean flush() {
+    out.flush();
+    return true;
+  }
+
+  @Override
   public void close() {
     if (out != System.err) {
       out.close();

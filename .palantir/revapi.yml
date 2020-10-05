@@ -710,3 +710,152 @@ acceptedBreaks:
       old: "method void java.lang.Object::wait(long, int) throws java.lang.InterruptedException\
         \ @ datadog.trace.core.monitor.Counter"
       justification: "this is fine"
+  "0.64.0":
+    com.datadoghq:dd-trace-ot:
+    - code: "java.method.removed"
+      old: "method <T> T[] java.util.concurrent.ConcurrentLinkedDeque<E>::toArray(T[])\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method E java.util.concurrent.ConcurrentLinkedDeque<E>::element() @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method E java.util.concurrent.ConcurrentLinkedDeque<E>::getFirst() @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method E java.util.concurrent.ConcurrentLinkedDeque<E>::getLast() @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method E java.util.concurrent.ConcurrentLinkedDeque<E>::peek() @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method E java.util.concurrent.ConcurrentLinkedDeque<E>::peekFirst() @\
+        \ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method E java.util.concurrent.ConcurrentLinkedDeque<E>::peekLast() @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method E java.util.concurrent.ConcurrentLinkedDeque<E>::poll() @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method E java.util.concurrent.ConcurrentLinkedDeque<E>::pollFirst() @\
+        \ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method E java.util.concurrent.ConcurrentLinkedDeque<E>::pollLast() @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method E java.util.concurrent.ConcurrentLinkedDeque<E>::pop() @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method E java.util.concurrent.ConcurrentLinkedDeque<E>::remove() @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method E java.util.concurrent.ConcurrentLinkedDeque<E>::removeFirst()\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method E java.util.concurrent.ConcurrentLinkedDeque<E>::removeLast() @\
+        \ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.AbstractCollection<E>::containsAll(java.util.Collection<?>)\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.AbstractCollection<E>::removeAll(java.util.Collection<?>)\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.AbstractCollection<E>::retainAll(java.util.Collection<?>)\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.Collection<E>::removeIf(java.util.function.Predicate<?\
+        \ super E>) @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.concurrent.ConcurrentLinkedDeque<E>::add(E) @\
+        \ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.concurrent.ConcurrentLinkedDeque<E>::addAll(java.util.Collection<?\
+        \ extends E>) @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.concurrent.ConcurrentLinkedDeque<E>::contains(java.lang.Object)\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.concurrent.ConcurrentLinkedDeque<E>::isEmpty()\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.concurrent.ConcurrentLinkedDeque<E>::offer(E)\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.concurrent.ConcurrentLinkedDeque<E>::offerFirst(E)\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.concurrent.ConcurrentLinkedDeque<E>::offerLast(E)\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.concurrent.ConcurrentLinkedDeque<E>::remove(java.lang.Object)\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.concurrent.ConcurrentLinkedDeque<E>::removeFirstOccurrence(java.lang.Object)\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method boolean java.util.concurrent.ConcurrentLinkedDeque<E>::removeLastOccurrence(java.lang.Object)\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method java.lang.Object[] java.util.concurrent.ConcurrentLinkedDeque<E>::toArray()\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method java.util.Iterator<E> java.util.concurrent.ConcurrentLinkedDeque<E>::descendingIterator()\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method java.util.Iterator<E> java.util.concurrent.ConcurrentLinkedDeque<E>::iterator()\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method java.util.Spliterator<E> java.util.concurrent.ConcurrentLinkedDeque<E>::spliterator()\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method java.util.stream.Stream<E> java.util.Collection<E>::parallelStream()\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method java.util.stream.Stream<E> java.util.Collection<E>::stream() @\
+        \ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method void datadog.trace.core.PendingTrace::addFirst(datadog.trace.core.DDSpan)"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method void datadog.trace.core.PendingTrace::addSpan(datadog.trace.core.DDSpan)"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method void java.lang.Iterable<T>::forEach(java.util.function.Consumer<?\
+        \ super T>) @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method void java.util.concurrent.ConcurrentLinkedDeque<E>::addLast(E)\
+        \ @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method void java.util.concurrent.ConcurrentLinkedDeque<E>::clear() @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method void java.util.concurrent.ConcurrentLinkedDeque<E>::push(E) @ datadog.trace.core.PendingTrace"
+      justification: "encapsulate PendingTrace better"

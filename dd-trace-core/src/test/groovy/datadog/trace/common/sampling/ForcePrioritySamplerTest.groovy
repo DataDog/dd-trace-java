@@ -1,6 +1,7 @@
 package datadog.trace.common.sampling
 
 import datadog.trace.api.DDTags
+import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
@@ -8,6 +9,8 @@ import datadog.trace.core.SpanFactory
 import datadog.trace.util.test.DDSpecification
 
 class ForcePrioritySamplerTest extends DDSpecification {
+
+  def writer = new ListWriter()
 
   def "force priority sampling"() {
     setup:
@@ -30,7 +33,7 @@ class ForcePrioritySamplerTest extends DDSpecification {
   def "sampling priority set"() {
     setup:
     def sampler = new ForcePrioritySampler(prioritySampling)
-    def tracer = CoreTracer.builder().writer(new LoggingWriter()).sampler(sampler).build()
+    def tracer = CoreTracer.builder().writer(writer).sampler(sampler).build()
 
     when:
     def span = tracer.buildSpan("test").start()
@@ -43,6 +46,7 @@ class ForcePrioritySamplerTest extends DDSpecification {
 
     then:
     span.finish()
+    writer.waitForTraces(1)
     span.getSamplingPriority() == expectedSampling
 
     where:

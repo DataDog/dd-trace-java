@@ -15,6 +15,7 @@ abstract class CliApplicationSmokeTest extends AbstractSmokeTest {
   @Override
   ProcessBuilder createProcessBuilder() {
     String cliShadowJar = System.getProperty("datadog.smoketest.cli.shadowJar.path")
+    assert new File(cliShadowJar).isFile()
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())

@@ -5,7 +5,6 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpanContext
-import datadog.trace.core.PendingTrace
 import datadog.trace.util.test.DDSpecification
 
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
@@ -44,7 +43,7 @@ class HaystackHttpInjectorTest extends DDSpecification {
         false,
         "fakeType",
         0,
-        new PendingTrace(tracer, DDId.ONE),
+        tracer.pendingTraceFactory.create(DDId.ONE),
         tracer,
         [:])
 
@@ -96,7 +95,7 @@ class HaystackHttpInjectorTest extends DDSpecification {
         false,
         "fakeType",
         0,
-        new PendingTrace(tracer, DDId.ONE),
+        tracer.pendingTraceFactory.create(DDId.ONE),
         tracer,
         [:])
 

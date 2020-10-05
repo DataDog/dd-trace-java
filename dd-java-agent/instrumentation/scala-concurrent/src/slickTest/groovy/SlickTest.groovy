@@ -61,14 +61,20 @@ class SlickTest extends AgentTestRunner {
 
     // Expect two traces because two queries have been run
     assertTraces(2) {
-      trace(2, {
-        span {}
+      trace(2) {
+        span {
+          operationName "trace.annotation"
+          resourceName "SlickUtils.startQuery"
+        }
         span { spanType DDSpanTypes.SQL }
-      })
-      trace(2, {
-        span {}
+      }
+      trace(2) {
+        span {
+          operationName "trace.annotation"
+          resourceName "SlickUtils.startQuery"
+        }
         span { spanType DDSpanTypes.SQL }
-      })
+      }
     }
   }
 }

@@ -121,11 +121,12 @@ class MongoAsyncClientTest extends MongoBaseTest {
     MongoCollection<Document> collection = runUnderTrace("setup") {
       MongoDatabase db = client.getDatabase(dbName)
       def latch1 = new CountDownLatch(1)
+      // This creates a trace that isn't linked to the parent... using NIO internally that we don't handle.
       db.createCollection(collectionName, toCallback { latch1.countDown() })
       latch1.await()
       return db.getCollection(collectionName)
     }
-    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.waitForTraces(2)
     TEST_WRITER.clear()
 
     when:

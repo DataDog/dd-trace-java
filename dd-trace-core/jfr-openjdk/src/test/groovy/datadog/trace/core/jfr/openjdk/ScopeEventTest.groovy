@@ -10,7 +10,6 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpanContext
-import datadog.trace.core.PendingTrace
 import datadog.trace.core.util.SystemAccess
 import datadog.trace.util.test.DDSpecification
 import spock.lang.Requires
@@ -41,7 +40,7 @@ class ScopeEventTest extends DDSpecification {
       false,
       "fakeType",
       0,
-      new PendingTrace(tracer, DDId.from(123)),
+      tracer.pendingTraceFactory.create(DDId.from(123)),
       tracer,
       [:])
   def builder = tracer.buildSpan("test operation")

@@ -1,5 +1,6 @@
 import com.timgroup.statsd.NonBlockingStatsDClient
 import com.timgroup.statsd.StatsDClient
+import datadog.trace.api.DDId
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -8,10 +9,8 @@ import datadog.trace.common.writer.ddagent.Payload
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
-import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
-import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.Packer
@@ -45,7 +44,7 @@ class DDApiIntegrationTest extends DDSpecification {
     false,
     "fakeType",
     0,
-    new PendingTrace(TRACER, DDId.ONE),
+    TRACER.pendingTraceFactory.create(DDId.ONE),
     TRACER,
     [:])
 
@@ -151,15 +150,15 @@ class DDApiIntegrationTest extends DDSpecification {
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
-    traces                                                                              | test  | enableV05
-    []                                                                                  | 1     |  true
-    [[new DDSpan(1, CONTEXT)]]                                                          | 2     |  true
-    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 3     |  true
-    (1..16).collect { [] }                                                              | 4     |  true
-    []                                                                                  | 5     |  false
-    [[new DDSpan(1, CONTEXT)]]                                                          | 6     |  false
-    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 7     |  false
-    (1..16).collect { [] }                                                              | 8     |  false
+    traces                                                                              | test | enableV05
+    []                                                                                  | 1    | true
+    [[new DDSpan(1, CONTEXT)]]                                                          | 2    | true
+    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 3    | true
+    (1..16).collect { [] }                                                              | 4    | true
+    []                                                                                  | 5    | false
+    [[new DDSpan(1, CONTEXT)]]                                                          | 6    | false
+    [[new DDSpan(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()), CONTEXT)]] | 7    | false
+    (1..16).collect { [] }                                                              | 8    | false
   }
 
   def "Sending traces to unix domain socket succeeds (test #test)"() {
@@ -176,11 +175,11 @@ class DDApiIntegrationTest extends DDSpecification {
     assert agentResponse.get() == [rate_by_service: ["service:,env:": 1]]
 
     where:
-    traces                                                                              | test   | enableV05
-    []                                                                                  | 1      | true
-    [[new DDSpan(1, CONTEXT)]]                                                          | 2      | true
-    []                                                                                  | 3      | false
-    [[new DDSpan(1, CONTEXT)]]                                                          | 4      | false
+    traces                     | test | enableV05
+    []                         | 1    | true
+    [[new DDSpan(1, CONTEXT)]] | 2    | true
+    []                         | 3    | false
+    [[new DDSpan(1, CONTEXT)]] | 4    | false
   }
 
 

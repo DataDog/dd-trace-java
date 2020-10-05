@@ -4,6 +4,8 @@ import java.util.concurrent.ThreadFactory;
 
 /** A {@link ThreadFactory} implementation that starts all {@link Thread} as daemons. */
 public final class DaemonThreadFactory implements ThreadFactory {
+  public static final DaemonThreadFactory TRACE_MONITOR =
+      new DaemonThreadFactory("dd-trace-monitor");
   public static final DaemonThreadFactory TRACE_PROCESSOR =
       new DaemonThreadFactory("dd-trace-processor");
   public static final DaemonThreadFactory TASK_SCHEDULER =

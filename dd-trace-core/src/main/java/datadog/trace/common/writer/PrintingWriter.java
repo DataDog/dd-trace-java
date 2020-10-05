@@ -49,6 +49,11 @@ public class PrintingWriter implements Writer {
   }
 
   @Override
+  public boolean flush() {
+    return true;
+  }
+
+  @Override
   public void close() {
     // do nothing
   }

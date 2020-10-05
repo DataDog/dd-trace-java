@@ -54,6 +54,7 @@ class OpenTracingAPITest extends DDSpecification {
     } finally {
       scope.close()
     }
+    writer.waitForTraces(1)
 
     then:
     1 * traceInterceptor.onTraceComplete({ it.size() == 1 }) >> { args -> args[0] }
@@ -88,6 +89,7 @@ class OpenTracingAPITest extends DDSpecification {
     } finally {
       scope.close()
     }
+    writer.waitForTraces(1)
 
     then:
     1 * traceInterceptor.onTraceComplete({ it.size() == 1 }) >> { args -> args[0] }
@@ -128,6 +130,7 @@ class OpenTracingAPITest extends DDSpecification {
     testSpan.setOperationName("someOtherOperation")
     scope.close()
     testSpan.finish()
+    writer.waitForTraces(1)
 
     then:
     1 * traceInterceptor.onTraceComplete({ it.size() == 1 }) >> { args -> args[0] }
@@ -162,6 +165,7 @@ class OpenTracingAPITest extends DDSpecification {
     Scope scopeManagerActiveScope = tracer.scopeManager().active()
     testScope.close()
     testSpan.finish()
+    writer.waitForTraces(1)
 
     then:
     1 * traceInterceptor.onTraceComplete({ it.size() == 1 }) >> { args -> args[0] }
@@ -191,6 +195,7 @@ class OpenTracingAPITest extends DDSpecification {
     } finally {
       scope.close()
     }
+    writer.waitForTraces(1)
 
     then:
     1 * traceInterceptor.onTraceComplete({ it.size() == 2 }) >> { args -> args[0] }
@@ -239,6 +244,7 @@ class OpenTracingAPITest extends DDSpecification {
     when:
     continuation.cancel()
     scope.close()
+    writer.waitForTraces(1)
 
     then:
     1 * traceInterceptor.onTraceComplete({ it.size() == 1 }) >> { args -> args[0] }
@@ -281,9 +287,10 @@ class OpenTracingAPITest extends DDSpecification {
     when:
     inner.close()
     outer.close()
+    writer.waitForTraces(1)
 
     then:
-    1 * traceInterceptor.onTraceComplete( { it.size() == 2 }) >> { args -> args[0] }
+    1 * traceInterceptor.onTraceComplete({ it.size() == 2 }) >> { args -> args[0] }
 
     assertTraces(writer, 1) {
       trace(2) {
@@ -325,6 +332,7 @@ class OpenTracingAPITest extends DDSpecification {
     when:
     scope.close()
     testSpan.finish()
+    writer.waitForTraces(1)
 
     then:
     1 * traceInterceptor.onTraceComplete({ it.size() == 1 }) >> { args -> args[0] }
@@ -364,6 +372,7 @@ class OpenTracingAPITest extends DDSpecification {
     when:
     secondSpan.finish()
     secondScope.close()
+    writer.waitForTraces(1)
 
     then:
     2 * scopeListener.afterScopeClosed()
@@ -412,6 +421,7 @@ class OpenTracingAPITest extends DDSpecification {
     when:
     secondSpan.finish()
     secondScope.close()
+    writer.waitForTraces(1)
 
     then:
     1 * scopeListener.afterScopeClosed()
@@ -453,6 +463,7 @@ class OpenTracingAPITest extends DDSpecification {
 
     scope.close()
     testSpan.finish()
+    writer.waitForTraces(2)
 
     then:
     2 * traceInterceptor.onTraceComplete({ it.size() == 1 }) >> { args -> args[0] }

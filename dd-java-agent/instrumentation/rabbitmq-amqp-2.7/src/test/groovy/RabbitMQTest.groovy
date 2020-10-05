@@ -379,7 +379,8 @@ class RabbitMQTest extends AgentTestRunner {
       tags {
         "$Tags.COMPONENT" "rabbitmq-amqp"
         "$Tags.PEER_HOSTNAME" { it == null || it instanceof String }
-        "$Tags.PEER_HOST_IPV4" { "127.0.0.1" }
+        "$Tags.PEER_HOST_IPV4" { it == null || it == "127.0.0.1" }
+        "$Tags.PEER_HOST_IPV6" { it == null || it == "0:0:0:0:0:0:0:1" }
         "$Tags.PEER_PORT" { it == null || it instanceof Integer }
         if (expectTimestamp) {
           "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it instanceof Long && it >= 0 }

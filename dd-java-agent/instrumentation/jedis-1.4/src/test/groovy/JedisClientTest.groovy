@@ -6,8 +6,10 @@ import redis.clients.jedis.Jedis
 import redis.embedded.RedisServer
 import spock.lang.Shared
 
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class JedisClientTest extends AgentTestRunner {
 
@@ -40,7 +42,11 @@ class JedisClientTest extends AgentTestRunner {
   }
 
   def setup() {
-    jedis.flushAll()
+    def cleanupSpan = runUnderTrace("cleanup") {
+      jedis.flushAll()
+      activeSpan()
+    }
+    TEST_WRITER.waitUntilReported(cleanupSpan)
     TEST_WRITER.start()
   }
 

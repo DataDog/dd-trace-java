@@ -89,6 +89,11 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   }
 
   @Override
+  public boolean flush() {
+    return true;
+  }
+
+  @Override
   public void close() {
     clear();
     synchronized (latches) {

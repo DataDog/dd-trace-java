@@ -34,13 +34,19 @@ public class LoggingWriter implements Writer {
   }
 
   @Override
-  public void close() {
-    log.info("close()");
+  public void start() {
+    log.info("start()");
   }
 
   @Override
-  public void start() {
-    log.info("start()");
+  public boolean flush() {
+    log.info("flush()");
+    return true;
+  }
+
+  @Override
+  public void close() {
+    log.info("close()");
   }
 
   @Override
