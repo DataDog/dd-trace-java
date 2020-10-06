@@ -46,7 +46,10 @@ dependencies {
   testCompile project(':dd-java-agent:instrumentation:netty-4.1')
   testCompile project(':dd-java-agent:instrumentation:akka-http-10.0')
   testCompile project(':dd-java-agent:instrumentation:akka-concurrent')
+  testCompile project(':dd-java-agent:instrumentation:akka-init')
   testCompile project(':dd-java-agent:instrumentation:scala-concurrent')
+  testCompile project(':dd-java-agent:instrumentation:scala-promise-2.10')
+  testCompile project(':dd-java-agent:instrumentation:scala-promise-2.13')
 
   testCompile group: 'com.typesafe.play', name: "play-ahc-ws-standalone_$scalaVersion", version: '1.0.2'
 

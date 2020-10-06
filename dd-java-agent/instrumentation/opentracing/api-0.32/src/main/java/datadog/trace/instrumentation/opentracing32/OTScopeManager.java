@@ -87,6 +87,11 @@ public class OTScopeManager implements ScopeManager {
     }
 
     @Override
+    public Continuation captureConcurrent() {
+      return delegate.captureConcurrent();
+    }
+
+    @Override
     public boolean isAsyncPropagating() {
       return delegate.isAsyncPropagating();
     }

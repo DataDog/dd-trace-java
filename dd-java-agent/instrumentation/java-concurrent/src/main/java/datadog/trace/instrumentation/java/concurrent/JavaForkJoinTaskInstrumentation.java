@@ -12,6 +12,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Collections;
@@ -42,7 +44,15 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Default 
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return extendsClass(named(ForkJoinTask.class.getName()));
+    return extendsClass(
+        named(ForkJoinTask.class.getName())
+            .and(
+                new ElementMatcher.Junction.AbstractBase<TypeDescription>() {
+                  @Override
+                  public boolean matches(TypeDescription target) {
+                    return !ExcludeFilter.exclude(ExcludeType.FORK_JOIN_TASK, target.getName());
+                  }
+                }));
   }
 
   @Override
@@ -71,6 +81,9 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Default 
      */
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static TraceScope enter(@Advice.This final ForkJoinTask thiz) {
+      if (ExcludeFilter.exclude(ExcludeType.EXECUTOR, thiz)) {
+        return null;
+      }
       final ContextStore<ForkJoinTask, State> contextStore =
           InstrumentationContext.get(ForkJoinTask.class, State.class);
       TraceScope scope = AdviceUtils.startTaskScope(contextStore, thiz);

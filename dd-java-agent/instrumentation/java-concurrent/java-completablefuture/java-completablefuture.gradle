@@ -1,8 +1,12 @@
-// This is a separate project to allow for testing against various JDKs with existing tooling.
-
 // Set properties before any plugins get loaded
 ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+muzzle {
+  pass {
+    coreJdk()
+  }
 }
 
 apply from: "${rootDir}/gradle/java.gradle"

@@ -105,9 +105,16 @@ class CompletableFutureTest extends AgentTestRunner {
   def "test thenApply"() {
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
-      CompletableFuture.supplyAsync {
-        "done"
-      }.thenApply { result ->
+      def supply = CompletableFuture.supplyAsync {
+        if ((value & 1) == 0) {
+          Thread.sleep(10)
+        }
+        "done-$value"
+      }
+      if ((value & 2) == 0) {
+        Thread.sleep(10)
+      }
+      supply.thenApply { result ->
         runUnderTrace("child") {
           result
         }
@@ -115,33 +122,50 @@ class CompletableFutureTest extends AgentTestRunner {
     }
 
     then:
-    completableFuture.get() == "done"
+    completableFuture.get() == "done-$value"
 
     and:
     assertTraces(1) {
+      // The parent and the child spans can finish out of order since they run
+      // on different threads concurrently
       trace(2) {
-        basicSpan(it, "parent")
-        basicSpan(it, "child", span(0))
+        def pIndex = span(0).isRootSpan() ? 0 : 1
+        def cIndex = 1 - pIndex
+        basicSpan(it, pIndex, "parent")
+        basicSpan(it, cIndex, "child", span(pIndex))
       }
     }
+
+    where:
+    value << (0..3) // Test all combinations
   }
 
   def "test thenApplyAsync"() {
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
-      def result = CompletableFuture.supplyAsync {
-        "done"
-      }.thenApplyAsync { result ->
+      CompletableFuture<String> supply = CompletableFuture.supplyAsync {
+        if ((value & 1) == 0) {
+          Thread.sleep(10)
+        }
+        "done-$value"
+      }
+      if ((value & 2) == 0) {
+        Thread.sleep(10)
+      }
+      def result = supply.thenApplyAsync { result ->
+        if ((value & 4) == 0) {
+          Thread.sleep(10)
+        }
         runUnderTrace("child") {
           result
         }
       }
       blockUntilChildSpansFinished(1)
-      return result
+      result
     }
 
     then:
-    completableFuture.get() == "done"
+    completableFuture.get() == "done-$value"
 
     and:
     assertTraces(1) {
@@ -150,15 +174,28 @@ class CompletableFutureTest extends AgentTestRunner {
         basicSpan(it, "child", span(0))
       }
     }
+
+    where:
+    value << (0..7) // Test all combinations
   }
 
   def "test thenCompose"() {
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
-      def result = CompletableFuture.supplyAsync {
-        "done"
-      }.thenCompose { result ->
+      def supply = CompletableFuture.supplyAsync {
+        if ((value & 1) == 0) {
+          Thread.sleep(10)
+        }
+        "done-$value"
+      }
+      if ((value & 2) == 0) {
+        Thread.sleep(10)
+      }
+      def result = supply.thenCompose { result ->
         CompletableFuture.supplyAsync {
+          if ((value & 4) == 0) {
+            Thread.sleep(10)
+          }
           runUnderTrace("child") {
             result
           }
@@ -169,7 +206,7 @@ class CompletableFutureTest extends AgentTestRunner {
     }
 
     then:
-    completableFuture.get() == "done"
+    completableFuture.get() == "done-$value"
 
     and:
     assertTraces(1) {
@@ -178,26 +215,43 @@ class CompletableFutureTest extends AgentTestRunner {
         basicSpan(it, "child", span(0))
       }
     }
+
+    where:
+    value << (0..7) // Test all combinations
   }
 
   def "test thenComposeAsync"() {
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
-      def result = CompletableFuture.supplyAsync {
-        "done"
-      }.thenComposeAsync { result ->
-        CompletableFuture.supplyAsync {
+      def supply = CompletableFuture.supplyAsync {
+        if ((value & 1) == 0) {
+          Thread.sleep(10)
+        }
+        "done-$value"
+      }
+      if ((value & 2) == 0) {
+        Thread.sleep(10)
+      }
+      def result = supply.thenComposeAsync { result ->
+        def inner = CompletableFuture.supplyAsync {
+          if ((value & 4) == 0) {
+            Thread.sleep(10)
+          }
           runUnderTrace("child") {
             result
           }
         }
+        if ((value & 8) == 0) {
+          Thread.sleep(10)
+        }
+        inner
       }
       blockUntilChildSpansFinished(1)
       return result
     }
 
     then:
-    completableFuture.get() == "done"
+    completableFuture.get() == "done-$value"
 
     and:
     assertTraces(1) {
@@ -206,18 +260,35 @@ class CompletableFutureTest extends AgentTestRunner {
         basicSpan(it, "child", span(0))
       }
     }
+
+    where:
+    value << (0..15) // Test all combinations
   }
 
   def "test compose and apply"() {
     when:
     CompletableFuture<String> completableFuture = runUnderTrace("parent") {
-      def result = CompletableFuture.supplyAsync {
-        "do"
-      }.thenCompose { result ->
-        CompletableFuture.supplyAsync {
-          result + "ne"
+      def supply = CompletableFuture.supplyAsync {
+        if ((value & 1) == 0) {
+          Thread.sleep(10)
         }
-      }.thenApplyAsync { result ->
+        "do"
+      }
+      if ((value & 2) == 0) {
+        Thread.sleep(10)
+      }
+      def compose = supply.thenCompose { result ->
+        CompletableFuture.supplyAsync {
+          if ((value & 4) == 0) {
+            Thread.sleep(10)
+          }
+          result + "ne-$value"
+        }
+      }
+      def result = compose.thenApplyAsync { result ->
+        if ((value & 8) == 0) {
+          Thread.sleep(10)
+        }
         runUnderTrace("child") {
           result
         }
@@ -227,7 +298,7 @@ class CompletableFutureTest extends AgentTestRunner {
     }
 
     then:
-    completableFuture.get() == "done"
+    completableFuture.get() == "done-$value"
 
     and:
     assertTraces(1) {
@@ -236,6 +307,9 @@ class CompletableFutureTest extends AgentTestRunner {
         basicSpan(it, "child", span(0))
       }
     }
+
+    where:
+    value << (0..15) // Test all combinations
   }
 
   class AppendingSupplier implements Supplier<String> {
