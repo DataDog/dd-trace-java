@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipeline
 import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_BUILD_SOURCEBRANCH
 import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_BUILD_SOURCEVERSION
 import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_PIPELINE_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_PIPELINE_NUMBER
 import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_PROVIDER_NAME
 import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_SYSTEM_JOBID
 import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_SYSTEM_PULLREQUEST_SOURCEBRANCH
@@ -23,7 +22,6 @@ class AzurePipelinesInfoTest extends CIProviderInfoTest {
     setup:
     environmentVariables.set(AZURE, "True")
     environmentVariables.set(AZURE_PIPELINE_NAME, "azure-pipelines-name")
-    environmentVariables.set(AZURE_PIPELINE_NUMBER, "azure-pipelines-number")
     environmentVariables.set(AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI, "azure-pipelines-server-uri/")
     environmentVariables.set(AZURE_SYSTEM_TEAMPROJECT, "azure-pipelines-project")
     environmentVariables.set(AZURE_BUILD_BUILDID, "azure-pipelines-build-id")
@@ -44,7 +42,7 @@ class AzurePipelinesInfoTest extends CIProviderInfoTest {
     ciInfo.ciProviderName == AZURE_PROVIDER_NAME
     ciInfo.ciPipelineId == "azure-pipelines-build-id"
     ciInfo.ciPipelineName == "azure-pipelines-name"
-    ciInfo.ciPipelineNumber == "azure-pipelines-number"
+    ciInfo.ciPipelineNumber == "azure-pipelines-build-id"
     ciInfo.ciPipelineUrl == "azure-pipelines-server-uri/azure-pipelines-project/_build/results?buildId=azure-pipelines-build-id&_a=summary"
     ciInfo.ciJobUrl == "azure-pipelines-server-uri/azure-pipelines-project/_build/results?buildId=azure-pipelines-build-id&view=logs&j=azure-pipelines-job-id&t=azure-pipelines-task-id"
     ciInfo.ciWorkspacePath == ciInfoWorkspace

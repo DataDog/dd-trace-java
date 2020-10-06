@@ -6,7 +6,6 @@ class AzurePipelinesInfo extends CIProviderInfo {
   public static final String AZURE = "TF_BUILD";
   public static final String AZURE_PROVIDER_NAME = "azurepipelines";
   public static final String AZURE_PIPELINE_NAME = "BUILD_DEFINITIONNAME";
-  public static final String AZURE_PIPELINE_NUMBER = "BUILD_BUILDNUMBER";
   public static final String AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI =
       "SYSTEM_TEAMFOUNDATIONSERVERURI";
   public static final String AZURE_SYSTEM_TEAMPROJECT = "SYSTEM_TEAMPROJECT";
@@ -46,7 +45,7 @@ class AzurePipelinesInfo extends CIProviderInfo {
     ciProviderName = AZURE_PROVIDER_NAME;
     ciPipelineId = System.getenv(AZURE_BUILD_BUILDID);
     ciPipelineName = System.getenv(AZURE_PIPELINE_NAME);
-    ciPipelineNumber = System.getenv(AZURE_PIPELINE_NUMBER);
+    ciPipelineNumber = System.getenv(AZURE_BUILD_BUILDID);
     ciWorkspacePath = expandTilde(System.getenv(AZURE_WORKSPACE_PATH));
     ciPipelineUrl = buildCiPipelineUrl(uri, project, buildId);
     ciJobUrl = buildCiJobUrl(uri, project, buildId, jobId, taskId);
