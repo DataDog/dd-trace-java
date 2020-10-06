@@ -24,7 +24,7 @@ class Scala213PromiseTest extends AbstractPromiseTest<Promise<Boolean>, Future<S
   }
 
   @Override
-  Boolean get(Promise<Boolean> promise) {
+  boolean get(Promise<Boolean> promise) {
     return promise.future().value().get().get()
   }
 }

@@ -101,6 +101,15 @@ class CustomScopeManagerWrapper implements AgentScopeManager {
     }
 
     @Override
+    public TraceScope.Continuation captureConcurrent() {
+      if (traceScope) {
+        return ((TraceScope) delegate).captureConcurrent();
+      } else {
+        return null;
+      }
+    }
+
+    @Override
     public void close() {
       delegate.close();
     }

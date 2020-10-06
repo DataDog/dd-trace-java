@@ -9,6 +9,8 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Arrays;
 import java.util.Collection;
@@ -47,10 +49,6 @@ public final class FutureInstrumentation extends Instrumenter.Default {
       "io.netty.util.concurrent.CompleteFuture",
       "io.netty.util.concurrent.FailedFuture",
       "io.netty.util.concurrent.ScheduledFutureTask",
-      "java.util.concurrent.CompletableFuture$BiApply",
-      "java.util.concurrent.CompletableFuture$BiCompletion",
-      "java.util.concurrent.CompletableFuture$BiRelay",
-      "java.util.concurrent.CompletableFuture$ThreadPerTaskExecutor",
       "java.util.concurrent.CountedCompleter",
       "java.util.concurrent.ExecutorCompletionService$QueueingFuture",
       "java.util.concurrent.ForkJoinTask",
@@ -80,7 +78,9 @@ public final class FutureInstrumentation extends Instrumenter.Default {
     return new ElementMatcher.Junction.AbstractBase<TypeDescription>() {
       @Override
       public boolean matches(final TypeDescription target) {
-        final boolean whitelisted = WHITELISTED_FUTURES.contains(target.getName());
+        String name = target.getName();
+        final boolean whitelisted =
+            WHITELISTED_FUTURES.contains(name) && !ExcludeFilter.exclude(ExcludeType.FUTURE, name);
         if (!whitelisted && log.isDebugEnabled() && hasFutureInterfaceMatcher.matches(target)) {
           log.debug("Skipping future instrumentation for {}", target.getName());
         }

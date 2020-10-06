@@ -32,7 +32,7 @@ class ListenableFutureTest extends AbstractPromiseTest<SettableFuture<Boolean>, 
   }
 
   @Override
-  Boolean get(SettableFuture<Boolean> promise) {
+  boolean get(SettableFuture<Boolean> promise) {
     return promise.get()
   }
 }

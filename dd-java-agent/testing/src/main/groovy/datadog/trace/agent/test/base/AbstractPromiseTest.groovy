@@ -1,14 +1,13 @@
 package datadog.trace.agent.test.base
 
-
 import datadog.trace.agent.test.AgentTestRunner
-
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static org.junit.Assume.*
 
 // TODO: add a test for a longer chain of promises
 abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
@@ -21,7 +20,13 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
 
   abstract void complete(P promise, boolean value)
 
-  abstract Boolean get(P promise)
+  abstract boolean get(P promise)
+
+  // Does this instrumentation pick up the completing scope?
+  // That is e.g. not how it was decided that CompletableFuture should work
+  boolean picksUpCompletingScope() {
+    true
+  }
 
   def "test call with parent"() {
     setup:
@@ -64,7 +69,6 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
   def "test call with parent delayed complete"() {
     setup:
     def promise = newPromise()
-    def latch = new CountDownLatch(1)
 
     when:
     runUnderTrace("parent") {
@@ -75,14 +79,11 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
       onComplete(mapped) {
         assert it == "$value"
         runUnderTrace("callback") {}
-        latch.countDown()
       }
     }
 
     runUnderTrace("other") {
       complete(promise, value)
-      // This is here to sort the traces so the `parent` always finishes first
-      waitForLatchOrFail(latch)
     }
 
     then:
@@ -139,8 +140,9 @@ abstract class AbstractPromiseTest<P, M> extends AgentTestRunner {
     value << [true, false]
   }
 
-  def "test call with no parent"() {
+  def "test call with no parent (completing scope)"() {
     setup:
+    assumeTrue(picksUpCompletingScope())
     def promise = newPromise()
     def latch = new CountDownLatch(1)
 

@@ -34,6 +34,9 @@ dependencies {
   testCompile(project(':dd-java-agent:instrumentation:java-concurrent')) {
     exclude module: 'okhttp'
   }
+  testCompile(project(':dd-java-agent:instrumentation:java-concurrent:java-completablefuture')) {
+    exclude module: 'okhttp'
+  }
   testCompile group: 'com.squareup.okhttp', name: 'okhttp', version: '2.2.0'
 
   latestDepTestCompile group: 'com.squareup.okhttp', name: 'okhttp', version: '[2.6,3)'

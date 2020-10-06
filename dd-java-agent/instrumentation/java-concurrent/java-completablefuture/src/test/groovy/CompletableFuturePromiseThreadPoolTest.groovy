@@ -1,5 +1,5 @@
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 
 class CompletableFuturePromiseThreadPoolTest extends CompletableFuturePromiseTest {
   @Override

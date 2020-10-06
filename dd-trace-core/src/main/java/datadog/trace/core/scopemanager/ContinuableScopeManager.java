@@ -279,9 +279,27 @@ public class ContinuableScopeManager implements AgentScopeManager {
      */
     @Override
     public ContinuableScopeManager.Continuation capture() {
+      return capture(false);
+    }
+
+    /**
+     * The continuation returned must be closed or activated or the trace will not finish.
+     *
+     * @return The new continuation, or null if this scope is not async propagating.
+     */
+    @Override
+    public ContinuableScopeManager.Continuation captureConcurrent() {
+      return capture(true);
+    }
+
+    private ContinuableScopeManager.Continuation capture(boolean concurrent) {
       if (isAsyncPropagating()) {
-        final ContinuableScopeManager.Continuation continuation =
-            new ContinuableScopeManager.Continuation(scopeManager, span, source);
+        final ContinuableScopeManager.Continuation continuation;
+        if (concurrent) {
+          continuation = new ConcurrentContinuation(scopeManager, span, source);
+        } else {
+          continuation = new SingleContinuation(scopeManager, span, source);
+        }
         return continuation.register();
       } else {
         return null;
@@ -355,23 +373,19 @@ public class ContinuableScopeManager implements AgentScopeManager {
   }
 
   /**
-   * This class must not be a nested class of ContinuableScope to avoid avoid an unconstrained chain
-   * of references (using too much memory).
+   * This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
+   * references (using too much memory).
    */
-  private static final class Continuation implements AgentScope.Continuation {
+  private abstract static class Continuation implements AgentScope.Continuation {
     public WeakReference<AgentScope.Continuation> ref;
 
-    private final ContinuableScopeManager scopeManager;
-    private final AgentSpan spanUnderScope;
-    private final ScopeSource source;
+    final ContinuableScopeManager scopeManager;
+    final AgentSpan spanUnderScope;
+    final ScopeSource source;
+    final AgentTrace trace;
 
-    private final AgentTrace trace;
-    private final AtomicBoolean used = new AtomicBoolean(false);
-
-    private Continuation(
-        final ContinuableScopeManager scopeManager,
-        final AgentSpan spanUnderScope,
-        final ScopeSource source) {
+    public Continuation(
+        ContinuableScopeManager scopeManager, AgentSpan spanUnderScope, ScopeSource source) {
       this.scopeManager = scopeManager;
       this.spanUnderScope = spanUnderScope;
       this.source = source;
@@ -381,6 +395,43 @@ public class ContinuableScopeManager implements AgentScopeManager {
     private Continuation register() {
       trace.registerContinuation(this);
       return this;
+    }
+
+    @Override
+    public boolean isRegistered() {
+      return ref != null;
+    }
+
+    @Override
+    public WeakReference<AgentScope.Continuation> register(final ReferenceQueue referenceQueue) {
+      ref = new WeakReference<AgentScope.Continuation>(this, referenceQueue);
+      return ref;
+    }
+
+    @Override
+    public void cancel(final Set<WeakReference<AgentScope.Continuation>> weakReferences) {
+      weakReferences.remove(ref);
+      ref.clear();
+      ref = null;
+    }
+
+    // Called by ContinuableScopeManager when a continued scope is closed
+    // Can't use cancel() for SingleContinuation because of the "used" check
+    abstract void cancelFromContinuedScopeClose();
+  }
+
+  /**
+   * This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
+   * references (using too much memory).
+   */
+  private static final class SingleContinuation extends Continuation {
+    private final AtomicBoolean used = new AtomicBoolean(false);
+
+    private SingleContinuation(
+        final ContinuableScopeManager scopeManager,
+        final AgentSpan spanUnderScope,
+        final ScopeSource source) {
+      super(scopeManager, spanUnderScope, source);
     }
 
     @Override
@@ -412,28 +463,9 @@ public class ContinuableScopeManager implements AgentScopeManager {
       }
     }
 
-    // Called by ContinuableScopeManager when a continued scope is closed
-    // Can't use cancel() because of the "used" check
-    private void cancelFromContinuedScopeClose() {
+    @Override
+    void cancelFromContinuedScopeClose() {
       trace.cancelContinuation(this);
-    }
-
-    @Override
-    public boolean isRegistered() {
-      return ref != null;
-    }
-
-    @Override
-    public WeakReference<AgentScope.Continuation> register(final ReferenceQueue referenceQueue) {
-      ref = new WeakReference<AgentScope.Continuation>(this, referenceQueue);
-      return ref;
-    }
-
-    @Override
-    public void cancel(final Set<WeakReference<AgentScope.Continuation>> weakReferences) {
-      weakReferences.remove(ref);
-      ref.clear();
-      ref = null;
     }
 
     @Override
@@ -442,6 +474,96 @@ public class ContinuableScopeManager implements AgentScopeManager {
           + "@"
           + Integer.toHexString(hashCode())
           + "->"
+          + spanUnderScope;
+    }
+  }
+
+  /**
+   * This class must not be a nested class of ContinuableScope to avoid an unconstrained chain of
+   * references (using too much memory).
+   *
+   * <p>This {@link Continuation} differs from the {@link SingleContinuation} in that if it is
+   * activated, it needs to be canceled in addition to the returned {@link AgentScope} being closed.
+   * This is to allow multiple concurrent threads that activate the continuation to race in a safe
+   * way, and close the scopes without fear of closing the related {@link AgentSpan} prematurely.
+   */
+  private static final class ConcurrentContinuation extends Continuation {
+    private static final int START = 1;
+    private static final int CLOSED = Integer.MIN_VALUE >> 1;
+    private static final int BARRIER = Integer.MIN_VALUE >> 2;
+
+    private final AtomicInteger count = new AtomicInteger(START);
+
+    private ConcurrentContinuation(
+        final ContinuableScopeManager scopeManager,
+        final AgentSpan spanUnderScope,
+        final ScopeSource source) {
+      super(scopeManager, spanUnderScope, source);
+    }
+
+    private boolean tryActivate() {
+      int current = count.incrementAndGet();
+      if (current < START) {
+        count.decrementAndGet();
+      }
+      return current > START;
+    }
+
+    private boolean tryClose() {
+      int current = count.get();
+      if (current < BARRIER) {
+        return false;
+      }
+      // Now decrement the counter
+      current = count.decrementAndGet();
+      // Try to close this if we are between START and BARRIER
+      while (current < START && current > BARRIER) {
+        if (count.compareAndSet(current, CLOSED)) {
+          return true;
+        }
+        current = count.get();
+      }
+      return false;
+    }
+
+    @Override
+    public AgentScope activate() {
+      if (tryActivate()) {
+        final boolean overrideAsyncPropagation = true;
+        final boolean isAsyncPropagating = true;
+        final AgentScope scope =
+            scopeManager.handleSpan(
+                this, spanUnderScope, source, overrideAsyncPropagation, isAsyncPropagating);
+        log.debug("t_id={} -> activating continuation {}", spanUnderScope.getTraceId(), this);
+        return scope;
+      } else {
+        return null;
+      }
+    }
+
+    @Override
+    public void cancel() {
+      if (tryClose()) {
+        trace.cancelContinuation(this);
+      }
+      log.debug("t_id={} -> canceling continuation {}", spanUnderScope.getTraceId(), this);
+    }
+
+    @Override
+    void cancelFromContinuedScopeClose() {
+      cancel();
+    }
+
+    @Override
+    public String toString() {
+      int c = count.get();
+      String s = c < BARRIER ? "CANCELED" : String.valueOf(c);
+      return getClass().getSimpleName()
+          + "@"
+          + Integer.toHexString(hashCode())
+          + "("
+          + s
+          + ")->"
           + spanUnderScope;
     }
   }

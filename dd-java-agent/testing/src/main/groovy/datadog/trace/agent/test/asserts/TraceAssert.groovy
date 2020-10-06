@@ -35,9 +35,15 @@ class TraceAssert {
     trace.get(index)
   }
 
-  void span(@ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.SpanAssert']) @DelegatesTo(value = SpanAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
-    def index = spanAssertCount.getAndIncrement()
+  int nextSpanId() {
+    return spanAssertCount.getAndIncrement()
+  }
 
+  void span(@ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.SpanAssert']) @DelegatesTo(value = SpanAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
+    span(nextSpanId(), spec)
+  }
+
+  void span(int index, @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.SpanAssert']) @DelegatesTo(value = SpanAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     if (index >= size) {
       throw new ArrayIndexOutOfBoundsException(index)
     }

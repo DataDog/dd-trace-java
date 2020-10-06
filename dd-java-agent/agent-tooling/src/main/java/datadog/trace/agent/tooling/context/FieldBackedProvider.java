@@ -13,6 +13,8 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.FieldBackedContextStoreAppliedMarker;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.WeakMap;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
@@ -417,16 +419,6 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
               continue;
             }
 
-            if (log.isDebugEnabled()) {
-              log.debug(
-                  "Making builder for {} with matcher {}: {} -> {}",
-                  instrumenter.getClass().getName(),
-                  classLoaderMatcher,
-                  entry.getKey(),
-                  entry.getValue());
-            }
-            installedContextMatchers.add(entry);
-
             /*
              * For each context store defined in a current instrumentation we create an agent builder
              * that injects necessary fields.
@@ -461,6 +453,8 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
   private static AgentBuilder.RawMatcher safeToInjectFieldsMatcher(
       final String keyType, final String valueType) {
     return new AgentBuilder.RawMatcher() {
+      private final ExcludeType skipType = ExcludeType.fromFieldType(keyType);
+
       @Override
       public boolean matches(
           final TypeDescription typeDescription,
@@ -468,6 +462,18 @@ public class FieldBackedProvider implements InstrumentationContextProvider {
           final JavaModule module,
           final Class<?> classBeingRedefined,
           final ProtectionDomain protectionDomain) {
+
+        // First check if we should skip injecting the field based on the key type
+        if (skipType != null && ExcludeFilter.exclude(skipType, typeDescription.getName())) {
+          if (log.isDebugEnabled()) {
+            log.debug(
+                "Skipping context-store field for {}: {} -> {}",
+                typeDescription.getName(),
+                keyType,
+                valueType);
+          }
+          return false;
+        }
         /*
          * The idea here is that we can add fields if class is just being loaded
          * (classBeingRedefined == null) and we have to add same fields again if class we added
