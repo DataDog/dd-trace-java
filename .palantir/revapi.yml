@@ -712,6 +712,9 @@ acceptedBreaks:
       justification: "this is fine"
   "0.64.0":
     com.datadoghq:dd-trace-ot:
+    - code: "java.field.removedWithConstant"
+      old: "field datadog.trace.api.Config.SCOPE_INHERIT_ASYNC_PROPAGATION"
+      justification: "force enable async propagation"
     - code: "java.method.removed"
       old: "method <T> T[] java.util.concurrent.ConcurrentLinkedDeque<E>::toArray(T[])\
         \ @ datadog.trace.core.PendingTrace"
@@ -762,6 +765,9 @@ acceptedBreaks:
     - code: "java.method.removed"
       old: "method boolean datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation::isRegistered()"
       justification: "removed weak ref tracking"
+    - code: "java.method.removed"
+      old: "method boolean datadog.trace.api.Config::isScopeInheritAsyncPropagation()"
+      justification: "force enable async propagation"
     - code: "java.method.removed"
       old: "method boolean datadog.trace.core.PendingTrace::clean()"
       justification: "removed weak ref tracking"
@@ -821,6 +827,22 @@ acceptedBreaks:
       old: "method boolean java.util.concurrent.ConcurrentLinkedDeque<E>::removeLastOccurrence(java.lang.Object)\
         \ @ datadog.trace.core.PendingTrace"
       justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method datadog.trace.bootstrap.instrumentation.api.AgentScope datadog.trace.bootstrap.instrumentation.api.AgentScopeManager::activate(datadog.trace.bootstrap.instrumentation.api.AgentSpan,\
+        \ datadog.trace.bootstrap.instrumentation.api.ScopeSource, boolean)"
+      justification: "force enable async propagation"
+    - code: "java.method.removed"
+      old: "method datadog.trace.bootstrap.instrumentation.api.AgentScope datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI::activateSpan(datadog.trace.bootstrap.instrumentation.api.AgentSpan,\
+        \ datadog.trace.bootstrap.instrumentation.api.ScopeSource, boolean)"
+      justification: "force enable async propagation"
+    - code: "java.method.removed"
+      old: "method datadog.trace.bootstrap.instrumentation.api.AgentScope datadog.trace.core.CoreTracer::activateSpan(datadog.trace.bootstrap.instrumentation.api.AgentSpan,\
+        \ datadog.trace.bootstrap.instrumentation.api.ScopeSource, boolean)"
+      justification: "force enable async propagation"
+    - code: "java.method.removed"
+      old: "method datadog.trace.bootstrap.instrumentation.api.AgentScope datadog.trace.core.scopemanager.ContinuableScopeManager::activate(datadog.trace.bootstrap.instrumentation.api.AgentSpan,\
+        \ datadog.trace.bootstrap.instrumentation.api.ScopeSource, boolean)"
+      justification: "force enable async propagation"
     - code: "java.method.removed"
       old: "method java.lang.Object[] java.util.concurrent.ConcurrentLinkedDeque<E>::toArray()\
         \ @ datadog.trace.core.PendingTrace"
