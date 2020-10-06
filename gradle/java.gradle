@@ -8,10 +8,10 @@ apply from: "$rootDir/gradle/spotless.gradle"
 
 def applyCodeCoverage = !(
   project.path.startsWith(":dd-smoke-tests") ||
-    project.path == ":dd-java-agent" ||
-    project.path == ":dd-java-agent:load-generator" ||
-    project.path.startsWith(":dd-java-agent:benchmark") ||
-    project.path.startsWith(":dd-java-agent:instrumentation"))
+  project.path == ":dd-java-agent" ||
+  project.path == ":dd-java-agent:load-generator" ||
+  project.path.startsWith(":dd-java-agent:benchmark") ||
+  project.path.startsWith(":dd-java-agent:instrumentation"))
 
 if (applyCodeCoverage) {
   apply from: "$rootDir/gradle/jacoco.gradle"
@@ -73,8 +73,8 @@ java {
       // with Java8+ compiler. This likely would require some modifications when we switch to java11 compiler.
       // Using proper Java7 bootstrap and extensions allows to be sure our code will run on real Java7.
       if (JavaVersion.toVersion(sourceCompatibility) == JavaVersion.VERSION_1_7
-        && JavaVersion.current() != JavaVersion.VERSION_1_7
-        && System.env.JAVA_7_HOME != null) {
+      && JavaVersion.current() != JavaVersion.VERSION_1_7
+      && System.env.JAVA_7_HOME != null) {
         options.fork = true
         options.bootstrapClasspath = fileTree(include: ['*.jar'], dir: "${System.env.JAVA_7_HOME}/jre/lib/")
         options.extensionDirs = "${System.env.JAVA_7_HOME}/jre/lib/ext/"
@@ -85,7 +85,8 @@ java {
 
 apply plugin: "io.franzbecker.gradle-lombok"
 
-lombok { // optional: values below are the defaults
+lombok {
+  // optional: values below are the defaults
   version = versions.lombok
   sha256 = ""
 }
@@ -103,18 +104,16 @@ if (configurations.find { it.name == 'jmh' }) {
 
 jar {
   /*
-  Make Jar build fail on duplicate files
-
-  By default Gradle Jar task can put multiple files with the same name
-  into a Jar. This may lead to confusion. For example if auto-service
-  annotation processing creates files with same name in `scala` and
-  `java` directory this would result in Jar having two files with the
-  same name in it. Which in turn would result in only one of those
-  files being actually considered when that Jar is used leading to very
-  confusing failures.
-
-  Instead we should 'fail early' and avoid building such Jars.
-  */
+   Make Jar build fail on duplicate files
+   By default Gradle Jar task can put multiple files with the same name
+   into a Jar. This may lead to confusion. For example if auto-service
+   annotation processing creates files with same name in `scala` and
+   `java` directory this would result in Jar having two files with the
+   same name in it. Which in turn would result in only one of those
+   files being actually considered when that Jar is used leading to very
+   confusing failures.
+   Instead we should 'fail early' and avoid building such Jars.
+   */
   duplicatesStrategy = 'fail'
 }
 
@@ -151,7 +150,7 @@ jar {
       "Implementation-Version": project.version,
       "Implementation-Vendor": "Datadog",
       "Implementation-URL": "https://github.com/datadog/dd-trace-java",
-    )
+      )
   }
 }
 

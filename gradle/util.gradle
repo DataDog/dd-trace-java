@@ -13,7 +13,8 @@ tasks.register("artifacts") {
 }
 
 /** Find a random, reusable port. */
-ext.randomOpenPort = { ->
+ext.randomOpenPort = {
+  ->
   final ServerSocket socket
   try {
     socket = new ServerSocket(0)

@@ -1,0 +1,14 @@
+scmVersion {
+  tag {
+    prefix = 'v'
+    versionSeparator = ''
+  }
+
+  versionIncrementer 'incrementMinor'
+
+  checks {
+    uncommittedChanges = false
+    aheadOfRemote = true
+    snapshotDependencies = false
+  }
+}

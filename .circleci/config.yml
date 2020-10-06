@@ -147,6 +147,16 @@ jobs:
             --max-workers=8
 
       - run:
+          name: Test Published Dependencies
+          command: |
+            mvn_local_repo=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
+            rm -rf "${mvn_local_repo}/com/datadoghq"
+            export GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
+            ./gradlew install << pipeline.parameters.gradle_flags >> --max-workers=8
+            cd test-published-dependencies
+            ../gradlew check
+
+      - run:
           name: Collect Reports
           when: always
           command: .circleci/collect_reports.sh

@@ -43,7 +43,7 @@ if (!isRoot) {
             excludeRules.each {
               if ([it.group, it.module].any { it == null }) {
                 throw new InvalidUserDataException(
-                  "Partial exclude for dependency '$dep.group:$dep.name:$dep.version' of $project: [group: $it.group, module: $it.module]\n\nExcludes must specify both group and module and neither can be '*'."
+                "Partial exclude for dependency '$dep.group:$dep.name:$dep.version' of $project: [group: $it.group, module: $it.module]\n\nExcludes must specify both group and module and neither can be '*'."
                 )
               }
             }
@@ -124,9 +124,9 @@ bintray {
 
   if (!isRoot) configurations = ['archives']
 
-//  dryRun = true //[Default: false] Whether to run this as dry-run, without deploying
+  //  dryRun = true //[Default: false] Whether to run this as dry-run, without deploying
   publish = true //[Default: false] Whether version should be auto published after an upload
-//  override = true //[Default: false] Whether to override version artifacts already published
+  //  override = true //[Default: false] Whether to override version artifacts already published
 
   //Package configuration. The plugin will use the repo and name properties to check if the package already exists. In that case, there's no need to configure the other package properties (like userOrg, desc, etc).
   pkg {
