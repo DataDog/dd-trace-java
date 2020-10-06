@@ -35,22 +35,22 @@ Note that the includes are maintained in alphabetical order.
 
 An instrumentation consists of the following components:
 
-* An _Instrumentation_ 
+* An _Instrumentation_
     * Must implement `Instrumenter` - note that it is recommended to implement `Instrumenter.Default` in every case.
     * The instrumentation must be annotated with `@AutoService(Instrumenter.class)` for annotation processing.
     * The instrumentation must declare a type matcher by implementing the method `typeMatcher()`, which matches the types the instrumentation will transform.
-    * The instrumentation must declare every class it needs to load (except for Datadog bootstrap classes, and for the framework itself) in `helperClassNames()`. 
+    * The instrumentation must declare every class it needs to load (except for Datadog bootstrap classes, and for the framework itself) in `helperClassNames()`.
       It is recommended to keep the number of classes to a minimum both to reduce deployment size and optimise startup time.
-    * If state must be associated with instances of framework types, a definition of the _context store_ by implementing `contextStore()`. 
-    * The method `transformers()`: this is a map of method matchers to the Bytebuddy advice class which handles matching methods. 
+    * If state must be associated with instances of framework types, a definition of the _context store_ by implementing `contextStore()`.
+    * The method `transformers()`: this is a map of method matchers to the Bytebuddy advice class which handles matching methods.
       For example, if you want to inject an instance of `com.foo.Foo` into a `com.bar.Bar` (or fall back to a weak map backed association if this is impossible) you would return `singletonMap("com.foo.Foo", "com.bar.Bar")`.
       It may be tempting to write `Foo.class.getName()`, but this will lead to the class being loaded during bootstrapping, which is usually not safe.
       See the section on the [context store](#context-store) for more details.
-* A _Decorator_. 
+* A _Decorator_.
   * This will typically extend one of decorator [implementations](https://github.com/DataDog/dd-trace-java/tree/master/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator), which provide templates for span enrichment behaviour.
   For example, all instrumentations for HTTP server frameworks have decorators which extend [`HttpServerDecorator`](https://github.com/DataDog/dd-trace-java/blob/master/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/decorator/HttpServerDecorator.java).
   * The name of this class must be included in the instrumentation's helper class names, as it will need to be loaded with the instrumentation.
-* _Advice_ 
+* _Advice_
   * Snippets of code to be inserted at the entry or exit of a method.
   * Associated with the methods they apply to by the instrumentation's `transformers()` method.
 * Any more classes required to implement the instrumentation, which must be included in the instrumentation's helper class names.
@@ -70,7 +70,7 @@ At the top of the instrumentation's gradle file, the following would be added (s
             versions = "[1.5.0,)"
             assertInverse = true
           }
-        
+
           pass {
             group = "com.github.etaty"
             module = "rediscala_2.12"
@@ -87,10 +87,10 @@ To run muzzle on your instrumentation, run:
 ```groovy
  ./gradlew :dd-java-agent:instrumentation:rediscala-1.8.0:muzzle
 ```
-* ⚠️ Muzzle does _not_ run tests. 
-  It checks that the types and methods used by the instrumentation are present in particular versions of libraries. 
+* ⚠️ Muzzle does _not_ run tests.
+  It checks that the types and methods used by the instrumentation are present in particular versions of libraries.
   It can be subverted with `MethodHandle` and reflection, so muzzle passing is not the end of the story.
-  
+
 ### Instrumentation Tests
 
 Tests are written in Groovy using the [Spock framework](http://spockframework.org/).
@@ -100,7 +100,7 @@ For e.g. HTTP server frameworks, there are base tests which enforce consistency 
 When writing an instrumentation it is much faster to test just the instrumentation rather than build the entire project, for example:
 
 ```bash
-./gradlew :dd-java-agent:instrumentation:play-ws-2.1:test  
+./gradlew :dd-java-agent:instrumentation:play-ws-2.1:test
 ```
 
 ### Latest Dependency Tests

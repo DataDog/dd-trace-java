@@ -17,6 +17,7 @@ plugins {
 def isCI = System.getenv("CI") != null
 
 apply from: "$rootDir/gradle/scm.gradle"
+apply from: "$rootDir/gradle/spotless.gradle"
 
 allprojects {
   group = 'com.datadoghq'
@@ -61,7 +62,7 @@ task writeMuzzleTasksToFile {
     assert muzzleFile.parentFile.mkdirs() || muzzleFile.parentFile.directory
 
     muzzleFile.text = subprojects.findAll { subproject -> subproject.plugins.hasPlugin('muzzle') }
-      .collect { it.path + ":muzzle" }
-      .join('\n')
+    .collect { it.path + ":muzzle" }
+    .join('\n')
   }
 }
