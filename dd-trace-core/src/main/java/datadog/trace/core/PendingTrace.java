@@ -178,7 +178,7 @@ public class PendingTrace implements AgentTrace {
 
     finishedSpans.addFirst(span);
     completedSpanCount.incrementAndGet();
-    expireReference(span == getRootSpan());
+    decrementRefAndMaybeWrite(span == getRootSpan());
   }
 
   public DDSpan getRootSpan() {
@@ -210,10 +210,10 @@ public class PendingTrace implements AgentTrace {
 
   @Override
   public void cancelContinuation(final AgentScope.Continuation continuation) {
-    expireReference(false);
+    decrementRefAndMaybeWrite(false);
   }
 
-  private void expireReference(boolean isRootSpan) {
+  private void decrementRefAndMaybeWrite(boolean isRootSpan) {
     if (!traceValid.get()) {
       return;
     }
