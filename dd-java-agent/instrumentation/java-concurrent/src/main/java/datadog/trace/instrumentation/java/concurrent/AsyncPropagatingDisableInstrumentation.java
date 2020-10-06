@@ -50,7 +50,7 @@ public final class AsyncPropagatingDisableInstrumentation implements Instrumente
     public DisableAsyncInstrumentation(
         final ElementMatcher<? super TypeDescription> typeMatcher,
         final ElementMatcher<? super MethodDescription> methodMatcher) {
-      super(AbstractExecutorInstrumentation.EXEC_NAME);
+      super("java_concurrent");
       this.typeMatcher = typeMatcher;
       this.methodMatcher = methodMatcher;
     }
