@@ -89,6 +89,9 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   }
 
   @Override
+  public void assertRunning() {}
+
+  @Override
   public boolean flush() {
     return true;
   }

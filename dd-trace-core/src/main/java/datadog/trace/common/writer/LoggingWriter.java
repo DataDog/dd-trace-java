@@ -45,6 +45,9 @@ public class LoggingWriter implements Writer {
   }
 
   @Override
+  public void assertRunning() {}
+
+  @Override
   public void close() {
     log.info("close()");
   }

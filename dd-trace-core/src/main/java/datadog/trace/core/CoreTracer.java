@@ -491,6 +491,11 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
   }
 
+  public void assertRunning() {
+    PENDING_TRACE_BUFFER.assertRunning();
+    writer.assertRunning();
+  }
+
   @Override
   public void close() {
     // FIXME: can't close PENDING_TRACE_BUFFER since it is a static/shared instance.

@@ -81,6 +81,11 @@ public class TraceProcessingWorker implements AutoCloseable {
     this.serializerThread.start();
   }
 
+  public void assertRunning() {
+    assert serializerThread.isAlive();
+    assert !serializerThread.isInterrupted();
+  }
+
   public boolean flush(long timeout, TimeUnit timeUnit) {
     CountDownLatch latch = new CountDownLatch(1);
     FlushEvent flush = new FlushEvent(latch);

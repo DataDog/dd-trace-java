@@ -92,6 +92,9 @@ public class TraceStructureWriter implements Writer {
   }
 
   @Override
+  public void assertRunning() {}
+
+  @Override
   public void close() {
     if (out != System.err) {
       out.close();

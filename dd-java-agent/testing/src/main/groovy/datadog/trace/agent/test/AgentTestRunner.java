@@ -13,8 +13,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.agent.tooling.bytebuddy.matcher.AdditionalLibraryIgnoresMatcher;
 import datadog.trace.api.Config;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.core.CoreTracer;
@@ -79,10 +79,7 @@ public abstract class AgentTestRunner extends DDSpecification {
    */
   public static final ListWriter TEST_WRITER;
 
-  // having a reference to io.opentracing.Tracer in test field
-  // loads opentracing before bootstrap classpath is setup
-  // so we declare tracer as an object and cast when needed.
-  protected static final Object TEST_TRACER;
+  protected static final CoreTracer TEST_TRACER;
 
   protected static final StatsDClient STATS_D_CLIENT;
 
@@ -130,8 +127,8 @@ public abstract class AgentTestRunner extends DDSpecification {
     ((Logger) LoggerFactory.getLogger("datadog")).setLevel(Level.DEBUG);
   }
 
-  protected static TracerAPI getTestTracer() {
-    return (TracerAPI) TEST_TRACER;
+  protected static CoreTracer getTestTracer() {
+    return TEST_TRACER;
   }
 
   protected static Writer getTestWriter() {
@@ -193,10 +190,12 @@ public abstract class AgentTestRunner extends DDSpecification {
   @Before
   public void beforeTest() {
     checkLoggingConfiguration();
+    assert getTestTracer() == GlobalTracer.get() : "Tracer is different from what was expected.";
     assert getTestTracer().activeSpan() == null
         : "Span is active before test has started: " + getTestTracer().activeSpan();
     log.debug("Starting test: '{}'", getSpecificationContext().getCurrentIteration().getName());
     new MockUtil().attachMock(STATS_D_CLIENT, this);
+    getTestTracer().assertRunning();
     getTestTracer().flush();
     TEST_WRITER.start();
   }

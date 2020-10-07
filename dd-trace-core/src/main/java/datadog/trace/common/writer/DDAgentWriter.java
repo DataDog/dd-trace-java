@@ -150,6 +150,7 @@ public class DDAgentWriter implements Writer {
     healthMetrics.onFailedPublish(samplingPriority);
   }
 
+  @Override
   public boolean flush() {
     if (!closed) { // give up after a second
       if (traceProcessingWorker.flush(1, TimeUnit.SECONDS)) {
@@ -175,6 +176,12 @@ public class DDAgentWriter implements Writer {
       traceProcessingWorker.start();
       healthMetrics.onStart((int) getCapacity());
     }
+  }
+
+  @Override
+  public void assertRunning() {
+    assert !closed;
+    traceProcessingWorker.assertRunning();
   }
 
   @Override

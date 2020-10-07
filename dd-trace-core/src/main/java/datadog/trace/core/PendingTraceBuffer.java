@@ -3,9 +3,11 @@ package datadog.trace.core;
 import static datadog.common.exec.DaemonThreadFactory.TRACE_MONITOR;
 
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 
+@Slf4j
 class PendingTraceBuffer implements AutoCloseable {
   private static final int BUFFER_SIZE = 1 << 12; // 4096
 
@@ -21,23 +23,34 @@ class PendingTraceBuffer implements AutoCloseable {
 
   /** if the queue is full, pendingTrace trace will be written immediately. */
   public void enqueue(PendingTrace pendingTrace) {
-    if (!queue.offer(pendingTrace)) {
+    if (queue.offer(pendingTrace)) {
+      log.debug("t_id={} pending trace enqueued");
+    } else {
       // Queue is full, so we can't buffer this trace, write it out directly instead.
+      log.debug("t_id={} buffer full -- pending trace written");
       pendingTrace.write();
     }
   }
 
   public void start() {
+    log.debug("Starting {}", this);
     worker.start();
+  }
+
+  public void assertRunning() {
+    assert worker.isAlive();
+    assert !closed;
   }
 
   @Override
   public void close() {
+    log.debug("Stopping {}", this);
     closed = true;
     worker.interrupt();
   }
 
   public void flush() {
+    log.debug("Flushing {}", this);
     queue.drain(WriteDrain.WRITE_DRAIN);
   }
 

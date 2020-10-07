@@ -49,6 +49,9 @@ public class PrintingWriter implements Writer {
   }
 
   @Override
+  public void assertRunning() {}
+
+  @Override
   public boolean flush() {
     return true;
   }

@@ -25,6 +25,13 @@ public interface Writer extends Closeable {
   boolean flush();
 
   /**
+   * Verifies all associated threads are still active and the writer is accepting traces
+   *
+   * @throws AssertionError if anything is not running (and assertions are enabled)
+   */
+  void assertRunning() throws AssertionError;
+
+  /**
    * Indicates to the writer that no future writing will come and it should terminates all
    * connections and tasks
    */
