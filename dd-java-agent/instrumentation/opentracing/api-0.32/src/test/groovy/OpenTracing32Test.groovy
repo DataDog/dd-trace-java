@@ -140,7 +140,7 @@ class OpenTracing32Test extends AgentTestRunner {
     expect:
     span instanceof MutableSpan
     scope instanceof TraceScope
-    !(scope as TraceScope).isAsyncPropagating()
+    (scope as TraceScope).isAsyncPropagating()
     (scope as TraceScope).capture() == null
     (tracer.scopeManager().active().span().delegate == span.delegate)
 
