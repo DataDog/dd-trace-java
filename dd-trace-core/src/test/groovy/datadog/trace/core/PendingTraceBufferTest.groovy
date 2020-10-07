@@ -62,7 +62,6 @@ class PendingTraceBufferTest extends DDSpecification {
   def "continuation buffers root"() {
     setup:
     def trace = factory.create(DDId.ONE)
-    def latch = new CountDownLatch(1)
     def span = newSpanOf(trace)
 
     expect:
@@ -83,27 +82,14 @@ class PendingTraceBufferTest extends DDSpecification {
 
     then:
     trace.pendingReferenceCount.get() == 0
-    1 * tracer.getPartialFlushMinSpans() >> 10
-    0 * _
-
-    when:
-    buffer.start()
-    latch.await()
-
-    then:
-    trace.size() == 0
-    trace.pendingReferenceCount.get() == 0
+    1 * tracer.write({ it.size() == 1 })
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
-    1 * tracer.write({ it.size() == 1 }) >> {
-      latch.countDown()
-    }
     0 * _
   }
 
   def "unfinished child buffers root"() {
     setup:
     def trace = factory.create(DDId.ONE)
-    def latch = new CountDownLatch(1)
     def parent = newSpanOf(trace)
     def child = newSpanOf(parent)
 
@@ -123,26 +109,14 @@ class PendingTraceBufferTest extends DDSpecification {
     child.finish()
 
     then:
-    trace.size() == 2
-    trace.pendingReferenceCount.get() == 0
-    1 * tracer.getPartialFlushMinSpans() >> 10
-    0 * _
-
-    when:
-    buffer.start()
-    latch.await()
-
-    then:
     trace.size() == 0
     trace.pendingReferenceCount.get() == 0
+    1 * tracer.write({ it.size() == 2 })
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
-    1 * tracer.write({ it.size() == 2 }) >> {
-      latch.countDown()
-    }
     0 * _
   }
 
-  def "buffer full yeilds immediate write"() {
+  def "buffer full yields immediate write"() {
     setup:
     // Don't start the buffer thread
 
@@ -205,7 +179,6 @@ class PendingTraceBufferTest extends DDSpecification {
     trace.size() == 0
     trace.pendingReferenceCount.get() == 0
     trace.rootSpanWritten.get()
-    1 * tracer.getPartialFlushMinSpans() >> 10
     1 * tracer.writeTimer() >> Monitoring.DISABLED.newTimer("")
     1 * tracer.write({ it.size() == 2 }) >> {
       latch.countDown()
