@@ -1,3 +1,7 @@
+import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.agent.test.asserts.TraceAssert
+import groovy.transform.stc.ClosureParams
+import groovy.transform.stc.SimpleType
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.server.handler.ErrorHandler
 import org.eclipse.jetty.servlet.ServletContextHandler
@@ -5,17 +9,11 @@ import org.eclipse.jetty.servlet.ServletContextHandler
 import javax.servlet.Servlet
 import javax.servlet.http.HttpServletRequest
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 
 abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletContextHandler> {
-
   @Override
   boolean testNotFound() {
     false
@@ -58,6 +56,31 @@ abstract class JettyServlet3Test extends AbstractServlet3Test<Server, ServletCon
   @Override
   void addServlet(ServletContextHandler servletContext, String path, Class<Servlet> servlet) {
     servletContext.addServlet(servlet, path)
+  }
+
+  void cleanAndAssertTraces(
+    final int size,
+    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
+    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
+    final Closure spec) {
+
+    // If this is failing, make sure HttpServerTestAdvice is applied correctly.
+    TEST_WRITER.waitForTraces(size * 2)
+
+    // Response instrumentation is broken with exceptions in jetty
+    // Exceptions are handled outside of the servlet flow
+    // Normally, the response spans would not be created because of the activeSpan() check
+    // Since we artificially create TEST_SPAN, the response spans are created there
+    // This removes the response spans added under TEST_SPAN
+
+    def testTrace = TEST_WRITER.findAll {
+      it.get(0).operationName.toString() == "TEST_SPAN"
+    }
+    testTrace[0].removeAll {
+      it.operationName.toString() == "servlet.response"
+    }
+
+    super.cleanAndAssertTraces(size, spec)
   }
 
   // FIXME: Add authentication tests back in...
@@ -104,6 +127,11 @@ class JettyServlet3TestAsync extends JettyServlet3Test {
   boolean testTimeout() {
     true
   }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    // No response spans for errors in async
+    return endpoint == REDIRECT || endpoint == NOT_FOUND
+  }
 }
 
 class JettyServlet3TestFakeAsync extends JettyServlet3Test {
@@ -114,62 +142,70 @@ class JettyServlet3TestFakeAsync extends JettyServlet3Test {
   }
 }
 
-// FIXME: not working right now...
-//class JettyServlet3TestForward extends JettyServlet3Test {
-//  @Override
-//  Class<Servlet> servlet() {
-//    TestServlet3.Sync // dispatch to sync servlet
-//  }
-//
-//boolean isDispatch() {
-//  return true
-//}
-//  @Override
-//  boolean testNotFound() {
-//    false
-//  }
-//
-//  @Override
-//  protected void setupServlets(ServletContextHandler context) {
-//    super.setupServlets(context)
-//
-//    addServlet(context, "/dispatch" + SUCCESS.path, RequestDispatcherServlet.Forward)
-//    addServlet(context, "/dispatch" + QUERY_PARAM.path, RequestDispatcherServlet.Forward)
-//    addServlet(context, "/dispatch" + REDIRECT.path, RequestDispatcherServlet.Forward)
-//    addServlet(context, "/dispatch" + ERROR.path, RequestDispatcherServlet.Forward)
-//    addServlet(context, "/dispatch" + EXCEPTION.path, RequestDispatcherServlet.Forward)
-//    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, RequestDispatcherServlet.Forward)
-//  }
-//}
 
-// FIXME: not working right now...
-//class JettyServlet3TestInclude extends JettyServlet3Test {
-//  @Override
-//  Class<Servlet> servlet() {
-//    TestServlet3.Sync // dispatch to sync servlet
-//  }
-//
-//  boolean isDispatch() {
-//    return true
-//  }
-//
-//  @Override
-//  boolean testNotFound() {
-//    false
-//  }
-//
-//  @Override
-//  protected void setupServlets(ServletContextHandler context) {
-//    super.setupServlets(context)
-//
-//    addServlet(context, "/dispatch" + SUCCESS.path, RequestDispatcherServlet.Include)
-//    addServlet(context, "/dispatch" + QUERY_PARAM.path, RequestDispatcherServlet.Include)
-//    addServlet(context, "/dispatch" + REDIRECT.path, RequestDispatcherServlet.Include)
-//    addServlet(context, "/dispatch" + ERROR.path, RequestDispatcherServlet.Include)
-//    addServlet(context, "/dispatch" + EXCEPTION.path, RequestDispatcherServlet.Include)
-//    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, RequestDispatcherServlet.Include)
-//  }
-//}
+class JettyServlet3TestForward extends JettyServlet3Test {
+  @Override
+  Class<Servlet> servlet() {
+    TestServlet3.Sync // dispatch to sync servlet
+  }
+
+  @Override
+  boolean isDispatch() {
+    return true
+  }
+
+  @Override
+  boolean testException() {
+    // FIXME jetty attributes response spans incorrectly
+    // see comment in cleanAndAssertTrace
+    false
+  }
+
+  @Override
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    forwardSpan(trace, endpoint)
+  }
+
+  @Override
+  protected void setupServlets(ServletContextHandler context) {
+    super.setupServlets(context)
+    setupDispatchServlets(context, RequestDispatcherServlet.Forward)
+  }
+}
+
+
+class JettyServlet3TestInclude extends JettyServlet3Test {
+  @Override
+  Class<Servlet> servlet() {
+    TestServlet3.Sync // dispatch to sync servlet
+  }
+
+  boolean isDispatch() {
+    return true
+  }
+
+  @Override
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    includeSpan(trace, endpoint)
+  }
+
+  boolean bubblesResponse() {
+    return false
+  }
+
+  @Override
+  boolean testException() {
+    // FIXME jetty attributes response spans incorrectly
+    // see comment in cleanAndAssertTrace
+    false
+  }
+
+  @Override
+  protected void setupServlets(ServletContextHandler context) {
+    super.setupServlets(context)
+    setupDispatchServlets(context, RequestDispatcherServlet.Include)
+  }
+}
 
 
 class JettyServlet3TestDispatchImmediate extends JettyServlet3Test {
@@ -183,15 +219,14 @@ class JettyServlet3TestDispatchImmediate extends JettyServlet3Test {
   }
 
   @Override
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    dispatchSpan(trace, endpoint)
+  }
+
+  @Override
   protected void setupServlets(ServletContextHandler context) {
     super.setupServlets(context)
-
-    addServlet(context, "/dispatch" + SUCCESS.path, TestServlet3.DispatchImmediate)
-    addServlet(context, "/dispatch" + QUERY_PARAM.path, TestServlet3.DispatchImmediate)
-    addServlet(context, "/dispatch" + ERROR.path, TestServlet3.DispatchImmediate)
-    addServlet(context, "/dispatch" + EXCEPTION.path, TestServlet3.DispatchImmediate)
-    addServlet(context, "/dispatch" + REDIRECT.path, TestServlet3.DispatchImmediate)
-    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, TestServlet3.DispatchImmediate)
+    setupDispatchServlets(context, TestServlet3.DispatchImmediate)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
   }
 }
@@ -206,23 +241,25 @@ class JettyServlet3TestDispatchAsync extends JettyServlet3Test {
   boolean testTimeout() {
     return true
   }
-  
+
   boolean isDispatch() {
     return true
+  }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    // No response spans for errors in async
+    return endpoint == REDIRECT || endpoint == NOT_FOUND
+  }
+
+  @Override
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    dispatchSpan(trace, endpoint)
   }
 
   @Override
   protected void setupServlets(ServletContextHandler context) {
     super.setupServlets(context)
-
-    addServlet(context, "/dispatch" + SUCCESS.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + QUERY_PARAM.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + ERROR.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + EXCEPTION.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + REDIRECT.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + TIMEOUT.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + TIMEOUT_ERROR.path, TestServlet3.DispatchAsync)
+    setupDispatchServlets(context, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
   }
 }

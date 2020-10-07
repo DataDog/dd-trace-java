@@ -5,9 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.servlet.ServletRequestSetter.SETTER;
 import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.DECORATE;
 import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.SERVLET_RESPONSE;
 import static java.util.Collections.singletonMap;
@@ -87,9 +85,6 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
       DECORATE.afterStart(span);
 
       span.setTag(DDTags.RESOURCE_NAME, "HttpServletResponse." + method);
-
-      // In case we lose context, inject trace into to the request.
-      propagate().inject(span, req, SETTER);
 
       final AgentScope scope = activateSpan(span);
       scope.setAsyncPropagation(true);
