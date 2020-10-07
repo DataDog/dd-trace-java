@@ -3,7 +3,7 @@ package datadog.smoketest
 import okhttp3.Request
 import spock.lang.Shared
 
-class PlaySmokeTest extends AbstractServerSmokeTest {
+abstract class PlaySmokeTest extends AbstractServerSmokeTest {
 
   @Shared
   File playDirectory = new File("${buildDirectory}/stage/playBinary")
@@ -16,9 +16,20 @@ class PlaySmokeTest extends AbstractServerSmokeTest {
     processBuilder.environment().put("JAVA_OPTS",
       defaultJavaProperties.join(" ")
         + " -Dconfig.file=${workingDirectory}/conf/application.conf -Dhttp.port=${httpPort}"
-        + " -Dhttp.address=127.0.0.1")
+        + " -Dhttp.address=127.0.0.1"
+        + " -Dplay.server.provider=${serverProvider()}"
+        + " -Ddd.writer.type=TraceStructureWriter:${output.getAbsolutePath()}")
     return processBuilder
   }
+
+  @Override
+  File createTemporaryFile() {
+    new File("${buildDirectory}/tmp/trace-structure-play-2.6-${serverProviderName()}.out")
+  }
+
+  abstract String serverProviderName()
+
+  abstract String serverProvider()
 
   def "welcome endpoint #n th time"() {
     setup:

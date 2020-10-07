@@ -1,7 +1,5 @@
 package datadog.smoketest
 
-import java.util.concurrent.atomic.AtomicInteger
-
 class SpringBootGrpcAsyncConcurrentTest extends SpringBootWithGRPCTest {
   private static final Set<String> EXPECTED_TRACES =
     ["[grpc.server[grpc.message]]",
@@ -9,8 +7,8 @@ class SpringBootGrpcAsyncConcurrentTest extends SpringBootWithGRPCTest {
       .toSet()
 
   @Override
-  boolean isAcceptable(Map<String, AtomicInteger> traceCounts) {
-    assertTraceCounts(EXPECTED_TRACES, traceCounts)
+  protected Set<String> expectedTraces() {
+    return EXPECTED_TRACES
   }
 
   @Override
