@@ -57,6 +57,8 @@ public class Agent {
 
     final boolean appUsingCustomLogManager = isAppUsingCustomLogManager();
 
+    final boolean appUsingCustomJMXBuilder = isAppUsingCustomJMXBuilder();
+
     /*
      * java.util.logging.LogManager maintains a final static LogManager, which is created during class initialization.
      *
@@ -69,8 +71,15 @@ public class Agent {
      *
      * Once we see the LogManager class loading, it's safe to start jmxfetch because the application is already setting
      * the global log manager and jmxfetch won't be able to touch it due to classloader locking.
+     *
+     * Likewise if a custom JMX builder is configured which is not on the system classpath then we delay starting
+     * JMXFetch until we detect the custom MBeanServerBuilder is being used. This takes precedence over the custom
+     * log manager check because any custom log manager will be installed before any custom MBeanServerBuilder.
      */
-    if (appUsingCustomLogManager) {
+    if (appUsingCustomJMXBuilder) {
+      log.debug("Custom JMX builder detected. Delaying JMXFetch initialization.");
+      registerMBeanServerBuilderCallback(new StartJmxCallback(bootstrapURL));
+    } else if (appUsingCustomLogManager) {
       log.debug("Custom logger detected. Delaying JMXFetch initialization.");
       registerLogManagerCallback(new StartJmxCallback(bootstrapURL));
     } else {
@@ -109,6 +118,18 @@ public class Agent {
       final Method registerCallbackMethod =
           agentInstallerClass.getMethod("registerClassLoadCallback", String.class, Runnable.class);
       registerCallbackMethod.invoke(null, "java.util.logging.LogManager", callback);
+    } catch (final Exception ex) {
+      log.error("Error registering callback for " + callback.getName(), ex);
+    }
+  }
+
+  private static void registerMBeanServerBuilderCallback(final ClassLoadCallBack callback) {
+    try {
+      final Class<?> agentInstallerClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.AgentInstaller");
+      final Method registerCallbackMethod =
+          agentInstallerClass.getMethod("registerClassLoadCallback", String.class, Runnable.class);
+      registerCallbackMethod.invoke(null, "javax.management.MBeanServerBuilder", callback);
     } catch (final Exception ex) {
       log.error("Error registering callback for " + callback.getName(), ex);
     }
@@ -502,6 +523,41 @@ public class Agent {
       // Some applications set java.util.logging.manager but never actually initialize the logger.
       // Check to see if the configured manager is on the system classpath.
       // If so, it should be safe to initialize jmxfetch which will setup the log manager.
+      return !onSysClasspath;
+    }
+
+    return false;
+  }
+
+  /**
+   * Search for java or datadog-tracer sysprops which indicate that a custom JMX builder will be
+   * used.
+   *
+   * @return true if we detect a custom JMX builder being used.
+   */
+  private static boolean isAppUsingCustomJMXBuilder() {
+    final String tracerCustomJMXBuilderSysprop = "dd.app.customjmxbuilder";
+    final String customJMXBuilderProp = System.getProperty(tracerCustomJMXBuilderSysprop);
+    final String customJMXBuilderEnv =
+        System.getenv(tracerCustomJMXBuilderSysprop.replace('.', '_').toUpperCase());
+
+    if (customJMXBuilderProp != null || customJMXBuilderEnv != null) {
+      log.debug("Prop - customjmxbuilder: " + customJMXBuilderProp);
+      log.debug("Env - customjmxbuilder: " + customJMXBuilderEnv);
+      // Allow setting to skip these automatic checks:
+      return Boolean.parseBoolean(customJMXBuilderProp)
+          || Boolean.parseBoolean(customJMXBuilderEnv);
+    }
+
+    final String jmxBuilderProp = System.getProperty("javax.management.builder.initial");
+    if (jmxBuilderProp != null) {
+      final boolean onSysClasspath =
+          ClassLoader.getSystemResource(jmxBuilderProp.replaceAll("\\.", "/") + ".class") != null;
+      log.debug("Prop - javax.management.builder.initial: " + jmxBuilderProp);
+      log.debug("javax.management.builder.initial on system classpath: " + onSysClasspath);
+      // Some applications set javax.management.builder.initial but never actually initialize JMX.
+      // Check to see if the configured JMX builder is on the system classpath.
+      // If so, it should be safe to initialize jmxfetch which will setup JMX.
       return !onSysClasspath;
     }
 
