@@ -11,11 +11,8 @@ import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.jfr.DDScopeEvent;
 import datadog.trace.core.jfr.DDScopeEventFactory;
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -377,7 +374,6 @@ public class ContinuableScopeManager implements AgentScopeManager {
    * references (using too much memory).
    */
   private abstract static class Continuation implements AgentScope.Continuation {
-    public WeakReference<AgentScope.Continuation> ref;
 
     final ContinuableScopeManager scopeManager;
     final AgentSpan spanUnderScope;
@@ -395,24 +391,6 @@ public class ContinuableScopeManager implements AgentScopeManager {
     private Continuation register() {
       trace.registerContinuation(this);
       return this;
-    }
-
-    @Override
-    public boolean isRegistered() {
-      return ref != null;
-    }
-
-    @Override
-    public WeakReference<AgentScope.Continuation> register(final ReferenceQueue referenceQueue) {
-      ref = new WeakReference<AgentScope.Continuation>(this, referenceQueue);
-      return ref;
-    }
-
-    @Override
-    public void cancel(final Set<WeakReference<AgentScope.Continuation>> weakReferences) {
-      weakReferences.remove(ref);
-      ref.clear();
-      ref = null;
     }
 
     // Called by ContinuableScopeManager when a continued scope is closed

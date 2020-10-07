@@ -7,11 +7,8 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.context.ScopeListener;
 import datadog.trace.context.TraceScope;
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class AgentTracer {
@@ -490,19 +487,6 @@ public class AgentTracer {
 
     @Override
     public void cancel() {}
-
-    @Override
-    public boolean isRegistered() {
-      return false;
-    }
-
-    @Override
-    public WeakReference<AgentScope.Continuation> register(final ReferenceQueue referenceQueue) {
-      return new WeakReference<>(null);
-    }
-
-    @Override
-    public void cancel(final Set<WeakReference<AgentScope.Continuation>> weakReferences) {}
   }
 
   public static class NoopContext implements Context {

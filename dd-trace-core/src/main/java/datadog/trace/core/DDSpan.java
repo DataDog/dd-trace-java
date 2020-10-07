@@ -7,7 +7,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.util.Clock;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.lang.ref.WeakReference;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -51,9 +50,6 @@ public class DDSpan implements AgentSpan, DDSpanData {
    * considered finished when this is set.
    */
   private final AtomicLong durationNano = new AtomicLong();
-
-  /** Implementation detail. Stores the weak reference to this span. Used by TraceCollection. */
-  volatile WeakReference<DDSpan> ref;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
