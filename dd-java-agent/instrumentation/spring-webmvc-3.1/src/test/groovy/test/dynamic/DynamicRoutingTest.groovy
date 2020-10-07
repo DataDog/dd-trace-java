@@ -5,7 +5,6 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
@@ -38,14 +37,14 @@ class DynamicRoutingTest extends ServletFilterTest {
   }
 
   @Override
-  void handlerSpan(TraceAssert trace, Object parent, HttpServerTest.ServerEndpoint endpoint = SUCCESS) {
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     trace.span {
       serviceName expectedServiceName()
       operationName "spring.handler"
       resourceName "TestController.${formatEndpoint(endpoint)}"
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint == EXCEPTION
-      childOf(parent as DDSpan)
+      childOfPrevious()
       tags {
         "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER

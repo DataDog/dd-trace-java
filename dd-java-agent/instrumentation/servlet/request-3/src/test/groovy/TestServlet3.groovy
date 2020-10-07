@@ -17,11 +17,19 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOU
 
 class TestServlet3 {
 
+  static HttpServerTest.ServerEndpoint getEndpoint(HttpServletRequest req) {
+    // Most correct would be to get the dispatched path from the request
+    // This is not part of the spec varies by implementation so the simplest is just removing
+    // "/dispatch"
+    String truePath = req.servletPath.replace("/dispatch", "")
+    return HttpServerTest.ServerEndpoint.forPath(truePath)
+  }
+
   @WebServlet
   static class Sync extends AbstractHttpServlet {
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
-      HttpServerTest.ServerEndpoint endpoint = HttpServerTest.ServerEndpoint.forPath(req.servletPath)
+      HttpServerTest.ServerEndpoint endpoint = getEndpoint(req)
       HttpServerTest.controller(endpoint) {
         resp.contentType = "text/plain"
         switch (endpoint) {
@@ -50,7 +58,7 @@ class TestServlet3 {
   static class Async extends AbstractHttpServlet {
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
-      HttpServerTest.ServerEndpoint endpoint = HttpServerTest.ServerEndpoint.forPath(req.servletPath)
+      HttpServerTest.ServerEndpoint endpoint = getEndpoint(req)
       def phaser = new Phaser(2)
       def context = req.startAsync()
       if (endpoint.name().contains("TIMEOUT")) {
@@ -111,7 +119,7 @@ class TestServlet3 {
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
       def context = req.startAsync()
       try {
-        HttpServerTest.ServerEndpoint endpoint = HttpServerTest.ServerEndpoint.forPath(req.servletPath)
+        HttpServerTest.ServerEndpoint endpoint = getEndpoint(req)
         HttpServerTest.controller(endpoint) {
           resp.contentType = "text/plain"
           switch (endpoint) {

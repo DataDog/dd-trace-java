@@ -1,4 +1,5 @@
 import com.google.common.io.Files
+import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.api.CorrelationIdentifier
 import org.apache.catalina.AccessLog
 import org.apache.catalina.Context
@@ -16,14 +17,10 @@ import spock.lang.Unroll
 import javax.servlet.Servlet
 import javax.servlet.ServletException
 
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
-import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 
 @Unroll
 abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> {
@@ -89,6 +86,9 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
     servletContext.addServletMappingDecoded(path, name)
   }
 
+  boolean handlerTriggersValue() {
+    return true
+  }
 
   def "access log has ids for #count requests"() {
     given:
@@ -108,22 +108,20 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
     and:
     cleanAndAssertTraces(count) {
       (1..count).eachWithIndex { val, i ->
-        if (hasHandlerSpan()) {
-          trace(3) {
-            sortSpansByStart()
-            serverSpan(it)
-            handlerSpan(it, span(0))
-            controllerSpan(it, span(1))
+        trace(spanCount(SUCCESS)) {
+          sortSpansByStart()
+          serverSpan(it)
+          if (hasHandlerSpan()) {
+            handlerSpan(it)
           }
-        } else {
-          trace(2) {
-            serverSpan(it)
-            controllerSpan(it, span(0))
+          controllerSpan(it)
+          if (hasResponseSpan(SUCCESS)) {
+            responseSpan(it, SUCCESS)
           }
         }
 
         def (String traceId, String spanId) = accessLogValue.loggedIds[i]
-        def idIndex = hasHandlerSpan() ? 1 : 0
+        def idIndex = hasHandlerSpan() && handlerTriggersValue() ? 1 : 0
         assert trace(i).get(idIndex).traceId.toString() == traceId
         assert trace(i).get(idIndex).spanId.toString() == spanId
       }
@@ -141,27 +139,27 @@ abstract class TomcatServlet3Test extends AbstractServlet3Test<Tomcat, Context> 
     def response = client.newCall(request).execute()
 
     expect:
-    response.code() == ERROR.status
-    response.body().string() == ERROR.body
+    if (bubblesResponse()) {
+      assert response.code() == ERROR.status
+      assert response.body().string() == ERROR.body
+    }
 
     and:
     cleanAndAssertTraces(1) {
-      if (hasHandlerSpan()) {
-        trace(3) {
-          sortSpansByStart()
-          serverSpan(it, null, null, method, ERROR)
-          handlerSpan(it, span(0), ERROR)
-          controllerSpan(it, span(1))
+      trace(spanCount(ERROR)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, ERROR)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, ERROR)
         }
-      } else {
-        trace(2) {
-          serverSpan(it, null, null, method, ERROR)
-          controllerSpan(it, span(0))
+        controllerSpan(it)
+        if (hasResponseSpan(ERROR)) {
+          responseSpan(it, ERROR)
         }
       }
 
       def (String traceId, String spanId) = accessLogValue.loggedIds[0]
-      def idIndex = hasHandlerSpan() ? 1 : 0
+      def idIndex = hasHandlerSpan() && handlerTriggersValue() ? 1 : 0
       assert trace(0).get(idIndex).traceId.toString() == traceId
       assert trace(0).get(idIndex).spanId.toString() == spanId
     }
@@ -265,6 +263,11 @@ class TomcatServlet3TestAsync extends TomcatServlet3Test {
   boolean testTimeout() {
     true
   }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    // No response spans for errors in async
+    return endpoint == REDIRECT || endpoint == NOT_FOUND
+  }
 }
 
 class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {
@@ -275,62 +278,72 @@ class TomcatServlet3TestFakeAsync extends TomcatServlet3Test {
   }
 }
 
-// FIXME: not working right now...
-//class TomcatServlet3TestForward extends TomcatServlet3Test {
-//  @Override
-//  Class<Servlet> servlet() {
-//    TestServlet3.Sync // dispatch to sync servlet
-//  }
-//
-//
-//boolean isDispatch() {
-//  return true
-//}
-//  @Override
-//  boolean testNotFound() {
-//    false
-//  }
-//
-//  @Override
-//  protected void setupServlets(Context context) {
-//    super.setupServlets(context)
-//
-//    addServlet(context, "/dispatch" + SUCCESS.path, RequestDispatcherServlet.Forward)
-//    addServlet(context, "/dispatch" + QUERY_PARAM.path, RequestDispatcherServlet.Forward)
-//    addServlet(context, "/dispatch" + REDIRECT.path, RequestDispatcherServlet.Forward)
-//    addServlet(context, "/dispatch" + ERROR.path, RequestDispatcherServlet.Forward)
-//    addServlet(context, "/dispatch" + EXCEPTION.path, RequestDispatcherServlet.Forward)
-//    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, RequestDispatcherServlet.Forward)
-//  }
-//}
+class TomcatServlet3TestForward extends TomcatServlet3Test {
+  @Override
+  Class<Servlet> servlet() {
+    TestServlet3.Sync // dispatch to sync servlet
+  }
 
-// FIXME: not working right now...
-//class TomcatServlet3TestInclude extends TomcatServlet3Test {
-//  @Override
-//  Class<Servlet> servlet() {
-//    TestServlet3.Sync // dispatch to sync servlet
-//  }
-///
-//boolean isDispatch() {
-//  return true
-//}
-//  @Override
-//  boolean testNotFound() {
-//    false
-//  }
-//
-//  @Override
-//  protected void setupServlets(Context context) {
-//    super.setupServlets(context)
-//
-//    addServlet(context, "/dispatch" + SUCCESS.path, RequestDispatcherServlet.Include)
-//    addServlet(context, "/dispatch" + QUERY_PARAM.path, RequestDispatcherServlet.Include)
-//    addServlet(context, "/dispatch" + REDIRECT.path, RequestDispatcherServlet.Include)
-//    addServlet(context, "/dispatch" + ERROR.path, RequestDispatcherServlet.Include)
-//    addServlet(context, "/dispatch" + EXCEPTION.path, RequestDispatcherServlet.Include)
-//    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, RequestDispatcherServlet.Include)
-//  }
-//}
+  boolean isDispatch() {
+    return true
+  }
+
+  boolean handlerTriggersValue() {
+    return false
+  }
+
+  @Override
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    forwardSpan(trace, endpoint)
+  }
+
+  @Override
+  protected void setupServlets(Context context) {
+    super.setupServlets(context)
+    setupDispatchServlets(context, RequestDispatcherServlet.Forward)
+  }
+}
+
+class TomcatServlet3TestInclude extends TomcatServlet3Test {
+  @Override
+  Class<Servlet> servlet() {
+    TestServlet3.Sync // dispatch to sync servlet
+  }
+
+  boolean isDispatch() {
+    return true
+  }
+
+  boolean handlerTriggersValue() {
+    return false
+  }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    // No response spans for include because response spans are only for the dispatching servlet
+    return false
+  }
+
+  boolean bubblesResponse() {
+    return false
+  }
+
+  @Override
+  boolean testNotFound() {
+    // NotFound throws an exception for Includes instead of a 404
+    false
+  }
+
+  @Override
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    includeSpan(trace, endpoint)
+  }
+
+  @Override
+  protected void setupServlets(Context context) {
+    super.setupServlets(context)
+    setupDispatchServlets(context, RequestDispatcherServlet.Include)
+  }
+}
 
 class TomcatServlet3TestDispatchImmediate extends TomcatServlet3Test {
   @Override
@@ -343,20 +356,15 @@ class TomcatServlet3TestDispatchImmediate extends TomcatServlet3Test {
   }
 
   @Override
-  boolean testNotFound() {
-    false
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    dispatchSpan(trace, endpoint)
   }
 
   @Override
   protected void setupServlets(Context context) {
     super.setupServlets(context)
 
-    addServlet(context, "/dispatch" + SUCCESS.path, TestServlet3.DispatchImmediate)
-    addServlet(context, "/dispatch" + QUERY_PARAM.path, TestServlet3.DispatchImmediate)
-    addServlet(context, "/dispatch" + ERROR.path, TestServlet3.DispatchImmediate)
-    addServlet(context, "/dispatch" + EXCEPTION.path, TestServlet3.DispatchImmediate)
-    addServlet(context, "/dispatch" + REDIRECT.path, TestServlet3.DispatchImmediate)
-    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, TestServlet3.DispatchImmediate)
+    setupDispatchServlets(context, TestServlet3.DispatchImmediate)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
   }
 }
@@ -372,27 +380,24 @@ class TomcatServlet3TestDispatchAsync extends TomcatServlet3Test {
   }
 
   @Override
-  boolean testNotFound() {
-    false
-  }
-
-  @Override
   boolean testTimeout() {
     true
   }
 
   @Override
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    dispatchSpan(trace, endpoint)
+  }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    // No response spans for errors in async
+    return endpoint == REDIRECT || endpoint == NOT_FOUND
+  }
+
+  @Override
   protected void setupServlets(Context context) {
     super.setupServlets(context)
-
-    addServlet(context, "/dispatch" + SUCCESS.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + QUERY_PARAM.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + ERROR.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + EXCEPTION.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + REDIRECT.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + TIMEOUT.path, TestServlet3.DispatchAsync)
-    addServlet(context, "/dispatch" + TIMEOUT_ERROR.path, TestServlet3.DispatchAsync)
+    setupDispatchServlets(context, TestServlet3.DispatchAsync)
     addServlet(context, "/dispatch/recursive", TestServlet3.DispatchRecursive)
   }
 }

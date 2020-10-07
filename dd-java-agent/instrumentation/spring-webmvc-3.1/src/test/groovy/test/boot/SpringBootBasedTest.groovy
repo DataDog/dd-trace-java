@@ -7,7 +7,6 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
 import groovy.transform.stc.ClosureParams
@@ -144,14 +143,14 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
   }
 
   @Override
-  void handlerSpan(TraceAssert trace, Object parent, ServerEndpoint endpoint = SUCCESS) {
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     trace.span {
       serviceName expectedServiceName()
       operationName "spring.handler"
       resourceName "TestController.${endpoint.name().toLowerCase()}"
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint == EXCEPTION
-      childOf(parent as DDSpan)
+      childOfPrevious()
       tags {
         "$Tags.COMPONENT" SpringWebHttpServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
