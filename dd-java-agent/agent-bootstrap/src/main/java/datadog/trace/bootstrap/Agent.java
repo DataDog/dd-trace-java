@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap;
 
 import java.lang.instrument.Instrumentation;
+import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -281,6 +282,9 @@ public class Agent {
   }
 
   private static synchronized void startJmx(final URL bootstrapURL) {
+    // load core JMX using the inherited thread-context-classloader
+    ManagementFactory.getPlatformMBeanServer();
+
     startJmxFetch(bootstrapURL);
 
     if (AGENT_CLASSLOADER == null) {
