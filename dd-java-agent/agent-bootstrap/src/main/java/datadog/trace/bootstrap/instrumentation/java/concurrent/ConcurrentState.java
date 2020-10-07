@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
@@ -43,14 +44,10 @@ public final class ConcurrentState {
 
   public static <K> void captureScope(
       ContextStore<K, ConcurrentState> contextStore, K key, TraceScope scope) {
-    if (scope != null) {
-      final ConcurrentState state = contextStore.putIfAbsent(key, FACTORY);
-      if (!state.captureAndSetContinuation(scope) && log.isDebugEnabled()) {
-        log.debug(
-            "continuation was already set for {} in scope {}, no continuation captured.",
-            key,
-            scope);
-      }
+    final ConcurrentState state = contextStore.putIfAbsent(key, FACTORY);
+    if (!state.captureAndSetContinuation(scope) && log.isDebugEnabled()) {
+      log.debug(
+          "continuation was already set for {} in scope {}, no continuation captured.", key, scope);
     }
   }
 
@@ -92,7 +89,11 @@ public final class ConcurrentState {
   private boolean captureAndSetContinuation(final TraceScope scope) {
     if (continuationRef.compareAndSet(null, CLAIMED)) {
       // lazy write is guaranteed to be seen by getAndSet
-      continuationRef.lazySet(scope.captureConcurrent());
+      if (scope != null) {
+        continuationRef.lazySet(scope.captureConcurrent());
+      } else {
+        continuationRef.lazySet(null);
+      }
       return true;
     }
     return false;
@@ -102,6 +103,8 @@ public final class ConcurrentState {
     final TraceScope.Continuation continuation = continuationRef.get();
     if (continuation != null && continuation != CLAIMED) {
       return continuation.activate();
+    } else if (continuation == null) {
+      return AgentTracer.activateSpan(AgentTracer.noopSpan());
     }
     return null;
   }

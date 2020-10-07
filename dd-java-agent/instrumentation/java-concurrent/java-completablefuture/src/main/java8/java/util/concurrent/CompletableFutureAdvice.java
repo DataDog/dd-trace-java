@@ -17,7 +17,7 @@ public final class CompletableFutureAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterInit(@Advice.This UniCompletion zis) {
       TraceScope scope = activeScope();
-      if (zis.isLive() && scope != null) {
+      if (zis.isLive()) {
         ContextStore<UniCompletion, ConcurrentState> contextStore =
             InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
         ConcurrentState.captureScope(contextStore, zis, scope);

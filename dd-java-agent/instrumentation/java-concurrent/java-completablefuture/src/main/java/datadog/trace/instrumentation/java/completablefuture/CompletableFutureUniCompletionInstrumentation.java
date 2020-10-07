@@ -9,10 +9,7 @@ import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.EnumMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import net.bytebuddy.description.method.MethodDescription;
@@ -79,43 +76,47 @@ public class CompletableFutureUniCompletionInstrumentation extends Instrumenter.
 
   @Override
   public Map<ExcludeType, Set<String>> excludedClasses() {
-    if (!enabled) {
-      return Collections.emptyMap();
-    }
-    String[] classes = {
-      // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
-      "java.util.concurrent.CompletableFuture$Completion",
-      "java.util.concurrent.CompletableFuture$UniCompletion",
-      "java.util.concurrent.CompletableFuture$UniApply",
-      "java.util.concurrent.CompletableFuture$UniAccept",
-      "java.util.concurrent.CompletableFuture$UniRun",
-      "java.util.concurrent.CompletableFuture$UniWhenComplete",
-      "java.util.concurrent.CompletableFuture$UniHandle",
-      "java.util.concurrent.CompletableFuture$UniExceptionally",
-      "java.util.concurrent.CompletableFuture$UniComposeExceptionally",
-      "java.util.concurrent.CompletableFuture$UniRelay",
-      "java.util.concurrent.CompletableFuture$UniCompose",
-      "java.util.concurrent.CompletableFuture$BiCompletion",
-      // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
-      // "java.util.concurrent.CompletableFuture$CoCompletion",
-      "java.util.concurrent.CompletableFuture$BiApply",
-      "java.util.concurrent.CompletableFuture$BiAccept",
-      "java.util.concurrent.CompletableFuture$BiRun",
-      "java.util.concurrent.CompletableFuture$BiRelay",
-      "java.util.concurrent.CompletableFuture$OrApply",
-      "java.util.concurrent.CompletableFuture$OrAccept",
-      "java.util.concurrent.CompletableFuture$OrRun",
-      // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
-      // "java.util.concurrent.CompletableFuture$AnyOf",
-      // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
-      // "java.util.concurrent.CompletableFuture$Signaller",
-    };
-    Set<String> excludedClasses = new HashSet<>(Arrays.asList(classes));
-    EnumMap<ExcludeType, Set<String>> excludedTypes = new EnumMap(ExcludeType.class);
-    excludedTypes.put(ExcludeType.RUNNABLE, excludedClasses);
-    excludedTypes.put(ExcludeType.FORK_JOIN_TASK, excludedClasses);
-    excludedTypes.put(ExcludeType.FUTURE, excludedClasses);
-    excludedTypes.put(ExcludeType.EXECUTOR, excludedClasses);
-    return excludedTypes;
+    //    if (!enabled) {
+    return Collections.emptyMap();
+    //    }
+    //    String[] classes = {
+    //      // This is not a subclass of UniCompletion and doesn't have a dependent
+    // CompletableFuture
+    //      "java.util.concurrent.CompletableFuture$Completion",
+    //      "java.util.concurrent.CompletableFuture$UniCompletion",
+    //      "java.util.concurrent.CompletableFuture$UniApply",
+    //      "java.util.concurrent.CompletableFuture$UniAccept",
+    //      "java.util.concurrent.CompletableFuture$UniRun",
+    //      "java.util.concurrent.CompletableFuture$UniWhenComplete",
+    //      "java.util.concurrent.CompletableFuture$UniHandle",
+    //      "java.util.concurrent.CompletableFuture$UniExceptionally",
+    //      "java.util.concurrent.CompletableFuture$UniComposeExceptionally",
+    //      "java.util.concurrent.CompletableFuture$UniRelay",
+    //      "java.util.concurrent.CompletableFuture$UniCompose",
+    //      "java.util.concurrent.CompletableFuture$BiCompletion",
+    //      // This is not a subclass of UniCompletion and doesn't have a dependent
+    // CompletableFuture
+    //      // "java.util.concurrent.CompletableFuture$CoCompletion",
+    //      "java.util.concurrent.CompletableFuture$BiApply",
+    //      "java.util.concurrent.CompletableFuture$BiAccept",
+    //      "java.util.concurrent.CompletableFuture$BiRun",
+    //      "java.util.concurrent.CompletableFuture$BiRelay",
+    //      "java.util.concurrent.CompletableFuture$OrApply",
+    //      "java.util.concurrent.CompletableFuture$OrAccept",
+    //      "java.util.concurrent.CompletableFuture$OrRun",
+    //      // This is not a subclass of UniCompletion and doesn't have a dependent
+    // CompletableFuture
+    //      // "java.util.concurrent.CompletableFuture$AnyOf",
+    //      // This is not a subclass of UniCompletion and doesn't have a dependent
+    // CompletableFuture
+    //      // "java.util.concurrent.CompletableFuture$Signaller",
+    //    };
+    //    Set<String> excludedClasses = new HashSet<>(Arrays.asList(classes));
+    //    EnumMap<ExcludeType, Set<String>> excludedTypes = new EnumMap(ExcludeType.class);
+    //    excludedTypes.put(ExcludeType.RUNNABLE, excludedClasses);
+    //    excludedTypes.put(ExcludeType.FORK_JOIN_TASK, excludedClasses);
+    //    excludedTypes.put(ExcludeType.FUTURE, excludedClasses);
+    //    excludedTypes.put(ExcludeType.EXECUTOR, excludedClasses);
+    //    return excludedTypes;
   }
 }
