@@ -21,13 +21,13 @@ import lombok.extern.slf4j.Slf4j;
  * <ul>
  *   <li>Immediate Write
  *       <ul>
- *         <li>is root && pending ref count == 0
- *         <li>not root && size exceeds partial flush
+ *         <li>pending ref count == 0 && trace not already written
+ *         <li>not root span && size exceeds partial flush
  *       </ul>
  *   <li>Delayed Write
  *       <ul>
- *         <li>is root && pending ref count > 0
- *         <li>not root && root already written
+ *         <li>is root span && pending ref count > 0
+ *         <li>not root span && pending ref count > 0 && trace already written
  *       </ul>
  * </ul>
  *
@@ -218,22 +218,22 @@ public class PendingTrace implements AgentTrace {
       return;
     }
     final int count = pendingReferenceCount.decrementAndGet();
-    if (isRootSpan) {
-      if (0 < count) {
+    if (count == 0 && !rootSpanWritten.get()) {
+      // Finished with no pending work ... write immediately
+      write();
+    } else {
+      if (isRootSpan) {
         // Finished root with pending work ... delay write
         pendingTraceBuffer.enqueue(this);
       } else {
-        // Finished root and no pending work ... write immediately
-        write();
-      }
-    } else {
-      int partialFlushMinSpans = tracer.getPartialFlushMinSpans();
-      if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
-        // Trace is getting too big, write anything completed.
-        partialFlush();
-      } else if (rootSpanWritten.get()) {
-        // Late arrival span ... delay write
-        pendingTraceBuffer.enqueue(this);
+        int partialFlushMinSpans = tracer.getPartialFlushMinSpans();
+        if (0 < partialFlushMinSpans && partialFlushMinSpans < size()) {
+          // Trace is getting too big, write anything completed.
+          partialFlush();
+        } else if (rootSpanWritten.get()) {
+          // Late arrival span ... delay write
+          pendingTraceBuffer.enqueue(this);
+        }
       }
     }
     if (log.isDebugEnabled()) {
@@ -243,9 +243,9 @@ public class PendingTrace implements AgentTrace {
 
   /** Important to note: may be called multiple times. */
   private void partialFlush() {
-    int size = write(false);
+    int size = write(true);
     if (log.isDebugEnabled()) {
-      log.debug("Writing partial trace {} of size {}", traceId, size);
+      log.debug("t_id={} -> writing partial trace of size {}", traceId, size);
     }
   }
 
@@ -254,7 +254,7 @@ public class PendingTrace implements AgentTrace {
     rootSpanWritten.set(true);
     int size = write(false);
     if (log.isDebugEnabled()) {
-      log.debug("Writing {} spans to {}.", size, tracer.writer);
+      log.debug("t_id={} -> writing {} spans to {}.", traceId, size, tracer.writer);
     }
   }
 

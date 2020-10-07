@@ -720,9 +720,6 @@ class ScopeManagerTest extends DDSpecification {
 
     when:
     continuation.cancel()
-    // The logic in PendingTrace is broken, and says that if you cancel a continuation
-    // it can't be a root span, so instead of direct write, we wait for the trace here
-    writer.waitForTraces(1)
 
     then:
     writer == [[span]]

@@ -47,6 +47,19 @@ public class TraceStructureWriter implements Writer {
       }
       // build the tree
       for (DDSpan span : trace) {
+        if (!traceId.equals(span.getTraceId())) {
+          out.println(
+              "ERROR: Trace "
+                  + traceId
+                  + " has broken trace link at "
+                  + span.getSpanId()
+                  + "("
+                  + span.getOperationName()
+                  + ")"
+                  + "->"
+                  + span.getTraceId());
+          return;
+        }
         if (!rootSpanId.equals(span.getSpanId())) {
           Node parent = nodesById.get(span.getParentId());
           if (null == parent) {
