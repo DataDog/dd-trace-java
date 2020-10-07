@@ -27,4 +27,9 @@ class Scala210PromiseTest extends AbstractPromiseTest<Promise<Boolean>, Future<S
   boolean get(Promise<Boolean> promise) {
     return promise.future().value().get().get()
   }
+
+  @Override
+  boolean picksUpCompletingScope() {
+    return false
+  }
 }
