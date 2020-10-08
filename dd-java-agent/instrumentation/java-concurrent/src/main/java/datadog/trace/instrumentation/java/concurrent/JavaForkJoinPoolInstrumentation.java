@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static java.util.Collections.singletonMap;
-import static java.util.Collections.unmodifiableMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
@@ -14,7 +13,6 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ForkJoinTask;
 import net.bytebuddy.asm.Advice;
@@ -41,18 +39,14 @@ public class JavaForkJoinPoolInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
-    transformers.put(
-        isMethod()
-            .and(
-                namedOneOf(
-                    "externalPush",
-                    "externalSubmit",
-                    // JDK7 needs these, remove when dropping JDK7
-                    "forkOrSubmit",
-                    "invoke")),
+    if (System.getProperty("java.version").startsWith("1.7")) {
+      return singletonMap(
+          isMethod().and(namedOneOf("forkOrSubmit", "invoke")),
+          getClass().getName() + "$ExternalPush");
+    }
+    return singletonMap(
+        isMethod().and(namedOneOf("externalPush", "externalSubmit")),
         getClass().getName() + "$ExternalPush");
-    return unmodifiableMap(transformers);
   }
 
   public static final class ExternalPush {
