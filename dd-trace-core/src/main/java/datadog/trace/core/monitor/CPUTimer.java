@@ -1,12 +1,10 @@
 package datadog.trace.core.monitor;
 
 import com.timgroup.statsd.StatsDClient;
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
+import datadog.trace.core.util.SystemAccess;
 
 public class CPUTimer extends Timer {
 
-  private final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
   private final StatsDClient statsd;
 
   private final String name;
@@ -23,21 +21,25 @@ public class CPUTimer extends Timer {
   @Override
   public Recording start() {
     super.start();
-    this.start = threadMXBean.getCurrentThreadCpuTime();
+    this.start = SystemAccess.getCurrentThreadCpuTime();
     return this;
   }
 
   @Override
   public void reset() {
-    long cpuNanos = threadMXBean.getCurrentThreadCpuTime();
-    this.cpuTime += (cpuNanos - start);
+    long cpuNanos = SystemAccess.getCurrentThreadCpuTime();
+    if (start > 0) {
+      this.cpuTime += (cpuNanos - start);
+    }
     this.start = cpuNanos;
     super.reset();
   }
 
   @Override
   public void stop() {
-    this.cpuTime += threadMXBean.getCurrentThreadCpuTime() - start;
+    if (start > 0) {
+      this.cpuTime += SystemAccess.getCurrentThreadCpuTime() - start;
+    }
     super.stop();
   }
 
