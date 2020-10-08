@@ -1,6 +1,7 @@
 package datadog.trace.common.sampling
 
 import datadog.trace.api.DDTags
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.CoreTracer

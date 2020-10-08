@@ -313,11 +313,6 @@ public class DDSpanContext implements AgentSpan.Context {
     return trace;
   }
 
-  @Deprecated
-  public CoreTracer getTracer() {
-    return tracer;
-  }
-
   public Map<String, Number> getMetrics() {
     final Map<String, Number> metrics = this.metrics.get();
     return metrics == null ? EMPTY_METRICS : metrics;

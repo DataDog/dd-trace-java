@@ -820,18 +820,6 @@ public class Config {
         && configProvider.getBoolean("trace." + name.toLowerCase() + ".enabled", true);
   }
 
-  /**
-   * @param integrationNames
-   * @param defaultEnabled
-   * @return
-   * @deprecated This method should only be used internally. Use the instance getter instead {@link
-   *     #isJmxFetchIntegrationEnabled(SortedSet, boolean)}.
-   */
-  public static boolean jmxFetchIntegrationEnabled(
-      final SortedSet<String> integrationNames, final boolean defaultEnabled) {
-    return Config.get().isJmxFetchIntegrationEnabled(integrationNames, defaultEnabled);
-  }
-
   public boolean isEndToEndDurationEnabled(
       final boolean defaultEnabled, final String... integrationNames) {
     return isEnabled(Arrays.asList(integrationNames), "", ".e2e.duration.enabled", defaultEnabled);

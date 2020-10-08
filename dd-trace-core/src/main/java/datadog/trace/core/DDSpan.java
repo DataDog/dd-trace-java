@@ -120,12 +120,6 @@ public class DDSpan implements AgentSpan, DDSpanData {
   }
 
   @Override
-  @Deprecated
-  public AgentSpan getRootSpan() {
-    return getLocalRootSpan();
-  }
-
-  @Override
   public DDSpan getLocalRootSpan() {
     return context.getTrace().getRootSpan();
   }
@@ -254,17 +248,6 @@ public class DDSpan implements AgentSpan, DDSpanData {
   @Override
   public final DDSpan setResourceName(final CharSequence resourceName) {
     context.setResourceName(resourceName);
-    return this;
-  }
-
-  /**
-   * Set the sampling priority of the root span of this span's trace
-   *
-   * <p>Has no effect if the span priority has been propagated (injected or extracted).
-   */
-  @Override
-  public final DDSpan setSamplingPriority(final int newPriority) {
-    context.setSamplingPriority(newPriority);
     return this;
   }
 

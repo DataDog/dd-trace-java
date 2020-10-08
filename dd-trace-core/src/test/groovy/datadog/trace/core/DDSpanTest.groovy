@@ -60,18 +60,18 @@ class DDSpanTest extends DDSpecification {
     span.getType() == "type"
 
     when:
-    span.setSamplingPriority(PrioritySampling.UNSET)
+    context.setSamplingPriority(PrioritySampling.UNSET)
     then:
     span.getSamplingPriority() == null
 
     when:
-    span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
+    context.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
     then:
     span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
 
     when:
     context.lockSamplingPriority()
-    span.setSamplingPriority(PrioritySampling.USER_KEEP)
+    context.setSamplingPriority(PrioritySampling.USER_KEEP)
     then:
     span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
   }
@@ -172,9 +172,9 @@ class DDSpanTest extends DDSpecification {
     def parent = tracer.buildSpan("testParent").start()
     def child1 = tracer.buildSpan("testChild1").asChildOf(parent).start()
 
-    child1.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
+    child1.context().setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
     child1.context().lockSamplingPriority()
-    parent.setSamplingPriority(PrioritySampling.SAMPLER_DROP)
+    parent.context().setSamplingPriority(PrioritySampling.SAMPLER_DROP)
     child1.finish()
     def child2 = tracer.buildSpan("testChild2").asChildOf(parent).start()
     child2.finish()
@@ -233,9 +233,6 @@ class DDSpanTest extends DDSpecification {
     expect:
     root.localRootSpan == root
     child.localRootSpan == root
-    // Checking for backward compatibility method names
-    root.rootSpan == root
-    child.rootSpan == root
 
     cleanup:
     child.finish()

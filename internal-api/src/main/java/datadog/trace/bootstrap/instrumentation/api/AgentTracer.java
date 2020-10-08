@@ -329,11 +329,6 @@ public class AgentTracer {
     }
 
     @Override
-    public MutableSpan setSamplingPriority(final int newPriority) {
-      return this;
-    }
-
-    @Override
     public String getSpanType() {
       return null;
     }
@@ -360,11 +355,6 @@ public class AgentTracer {
 
     @Override
     public AgentSpan setError(final boolean error) {
-      return this;
-    }
-
-    @Override
-    public MutableSpan getRootSpan() {
       return this;
     }
 

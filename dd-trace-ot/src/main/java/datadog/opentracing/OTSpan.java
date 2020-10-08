@@ -58,11 +58,6 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public MutableSpan getRootSpan() {
-    return delegate.getLocalRootSpan();
-  }
-
-  @Override
   public MutableSpan getLocalRootSpan() {
     return delegate.getLocalRootSpan();
   }
@@ -157,11 +152,6 @@ class OTSpan implements Span, MutableSpan {
   @Override
   public Integer getSamplingPriority() {
     return delegate.getSamplingPriority();
-  }
-
-  @Override
-  public MutableSpan setSamplingPriority(final int newPriority) {
-    return delegate.setSamplingPriority(newPriority);
   }
 
   @Override

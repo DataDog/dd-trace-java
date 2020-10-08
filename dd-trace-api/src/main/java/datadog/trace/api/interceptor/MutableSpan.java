@@ -24,16 +24,6 @@ public interface MutableSpan {
 
   Integer getSamplingPriority();
 
-  /**
-   * @deprecated Use {@link io.opentracing.Span#setTag(String, boolean)} instead using either tag
-   *     names {@link datadog.trace.api.DDTags#MANUAL_KEEP} or {@link
-   *     datadog.trace.api.DDTags#MANUAL_DROP}.
-   * @param newPriority
-   * @return
-   */
-  @Deprecated
-  MutableSpan setSamplingPriority(final int newPriority);
-
   String getSpanType();
 
   MutableSpan setSpanType(final CharSequence type);
@@ -49,10 +39,6 @@ public interface MutableSpan {
   Boolean isError();
 
   MutableSpan setError(boolean value);
-
-  /** @deprecated Use {@link #getLocalRootSpan()} instead. */
-  @Deprecated
-  MutableSpan getRootSpan();
 
   /**
    * Returns the root span for current the trace fragment. In the context of distributed tracing

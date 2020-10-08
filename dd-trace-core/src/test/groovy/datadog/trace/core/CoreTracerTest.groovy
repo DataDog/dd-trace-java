@@ -3,6 +3,7 @@ package datadog.trace.core
 import com.timgroup.statsd.NoOpStatsDClient
 import com.timgroup.statsd.NonBlockingStatsDClient
 import datadog.trace.api.Config
+import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.common.sampling.AllSampler
@@ -360,7 +361,7 @@ class CoreTracerTest extends DDSpecification {
     when:
     def root = tracer.buildSpan("operation").start()
     def child = tracer.buildSpan('my_child').asChildOf(root).start()
-    child.setSamplingPriority(PrioritySampling.USER_DROP)
+    child.setTag(DDTags.MANUAL_DROP, true)
     tracer.inject(child.context(), carrier, setter)
 
     then:
@@ -379,7 +380,7 @@ class ControllableSampler implements Sampler, PrioritySampler {
 
   @Override
   void setSamplingPriority(DDSpan span) {
-    span.setSamplingPriority(nextSamplingPriority)
+    span.context().setSamplingPriority(nextSamplingPriority)
   }
 
   @Override

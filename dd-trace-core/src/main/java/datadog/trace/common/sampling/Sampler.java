@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.DROP;
 import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.KEEP;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.DDSpan;
 import java.util.Map;
 import java.util.Properties;

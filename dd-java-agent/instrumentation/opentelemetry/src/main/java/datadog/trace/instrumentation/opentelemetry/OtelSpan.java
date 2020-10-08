@@ -167,11 +167,6 @@ public class OtelSpan implements Span, MutableSpan {
   }
 
   @Override
-  public MutableSpan setSamplingPriority(final int newPriority) {
-    return delegate.setSamplingPriority(newPriority);
-  }
-
-  @Override
   public String getSpanType() {
     return delegate.getSpanType();
   }
@@ -209,11 +204,6 @@ public class OtelSpan implements Span, MutableSpan {
   @Override
   public MutableSpan setError(final boolean value) {
     return delegate.setError(value);
-  }
-
-  @Override
-  public MutableSpan getRootSpan() {
-    return delegate.getRootSpan();
   }
 
   @Override

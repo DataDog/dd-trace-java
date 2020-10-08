@@ -19,7 +19,6 @@ public class DDTags {
   public static final String ERROR_STACK = "error.stack"; // human readable version of the stack
 
   public static final String ANALYTICS_SAMPLE_RATE = "_dd1.sr.eausr";
-  @Deprecated public static final String EVENT_SAMPLE_RATE = ANALYTICS_SAMPLE_RATE;
 
   /** Manually force tracer to be keep the trace */
   public static final String MANUAL_KEEP = "manual.keep";
