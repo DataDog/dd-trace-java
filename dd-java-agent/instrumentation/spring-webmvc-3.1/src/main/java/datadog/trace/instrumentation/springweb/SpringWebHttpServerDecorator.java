@@ -100,9 +100,20 @@ public class SpringWebHttpServerDecorator
         final CharSequence resourceName =
             RESOURCE_NAME_CACHE.computeIfAbsent(
                 Pair.of(method, bestMatchingPattern), RESOURCE_NAME_JOINER);
-        span.setTag(DDTags.RESOURCE_NAME, resourceName);
+        span.setResourceName(resourceName);
       }
     }
+    return span;
+  }
+
+  @Override
+  public AgentSpan onResponse(AgentSpan span, HttpServletResponse response) {
+    super.onResponse(span, response);
+
+    if (status(response) == 404) {
+      span.setResourceName("404");
+    }
+
     return span;
   }
 

@@ -8,7 +8,8 @@ import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletCon
 import org.springframework.context.annotation.Bean
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
 
-@SpringBootApplication
+// When running in Intellij, spring sometimes the custom classloader through component scan
+@SpringBootApplication(scanBasePackages = "doesnotexist")
 class AppConfig extends WebMvcConfigurerAdapter {
 
   @Bean

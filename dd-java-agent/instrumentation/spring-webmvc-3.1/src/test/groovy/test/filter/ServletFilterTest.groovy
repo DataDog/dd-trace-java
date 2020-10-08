@@ -1,7 +1,6 @@
 package test.filter
 
-import datadog.trace.agent.test.asserts.ListWriterAssert
-import datadog.trace.agent.test.asserts.SpanAssert
+
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
@@ -9,14 +8,13 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator
-import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.SimpleType
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
-import org.springframework.web.servlet.view.RedirectView
 import test.boot.SecurityConfig
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static java.util.Collections.singletonMap
 
@@ -62,89 +60,39 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
 
   @Override
   boolean testNotFound() {
-    // FIXME: the instrumentation adds an extra controller span which is not consistent.
-    // Fix tests or remove extra span.
+    // Tested by the regular spring boot test
     false
   }
 
-  void cleanAndAssertTraces(
-    final int size,
-    @ClosureParams(value = SimpleType, options = "datadog.trace.agent.test.asserts.ListWriterAssert")
-    @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST)
-    final Closure spec) {
+  @Override
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    return endpoint == REDIRECT || endpoint == ERROR
+  }
 
-    // If this is failing, make sure HttpServerTestAdvice is applied correctly.
-    TEST_WRITER.waitForTraces(size * 2)
-
-    TEST_WRITER.each {
-      def renderSpan = it.find {
-        it.operationName.toString() == "response.render"
-      }
-      if (renderSpan) {
-        SpanAssert.assertSpan(renderSpan) {
-          operationName "response.render"
-          resourceName "response.render"
-          spanType "web"
-          errored false
-          tags {
-            "$Tags.COMPONENT" "spring-webmvc"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            "view.type" RedirectView.simpleName
-            defaultTags()
-          }
+  void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
+    if (endpoint == REDIRECT) {
+      trace.span {
+        operationName "servlet.response"
+        resourceName "HttpServletResponse.sendRedirect"
+        childOfPrevious()
+        tags {
+          "component" "java-web-servlet-response"
+          defaultTags()
         }
-        it.remove(renderSpan)
       }
-      def responseSpan = it.find {
-        it.operationName.toString() == "servlet.response"
-      }
-      if (responseSpan) {
-        SpanAssert.assertSpan(responseSpan) {
-          operationName "servlet.response"
-          resourceName { it == "HttpServletResponse.sendRedirect" || it == "HttpServletResponse.sendError" }
-          errored false
-          tags {
-            "$Tags.COMPONENT" "java-web-servlet-response"
-            defaultTags()
-          }
+    } else if (endpoint == ERROR) {
+      trace.span {
+        operationName "servlet.response"
+        resourceName "HttpServletResponse.sendError"
+        childOfPrevious()
+        tags {
+          "component" "java-web-servlet-response"
+          defaultTags()
         }
-        it.remove(responseSpan)
       }
-      def errorForwardSpan = it.find {
-        it.operationName.toString() == "servlet.forward"
-      }
-      if (errorForwardSpan) {
-        SpanAssert.assertSpan(errorForwardSpan) {
-          operationName "servlet.forward"
-          resourceName "GET /error"
-          errored false
-          tags {
-            "$Tags.COMPONENT" "java-web-servlet-dispatcher"
-            defaultTags()
-          }
-        }
-        it.remove(errorForwardSpan)
-      }
-      def errorHandlerSpan = it.find {
-        it.operationName.toString() == "spring.handler" && it.resourceName.toString() == "BasicErrorController.error"
-      }
-      if (errorHandlerSpan) {
-        SpanAssert.assertSpan(errorHandlerSpan) {
-          operationName "spring.handler"
-          resourceName "BasicErrorController.error"
-          errored false
-          spanType DDSpanTypes.HTTP_SERVER
-          tags {
-            "$Tags.COMPONENT" "spring-web-controller"
-            "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-            defaultTags()
-          }
-        }
-        it.remove(errorHandlerSpan)
-      }
+    } else {
+      throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
     }
-
-    super.cleanAndAssertTraces(size, spec)
   }
 
   @Override
@@ -167,6 +115,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
     }
   }
 
+  // Adds servlet.path and servlet.dispatch to normal serverSpan
   @Override
   void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
     trace.span {
@@ -191,6 +140,7 @@ class ServletFilterTest extends HttpServerTest<ConfigurableApplicationContext> {
         "$Tags.HTTP_STATUS" endpoint.status
         "servlet.path" endpoint.path
         if (endpoint.errored) {
+          "servlet.dispatch" "/error"
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }
           "error.stack" { it == null || it instanceof String }
