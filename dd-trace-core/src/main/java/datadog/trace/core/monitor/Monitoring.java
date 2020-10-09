@@ -1,7 +1,5 @@
 package datadog.trace.core.monitor;
 
-import static java.lang.management.ManagementFactory.getThreadMXBean;
-
 import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import java.util.concurrent.TimeUnit;
@@ -57,10 +55,7 @@ public final class Monitoring {
     if (!enabled) {
       return NoOpRecording.NO_OP;
     }
-    if (getThreadMXBean().isCurrentThreadCpuTimeSupported()) {
-      return new CPUTimer(name, statsd, flushAfterNanos);
-    }
-    return newTimer(name);
+    return new CPUTimer(name, statsd, flushAfterNanos);
   }
 
   public Counter newCounter(final String name) {

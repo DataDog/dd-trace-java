@@ -21,8 +21,8 @@ public final class SystemAccess {
 
   /** Enable JMX accesses */
   public static void enableJmx() {
-    if (!Config.get().isProfilingEnabled()) {
-      log.debug("Will not enable JMX access. Profiling is disabled.");
+    if (!Config.get().isProfilingEnabled() && !Config.get().isHealthMetricsEnabled()) {
+      log.debug("Will not enable JMX access. Profiling and metrics are both disabled.");
       return;
     }
     try {

@@ -1,6 +1,9 @@
 package datadog.trace.core.monitor
 
 import com.timgroup.statsd.StatsDClient
+import datadog.trace.agent.test.utils.ConfigUtils
+import datadog.trace.api.Config
+import datadog.trace.core.util.SystemAccess
 import datadog.trace.util.test.DDSpecification
 import org.junit.Assert
 import org.junit.Assume
@@ -95,6 +98,7 @@ class TimingTest extends DDSpecification {
     Monitoring monitoring = new Monitoring(statsd, 100, MILLISECONDS)
     def timer = monitoring.newCPUTimer("my_timer")
     when:
+    ConfigUtils.withConfigOverride("${Config.HEALTH_METRICS_ENABLED}", "true", { SystemAccess.enableJmx() })
     Recording recording = timer.start()
     Thread.sleep(200)
     recording.close()
@@ -105,6 +109,8 @@ class TimingTest extends DDSpecification {
     1 * statsd.gauge("my_timer", { it > MILLISECONDS.toNanos(200) }, { it[0] == "stat:max" && it[1].startsWith("thread:") })
     1 * statsd.gauge("my_timer.cpu", { it > 0 }, { it[0].startsWith("thread:") })
     0 * _
+    cleanup:
+    SystemAccess.disableJmx()
   }
 }
 

@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 final class JmxSystemAccessProvider implements SystemAccessProvider {
   private final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
   private final RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
+  private final boolean cpuTimeSupported = threadMXBean.isCurrentThreadCpuTimeSupported();
 
   public static final JmxSystemAccessProvider INSTANCE = new JmxSystemAccessProvider();
 
@@ -23,7 +24,7 @@ final class JmxSystemAccessProvider implements SystemAccessProvider {
    */
   @Override
   public long getThreadCpuTime() {
-    return threadMXBean.getCurrentThreadCpuTime();
+    return cpuTimeSupported ? threadMXBean.getCurrentThreadCpuTime() : Long.MIN_VALUE;
   }
 
   /**
