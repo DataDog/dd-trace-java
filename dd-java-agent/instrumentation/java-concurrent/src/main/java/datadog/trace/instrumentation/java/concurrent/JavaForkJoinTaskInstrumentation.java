@@ -1,17 +1,13 @@
 package datadog.trace.instrumentation.java.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
-import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.isAbstract;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.not;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -19,8 +15,6 @@ import datadog.trace.context.TraceScope;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
@@ -57,68 +51,58 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Default 
 
   @Override
   public Map<String, String> contextStoreForAll() {
-    final Map<String, String> map = new HashMap<>();
-    map.put(Runnable.class.getName(), State.class.getName());
-    map.put(Callable.class.getName(), State.class.getName());
-    map.put(ForkJoinTask.class.getName(), State.class.getName());
-    return Collections.unmodifiableMap(map);
+    return Collections.singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
   }
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
-        named("exec").and(takesArguments(0)).and(not(isAbstract())),
-        JavaForkJoinTaskInstrumentation.class.getName() + "$ForkJoinTaskAdvice");
+    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
+    transformers.put(isMethod().and(named("exec")), getClass().getName() + "$Exec");
+    transformers.put(isMethod().and(named("fork")), getClass().getName() + "$Fork");
+    transformers.put(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
+    return Collections.unmodifiableMap(transformers);
   }
 
-  public static class ForkJoinTaskAdvice {
-
-    /**
-     * When {@link ForkJoinTask} object is submitted to {@link ForkJoinPool} as {@link Runnable} or
-     * {@link Callable} it will not get wrapped, instead it will be casted to {@code ForkJoinTask}
-     * directly. This means state is still stored in {@code Runnable} or {@code Callable} and we
-     * need to use that state.
-     */
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static TraceScope enter(@Advice.This final ForkJoinTask thiz) {
-      if (ExcludeFilter.exclude(ExcludeType.EXECUTOR, thiz)) {
-        return null;
-      }
-      final ContextStore<ForkJoinTask, State> contextStore =
-          InstrumentationContext.get(ForkJoinTask.class, State.class);
-      TraceScope scope = AdviceUtils.startTaskScope(contextStore, thiz);
-      if (thiz instanceof Runnable) {
-        final ContextStore<Runnable, State> runnableContextStore =
-            InstrumentationContext.get(Runnable.class, State.class);
-        final TraceScope newScope =
-            AdviceUtils.startTaskScope(runnableContextStore, (Runnable) thiz);
-        if (null != newScope) {
-          if (null != scope) {
-            newScope.close();
-          } else {
-            scope = newScope;
-          }
+  public static final class Exec {
+    @Advice.OnMethodEnter
+    public static <T> TraceScope before(@Advice.This ForkJoinTask<T> task) {
+      State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
+      if (null != state) {
+        TraceScope.Continuation continuation = state.getAndResetContinuation();
+        if (null != continuation) {
+          return continuation.activate();
         }
       }
-      if (thiz instanceof Callable) {
-        final ContextStore<Callable, State> callableContextStore =
-            InstrumentationContext.get(Callable.class, State.class);
-        final TraceScope newScope =
-            AdviceUtils.startTaskScope(callableContextStore, (Callable) thiz);
-        if (null != newScope) {
-          if (null != scope) {
-            newScope.close();
-          } else {
-            scope = newScope;
-          }
-        }
-      }
-      return scope;
+      return null;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter final TraceScope scope) {
-      AdviceUtils.endTaskScope(scope);
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static void after(@Advice.Enter TraceScope scope) {
+      if (null != scope) {
+        scope.close();
+      }
+    }
+  }
+
+  public static final class Fork {
+    @Advice.OnMethodEnter
+    public static <T> void fork(@Advice.This ForkJoinTask<T> task) {
+      TraceScope activeScope = activeScope();
+      if (null != activeScope) {
+        InstrumentationContext.get(ForkJoinTask.class, State.class)
+            .putIfAbsent(task, State.FACTORY)
+            .captureAndSetContinuation(activeScope);
+      }
+    }
+  }
+
+  public static final class Cancel {
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
+      State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
+      if (null != state) {
+        state.closeContinuation();
+      }
     }
   }
 }
