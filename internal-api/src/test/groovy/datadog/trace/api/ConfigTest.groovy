@@ -73,13 +73,7 @@ import static datadog.trace.api.Config.TRACE_SAMPLING_SERVICE_RULES
 import static datadog.trace.api.Config.WRITER_TYPE
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
-import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_STATSD_PORT
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT
-import static datadog.trace.api.ConfigDefaults.DEFAULT_PROFILING_PROXY_PORT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
-import static datadog.trace.api.ConfigDefaults.DEFAULT_SITE
 import static datadog.trace.api.DDTags.HOST_TAG
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE
@@ -124,76 +118,7 @@ class ConfigTest extends DDSpecification {
   private static final DD_PROFILING_API_KEY_VERY_OLD_ENV = "DD_PROFILING_APIKEY"
   private static final DD_PROFILING_TAGS_ENV = "DD_PROFILING_TAGS"
   private static final DD_PROFILING_PROXY_PASSWORD_ENV = "DD_PROFILING_PROXY_PASSWORD"
-
-  def "verify defaults"() {
-    when:
-    Config config = provider()
-
-    then:
-    config.apiKey == null
-    config.site == DEFAULT_SITE
-    config.serviceName == "unnamed-java-app"
-    config.traceEnabled == true
-    config.idGenerationStrategy == IdGenerationStrategy.RANDOM
-    config.writerType == "DDAgentWriter"
-    config.prioritizationType == "FastLane"
-    config.agentHost == "localhost"
-    config.agentPort == 8126
-    config.agentUnixDomainSocket == null
-    config.agentUrl == "http://localhost:8126"
-    config.prioritySamplingEnabled == true
-    config.traceResolverEnabled == true
-    config.serviceMapping == [:]
-    config.mergedSpanTags == [:]
-    config.mergedJmxTags == [(RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName]
-    config.headerTags == [:]
-    config.httpServerErrorStatuses == toBitSet((500..599))
-    config.httpClientErrorStatuses == toBitSet((400..499))
-    config.httpClientSplitByDomain == false
-    config.dbClientSplitByInstance == false
-    config.splitByTags == [].toSet()
-    config.partialFlushMinSpans == 1000
-    config.reportHostName == false
-    config.runtimeContextFieldInjection == true
-    config.propagationStylesToExtract.toList() == [PropagationStyle.DATADOG]
-    config.propagationStylesToInject.toList() == [PropagationStyle.DATADOG]
-    config.jmxFetchEnabled == true
-    config.jmxFetchMetricsConfigs == []
-    config.jmxFetchCheckPeriod == null
-    config.jmxFetchRefreshBeansPeriod == null
-    config.jmxFetchStatsdHost == null
-    config.jmxFetchStatsdPort == DEFAULT_JMX_FETCH_STATSD_PORT
-
-    config.healthMetricsEnabled == false
-    config.healthMetricsStatsdHost == null
-    config.healthMetricsStatsdPort == null
-
-    config.profilingEnabled == false
-    config.profilingUrl == null
-    config.mergedProfilingTags == [(HOST_TAG): config.getHostName(), (RUNTIME_ID_TAG): config.getRuntimeId(), (SERVICE_TAG): config.serviceName, (LANGUAGE_TAG_KEY): LANGUAGE_TAG_VALUE]
-    config.profilingStartDelay == 10
-    config.profilingStartForceFirst == false
-    config.profilingUploadPeriod == 60
-    config.profilingTemplateOverrideFile == null
-    config.profilingUploadTimeout == 30
-    config.profilingProxyHost == null
-    config.profilingProxyPort == DEFAULT_PROFILING_PROXY_PORT
-    config.profilingProxyUsername == null
-    config.profilingProxyPassword == null
-    config.profilingExceptionSampleLimit == DEFAULT_PROFILING_EXCEPTION_SAMPLE_LIMIT
-    config.profilingExceptionHistogramTopItems == DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS
-    config.profilingExceptionHistogramMaxCollectionSize == DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE
-
-    config.toString().contains("unnamed-java-app")
-
-    where:
-    provider << [{ new Config() }, { Config.get() }, {
-      def props = new Properties()
-      props.setProperty("something", "unused")
-      Config.get(props)
-    }]
-  }
-
+  
   def "specify overrides via properties"() {
     setup:
     def prop = new Properties()
