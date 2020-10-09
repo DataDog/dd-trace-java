@@ -41,12 +41,21 @@ repositories {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+spotless {
+  groovy {
+    excludeJava()
+    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
+  }
+}
 
 description = 'Play 2.5 Integration Tests.'
 
 dependencies {
   play "com.typesafe.play:play-logback_$scalaVersion:$playVersion"
   play "com.typesafe.play:filters-helpers_$scalaVersion:$playVersion"
+  play "com.typesafe.play:play-java-ws_$scalaVersion:$playVersion"
+  // jaxb is not there anymore in java11+
+  play "javax.xml.bind:jaxb-api:2.3.1"
 
   play project(':dd-trace-api')
   play group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'

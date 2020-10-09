@@ -5,6 +5,7 @@ public final class WriterConstants {
   public static final String LOGGING_WRITER_TYPE = "LoggingWriter";
   public static final String PRINTING_WRITER_TYPE = "PrintingWriter";
   public static final String TRACE_STRUCTURE_WRITER_TYPE = "TraceStructureWriter";
+  public static final String MULTI_WRITER_TYPE = "MultiWriter";
 
   private WriterConstants() {}
 }
