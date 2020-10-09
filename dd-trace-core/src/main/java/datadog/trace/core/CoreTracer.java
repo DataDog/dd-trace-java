@@ -882,6 +882,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private ShutdownHook(final CoreTracer tracer) {
       super("dd-tracer-shutdown-hook");
       reference = new WeakReference<>(tracer);
+      this.setDaemon(true);
     }
 
     @Override
