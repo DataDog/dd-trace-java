@@ -256,4 +256,23 @@ class TraceProcessingWorkerTest extends DDSpecification {
 
   }
 
+  def "flush of full queue after worker thread stopped will not flush but will return" () {
+    setup:
+    PayloadDispatcher countingDispatcher = Mock(PayloadDispatcher)
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    TraceProcessingWorker worker = new TraceProcessingWorker(10, healthMetrics, monitoring,
+      countingDispatcher, Stub(TraceProcessor), FAST_LANE, 100, TimeUnit.SECONDS)
+    worker.start()
+    worker.close()
+    int queueSize = 0
+    while (worker.primaryQueue.offer([Mock(DDSpan)])) {
+      queueSize++
+    }
+
+    when:
+    boolean flushed = worker.flush(1, TimeUnit.SECONDS)
+    then:
+    !flushed
+  }
+
 }
