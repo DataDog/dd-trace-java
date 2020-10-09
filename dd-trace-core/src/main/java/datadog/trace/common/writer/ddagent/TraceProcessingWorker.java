@@ -87,7 +87,7 @@ public class TraceProcessingWorker implements AutoCloseable {
     boolean offered;
     do {
       offered = primaryQueue.offer(flush);
-    } while (!offered);
+    } while (!offered && serializerThread.isAlive());
     try {
       return latch.await(timeout, timeUnit);
     } catch (InterruptedException e) {
@@ -185,7 +185,7 @@ public class TraceProcessingWorker implements AutoCloseable {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
-      log.debug("datadog trace processor exited");
+      log.debug("Datadog trace processor exited. Publishing traces stopped");
     }
 
     private void runDutyCycle() throws InterruptedException {
