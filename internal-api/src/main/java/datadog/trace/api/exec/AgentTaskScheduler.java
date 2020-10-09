@@ -1,6 +1,6 @@
-package datadog.common.exec;
+package datadog.trace.api.exec;
 
-import static datadog.common.exec.DaemonThreadFactory.TASK_SCHEDULER;
+import static datadog.trace.api.exec.DaemonThreadFactory.TASK_SCHEDULER;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import java.lang.ref.WeakReference;

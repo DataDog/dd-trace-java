@@ -44,7 +44,6 @@ include ':dd-java-agent:testing'
 include ':utils:container-utils'
 include ':utils:mlt-support'
 include ':utils:test-utils'
-include ':utils:thread-utils'
 
 // smoke tests
 include ':dd-smoke-tests:cli'

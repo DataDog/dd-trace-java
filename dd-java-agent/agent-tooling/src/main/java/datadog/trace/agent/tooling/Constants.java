@@ -14,7 +14,6 @@ public final class Constants {
    * datadog.trace.agent.test.SpockRunner#BOOTSTRAP_PACKAGE_PREFIXES_COPY
    */
   public static final String[] BOOTSTRAP_PACKAGE_PREFIXES = {
-    "datadog.common.exec",
     "datadog.slf4j",
     "datadog.trace.api",
     "datadog.trace.bootstrap",
@@ -25,7 +24,6 @@ public final class Constants {
 
   // This is used in IntegrationTestUtils.java
   public static final String[] AGENT_PACKAGE_PREFIXES = {
-    "datadog.common.exec",
     "datadog.trace.common",
     "datadog.trace.agent",
     "datadog.trace.instrumentation",

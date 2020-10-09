@@ -2,7 +2,7 @@ package datadog.trace.common.writer.ddagent;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import datadog.common.exec.DaemonThreadFactory;
+import datadog.trace.api.exec.DaemonThreadFactory;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.Monitoring;

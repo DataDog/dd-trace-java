@@ -1,4 +1,4 @@
-package datadog.common.exec
+package datadog.trace.api.exec
 
 import datadog.trace.util.gc.GCUtils
 import datadog.trace.util.test.DDSpecification
