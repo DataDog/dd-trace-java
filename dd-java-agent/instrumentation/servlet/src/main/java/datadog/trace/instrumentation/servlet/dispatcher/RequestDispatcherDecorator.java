@@ -6,8 +6,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import javax.servlet.ServletException;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
@@ -17,14 +18,22 @@ public class RequestDispatcherDecorator extends BaseDecorator {
   public static final CharSequence JAVA_WEB_SERVLET_DISPATCHER =
       UTF8BytesString.createConstant("java-web-servlet-dispatcher");
 
-  private static Method STATUS_CODE_METHOD;
+  private static final MethodHandle STATUS_CODE_METHOD;
 
   static {
+    // to satisfy the compiler that STATUS_CODE_METHOD is only assigned once
+    // use a local variable
+    MethodHandle local = null;
     try {
-      STATUS_CODE_METHOD = HttpServletResponse.class.getMethod("getStatus");
-    } catch (NoSuchMethodException e) {
+      local =
+          MethodHandles.publicLookup()
+              .findVirtual(
+                  HttpServletResponse.class, "getStatus", MethodType.methodType(int.class));
+    } catch (NoSuchMethodException | IllegalAccessException e) {
       // ignore. getStatus was added in servlet 3
     }
+
+    STATUS_CODE_METHOD = local;
   }
 
   @Override
@@ -56,7 +65,7 @@ public class RequestDispatcherDecorator extends BaseDecorator {
       final AgentSpan span, final ServletResponse response, Throwable throwable) {
     if (response instanceof HttpServletResponse && STATUS_CODE_METHOD != null) {
       try {
-        int status = (int) STATUS_CODE_METHOD.invoke(response);
+        int status = (int) STATUS_CODE_METHOD.invokeExact((HttpServletResponse) response);
 
         if (throwable != null && status == HttpServletResponse.SC_OK) {
           span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.get(500));
@@ -67,8 +76,7 @@ public class RequestDispatcherDecorator extends BaseDecorator {
         if (status == 404) {
           span.setResourceName("404");
         }
-      } catch (IllegalAccessException | InvocationTargetException e) {
-        // ignore. getStatus was added in servlet 3
+      } catch (Throwable ignored) {
       }
     }
     return span;
