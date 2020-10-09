@@ -155,7 +155,7 @@ class DynamicRoutingTest extends HttpServerTest<ConfigurableApplicationContext> 
         "$Tags.HTTP_STATUS" endpoint.status
         "servlet.path" endpoint.path
         if (endpoint.errored) {
-          "servlet.dispatch" { it == null || "/exception" }
+          "servlet.dispatch" { it == null || it == "/exception" }
           "error.msg" { it == null || it == EXCEPTION.body }
           "error.type" { it == null || it == Exception.name }
           "error.stack" { it == null || it instanceof String }
