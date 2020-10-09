@@ -14,6 +14,7 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.DDTags;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -81,6 +82,11 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
         return null;
       }
 
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpServletResponse.class);
+      if (callDepth > 0) {
+        return null;
+      }
+
       final AgentSpan span = startSpan(SERVLET_RESPONSE);
       DECORATE.afterStart(span);
 
@@ -97,6 +103,9 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
       if (scope == null) {
         return;
       }
+
+      CallDepthThreadLocalMap.reset(HttpServletResponse.class);
+
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
