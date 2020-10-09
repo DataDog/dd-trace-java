@@ -1,16 +1,36 @@
 package datadog.smoketest
 
+import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.agent.test.utils.ThreadUtils
 import okhttp3.Request
+import spock.lang.AutoCleanup
 import spock.lang.Shared
 
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
 
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+
 class PlayNettySmokeTest extends AbstractServerSmokeTest {
 
   @Shared
   File playDirectory = new File("${buildDirectory}/stage/playBinary")
+
+  @Shared
+  @AutoCleanup
+  TestHttpServer clientServer = httpServer {
+    handlers {
+      prefix("/hello") {
+        def parts = request.path.split("/")
+        int id = parts.length == 0 ? 0 : Integer.parseInt(parts.last())
+        String msg = "Hello ${id}!"
+        if (id & 4) {
+          Thread.sleep(100)
+        }
+        response.status(200).send(msg)
+      }
+    }
+  }
 
   @Override
   ProcessBuilder createProcessBuilder() {
@@ -19,11 +39,12 @@ class PlayNettySmokeTest extends AbstractServerSmokeTest {
     processBuilder.directory(playDirectory)
     processBuilder.environment().put("JAVA_OPTS",
       defaultJavaProperties.join(" ")
-        + " -Dconfig.file=${playDirectory}/conf/application.conf"
-        + " -Dhttp.port=${httpPort}"
-        + " -Dhttp.address=127.0.0.1"
-        + " -Dplay.server.provider=play.core.server.NettyServerProvider"
-        + " -Ddd.writer.type=TraceStructureWriter:${output.getAbsolutePath()}")
+      + " -Dconfig.file=${playDirectory}/conf/application.conf"
+      + " -Dhttp.port=${httpPort}"
+      + " -Dhttp.address=127.0.0.1"
+      + " -Dplay.server.provider=play.core.server.NettyServerProvider"
+      + " -Ddd.writer.type=MultiWriter:TraceStructureWriter:${output.getAbsolutePath()},DDAgentWriter"
+      + " -Dclient.request.base=${clientServer.address}/hello/")
     return processBuilder
   }
 
@@ -37,21 +58,32 @@ class PlayNettySmokeTest extends AbstractServerSmokeTest {
 
   @Override
   protected boolean isAcceptable(Map<String, AtomicInteger> traceCounts) {
+    int totalTraces = 0
     // Since the filters ([filter2-4]) are executed after each other but potentially on different threads, and the future
     // that is completed is completed before the span is finished, the order of those filters and the request processing
     // is undefined.
     boolean isOk = true
-    def allowed = ~/\[netty.request\[filter1(\[filter\d\])?(\[filter\d\])?(\[filter\d\])?\[play.request\[action1\[action2\]\]\](\[filter\d\])?(\[filter\d\])?(\[filter\d\])?\]\]/
+    def allowed = /|\[netty.request\[filter1(\[filter\d])?(\[filter\d])?(\[filter\d])?
+                   |\[play.request\[action1\[action2\[do-get\[netty.client.request]]]]]
+                   |(\[filter\d])?(\[filter\d])?(\[filter\d])?]]/.stripMargin().replaceAll("[\n\r]", "")
     traceCounts.entrySet().each {
-      def matches = (it.key =~ allowed).findAll().head().findAll{ it != null }
+      def matcher = (it.key =~ allowed).findAll()
+      assert matcher.size() == 1 : """\
+           |Trace ${it.key} does not match allowed pattern:
+           |pattern=${allowed}
+           |traceCounts=${traceCounts}""".stripMargin()
+      def matches = matcher.head().findAll{ it != null }
       isOk &= matches.size() == 4
       isOk &= matches.contains("[filter2]")
       isOk &= matches.contains("[filter3]")
       isOk &= matches.contains("[filter4]")
+      assert isOk :  """\
+           |Trace ${it.key} does not match allowed pattern:
+           |pattern=${allowed}
+           |traceCounts=${traceCounts}""".stripMargin()
+      totalTraces += it.value.get()
     }
-    // So we can't count the number of traces written since we don't properly flush the PendingTrace when
-    // the test server is shut down
-    return traceCounts.size() > 0 && isOk
+    return totalTraces == totalInvocations && isOk
   }
 
   void doAndValidateRequest(int id) {
@@ -59,7 +91,7 @@ class PlayNettySmokeTest extends AbstractServerSmokeTest {
     def request = new Request.Builder().url(url).get().build()
     def response = client.newCall(request).execute()
     def responseBodyStr = response.body().string()
-    assert responseBodyStr == "Welcome $id."
+    assert responseBodyStr == "Got 'Hello $id!'"
     assert response.code() == 200
   }
 
@@ -71,5 +103,6 @@ class PlayNettySmokeTest extends AbstractServerSmokeTest {
       def id = ThreadLocalRandom.current().nextInt(1, 4711)
       doAndValidateRequest(id)
     })
+    waitForTraceCount(totalInvocations) == totalInvocations
   }
 }
