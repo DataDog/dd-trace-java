@@ -294,7 +294,11 @@ class DDAgentWriterCombinedTest extends DDSpecification {
         }
       }
     }
-    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitoring(monitoring).healthMetrics(healthMetrics).build()
+    def writer = DDAgentWriter.builder()
+      .traceAgentV05Enabled(true)
+      .traceAgentPort(agent.address.port)
+      .monitoring(monitoring)
+      .healthMetrics(healthMetrics).build()
 
     when:
     writer.start()
@@ -344,7 +348,11 @@ class DDAgentWriterCombinedTest extends DDSpecification {
         }
       }
     }
-    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitoring(monitoring).healthMetrics(healthMetrics).build()
+    def writer = DDAgentWriter.builder()
+      .traceAgentV05Enabled(true)
+      .traceAgentPort(agent.address.port)
+      .monitoring(monitoring)
+      .healthMetrics(healthMetrics).build()
 
     when:
     writer.start()
@@ -391,7 +399,11 @@ class DDAgentWriterCombinedTest extends DDSpecification {
         return DDAgentApi.Response.failed(new IOException("comm error"))
       }
     }
-    def writer = DDAgentWriter.builder().agentApi(api).monitoring(monitoring).healthMetrics(healthMetrics).build()
+    def writer = DDAgentWriter.builder()
+      .traceAgentV05Enabled(true)
+      .agentApi(api)
+      .monitoring(monitoring)
+      .healthMetrics(healthMetrics).build()
 
     when:
     writer.start()
@@ -467,7 +479,12 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       }
     }
 
-    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitoring(monitoring).healthMetrics(healthMetrics).traceBufferSize(bufferSize).build()
+    def writer = DDAgentWriter.builder()
+      .traceAgentV05Enabled(true)
+      .traceAgentPort(agent.address.port)
+      .monitoring(monitoring)
+      .healthMetrics(healthMetrics)
+      .traceBufferSize(bufferSize).build()
     writer.start()
 
     // gate responses
@@ -560,7 +577,11 @@ class DDAgentWriterCombinedTest extends DDSpecification {
       }
     }
 
-    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitoring(monitoring).healthMetrics(healthMetrics).build()
+    def writer = DDAgentWriter.builder()
+      .traceAgentV05Enabled(true)
+      .traceAgentPort(agent.address.port)
+      .monitoring(monitoring)
+      .healthMetrics(healthMetrics).build()
     writer.start()
 
     when:
@@ -626,7 +647,11 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     }
 
     def healthMetrics = new HealthMetrics(statsd)
-    def writer = DDAgentWriter.builder().traceAgentPort(agent.address.port).monitoring(monitoring).healthMetrics(healthMetrics).build()
+    def writer = DDAgentWriter.builder()
+      .traceAgentV05Enabled(true)
+      .traceAgentPort(agent.address.port)
+      .monitoring(monitoring)
+      .healthMetrics(healthMetrics).build()
     writer.start()
 
     when:
@@ -669,7 +694,10 @@ class DDAgentWriterCombinedTest extends DDSpecification {
     }
 
     def healthMetrics = new HealthMetrics(statsd)
-    def writer = DDAgentWriter.builder().agentApi(api).monitoring(monitoring).healthMetrics(healthMetrics).build()
+    def writer = DDAgentWriter.builder()
+      .traceAgentV05Enabled(true)
+      .agentApi(api).monitoring(monitoring)
+      .healthMetrics(healthMetrics).build()
     writer.start()
 
     when:
