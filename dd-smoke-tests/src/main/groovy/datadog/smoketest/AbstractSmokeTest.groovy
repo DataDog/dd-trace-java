@@ -10,7 +10,9 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 
@@ -37,6 +39,9 @@ abstract class AbstractSmokeTest extends Specification {
   @Shared
   protected BlockingQueue<TestHttpServer.HandlerApi.RequestApi> traceRequests = new LinkedBlockingQueue<>()
 
+  @Shared
+  protected AtomicInteger traceCount = new AtomicInteger()
+
   /**
    * Will be initialized after calling {@linkplain AbstractSmokeTest#checkLog} and hold {@literal true}
    * if there are any ERROR or WARN lines in the test application log.
@@ -52,7 +57,10 @@ abstract class AbstractSmokeTest extends Specification {
   protected TestHttpServer server = httpServer {
     handlers {
       prefix("/v0.4/traces") {
-        println("Received traces: " + request.getHeader("X-Datadog-Trace-Count"))
+        def countString = request.getHeader("X-Datadog-Trace-Count")
+        int count = countString != null ? Integer.parseInt(countString) : 0
+        traceCount.addAndGet(count)
+        println("Received traces: " + countString)
         traceRequests.add(request)
         response.status(200).send()
       }
@@ -61,6 +69,7 @@ abstract class AbstractSmokeTest extends Specification {
 
   def setup() {
     traceRequests.clear()
+    traceCount.set(0)
   }
 
   def setupSpec() {
@@ -171,5 +180,19 @@ abstract class AbstractSmokeTest extends Specification {
 
   String apiKey() {
     return "01234567890abcdef123456789ABCDEF"
+  }
+
+  int waitForTraceCount(int count) {
+    long start = System.nanoTime()
+    long timeout = TimeUnit.SECONDS.toNanos(10)
+    int current = traceCount.get()
+    while (current < count) {
+      if (System.nanoTime() - start >= timeout) {
+        throw new TimeoutException("Timed out waiting for " + count + " traces. Have only received " + current + ".")
+      }
+      Thread.sleep(500)
+      current = traceCount.get()
+    }
+    return current
   }
 }
