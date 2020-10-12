@@ -1,6 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.core.DDSpan
-import spock.lang.Ignore
 
 class ScalaInstrumentationTest extends AgentTestRunner {
 
@@ -20,7 +19,6 @@ class ScalaInstrumentationTest extends AgentTestRunner {
     findSpan(trace, "bad complete").context().getParentId() == trace[0].context().getSpanId()
   }
 
-  @Ignore("this is not currently handled by the scala promise instrumentation")
   def "scala propagates across futures with no traces"() {
     setup:
     ScalaConcurrentTests scalaTest = new ScalaConcurrentTests()
