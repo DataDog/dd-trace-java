@@ -2,7 +2,6 @@ import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.java.concurrent.CallableWrapper
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
 import datadog.trace.core.DDSpan
 import io.netty.channel.DefaultEventLoopGroup
@@ -12,10 +11,6 @@ import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.util.concurrent.DefaultEventExecutorGroup
 import io.netty.util.concurrent.UnorderedThreadPoolEventExecutor
 import org.apache.tomcat.util.threads.TaskQueue
-import org.eclipse.jetty.util.component.AbstractLifeCycle
-import org.eclipse.jetty.util.thread.MonitoredQueuedThreadPool
-import org.eclipse.jetty.util.thread.QueuedThreadPool
-import org.eclipse.jetty.util.thread.ReservedThreadExecutor
 import spock.lang.Shared
 
 import java.lang.reflect.InvocationTargetException
@@ -80,11 +75,6 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     assumeTrue(poolImpl != null) // skip for Java 7 CompletableFuture, non-Linux Netty EPoll
     def pool = poolImpl
     def m = method
-    if (pool instanceof AbstractLifeCycle) {
-      ((AbstractLifeCycle)pool).start()
-    } else if (pool instanceof AbstractLifeCycle) {
-      ((AbstractLifeCycle)pool).stop()
-    }
 
     new Runnable() {
       @Override
@@ -188,11 +178,6 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAny with timeout" | invokeAnyTimeout    | Executors.unconfigurableScheduledExecutorService(Executors.newSingleThreadScheduledExecutor())
     "schedule Runnable"      | scheduleRunnable    | Executors.unconfigurableScheduledExecutorService(Executors.newSingleThreadScheduledExecutor())
     "schedule Callable"      | scheduleCallable    | Executors.unconfigurableScheduledExecutorService(Executors.newSingleThreadScheduledExecutor())
-
-    // jetty
-    "execute Runnable"       | executeRunnable     | new MonitoredQueuedThreadPool(8)
-    "execute Runnable"       | executeRunnable     | new QueuedThreadPool(8)
-    "execute Runnable"       | executeRunnable     | new ReservedThreadExecutor(Executors.newSingleThreadExecutor(), 1)
 
     // tomcat
     "execute Runnable"       | executeRunnable     | new org.apache.tomcat.util.threads.ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
@@ -319,9 +304,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     name                | method           | wrap                        | poolImpl
     "execute Runnable"  | executeRunnable  | { new RunnableWrapper(it) } | new ScheduledThreadPoolExecutor(1)
     "submit Runnable"   | submitRunnable   | { new RunnableWrapper(it) } | new ScheduledThreadPoolExecutor(1)
-    "submit Callable"   | submitCallable   | { new CallableWrapper(it) } | new ScheduledThreadPoolExecutor(1)
     "schedule Runnable" | scheduleRunnable | { new RunnableWrapper(it) } | new ScheduledThreadPoolExecutor(1)
-    "schedule Callable" | scheduleCallable | { new CallableWrapper(it) } | new ScheduledThreadPoolExecutor(1)
   }
 
   def "#poolImpl '#name' reports after canceled jobs"() {
