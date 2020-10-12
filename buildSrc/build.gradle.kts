@@ -15,8 +15,8 @@ gradlePlugin {
 
 repositories {
   mavenLocal()
-  jcenter()
   mavenCentral()
+  jcenter()
 }
 
 dependencies {
