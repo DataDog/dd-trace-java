@@ -43,6 +43,7 @@ public class Agent {
   private static ClassLoader AGENT_CLASSLOADER = null;
   private static ClassLoader JMXFETCH_CLASSLOADER = null;
   private static ClassLoader PROFILING_CLASSLOADER = null;
+  private static ClassLoader DEBUGGING_CLASSLOADER = null;
 
   public static void start(final Instrumentation inst, final URL bootstrapURL) {
     createParentClassloader(bootstrapURL);
@@ -54,7 +55,7 @@ public class Agent {
     startProfilingAgent(bootstrapURL, true);
 
     startDatadogAgent(inst, bootstrapURL);
-
+    startDebuggingAgent(inst, bootstrapURL);
     final boolean appUsingCustomLogManager = isAppUsingCustomLogManager();
 
     /*
@@ -357,6 +358,38 @@ public class Agent {
           createDelegateClassLoader("profiling", bootstrapURL, PARENT_CLASSLOADER);
     }
     return PROFILING_CLASSLOADER;
+  }
+
+  private static synchronized void startDebuggingAgent(
+      final Instrumentation inst, final URL bootstrapURL) {
+    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      final ClassLoader classLoader = getDebuggingClassloader(bootstrapURL);
+      Thread.currentThread().setContextClassLoader(classLoader);
+      final Class<?> debuggingAgentClass =
+          classLoader.loadClass("com.datadog.debugging.agent.DebuggingAgent");
+      final Method debuggingInstallerMethod =
+          debuggingAgentClass.getMethod("run", Instrumentation.class);
+      debuggingInstallerMethod.invoke(null, inst);
+    } catch (final ClassFormatError e) {
+      /*
+      Debugging is compiled for Java8. Loading it on Java7 results in ClassFormatError
+      (more specifically UnsupportedClassVersionError). Just ignore and continue when this happens.
+      */
+      log.debug("Debugging requires OpenJDK 8 or above - skipping");
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while starting debugging agent", ex);
+    } finally {
+      Thread.currentThread().setContextClassLoader(contextLoader);
+    }
+  }
+
+  private static ClassLoader getDebuggingClassloader(final URL bootstrapURL) throws Exception {
+    if (DEBUGGING_CLASSLOADER == null) {
+      DEBUGGING_CLASSLOADER =
+          createDelegateClassLoader("debugging", bootstrapURL, PARENT_CLASSLOADER);
+    }
+    return DEBUGGING_CLASSLOADER;
   }
 
   private static void configureLogger() {
