@@ -46,3 +46,7 @@ spotless {
 
 task formatCode(dependsOn: ['spotlessApply'])
 check.dependsOn 'spotlessCheck'
+
+repositories {
+  mavenCentral()
+}
