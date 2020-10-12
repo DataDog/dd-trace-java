@@ -10,7 +10,8 @@ muzzle {
     group = 'com.typesafe.akka'
     module = "akka-actor_$scalaVersion"
     versions = "[$akkaVersion,]"
-    assertInverse = true
+    // some older versions of Akka pass
+    assertInverse = false
   }
 }
 
