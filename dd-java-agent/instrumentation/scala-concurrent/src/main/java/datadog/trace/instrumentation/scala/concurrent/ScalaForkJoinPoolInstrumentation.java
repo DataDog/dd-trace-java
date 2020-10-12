@@ -1,9 +1,10 @@
 package datadog.trace.instrumentation.scala.concurrent;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -12,7 +13,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
-import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
@@ -41,19 +41,11 @@ public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Default
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
-    transformers.put(
+    return singletonMap(
         isMethod()
-            .and(named("doSubmit"))
-            .and(isPrivate())
+            .and(namedOneOf("doSubmit", "externalPush"))
             .and(takesArgument(0, named("scala.concurrent.forkjoin.ForkJoinTask"))),
         getClass().getName() + "$StartTask");
-    transformers.put(
-        isMethod()
-            .and(named("externalPush"))
-            .and(takesArgument(0, named("scala.concurrent.forkjoin.ForkJoinTask"))),
-        getClass().getName() + "$StartTask");
-    return transformers;
   }
 
   public static final class StartTask {
@@ -64,6 +56,14 @@ public final class ScalaForkJoinPoolInstrumentation extends Instrumenter.Default
         InstrumentationContext.get(ForkJoinTask.class, State.class)
             .putIfAbsent(task, State.FACTORY)
             .captureAndSetContinuation(activeScope);
+      }
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static <T> void cleanup(
+        @Advice.Argument(0) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
+      if (null != thrown) {
+        cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
       }
     }
   }

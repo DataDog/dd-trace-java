@@ -35,4 +35,11 @@ public class AdviceUtils {
       scope.close();
     }
   }
+
+  public static <T> void cancelTask(ContextStore<T, State> contextStore, final T task) {
+    State state = contextStore.get(task);
+    if (null != state) {
+      state.closeContinuation();
+    }
+  }
 }
