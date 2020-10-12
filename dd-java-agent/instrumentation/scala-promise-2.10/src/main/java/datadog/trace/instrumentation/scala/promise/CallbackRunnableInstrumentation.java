@@ -12,6 +12,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
@@ -83,21 +84,13 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Default
   public static final class Run {
     @Advice.OnMethodEnter
     public static <T> TraceScope before(@Advice.This CallbackRunnable<T> task) {
-      State state = InstrumentationContext.get(CallbackRunnable.class, State.class).get(task);
-      if (null != state) {
-        TraceScope.Continuation continuation = state.getAndResetContinuation();
-        if (null != continuation) {
-          return continuation.activate();
-        }
-      }
-      return null;
+      return AdviceUtils.startTaskScope(
+          InstrumentationContext.get(CallbackRunnable.class, State.class), task);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void after(@Advice.Enter TraceScope scope) {
-      if (null != scope) {
-        scope.close();
-      }
+      AdviceUtils.endTaskScope(scope);
     }
 
     /** CallbackRunnable was introduced in scala 2.10 */
