@@ -4,9 +4,10 @@ import datadog.trace.core.DDSpan
 import java.util.concurrent.ForkJoinPool
 
 class ForkJoinPoolPropagationTest extends AgentTestRunner {
-  def "test imbalanced recursive task propagation #parallelism FJP threads" () {
+  def "test imbalanced recursive task propagation #parallelism FJP threads (async #async)" () {
     when:
-    ForkJoinPool fjp = new ForkJoinPool(parallelism)
+    ForkJoinPool fjp = new ForkJoinPool(parallelism,
+      ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, async)
 
     Integer result = fjp.invoke(new LinearTask(depth))
 
@@ -26,26 +27,46 @@ class ForkJoinPoolPropagationTest extends AgentTestRunner {
     fjp.shutdownNow()
 
     where:
-    parallelism | depth
-    1           |    10
-    1           |    20
-    1           |    30
-    1           |    40
-    1           |    50
-    2           |    10
-    2           |    20
-    2           |    30
-    2           |    40
-    2           |    50
-    3           |    10
-    3           |    20
-    3           |    30
-    3           |    40
-    3           |    50
-    4           |    10
-    4           |    20
-    4           |    30
-    4           |    40
-    4           |    50
+    parallelism | depth    | async
+    1           |    10    | true
+    1           |    20    | true
+    1           |    30    | true
+    1           |    40    | true
+    1           |    50    | true
+    2           |    10    | true
+    2           |    20    | true
+    2           |    30    | true
+    2           |    40    | true
+    2           |    50    | true
+    3           |    10    | true
+    3           |    20    | true
+    3           |    30    | true
+    3           |    40    | true
+    3           |    50    | true
+    4           |    10    | true
+    4           |    20    | true
+    4           |    30    | true
+    4           |    40    | true
+    4           |    50    | true
+    1           |    10    | false
+    1           |    20    | false
+    1           |    30    | false
+    1           |    40    | false
+    1           |    50    | false
+    2           |    10    | false
+    2           |    20    | false
+    2           |    30    | false
+    2           |    40    | false
+    2           |    50    | false
+    3           |    10    | false
+    3           |    20    | false
+    3           |    30    | false
+    3           |    40    | false
+    3           |    50    | false
+    4           |    10    | false
+    4           |    20    | false
+    4           |    30    | false
+    4           |    40    | false
+    4           |    50    | false
   }
 }
