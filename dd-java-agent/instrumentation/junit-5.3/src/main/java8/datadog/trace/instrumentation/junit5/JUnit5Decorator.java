@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.platform.engine.TestExecutionResult;
@@ -34,9 +33,9 @@ public class JUnit5Decorator extends TestDecorator {
 
   public void onTestStart(final AgentSpan span, final String testSuite, final String testName) {
     span.setTag(DDTags.RESOURCE_NAME, testSuite + "." + testName);
-    span.setTag(Tags.TEST_SUITE, testSuite);
-    span.setTag(Tags.TEST_NAME, testName);
-    span.setTag(Tags.TEST_STATUS, TEST_PASS);
+    span.setTag(DDTags.TEST_SUITE, testSuite);
+    span.setTag(DDTags.TEST_NAME, testName);
+    span.setTag(DDTags.TEST_STATUS, TEST_PASS);
   }
 
   public void onTestFinish(final AgentSpan span, final TestExecutionResult result) {
@@ -46,14 +45,14 @@ public class JUnit5Decorator extends TestDecorator {
             throwable -> {
               span.setError(true);
               span.addThrowable(throwable);
-              span.setTag(Tags.TEST_STATUS, TEST_FAIL);
+              span.setTag(DDTags.TEST_STATUS, TEST_FAIL);
             });
   }
 
   public void onTestIgnore(
       final AgentSpan span, final String testSuite, final String testName, final String reason) {
     onTestStart(span, testSuite, testName);
-    span.setTag(Tags.TEST_STATUS, TEST_SKIP);
-    span.setTag(Tags.TEST_SKIP_REASON, reason);
+    span.setTag(DDTags.TEST_STATUS, TEST_SKIP);
+    span.setTag(DDTags.TEST_SKIP_REASON, reason);
   }
 }

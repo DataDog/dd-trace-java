@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -71,23 +72,23 @@ public abstract class TestDecorator extends BaseDecorator {
   public AgentSpan afterStart(final AgentSpan span) {
     assert span != null;
     span.setTag(Tags.SPAN_KIND, spanKind());
-    span.setTag(Tags.TEST_FRAMEWORK, testFramework());
-    span.setTag(Tags.TEST_TYPE, testType());
+    span.setTag(DDTags.TEST_FRAMEWORK, testFramework());
+    span.setTag(DDTags.TEST_TYPE, testType());
     span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
 
-    span.setTag(Tags.CI_PROVIDER_NAME, ciProviderName);
-    span.setTag(Tags.CI_PIPELINE_ID, ciPipelineId);
-    span.setTag(Tags.CI_PIPELINE_NAME, ciPipelineName);
-    span.setTag(Tags.CI_PIPELINE_NUMBER, ciPipelineNumber);
-    span.setTag(Tags.CI_PIPELINE_URL, ciPipelineUrl);
-    span.setTag(Tags.CI_JOB_URL, ciJobUrl);
-    span.setTag(Tags.CI_WORKSPACE_PATH, ciWorkspacePath);
-    span.setTag(Tags.BUILD_SOURCE_ROOT, ciWorkspacePath);
+    span.setTag(DDTags.CI_PROVIDER_NAME, ciProviderName);
+    span.setTag(DDTags.CI_PIPELINE_ID, ciPipelineId);
+    span.setTag(DDTags.CI_PIPELINE_NAME, ciPipelineName);
+    span.setTag(DDTags.CI_PIPELINE_NUMBER, ciPipelineNumber);
+    span.setTag(DDTags.CI_PIPELINE_URL, ciPipelineUrl);
+    span.setTag(DDTags.CI_JOB_URL, ciJobUrl);
+    span.setTag(DDTags.CI_WORKSPACE_PATH, ciWorkspacePath);
+    span.setTag(DDTags.BUILD_SOURCE_ROOT, ciWorkspacePath);
 
-    span.setTag(Tags.GIT_REPOSITORY_URL, gitRepositoryUrl);
-    span.setTag(Tags.GIT_COMMIT_SHA, gitCommit);
-    span.setTag(Tags.GIT_BRANCH, gitBranch);
-    span.setTag(Tags.GIT_TAG, gitTag);
+    span.setTag(DDTags.GIT_REPOSITORY_URL, gitRepositoryUrl);
+    span.setTag(DDTags.GIT_COMMIT_SHA, gitCommit);
+    span.setTag(DDTags.GIT_BRANCH, gitBranch);
+    span.setTag(DDTags.GIT_TAG, gitTag);
 
     return super.afterStart(span);
   }

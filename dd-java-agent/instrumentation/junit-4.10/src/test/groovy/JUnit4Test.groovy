@@ -1,6 +1,6 @@
 import datadog.trace.agent.test.base.TestFrameworkTest
+import datadog.trace.api.DDTags
 import datadog.trace.api.DisableTestTrace
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import datadog.trace.instrumentation.junit4.JUnit4Decorator
 import org.example.TestError
@@ -92,7 +92,7 @@ class JUnit4Test extends TestFrameworkTest {
     }
 
     where:
-    testTags = ["$Tags.TEST_SKIP_REASON": "Ignore reason in test"]
+    testTags = ["$DDTags.TEST_SKIP_REASON": "Ignore reason in test"]
   }
 
   def "test class skipped generated spans"() {
@@ -107,7 +107,7 @@ class JUnit4Test extends TestFrameworkTest {
     }
 
     where:
-    testTags = ["$Tags.TEST_SKIP_REASON": "Ignore reason in class"]
+    testTags = ["$DDTags.TEST_SKIP_REASON": "Ignore reason in class"]
   }
 
   @Override

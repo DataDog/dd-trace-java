@@ -4,6 +4,7 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import spock.lang.Shared
@@ -31,11 +32,11 @@ abstract class TestFrameworkTest extends AgentTestRunner {
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_TEST
-        "$Tags.TEST_TYPE" TestDecorator.TEST_TYPE
-        "$Tags.TEST_SUITE" testSuite
-        "$Tags.TEST_NAME" testName
-        "$Tags.TEST_FRAMEWORK" testFramework
-        "$Tags.TEST_STATUS" testStatus
+        "$DDTags.TEST_TYPE" TestDecorator.TEST_TYPE
+        "$DDTags.TEST_SUITE" testSuite
+        "$DDTags.TEST_NAME" testName
+        "$DDTags.TEST_FRAMEWORK" testFramework
+        "$DDTags.TEST_STATUS" testStatus
         if (testTags) {
           testTags.each { key, val -> tag(key, val) }
         }
@@ -45,18 +46,18 @@ abstract class TestFrameworkTest extends AgentTestRunner {
         }
 
         if (isCI) {
-          "$Tags.CI_PROVIDER_NAME" ciProviderName
-          "$Tags.CI_PIPELINE_ID" ciPipelineId
-          "$Tags.CI_PIPELINE_NAME" ciPipelineName
-          "$Tags.CI_PIPELINE_NUMBER" ciPipelineNumber
-          "$Tags.CI_PIPELINE_URL" ciPipelineUrl
-          "$Tags.CI_JOB_URL" ciJobUrl
-          "$Tags.CI_WORKSPACE_PATH" ciWorkspacePath
-          "$Tags.BUILD_SOURCE_ROOT" ciWorkspacePath
-          "$Tags.GIT_REPOSITORY_URL" gitRepositoryUrl
-          "$Tags.GIT_COMMIT_SHA" gitCommit
-          "$Tags.GIT_BRANCH" gitBranch
-          "$Tags.GIT_TAG" gitTag
+          "$DDTags.CI_PROVIDER_NAME" ciProviderName
+          "$DDTags.CI_PIPELINE_ID" ciPipelineId
+          "$DDTags.CI_PIPELINE_NAME" ciPipelineName
+          "$DDTags.CI_PIPELINE_NUMBER" ciPipelineNumber
+          "$DDTags.CI_PIPELINE_URL" ciPipelineUrl
+          "$DDTags.CI_JOB_URL" ciJobUrl
+          "$DDTags.CI_WORKSPACE_PATH" ciWorkspacePath
+          "$DDTags.BUILD_SOURCE_ROOT" ciWorkspacePath
+          "$DDTags.GIT_REPOSITORY_URL" gitRepositoryUrl
+          "$DDTags.GIT_COMMIT_SHA" gitCommit
+          "$DDTags.GIT_BRANCH" gitBranch
+          "$DDTags.GIT_TAG" gitTag
         }
 
         defaultTags()

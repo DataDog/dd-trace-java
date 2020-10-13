@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.testng;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator;
 import lombok.extern.slf4j.Slf4j;
 import org.testng.ITestResult;
@@ -32,12 +31,12 @@ public class TestNGDecorator extends TestDecorator {
         (result.getTestName() != null) ? result.getTestName() : result.getMethod().getMethodName();
 
     span.setTag(DDTags.RESOURCE_NAME, testSuite + "." + testName);
-    span.setTag(Tags.TEST_SUITE, testSuite);
-    span.setTag(Tags.TEST_NAME, testName);
+    span.setTag(DDTags.TEST_SUITE, testSuite);
+    span.setTag(DDTags.TEST_NAME, testName);
   }
 
   public void onTestSuccess(final AgentSpan span) {
-    span.setTag(Tags.TEST_STATUS, TEST_PASS);
+    span.setTag(DDTags.TEST_STATUS, TEST_PASS);
   }
 
   public void onTestFailure(final AgentSpan span, final ITestResult result) {
@@ -47,14 +46,14 @@ public class TestNGDecorator extends TestDecorator {
     }
 
     span.setError(true);
-    span.setTag(Tags.TEST_STATUS, TEST_FAIL);
+    span.setTag(DDTags.TEST_STATUS, TEST_FAIL);
   }
 
   public void onTestIgnored(final AgentSpan span, final ITestResult result) {
-    span.setTag(Tags.TEST_STATUS, TEST_SKIP);
+    span.setTag(DDTags.TEST_STATUS, TEST_SKIP);
     // Typically the way of skipping a TestNG test is throwing a SkipException
     if (result.getThrowable() != null) {
-      span.setTag(Tags.TEST_SKIP_REASON, result.getThrowable().getMessage());
+      span.setTag(DDTags.TEST_SKIP_REASON, result.getThrowable().getMessage());
     }
   }
 }
