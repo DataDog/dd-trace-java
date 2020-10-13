@@ -21,7 +21,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -37,7 +36,7 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Default {
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return extendsClass(
-            named(FutureTask.class.getName())
+            named("java.util.concurrent.FutureTask")
                 .or(nameEndsWith(".netty.util.concurrent.PromiseTask"))
                 .or(nameEndsWith("com.google.common.util.concurrent.TrustedListenableFutureTask")))
         .and(
