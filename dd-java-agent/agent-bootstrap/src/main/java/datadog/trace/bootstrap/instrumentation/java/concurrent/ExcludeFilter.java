@@ -17,6 +17,7 @@ public class ExcludeFilter {
     CALLABLE,
     FUTURE,
     FORK_JOIN_TASK,
+    RUNNABLE_FUTURE,
     EXECUTOR;
 
     public static ExcludeType fromFieldType(String typeName) {
@@ -29,6 +30,8 @@ public class ExcludeFilter {
           return FUTURE;
         case "java.util.concurrent.ForkJoinTask":
           return FORK_JOIN_TASK;
+        case "java.util.concurrent.RunnableFuture":
+          return RUNNABLE_FUTURE;
         default:
           return null;
       }

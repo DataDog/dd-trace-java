@@ -1,19 +1,26 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import akka.dispatch.forkjoin.ForkJoinTask;
 import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -28,7 +35,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @Slf4j
 @AutoService(Instrumenter.class)
-public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default {
+public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default
+    implements ExcludeFilterProvider {
 
   public AkkaForkJoinTaskInstrumentation() {
     super("java_concurrent", "akka_concurrent");
@@ -42,6 +50,22 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
     return named("akka.dispatch.forkjoin.ForkJoinTask");
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return true;
+  }
+
+  @Override
+  public Map<ExcludeFilter.ExcludeType, Set<String>> excludedClasses() {
+    return Collections.<ExcludeFilter.ExcludeType, Set<String>>singletonMap(
+        RUNNABLE_FUTURE,
+        new HashSet<>(
+            Arrays.asList(
+                "akka.dispatch.forkjoin.ForkJoinTask$AdaptedCallable",
+                "akka.dispatch.forkjoin.ForkJoinTask$AdaptedRunnable",
+                "akka.dispatch.forkjoin.ForkJoinTask$AdaptedRunnableAction")));
   }
 
   @Override
