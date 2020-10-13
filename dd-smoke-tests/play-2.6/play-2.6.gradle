@@ -6,7 +6,7 @@ ext {
   minJavaVersionForTests = JavaVersion.VERSION_1_8
 }
 
-def playVersion = "2.6.20"
+def playVersion = "2.6.25"
 def scalaVersion = System.getProperty("scala.binary.version", /* default = */ "2.12")
 
 model {
@@ -41,6 +41,12 @@ repositories {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+spotless {
+  groovy {
+    excludeJava()
+    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
+  }
+}
 
 description = 'Play Integration 2.6 Tests.'
 
@@ -49,9 +55,11 @@ dependencies {
   play "com.typesafe.play:play-logback_$scalaVersion:$playVersion"
   play "com.typesafe.play:filters-helpers_$scalaVersion:$playVersion"
   play "com.typesafe.play:play-netty-server_$scalaVersion:$playVersion"
+  play "com.typesafe.play:play-ahc-ws_$scalaVersion:$playVersion"
 
   play project(':dd-trace-api')
   play group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  play group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 
   testCompile project(':dd-smoke-tests')
 }

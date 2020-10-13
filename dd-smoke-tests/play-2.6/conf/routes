@@ -4,4 +4,4 @@
 # ~~~~
 
 # An example controller showing a sample home page
-GET     /welcome                           controllers.HomeController.doGet(id: Option[Int])
+GET     /welcome                           controllers.HomeController.doGet(id: Int ?= 0)

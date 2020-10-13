@@ -10,9 +10,4 @@ class PlayAkkaSmokeTest extends PlaySmokeTest {
   String serverProvider() {
     return "play.core.server.AkkaHttpServerProvider"
   }
-
-  @Override
-  Set<String> expectedTraces() {
-    return ["[akka-http.request[play.request]]"].toSet()
-  }
 }

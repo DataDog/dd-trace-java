@@ -34,6 +34,12 @@ class PlayNettySmokeTest extends AbstractServerSmokeTest {
 
   @Override
   ProcessBuilder createProcessBuilder() {
+    // If the server is not shut down correctly, this file can be left there and will block
+    // the start of a new test
+    def runningPid = new File("RUNNING_PID", playDirectory)
+    if (runningPid.exists()) {
+      runningPid.delete()
+    }
     ProcessBuilder processBuilder =
       new ProcessBuilder("${playDirectory}/bin/playBinary")
     processBuilder.directory(playDirectory)
