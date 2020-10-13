@@ -87,6 +87,7 @@ public abstract class TestDecorator extends BaseDecorator {
 
     span.setTag(DDTags.GIT_REPOSITORY_URL, gitRepositoryUrl);
     span.setTag(DDTags.GIT_COMMIT_SHA, gitCommit);
+    span.setTag(DDTags._GIT_COMMIT_SHA, gitCommit);
     span.setTag(DDTags.GIT_BRANCH, gitBranch);
     span.setTag(DDTags.GIT_TAG, gitTag);
 

@@ -34,6 +34,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(DDTags.BUILD_SOURCE_ROOT, "ci-workspace-path")
     1 * span.setTag(DDTags.GIT_REPOSITORY_URL, "git-repository-url")
     1 * span.setTag(DDTags.GIT_COMMIT_SHA, "git-commit")
+    1 * span.setTag(DDTags._GIT_COMMIT_SHA, "git-commit")
     1 * span.setTag(DDTags.GIT_BRANCH, "git-branch")
     1 * span.setTag(DDTags.GIT_TAG, "git-tag")
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
