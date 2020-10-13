@@ -61,28 +61,26 @@ public final class AgentTaskScheduler {
       return;
     }
 
-    if (shutdown) {
-      log.warn("Agent task scheduler is shutdown. Will not run {}", describeTask(task, target));
-      return;
-    }
-    if (worker == null) {
+    if (!shutdown && worker == null) {
       synchronized (workQueue) {
-        if (shutdown) {
-          log.warn("Agent task scheduler is shutdown. Will not run {}", describeTask(task, target));
-          return;
-        }
-        if (worker == null) {
+        if (!shutdown && worker == null) {
           try {
             worker = threadFactory.newThread(new Worker());
-            worker.start();
-          } finally {
+            // register hook after worker is assigned, but before we start it
             Runtime.getRuntime().addShutdownHook(new Shutdown());
+            worker.start();
+          } catch (final IllegalStateException e) {
+            shutdown = true; // couldn't add hook, JVM is shutting down
           }
         }
       }
     }
 
-    workQueue.offer(new PeriodicTask<>(task, target, initialDelay, period, unit));
+    if (!shutdown) {
+      workQueue.offer(new PeriodicTask<>(task, target, initialDelay, period, unit));
+    } else {
+      log.warn("Agent task scheduler is shutdown. Will not run {}", describeTask(task, target));
+    }
   }
 
   public boolean isShutdown() {
