@@ -6,7 +6,6 @@ import io.netty.channel.epoll.EpollEventLoopGroup
 import io.netty.channel.local.LocalEventLoopGroup
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.util.concurrent.DefaultEventExecutorGroup
-import io.netty.util.concurrent.UnorderedThreadPoolEventExecutor
 import spock.lang.Shared
 
 import java.lang.reflect.InvocationTargetException
@@ -25,8 +24,6 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
 
   @Shared
   EpollEventLoopGroup epollEventLoopGroup = isLinux ? new EpollEventLoopGroup(4) : null
-  @Shared
-  UnorderedThreadPoolEventExecutor unorderedThreadPoolEventExecutor = new UnorderedThreadPoolEventExecutor(4)
   @Shared
   DefaultEventExecutorGroup defaultEventExecutorGroup = new DefaultEventExecutorGroup(4)
   @Shared
@@ -86,15 +83,6 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
 
     where:
     name                     | method              | poolImpl
-    "execute Runnable"       | executeRunnable     | unorderedThreadPoolEventExecutor.next()
-    "submit Runnable"        | submitRunnable      | unorderedThreadPoolEventExecutor.next()
-    "submit Callable"        | submitCallable      | unorderedThreadPoolEventExecutor.next()
-    "invokeAll"              | invokeAll           | unorderedThreadPoolEventExecutor.next()
-    "invokeAll with timeout" | invokeAllTimeout    | unorderedThreadPoolEventExecutor.next()
-    "invokeAny"              | invokeAny           | unorderedThreadPoolEventExecutor.next()
-    "invokeAny with timeout" | invokeAnyTimeout    | unorderedThreadPoolEventExecutor.next()
-    "schedule Runnable"      | scheduleRunnable    | unorderedThreadPoolEventExecutor.next()
-    "schedule Callable"      | scheduleCallable    | unorderedThreadPoolEventExecutor.next()
 
     "execute Runnable"       | executeRunnable     | defaultEventExecutorGroup.next()
     "submit Runnable"        | submitRunnable      | defaultEventExecutorGroup.next()
@@ -193,12 +181,6 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
 
     where:
     name                     | method              | poolImpl
-
-    "submit Runnable"        | submitRunnable      | unorderedThreadPoolEventExecutor.next()
-    "submit Callable"        | submitCallable      | unorderedThreadPoolEventExecutor.next()
-    "schedule Runnable"      | scheduleRunnable    | unorderedThreadPoolEventExecutor.next()
-    "schedule Callable"      | scheduleCallable    | unorderedThreadPoolEventExecutor.next()
-
 
     "submit Runnable"        | submitRunnable      | defaultEventExecutorGroup.next()
     "submit Callable"        | submitCallable      | defaultEventExecutorGroup.next()
