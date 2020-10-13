@@ -3,7 +3,6 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.servlet3.Servlet3Decorator
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -13,6 +12,7 @@ import javax.servlet.Servlet
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.AUTH_REQUIRED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.NOT_FOUND
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -79,6 +79,20 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     addServlet(context, TIMEOUT_ERROR.path, servlet)
   }
 
+  protected void setupDispatchServlets(CONTEXT context, Class<Servlet> dispatchServlet) {
+    addServlet(context, "/dispatch" + SUCCESS.path, dispatchServlet)
+    addServlet(context, "/dispatch" + QUERY_PARAM.path, dispatchServlet)
+    addServlet(context, "/dispatch" + REDIRECT.path, dispatchServlet)
+    addServlet(context, "/dispatch" + ERROR.path, dispatchServlet)
+    addServlet(context, "/dispatch" + EXCEPTION.path, dispatchServlet)
+    addServlet(context, "/dispatch" + AUTH_REQUIRED.path, dispatchServlet)
+    addServlet(context, "/dispatch" + TIMEOUT.path, dispatchServlet)
+    addServlet(context, "/dispatch" + TIMEOUT_ERROR.path, dispatchServlet)
+
+    // NOT_FOUND will hit on the initial URL, but be dispatched to a missing url
+    addServlet(context, "/dispatch" + NOT_FOUND.path, dispatchServlet)
+  }
+
   protected ServerEndpoint lastRequest
 
   @Override
@@ -88,19 +102,14 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
   }
 
   // Almost identical to serverSpan()
-  @Override
-  void handlerSpan(TraceAssert trace, Object parent, ServerEndpoint endpoint = SUCCESS) {
-    if (!isDispatch()) {
-      throw new UnsupportedOperationException("handlerSpan not applicable for nondispatch")
-    }
-
+  void dispatchSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
       resourceName endpoint.status == 404 ? "404" : "GET ${endpoint.resolve(address).path.replace("/dispatch", "")}"
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint.errored
-      childOf(parent as DDSpan)
+      childOfPrevious()
       tags {
         "$Tags.COMPONENT" component
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
@@ -130,15 +139,97 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
     }
   }
 
+  void includeSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
+      serviceName expectedServiceName()
+      operationName "servlet.include"
+      resourceName endpoint.status == 404 ? "404" : "$endpoint.path".replace("/dispatch", "")
+      spanType DDSpanTypes.HTTP_SERVER
+      // Exceptions are always bubbled up, other statuses aren't
+      errored endpoint == EXCEPTION
+      childOfPrevious()
+      tags {
+        "$Tags.COMPONENT" "java-web-servlet-dispatcher"
+
+        // Dispatcher.include doesn't bubble the status of the included
+        "$Tags.HTTP_STATUS" Integer
+
+        if (endpoint.errored) {
+          "error.msg" { it == null || it == EXCEPTION.body }
+          "error.type" { it == null || it == Exception.name }
+          "error.stack" { it == null || it instanceof String }
+        }
+        defaultTags()
+      }
+    }
+  }
+
+  void forwardSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    trace.span {
+      serviceName expectedServiceName()
+      operationName "servlet.forward"
+      resourceName endpoint.status == 404 ? "404" : "$endpoint.path".replace("/dispatch", "")
+      spanType DDSpanTypes.HTTP_SERVER
+      errored endpoint.errored
+      childOfPrevious()
+      tags {
+        "$Tags.COMPONENT" "java-web-servlet-dispatcher"
+
+        if (endpoint.status > 0) {
+          "$Tags.HTTP_STATUS" endpoint.status
+        }
+
+        if (endpoint.errored) {
+          "error.msg" { it == null || it == EXCEPTION.body }
+          "error.type" { it == null || it == Exception.name }
+          "error.stack" { it == null || it instanceof String }
+        }
+        defaultTags()
+      }
+    }
+  }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    return endpoint == REDIRECT || endpoint == ERROR || endpoint == NOT_FOUND
+  }
+
+  void responseSpan(TraceAssert trace, ServerEndpoint endpoint) {
+    if (endpoint == REDIRECT) {
+      trace.span {
+        operationName "servlet.response"
+        resourceName "HttpServletResponse.sendRedirect"
+        childOfPrevious()
+        tags {
+          "component" "java-web-servlet-response"
+          defaultTags()
+        }
+      }
+    } else if (endpoint == ERROR || endpoint == NOT_FOUND) {
+      trace.span {
+        operationName "servlet.response"
+        resourceName "HttpServletResponse.sendError"
+        childOfPrevious()
+        tags {
+          "component" "java-web-servlet-response"
+          defaultTags()
+        }
+      }
+    } else {
+      throw new UnsupportedOperationException("responseSpan not implemented for " + endpoint)
+    }
+  }
+
   @Override
   void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
     def dispatch = isDispatch()
+    def bubblesResponse = bubblesResponse()
     trace.span {
       serviceName expectedServiceName()
       operationName expectedOperationName()
       resourceName endpoint.status == 404 ? "404" : "$method ${endpoint.resolve(address).path}"
       spanType DDSpanTypes.HTTP_SERVER
-      errored endpoint.errored
+      // Exceptions are always bubbled up, other statuses: only if bubblesResponse == true
+      errored((endpoint.errored && bubblesResponse) || endpoint == EXCEPTION)
       if (parentID != null) {
         traceId traceID
         parentId parentID
@@ -153,7 +244,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
         "$Tags.HTTP_URL" "${endpoint.resolve(address)}"
         "$Tags.HTTP_METHOD" method
         if (endpoint.status > 0) {
-          "$Tags.HTTP_STATUS" endpoint.status
+          "$Tags.HTTP_STATUS" { it == endpoint.status || !bubblesResponse }
         } else {
           "timeout" 1_000
         }
@@ -162,7 +253,7 @@ abstract class AbstractServlet3Test<SERVER, CONTEXT> extends HttpServerTest<SERV
         }
 
         if (dispatch) {
-          "servlet.path" endpoint.status == 404 ? endpoint.path : "/dispatch$endpoint.path"
+          "servlet.path" "/dispatch$endpoint.path"
           "servlet.dispatch" endpoint.path
         } else {
           "servlet.path" endpoint.path

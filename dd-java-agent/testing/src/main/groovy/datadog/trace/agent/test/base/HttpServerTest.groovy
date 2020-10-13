@@ -11,7 +11,6 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 import okhttp3.HttpUrl
@@ -108,6 +107,20 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 
   boolean hasHandlerSpan() {
     false
+  }
+
+  boolean hasResponseSpan(ServerEndpoint endpoint) {
+    false
+  }
+
+  boolean bubblesResponse() {
+    // Some things like javax.servlet.RequestDispatcher.include() don't bubble headers or response codes to the
+    // parent request.  This is specified in the spec
+    true
+  }
+
+  int spanCount(ServerEndpoint endpoint) {
+    return 2 + (hasHandlerSpan() ? 1 : 0) + (hasResponseSpan(endpoint) ? 1 : 0)
   }
 
   /** Return the handler span's name */
@@ -240,17 +253,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     and:
     cleanAndAssertTraces(count) {
       (1..count).eachWithIndex { val, i ->
-        if (hasHandlerSpan()) {
-          trace(3) {
-            sortSpansByStart()
-            serverSpan(it)
-            handlerSpan(it, span(0))
-            controllerSpan(it, span(1))
+        trace(spanCount(SUCCESS)) {
+          sortSpansByStart()
+          serverSpan(it)
+          if (hasHandlerSpan()) {
+            handlerSpan(it)
           }
-        } else {
-          trace(2) {
-            serverSpan(it)
-            controllerSpan(it, span(0))
+          controllerSpan(it)
+          if (hasResponseSpan(SUCCESS)) {
+            responseSpan(it, SUCCESS)
           }
         }
       }
@@ -278,17 +289,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 
     and:
     cleanAndAssertTraces(1) {
-      if (hasHandlerSpan()) {
-        trace(3) {
-          sortSpansByStart()
-          serverSpan(it, traceId, parentId)
-          handlerSpan(it, span(0))
-          controllerSpan(it, span(1))
+      trace(spanCount(SUCCESS)) {
+        sortSpansByStart()
+        serverSpan(it, traceId, parentId, method)
+        if (hasHandlerSpan()) {
+          handlerSpan(it)
         }
-      } else {
-        trace(2) {
-          serverSpan(it, traceId, parentId)
-          controllerSpan(it, span(0))
+        controllerSpan(it)
+        if (hasResponseSpan(SUCCESS)) {
+          responseSpan(it, SUCCESS)
         }
       }
     }
@@ -311,17 +320,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 
     and:
     cleanAndAssertTraces(1) {
-      if (hasHandlerSpan()) {
-        trace(3) {
-          sortSpansByStart()
-          serverSpan(it, null, null, "GET", endpoint)
-          handlerSpan(it, span(0), endpoint)
-          controllerSpan(it, span(1))
+      trace(spanCount(endpoint)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, endpoint)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, endpoint)
         }
-      } else {
-        trace(2) {
-          serverSpan(it, null, null, "GET", endpoint)
-          controllerSpan(it, span(0))
+        controllerSpan(it)
+        if (hasResponseSpan(endpoint)) {
+          responseSpan(it, endpoint)
         }
       }
     }
@@ -344,17 +351,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 
     and:
     cleanAndAssertTraces(1) {
-      if (hasHandlerSpan()) {
-        trace(3) {
-          sortSpansByStart()
-          serverSpan(it, null, null, method, PATH_PARAM)
-          handlerSpan(it, span(0), PATH_PARAM)
-          controllerSpan(it, span(1))
+      trace(spanCount(PATH_PARAM)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, PATH_PARAM)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, PATH_PARAM)
         }
-      } else {
-        trace(2) {
-          serverSpan(it, null, null, method, PATH_PARAM)
-          controllerSpan(it, span(0))
+        controllerSpan(it)
+        if (hasResponseSpan(PATH_PARAM)) {
+          responseSpan(it, PATH_PARAM)
         }
       }
     }
@@ -381,17 +386,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 
     and:
     cleanAndAssertTraces(1) {
-      if (hasHandlerSpan()) {
-        trace(3) {
-          sortSpansByStart()
-          serverSpan(it, traceId, parentId)
-          handlerSpan(it, span(0))
-          controllerSpan(it, span(1))
+      trace(spanCount(SUCCESS)) {
+        sortSpansByStart()
+        serverSpan(it, traceId, parentId)
+        if (hasHandlerSpan()) {
+          handlerSpan(it)
         }
-      } else {
-        trace(2) {
-          serverSpan(it, traceId, parentId)
-          controllerSpan(it, span(0))
+        controllerSpan(it)
+        if (hasResponseSpan(SUCCESS)) {
+          responseSpan(it, SUCCESS)
         }
       }
     }
@@ -407,24 +410,25 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     def response = client.newCall(request).execute()
 
     expect:
-    response.code() == REDIRECT.status
-    response.header("location") == REDIRECT.body ||
-      response.header("location") == "${address.resolve(REDIRECT.body)}"
+    if (bubblesResponse()) {
+      assert response.code() == REDIRECT.status
+      assert response.header("location") == REDIRECT.body ||
+        response.header("location") == "${address.resolve(REDIRECT.body)}"
+    }
+
     response.body().contentLength() < 1 || redirectHasBody()
 
     and:
     cleanAndAssertTraces(1) {
-      if (hasHandlerSpan()) {
-        trace(3) {
-          sortSpansByStart()
-          serverSpan(it, null, null, method, REDIRECT)
-          handlerSpan(it, span(0), REDIRECT)
-          controllerSpan(it, span(1))
+      trace(spanCount(REDIRECT)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, REDIRECT)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, REDIRECT)
         }
-      } else {
-        trace(2) {
-          serverSpan(it, null, null, method, REDIRECT)
-          controllerSpan(it, span(0))
+        controllerSpan(it)
+        if (hasResponseSpan(REDIRECT)) {
+          responseSpan(it, REDIRECT)
         }
       }
     }
@@ -440,22 +444,22 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     def response = client.newCall(request).execute()
 
     expect:
-    response.code() == ERROR.status
-    response.body().string() == ERROR.body
+    if (bubblesResponse()) {
+      response.code() == ERROR.status
+      response.body().string() == ERROR.body
+    }
 
     and:
     cleanAndAssertTraces(1) {
-      if (hasHandlerSpan()) {
-        trace(3) {
-          sortSpansByStart()
-          serverSpan(it, null, null, method, ERROR)
-          handlerSpan(it, span(0), ERROR)
-          controllerSpan(it, span(1))
+      trace(spanCount(ERROR)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, ERROR)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, ERROR)
         }
-      } else {
-        trace(2) {
-          serverSpan(it, null, null, method, ERROR)
-          controllerSpan(it, span(0))
+        controllerSpan(it)
+        if (hasResponseSpan(ERROR)) {
+          responseSpan(it, ERROR)
         }
       }
     }
@@ -479,17 +483,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 
     and:
     cleanAndAssertTraces(1) {
-      if (hasHandlerSpan()) {
-        trace(3) {
-          sortSpansByStart()
-          serverSpan(it, null, null, method, EXCEPTION)
-          handlerSpan(it, span(0), EXCEPTION)
-          controllerSpan(it, span(1), EXCEPTION.body)
+      trace(spanCount(EXCEPTION)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, EXCEPTION)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, EXCEPTION)
         }
-      } else {
-        trace(2) {
-          serverSpan(it, null, null, method, EXCEPTION)
-          controllerSpan(it, span(0), EXCEPTION.body)
+        controllerSpan(it, EXCEPTION.body)
+        if (hasResponseSpan(EXCEPTION)) {
+          responseSpan(it, EXCEPTION)
         }
       }
     }
@@ -510,15 +512,14 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 
     and:
     cleanAndAssertTraces(1) {
-      if (hasHandlerSpan()) {
-        trace(2) {
-          sortSpansByStart()
-          serverSpan(it, null, null, method, NOT_FOUND)
-          handlerSpan(it, span(0), NOT_FOUND)
+      trace(spanCount(NOT_FOUND) - 1) { // no controller span
+        sortSpansByStart()
+        serverSpan(it, null, null, method, NOT_FOUND)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, NOT_FOUND)
         }
-      } else {
-        trace(1) {
-          serverSpan(it, null, null, method, NOT_FOUND)
+        if (hasResponseSpan(NOT_FOUND)) {
+          responseSpan(it, NOT_FOUND)
         }
       }
     }
@@ -542,17 +543,15 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 
     and:
     cleanAndAssertTraces(1) {
-      if (hasHandlerSpan()) {
-        trace(3) {
-          sortSpansByStart()
-          serverSpan(it, null, null, method, TIMEOUT)
-          handlerSpan(it, span(0), TIMEOUT)
-          controllerSpan(it, span(1))
+      trace(spanCount(TIMEOUT)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, TIMEOUT)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, TIMEOUT)
         }
-      } else {
-        trace(2) {
-          serverSpan(it, null, null, method, TIMEOUT)
-          controllerSpan(it, span(0))
+        controllerSpan(it)
+        if (hasResponseSpan(TIMEOUT)) {
+          responseSpan(it, TIMEOUT)
         }
       }
     }
@@ -569,22 +568,22 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     def response = client.newCall(request).execute()
 
     expect:
-    response.code() == 500
+    if (bubblesResponse()) {
+      assert response.code() == 500
+    }
     response.body().contentLength() == 0
 
     and:
     cleanAndAssertTraces(1) {
-      if (hasHandlerSpan()) {
-        trace(3) {
-          sortSpansByStart()
-          serverSpan(it, null, null, method, TIMEOUT_ERROR)
-          handlerSpan(it, span(0), TIMEOUT_ERROR)
-          controllerSpan(it, span(1))
+      trace(spanCount(TIMEOUT_ERROR)) {
+        sortSpansByStart()
+        serverSpan(it, null, null, method, TIMEOUT_ERROR)
+        if (hasHandlerSpan()) {
+          handlerSpan(it, TIMEOUT_ERROR)
         }
-      } else {
-        trace(2) {
-          serverSpan(it, null, null, method, TIMEOUT_ERROR)
-          controllerSpan(it, span(0))
+        controllerSpan(it)
+        if (hasResponseSpan(TIMEOUT_ERROR)) {
+          responseSpan(it, TIMEOUT_ERROR)
         }
       }
     }
@@ -644,13 +643,13 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     assertTraces(size, spec)
   }
 
-  void controllerSpan(TraceAssert trace, Object parent, String errorMessage = null) {
+  void controllerSpan(TraceAssert trace, String errorMessage = null) {
     trace.span {
       serviceName expectedServiceName()
       operationName "controller"
       resourceName "controller"
       errored errorMessage != null
-      childOf(parent as DDSpan)
+      childOfPrevious()
       tags {
         if (errorMessage) {
           errorTags(Exception, errorMessage)
@@ -663,8 +662,12 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
     }
   }
 
-  void handlerSpan(TraceAssert trace, Object parent, ServerEndpoint endpoint = SUCCESS) {
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     throw new UnsupportedOperationException("handlerSpan not implemented in " + getClass().name)
+  }
+
+  void responseSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
+    throw new UnsupportedOperationException("responseSpan not implemented in " + getClass().name)
   }
 
   // parent span must be cast otherwise it breaks debugging classloading (junit loads it early)

@@ -20,13 +20,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import java.util.Map;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -111,7 +112,12 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
 
       final String target =
           InstrumentationContext.get(RequestDispatcher.class, String.class).get(dispatcher);
-      span.setTag(DDTags.RESOURCE_NAME, target);
+      span.setResourceName(target);
+      span.setSpanType(InternalSpanTypes.HTTP_SERVER);
+
+      if (servletSpan != null) {
+        servletSpan.setTag("servlet.dispatch", target);
+      }
 
       // In case we lose context, inject trace into to the request.
       propagate().inject(span, request, SETTER);
@@ -130,6 +136,7 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
         @Advice.Enter final AgentScope scope,
         @Advice.Local("_requestSpan") final Object requestSpan,
         @Advice.Argument(0) final ServletRequest request,
+        @Advice.Argument(1) final ServletResponse response,
         @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
@@ -140,6 +147,7 @@ public final class RequestDispatcherInstrumentation extends Instrumenter.Default
         request.setAttribute(DD_SPAN_ATTRIBUTE, requestSpan);
       }
 
+      DECORATE.onResponse(scope.span(), response, throwable);
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();

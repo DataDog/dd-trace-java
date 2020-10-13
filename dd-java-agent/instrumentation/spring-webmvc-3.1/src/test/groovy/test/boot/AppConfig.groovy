@@ -8,7 +8,8 @@ import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletCon
 import org.springframework.context.annotation.Bean
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
 
-@SpringBootApplication
+// Component scan defeats the purpose of configuring with specific classes
+@SpringBootApplication(scanBasePackages = "doesnotexist")
 class AppConfig extends WebMvcConfigurerAdapter {
 
   @Bean

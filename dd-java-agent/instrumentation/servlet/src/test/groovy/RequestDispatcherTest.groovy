@@ -1,4 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
+import datadog.trace.api.DDSpanTypes
 import datadog.trace.core.DDSpan
 
 import javax.servlet.ServletException
@@ -50,6 +51,7 @@ class RequestDispatcherTest extends AgentTestRunner {
         span {
           operationName "servlet.$operation"
           resourceName target
+          spanType DDSpanTypes.HTTP_SERVER
           childOf span(0)
           tags {
             "component" "java-web-servlet-dispatcher"
@@ -102,6 +104,7 @@ class RequestDispatcherTest extends AgentTestRunner {
         span {
           operationName "servlet.$operation"
           resourceName target
+          spanType DDSpanTypes.HTTP_SERVER
           childOf span(0)
           errored true
           tags {

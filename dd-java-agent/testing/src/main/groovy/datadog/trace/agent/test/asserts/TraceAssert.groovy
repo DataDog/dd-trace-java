@@ -51,7 +51,12 @@ class TraceAssert {
       throw new ConcurrentModificationException("Trace modified during assertion")
     }
     assertedIndexes.add(index)
-    assertSpan(trace.get(index), spec)
+    if (index > 0) {
+      assertSpan(trace.get(index), spec, trace.get(index - 1))
+    } else {
+      assertSpan(trace.get(index), spec)
+    }
+
   }
 
   void assertSpansAllVerified() {

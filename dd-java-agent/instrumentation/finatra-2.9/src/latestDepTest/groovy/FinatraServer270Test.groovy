@@ -9,7 +9,6 @@ import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.finatra.FinatraDecorator
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
@@ -90,7 +89,7 @@ class FinatraServer270Test extends HttpServerTest<HttpServer> {
     return "finatra.request"
   }
 
-  void handlerSpan(TraceAssert trace, Object parent, ServerEndpoint endpoint = SUCCESS) {
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     def errorEndpoint = endpoint == EXCEPTION || endpoint == ERROR
     trace.span {
       serviceName expectedServiceName()
@@ -98,7 +97,7 @@ class FinatraServer270Test extends HttpServerTest<HttpServer> {
       resourceName "FinatraController"
       spanType DDSpanTypes.HTTP_SERVER
       errored errorEndpoint
-      childOf(parent as DDSpan)
+      childOfPrevious()
       tags {
         "$Tags.COMPONENT" FinatraDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER

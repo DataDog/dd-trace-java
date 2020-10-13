@@ -12,16 +12,19 @@ import static datadog.trace.agent.test.asserts.MetricsAssert.assertMetrics
 
 class SpanAssert {
   private final DDSpan span
+  private final DDSpan previous
   private final checked = [:]
 
-  private SpanAssert(span) {
+  private SpanAssert(span, DDSpan previous) {
     this.span = span
+    this.previous = previous
   }
 
   static void assertSpan(DDSpan span,
                          @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.SpanAssert'])
-                         @DelegatesTo(value = SpanAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
-    def asserter = new SpanAssert(span)
+                         @DelegatesTo(value = SpanAssert, strategy = Closure.DELEGATE_FIRST) Closure spec,
+                         DDSpan previous = null) {
+    def asserter = new SpanAssert(span, previous)
     asserter.assertSpan spec
   }
 
@@ -119,6 +122,11 @@ class SpanAssert {
     checked.parentId = true
     assert span.traceId == parent.traceId
     checked.traceId = true
+  }
+
+  def childOfPrevious() {
+    assert previous != null
+    childOf(previous)
   }
 
   def threadNameStartsWith(String threadName) {

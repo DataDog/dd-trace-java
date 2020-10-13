@@ -5,7 +5,6 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator
 import datadog.trace.instrumentation.play23.PlayHttpServerDecorator
 import play.api.test.TestServer
@@ -50,13 +49,13 @@ class PlayServerTest extends HttpServerTest<TestServer> {
   }
 
   @Override
-  void handlerSpan(TraceAssert trace, Object parent, ServerEndpoint endpoint = SUCCESS) {
+  void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     trace.span {
       serviceName expectedServiceName()
       operationName "play.request"
       spanType DDSpanTypes.HTTP_SERVER
       errored endpoint == ERROR || endpoint == EXCEPTION
-      childOf(parent as DDSpan)
+      childOfPrevious()
       tags {
         "$Tags.COMPONENT" PlayHttpServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER

@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -71,9 +72,10 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Default {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope nameResourceAndStartSpan(
         @Advice.Argument(0) final HttpServletRequest request,
-        @Advice.Argument(2) final Object handler) {
+        @Advice.Argument(2) final Object handler,
+        @Advice.Local("_parentSpan") Object parentSpan) {
       // Name the parent span based on the matching pattern
-      final Object parentSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
+      parentSpan = request.getAttribute(DD_SPAN_ATTRIBUTE);
       if (parentSpan instanceof AgentSpan) {
         DECORATE.onRequest((AgentSpan) parentSpan, request);
       }
@@ -96,10 +98,17 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Default {
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Argument(1) HttpServletResponse response,
+        @Advice.Local("_parentSpan") Object parentSpan,
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
+      if (parentSpan instanceof AgentSpan) {
+        DECORATE.onResponse((AgentSpan) parentSpan, response);
+      }
+
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();
