@@ -39,6 +39,8 @@ include ':dd-java-agent:agent-profiling:profiling-controller-openjdk'
 include ':dd-java-agent:agent-profiling:profiling-uploader'
 include ':dd-java-agent:agent-profiling:profiling-testing'
 
+include ':dd-java-agent:agent-debugging'
+
 // misc
 include ':dd-java-agent:testing'
 include ':utils:container-utils'

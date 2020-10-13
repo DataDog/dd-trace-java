@@ -84,6 +84,9 @@ project(':dd-java-agent:agent-jmxfetch').afterEvaluate {
 project(':dd-java-agent:agent-profiling').afterEvaluate {
   includeShadowJar(it.tasks.shadowJar, 'profiling')
 }
+project(':dd-java-agent:agent-debugging').afterEvaluate {
+  includeShadowJar(it.tasks.shadowJar, 'debugging')
+}
 
 task sharedShadowJar(type: ShadowJar) {
   configurations = [project.configurations.sharedShadowInclude]
