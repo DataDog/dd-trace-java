@@ -1,23 +1,27 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static java.util.Collections.singletonMap;
 import static java.util.Collections.unmodifiableMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -32,7 +36,17 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return hasInterface(named("java.util.concurrent.RunnableFuture"));
+    return extendsClass(
+            named(FutureTask.class.getName())
+                .or(nameEndsWith(".netty.util.concurrent.PromiseTask"))
+                .or(nameEndsWith("com.google.common.util.concurrent.TrustedListenableFutureTask")))
+        .and(
+            new ElementMatcher.Junction.AbstractBase<TypeDescription>() {
+              @Override
+              public boolean matches(TypeDescription target) {
+                return !ExcludeFilter.exclude(RUNNABLE_FUTURE, target.getName());
+              }
+            });
   }
 
   @Override
@@ -52,6 +66,7 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Default {
   }
 
   public static final class Construct {
+
     @Advice.OnMethodExit
     public static <T> void captureScope(@Advice.This RunnableFuture<T> task) {
       TraceScope activeScope = activeScope();
