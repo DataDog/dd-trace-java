@@ -18,6 +18,10 @@ excludedClassesCoverage += [
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentTrace",
   "datadog.trace.bootstrap.instrumentation.api.ScopeSource",
   "datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes",
+  "datadog.trace.api.exec.AgentTaskScheduler",
+  "datadog.trace.api.exec.AgentTaskScheduler.PeriodicTask",
+  "datadog.trace.api.exec.DaemonThreadFactory",
+  "datadog.trace.api.exec.DaemonThreadFactory.1",
 ]
 
 dependencies {
