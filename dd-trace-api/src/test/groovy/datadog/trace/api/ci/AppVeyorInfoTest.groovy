@@ -46,6 +46,7 @@ class AppVeyorInfoTest extends CIProviderInfoTest {
     where:
     appveyorWorkspace | ciInfoWorkspace       | appveyorProvider | appveyorBranch           | appveyorPRBranch | appveyorTag             | ciInfoRepository                            | ciInfoCommit           | ciInfoBranch  | ciInfoTag
     "/foo/bar"        | "/foo/bar"            | "github"         | "master"                 | null             | null                    | "https://github.com/appveyor-repo-name.git" | "appveyor-repo-commit" | "master"      | null
+    "/foo/bar"        | "/foo/bar"            | "github"         | "master"                 | ""               | null                    | "https://github.com/appveyor-repo-name.git" | "appveyor-repo-commit" | "master"      | null
     "foo/bar"         | "foo/bar"             | "github"         | "master"                 | null             | null                    | "https://github.com/appveyor-repo-name.git" | "appveyor-repo-commit" | "master"      | null
     "/foo/bar~"       | "/foo/bar~"           | "github"         | "master"                 | null             | null                    | "https://github.com/appveyor-repo-name.git" | "appveyor-repo-commit" | "master"      | null
     "/foo/~/bar"      | "/foo/~/bar"          | "github"         | "master"                 | null             | null                    | "https://github.com/appveyor-repo-name.git" | "appveyor-repo-commit" | "master"      | null

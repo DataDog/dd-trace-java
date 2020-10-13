@@ -55,7 +55,7 @@ class AppVeyorInfo extends CIProviderInfo {
   }
 
   private String buildGitBranch(final String repoProvider, final String gitTag) {
-    if (gitTag != null && !gitTag.isEmpty()) {
+    if (gitTag != null) {
       return null;
     }
 

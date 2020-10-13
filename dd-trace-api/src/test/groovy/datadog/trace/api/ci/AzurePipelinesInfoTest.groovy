@@ -54,6 +54,10 @@ class AzurePipelinesInfoTest extends CIProviderInfoTest {
     where:
     azureWorkspace | ciInfoWorkspace       | azureRepo | azurePRRepo | ciInfoRepo | azureBranch              | azurePRBranch   | ciInfoBranch  | ciInfoTag | azureCommit | azurePRCommit | ciInfoCommit
     "/foo/bar"     | "/foo/bar"            | "sample"  | null        | "sample"   | "master"                 | null            | "master"      | null      | "commit"    | null          | "commit"
+    "/foo/bar"     | "/foo/bar"            | "sample"  | ""          | "sample"   | "master"                 | null            | "master"      | null      | "commit"    | null          | "commit"
+    "/foo/bar"     | "/foo/bar"            | "sample"  | "sample2"   | "sample2"  | "master"                 | null            | "master"      | null      | "commit"    | null          | "commit"
+    "/foo/bar"     | "/foo/bar"            | "sample"  | null        | "sample"   | "master"                 | ""              | "master"      | null      | "commit"    | null          | "commit"
+    "/foo/bar"     | "/foo/bar"            | "sample"  | null        | "sample"   | "master"                 | null            | "master"      | null      | "commit"    | ""            | "commit"
     "foo/bar"      | "foo/bar"             | "sample"  | null        | "sample"   | "origin/master"          | null            | "master"      | null      | "commit"    | null          | "commit"
     "/foo/bar~"    | "/foo/bar~"           | "sample"  | null        | "sample"   | "origin/master"          | null            | "master"      | null      | "commit"    | null          | "commit"
     "/foo/~/bar"   | "/foo/~/bar"          | "sample"  | null        | "sample"   | "origin/master"          | null            | "master"      | null      | "commit"    | null          | "commit"

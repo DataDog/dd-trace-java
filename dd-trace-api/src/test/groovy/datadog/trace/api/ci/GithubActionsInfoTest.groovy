@@ -45,6 +45,7 @@ class GithubActionsInfoTest extends CIProviderInfoTest {
     where:
     ghactionsWorkspace | ciInfoWorkspace       | ghactionsBranch          | ghactionsPRBranch          | ciInfoBranch    | ciInfoTag
     "/foo/bar"         | "/foo/bar"            | "master"                 | null                       | "master"        | null
+    "/foo/bar"         | "/foo/bar"            | "master"                 | ""                         | "master"        | null
     "foo/bar"          | "foo/bar"             | "master"                 | null                       | "master"        | null
     "/foo/bar~"        | "/foo/bar~"           | "master"                 | null                       | "master"        | null
     "/foo/~/bar"       | "/foo/~/bar"          | "master"                 | null                       | "master"        | null

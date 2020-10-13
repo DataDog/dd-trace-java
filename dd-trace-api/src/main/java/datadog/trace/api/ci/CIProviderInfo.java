@@ -84,7 +84,7 @@ public abstract class CIProviderInfo {
 
   protected String normalizeRef(final String rawRef) {
     if (rawRef == null || rawRef.isEmpty()) {
-      return rawRef;
+      return null;
     }
 
     String ref = rawRef;
@@ -103,7 +103,7 @@ public abstract class CIProviderInfo {
 
   protected String filterSensitiveInfo(final String urlStr) {
     if (urlStr == null || urlStr.isEmpty()) {
-      return urlStr;
+      return null;
     }
 
     try {

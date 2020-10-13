@@ -52,5 +52,6 @@ abstract class CIProviderInfoTest extends DDSpecification {
     GHACTIONS     | GithubActionsInfo
     BITBUCKET     | BitBucketInfo
     BUILDKITE     | BuildkiteInfo
+    "none"        | NoopCIInfo
   }
 }
