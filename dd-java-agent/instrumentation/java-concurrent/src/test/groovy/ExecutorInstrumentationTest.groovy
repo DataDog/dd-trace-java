@@ -4,12 +4,6 @@ import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
 import datadog.trace.core.DDSpan
-import io.netty.channel.DefaultEventLoopGroup
-import io.netty.channel.epoll.EpollEventLoopGroup
-import io.netty.channel.local.LocalEventLoopGroup
-import io.netty.channel.nio.NioEventLoopGroup
-import io.netty.util.concurrent.DefaultEventExecutorGroup
-import io.netty.util.concurrent.UnorderedThreadPoolEventExecutor
 import org.apache.tomcat.util.threads.TaskQueue
 import spock.lang.Shared
 
@@ -35,10 +29,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 import static org.junit.Assume.assumeTrue
 
 class ExecutorInstrumentationTest extends AgentTestRunner {
-
-  @Shared
-  boolean isLinux = System.getProperty("os.name").toLowerCase().contains("linux")
-
   static {
     ConfigUtils.updateConfig {
       System.setProperty("dd.trace.executors", "ExecutorInstrumentationTest\$CustomThreadPoolExecutor")
@@ -207,68 +197,6 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     "schedule Runnable"      | scheduleRunnable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     "schedule Callable"      | scheduleCallable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
 
-    // netty
-    "execute Runnable"       | executeRunnable     | new UnorderedThreadPoolEventExecutor(1).next()
-    "submit Runnable"        | submitRunnable      | new UnorderedThreadPoolEventExecutor(1).next()
-    "submit Callable"        | submitCallable      | new UnorderedThreadPoolEventExecutor(1).next()
-    "invokeAll"              | invokeAll           | new UnorderedThreadPoolEventExecutor(1).next()
-    "invokeAll with timeout" | invokeAllTimeout    | new UnorderedThreadPoolEventExecutor(1).next()
-    "invokeAny"              | invokeAny           | new UnorderedThreadPoolEventExecutor(1).next()
-    "invokeAny with timeout" | invokeAnyTimeout    | new UnorderedThreadPoolEventExecutor(1).next()
-    "schedule Runnable"      | scheduleRunnable    | new UnorderedThreadPoolEventExecutor(1).next()
-    "schedule Callable"      | scheduleCallable    | new UnorderedThreadPoolEventExecutor(1).next()
-
-    "execute Runnable"       | executeRunnable     | new DefaultEventExecutorGroup(1).next()
-    "submit Runnable"        | submitRunnable      | new DefaultEventExecutorGroup(1).next()
-    "submit Callable"        | submitCallable      | new DefaultEventExecutorGroup(1).next()
-    "invokeAll"              | invokeAll           | new DefaultEventExecutorGroup(1).next()
-    "invokeAll with timeout" | invokeAllTimeout    | new DefaultEventExecutorGroup(1).next()
-    "invokeAny"              | invokeAny           | new DefaultEventExecutorGroup(1).next()
-    "invokeAny with timeout" | invokeAnyTimeout    | new DefaultEventExecutorGroup(1).next()
-    "schedule Runnable"      | scheduleRunnable    | new DefaultEventExecutorGroup(1).next()
-    "schedule Callable"      | scheduleCallable    | new DefaultEventExecutorGroup(1).next()
-
-    "execute Runnable"       | executeRunnable     | new DefaultEventLoopGroup(1).next()
-    "submit Runnable"        | submitRunnable      | new DefaultEventLoopGroup(1).next()
-    "submit Callable"        | submitCallable      | new DefaultEventLoopGroup(1).next()
-    "invokeAll"              | invokeAll           | new DefaultEventLoopGroup(1).next()
-    "invokeAll with timeout" | invokeAllTimeout    | new DefaultEventLoopGroup(1).next()
-    "invokeAny"              | invokeAny           | new DefaultEventLoopGroup(1).next()
-    "invokeAny with timeout" | invokeAnyTimeout    | new DefaultEventLoopGroup(1).next()
-    "schedule Runnable"      | scheduleRunnable    | new DefaultEventLoopGroup(1).next()
-    "schedule Callable"      | scheduleCallable    | new DefaultEventLoopGroup(1).next()
-
-    "execute Runnable"       | executeRunnable     | new NioEventLoopGroup(1).next()
-    "submit Runnable"        | submitRunnable      | new NioEventLoopGroup(1).next()
-    "submit Callable"        | submitCallable      | new NioEventLoopGroup(1).next()
-    "invokeAll"              | invokeAll           | new NioEventLoopGroup(1).next()
-    "invokeAll with timeout" | invokeAllTimeout    | new NioEventLoopGroup(1).next()
-    "invokeAny"              | invokeAny           | new NioEventLoopGroup(1).next()
-    "invokeAny with timeout" | invokeAnyTimeout    | new NioEventLoopGroup(1).next()
-    "schedule Runnable"      | scheduleRunnable    | new NioEventLoopGroup(1).next()
-    "schedule Callable"      | scheduleCallable    | new NioEventLoopGroup(1).next()
-
-    "execute Runnable"       | executeRunnable     | epollExecutor()
-    "submit Runnable"        | submitRunnable      | epollExecutor()
-    "submit Callable"        | submitCallable      | epollExecutor()
-    "invokeAll"              | invokeAll           | epollExecutor()
-    "invokeAll with timeout" | invokeAllTimeout    | epollExecutor()
-    "invokeAny"              | invokeAny           | epollExecutor()
-    "invokeAny with timeout" | invokeAnyTimeout    | epollExecutor()
-    "schedule Runnable"      | scheduleRunnable    | epollExecutor()
-    "schedule Callable"      | scheduleCallable    | epollExecutor()
-
-    // ignore deprecation
-    "execute Runnable"       | executeRunnable     | new LocalEventLoopGroup(1).next()
-    "submit Runnable"        | submitRunnable      | new LocalEventLoopGroup(1).next()
-    "submit Callable"        | submitCallable      | new LocalEventLoopGroup(1).next()
-    "invokeAll"              | invokeAll           | new LocalEventLoopGroup(1).next()
-    "invokeAll with timeout" | invokeAllTimeout    | new LocalEventLoopGroup(1).next()
-    "invokeAny"              | invokeAny           | new LocalEventLoopGroup(1).next()
-    "invokeAny with timeout" | invokeAnyTimeout    | new LocalEventLoopGroup(1).next()
-    "schedule Runnable"      | scheduleRunnable    | new LocalEventLoopGroup(1).next()
-    "schedule Callable"      | scheduleCallable    | new LocalEventLoopGroup(1).next()
-
   }
 
   def "#poolImpl '#name' wraps"() {
@@ -396,42 +324,6 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     "submit Callable"        | submitCallable      | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     "schedule Runnable"      | scheduleRunnable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
     "schedule Callable"      | scheduleCallable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
-
-    // netty
-    "submit Runnable"        | submitRunnable      | new UnorderedThreadPoolEventExecutor(1).next()
-    "submit Callable"        | submitCallable      | new UnorderedThreadPoolEventExecutor(1).next()
-    "schedule Runnable"      | scheduleRunnable    | new UnorderedThreadPoolEventExecutor(1).next()
-    "schedule Callable"      | scheduleCallable    | new UnorderedThreadPoolEventExecutor(1).next()
-
-    "submit Runnable"        | submitRunnable      | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
-    "submit Callable"        | submitCallable      | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
-
-    // Scheduled executor has additional methods and also may get disabled because it wraps tasks
-    "submit Runnable"        | submitRunnable      | new DefaultEventExecutorGroup(1).next()
-    "submit Callable"        | submitCallable      | new DefaultEventExecutorGroup(1).next()
-    "schedule Runnable"      | scheduleRunnable    | new DefaultEventExecutorGroup(1).next()
-    "schedule Callable"      | scheduleCallable    | new DefaultEventExecutorGroup(1).next()
-
-    "submit Runnable"        | submitRunnable      | new DefaultEventLoopGroup(1).next()
-    "submit Callable"        | submitCallable      | new DefaultEventLoopGroup(1).next()
-    "schedule Runnable"      | scheduleRunnable    | new DefaultEventLoopGroup(1).next()
-    "schedule Callable"      | scheduleCallable    | new DefaultEventLoopGroup(1).next()
-
-    "submit Runnable"        | submitRunnable      | new NioEventLoopGroup(1).next()
-    "submit Callable"        | submitCallable      | new NioEventLoopGroup(1).next()
-    "schedule Runnable"      | scheduleRunnable    | new NioEventLoopGroup(1).next()
-    "schedule Callable"      | scheduleCallable    | new NioEventLoopGroup(1).next()
-
-    "submit Runnable"        | submitRunnable      | epollExecutor()
-    "submit Callable"        | submitCallable      | epollExecutor()
-    "schedule Runnable"      | scheduleRunnable    | epollExecutor()
-    "schedule Callable"      | scheduleCallable    | epollExecutor()
-
-    // ignore deprecation
-    "submit Runnable"        | submitRunnable      | new LocalEventLoopGroup(1).next()
-    "submit Callable"        | submitCallable      | new LocalEventLoopGroup(1).next()
-    "schedule Runnable"      | scheduleRunnable    | new LocalEventLoopGroup(1).next()
-    "schedule Callable"      | scheduleCallable    | new LocalEventLoopGroup(1).next()
   }
 
   private static Executor java7SafeCompletableFutureThreadPerTaskExecutor() {
@@ -541,10 +433,5 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     void execute(Runnable command) {
       workQueue.put(command)
     }
-  }
-
-  def epollExecutor() {
-    // EPoll only works on linux
-    isLinux ? new EpollEventLoopGroup(1).next() : null
   }
 }

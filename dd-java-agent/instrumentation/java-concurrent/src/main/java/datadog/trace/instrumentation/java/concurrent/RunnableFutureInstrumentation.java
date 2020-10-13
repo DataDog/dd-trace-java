@@ -52,6 +52,7 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Default {
   }
 
   public static final class Construct {
+
     @Advice.OnMethodExit
     public static <T> void captureScope(@Advice.This RunnableFuture<T> task) {
       TraceScope activeScope = activeScope();
