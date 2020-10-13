@@ -712,6 +712,12 @@ acceptedBreaks:
       justification: "this is fine"
   "0.64.0":
     com.datadoghq:dd-trace-ot:
+    - code: "java.class.removed"
+      old: "class datadog.trace.common.sampling.AbstractSampler"
+      justification: "1.0 breaks a bunch"
+    - code: "java.class.removed"
+      old: "class datadog.trace.common.sampling.PrioritySampling"
+      justification: "1.0 breaks a bunch"
     - code: "java.method.removed"
       old: "method <T> T[] java.util.concurrent.ConcurrentLinkedDeque<E>::toArray(T[])\
         \ @ datadog.trace.core.PendingTrace"
@@ -760,8 +766,15 @@ acceptedBreaks:
         \ datadog.trace.core.PendingTrace"
       justification: "encapsulate PendingTrace better"
     - code: "java.method.removed"
+      old: "method boolean datadog.trace.api.Config::jmxFetchIntegrationEnabled(java.util.SortedSet<java.lang.String>,\
+        \ boolean)"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
       old: "method boolean datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation::isRegistered()"
       justification: "removed weak ref tracking"
+    - code: "java.method.removed"
+      old: "method boolean datadog.trace.common.sampling.AllSampler::doSample(datadog.trace.core.DDSpan)"
+      justification: "1.0 breaks a bunch"
     - code: "java.method.removed"
       old: "method boolean datadog.trace.core.PendingTrace::clean()"
       justification: "removed weak ref tracking"
@@ -822,6 +835,21 @@ acceptedBreaks:
         \ @ datadog.trace.core.PendingTrace"
       justification: "encapsulate PendingTrace better"
     - code: "java.method.removed"
+      old: "method datadog.trace.api.interceptor.MutableSpan datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan::getRootSpan()"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method datadog.trace.api.interceptor.MutableSpan datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan::setSamplingPriority(int)"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method datadog.trace.bootstrap.instrumentation.api.AgentSpan datadog.trace.core.DDSpan::getRootSpan()"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method datadog.trace.core.CoreTracer datadog.trace.core.DDSpanContext::getTracer()"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method datadog.trace.core.DDSpan datadog.trace.core.DDSpan::setSamplingPriority(int)"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
       old: "method java.lang.Object[] java.util.concurrent.ConcurrentLinkedDeque<E>::toArray()\
         \ @ datadog.trace.core.PendingTrace"
       justification: "encapsulate PendingTrace better"
@@ -849,6 +877,50 @@ acceptedBreaks:
       old: "method java.util.stream.Stream<E> java.util.Collection<E>::stream() @\
         \ datadog.trace.core.PendingTrace"
       justification: "encapsulate PendingTrace better"
+    - code: "java.method.removed"
+      old: "method void datadog.opentracing.DDTracer::<init>()"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method void datadog.opentracing.DDTracer::<init>(datadog.trace.api.Config)"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method void datadog.opentracing.DDTracer::<init>(datadog.trace.api.Config,\
+        \ datadog.trace.common.writer.Writer)"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method void datadog.opentracing.DDTracer::<init>(datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI)"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method void datadog.opentracing.DDTracer::<init>(datadog.trace.common.writer.Writer)"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method void datadog.opentracing.DDTracer::<init>(java.lang.String)"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method void datadog.opentracing.DDTracer::<init>(java.lang.String, datadog.trace.common.writer.Writer,\
+        \ datadog.trace.common.sampling.Sampler)"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method void datadog.opentracing.DDTracer::<init>(java.lang.String, datadog.trace.common.writer.Writer,\
+        \ datadog.trace.common.sampling.Sampler, java.lang.String, java.util.Map<java.lang.String,\
+        \ java.lang.String>, java.util.Map<java.lang.String, java.lang.String>, java.util.Map<java.lang.String,\
+        \ java.lang.String>, java.util.Map<java.lang.String, java.lang.String>)"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method void datadog.opentracing.DDTracer::<init>(java.lang.String, datadog.trace.common.writer.Writer,\
+        \ datadog.trace.common.sampling.Sampler, java.util.Map<java.lang.String, java.lang.String>,\
+        \ java.util.Map<java.lang.String, java.lang.String>, java.util.Map<java.lang.String,\
+        \ java.lang.String>, java.util.Map<java.lang.String, java.lang.String>)"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method void datadog.opentracing.DDTracer::<init>(java.lang.String, datadog.trace.common.writer.Writer,\
+        \ datadog.trace.common.sampling.Sampler, java.util.Map<java.lang.String, java.lang.String>,\
+        \ java.util.Map<java.lang.String, java.lang.String>, java.util.Map<java.lang.String,\
+        \ java.lang.String>, java.util.Map<java.lang.String, java.lang.String>, int)"
+      justification: "1.0 breaks a bunch"
+    - code: "java.method.removed"
+      old: "method void datadog.opentracing.DDTracer::<init>(java.util.Properties)"
+      justification: "1.0 breaks a bunch"
     - code: "java.method.removed"
       old: "method void datadog.trace.core.PendingTrace::addFirst(datadog.trace.core.DDSpan)"
       justification: "encapsulate PendingTrace better"
