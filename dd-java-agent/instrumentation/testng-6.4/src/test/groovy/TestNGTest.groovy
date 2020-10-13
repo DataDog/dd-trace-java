@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.base.TestFrameworkTest
-import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
 import datadog.trace.instrumentation.testng.TestNGDecorator
 import org.example.TestError
@@ -133,7 +133,7 @@ class TestNGTest extends TestFrameworkTest {
     }
 
     where:
-    testTags = ["$DDTags.TEST_SKIP_REASON": "Ignore reason in test"]
+    testTags = ["$Tags.TEST_SKIP_REASON": "Ignore reason in test"]
   }
 
   @Override

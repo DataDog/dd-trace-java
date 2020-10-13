@@ -27,6 +27,28 @@ public class Tags {
   public static final String DB_STATEMENT = "db.statement";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
 
+  public static final String TEST_SUITE = "test.suite";
+  public static final String TEST_NAME = "test.name";
+  public static final String TEST_STATUS = "test.status";
+  public static final String TEST_FRAMEWORK = "test.framework";
+  public static final String TEST_SKIP_REASON = "test.skip_reason";
+  public static final String TEST_TYPE = "test.type";
+
+  public static final String CI_PROVIDER_NAME = "ci.provider.name";
+  public static final String CI_PIPELINE_ID = "ci.pipeline.id";
+  public static final String CI_PIPELINE_NAME = "ci.pipeline.name";
+  public static final String CI_PIPELINE_NUMBER = "ci.pipeline.number";
+  public static final String CI_PIPELINE_URL = "ci.pipeline.url";
+  public static final String CI_JOB_URL = "ci.job.url";
+  public static final String CI_WORKSPACE_PATH = "ci.workspace_path";
+  public static final String BUILD_SOURCE_ROOT = "build.source_root";
+
+  public static final String GIT_REPOSITORY_URL = "git.repository_url";
+  public static final String GIT_COMMIT_SHA = "git.commit.sha";
+  @Deprecated public static final String _GIT_COMMIT_SHA = "git.commit_sha";
+  public static final String GIT_BRANCH = "git.branch";
+  public static final String GIT_TAG = "git.tag";
+
   public static final String DD_SERVICE = "dd.service";
   public static final String DD_VERSION = "dd.version";
   public static final String DD_ENV = "dd.env";
