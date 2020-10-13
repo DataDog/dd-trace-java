@@ -1,5 +1,6 @@
 import akka.dispatch.forkjoin.ForkJoinPool
 import akka.dispatch.forkjoin.ForkJoinTask
+import akka.dispatch.ForkJoinExecutorConfigurator
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
@@ -79,6 +80,13 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
     "submit Callable"      | submitCallable          | new ForkJoinPool()
     "submit ForkJoinTask"  | akkaSubmitForkJoinTask  | new ForkJoinPool()
     "invoke ForkJoinTask"  | akkaInvokeForkJoinTask  | new ForkJoinPool()
+
+    "execute Runnable"     | executeRunnable         | new ForkJoinExecutorConfigurator.AkkaForkJoinPool(2, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
+    "execute ForkJoinTask" | akkaExecuteForkJoinTask | new ForkJoinExecutorConfigurator.AkkaForkJoinPool(2, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
+    "submit Runnable"      | submitRunnable          | new ForkJoinExecutorConfigurator.AkkaForkJoinPool(2, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
+    "submit Callable"      | submitCallable          | new ForkJoinExecutorConfigurator.AkkaForkJoinPool(2, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
+    "submit ForkJoinTask"  | akkaSubmitForkJoinTask  | new ForkJoinExecutorConfigurator.AkkaForkJoinPool(2, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
+    "invoke ForkJoinTask"  | akkaInvokeForkJoinTask  | new ForkJoinExecutorConfigurator.AkkaForkJoinPool(2, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
   }
 
   def "#poolImpl '#name' reports after canceled jobs"() {
