@@ -1,19 +1,19 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci
+package datadog.trace.api.ci
 
 
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_GIT_BRANCH
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_GIT_COMMIT
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_GIT_PR_BRANCH
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_GIT_TAG
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_JOB_URL
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_PIPELINE_ID
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_PIPELINE_NUMBER
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_PIPELINE_URL
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_PROVIDER_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_PR_REPOSITORY_SLUG
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_REPOSITORY_SLUG
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_WORKSPACE_PATH
+import static datadog.trace.api.ci.TravisInfo.TRAVIS
+import static datadog.trace.api.ci.TravisInfo.TRAVIS_GIT_BRANCH
+import static datadog.trace.api.ci.TravisInfo.TRAVIS_GIT_COMMIT
+import static datadog.trace.api.ci.TravisInfo.TRAVIS_GIT_PR_BRANCH
+import static datadog.trace.api.ci.TravisInfo.TRAVIS_GIT_TAG
+import static datadog.trace.api.ci.TravisInfo.TRAVIS_JOB_URL
+import static datadog.trace.api.ci.TravisInfo.TRAVIS_PIPELINE_ID
+import static datadog.trace.api.ci.TravisInfo.TRAVIS_PIPELINE_NUMBER
+import static datadog.trace.api.ci.TravisInfo.TRAVIS_PIPELINE_URL
+import static datadog.trace.api.ci.TravisInfo.TRAVIS_PROVIDER_NAME
+import static datadog.trace.api.ci.TravisInfo.TRAVIS_PR_REPOSITORY_SLUG
+import static datadog.trace.api.ci.TravisInfo.TRAVIS_REPOSITORY_SLUG
+import static datadog.trace.api.ci.TravisInfo.TRAVIS_WORKSPACE_PATH
 
 class TravisInfoTest extends CIProviderInfoTest {
 

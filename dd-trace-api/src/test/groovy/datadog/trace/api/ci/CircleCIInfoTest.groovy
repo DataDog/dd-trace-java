@@ -1,17 +1,17 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci
+package datadog.trace.api.ci
 
 
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_BUILD_URL
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_GIT_BRANCH
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_GIT_COMMIT
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_GIT_REPOSITORY_URL
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_GIT_TAG
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_PIPELINE_ID
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_PIPELINE_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_PIPELINE_NUMBER
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_PROVIDER_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_WORKSPACE_PATH
+import static datadog.trace.api.ci.CircleCIInfo.CIRCLECI
+import static datadog.trace.api.ci.CircleCIInfo.CIRCLECI_BUILD_URL
+import static datadog.trace.api.ci.CircleCIInfo.CIRCLECI_GIT_BRANCH
+import static datadog.trace.api.ci.CircleCIInfo.CIRCLECI_GIT_COMMIT
+import static datadog.trace.api.ci.CircleCIInfo.CIRCLECI_GIT_REPOSITORY_URL
+import static datadog.trace.api.ci.CircleCIInfo.CIRCLECI_GIT_TAG
+import static datadog.trace.api.ci.CircleCIInfo.CIRCLECI_PIPELINE_ID
+import static datadog.trace.api.ci.CircleCIInfo.CIRCLECI_PIPELINE_NAME
+import static datadog.trace.api.ci.CircleCIInfo.CIRCLECI_PIPELINE_NUMBER
+import static datadog.trace.api.ci.CircleCIInfo.CIRCLECI_PROVIDER_NAME
+import static datadog.trace.api.ci.CircleCIInfo.CIRCLECI_WORKSPACE_PATH
 
 class CircleCIInfoTest extends CIProviderInfoTest {
 

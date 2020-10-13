@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci;
+package datadog.trace.api.ci;
 
 class TravisInfo extends CIProviderInfo {
 

@@ -1,9 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
+import datadog.trace.api.DDTags
+import datadog.trace.api.ci.CIProviderInfo
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.decorator.ci.CIProviderInfo
 
 class TestDecoratorTest extends BaseDecoratorTest {
 
@@ -20,21 +21,21 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.COMPONENT, "test-component")
     1 * span.setTag(Tags.SPAN_KIND, decorator.spanKind())
     1 * span.setSpanType(decorator.spanType())
-    1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
-    1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
+    1 * span.setTag(DDTags.TEST_FRAMEWORK, decorator.testFramework())
+    1 * span.setTag(DDTags.TEST_TYPE, decorator.testType())
     1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
-    1 * span.setTag(Tags.CI_PROVIDER_NAME, "ci-provider-name")
-    1 * span.setTag(Tags.CI_PIPELINE_ID, "ci-pipeline-id")
-    1 * span.setTag(Tags.CI_PIPELINE_NAME, "ci-pipeline-name")
-    1 * span.setTag(Tags.CI_PIPELINE_NUMBER, "ci-pipeline-number")
-    1 * span.setTag(Tags.CI_PIPELINE_URL, "ci-pipeline-url")
-    1 * span.setTag(Tags.CI_JOB_URL, "ci-job-url")
-    1 * span.setTag(Tags.CI_WORKSPACE_PATH, "ci-workspace-path")
-    1 * span.setTag(Tags.BUILD_SOURCE_ROOT, "ci-workspace-path")
-    1 * span.setTag(Tags.GIT_REPOSITORY_URL, "git-repository-url")
-    1 * span.setTag(Tags.GIT_COMMIT_SHA, "git-commit")
-    1 * span.setTag(Tags.GIT_BRANCH, "git-branch")
-    1 * span.setTag(Tags.GIT_TAG, "git-tag")
+    1 * span.setTag(DDTags.CI_PROVIDER_NAME, "ci-provider-name")
+    1 * span.setTag(DDTags.CI_PIPELINE_ID, "ci-pipeline-id")
+    1 * span.setTag(DDTags.CI_PIPELINE_NAME, "ci-pipeline-name")
+    1 * span.setTag(DDTags.CI_PIPELINE_NUMBER, "ci-pipeline-number")
+    1 * span.setTag(DDTags.CI_PIPELINE_URL, "ci-pipeline-url")
+    1 * span.setTag(DDTags.CI_JOB_URL, "ci-job-url")
+    1 * span.setTag(DDTags.CI_WORKSPACE_PATH, "ci-workspace-path")
+    1 * span.setTag(DDTags.BUILD_SOURCE_ROOT, "ci-workspace-path")
+    1 * span.setTag(DDTags.GIT_REPOSITORY_URL, "git-repository-url")
+    1 * span.setTag(DDTags.GIT_COMMIT_SHA, "git-commit")
+    1 * span.setTag(DDTags.GIT_BRANCH, "git-branch")
+    1 * span.setTag(DDTags.GIT_TAG, "git-tag")
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
     _ * span.setServiceName(_)
     _ * span.setOperationName(_)

@@ -1,18 +1,18 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci
+package datadog.trace.api.ci
 
 
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE_BUILD_URL
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE_GIT_BRANCH
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE_GIT_COMMIT
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE_GIT_REPOSITORY_URL
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE_GIT_TAG
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE_JOB_ID
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE_PIPELINE_ID
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE_PIPELINE_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE_PIPELINE_NUMBER
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE_PROVIDER_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE_WORKSPACE_PATH
+import static datadog.trace.api.ci.BuildkiteInfo.BUILDKITE
+import static datadog.trace.api.ci.BuildkiteInfo.BUILDKITE_BUILD_URL
+import static datadog.trace.api.ci.BuildkiteInfo.BUILDKITE_GIT_BRANCH
+import static datadog.trace.api.ci.BuildkiteInfo.BUILDKITE_GIT_COMMIT
+import static datadog.trace.api.ci.BuildkiteInfo.BUILDKITE_GIT_REPOSITORY_URL
+import static datadog.trace.api.ci.BuildkiteInfo.BUILDKITE_GIT_TAG
+import static datadog.trace.api.ci.BuildkiteInfo.BUILDKITE_JOB_ID
+import static datadog.trace.api.ci.BuildkiteInfo.BUILDKITE_PIPELINE_ID
+import static datadog.trace.api.ci.BuildkiteInfo.BUILDKITE_PIPELINE_NAME
+import static datadog.trace.api.ci.BuildkiteInfo.BUILDKITE_PIPELINE_NUMBER
+import static datadog.trace.api.ci.BuildkiteInfo.BUILDKITE_PROVIDER_NAME
+import static datadog.trace.api.ci.BuildkiteInfo.BUILDKITE_WORKSPACE_PATH
 
 class BuildkiteInfoTest extends CIProviderInfoTest {
 

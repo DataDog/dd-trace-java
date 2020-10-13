@@ -1,17 +1,17 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci
+package datadog.trace.api.ci
 
 
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.JenkinsInfo.JENKINS
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.JenkinsInfo.JENKINS_GIT_BRANCH
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.JenkinsInfo.JENKINS_GIT_COMMIT
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.JenkinsInfo.JENKINS_GIT_REPOSITORY_URL
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.JenkinsInfo.JENKINS_JOB_URL
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.JenkinsInfo.JENKINS_PIPELINE_ID
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.JenkinsInfo.JENKINS_PIPELINE_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.JenkinsInfo.JENKINS_PIPELINE_NUMBER
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.JenkinsInfo.JENKINS_PIPELINE_URL
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.JenkinsInfo.JENKINS_PROVIDER_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.JenkinsInfo.JENKINS_WORKSPACE_PATH
+import static datadog.trace.api.ci.JenkinsInfo.JENKINS
+import static datadog.trace.api.ci.JenkinsInfo.JENKINS_GIT_BRANCH
+import static datadog.trace.api.ci.JenkinsInfo.JENKINS_GIT_COMMIT
+import static datadog.trace.api.ci.JenkinsInfo.JENKINS_GIT_REPOSITORY_URL
+import static datadog.trace.api.ci.JenkinsInfo.JENKINS_JOB_URL
+import static datadog.trace.api.ci.JenkinsInfo.JENKINS_PIPELINE_ID
+import static datadog.trace.api.ci.JenkinsInfo.JENKINS_PIPELINE_NAME
+import static datadog.trace.api.ci.JenkinsInfo.JENKINS_PIPELINE_NUMBER
+import static datadog.trace.api.ci.JenkinsInfo.JENKINS_PIPELINE_URL
+import static datadog.trace.api.ci.JenkinsInfo.JENKINS_PROVIDER_NAME
+import static datadog.trace.api.ci.JenkinsInfo.JENKINS_WORKSPACE_PATH
 
 class JenkinsInfoTest extends CIProviderInfoTest {
 

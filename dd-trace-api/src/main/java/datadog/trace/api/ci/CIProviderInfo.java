@@ -1,14 +1,14 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci;
+package datadog.trace.api.ci;
 
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AppVeyorInfo.APPVEYOR;
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE;
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BitBucketInfo.BITBUCKET;
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE;
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI;
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GitLabInfo.GITLAB;
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GithubActionsInfo.GHACTIONS;
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.JenkinsInfo.JENKINS;
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS;
+import static datadog.trace.api.ci.AppVeyorInfo.APPVEYOR;
+import static datadog.trace.api.ci.AzurePipelinesInfo.AZURE;
+import static datadog.trace.api.ci.BitBucketInfo.BITBUCKET;
+import static datadog.trace.api.ci.BuildkiteInfo.BUILDKITE;
+import static datadog.trace.api.ci.CircleCIInfo.CIRCLECI;
+import static datadog.trace.api.ci.GitLabInfo.GITLAB;
+import static datadog.trace.api.ci.GithubActionsInfo.GHACTIONS;
+import static datadog.trace.api.ci.JenkinsInfo.JENKINS;
+import static datadog.trace.api.ci.TravisInfo.TRAVIS;
 
 import java.net.URI;
 import java.net.URISyntaxException;
