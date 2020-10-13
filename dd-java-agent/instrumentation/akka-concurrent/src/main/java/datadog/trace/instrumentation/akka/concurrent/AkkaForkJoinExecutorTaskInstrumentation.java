@@ -2,8 +2,11 @@ package datadog.trace.instrumentation.akka.concurrent;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
-import static java.util.Collections.singletonMap;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
+import static java.util.Collections.unmodifiableMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -13,6 +16,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -23,9 +27,6 @@ import net.bytebuddy.matcher.ElementMatcher;
  * akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask requires special treatment and can't
  * be handled generically despite being a subclass of akka.dispatch.ForkJoinTask, because of its
  * error handling.
- *
- * <p>This instrumentation collaborates with AkkaWrappedRunnableInstrumentation; its responsibility
- * is to capture context if there is an active scope.
  */
 @AutoService(Instrumenter.class)
 public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.Default {
@@ -53,9 +54,12 @@ public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    return singletonMap(
+    Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
+    transformers.put(
         isConstructor().and(takesArgument(0, named(Runnable.class.getName()))),
         getClass().getName() + "$Construct");
+    transformers.put(isMethod().and(named("run")), getClass().getName() + "$Run");
+    return unmodifiableMap(transformers);
   }
 
   public static final class Construct {
@@ -67,6 +71,18 @@ public final class AkkaForkJoinExecutorTaskInstrumentation extends Instrumenter.
             .putIfAbsent(wrapped, State.FACTORY)
             .captureAndSetContinuation(activeScope);
       }
+    }
+  }
+
+  public static final class Run {
+    @Advice.OnMethodEnter
+    public static TraceScope before(@Advice.Argument(0) Runnable wrapped) {
+      return startTaskScope(InstrumentationContext.get(Runnable.class, State.class), wrapped);
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static void after(@Advice.Enter TraceScope scope) {
+      endTaskScope(scope);
     }
   }
 }

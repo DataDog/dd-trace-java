@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static java.util.Collections.singletonMap;
@@ -69,7 +70,7 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
-    transformers.put(isMethod().and(named("exec")), getClass().getName() + "$Exec");
+    transformers.put(isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
     transformers.put(isMethod().and(named("fork")), getClass().getName() + "$Fork");
     transformers.put(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
     return transformers;
