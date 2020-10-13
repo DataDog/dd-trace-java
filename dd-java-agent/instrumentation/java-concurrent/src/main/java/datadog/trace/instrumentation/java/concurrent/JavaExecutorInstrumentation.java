@@ -16,9 +16,7 @@ import datadog.trace.context.TraceScope;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -29,11 +27,7 @@ public final class JavaExecutorInstrumentation extends AbstractExecutorInstrumen
 
   @Override
   public Map<String, String> contextStoreForAll() {
-    final Map<String, String> map = new HashMap<>();
-    map.put(Runnable.class.getName(), State.class.getName());
-    map.put(Callable.class.getName(), State.class.getName());
-    map.put(Future.class.getName(), State.class.getName());
-    return Collections.unmodifiableMap(map);
+    return Collections.singletonMap(Runnable.class.getName(), State.class.getName());
   }
 
   @Override
