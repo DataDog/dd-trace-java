@@ -267,7 +267,7 @@ class OpenTelemetryTest extends AgentTestRunner {
     def textMap = [:]
 
     when:
-    span.delegate.samplingPriority = contextPriority
+    span.delegate.context.samplingPriority = contextPriority
     httpPropagator.inject(context, textMap, new TextMapSetter())
 
     then:

@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.decorator.ci.CIProviderInfo
@@ -22,7 +22,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setSpanType(decorator.spanType())
     1 * span.setTag(Tags.TEST_FRAMEWORK, decorator.testFramework())
     1 * span.setTag(Tags.TEST_TYPE, decorator.testType())
-    1 * span.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
+    1 * span.setTag(DDTags.MANUAL_KEEP, true)
     1 * span.setTag(Tags.CI_PROVIDER_NAME, "ci-provider-name")
     1 * span.setTag(Tags.CI_PIPELINE_ID, "ci-pipeline-id")
     1 * span.setTag(Tags.CI_PIPELINE_NAME, "ci-pipeline-name")
