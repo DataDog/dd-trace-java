@@ -1,6 +1,8 @@
+import akka.actor.ActorSystem
+import akka.dispatch.ForkJoinExecutorConfigurator
 import akka.dispatch.forkjoin.ForkJoinPool
 import akka.dispatch.forkjoin.ForkJoinTask
-import akka.dispatch.ForkJoinExecutorConfigurator
+import com.typesafe.config.ConfigFactory
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
@@ -15,7 +17,6 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
-
 /**
  * Test executor instrumentation for Akka specific classes.
  * This is to large extent a copy of ExecutorInstrumentationTest.
@@ -87,6 +88,35 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
     "submit Callable"      | submitCallable          | new ForkJoinExecutorConfigurator.AkkaForkJoinPool(2, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
     "submit ForkJoinTask"  | akkaSubmitForkJoinTask  | new ForkJoinExecutorConfigurator.AkkaForkJoinPool(2, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
     "invoke ForkJoinTask"  | akkaInvokeForkJoinTask  | new ForkJoinExecutorConfigurator.AkkaForkJoinPool(2, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
+  }
+
+  def "dispatcher propagates context" () {
+    setup:
+    ActorSystem actorSystem = ActorSystem.create("test", ConfigFactory.defaultApplication())
+    def dispatcher = actorSystem.dispatchers().defaultGlobalDispatcher()
+
+    new Runnable() {
+      @Override
+      @Trace(operationName = "parent")
+      void run() {
+        activeScope().setAsyncPropagation(true)
+        // this child will have a span
+        dispatcher.execute(new AkkaAsyncChild())
+        // this child won't
+        dispatcher.execute(new AkkaAsyncChild(false, false))
+        blockUntilChildSpansFinished(1)
+      }
+    }.run()
+
+    TEST_WRITER.waitForTraces(1)
+    List<DDSpan> trace = TEST_WRITER.get(0)
+
+    expect:
+    TEST_WRITER.size() == 1
+    trace.size() == 2
+    trace.get(0).operationName == "parent"
+    trace.get(1).operationName == "asyncChild"
+    trace.get(1).parentId == trace.get(0).spanId
   }
 
   def "#poolImpl '#name' reports after canceled jobs"() {
