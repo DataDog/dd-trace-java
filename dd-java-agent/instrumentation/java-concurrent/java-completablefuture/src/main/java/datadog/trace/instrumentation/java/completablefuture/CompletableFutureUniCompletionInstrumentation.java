@@ -73,11 +73,6 @@ public class CompletableFutureUniCompletionInstrumentation extends Instrumenter.
   }
 
   @Override
-  public boolean isEnabled() {
-    return enabled;
-  }
-
-  @Override
   public Map<ExcludeType, Set<String>> excludedClasses() {
     if (!enabled) {
       return Collections.emptyMap();

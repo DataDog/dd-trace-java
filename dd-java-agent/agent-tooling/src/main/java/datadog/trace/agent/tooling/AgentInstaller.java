@@ -105,15 +105,9 @@ public class AgentInstaller {
     for (final Instrumenter instrumenter : loader) {
       if (instrumenter instanceof ExcludeFilterProvider) {
         ExcludeFilterProvider provider = (ExcludeFilterProvider) instrumenter;
-        if (provider.isEnabled()) {
-          ExcludeFilter.add(provider.excludedClasses());
-          log.debug(
-              "Adding filtered classes from instrumentation {}", instrumenter.getClass().getName());
-        } else {
-          log.debug(
-              "Not adding filtered classes from disabled instrumentation {}",
-              instrumenter.getClass().getName());
-        }
+        ExcludeFilter.add(provider.excludedClasses());
+        log.debug(
+            "Adding filtered classes from instrumentation {}", instrumenter.getClass().getName());
       }
     }
     for (final Instrumenter instrumenter : loader) {

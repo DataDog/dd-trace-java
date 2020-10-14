@@ -12,8 +12,6 @@ import java.util.Set;
  * exclusions immediately.
  */
 public interface ExcludeFilterProvider {
-  /** @return If this provider is enabled. */
-  boolean isEnabled();
 
   /**
    * @return A mapping from {@link ExcludeType} -> {@link Set<String>} for the class names that

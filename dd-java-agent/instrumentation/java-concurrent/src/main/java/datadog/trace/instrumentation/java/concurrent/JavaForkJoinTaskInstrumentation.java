@@ -72,11 +72,6 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Default
   }
 
   @Override
-  public boolean isEnabled() {
-    return true;
-  }
-
-  @Override
   public Map<ExcludeType, Set<String>> excludedClasses() {
     return Collections.<ExcludeType, Set<String>>singletonMap(
         RUNNABLE_FUTURE,

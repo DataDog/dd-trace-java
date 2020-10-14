@@ -54,11 +54,6 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Def
   }
 
   @Override
-  public boolean isEnabled() {
-    return true;
-  }
-
-  @Override
   public Map<ExcludeFilter.ExcludeType, Set<String>> excludedClasses() {
     // make sure nothing else instruments this
     return singletonMap(

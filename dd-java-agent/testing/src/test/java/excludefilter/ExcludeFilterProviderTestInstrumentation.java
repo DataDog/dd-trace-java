@@ -46,11 +46,6 @@ public class ExcludeFilterProviderTestInstrumentation extends Instrumenter.Defau
   }
 
   @Override
-  public boolean isEnabled() {
-    return enabled;
-  }
-
-  @Override
   public Map<ExcludeFilter.ExcludeType, Set<String>> excludedClasses() {
     EnumMap<ExcludeFilter.ExcludeType, Set<String>> excludedTypes =
         new EnumMap(ExcludeFilter.ExcludeType.class);
