@@ -284,46 +284,47 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
     TEST_WRITER.size() == 1
 
     where:
-    name                | method           | poolImpl
-    "submit Runnable"   | submitRunnable   | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
-    "submit Callable"   | submitCallable   | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
+    name                  | method             | poolImpl
+    "submit Runnable"     | submitRunnable     | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
+    "submit Callable"     | submitCallable     | new ThreadPoolExecutor(1, 1, 1000, TimeUnit.NANOSECONDS, new ArrayBlockingQueue<Runnable>(1))
 
     // Scheduled executor has additional methods and also may get disabled because it wraps tasks
-    "submit Runnable"   | submitRunnable   | new ScheduledThreadPoolExecutor(1)
-    "submit Callable"   | submitCallable   | new ScheduledThreadPoolExecutor(1)
-    "schedule Runnable" | scheduleRunnable | new ScheduledThreadPoolExecutor(1)
-    "schedule Callable" | scheduleCallable | new ScheduledThreadPoolExecutor(1)
+    "submit Runnable"     | submitRunnable     | new ScheduledThreadPoolExecutor(1)
+    "submit Callable"     | submitCallable     | new ScheduledThreadPoolExecutor(1)
+    "schedule Runnable"   | scheduleRunnable   | new ScheduledThreadPoolExecutor(1)
+    "schedule Callable"   | scheduleCallable   | new ScheduledThreadPoolExecutor(1)
 
     // ForkJoinPool has additional set of method overloads for ForkJoinTask to deal with
-    "submit Runnable"   | submitRunnable   | new ForkJoinPool()
-    "submit Callable"   | submitCallable   | new ForkJoinPool()
+    "submit Runnable"     | submitRunnable     | new ForkJoinPool()
+    "submit Callable"     | submitCallable     | new ForkJoinPool()
+    "submit ForkJoinTask" | submitForkJoinTask | new ForkJoinPool()
 
     // java.util.concurrent.Executors$FinalizableDelegatedExecutorService
-    "submit Runnable"        | submitRunnable      | Executors.newSingleThreadExecutor()
-    "submit Callable"        | submitCallable      | Executors.newSingleThreadExecutor()
+    "submit Runnable"     | submitRunnable     | Executors.newSingleThreadExecutor()
+    "submit Callable"     | submitCallable     | Executors.newSingleThreadExecutor()
 
     // java.util.concurrent.Executors$DelegatedExecutorService
-    "submit Runnable"        | submitRunnable      | Executors.unconfigurableExecutorService(Executors.newSingleThreadExecutor())
-    "submit Callable"        | submitCallable      | Executors.unconfigurableExecutorService(Executors.newSingleThreadExecutor())
+    "submit Runnable"     | submitRunnable     | Executors.unconfigurableExecutorService(Executors.newSingleThreadExecutor())
+    "submit Callable"     | submitCallable     | Executors.unconfigurableExecutorService(Executors.newSingleThreadExecutor())
 
 
-    "submit Runnable"        | submitRunnable      | Executors.unconfigurableScheduledExecutorService(Executors.newSingleThreadScheduledExecutor())
-    "submit Callable"        | submitCallable      | Executors.unconfigurableScheduledExecutorService(Executors.newSingleThreadScheduledExecutor())
-    "schedule Runnable"      | scheduleRunnable    | Executors.unconfigurableScheduledExecutorService(Executors.newSingleThreadScheduledExecutor())
-    "schedule Callable"      | scheduleCallable    | Executors.unconfigurableScheduledExecutorService(Executors.newSingleThreadScheduledExecutor())
+    "submit Runnable"     | submitRunnable     | Executors.unconfigurableScheduledExecutorService(Executors.newSingleThreadScheduledExecutor())
+    "submit Callable"     | submitCallable     | Executors.unconfigurableScheduledExecutorService(Executors.newSingleThreadScheduledExecutor())
+    "schedule Runnable"   | scheduleRunnable   | Executors.unconfigurableScheduledExecutorService(Executors.newSingleThreadScheduledExecutor())
+    "schedule Callable"   | scheduleCallable   | Executors.unconfigurableScheduledExecutorService(Executors.newSingleThreadScheduledExecutor())
 
     // tomcat
-    "submit Runnable"        | submitRunnable      | new org.apache.tomcat.util.threads.ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
-    "submit Callable"        | submitCallable      | new org.apache.tomcat.util.threads.ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
+    "submit Runnable"     | submitRunnable     | new org.apache.tomcat.util.threads.ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
+    "submit Callable"     | submitCallable     | new org.apache.tomcat.util.threads.ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue())
 
     // guava
-    "submit Runnable"        | submitRunnable      | MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
-    "submit Callable"        | submitCallable      | MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
+    "submit Runnable"     | submitRunnable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
+    "submit Callable"     | submitCallable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor())
 
-    "submit Runnable"        | submitRunnable      | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
-    "submit Callable"        | submitCallable      | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
-    "schedule Runnable"      | scheduleRunnable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
-    "schedule Callable"      | scheduleCallable    | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
+    "submit Runnable"     | submitRunnable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
+    "submit Callable"     | submitCallable     | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
+    "schedule Runnable"   | scheduleRunnable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
+    "schedule Callable"   | scheduleCallable   | MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor())
   }
 
   private static Executor java7SafeCompletableFutureThreadPerTaskExecutor() {
