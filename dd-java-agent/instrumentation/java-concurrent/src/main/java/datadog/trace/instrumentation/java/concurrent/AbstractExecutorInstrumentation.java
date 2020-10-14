@@ -46,9 +46,6 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
     } else {
       final String[] whitelist = {
         "kotlinx.coroutines.scheduling.CoroutineScheduler",
-        "play.api.libs.streams.Execution$trampoline$",
-        "scala.concurrent.Future$InternalCallbackExecutor$",
-        "scala.concurrent.impl.ExecutionContextImpl",
         "org.eclipse.jetty.util.thread.QueuedThreadPool",
         "org.eclipse.jetty.util.thread.ReservedThreadExecutor"
       };

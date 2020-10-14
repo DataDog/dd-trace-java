@@ -14,7 +14,6 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
-
 /**
  * Test executor instrumentation for Scala specific classes.
  * This is to large extent a copy of ExecutorInstrumentationTest.
