@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import datadog.trace.api.utils.DumpUtils;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
@@ -33,6 +34,11 @@ public class Agent {
   private static final Logger log;
 
   static {
+    String dumpMillis = System.getProperty("dumpMillis");
+    if (dumpMillis != null) {
+      DumpUtils.scheduleThreadDump(Long.parseLong(dumpMillis));
+    }
+
     // We can configure logger here because datadog.trace.agent.AgentBootstrap doesn't touch it.
     configureLogger();
     log = LoggerFactory.getLogger(Agent.class);
