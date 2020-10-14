@@ -1,9 +1,10 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,7 +18,6 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(Instrumenter.class)
 public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Default {
@@ -28,7 +28,7 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Defaul
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return hasInterface(named("java.util.concurrent.RejectedExecutionHandler"));
+    return implementsInterface(named("java.util.concurrent.RejectedExecutionHandler"));
   }
 
   @Override
@@ -45,13 +45,13 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Defaul
     return Collections.singletonMap(
         isMethod()
             .and(named("rejectedExecution"))
-            .and(ElementMatchers.takesArgument(0, named("java.util.concurrent.Runnable"))),
+            .and(takesArgument(0, named("java.util.concurrent.Runnable"))),
         getClass().getName() + "$Reject");
   }
 
   public static final class Reject {
     @Advice.OnMethodEnter
-    public static void reject(@Advice.Argument(value = 0, readOnly = false) Runnable runnable) {
+    public static void reject(@Advice.Argument(0) Runnable runnable) {
       // not handling rejected work (which will often not manifest in an exception being thrown)
       // leads to unclosed continuations when executors get busy
       // note that this does not handle rejection mechanisms used in Scala, so those need to be
@@ -60,9 +60,9 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Defaul
         cancelTask(
             InstrumentationContext.get(RunnableFuture.class, State.class),
             (RunnableFuture) runnable);
-      } else {
-        cancelTask(InstrumentationContext.get(Runnable.class, State.class), runnable);
       }
+      // paranoid about double instrumentation until RunnableInstrumentation is removed
+      cancelTask(InstrumentationContext.get(Runnable.class, State.class), runnable);
     }
   }
 }
