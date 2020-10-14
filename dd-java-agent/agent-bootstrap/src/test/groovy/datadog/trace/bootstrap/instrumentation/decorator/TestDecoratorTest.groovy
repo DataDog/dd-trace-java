@@ -1,10 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-
-import datadog.trace.api.ci.CIProviderInfo
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.api.ci.CIProviderInfo
 
 class TestDecoratorTest extends BaseDecoratorTest {
 

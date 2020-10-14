@@ -1,15 +1,15 @@
-package datadog.trace.api.ci
+package datadog.trace.bootstrap.instrumentation.api.ci
 
-import static datadog.trace.api.ci.BitBucketInfo.BITBUCKET
-import static datadog.trace.api.ci.BitBucketInfo.BITBUCKET_BUILD_NUMBER
-import static datadog.trace.api.ci.BitBucketInfo.BITBUCKET_GIT_BRANCH
-import static datadog.trace.api.ci.BitBucketInfo.BITBUCKET_GIT_COMMIT
-import static datadog.trace.api.ci.BitBucketInfo.BITBUCKET_GIT_REPOSITORY_URL
-import static datadog.trace.api.ci.BitBucketInfo.BITBUCKET_GIT_TAG
-import static datadog.trace.api.ci.BitBucketInfo.BITBUCKET_PIPELINE_ID
-import static datadog.trace.api.ci.BitBucketInfo.BITBUCKET_PROVIDER_NAME
-import static datadog.trace.api.ci.BitBucketInfo.BITBUCKET_REPO_FULL_NAME
-import static datadog.trace.api.ci.BitBucketInfo.BITBUCKET_WORKSPACE_PATH
+import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET
+import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET_BUILD_NUMBER
+import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET_GIT_BRANCH
+import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET_GIT_COMMIT
+import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET_GIT_REPOSITORY_URL
+import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET_GIT_TAG
+import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET_PIPELINE_ID
+import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET_PROVIDER_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET_REPO_FULL_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET_WORKSPACE_PATH
 
 class BitBucketInfoTest extends CIProviderInfoTest {
 

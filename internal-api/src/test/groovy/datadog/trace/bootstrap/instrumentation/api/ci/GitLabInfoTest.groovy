@@ -1,18 +1,18 @@
-package datadog.trace.api.ci
+package datadog.trace.bootstrap.instrumentation.api.ci
 
 
-import static datadog.trace.api.ci.GitLabInfo.GITLAB
-import static datadog.trace.api.ci.GitLabInfo.GITLAB_GIT_BRANCH
-import static datadog.trace.api.ci.GitLabInfo.GITLAB_GIT_COMMIT
-import static datadog.trace.api.ci.GitLabInfo.GITLAB_GIT_REPOSITORY_URL
-import static datadog.trace.api.ci.GitLabInfo.GITLAB_GIT_TAG
-import static datadog.trace.api.ci.GitLabInfo.GITLAB_JOB_URL
-import static datadog.trace.api.ci.GitLabInfo.GITLAB_PIPELINE_ID
-import static datadog.trace.api.ci.GitLabInfo.GITLAB_PIPELINE_NAME
-import static datadog.trace.api.ci.GitLabInfo.GITLAB_PIPELINE_NUMBER
-import static datadog.trace.api.ci.GitLabInfo.GITLAB_PIPELINE_URL
-import static datadog.trace.api.ci.GitLabInfo.GITLAB_PROVIDER_NAME
-import static datadog.trace.api.ci.GitLabInfo.GITLAB_WORKSPACE_PATH
+import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB
+import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB_GIT_BRANCH
+import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB_GIT_COMMIT
+import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB_GIT_REPOSITORY_URL
+import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB_GIT_TAG
+import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB_JOB_URL
+import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB_PIPELINE_ID
+import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB_PIPELINE_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB_PIPELINE_NUMBER
+import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB_PIPELINE_URL
+import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB_PROVIDER_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB_WORKSPACE_PATH
 
 class GitLabInfoTest extends CIProviderInfoTest {
 

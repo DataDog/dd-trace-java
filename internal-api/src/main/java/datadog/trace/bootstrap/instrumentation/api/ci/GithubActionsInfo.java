@@ -1,4 +1,4 @@
-package datadog.trace.api.ci;
+package datadog.trace.bootstrap.instrumentation.api.ci;
 
 class GithubActionsInfo extends CIProviderInfo {
 
