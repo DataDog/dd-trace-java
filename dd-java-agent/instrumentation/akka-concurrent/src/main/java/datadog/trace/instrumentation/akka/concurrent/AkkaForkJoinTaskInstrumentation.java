@@ -53,11 +53,6 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default
   }
 
   @Override
-  public boolean isEnabled() {
-    return true;
-  }
-
-  @Override
   public Map<ExcludeFilter.ExcludeType, Set<String>> excludedClasses() {
     return Collections.<ExcludeFilter.ExcludeType, Set<String>>singletonMap(
         RUNNABLE_FUTURE,

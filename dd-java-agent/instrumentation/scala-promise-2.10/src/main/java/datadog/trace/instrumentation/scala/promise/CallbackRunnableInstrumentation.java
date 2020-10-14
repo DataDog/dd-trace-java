@@ -53,11 +53,6 @@ public class CallbackRunnableInstrumentation extends Instrumenter.Default
   }
 
   @Override
-  public boolean isEnabled() {
-    return true;
-  }
-
-  @Override
   public Map<ExcludeFilter.ExcludeType, Set<String>> excludedClasses() {
     // force other instrumentations (e.g. Runnable) not to deal with this type
     return singletonMap(RUNNABLE, Collections.singleton("scala.concurrent.impl.CallbackRunnable"));
