@@ -48,6 +48,11 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
+  public Map<String, Number> getMetrics() {
+    return delegate.getMetrics();
+  }
+
+  @Override
   public Boolean isError() {
     return delegate.isError();
   }
@@ -109,7 +114,7 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public Span setOperationName(String operationName) {
+  public Span setOperationName(final String operationName) {
     return setOperationName(UTF8BytesString.create(operationName));
   }
 

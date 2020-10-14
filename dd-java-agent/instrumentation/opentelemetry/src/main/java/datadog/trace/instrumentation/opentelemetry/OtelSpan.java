@@ -202,6 +202,11 @@ public class OtelSpan implements Span, MutableSpan {
   }
 
   @Override
+  public Map<String, Number> getMetrics() {
+    return delegate.getMetrics();
+  }
+
+  @Override
   public Boolean isError() {
     return delegate.isError();
   }
