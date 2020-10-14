@@ -3,7 +3,7 @@ package datadog.opentracing
 
 import datadog.trace.common.sampling.RateByServiceSampler
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY

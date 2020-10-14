@@ -13,7 +13,7 @@ import datadog.trace.context.ScopeListener
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Timeout
@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import static datadog.trace.core.scopemanager.EventCountingListener.EVENT.ACTIVATE
 import static datadog.trace.core.scopemanager.EventCountingListener.EVENT.CLOSE
-import static datadog.trace.util.gc.GCUtils.awaitGC
+import static datadog.trace.test.util.GCUtils.awaitGC
 import static java.util.concurrent.TimeUnit.SECONDS
 
 class ScopeManagerTest extends DDSpecification {

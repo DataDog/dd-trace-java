@@ -1,4 +1,4 @@
-package datadog.trace.util.gc;
+package datadog.trace.test.util;
 
 import java.lang.ref.WeakReference;
 

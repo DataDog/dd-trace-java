@@ -4,7 +4,7 @@ package datadog.trace.common.writer.ddagent
 import datadog.trace.core.DDSpanData
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.Packer
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
 import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack

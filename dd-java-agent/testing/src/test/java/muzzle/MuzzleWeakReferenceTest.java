@@ -3,7 +3,7 @@ package muzzle;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceCreator;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
-import datadog.trace.util.gc.GCUtils;
+import datadog.trace.test.util.GCUtils;
 import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.net.URLClassLoader;

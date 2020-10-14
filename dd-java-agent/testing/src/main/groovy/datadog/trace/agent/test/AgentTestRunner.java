@@ -20,7 +20,7 @@ import datadog.trace.common.writer.Writer;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.PendingTrace;
-import datadog.trace.util.test.DDSpecification;
+import datadog.trace.test.util.DDSpecification;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import groovy.transform.stc.ClosureParams;

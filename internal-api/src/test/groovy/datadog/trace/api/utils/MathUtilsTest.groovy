@@ -1,6 +1,6 @@
 package datadog.trace.api.utils
 
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 import java.util.concurrent.atomic.AtomicLong
 

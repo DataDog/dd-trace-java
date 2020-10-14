@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopAgentSpan
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 

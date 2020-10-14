@@ -4,7 +4,7 @@ import datadog.trace.api.DDTags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.context.TraceScope
 import datadog.trace.core.CoreTracer
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import io.opentracing.Scope
 import io.opentracing.ScopeManager
 import io.opentracing.Span

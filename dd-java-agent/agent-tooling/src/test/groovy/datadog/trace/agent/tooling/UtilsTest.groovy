@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling
 
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 class UtilsTest extends DDSpecification {
 

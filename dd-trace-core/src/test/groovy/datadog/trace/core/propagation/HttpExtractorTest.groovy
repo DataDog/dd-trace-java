@@ -3,7 +3,7 @@ package datadog.trace.core.propagation
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
 import static datadog.trace.api.PropagationStyle.B3

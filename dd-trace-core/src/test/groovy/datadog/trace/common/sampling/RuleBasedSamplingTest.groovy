@@ -2,7 +2,7 @@ package datadog.trace.common.sampling
 
 import datadog.trace.core.DDSpan
 import datadog.trace.core.SpanFactory
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.config.TracerConfig.TRACE_RATE_LIMIT
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE

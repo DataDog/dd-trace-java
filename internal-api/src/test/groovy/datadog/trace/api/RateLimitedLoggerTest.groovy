@@ -1,7 +1,7 @@
 package datadog.trace.api
 
 import datadog.trace.api.time.TimeSource
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import org.slf4j.Logger
 
 import static java.util.concurrent.TimeUnit.MINUTES

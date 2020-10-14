@@ -1,7 +1,7 @@
 package datadog.trace.api
 
 import datadog.trace.api.time.ControllableTimeSource
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 class ControllableTimeSourceTest extends DDSpecification {
   def "test time source changes"() {

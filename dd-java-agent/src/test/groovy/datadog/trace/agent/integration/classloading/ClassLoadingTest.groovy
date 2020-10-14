@@ -3,7 +3,7 @@ package datadog.trace.agent.integration.classloading
 import datadog.test.ClassToInstrument
 import datadog.test.ClassToInstrumentChild
 import datadog.trace.api.Trace
-import datadog.trace.util.gc.GCUtils
+import datadog.trace.test.util.GCUtils
 import spock.lang.Specification
 import spock.lang.Timeout
 

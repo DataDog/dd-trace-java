@@ -2,7 +2,7 @@ package datadog.trace.core
 
 
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
 class TraceCorrelationTest extends DDSpecification {

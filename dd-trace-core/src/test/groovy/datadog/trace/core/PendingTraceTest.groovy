@@ -3,7 +3,7 @@ package datadog.trace.core
 import datadog.trace.api.Config
 import datadog.trace.api.DDId
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Subject
 import spock.lang.Timeout
 

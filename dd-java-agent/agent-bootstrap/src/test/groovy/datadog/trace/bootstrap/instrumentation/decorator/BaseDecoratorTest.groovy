@@ -4,7 +4,7 @@ import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 import spock.lang.Timeout
 

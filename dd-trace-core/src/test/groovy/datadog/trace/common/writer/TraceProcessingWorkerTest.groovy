@@ -7,7 +7,7 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.processor.TraceProcessor
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 import spock.util.concurrent.PollingConditions
 

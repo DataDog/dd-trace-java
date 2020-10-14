@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api
 
 
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets

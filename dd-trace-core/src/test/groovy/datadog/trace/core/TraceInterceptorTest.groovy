@@ -5,7 +5,7 @@ import datadog.trace.api.GlobalTracer
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.interceptor.TraceInterceptor
 import datadog.trace.common.writer.ListWriter
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Timeout
 
 import java.util.concurrent.CountDownLatch

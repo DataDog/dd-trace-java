@@ -8,7 +8,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.G
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.TracedClass
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.UntracedClass
 import datadog.trace.api.Trace
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.method.MethodDescription
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasSuperMethod

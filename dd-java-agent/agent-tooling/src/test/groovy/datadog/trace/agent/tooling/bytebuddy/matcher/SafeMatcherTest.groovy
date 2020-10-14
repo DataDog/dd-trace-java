@@ -1,6 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher
 
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.matcher.ElementMatcher
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.failSafe

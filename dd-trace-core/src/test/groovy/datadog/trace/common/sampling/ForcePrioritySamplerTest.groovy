@@ -6,7 +6,7 @@ import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.SpanFactory
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 class ForcePrioritySamplerTest extends DDSpecification {
 

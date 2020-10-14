@@ -5,7 +5,7 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpanContext
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.core.CoreTracer.TRACE_ID_MAX
 import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY

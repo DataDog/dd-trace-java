@@ -1,7 +1,7 @@
 package datadog.opentracing
 
 import datadog.trace.common.writer.DDAgentWriter
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 class DDTracerTest extends DDSpecification {
 

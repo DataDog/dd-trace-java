@@ -7,7 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.SpanFactory
 
 import datadog.trace.core.processor.rule.URLAsResourceNameRule
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Subject
 
 class TraceProcessorTest extends DDSpecification {

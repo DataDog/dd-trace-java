@@ -2,7 +2,7 @@ package datadog.trace.core.util
 
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Config
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import org.junit.Assume
 
 import java.lang.management.ManagementFactory

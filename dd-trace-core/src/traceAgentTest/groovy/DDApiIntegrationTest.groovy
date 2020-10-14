@@ -14,7 +14,7 @@ import datadog.trace.core.DDSpanContext
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.Packer
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.startupcheck.MinimumDurationRunningStartupCheckStrategy
 import spock.lang.Requires

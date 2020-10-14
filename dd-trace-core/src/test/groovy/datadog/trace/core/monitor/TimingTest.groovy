@@ -4,7 +4,7 @@ import com.timgroup.statsd.StatsDClient
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Config
 import datadog.trace.core.util.SystemAccess
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
 import org.junit.Assume
 

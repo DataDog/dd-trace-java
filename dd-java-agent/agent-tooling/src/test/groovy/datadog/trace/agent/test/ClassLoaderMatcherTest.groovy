@@ -4,7 +4,7 @@ import datadog.trace.agent.tooling.ClassLoaderMatcher
 import datadog.trace.agent.tooling.log.LogContextScopeListener
 import datadog.trace.agent.tooling.log.ThreadLocalWithDDTagsInitValue
 import datadog.trace.bootstrap.DatadogClassLoader
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 class ClassLoaderMatcherTest extends DDSpecification {
 

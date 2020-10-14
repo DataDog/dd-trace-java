@@ -15,7 +15,7 @@ import datadog.trace.core.SpanFactory
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.Packer
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.Shared
 import spock.lang.Timeout

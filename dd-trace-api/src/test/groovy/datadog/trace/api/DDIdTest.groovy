@@ -1,7 +1,7 @@
 package datadog.trace.api
 
 
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 class DDIdTest extends DDSpecification {
   def "convert ids from/to long and check strings and BigInteger"() {
