@@ -64,6 +64,7 @@ public final class AgentTaskScheduler {
     if (!shutdown && worker == null) {
       synchronized (workQueue) {
         if (!shutdown && worker == null) {
+          preloadQueueTypes();
           try {
             worker = threadFactory.newThread(new Worker());
             // register hook after worker is assigned, but before we start it
@@ -80,6 +81,14 @@ public final class AgentTaskScheduler {
       workQueue.offer(new PeriodicTask<>(task, target, initialDelay, period, unit));
     } else {
       log.warn("Agent task scheduler is shutdown. Will not run {}", describeTask(task, target));
+    }
+  }
+
+  private void preloadQueueTypes() {
+    try {
+      workQueue.poll(1, NANOSECONDS);
+    } catch (InterruptedException e) {
+      // ignore
     }
   }
 
