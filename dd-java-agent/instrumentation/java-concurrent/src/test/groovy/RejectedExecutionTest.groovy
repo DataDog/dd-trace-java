@@ -7,7 +7,6 @@ import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
@@ -23,19 +22,14 @@ class RejectedExecutionTest extends AgentTestRunner {
     setup:
     ForkJoinPool fjp = new ForkJoinPool()
     fjp.shutdownNow()
-    AtomicBoolean rejected = new AtomicBoolean(false)
 
     when:
     runUnderTrace("parent") {
-      try {
-        fjp.submit({})
-      } catch (RejectedExecutionException expected) {
-        rejected.set(true)
-      }
+      fjp.submit({})
     }
 
     then:
-    rejected.get()
+    thrown RejectedExecutionException
     TEST_WRITER.waitForTraces(1)
     TEST_WRITER.size() == 1
     TEST_WRITER.get(0).size() == 1
@@ -45,20 +39,15 @@ class RejectedExecutionTest extends AgentTestRunner {
   def "trace reported when thread pool shut down"() {
     setup:
     ExecutorService pool = Executors.newFixedThreadPool(1)
-    AtomicBoolean rejected = new AtomicBoolean(false)
     pool.shutdownNow()
 
     when:
     runUnderTrace("parent") {
-      try {
-        pool.submit({})
-      } catch (RejectedExecutionException expected) {
-        rejected.set(true)
-      }
+      pool.submit({})
     }
 
     then:
-    rejected.get()
+    thrown RejectedExecutionException
     TEST_WRITER.waitForTraces(1)
     TEST_WRITER.size() == 1
     TEST_WRITER.get(0).size() == 1
