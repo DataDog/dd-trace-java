@@ -48,6 +48,8 @@ public interface MutableSpan {
 
   Map<String, Number> getMetrics();
 
+  MutableSpan setMetric(final String metric, final Number value);
+
   Boolean isError();
 
   MutableSpan setError(boolean value);

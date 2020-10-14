@@ -287,6 +287,12 @@ public class DDSpan implements AgentSpan, DDSpanData {
   }
 
   @Override
+  public DDSpan setMetric(final String metric, final Number value) {
+    context.setMetric(metric, value);
+    return this;
+  }
+
+  @Override
   public long getStartTime() {
     return startTimeNano > 0 ? startTimeNano : TimeUnit.MICROSECONDS.toNanos(startTimeMicro);
   }
@@ -353,7 +359,7 @@ public class DDSpan implements AgentSpan, DDSpanData {
 
   @Override
   public String getSpanType() {
-    CharSequence spanType = context.getSpanType();
+    final CharSequence spanType = context.getSpanType();
     return null == spanType ? null : spanType.toString();
   }
 
@@ -369,7 +375,7 @@ public class DDSpan implements AgentSpan, DDSpanData {
   }
 
   @Override
-  public void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {
+  public void processTagsAndBaggage(final TagsAndBaggageConsumer consumer) {
     context.processTagsAndBaggage(consumer);
   }
 

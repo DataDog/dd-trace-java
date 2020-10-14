@@ -284,6 +284,11 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentSpan setMetric(final String key, final Number value) {
+      return this;
+    }
+
+    @Override
     public Object getTag(final String key) {
       return null;
     }

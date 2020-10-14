@@ -53,6 +53,12 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
+  public MutableSpan setMetric(final String metric, final Number value) {
+    delegate.setMetric(metric, value);
+    return delegate;
+  }
+
+  @Override
   public Boolean isError() {
     return delegate.isError();
   }
