@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.im
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -15,6 +16,7 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Map;
+import java.util.concurrent.RunnableFuture;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -39,7 +41,8 @@ public final class RunnableInstrumentation extends Instrumenter.Default {
               public boolean matches(TypeDescription target) {
                 return !ExcludeFilter.exclude(ExcludeFilter.ExcludeType.RUNNABLE, target.getName());
               }
-            });
+            })
+        .and(not(implementsInterface(named(RunnableFuture.class.getName()))));
   }
 
   @Override
