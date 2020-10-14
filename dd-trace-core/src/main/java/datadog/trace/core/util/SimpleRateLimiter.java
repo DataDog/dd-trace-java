@@ -2,7 +2,7 @@ package datadog.trace.core.util;
 
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.api.utils.MathUtils;
+import datadog.trace.util.MathUtils;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 

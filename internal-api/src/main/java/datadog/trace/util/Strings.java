@@ -1,4 +1,4 @@
-package datadog.trace.api.utils;
+package datadog.trace.util;
 
 public final class Strings {
 
