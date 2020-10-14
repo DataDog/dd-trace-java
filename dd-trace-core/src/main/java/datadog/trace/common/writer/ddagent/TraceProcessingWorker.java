@@ -2,12 +2,12 @@ package datadog.trace.common.writer.ddagent;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import datadog.trace.api.exec.DaemonThreadFactory;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
 import datadog.trace.core.processor.TraceProcessor;
+import datadog.trace.util.DaemonThreadFactory;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;

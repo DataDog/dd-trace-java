@@ -7,8 +7,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doNothing;
 
-import datadog.trace.api.exec.AgentTaskScheduler;
-import datadog.trace.api.exec.AgentTaskScheduler.Task;
+import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.AgentTaskScheduler.Task;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
