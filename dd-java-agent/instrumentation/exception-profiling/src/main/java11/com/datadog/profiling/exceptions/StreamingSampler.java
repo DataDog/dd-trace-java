@@ -1,7 +1,7 @@
 package com.datadog.profiling.exceptions;
 
-import datadog.common.exec.AgentTaskScheduler;
-import datadog.common.exec.AgentTaskScheduler.Task;
+import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.AgentTaskScheduler.Task;
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;

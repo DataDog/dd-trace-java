@@ -2,7 +2,7 @@ package datadog.trace.agent.test
 
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.agent.tooling.Instrumenter
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.matcher.ElementMatcher

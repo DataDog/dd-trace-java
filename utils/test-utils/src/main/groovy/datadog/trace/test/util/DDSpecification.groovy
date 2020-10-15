@@ -1,4 +1,4 @@
-package datadog.trace.util.test
+package datadog.trace.test.util
 
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder

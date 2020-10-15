@@ -11,7 +11,7 @@ import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.ExclusiveSpan
 import datadog.trace.core.SpanFactory
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE

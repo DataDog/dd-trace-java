@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling
 
 import datadog.trace.agent.tooling.bytebuddy.DDCachingPoolStrategy
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.ClassFileLocator
 import net.bytebuddy.pool.TypePool

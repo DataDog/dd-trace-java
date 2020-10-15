@@ -5,7 +5,7 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.A
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.B
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.F
 import datadog.trace.agent.tooling.bytebuddy.matcher.testclasses.G
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.jar.asm.Opcodes
 import spock.lang.Shared

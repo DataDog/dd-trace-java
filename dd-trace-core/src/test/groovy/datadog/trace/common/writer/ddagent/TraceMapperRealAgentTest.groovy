@@ -4,7 +4,7 @@ import com.timgroup.statsd.NoOpStatsDClient
 import datadog.trace.core.DDSpanData
 import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Requires
 import spock.lang.Shared
 

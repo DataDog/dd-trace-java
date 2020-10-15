@@ -3,7 +3,7 @@ package context
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.ClasspathUtils
 import datadog.trace.api.Config
-import datadog.trace.util.gc.GCUtils
+import datadog.trace.test.util.GCUtils
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.utility.JavaModule
 import net.sf.cglib.proxy.Enhancer

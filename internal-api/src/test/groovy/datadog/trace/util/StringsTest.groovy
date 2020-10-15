@@ -1,6 +1,6 @@
-package datadog.trace.api.utils
+package datadog.trace.util
 
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 class StringsTest extends DDSpecification {
 

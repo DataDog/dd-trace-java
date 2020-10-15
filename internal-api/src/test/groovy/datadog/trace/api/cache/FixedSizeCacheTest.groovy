@@ -2,7 +2,7 @@ package datadog.trace.api.cache
 
 
 import datadog.trace.api.Function
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import spock.util.concurrent.AsyncConditions
 
 import java.util.concurrent.CountDownLatch

@@ -1,7 +1,7 @@
 package datadog.trace.api
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 class FunctionsTest extends DDSpecification {
 

@@ -1,7 +1,7 @@
 package datadog.trace.core.monitor
 
 import com.timgroup.statsd.StatsDClient
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS

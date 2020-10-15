@@ -1,8 +1,8 @@
 package datadog.trace.agent.tooling
 
 import datadog.trace.bootstrap.WeakMap
-import datadog.trace.util.gc.GCUtils
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.GCUtils
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Retry
 import spock.lang.Shared
 

@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap
 
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
 class InternalJarURLHandlerTest extends DDSpecification {

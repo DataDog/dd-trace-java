@@ -1,7 +1,7 @@
 package datadog.trace.api.env
 
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
 

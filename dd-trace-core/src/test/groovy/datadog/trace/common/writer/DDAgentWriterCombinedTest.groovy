@@ -17,7 +17,7 @@ import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
 import datadog.trace.core.serialization.msgpack.Mapper
 import datadog.trace.core.serialization.msgpack.Packer
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Retry
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions

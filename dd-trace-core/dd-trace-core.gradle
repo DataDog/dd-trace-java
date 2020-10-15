@@ -26,7 +26,6 @@ testSets {
 dependencies {
   compile project(':dd-trace-api')
   compile project(':internal-api')
-  compile project(':utils:thread-utils')
   compile project(':utils:container-utils')
 
   compile group: 'com.datadoghq', name: 'java-dogstatsd-client', version: "${versions.dogstatsd}"

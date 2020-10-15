@@ -1,6 +1,6 @@
 package datadog.trace.core
 
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 
 class StringTablesTest extends DDSpecification {
 

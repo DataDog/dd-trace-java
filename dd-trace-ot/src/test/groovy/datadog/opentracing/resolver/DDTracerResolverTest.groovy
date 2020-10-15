@@ -2,7 +2,7 @@ package datadog.opentracing.resolver
 
 import datadog.opentracing.DDTracer
 import datadog.trace.api.Config
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import io.opentracing.contrib.tracerresolver.TracerResolver
 
 class DDTracerResolverTest extends DDSpecification {

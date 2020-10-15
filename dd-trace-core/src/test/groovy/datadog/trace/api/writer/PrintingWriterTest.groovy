@@ -6,7 +6,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.PrintingWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.SpanFactory
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import okio.Buffer
 
 import java.nio.charset.StandardCharsets

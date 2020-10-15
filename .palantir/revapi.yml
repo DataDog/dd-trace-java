@@ -712,6 +712,18 @@ acceptedBreaks:
       justification: "this is fine"
   "0.64.0":
     com.datadoghq:dd-trace-ot:
+    - code: "java.class.removed"
+      old: "class datadog.common.exec.AgentTaskScheduler"
+      justification: "moved to datadog.trace.util"
+    - code: "java.class.removed"
+      old: "class datadog.common.exec.DaemonThreadFactory"
+      justification: "moved to datadog.trace.util"
+    - code: "java.class.removed"
+      old: "class datadog.trace.api.utils.MathUtils"
+      justification: "moved to datadog.trace.util"
+    - code: "java.class.removed"
+      old: "class datadog.trace.api.utils.Strings"
+      justification: "moved to datadog.trace.util"
     - code: "java.method.removed"
       old: "method <T> T[] java.util.concurrent.ConcurrentLinkedDeque<E>::toArray(T[])\
         \ @ datadog.trace.core.PendingTrace"

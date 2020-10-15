@@ -1,5 +1,5 @@
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo
-import datadog.trace.util.test.DDSpecification
+import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
 import static datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser.parse
