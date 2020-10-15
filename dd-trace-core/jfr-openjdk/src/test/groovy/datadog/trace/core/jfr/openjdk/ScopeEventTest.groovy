@@ -23,8 +23,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 @Requires({ jvm.java11Compatible })
 class ScopeEventTest extends DDSpecification {
   @Rule
-  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
-  
+  public RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
+
   private static final Duration SLEEP_DURATION = Duration.ofSeconds(1)
 
   def writer = new ListWriter()
@@ -114,6 +114,7 @@ class ScopeEventTest extends DDSpecification {
     setup:
     ConfigUtils.updateConfig {
       System.setProperty("dd.${Config.PROFILING_ENABLED}", "false")
+      System.setProperty("dd.${Config.HEALTH_METRICS_ENABLED}", "false")
     }
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
