@@ -202,18 +202,18 @@ public class OtelSpan implements Span, MutableSpan {
   }
 
   @Override
-  public MutableSpan setMetric(final String metric, final int value) {
-    return delegate.setTag(metric, value);
+  public MutableSpan setMetric(final CharSequence metric, final int value) {
+    return delegate.setMetric(metric, value);
   }
 
   @Override
-  public MutableSpan setMetric(final String metric, final long value) {
-    return delegate.setTag(metric, value);
+  public MutableSpan setMetric(final CharSequence metric, final long value) {
+    return delegate.setMetric(metric, value);
   }
 
   @Override
-  public MutableSpan setMetric(final String metric, final double value) {
-    return delegate.setTag(metric, value);
+  public MutableSpan setMetric(final CharSequence metric, final double value) {
+    return delegate.setMetric(metric, value);
   }
 
   @Override

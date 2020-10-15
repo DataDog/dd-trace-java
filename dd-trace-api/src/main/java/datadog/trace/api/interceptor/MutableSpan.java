@@ -46,11 +46,11 @@ public interface MutableSpan {
 
   MutableSpan setTag(final String tag, final Number value);
 
-  MutableSpan setMetric(final String metric, final int value);
+  MutableSpan setMetric(final CharSequence metric, final int value);
 
-  MutableSpan setMetric(final String metric, final long value);
+  MutableSpan setMetric(final CharSequence metric, final long value);
 
-  MutableSpan setMetric(final String metric, final double value);
+  MutableSpan setMetric(final CharSequence metric, final double value);
 
   Boolean isError();
 

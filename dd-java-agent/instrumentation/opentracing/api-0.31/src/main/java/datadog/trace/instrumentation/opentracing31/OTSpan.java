@@ -47,20 +47,20 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public OTSpan setMetric(final String metric, final int value) {
-    delegate.setTag(metric, value);
+  public OTSpan setMetric(final CharSequence metric, final int value) {
+    delegate.setMetric(metric, value);
     return this;
   }
 
   @Override
-  public OTSpan setMetric(final String metric, final long value) {
-    delegate.setTag(metric, value);
+  public OTSpan setMetric(final CharSequence metric, final long value) {
+    delegate.setMetric(metric, value);
     return this;
   }
 
   @Override
-  public OTSpan setMetric(final String metric, final double value) {
-    delegate.setTag(metric, value);
+  public OTSpan setMetric(final CharSequence metric, final double value) {
+    delegate.setMetric(metric, value);
     return this;
   }
 

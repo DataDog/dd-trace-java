@@ -38,12 +38,12 @@ public final class TraceMapperV0_5 implements TraceMapper {
     this(2 << 20);
   }
 
-  public TraceMapperV0_5(int bufferSize) {
+  public TraceMapperV0_5(final int bufferSize) {
     this.dictionaryWriter =
         new Packer(
             new ByteBufferConsumer() {
               @Override
-              public void accept(int messageCount, ByteBuffer buffer) {
+              public void accept(final int messageCount, final ByteBuffer buffer) {
                 dictionary[0] = buffer;
               }
             },
@@ -53,9 +53,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
   }
 
   @Override
-  public void map(List<? extends DDSpanData> trace, final Writable writable) {
+  public void map(final List<? extends DDSpanData> trace, final Writable writable) {
     writable.startArray(trace.size());
-    for (DDSpanData span : trace) {
+    for (final DDSpanData span : trace) {
       writable.startArray(12);
       /* 1  */
       writeDictionaryEncoded(writable, span.getServiceName());
@@ -79,7 +79,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
       span.processTagsAndBaggage(metaWriter.withWritable(writable));
       /* 11  */
       writable.startMap(span.getMetrics().size());
-      for (Map.Entry<String, Number> entry : span.getMetrics().entrySet()) {
+      for (final Map.Entry<CharSequence, Number> entry : span.getMetrics().entrySet()) {
         writeDictionaryEncoded(writable, entry.getKey());
         writable.writeObject(entry.getValue(), NO_CACHING);
       }
@@ -88,9 +88,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
   }
 
-  private void writeDictionaryEncoded(Writable writable, Object value) {
-    Object target = null == value ? "" : value;
-    Integer encoded = encoding.get(target);
+  private void writeDictionaryEncoded(final Writable writable, final Object value) {
+    final Object target = null == value ? "" : value;
+    final Integer encoded = encoding.get(target);
     if (null == encoded) {
       if (!dictionaryWriter.format(target, dictionaryMapper)) {
         dictionaryWriter.flush();
@@ -98,7 +98,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
         // faster than the message content
         throw DICTIONARY_FULL;
       }
-      int dictionaryCode = dictionaryWriter.messageCount() - 1;
+      final int dictionaryCode = dictionaryWriter.messageCount() - 1;
       encoding.put(target, dictionaryCode);
       // this call can fail, but the dictionary has been written to now
       // so should make sure dictionary state is consistent first
@@ -144,15 +144,15 @@ public final class TraceMapperV0_5 implements TraceMapper {
     private final byte[] numberByteArray = integerToStringBuffer();
 
     @Override
-    public void map(Object data, Writable packer) {
+    public void map(final Object data, final Writable packer) {
       if (data instanceof UTF8BytesString) {
         packer.writeObject(data, NO_CACHING);
       } else if (data instanceof Long || data instanceof Integer) {
         writeLongAsString(((Number) data).longValue(), packer, numberByteArray);
       } else {
         assert null != data : "enclosing mapper should not provide null values";
-        String string = String.valueOf(data);
-        byte[] utf8 = StringTables.getKeyBytesUTF8(string);
+        final String string = String.valueOf(data);
+        final byte[] utf8 = StringTables.getKeyBytesUTF8(string);
         if (null == utf8) {
           packer.writeString(string, NO_CACHING);
           return;
@@ -168,7 +168,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     private final ByteBuffer header = ByteBuffer.allocate(1).put(0, (byte) 0x92);
     private final ByteBuffer dictionary;
 
-    private PayloadV0_5(ByteBuffer dictionary) {
+    private PayloadV0_5(final ByteBuffer dictionary) {
       this.dictionary = dictionary;
     }
 
@@ -178,7 +178,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
     }
 
     @Override
-    public void writeTo(WritableByteChannel channel) throws IOException {
+    public void writeTo(final WritableByteChannel channel) throws IOException {
       writeBufferToChannel(header, channel);
       writeBufferToChannel(dictionary, channel);
       writeBufferToChannel(body, channel);
@@ -196,13 +196,13 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
     private Writable writable;
 
-    MetaWriter withWritable(Writable writable) {
+    MetaWriter withWritable(final Writable writable) {
       this.writable = writable;
       return this;
     }
 
     @Override
-    public void accept(Map<String, Object> tags, Map<String, String> baggage) {
+    public void accept(final Map<String, Object> tags, final Map<String, String> baggage) {
       // since tags can "override" baggage, we need to count the non overlapping ones
       int size = tags.size();
       // assume we can't have more than 64 baggage items,
@@ -211,7 +211,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
       long overlaps = 0L;
       if (!baggage.isEmpty()) {
         int i = 0;
-        for (Map.Entry<String, String> key : baggage.entrySet()) {
+        for (final Map.Entry<String, String> key : baggage.entrySet()) {
           if (!tags.containsKey(key.getKey())) {
             size++;
           } else {
@@ -222,7 +222,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
       }
       writable.startMap(size);
       int i = 0;
-      for (Map.Entry<String, String> entry : baggage.entrySet()) {
+      for (final Map.Entry<String, String> entry : baggage.entrySet()) {
         // tags and baggage may intersect, but tags take priority
         if ((overlaps & (1L << i)) == 0) {
           writeDictionaryEncoded(writable, entry.getKey());
@@ -230,7 +230,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
         }
         ++i;
       }
-      for (Map.Entry<String, Object> entry : tags.entrySet()) {
+      for (final Map.Entry<String, Object> entry : tags.entrySet()) {
         writeDictionaryEncoded(writable, entry.getKey());
         writeDictionaryEncoded(writable, entry.getValue());
       }

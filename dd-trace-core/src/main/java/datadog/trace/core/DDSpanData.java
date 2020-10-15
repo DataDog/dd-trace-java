@@ -23,7 +23,7 @@ public interface DDSpanData {
 
   int getError();
 
-  Map<String, Number> getMetrics();
+  Map<CharSequence, Number> getMetrics();
 
   Map<String, String> getBaggage();
 

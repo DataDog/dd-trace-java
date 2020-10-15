@@ -279,17 +279,17 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpan setMetric(final String key, final int value) {
+    public AgentSpan setMetric(final CharSequence key, final int value) {
       return this;
     }
 
     @Override
-    public AgentSpan setMetric(final String key, final long value) {
+    public AgentSpan setMetric(final CharSequence key, final long value) {
       return this;
     }
 
     @Override
-    public AgentSpan setMetric(final String key, final double value) {
+    public AgentSpan setMetric(final CharSequence key, final double value) {
       return this;
     }
 

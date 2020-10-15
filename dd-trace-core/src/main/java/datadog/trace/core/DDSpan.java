@@ -197,19 +197,19 @@ public class DDSpan implements AgentSpan, DDSpanData {
   }
 
   @Override
-  public DDSpan setMetric(final String metric, final int value) {
+  public DDSpan setMetric(final CharSequence metric, final int value) {
     context.setMetric(metric, value);
     return this;
   }
 
   @Override
-  public DDSpan setMetric(final String metric, final long value) {
+  public DDSpan setMetric(final CharSequence metric, final long value) {
     context.setMetric(metric, value);
     return this;
   }
 
   @Override
-  public DDSpan setMetric(final String metric, final double value) {
+  public DDSpan setMetric(final CharSequence metric, final double value) {
     context.setMetric(metric, value);
     return this;
   }
@@ -300,7 +300,7 @@ public class DDSpan implements AgentSpan, DDSpanData {
    * @return metrics for this span
    */
   @Override
-  public Map<String, Number> getMetrics() {
+  public Map<CharSequence, Number> getMetrics() {
     return context.getMetrics();
   }
 
