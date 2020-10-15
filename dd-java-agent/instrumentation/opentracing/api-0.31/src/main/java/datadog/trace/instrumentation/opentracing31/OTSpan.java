@@ -7,6 +7,7 @@ import datadog.trace.instrumentation.opentracing.LogHandler;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * This class should be castable to MutableSpan since that is the way we've encouraged users to
@@ -203,5 +204,22 @@ class OTSpan implements Span, MutableSpan {
 
   public AgentSpan getDelegate() {
     return delegate;
+  }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    final OTSpan otSpan = (OTSpan) o;
+    return delegate.equals(otSpan.delegate);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(delegate);
   }
 }
