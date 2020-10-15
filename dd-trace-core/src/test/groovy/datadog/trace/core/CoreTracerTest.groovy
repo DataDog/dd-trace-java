@@ -43,7 +43,10 @@ class CoreTracerTest extends DDSpecification {
 
   def "verify defaults on tracer"() {
     when:
-    def tracer = CoreTracer.builder().build()
+    // FIXME this line should be unnecessary but a system property is leaking from somewhere
+    // Remove when config overrides is fixed
+    System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, "true")
+    def tracer = CoreTracer.builder().config(new Config()).build()
 
     then:
     tracer.serviceName != ""
