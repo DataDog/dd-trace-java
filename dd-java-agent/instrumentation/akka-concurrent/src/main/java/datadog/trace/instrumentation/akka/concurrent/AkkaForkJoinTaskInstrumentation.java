@@ -1,10 +1,13 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.extendsClass;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import akka.dispatch.forkjoin.ForkJoinTask;
 import com.google.auto.service.AutoService;
@@ -49,7 +52,8 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return named("akka.dispatch.forkjoin.ForkJoinTask");
+    return extendsClass(named("akka.dispatch.forkjoin.ForkJoinTask"))
+        .and(not(named("akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask")));
   }
 
   @Override
@@ -66,13 +70,13 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     Map<ElementMatcher<MethodDescription>, String> transformers = new HashMap<>(4);
-    transformers.put(isMethod().and(named("doExec")), getClass().getName() + "$DoExec");
+    transformers.put(isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
     transformers.put(isMethod().and(named("fork")), getClass().getName() + "$Fork");
     transformers.put(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
     return transformers;
   }
 
-  public static final class DoExec {
+  public static final class Exec {
     @Advice.OnMethodEnter
     public static <T> TraceScope before(@Advice.This ForkJoinTask<T> task) {
       return AdviceUtils.startTaskScope(

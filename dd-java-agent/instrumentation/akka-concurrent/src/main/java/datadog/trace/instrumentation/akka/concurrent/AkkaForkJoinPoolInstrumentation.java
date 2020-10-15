@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.akka.concurrent;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static java.util.Collections.singletonMap;
-import static net.bytebuddy.matcher.ElementMatchers.isFinal;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
@@ -42,7 +42,7 @@ public final class AkkaForkJoinPoolInstrumentation extends Instrumenter.Default 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return Collections.singletonMap(
-        isMethod().and(named("externalPush")).and(isFinal()),
+        isMethod().and(namedOneOf("externalPush", "fullExternalPush")),
         getClass().getName() + "$ExternalPush");
   }
 

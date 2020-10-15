@@ -45,14 +45,6 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
       PERMITTED_EXECUTORS_PREFIXES = Collections.emptyList();
     } else {
       final String[] whitelist = {
-        "akka.actor.ActorSystemImpl$$anon$1",
-        "akka.dispatch.BalancingDispatcher",
-        "akka.dispatch.Dispatcher",
-        "akka.dispatch.Dispatcher$LazyExecutorServiceDelegate",
-        "akka.dispatch.ExecutionContexts$sameThreadExecutionContext$",
-        "akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinPool",
-        "akka.dispatch.MessageDispatcher",
-        "akka.dispatch.PinnedDispatcher",
         "com.google.common.util.concurrent.AbstractListeningExecutorService",
         "com.google.common.util.concurrent.MoreExecutors$ListeningDecorator",
         "com.google.common.util.concurrent.MoreExecutors$ScheduledListeningDecorator",
