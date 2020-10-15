@@ -3,6 +3,7 @@ package datadog.opentracing;
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -196,6 +197,14 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer {
       final int partialFlushMinSpans,
       final LogHandler logHandler,
       final StatsDClient statsDClient) {
+
+    // Check if the tracer is already installed by the agent
+    // Unable to use "instanceof" because of class renaming
+    if (GlobalTracer.get().getClass().getName().equals("datadog.trace.agent.core.CoreTracer")) {
+      log.error(
+          "Datadog Tracer already installed by `dd-java-agent`. NOTE: Manually creating the tracer while using `dd-java-agent` is not supported");
+      throw new IllegalStateException("Datadog Tracer already installed");
+    }
 
     if (logHandler != null) {
       converter = new TypeConverter(logHandler);
