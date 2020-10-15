@@ -254,11 +254,6 @@ public class AgentTracer {
     }
 
     @Override
-    public Map<String, Number> getMetrics() {
-      return Collections.emptyMap();
-    }
-
-    @Override
     public Boolean isError() {
       return false;
     }
@@ -284,7 +279,17 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpan setMetric(final String key, final Number value) {
+    public AgentSpan setMetric(final String key, final int value) {
+      return this;
+    }
+
+    @Override
+    public AgentSpan setMetric(final String key, final long value) {
+      return this;
+    }
+
+    @Override
+    public AgentSpan setMetric(final String key, final double value) {
       return this;
     }
 

@@ -48,14 +48,21 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public Map<String, Number> getMetrics() {
-    return delegate.getMetrics();
+  public OTSpan setMetric(final String metric, final int value) {
+    delegate.setTag(metric, value);
+    return this;
   }
 
   @Override
-  public MutableSpan setMetric(final String metric, final Number value) {
-    delegate.setMetric(metric, value);
-    return delegate;
+  public OTSpan setMetric(final String metric, final long value) {
+    delegate.setTag(metric, value);
+    return this;
+  }
+
+  @Override
+  public OTSpan setMetric(final String metric, final double value) {
+    delegate.setTag(metric, value);
+    return this;
   }
 
   @Override
