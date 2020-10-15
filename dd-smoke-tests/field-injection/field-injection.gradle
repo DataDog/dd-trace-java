@@ -1,0 +1,33 @@
+plugins {
+  id "com.github.johnrengelman.shadow" version "5.2.0"
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+description = 'Check fields get injected where expected'
+apply from: "$rootDir/gradle/java.gradle"
+
+jar {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.fieldinjection.FieldInjectionApp')
+  }
+}
+
+shadowJar {
+  configurations = [
+    project.configurations.compile,
+    project.configurations.main_java8Compile
+  ]
+}
+
+dependencies {
+  testCompile project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn shadowJar
+
+  jvmArgs "-Ddatadog.smoketest.fieldinjection.shadowJar.path=${tasks.shadowJar.archivePath}"
+}

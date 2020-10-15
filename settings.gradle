@@ -47,6 +47,7 @@ include ':utils:test-utils'
 
 // smoke tests
 include ':dd-smoke-tests:cli'
+include ':dd-smoke-tests:field-injection'
 include ':dd-smoke-tests:java9-modules'
 include ':dd-smoke-tests:opentracing'
 include ':dd-smoke-tests:play-2.5'

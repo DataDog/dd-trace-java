@@ -49,7 +49,7 @@ public final class RunnableFutureInstrumentation extends Instrumenter.Default {
   }
 
   @Override
-  public Map<String, String> contextStore() {
+  public Map<String, String> contextStoreForAll() {
     return singletonMap("java.util.concurrent.RunnableFuture", State.class.getName());
   }
 

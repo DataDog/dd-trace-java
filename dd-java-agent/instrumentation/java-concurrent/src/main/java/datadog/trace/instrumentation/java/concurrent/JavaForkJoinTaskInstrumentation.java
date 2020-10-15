@@ -47,7 +47,7 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Default
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return extendsClass(
-        named(ForkJoinTask.class.getName())
+        named("java.util.concurrent.ForkJoinTask")
             .and(
                 new ElementMatcher.Junction.AbstractBase<TypeDescription>() {
                   @Override
