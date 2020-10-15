@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.java.concurrent;
 
-import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Collections;
@@ -28,7 +29,12 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Defaul
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return implementsInterface(named("java.util.concurrent.RejectedExecutionHandler"));
+    return NameMatchers.<TypeDescription>namedOneOf(
+            "java.util.concurrent.ThreadPoolExecutor$AbortPolicy",
+            "java.util.concurrent.ThreadPoolExecutor$DiscardPolicy",
+            "java.util.concurrent.ThreadPoolExecutor$DiscardOldestPolicy",
+            "java.util.concurrent.ThreadPoolExecutor$CallerRunsPolicy")
+        .or(hasInterface(named("java.util.concurrent.RejectedExecutionHandler")));
   }
 
   @Override
@@ -36,7 +42,7 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Defaul
     Map<String, String> contextStore = new HashMap<>(4);
     contextStore.put("java.util.concurrent.RunnableFuture", State.class.getName());
     // TODO get rid of this
-    contextStore.put("java.util.concurrent.Runnable", State.class.getName());
+    contextStore.put("java.lang.Runnable", State.class.getName());
     return Collections.unmodifiableMap(contextStore);
   }
 
@@ -45,12 +51,15 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Defaul
     return Collections.singletonMap(
         isMethod()
             .and(named("rejectedExecution"))
-            .and(takesArgument(0, named("java.util.concurrent.Runnable"))),
+            .and(takesArgument(0, named("java.lang.Runnable")))
+            .and(takesArgument(1, named("java.util.concurrent.ThreadPoolExecutor"))),
         getClass().getName() + "$Reject");
   }
 
   public static final class Reject {
-    @Advice.OnMethodEnter
+    // must execute after in case the handler actually runs the runnable,
+    // which is preferable to cancelling the continuation
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void reject(@Advice.Argument(0) Runnable runnable) {
       // not handling rejected work (which will often not manifest in an exception being thrown)
       // leads to unclosed continuations when executors get busy
