@@ -4,16 +4,34 @@ import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assume
+import org.junit.Rule
+import org.junit.contrib.java.lang.system.EnvironmentVariables
+import org.junit.contrib.java.lang.system.RestoreSystemProperties
 
 import java.lang.management.ManagementFactory
 
 class SystemAccessTest extends DDSpecification {
-  def "No system provider - profiling enabled"() {
+  @Rule
+  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
+  
+  @Rule
+  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
+
+  def cleanup() {
+    SystemAccess.disableJmx()
+  }
+
+  def "Test cpu time"() {
     setup:
     ConfigUtils.updateConfig {
-      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", profilingEnabled.toString())
+      System.properties.setProperty("dd.${Config.HEALTH_METRICS_ENABLED}", healthMetricsEnabled.toString())
     }
-    SystemAccess.disableJmx()
+    if (providerEnabled) {
+      SystemAccess.enableJmx()
+    } else {
+      SystemAccess.disableJmx()
+    }
 
     when:
     def threadCpuTime1 = SystemAccess.getCurrentThreadCpuTime()
@@ -26,156 +44,115 @@ class SystemAccessTest extends DDSpecification {
 
     then:
     sum > 0
-    threadCpuTime1 == Long.MIN_VALUE
-    threadCpuTime2 == Long.MIN_VALUE
 
-    cleanup:
-    SystemAccess.disableJmx()
+    if (hasCpuTime) {
+      assert threadCpuTime1 != Long.MIN_VALUE
+      assert threadCpuTime2 != Long.MIN_VALUE
+      assert threadCpuTime2 > threadCpuTime1
+    } else {
+      assert threadCpuTime1 == Long.MIN_VALUE
+      assert threadCpuTime2 == Long.MIN_VALUE
+    }
+
+    where:
+    providerEnabled | profilingEnabled | healthMetricsEnabled | hasCpuTime
+    false           | false            | false                | false
+    false           | false            | true                 | false
+    false           | true             | false                | false
+    false           | true             | true                 | false
+    true            | false            | false                | false
+    true            | false            | true                 | true
+    true            | true             | false                | true
+    true            | true             | true                 | true
   }
 
-  def "No system provider - profiling disabled"() {
+  def "Test get current process id"() {
     setup:
     ConfigUtils.updateConfig {
-      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "false")
+      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", profilingEnabled.toString())
+      System.properties.setProperty("dd.${Config.HEALTH_METRICS_ENABLED}", healthMetricsEnabled.toString())
     }
-    SystemAccess.enableJmx()
-
-    when:
-    def threadCpuTime1 = SystemAccess.getCurrentThreadCpuTime()
-    // burn some cpu
-    def sum = 0
-    for (int i = 0; i < 10_000; i++) {
-      sum += i
-    }
-    def threadCpuTime2 = SystemAccess.getCurrentThreadCpuTime()
-
-    then:
-    sum > 0
-    threadCpuTime1 == Long.MIN_VALUE
-    threadCpuTime2 == Long.MIN_VALUE
-
-    cleanup:
-    SystemAccess.disableJmx()
-  }
-
-  def "JMX system provider"() {
-    setup:
-    ConfigUtils.updateConfig {
-      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
-    }
-    SystemAccess.enableJmx()
-
-    when:
-    def threadCpuTime1 = SystemAccess.getCurrentThreadCpuTime()
-    // burn some cpu
-    def sum = 0
-    for (int i = 0; i < 10_000; i++) {
-      sum += i
-    }
-    def threadCpuTime2 = SystemAccess.getCurrentThreadCpuTime()
-
-    then:
-    sum > 0
-    threadCpuTime1 != Long.MIN_VALUE
-    threadCpuTime2 != Long.MIN_VALUE
-    threadCpuTime2 > threadCpuTime1
-
-    cleanup:
-    SystemAccess.disableJmx()
-  }
-
-  def "JMX get current process id"() {
-    setup:
-    ConfigUtils.updateConfig {
-      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
-    }
-    SystemAccess.enableJmx()
-
-    when:
-    def pid = SystemAccess.getCurrentPid()
-
-    then:
-    pid > 0
-    pid == Integer.parseInt(ManagementFactory.getRuntimeMXBean().getName().split("@")[0])
-
-    cleanup:
-    SystemAccess.disableJmx()
-  }
-
-  def "No JMX - get current process id"() {
-    setup:
-    ConfigUtils.updateConfig {
-      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+    if (providerEnabled) {
+      SystemAccess.enableJmx()
+    } else {
+      SystemAccess.disableJmx()
     }
 
     when:
     def pid = SystemAccess.getCurrentPid()
 
     then:
-    pid == 0
+    if (hasProcessId) {
+      assert pid > 0
+      assert pid == Integer.parseInt(ManagementFactory.getRuntimeMXBean().getName().split("@")[0])
+    } else {
+      assert pid == 0
+    }
+
+    where:
+    providerEnabled | profilingEnabled | healthMetricsEnabled | hasProcessId
+    false           | false            | false                | false
+    false           | false            | true                 | false
+    false           | true             | false                | false
+    false           | true             | true                 | false
+    true            | false            | false                | false
+    true            | false            | true                 | true
+    true            | true             | false                | true
+    true            | true             | true                 | true
   }
 
-  def "JMX - getVMArguments"() {
+  def "Test getVMArguments"() {
     setup:
     ConfigUtils.updateConfig {
-      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", profilingEnabled.toString())
+      System.properties.setProperty("dd.${Config.HEALTH_METRICS_ENABLED}", healthMetricsEnabled.toString())
     }
-    SystemAccess.enableJmx()
+    if (providerEnabled) {
+      SystemAccess.enableJmx()
+    } else {
+      SystemAccess.disableJmx()
+    }
 
     when:
     def vmArgs = SystemAccess.getVMArguments()
 
     then:
-    vmArgs != null
-    vmArgs.size() > 0
+    assert vmArgs != null
 
-    cleanup:
-    SystemAccess.disableJmx()
-  }
-
-  def "No JMX - getVMArguments"() {
-    setup:
-    ConfigUtils.updateConfig {
-      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+    if (hasVMArgs) {
+      assert !vmArgs.isEmpty()
+    } else {
+      assert vmArgs != null
+      assert vmArgs.isEmpty()
     }
 
-    when:
-    def vmArgs = SystemAccess.getVMArguments()
-
-    then:
-    vmArgs != null
-    vmArgs.size() == 0
+    where:
+    providerEnabled | profilingEnabled | healthMetricsEnabled | hasVMArgs
+    false           | false            | false                | false
+    false           | false            | true                 | false
+    false           | true             | false                | false
+    false           | true             | true                 | false
+    true            | false            | false                | false
+    true            | false            | true                 | true
+    true            | true             | false                | true
+    true            | true             | true                 | true
   }
 
-  def "JMX - executeDiagnosticCommand"() {
+  def "Test executeDiagnosticCommand"() {
     setup:
     def vmVersion = System.getProperty("java.specification.version")
     def vmVendor = System.getProperty("java.vendor")
-    Assume.assumeFalse(vmVersion == "1.7")
-    Assume.assumeFalse(vmVersion == "1.8" && vmVendor.contains("IBM"))
+    Assume.assumeFalse(vmVersion == "1.7" || commandExecutes)
+    Assume.assumeFalse((vmVersion == "1.8" && vmVendor.contains("IBM")) || commandExecutes)
+
     ConfigUtils.updateConfig {
-      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", profilingEnabled.toString())
+      System.properties.setProperty("dd.${Config.HEALTH_METRICS_ENABLED}", healthMetricsEnabled.toString())
     }
-    SystemAccess.enableJmx()
-
-    when:
-    def result = SystemAccess.executeDiagnosticCommand(
-      "jfrConfigure",
-      [["stackdepth=128"].toArray() as String[]].toArray() as Object[],
-      [String[].class.getName()].toArray() as String[])
-
-    then:
-    "Stack depth: 128" == result
-    noExceptionThrown()
-
-    cleanup:
-    SystemAccess.disableJmx()
-  }
-
-  def "No JMX - executeDiagnosticCommand"() {
-    setup:
-    ConfigUtils.updateConfig {
-      System.properties.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
+    if (providerEnabled) {
+      SystemAccess.enableJmx()
+    } else {
+      SystemAccess.disableJmx()
     }
 
     when:
@@ -185,7 +162,23 @@ class SystemAccessTest extends DDSpecification {
       [String[].class.getName()].toArray() as String[])
 
     then:
-    "Not executed, JMX not initialized." == result
     noExceptionThrown()
+
+    if (commandExecutes) {
+      assert "Stack depth: 128" == result
+    } else {
+      assert "Not executed, JMX not initialized." == result
+    }
+
+    where:
+    providerEnabled | profilingEnabled | healthMetricsEnabled | commandExecutes
+    false           | false            | false                | false
+    false           | false            | true                 | false
+    false           | true             | false                | false
+    false           | true             | true                 | false
+    true            | false            | false                | false
+    true            | false            | true                 | true
+    true            | true             | false                | true
+    true            | true             | true                 | true
   }
 }
