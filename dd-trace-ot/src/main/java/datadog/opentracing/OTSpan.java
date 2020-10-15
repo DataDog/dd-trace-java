@@ -48,6 +48,24 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
+  public OTSpan setMetric(final CharSequence metric, final int value) {
+    delegate.setMetric(metric, value);
+    return this;
+  }
+
+  @Override
+  public OTSpan setMetric(final CharSequence metric, final long value) {
+    delegate.setMetric(metric, value);
+    return this;
+  }
+
+  @Override
+  public OTSpan setMetric(final CharSequence metric, final double value) {
+    delegate.setMetric(metric, value);
+    return this;
+  }
+
+  @Override
   public Boolean isError() {
     return delegate.isError();
   }
@@ -109,7 +127,7 @@ class OTSpan implements Span, MutableSpan {
   }
 
   @Override
-  public Span setOperationName(String operationName) {
+  public Span setOperationName(final String operationName) {
     return setOperationName(UTF8BytesString.create(operationName));
   }
 

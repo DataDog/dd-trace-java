@@ -197,6 +197,24 @@ public class DDSpan implements AgentSpan, DDSpanData {
   }
 
   @Override
+  public DDSpan setMetric(final CharSequence metric, final int value) {
+    context.setMetric(metric, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setMetric(final CharSequence metric, final long value) {
+    context.setMetric(metric, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setMetric(final CharSequence metric, final double value) {
+    context.setMetric(metric, value);
+    return this;
+  }
+
+  @Override
   public DDSpan setTag(final String tag, final CharSequence value) {
     context.setTag(tag, value);
     return this;
@@ -282,7 +300,7 @@ public class DDSpan implements AgentSpan, DDSpanData {
    * @return metrics for this span
    */
   @Override
-  public Map<String, Number> getMetrics() {
+  public Map<CharSequence, Number> getMetrics() {
     return context.getMetrics();
   }
 
@@ -353,7 +371,7 @@ public class DDSpan implements AgentSpan, DDSpanData {
 
   @Override
   public String getSpanType() {
-    CharSequence spanType = context.getSpanType();
+    final CharSequence spanType = context.getSpanType();
     return null == spanType ? null : spanType.toString();
   }
 
@@ -369,7 +387,7 @@ public class DDSpan implements AgentSpan, DDSpanData {
   }
 
   @Override
-  public void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {
+  public void processTagsAndBaggage(final TagsAndBaggageConsumer consumer) {
     context.processTagsAndBaggage(consumer);
   }
 

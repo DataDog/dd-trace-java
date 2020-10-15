@@ -38,7 +38,7 @@ public class AgentTracer {
     return get().activateSpan(span, ScopeSource.INSTRUMENTATION, false);
   }
 
-  public static AgentScope activateSpan(final AgentSpan span, boolean isAsyncPropagating) {
+  public static AgentScope activateSpan(final AgentSpan span, final boolean isAsyncPropagating) {
     return get().activateSpan(span, ScopeSource.INSTRUMENTATION, isAsyncPropagating);
   }
 
@@ -165,7 +165,7 @@ public class AgentTracer {
 
     @Override
     public AgentScope activateSpan(
-        final AgentSpan span, final ScopeSource source, boolean isAsyncPropagating) {
+        final AgentSpan span, final ScopeSource source, final boolean isAsyncPropagating) {
       return NoopAgentScope.INSTANCE;
     }
 
@@ -279,6 +279,21 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentSpan setMetric(final CharSequence key, final int value) {
+      return this;
+    }
+
+    @Override
+    public AgentSpan setMetric(final CharSequence key, final long value) {
+      return this;
+    }
+
+    @Override
+    public AgentSpan setMetric(final CharSequence key, final double value) {
+      return this;
+    }
+
+    @Override
     public Object getTag(final String key) {
       return null;
     }
@@ -354,7 +369,7 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpan setTag(String key, CharSequence value) {
+    public AgentSpan setTag(final String key, final CharSequence value) {
       return this;
     }
 

@@ -30,7 +30,7 @@ public class DDSpanContext implements AgentSpan.Context {
   public static final String SAMPLE_RATE_KEY = "_sample_rate";
   public static final String ORIGIN_KEY = "_dd.origin";
 
-  private static final Map<String, Number> EMPTY_METRICS = Collections.emptyMap();
+  private static final Map<CharSequence, Number> EMPTY_METRICS = Collections.emptyMap();
 
   // Shared with other span contexts
   /** For technical reasons, the ref to the original tracer */
@@ -78,7 +78,7 @@ public class DDSpanContext implements AgentSpan.Context {
   /** The origin of the trace. (eg. Synthetics) */
   private final String origin;
   /** Metrics on the span */
-  private final AtomicReference<Map<String, Number>> metrics = new AtomicReference<>();
+  private final AtomicReference<Map<CharSequence, Number>> metrics = new AtomicReference<>();
 
   private final Map<String, String> serviceNameMappings;
 
@@ -121,7 +121,7 @@ public class DDSpanContext implements AgentSpan.Context {
 
     // The +3 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
-    int capacity = ((tagsSize <= 0 ? 3 : tagsSize + 3) * 4) / 3;
+    final int capacity = ((tagsSize <= 0 ? 3 : tagsSize + 3) * 4) / 3;
     this.unsafeTags = new HashMap<>(capacity);
 
     this.serviceNameMappings = serviceNameMappings;
@@ -140,7 +140,7 @@ public class DDSpanContext implements AgentSpan.Context {
       this.unsafeTags.put(ORIGIN_KEY, origin);
     }
     // Additional Metadata
-    Thread current = Thread.currentThread();
+    final Thread current = Thread.currentThread();
     this.unsafeTags.put(DDTags.THREAD_NAME, current.getName());
     this.unsafeTags.put(DDTags.THREAD_ID, current.getId());
 
@@ -169,7 +169,7 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   public void setServiceName(final String serviceName) {
-    String mappedServiceName = serviceNameMappings.get(serviceName);
+    final String mappedServiceName = serviceNameMappings.get(serviceName);
     this.serviceName = mappedServiceName == null ? serviceName : mappedServiceName;
   }
 
@@ -318,14 +318,14 @@ public class DDSpanContext implements AgentSpan.Context {
     return tracer;
   }
 
-  public Map<String, Number> getMetrics() {
-    final Map<String, Number> metrics = this.metrics.get();
+  public Map<CharSequence, Number> getMetrics() {
+    final Map<CharSequence, Number> metrics = this.metrics.get();
     return metrics == null ? EMPTY_METRICS : metrics;
   }
 
-  public void setMetric(final String key, final Number value) {
+  public void setMetric(final CharSequence key, final Number value) {
     if (metrics.get() == null) {
-      metrics.compareAndSet(null, new ConcurrentHashMap<String, Number>());
+      metrics.compareAndSet(null, new ConcurrentHashMap<CharSequence, Number>());
     }
     if (value instanceof Float) {
       metrics.get().put(key, value.doubleValue());
@@ -333,6 +333,7 @@ public class DDSpanContext implements AgentSpan.Context {
       metrics.get().put(key, value);
     }
   }
+
   /**
    * Add a tag to the span. Tags are not propagated to the children
    *
@@ -379,7 +380,7 @@ public class DDSpanContext implements AgentSpan.Context {
     // Call interceptors
     final List<AbstractTagInterceptor> interceptors = tracer.getSpanTagInterceptors(tag);
     if (interceptors != null) {
-      ExclusiveSpan span = exclusiveSpan;
+      final ExclusiveSpan span = exclusiveSpan;
       for (final AbstractTagInterceptor interceptor : interceptors) {
         try {
           addTag &= interceptor.shouldSetTag(span, tag, value);
@@ -423,13 +424,13 @@ public class DDSpanContext implements AgentSpan.Context {
     }
   }
 
-  public void processTagsAndBaggage(TagsAndBaggageConsumer consumer) {
+  public void processTagsAndBaggage(final TagsAndBaggageConsumer consumer) {
     synchronized (unsafeTags) {
       consumer.accept(unsafeTags, baggageItems);
     }
   }
 
-  public void processExclusiveSpan(ExclusiveSpan.Consumer consumer) {
+  public void processExclusiveSpan(final ExclusiveSpan.Consumer consumer) {
     synchronized (unsafeTags) {
       consumer.accept(exclusiveSpan);
     }

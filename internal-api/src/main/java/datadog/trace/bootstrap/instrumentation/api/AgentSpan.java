@@ -24,6 +24,16 @@ public interface AgentSpan extends MutableSpan {
 
   AgentSpan setTag(String key, Object value);
 
+  @Override
+  AgentSpan setMetric(CharSequence key, int value);
+
+  @Override
+  AgentSpan setMetric(CharSequence key, long value);
+
+  @Override
+  AgentSpan setMetric(CharSequence key, double value);
+
+  @Override
   AgentSpan setSpanType(final CharSequence type);
 
   Object getTag(String key);
