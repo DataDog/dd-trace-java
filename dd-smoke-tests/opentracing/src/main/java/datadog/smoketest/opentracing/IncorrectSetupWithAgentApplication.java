@@ -6,7 +6,7 @@ public class IncorrectSetupWithAgentApplication {
   public static void main(final String[] args) {
     try {
       DDTracer.builder().build();
-    } catch (RuntimeException e) {
+    } catch (IllegalStateException e) {
       if (e.getMessage().startsWith("Datadog Tracer already installed")) {
         return;
       }
