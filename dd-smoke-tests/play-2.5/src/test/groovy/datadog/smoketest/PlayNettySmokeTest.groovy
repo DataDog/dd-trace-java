@@ -93,11 +93,13 @@ class PlayNettySmokeTest extends AbstractServerSmokeTest {
   }
 
   void doAndValidateRequest(int id) {
-    String url = "http://localhost:$httpPort/welcome?id=$id"
+    String requestType = id & 1 ? "j" : "s"
+    String responseType = requestType.toUpperCase()
+    String url = "http://localhost:$httpPort/welcome$requestType?id=$id"
     def request = new Request.Builder().url(url).get().build()
     def response = client.newCall(request).execute()
     def responseBodyStr = response.body().string()
-    assert responseBodyStr == "Got 'Hello $id!'"
+    assert responseBodyStr == "$responseType Got 'Hello $id!'"
     assert response.code() == 200
   }
 
