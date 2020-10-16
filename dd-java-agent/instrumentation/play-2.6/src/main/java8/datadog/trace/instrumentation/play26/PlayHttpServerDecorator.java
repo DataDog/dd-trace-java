@@ -26,7 +26,7 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   public static final CharSequence PLAY_ACTION = UTF8BytesString.createConstant("play-action");
   public static final PlayHttpServerDecorator DECORATE = new PlayHttpServerDecorator();
 
-  static final Integer ERROR_CODE = 500;
+  private static final Integer ERROR_CODE = 500;
   private static final MethodHandle TYPED_KEY_GET_UNDERLYING;
 
   static {
