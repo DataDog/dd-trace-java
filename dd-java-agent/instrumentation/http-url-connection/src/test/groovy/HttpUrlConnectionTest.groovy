@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.base.HttpClientTest
-import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator
@@ -8,8 +7,8 @@ import spock.lang.Requires
 import spock.lang.Timeout
 import sun.net.www.protocol.https.HttpsURLConnectionImpl
 
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlState.OPERATION_NAME
 
@@ -55,31 +54,32 @@ class HttpUrlConnectionTest extends HttpClientTest {
   def "trace request with propagation (useCaches: #useCaches)"() {
     setup:
     def url = server.address.resolve("/success").toURL()
-    withConfigOverride(Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService") {
-      runUnderTrace("someTrace") {
-        HttpURLConnection connection = url.openConnection()
-        connection.useCaches = useCaches
-        assert activeScope() != null
-        def stream = connection.inputStream
-        def lines = stream.readLines()
-        stream.close()
-        assert connection.getResponseCode() == STATUS
-        assert lines == [RESPONSE]
+    injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
 
-        // call again to ensure the cycling is ok
-        connection = url.openConnection()
-        connection.useCaches = useCaches
-        assert activeScope() != null
-        assert connection.getResponseCode() == STATUS // call before input stream to test alternate behavior
-        connection.inputStream
-        stream = connection.inputStream // one more to ensure state is working
-        lines = stream.readLines()
-        stream.close()
-        assert lines == [RESPONSE]
-      }
+    when:
+    runUnderTrace("someTrace") {
+      HttpURLConnection connection = url.openConnection()
+      connection.useCaches = useCaches
+      assert activeScope() != null
+      def stream = connection.inputStream
+      def lines = stream.readLines()
+      stream.close()
+      assert connection.getResponseCode() == STATUS
+      assert lines == [RESPONSE]
+
+      // call again to ensure the cycling is ok
+      connection = url.openConnection()
+      connection.useCaches = useCaches
+      assert activeScope() != null
+      assert connection.getResponseCode() == STATUS // call before input stream to test alternate behavior
+      connection.inputStream
+      stream = connection.inputStream // one more to ensure state is working
+      lines = stream.readLines()
+      stream.close()
+      assert lines == [RESPONSE]
     }
 
-    expect:
+    then:
     assertTraces(3) {
       server.distributedRequestTrace(it, trace(2)[2])
       server.distributedRequestTrace(it, trace(2)[1])
@@ -144,33 +144,34 @@ class HttpUrlConnectionTest extends HttpClientTest {
   def "trace request without propagation (useCaches: #useCaches)"() {
     setup:
     def url = server.address.resolve("/success").toURL()
-    withConfigOverride(Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService") {
-      runUnderTrace("someTrace") {
-        HttpURLConnection connection = url.openConnection()
-        connection.useCaches = useCaches
-        connection.addRequestProperty("is-dd-server", "false")
-        assert activeScope() != null
-        def stream = connection.inputStream
-        connection.inputStream // one more to ensure state is working
-        def lines = stream.readLines()
-        stream.close()
-        assert connection.getResponseCode() == STATUS
-        assert lines == [RESPONSE]
+    injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
 
-        // call again to ensure the cycling is ok
-        connection = url.openConnection()
-        connection.useCaches = useCaches
-        connection.addRequestProperty("is-dd-server", "false")
-        assert activeScope() != null
-        assert connection.getResponseCode() == STATUS // call before input stream to test alternate behavior
-        stream = connection.inputStream
-        lines = stream.readLines()
-        stream.close()
-        assert lines == [RESPONSE]
-      }
+    when:
+    runUnderTrace("someTrace") {
+      HttpURLConnection connection = url.openConnection()
+      connection.useCaches = useCaches
+      connection.addRequestProperty("is-dd-server", "false")
+      assert activeScope() != null
+      def stream = connection.inputStream
+      connection.inputStream // one more to ensure state is working
+      def lines = stream.readLines()
+      stream.close()
+      assert connection.getResponseCode() == STATUS
+      assert lines == [RESPONSE]
+
+      // call again to ensure the cycling is ok
+      connection = url.openConnection()
+      connection.useCaches = useCaches
+      connection.addRequestProperty("is-dd-server", "false")
+      assert activeScope() != null
+      assert connection.getResponseCode() == STATUS // call before input stream to test alternate behavior
+      stream = connection.inputStream
+      lines = stream.readLines()
+      stream.close()
+      assert lines == [RESPONSE]
     }
 
-    expect:
+    then:
     assertTraces(1) {
       trace(3) {
         span {
@@ -233,18 +234,19 @@ class HttpUrlConnectionTest extends HttpClientTest {
   def "test broken API usage"() {
     setup:
     def url = server.address.resolve("/success").toURL()
-    HttpURLConnection conn = withConfigOverride(Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService") {
-      runUnderTrace("someTrace") {
-        HttpURLConnection connection = url.openConnection()
-        connection.setRequestProperty("Connection", "close")
-        connection.addRequestProperty("is-dd-server", "false")
-        assert activeScope() != null
-        assert connection.getResponseCode() == STATUS
-        return connection
-      }
+    injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
+
+    when:
+    HttpURLConnection conn = runUnderTrace("someTrace") {
+      HttpURLConnection connection = url.openConnection()
+      connection.setRequestProperty("Connection", "close")
+      connection.addRequestProperty("is-dd-server", "false")
+      assert activeScope() != null
+      assert connection.getResponseCode() == STATUS
+      return connection
     }
 
-    expect:
+    then:
     assertTraces(1) {
       trace(2) {
         span {
@@ -290,30 +292,31 @@ class HttpUrlConnectionTest extends HttpClientTest {
   def "test post request"() {
     setup:
     def url = server.address.resolve("/success").toURL()
-    withConfigOverride(Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService") {
-      runUnderTrace("someTrace") {
-        HttpURLConnection connection = url.openConnection()
-        connection.setRequestMethod("POST")
+    injectSysConfig(HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
 
-        String urlParameters = "q=ASDF&w=&e=&r=12345&t="
+    when:
+    runUnderTrace("someTrace") {
+      HttpURLConnection connection = url.openConnection()
+      connection.setRequestMethod("POST")
 
-        // Send post request
-        connection.setDoOutput(true)
-        DataOutputStream wr = new DataOutputStream(connection.getOutputStream())
-        wr.writeBytes(urlParameters)
-        wr.flush()
-        wr.close()
+      String urlParameters = "q=ASDF&w=&e=&r=12345&t="
 
-        assert connection.getResponseCode() == STATUS
+      // Send post request
+      connection.setDoOutput(true)
+      DataOutputStream wr = new DataOutputStream(connection.getOutputStream())
+      wr.writeBytes(urlParameters)
+      wr.flush()
+      wr.close()
 
-        def stream = connection.inputStream
-        def lines = stream.readLines()
-        stream.close()
-        assert lines == [RESPONSE]
-      }
+      assert connection.getResponseCode() == STATUS
+
+      def stream = connection.inputStream
+      def lines = stream.readLines()
+      stream.close()
+      assert lines == [RESPONSE]
     }
 
-    expect:
+    then:
     assertTraces(2) {
       server.distributedRequestTrace(it, trace(1)[1])
       trace(2) {

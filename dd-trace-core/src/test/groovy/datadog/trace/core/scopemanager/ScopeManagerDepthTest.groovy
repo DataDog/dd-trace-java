@@ -10,8 +10,6 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.DDSpecification
 
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
-
 class ScopeManagerDepthTest extends DDSpecification {
   def "scopemanager returns noop scope if depth exceeded"() {
     given:
@@ -54,10 +52,8 @@ class ScopeManagerDepthTest extends DDSpecification {
 
   def "scopemanager ignores depth limit when 0"() {
     given:
-    def tracer
-    withConfigOverride(TracerConfig.SCOPE_DEPTH_LIMIT, "0") {
-      tracer = CoreTracer.builder().writer(new ListWriter()).build()
-    }
+    injectSysConfig(TracerConfig.SCOPE_DEPTH_LIMIT, "0")
+    def tracer = CoreTracer.builder().writer(new ListWriter()).build()
     def scopeManager = tracer.scopeManager
 
     when: "fill up the scope stack"

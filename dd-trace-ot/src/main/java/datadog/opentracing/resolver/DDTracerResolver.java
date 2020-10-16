@@ -11,18 +11,14 @@ import lombok.extern.slf4j.Slf4j;
 @AutoService(TracerResolver.class)
 public class DDTracerResolver extends TracerResolver {
 
-  Tracer resolve(final Config config) {
-    if (config.isTraceResolverEnabled()) {
+  @Override
+  protected Tracer resolve() {
+    if (Config.get().isTraceResolverEnabled()) {
       log.info("Creating DDTracer with DDTracerResolver");
-      return DDTracer.builder().config(config).build();
+      return DDTracer.builder().build();
     } else {
       log.info("DDTracerResolver disabled");
       return null;
     }
-  }
-
-  @Override
-  protected Tracer resolve() {
-    return resolve(Config.get());
   }
 }

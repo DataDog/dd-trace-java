@@ -17,7 +17,6 @@ import io.opentracing.propagation.TextMapAdapter
 import io.opentracing.tag.Tags
 
 import static datadog.trace.agent.test.asserts.ListWriterAssert.assertTraces
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 
 class OpenTracingAPITest extends DDSpecification {
   def writer = new ListWriter()
@@ -392,12 +391,10 @@ class OpenTracingAPITest extends DDSpecification {
 
   def "closing scope when not on top in strict mode"() {
     setup:
-    DDTracer strictTracer
-    withConfigOverride(TracerConfig.SCOPE_STRICT_MODE, "true") {
-      strictTracer = DDTracer.builder().writer(writer).statsDClient(statsDClient).build()
-      strictTracer.addTraceInterceptor(traceInterceptor)
-      strictTracer.addScopeListener(scopeListener)
-    }
+    injectSysConfig(TracerConfig.SCOPE_STRICT_MODE, "true")
+    DDTracer strictTracer = DDTracer.builder().writer(writer).statsDClient(statsDClient).build()
+    strictTracer.addTraceInterceptor(traceInterceptor)
+    strictTracer.addScopeListener(scopeListener)
 
     when:
     Span firstSpan = strictTracer.buildSpan("someOperation").start()

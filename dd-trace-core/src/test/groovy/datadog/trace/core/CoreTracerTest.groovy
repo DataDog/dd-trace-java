@@ -15,12 +15,8 @@ import datadog.trace.common.writer.LoggingWriter
 import datadog.trace.core.propagation.DatadogHttpCodec
 import datadog.trace.core.propagation.HttpCodec
 import datadog.trace.test.util.DDSpecification
-import org.junit.Rule
-import org.junit.contrib.java.lang.system.EnvironmentVariables
-import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Timeout
 
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.api.config.GeneralConfig.ENV
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
@@ -31,22 +27,13 @@ import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING
 import static datadog.trace.api.config.TracerConfig.SERVICE_MAPPING
 import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE
-import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 
 @Timeout(10)
 class CoreTracerTest extends DDSpecification {
 
-  @Rule
-  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
-  @Rule
-  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
-
   def "verify defaults on tracer"() {
     when:
-    // FIXME this line should be unnecessary but a system property is leaking from somewhere
-    // Remove when config overrides is fixed
-    System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, "true")
-    def tracer = CoreTracer.builder().config(new Config()).build()
+    def tracer = CoreTracer.builder().build()
 
     then:
     tracer.serviceName != ""
@@ -62,10 +49,10 @@ class CoreTracerTest extends DDSpecification {
 
   def "verify disabling health monitor"() {
     setup:
-    System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, "false")
+    injectSysConfig(HEALTH_METRICS_ENABLED, "false")
 
     when:
-    def tracer = CoreTracer.builder().config(new Config()).build()
+    def tracer = CoreTracer.builder().build()
 
     then:
     tracer.statsDClient instanceof NoOpStatsDClient
@@ -75,16 +62,16 @@ class CoreTracerTest extends DDSpecification {
     setup:
     def expectedSize = 6
     if (service != null) {
-      System.setProperty(PREFIX + SERVICE_NAME, service)
+      injectSysConfig(SERVICE_NAME, service)
     }
 
     if (env != null) {
-      System.setProperty(PREFIX + ENV, env)
+      injectSysConfig(ENV, env)
       expectedSize += 1
     }
 
     if (version != null) {
-      System.setProperty(PREFIX + VERSION, version)
+      injectSysConfig(VERSION, version)
       expectedSize += 1
     }
 
@@ -127,19 +114,21 @@ class CoreTracerTest extends DDSpecification {
 
   def "verify overriding sampler"() {
     setup:
-    System.setProperty(PREFIX + PRIORITY_SAMPLING, "false")
+    injectSysConfig(PRIORITY_SAMPLING, "false")
+
     when:
-    def tracer = CoreTracer.builder().config(new Config()).build()
+    def tracer = CoreTracer.builder().build()
+
     then:
     tracer.sampler instanceof AllSampler
   }
 
   def "verify overriding writer"() {
     setup:
-    System.setProperty(PREFIX + WRITER_TYPE, "LoggingWriter")
+    injectSysConfig(WRITER_TYPE, "LoggingWriter")
 
     when:
-    def tracer = CoreTracer.builder().config(new Config()).build()
+    def tracer = CoreTracer.builder().build()
 
     then:
     tracer.writer instanceof LoggingWriter
@@ -147,20 +136,15 @@ class CoreTracerTest extends DDSpecification {
 
   def "verify uds+windows"() {
     setup:
-    def osName = System.getProperty("os.name")
     System.setProperty("os.name", "Windows ME")
 
     when:
-    def tracer = withConfigOverride(AGENT_UNIX_DOMAIN_SOCKET, uds) {
-      CoreTracer.builder().build()
-    }
+    injectSysConfig(AGENT_UNIX_DOMAIN_SOCKET, uds)
+    def tracer = CoreTracer.builder().build()
 
     then:
     tracer.writer instanceof DDAgentWriter
     tracer.writer.api.unixDomainSocketPath == null
-
-    cleanup:
-    System.setProperty("os.name", osName)
 
     where:
     uds = "asdf"
@@ -168,12 +152,12 @@ class CoreTracerTest extends DDSpecification {
 
   def "verify mapping configs on tracer"() {
     setup:
-    System.setProperty(PREFIX + SERVICE_MAPPING, mapString)
-    System.setProperty(PREFIX + SPAN_TAGS, mapString)
-    System.setProperty(PREFIX + HEADER_TAGS, mapString)
+    injectSysConfig(SERVICE_MAPPING, mapString)
+    injectSysConfig(SPAN_TAGS, mapString)
+    injectSysConfig(HEADER_TAGS, mapString)
 
     when:
-    def tracer = CoreTracer.builder().config(new Config()).build()
+    def tracer = CoreTracer.builder().build()
     // Datadog extractor gets placed first
     def taggedHeaders = tracer.extractor.extractors[0].taggedHeaders
 
@@ -190,8 +174,9 @@ class CoreTracerTest extends DDSpecification {
 
   def "verify overriding host"() {
     when:
-    System.setProperty(PREFIX + key, value)
-    def tracer = CoreTracer.builder().config(new Config()).build()
+    injectSysConfig(key, value)
+
+    def tracer = CoreTracer.builder().build()
     // this test has no business reaching into the internals of another subsystem like this
     ((DDAgentWriter) tracer.writer).api.detectEndpointAndBuildClient()
 
@@ -206,8 +191,8 @@ class CoreTracerTest extends DDSpecification {
 
   def "verify overriding port"() {
     when:
-    System.setProperty(PREFIX + key, value)
-    def tracer = CoreTracer.builder().config(new Config()).build()
+    injectSysConfig(key, value)
+    def tracer = CoreTracer.builder().build()
     ((DDAgentWriter) tracer.writer).api.detectEndpointAndBuildClient()
 
     then:
@@ -222,8 +207,8 @@ class CoreTracerTest extends DDSpecification {
 
   def "Writer is instance of LoggingWriter when property set"() {
     when:
-    System.setProperty(PREFIX + "writer.type", "LoggingWriter")
-    def tracer = CoreTracer.builder().config(new Config()).build()
+    injectSysConfig("writer.type", "LoggingWriter")
+    def tracer = CoreTracer.builder().build()
 
     then:
     tracer.writer instanceof LoggingWriter
@@ -231,7 +216,7 @@ class CoreTracerTest extends DDSpecification {
 
   def "Shares TraceCount with DDApi with #key = #value"() {
     setup:
-    System.setProperty(PREFIX + key, value)
+    injectSysConfig(key, value)
     final CoreTracer tracer = CoreTracer.builder().build()
 
     expect:
@@ -296,9 +281,8 @@ class CoreTracerTest extends DDSpecification {
 
   def "span priority set when injecting"() {
     given:
-    Properties properties = new Properties()
-    properties.setProperty("writer.type", "LoggingWriter")
-    def tracer = CoreTracer.builder().withProperties(properties).build()
+    injectSysConfig("writer.type", "LoggingWriter")
+    def tracer = CoreTracer.builder().build()
     def setter = Mock(AgentPropagation.Setter)
     def carrier = new Object()
 

@@ -1,11 +1,10 @@
 package datadog.trace.core.processor
 
-import datadog.trace.agent.test.utils.ConfigUtils
+
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.SpanFactory
-
 import datadog.trace.core.processor.rule.URLAsResourceNameRule
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Subject
@@ -24,19 +23,12 @@ class TraceProcessorTest extends DDSpecification {
 
   def "test disable"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.trace.${name}.enabled", "false")
-    }
+    injectSysConfig("trace.${name}.enabled", "false")
     def processor = new TraceProcessor()
 
     expect:
     !processor.rules.any {
       it.class.name == rule.name
-    }
-
-    cleanup:
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace.${name}.enabled")
     }
 
     where:
