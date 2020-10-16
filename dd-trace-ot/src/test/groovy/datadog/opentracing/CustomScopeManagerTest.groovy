@@ -294,7 +294,7 @@ class TestScopeManager implements ScopeManager {
 
     @Override
     void setAsyncPropagation(boolean value) {
-      asyncPropagating = true
+      asyncPropagating = value
     }
   }
 }

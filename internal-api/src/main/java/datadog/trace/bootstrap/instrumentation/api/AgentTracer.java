@@ -35,7 +35,7 @@ public class AgentTracer {
   }
 
   public static AgentScope activateSpan(final AgentSpan span) {
-    return get().activateSpan(span, ScopeSource.INSTRUMENTATION, false);
+    return get().activateSpan(span, ScopeSource.INSTRUMENTATION, true);
   }
 
   public static AgentScope activateSpan(final AgentSpan span, final boolean isAsyncPropagating) {

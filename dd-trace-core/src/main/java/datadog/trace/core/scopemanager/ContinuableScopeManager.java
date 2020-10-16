@@ -134,7 +134,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     boolean asyncPropagation =
         overrideAsyncPropagation
             ? isAsyncPropagating
-            : active != null && active.isAsyncPropagating();
+            : active == null || active.isAsyncPropagating();
     final ContinuableScope scope =
         new ContinuableScope(this, continuation, span, source, asyncPropagation);
     scopeStack().push(scope);
@@ -414,10 +414,8 @@ public class ContinuableScopeManager implements AgentScopeManager {
 
     @Override
     public AgentScope activate() {
-      // Setting the new scope that is being activated to not have async propagation by default
-      // to be backwards compatible with the existing behavior that the instrumentations expect.
       final boolean overrideAsyncPropagation = true;
-      final boolean isAsyncPropagating = false;
+      final boolean isAsyncPropagating = true;
       if (used.compareAndSet(false, true)) {
         final AgentScope scope =
             scopeManager.handleSpan(
