@@ -4,6 +4,8 @@ import java.util.concurrent.ThreadFactory;
 
 /** A {@link ThreadFactory} implementation that starts all {@link Thread} as daemons. */
 public final class DaemonThreadFactory implements ThreadFactory {
+  public static final ThreadGroup AGENT_THREAD_GROUP = new ThreadGroup("dd-java-agent");
+
   public static final DaemonThreadFactory TRACE_MONITOR =
       new DaemonThreadFactory("dd-trace-monitor");
   public static final DaemonThreadFactory TRACE_PROCESSOR =
@@ -60,7 +62,7 @@ public final class DaemonThreadFactory implements ThreadFactory {
             }
           };
     }
-    final Thread thread = new Thread(runnable, threadName);
+    final Thread thread = new Thread(AGENT_THREAD_GROUP, runnable, threadName);
     thread.setDaemon(true);
     thread.setContextClassLoader(null);
     return thread;

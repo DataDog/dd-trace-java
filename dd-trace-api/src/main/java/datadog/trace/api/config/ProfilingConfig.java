@@ -38,6 +38,7 @@ public final class ProfilingConfig {
       "profiling.exception.histogram.top-items";
   public static final String PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE =
       "profiling.exception.histogram.max-collection-size";
+  public static final String PROFILING_EXCLUDE_AGENT_THREADS = "profiling.exclude.agent-threads";
 
   private ProfilingConfig() {}
 }
