@@ -236,6 +236,8 @@ public class Config {
       ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS;
   public static final String PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE =
       ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE;
+  public static final String PROFILING_EXCLUDE_AGENT_THREADS =
+      ProfilingConfig.PROFILING_EXCLUDE_AGENT_THREADS;
 
   public static final String KAFKA_CLIENT_PROPAGATION_ENABLED =
       TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED;
@@ -364,6 +366,7 @@ public class Config {
   @Getter private final int profilingExceptionSampleLimit;
   @Getter private final int profilingExceptionHistogramTopItems;
   @Getter private final int profilingExceptionHistogramMaxCollectionSize;
+  @Getter private final boolean profilingExcludeAgentThreads;
 
   @Getter private final boolean kafkaClientPropagationEnabled;
   @Getter private final boolean kafkaClientBase64DecodingEnabled;
@@ -671,6 +674,8 @@ public class Config {
         configProvider.getInteger(
             PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
             DEFAULT_PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE);
+
+    profilingExcludeAgentThreads = configProvider.getBoolean(PROFILING_EXCLUDE_AGENT_THREADS, true);
 
     kafkaClientPropagationEnabled =
         configProvider.getBoolean(

@@ -4,6 +4,7 @@ import static datadog.trace.util.DaemonThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.profiling.exceptions.ExceptionProfiling;
 import com.datadog.profiling.exceptions.ExceptionSampleEvent;
+import datadog.trace.api.Config;
 import net.bytebuddy.asm.Advice;
 
 public class ThrowableInstanceAdvice {
@@ -22,7 +23,8 @@ public class ThrowableInstanceAdvice {
         /*
          * Exclude internal agent threads from exception profiling.
          */
-        if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
+        if (Config.get().isProfilingExcludeAgentThreads()
+            && AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
           return;
         }
         /*
