@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci;
+package datadog.trace.bootstrap.instrumentation.api.ci;
 
 class CircleCIInfo extends CIProviderInfo {
 
@@ -38,11 +38,11 @@ class CircleCIInfo extends CIProviderInfo {
     gitRepositoryUrl = filterSensitiveInfo(System.getenv(CIRCLECI_GIT_REPOSITORY_URL));
     gitCommit = System.getenv(CIRCLECI_GIT_COMMIT);
     gitTag = normalizeRef(System.getenv(CIRCLECI_GIT_TAG));
-    gitBranch = buildGitTag(gitTag);
+    gitBranch = buildGitBranch(gitTag);
   }
 
-  private String buildGitTag(final String gitTag) {
-    if (gitTag != null && !gitTag.isEmpty()) {
+  private String buildGitBranch(final String gitTag) {
+    if (gitTag != null) {
       return null;
     }
 

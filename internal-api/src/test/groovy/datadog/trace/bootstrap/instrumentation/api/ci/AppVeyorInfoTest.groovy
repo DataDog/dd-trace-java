@@ -1,16 +1,16 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci
+package datadog.trace.bootstrap.instrumentation.api.ci
 
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AppVeyorInfo.APPVEYOR
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AppVeyorInfo.APPVEYOR_BUILD_ID
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AppVeyorInfo.APPVEYOR_PIPELINE_NUMBER
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AppVeyorInfo.APPVEYOR_PROVIDER_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AppVeyorInfo.APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AppVeyorInfo.APPVEYOR_REPO_BRANCH
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AppVeyorInfo.APPVEYOR_REPO_COMMIT
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AppVeyorInfo.APPVEYOR_REPO_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AppVeyorInfo.APPVEYOR_REPO_PROVIDER
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AppVeyorInfo.APPVEYOR_REPO_TAG_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AppVeyorInfo.APPVEYOR_WORKSPACE_PATH
+import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR
+import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR_BUILD_ID
+import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR_PIPELINE_NUMBER
+import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR_PROVIDER_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH
+import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR_REPO_BRANCH
+import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR_REPO_COMMIT
+import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR_REPO_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR_REPO_PROVIDER
+import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR_REPO_TAG_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR_WORKSPACE_PATH
 
 class AppVeyorInfoTest extends CIProviderInfoTest {
 
@@ -46,6 +46,7 @@ class AppVeyorInfoTest extends CIProviderInfoTest {
     where:
     appveyorWorkspace | ciInfoWorkspace       | appveyorProvider | appveyorBranch           | appveyorPRBranch | appveyorTag             | ciInfoRepository                            | ciInfoCommit           | ciInfoBranch  | ciInfoTag
     "/foo/bar"        | "/foo/bar"            | "github"         | "master"                 | null             | null                    | "https://github.com/appveyor-repo-name.git" | "appveyor-repo-commit" | "master"      | null
+    "/foo/bar"        | "/foo/bar"            | "github"         | "master"                 | ""               | null                    | "https://github.com/appveyor-repo-name.git" | "appveyor-repo-commit" | "master"      | null
     "foo/bar"         | "foo/bar"             | "github"         | "master"                 | null             | null                    | "https://github.com/appveyor-repo-name.git" | "appveyor-repo-commit" | "master"      | null
     "/foo/bar~"       | "/foo/bar~"           | "github"         | "master"                 | null             | null                    | "https://github.com/appveyor-repo-name.git" | "appveyor-repo-commit" | "master"      | null
     "/foo/~/bar"      | "/foo/~/bar"          | "github"         | "master"                 | null             | null                    | "https://github.com/appveyor-repo-name.git" | "appveyor-repo-commit" | "master"      | null

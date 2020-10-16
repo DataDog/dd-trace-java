@@ -1,20 +1,21 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci
+package datadog.trace.bootstrap.instrumentation.api.ci
 
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_BUILD_BUILDID
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_BUILD_REPOSITORY_URI
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_BUILD_SOURCEBRANCH
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_BUILD_SOURCEVERSION
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_PIPELINE_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_PROVIDER_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_SYSTEM_JOBID
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_SYSTEM_PULLREQUEST_SOURCEBRANCH
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_SYSTEM_PULLREQUEST_SOURCECOMMITID
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_SYSTEM_PULLREQUEST_SOURCEREPOSITORYURI
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_SYSTEM_TASKINSTANCEID
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_SYSTEM_TEAMPROJECT
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE_WORKSPACE_PATH
+
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_BUILD_BUILDID
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_BUILD_REPOSITORY_URI
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_BUILD_SOURCEBRANCH
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_BUILD_SOURCEVERSION
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_PIPELINE_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_PROVIDER_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_SYSTEM_JOBID
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_SYSTEM_PULLREQUEST_SOURCEBRANCH
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_SYSTEM_PULLREQUEST_SOURCECOMMITID
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_SYSTEM_PULLREQUEST_SOURCEREPOSITORYURI
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_SYSTEM_TASKINSTANCEID
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_SYSTEM_TEAMFOUNDATIONSERVERURI
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_SYSTEM_TEAMPROJECT
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE_WORKSPACE_PATH
 
 class AzurePipelinesInfoTest extends CIProviderInfoTest {
 
@@ -54,6 +55,10 @@ class AzurePipelinesInfoTest extends CIProviderInfoTest {
     where:
     azureWorkspace | ciInfoWorkspace       | azureRepo | azurePRRepo | ciInfoRepo | azureBranch              | azurePRBranch   | ciInfoBranch  | ciInfoTag | azureCommit | azurePRCommit | ciInfoCommit
     "/foo/bar"     | "/foo/bar"            | "sample"  | null        | "sample"   | "master"                 | null            | "master"      | null      | "commit"    | null          | "commit"
+    "/foo/bar"     | "/foo/bar"            | "sample"  | ""          | "sample"   | "master"                 | null            | "master"      | null      | "commit"    | null          | "commit"
+    "/foo/bar"     | "/foo/bar"            | "sample"  | "sample2"   | "sample2"  | "master"                 | null            | "master"      | null      | "commit"    | null          | "commit"
+    "/foo/bar"     | "/foo/bar"            | "sample"  | null        | "sample"   | "master"                 | ""              | "master"      | null      | "commit"    | null          | "commit"
+    "/foo/bar"     | "/foo/bar"            | "sample"  | null        | "sample"   | "master"                 | null            | "master"      | null      | "commit"    | ""            | "commit"
     "foo/bar"      | "foo/bar"             | "sample"  | null        | "sample"   | "origin/master"          | null            | "master"      | null      | "commit"    | null          | "commit"
     "/foo/bar~"    | "/foo/bar~"           | "sample"  | null        | "sample"   | "origin/master"          | null            | "master"      | null      | "commit"    | null          | "commit"
     "/foo/~/bar"   | "/foo/~/bar"          | "sample"  | null        | "sample"   | "origin/master"          | null            | "master"      | null      | "commit"    | null          | "commit"

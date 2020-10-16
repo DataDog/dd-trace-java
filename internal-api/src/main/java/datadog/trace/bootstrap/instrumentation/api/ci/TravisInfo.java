@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci;
+package datadog.trace.bootstrap.instrumentation.api.ci;
 
 class TravisInfo extends CIProviderInfo {
 
@@ -44,7 +44,7 @@ class TravisInfo extends CIProviderInfo {
   }
 
   private String buildGitBranch(final String gitTag) {
-    if (gitTag != null && !gitTag.isEmpty()) {
+    if (gitTag != null) {
       return null;
     }
 

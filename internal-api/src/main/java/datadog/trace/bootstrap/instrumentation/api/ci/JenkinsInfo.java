@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci;
+package datadog.trace.bootstrap.instrumentation.api.ci;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -129,7 +129,7 @@ class JenkinsInfo extends CIProviderInfo {
 
     // First, the git branch is removed from the raw jobName
     final String jobNameNoBranch;
-    if (gitBranch != null && !gitBranch.isEmpty()) {
+    if (gitBranch != null) {
       jobNameNoBranch = jobName.trim().replace("/" + gitBranch, "");
     } else {
       jobNameNoBranch = jobName;

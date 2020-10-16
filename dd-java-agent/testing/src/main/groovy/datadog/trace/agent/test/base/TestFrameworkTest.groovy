@@ -55,6 +55,7 @@ abstract class TestFrameworkTest extends AgentTestRunner {
           "$Tags.BUILD_SOURCE_ROOT" ciWorkspacePath
           "$Tags.GIT_REPOSITORY_URL" gitRepositoryUrl
           "$Tags.GIT_COMMIT_SHA" gitCommit
+          "$Tags._GIT_COMMIT_SHA" gitCommit
           "$Tags.GIT_BRANCH" gitBranch
           "$Tags.GIT_TAG" gitTag
         }

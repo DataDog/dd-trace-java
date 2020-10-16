@@ -1,16 +1,16 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci
+package datadog.trace.bootstrap.instrumentation.api.ci
 
 
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GithubActionsInfo.GHACTIONS
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GithubActionsInfo.GHACTIONS_HEAD_REF
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GithubActionsInfo.GHACTIONS_PIPELINE_ID
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GithubActionsInfo.GHACTIONS_PIPELINE_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GithubActionsInfo.GHACTIONS_PIPELINE_NUMBER
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GithubActionsInfo.GHACTIONS_PROVIDER_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GithubActionsInfo.GHACTIONS_REF
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GithubActionsInfo.GHACTIONS_REPOSITORY
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GithubActionsInfo.GHACTIONS_SHA
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GithubActionsInfo.GHACTIONS_WORKSPACE_PATH
+import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.GHACTIONS
+import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.GHACTIONS_HEAD_REF
+import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.GHACTIONS_PIPELINE_ID
+import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.GHACTIONS_PIPELINE_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.GHACTIONS_PIPELINE_NUMBER
+import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.GHACTIONS_PROVIDER_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.GHACTIONS_REF
+import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.GHACTIONS_REPOSITORY
+import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.GHACTIONS_SHA
+import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.GHACTIONS_WORKSPACE_PATH
 
 class GithubActionsInfoTest extends CIProviderInfoTest {
 
@@ -45,6 +45,7 @@ class GithubActionsInfoTest extends CIProviderInfoTest {
     where:
     ghactionsWorkspace | ciInfoWorkspace       | ghactionsBranch          | ghactionsPRBranch          | ciInfoBranch    | ciInfoTag
     "/foo/bar"         | "/foo/bar"            | "master"                 | null                       | "master"        | null
+    "/foo/bar"         | "/foo/bar"            | "master"                 | ""                         | "master"        | null
     "foo/bar"          | "foo/bar"             | "master"                 | null                       | "master"        | null
     "/foo/bar~"        | "/foo/bar~"           | "master"                 | null                       | "master"        | null
     "/foo/~/bar"       | "/foo/~/bar"          | "master"                 | null                       | "master"        | null

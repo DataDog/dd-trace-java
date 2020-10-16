@@ -44,7 +44,8 @@ public class Tags {
   public static final String BUILD_SOURCE_ROOT = "build.source_root";
 
   public static final String GIT_REPOSITORY_URL = "git.repository_url";
-  public static final String GIT_COMMIT_SHA = "git.commit_sha";
+  public static final String GIT_COMMIT_SHA = "git.commit.sha";
+  @Deprecated public static final String _GIT_COMMIT_SHA = "git.commit_sha";
   public static final String GIT_BRANCH = "git.branch";
   public static final String GIT_TAG = "git.tag";
 

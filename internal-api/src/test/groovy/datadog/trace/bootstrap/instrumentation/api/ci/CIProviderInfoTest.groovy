@@ -1,20 +1,20 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci
+package datadog.trace.bootstrap.instrumentation.api.ci
 
 import datadog.trace.test.util.DDSpecification
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import spock.lang.Shared
 
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AppVeyorInfo.APPVEYOR
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.AzurePipelinesInfo.AZURE
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BitBucketInfo.BITBUCKET
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.BuildkiteInfo.BUILDKITE
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CIProviderInfo.selectCI
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GitLabInfo.GITLAB
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.GithubActionsInfo.GHACTIONS
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.JenkinsInfo.JENKINS
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS
+import static datadog.trace.bootstrap.instrumentation.api.ci.AppVeyorInfo.APPVEYOR
+import static datadog.trace.bootstrap.instrumentation.api.ci.AzurePipelinesInfo.AZURE
+import static datadog.trace.bootstrap.instrumentation.api.ci.BitBucketInfo.BITBUCKET
+import static datadog.trace.bootstrap.instrumentation.api.ci.BuildkiteInfo.BUILDKITE
+import static datadog.trace.bootstrap.instrumentation.api.ci.CIProviderInfo.selectCI
+import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI
+import static datadog.trace.bootstrap.instrumentation.api.ci.GitLabInfo.GITLAB
+import static datadog.trace.bootstrap.instrumentation.api.ci.GithubActionsInfo.GHACTIONS
+import static datadog.trace.bootstrap.instrumentation.api.ci.JenkinsInfo.JENKINS
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS
 
 abstract class CIProviderInfoTest extends DDSpecification {
 
@@ -52,5 +52,6 @@ abstract class CIProviderInfoTest extends DDSpecification {
     GHACTIONS     | GithubActionsInfo
     BITBUCKET     | BitBucketInfo
     BUILDKITE     | BuildkiteInfo
+    "none"        | NoopCIInfo
   }
 }

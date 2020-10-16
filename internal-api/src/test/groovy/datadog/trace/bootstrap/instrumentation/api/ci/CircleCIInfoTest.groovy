@@ -1,17 +1,17 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci
+package datadog.trace.bootstrap.instrumentation.api.ci
 
 
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_BUILD_URL
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_GIT_BRANCH
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_GIT_COMMIT
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_GIT_REPOSITORY_URL
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_GIT_TAG
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_PIPELINE_ID
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_PIPELINE_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_PIPELINE_NUMBER
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_PROVIDER_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.CircleCIInfo.CIRCLECI_WORKSPACE_PATH
+import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI
+import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI_BUILD_URL
+import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI_GIT_BRANCH
+import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI_GIT_COMMIT
+import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI_GIT_REPOSITORY_URL
+import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI_GIT_TAG
+import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI_PIPELINE_ID
+import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI_PIPELINE_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI_PIPELINE_NUMBER
+import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI_PROVIDER_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.CircleCIInfo.CIRCLECI_WORKSPACE_PATH
 
 class CircleCIInfoTest extends CIProviderInfoTest {
 
@@ -49,6 +49,7 @@ class CircleCIInfoTest extends CIProviderInfoTest {
     null              | null                  | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
     ""                | ""                    | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
     "/foo/bar"        | "/foo/bar"            | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
+    "/foo/bar"        | "/foo/bar"            | "sample"                                     | "sample"                        | "origin/master"          | ""                      | "master"      | null
     "foo/bar"         | "foo/bar"             | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
     "/foo/bar~"       | "/foo/bar~"           | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
     "/foo/~/bar"      | "/foo/~/bar"          | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
@@ -59,6 +60,8 @@ class CircleCIInfoTest extends CIProviderInfoTest {
     "/foo/bar"        | "/foo/bar"            | "sample"                                     | "sample"                        | "refs/heads/feature/one" | null                    | "feature/one" | null
     "/foo/bar"        | "/foo/bar"            | "sample"                                     | "sample"                        | "origin/tags/0.1.0"      | "origin/tags/0.1.0"     | null          | "0.1.0"
     "/foo/bar"        | "/foo/bar"            | "sample"                                     | "sample"                        | "refs/heads/tags/0.1.0"  | "refs/heads/tags/0.1.0" | null          | "0.1.0"
+    "/foo/bar"        | "/foo/bar"            | null                                         | null                            | "origin/master"          | null                    | "master"      | null
+    "/foo/bar"        | "/foo/bar"            | ""                                           | null                            | "origin/master"          | null                    | "master"      | null
     "/foo/bar"        | "/foo/bar"            | "http://hostname.com/repo.git"               | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
     "/foo/bar"        | "/foo/bar"            | "http://user@hostname.com/repo.git"          | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
     "/foo/bar"        | "/foo/bar"            | "http://user%E2%82%AC@hostname.com/repo.git" | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null

@@ -4,7 +4,7 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.bootstrap.instrumentation.decorator.ci.CIProviderInfo;
+import datadog.trace.bootstrap.instrumentation.api.ci.CIProviderInfo;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -86,6 +86,7 @@ public abstract class TestDecorator extends BaseDecorator {
 
     span.setTag(Tags.GIT_REPOSITORY_URL, gitRepositoryUrl);
     span.setTag(Tags.GIT_COMMIT_SHA, gitCommit);
+    span.setTag(Tags._GIT_COMMIT_SHA, gitCommit);
     span.setTag(Tags.GIT_BRANCH, gitBranch);
     span.setTag(Tags.GIT_TAG, gitTag);
 

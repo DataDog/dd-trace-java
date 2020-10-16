@@ -3,7 +3,7 @@ package datadog.trace.bootstrap.instrumentation.decorator
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.bootstrap.instrumentation.decorator.ci.CIProviderInfo
+import datadog.trace.bootstrap.instrumentation.api.ci.CIProviderInfo
 
 class TestDecoratorTest extends BaseDecoratorTest {
 
@@ -33,6 +33,7 @@ class TestDecoratorTest extends BaseDecoratorTest {
     1 * span.setTag(Tags.BUILD_SOURCE_ROOT, "ci-workspace-path")
     1 * span.setTag(Tags.GIT_REPOSITORY_URL, "git-repository-url")
     1 * span.setTag(Tags.GIT_COMMIT_SHA, "git-commit")
+    1 * span.setTag(Tags._GIT_COMMIT_SHA, "git-commit")
     1 * span.setTag(Tags.GIT_BRANCH, "git-branch")
     1 * span.setTag(Tags.GIT_TAG, "git-tag")
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.

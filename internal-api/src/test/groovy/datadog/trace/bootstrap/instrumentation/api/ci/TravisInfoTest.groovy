@@ -1,19 +1,19 @@
-package datadog.trace.bootstrap.instrumentation.decorator.ci
+package datadog.trace.bootstrap.instrumentation.api.ci
 
 
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_GIT_BRANCH
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_GIT_COMMIT
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_GIT_PR_BRANCH
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_GIT_TAG
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_JOB_URL
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_PIPELINE_ID
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_PIPELINE_NUMBER
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_PIPELINE_URL
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_PROVIDER_NAME
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_PR_REPOSITORY_SLUG
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_REPOSITORY_SLUG
-import static datadog.trace.bootstrap.instrumentation.decorator.ci.TravisInfo.TRAVIS_WORKSPACE_PATH
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS_GIT_BRANCH
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS_GIT_COMMIT
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS_GIT_PR_BRANCH
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS_GIT_TAG
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS_JOB_URL
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS_PIPELINE_ID
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS_PIPELINE_NUMBER
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS_PIPELINE_URL
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS_PROVIDER_NAME
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS_PR_REPOSITORY_SLUG
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS_REPOSITORY_SLUG
+import static datadog.trace.bootstrap.instrumentation.api.ci.TravisInfo.TRAVIS_WORKSPACE_PATH
 
 class TravisInfoTest extends CIProviderInfoTest {
 
@@ -54,7 +54,9 @@ class TravisInfoTest extends CIProviderInfoTest {
     "/foo/bar"      | "/foo/bar"            | "user/repo"    | null             | "user/repo" | "https://github.com/user/repo.git" | "refs/heads/tags/0.1.0"  | null                     | null          | "refs/heads/tags/0.1.0" | "0.1.0"
     null            | null                  | "user/repo"    | null             | "user/repo" | "https://github.com/user/repo.git" | "origin/master"          | null                     | "master"      | null                    | null
     ""              | ""                    | "user/repo"    | null             | "user/repo" | "https://github.com/user/repo.git" | "origin/master"          | null                     | "master"      | null                    | null
+    "foo/bar"       | "foo/bar"             | "user/repo"    | null             | "user/repo" | "https://github.com/user/repo.git" | "origin/master"          | ""                       | "master"      | null                    | null
     "foo/bar"       | "foo/bar"             | "user/repo"    | null             | "user/repo" | "https://github.com/user/repo.git" | "origin/master"          | null                     | "master"      | null                    | null
+    "foo/bar"       | "foo/bar"             | "user/repo"    | ""               | "user/repo" | "https://github.com/user/repo.git" | "origin/master"          | null                     | "master"      | null                    | null
     "/foo/bar~"     | "/foo/bar~"           | "user/repo"    | null             | "user/repo" | "https://github.com/user/repo.git" | "origin/master"          | null                     | "master"      | null                    | null
     "/foo/~/bar"    | "/foo/~/bar"          | "user/repo"    | null             | "user/repo" | "https://github.com/user/repo.git" | "origin/master"          | null                     | "master"      | null                    | null
     "~/foo/bar"     | userHome + "/foo/bar" | "user/repo"    | null             | "user/repo" | "https://github.com/user/repo.git" | "origin/master"          | null                     | "master"      | null                    | null
