@@ -6,9 +6,12 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.util.concurrent.CompletionException;
 import lombok.extern.slf4j.Slf4j;
 import play.api.mvc.Request;
 import play.api.mvc.Result;
@@ -23,23 +26,30 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
   public static final CharSequence PLAY_ACTION = UTF8BytesString.createConstant("play-action");
   public static final PlayHttpServerDecorator DECORATE = new PlayHttpServerDecorator();
 
-  private static final Method typedKeyGetUnderlying;
+  static final Integer ERROR_CODE = 500;
+  private static final MethodHandle TYPED_KEY_GET_UNDERLYING;
 
   static {
-    Method typedKeyGetUnderlyingCheck = null;
+    MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+    MethodHandle typedKeyGetUnderlyingCheck = null;
     try {
       // This method was added in Play 2.6.8
-      typedKeyGetUnderlyingCheck = TypedKey.class.getMethod("asScala");
-    } catch (final NoSuchMethodException ignored) {
+      typedKeyGetUnderlyingCheck =
+          lookup.findVirtual(
+              TypedKey.class,
+              "asScala",
+              MethodType.methodType(play.api.libs.typedmap.TypedKey.class));
+    } catch (final NoSuchMethodException | IllegalAccessException ignored) {
     }
     // Fallback
     if (typedKeyGetUnderlyingCheck == null) {
       try {
-        typedKeyGetUnderlyingCheck = TypedKey.class.getMethod("underlying");
-      } catch (final NoSuchMethodException ignored) {
+        typedKeyGetUnderlyingCheck =
+            lookup.findGetter(TypedKey.class, "underlying", play.api.libs.typedmap.TypedKey.class);
+      } catch (final NoSuchFieldException | IllegalAccessException ignored) {
       }
     }
-    typedKeyGetUnderlying = typedKeyGetUnderlyingCheck;
+    TYPED_KEY_GET_UNDERLYING = typedKeyGetUnderlyingCheck;
   }
 
   @Override
@@ -83,19 +93,19 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
     if (request != null) {
       // more about routes here:
       // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md
-      Option<HandlerDef> defOption = null;
-      if (typedKeyGetUnderlying != null) { // Should always be non-null but just to make sure
+      Option<HandlerDef> defOption = Option.empty();
+      if (TYPED_KEY_GET_UNDERLYING != null) { // Should always be non-null but just to make sure
         try {
           defOption =
               request
                   .attrs()
                   .get(
                       (play.api.libs.typedmap.TypedKey<HandlerDef>)
-                          typedKeyGetUnderlying.invoke(Router.Attrs.HANDLER_DEF));
-        } catch (final IllegalAccessException | InvocationTargetException ignored) {
+                          TYPED_KEY_GET_UNDERLYING.invokeExact(Router.Attrs.HANDLER_DEF));
+        } catch (final Throwable ignored) {
         }
       }
-      if (defOption != null && !defOption.isEmpty()) {
+      if (!defOption.isEmpty()) {
         final String path = defOption.get().path();
         span.setTag(DDTags.RESOURCE_NAME, request.method() + " " + path);
       }
@@ -105,11 +115,8 @@ public class PlayHttpServerDecorator extends HttpServerDecorator<Request, Reques
 
   @Override
   public AgentSpan onError(final AgentSpan span, Throwable throwable) {
-    span.setTag(Tags.HTTP_STATUS, 500);
-    if (throwable != null
-        // This can be moved to instanceof check when using Java 8.
-        && throwable.getClass().getName().equals("java.util.concurrent.CompletionException")
-        && throwable.getCause() != null) {
+    span.setTag(Tags.HTTP_STATUS, ERROR_CODE);
+    if (throwable instanceof CompletionException && throwable.getCause() != null) {
       throwable = throwable.getCause();
     }
     while ((throwable instanceof InvocationTargetException
