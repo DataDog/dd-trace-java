@@ -12,7 +12,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.Action;
 import play.api.mvc.Request;
@@ -58,7 +57,6 @@ public class PlayAdvice {
           ((Action) thisAction).executionContext());
     } else {
       DECORATE.onError(playControllerSpan, throwable);
-      playControllerSpan.setTag(Tags.HTTP_STATUS, 500);
       DECORATE.beforeFinish(playControllerSpan);
       playControllerSpan.finish();
     }
