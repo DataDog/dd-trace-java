@@ -1,0 +1,79 @@
+plugins {
+  id 'play'
+}
+
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+def playVersion = "2.4.11"
+def scalaVersion = System.getProperty("scala.binary.version", /* default = */ "2.11")
+
+model {
+  components {
+    play {
+      platform play: playVersion, scala: scalaVersion, java: '1.8'
+      injectedRoutesGenerator = true
+    }
+  }
+  distributions {
+    playBinary {
+      contents {
+        from("conf") {
+          into "conf"
+        }
+      }
+    }
+  }
+}
+
+repositories {
+  jcenter()
+  maven {
+    name "lightbend-maven-releases"
+    url "https://repo.lightbend.com/lightbend/maven-release"
+  }
+  ivy {
+    name "lightbend-ivy-release"
+    url "https://repo.lightbend.com/lightbend/ivy-releases"
+    layout "ivy"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+spotless {
+  groovy {
+    excludeJava()
+    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
+  }
+}
+
+description = 'Play 2.4 Integration Tests.'
+
+dependencies {
+  play "com.typesafe.play:filters-helpers_$scalaVersion:$playVersion"
+  play "com.typesafe.play:play-java-ws_$scalaVersion:$playVersion"
+  // jaxb is not there anymore in java11+
+  play "javax.xml.bind:jaxb-api:2.3.1"
+
+  play group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  play group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+
+  testCompile project(':dd-smoke-tests')
+}
+
+tasks.withType(Test).configureEach {
+  dependsOn 'stagePlayBinaryDist'
+  outputs.upToDateWhen {
+    !stagePlayBinaryDist.didWork
+  }
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+  scala {
+    target "**/*.scala"
+  }
+}
