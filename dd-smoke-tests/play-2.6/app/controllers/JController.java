@@ -11,15 +11,14 @@ import javax.inject.Inject;
 import play.Configuration;
 import play.libs.ws.*;
 import play.mvc.*;
-import play.mvc.With;
 
-public class HomeController extends Controller {
+public class JController extends Controller {
 
   private final WSClient ws;
   private final String clientRequestBase;
 
   @Inject
-  public HomeController(WSClient ws, Configuration configuration) {
+  public JController(WSClient ws, Configuration configuration) {
     this.ws = ws;
     this.clientRequestBase =
         configuration.getString("client.request.base", "http://localhost:0/broken/");
@@ -35,7 +34,7 @@ public class HomeController extends Controller {
         return ws.url(clientRequestBase + id)
             .get()
             .thenApply(
-                response -> status(response.getStatus(), "Got '" + response.getBody() + "'"));
+                response -> status(response.getStatus(), "J Got '" + response.getBody() + "'"));
       } else {
         return CompletableFuture.supplyAsync(() -> badRequest("No ID."));
       }
