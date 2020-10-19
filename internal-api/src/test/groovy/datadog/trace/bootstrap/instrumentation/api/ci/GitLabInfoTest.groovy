@@ -22,7 +22,7 @@ class GitLabInfoTest extends CIProviderInfoTest {
     environmentVariables.set(GITLAB_PIPELINE_ID, "gitlab-pipeline-id")
     environmentVariables.set(GITLAB_PIPELINE_NAME, "gitlab-pipeline-name")
     environmentVariables.set(GITLAB_PIPELINE_NUMBER, "gitlab-pipeline-number")
-    environmentVariables.set(GITLAB_PIPELINE_URL, "gitlab-pipeline-url")
+    environmentVariables.set(GITLAB_PIPELINE_URL, gitlabPipelineUrl)
     environmentVariables.set(GITLAB_JOB_URL, "gitlab-job-url")
     environmentVariables.set(GITLAB_WORKSPACE_PATH, gitlabWorkspace)
     environmentVariables.set(GITLAB_GIT_REPOSITORY_URL, gitlabRepo)
@@ -38,7 +38,7 @@ class GitLabInfoTest extends CIProviderInfoTest {
     ciInfo.ciPipelineId == "gitlab-pipeline-id"
     ciInfo.ciPipelineName == "gitlab-pipeline-name"
     ciInfo.ciPipelineNumber == "gitlab-pipeline-number"
-    ciInfo.ciPipelineUrl == "gitlab-pipeline-url"
+    ciInfo.ciPipelineUrl == ciPipelineUrl
     ciInfo.ciJobUrl == "gitlab-job-url"
     ciInfo.ciWorkspacePath == ciInfoWorkspace
     ciInfo.gitRepositoryUrl == ciInfoRepository
@@ -47,25 +47,27 @@ class GitLabInfoTest extends CIProviderInfoTest {
     ciInfo.gitTag == ciInfoTag
 
     where:
-    gitlabWorkspace | ciInfoWorkspace       | gitlabRepo                                   | ciInfoRepository                | gitlabBranch             | gitlabTag               | ciInfoBranch  | ciInfoTag
-    null            | null                  | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
-    ""              | ""                    | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
-    "foo/bar"       | "foo/bar"             | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
-    "/foo/bar~"     | "/foo/bar~"           | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
-    "/foo/~/bar"    | "/foo/~/bar"          | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
-    "~/foo/bar"     | userHome + "/foo/bar" | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
-    "~foo/bar"      | "~foo/bar"            | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
-    "~"             | userHome              | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
-    "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
-    "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | "refs/heads/master"      | null                    | "master"      | null
-    "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | "refs/heads/feature/one" | null                    | "feature/one" | null
-    "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | null                     | "origin/tags/0.1.0"     | null          | "0.1.0"
-    "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | null                     | "refs/heads/tags/0.1.0" | null          | "0.1.0"
-    "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | null                     | "0.1.0"                 | null          | "0.1.0"
-    "/foo/bar"      | "/foo/bar"            | "http://hostname.com/repo.git"               | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
-    "/foo/bar"      | "/foo/bar"            | "http://user@hostname.com/repo.git"          | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
-    "/foo/bar"      | "/foo/bar"            | "http://user%E2%82%AC@hostname.com/repo.git" | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
-    "/foo/bar"      | "/foo/bar"            | "http://user:pwd@hostname.com/repo.git"      | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
-    "/foo/bar"      | "/foo/bar"            | "git@hostname.com:org/repo.git"              | "git@hostname.com:org/repo.git" | "origin/master"          | null                    | "master"      | null
+    gitlabPipelineUrl                   | ciPipelineUrl                     | gitlabWorkspace | ciInfoWorkspace       | gitlabRepo                                   | ciInfoRepository                | gitlabBranch             | gitlabTag               | ciInfoBranch  | ciInfoTag
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | null            | null                  | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | ""              | ""                    | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "foo/bar"       | "foo/bar"             | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "/foo/bar~"     | "/foo/bar~"           | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "/foo/~/bar"    | "/foo/~/bar"          | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "~/foo/bar"     | userHome + "/foo/bar" | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "~foo/bar"      | "~foo/bar"            | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "~"             | userHome              | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
+    null                                | null                              | "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
+    ""                                  | null                              | "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | "origin/master"          | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | "refs/heads/master"      | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | "refs/heads/feature/one" | null                    | "feature/one" | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | null                     | "origin/tags/0.1.0"     | null          | "0.1.0"
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | null                     | "refs/heads/tags/0.1.0" | null          | "0.1.0"
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "/foo/bar"      | "/foo/bar"            | "sample"                                     | "sample"                        | null                     | "0.1.0"                 | null          | "0.1.0"
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "/foo/bar"      | "/foo/bar"            | "http://hostname.com/repo.git"               | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "/foo/bar"      | "/foo/bar"            | "http://user@hostname.com/repo.git"          | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "/foo/bar"      | "/foo/bar"            | "http://user%E2%82%AC@hostname.com/repo.git" | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "/foo/bar"      | "/foo/bar"            | "http://user:pwd@hostname.com/repo.git"      | "http://hostname.com/repo.git"  | "origin/master"          | null                    | "master"      | null
+    "https://foo/repo/-/pipelines/1234" | "https://foo/repo/pipelines/1234" | "/foo/bar"      | "/foo/bar"            | "git@hostname.com:org/repo.git"              | "git@hostname.com:org/repo.git" | "origin/master"          | null                    | "master"      | null
   }
 }
