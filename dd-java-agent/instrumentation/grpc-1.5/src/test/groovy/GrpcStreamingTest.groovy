@@ -1,3 +1,4 @@
+import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -11,6 +12,7 @@ import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.stub.StreamObserver
 
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
@@ -62,7 +64,9 @@ class GrpcStreamingTest extends AgentTestRunner {
         }
       }
     }
-    Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter).directExecutor().build().start()
+    Server server = InProcessServerBuilder.forName(getClass().name).addService(greeter)
+      .executor(directExecutor ? MoreExecutors.directExecutor() : Executors.newCachedThreadPool())
+      .build().start()
 
     ManagedChannel channel = InProcessChannelBuilder.forName(getClass().name).build()
     GreeterGrpc.GreeterStub client = GreeterGrpc.newStub(channel).withWaitForReady()
@@ -178,12 +182,17 @@ class GrpcStreamingTest extends AgentTestRunner {
     server?.shutdownNow()?.awaitTermination()
 
     where:
-    name | clientMessageCount | serverMessageCount
-    "A"  | 1                  | 1
-    "B"  | 2                  | 1
-    "C"  | 1                  | 2
-    "D"  | 2                  | 2
-    "E"  | 3                  | 3
+    name | clientMessageCount | serverMessageCount | directExecutor
+    "A"  | 1                  | 1                  | false
+    "B"  | 2                  | 1                  | false
+    "C"  | 1                  | 2                  | false
+    "D"  | 2                  | 2                  | false
+    "E"  | 3                  | 3                  | false
+    "A"  | 1                  | 1                  | true
+    "B"  | 2                  | 1                  | true
+    "C"  | 1                  | 2                  | true
+    "D"  | 2                  | 2                  | true
+    "E"  | 3                  | 3                  | true
 
     clientRange = 1..clientMessageCount
     serverRange = 1..serverMessageCount
