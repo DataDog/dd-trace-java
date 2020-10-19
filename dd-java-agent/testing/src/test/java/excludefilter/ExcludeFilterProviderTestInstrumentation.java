@@ -8,12 +8,11 @@ import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -46,22 +45,19 @@ public class ExcludeFilterProviderTestInstrumentation extends Instrumenter.Defau
   }
 
   @Override
-  public Map<ExcludeFilter.ExcludeType, Set<String>> excludedClasses() {
-    EnumMap<ExcludeFilter.ExcludeType, Set<String>> excludedTypes =
-        new EnumMap(ExcludeFilter.ExcludeType.class);
+  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+    EnumMap<ExcludeFilter.ExcludeType, Collection<String>> excludedTypes =
+        new EnumMap<>(ExcludeFilter.ExcludeType.class);
     excludedTypes.put(
         RUNNABLE,
-        new HashSet(
-            Arrays.asList(
-                ExcludedRunnable.class.getName(), CallableExcludedRunnable.class.getName())));
+        Arrays.asList(ExcludedRunnable.class.getName(), CallableExcludedRunnable.class.getName()));
     excludedTypes.put(
         CALLABLE,
-        new HashSet(
-            Arrays.asList(
-                ExcludedCallable.class.getName(),
-                RunnableExcludedCallable.class.getName(),
-                "net.sf.cglib.core.internal.LoadingCache$2" // Excluded for global ignore matcher
-                )));
+        Arrays.asList(
+            ExcludedCallable.class.getName(),
+            RunnableExcludedCallable.class.getName(),
+            "net.sf.cglib.core.internal.LoadingCache$2" // Excluded for global ignore matcher
+            ));
     return excludedTypes;
   }
 

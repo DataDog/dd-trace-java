@@ -19,11 +19,9 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -57,14 +55,13 @@ public final class AkkaForkJoinTaskInstrumentation extends Instrumenter.Default
   }
 
   @Override
-  public Map<ExcludeFilter.ExcludeType, Set<String>> excludedClasses() {
-    return Collections.<ExcludeFilter.ExcludeType, Set<String>>singletonMap(
+  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+    return singletonMap(
         RUNNABLE_FUTURE,
-        new HashSet<>(
-            Arrays.asList(
-                "akka.dispatch.forkjoin.ForkJoinTask$AdaptedCallable",
-                "akka.dispatch.forkjoin.ForkJoinTask$AdaptedRunnable",
-                "akka.dispatch.forkjoin.ForkJoinTask$AdaptedRunnableAction")));
+        Arrays.asList(
+            "akka.dispatch.forkjoin.ForkJoinTask$AdaptedCallable",
+            "akka.dispatch.forkjoin.ForkJoinTask$AdaptedRunnable",
+            "akka.dispatch.forkjoin.ForkJoinTask$AdaptedRunnableAction"));
   }
 
   @Override
