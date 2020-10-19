@@ -26,7 +26,7 @@ class DDSpanContextTest extends DDSpecification {
     context.serviceName == "fakeService"
     context.resourceName.toString() == "fakeResource"
     context.spanType == "fakeType"
-    context.toString() == "DDSpan [ t_id=1, s_id=1, p_id=0] trace=fakeService/fakeOperation/fakeResource metrics=${defaultMetrics()} *errored* tags={${extra}${tags.containsKey(DDTags.SPAN_TYPE) ? "span.type=${context.getSpanType()}, " : ""}thread.id=${Thread.currentThread().id}, thread.name=${Thread.currentThread().name}}"
+    context.toString() == "DDSpan [ t_id=1, s_id=1, p_id=0 ] trace=fakeService/fakeOperation/fakeResource metrics=${defaultMetrics()} *errored* tags={${extra}${tags.containsKey(DDTags.SPAN_TYPE) ? "span.type=${context.getSpanType()}, " : ""}thread.id=${Thread.currentThread().id}, thread.name=${Thread.currentThread().name}}"
 
     where:
     name                 | extra             | tags
@@ -46,7 +46,7 @@ class DDSpanContextTest extends DDSpecification {
     def thread = Thread.currentThread()
 
     def expectedTags = [(DDTags.THREAD_NAME): thread.name, (DDTags.THREAD_ID): thread.id]
-    def expectedTrace = "DDSpan [ t_id=1, s_id=1, p_id=0] trace=$details metrics=${defaultMetrics()} tags={thread.id=$thread.id, thread.name=$thread.name}"
+    def expectedTrace = "DDSpan [ t_id=1, s_id=1, p_id=0 ] trace=$details metrics=${defaultMetrics()} tags={thread.id=$thread.id, thread.name=$thread.name}"
 
     expect:
     context.getTags() == expectedTags
@@ -75,7 +75,7 @@ class DDSpanContextTest extends DDSpecification {
       (DDTags.THREAD_NAME): thread.name,
       (DDTags.THREAD_ID)  : thread.id
     ]
-    context.toString() == "DDSpan [ t_id=1, s_id=1, p_id=0] trace=fakeService/fakeOperation/fakeResource metrics=${defaultMetrics()} tags={$name=$value, thread.id=$thread.id, thread.name=$thread.name}"
+    context.toString() == "DDSpan [ t_id=1, s_id=1, p_id=0 ] trace=fakeService/fakeOperation/fakeResource metrics=${defaultMetrics()} tags={$name=$value, thread.id=$thread.id, thread.name=$thread.name}"
 
     where:
     name             | value

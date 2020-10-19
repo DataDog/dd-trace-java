@@ -10,6 +10,7 @@ import spock.lang.Shared
 import spock.lang.Timeout
 
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 @Timeout(5)
 class ApacheHttpAsyncClientCallbackTest extends HttpClientTest {
@@ -41,8 +42,12 @@ class ApacheHttpAsyncClientCallbackTest extends HttpClientTest {
 
       @Override
       void completed(HttpResponse result) {
-        callback?.call()
-        responseFuture.complete(result.statusLine.statusCode)
+        try {
+          callback?.call()
+          responseFuture.complete(result.statusLine.statusCode)
+        } catch (Exception e) {
+          failed(e)
+        }
       }
 
       @Override
@@ -56,7 +61,7 @@ class ApacheHttpAsyncClientCallbackTest extends HttpClientTest {
       }
     })
 
-    return responseFuture.get()
+    return responseFuture.get(10, TimeUnit.SECONDS)
   }
 
   @Override

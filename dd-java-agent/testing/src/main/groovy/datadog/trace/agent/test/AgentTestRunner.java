@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.SneakyThrows;
@@ -71,7 +72,7 @@ import spock.mock.DetachedMockFactory;
 @SpecMetadata(filename = "AgentTestRunner.java", line = 0)
 @Slf4j
 public abstract class AgentTestRunner extends DDSpecification {
-  private static final long TIMEOUT_MILLIS = 10 * 1000;
+  private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10);
   /**
    * For test runs, agent's global tracer will report to this list writer.
    *
