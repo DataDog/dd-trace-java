@@ -1,7 +1,10 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.core.DDSpan
 import io.netty.channel.DefaultEventLoopGroup
+import io.netty.channel.ThreadPerChannelEventLoop
 import io.netty.channel.nio.NioEventLoopGroup
+import io.netty.channel.oio.OioEventLoopGroup
+import io.netty.util.concurrent.DefaultEventExecutor
 import io.netty.util.concurrent.UnorderedThreadPoolEventExecutor
 import org.apache.tomcat.util.threads.TaskQueue
 import spock.lang.Shared
@@ -78,9 +81,9 @@ class CrossedContextTest extends AgentTestRunner {
     Executors.newCachedThreadPool()                                                                   | "submission" | submitRunnable
     new DefaultEventLoopGroup(10)                                                                     | "submission" | submitRunnable
     new DefaultEventLoopGroup(1).next()                                                               | "submission" | submitRunnable
-    new UnorderedThreadPoolEventExecutor(1)                                                           | "submission" | submitRunnable
     new UnorderedThreadPoolEventExecutor(10)                                                          | "submission" | submitRunnable
     new NioEventLoopGroup(10)                                                                         | "submission" | submitRunnable
+    new DefaultEventExecutor()                                                                        | "submission" | submitRunnable
     new org.apache.tomcat.util.threads.ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue()) | "submission" | submitRunnable
     new ForkJoinPool()                                                                                | "execution"  | executeRunnable
     new ForkJoinPool(10)                                                                              | "execution"  | executeRunnable
@@ -91,10 +94,46 @@ class CrossedContextTest extends AgentTestRunner {
     Executors.newCachedThreadPool()                                                                   | "execution"  | executeRunnable
     new DefaultEventLoopGroup(10)                                                                     | "execution"  | executeRunnable
     new DefaultEventLoopGroup(1).next()                                                               | "execution"  | executeRunnable
-    new UnorderedThreadPoolEventExecutor(1)                                                           | "execution"  | executeRunnable
     new UnorderedThreadPoolEventExecutor(10)                                                          | "execution"  | executeRunnable
     new NioEventLoopGroup(10)                                                                         | "execution"  | executeRunnable
+    new DefaultEventExecutor()                                                                        | "execution"  | executeRunnable
     new org.apache.tomcat.util.threads.ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, new TaskQueue()) | "execution"  | executeRunnable
+  }
+
+  def "netty event loop internal executions in #executor are traced with correct lineage" () {
+    setup:
+    ExecutorService pool = executor
+    when:
+
+    int taskCount = 200
+    for (int i = 0; i < taskCount; ++i) {
+      pool.execute({
+        String threadName = Thread.currentThread().getName()
+        runUnderTrace(threadName) {
+          pool.execute(new Descendant(threadName))
+        }
+      })
+    }
+
+    TEST_WRITER.waitForTraces(taskCount)
+    then:
+    for (List<DDSpan> trace : TEST_WRITER) {
+      assert trace.size() == 2
+      DDSpan parent = trace.find({ it.isRootSpan() })
+      assert null != parent
+      DDSpan child = trace.find({ it.getParentId() == parent.getSpanId() })
+      assert null != child
+      assert child.getOperationName().toString().startsWith(parent.getOperationName().toString())
+    }
+
+    where:
+    executor << [
+      new ThreadPerChannelEventLoop(new OioEventLoopGroup()),
+      new DefaultEventExecutor(),
+      new NioEventLoopGroup(10),
+      new DefaultEventLoopGroup(10),
+      new UnorderedThreadPoolEventExecutor(10)
+    ]
   }
 
 }
