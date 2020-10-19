@@ -16,10 +16,10 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -54,7 +54,7 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Def
   }
 
   @Override
-  public Map<ExcludeFilter.ExcludeType, Set<String>> excludedClasses() {
+  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
     // make sure nothing else instruments this
     return singletonMap(
         RUNNABLE, Collections.singleton("scala.concurrent.impl.Promise$Transformation"));

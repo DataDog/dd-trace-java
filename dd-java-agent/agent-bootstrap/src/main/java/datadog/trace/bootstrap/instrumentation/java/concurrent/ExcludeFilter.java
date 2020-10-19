@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -78,11 +79,11 @@ public class ExcludeFilter {
    *
    * @param excludeTypes the types to exclude
    */
-  public static void add(Map<ExcludeType, Set<String>> excludeTypes) {
+  public static void add(Map<ExcludeType, ? extends Collection<String>> excludeTypes) {
     if (excludeTypes.isEmpty()) {
       return;
     }
-    for (Map.Entry<ExcludeType, Set<String>> entry : excludeTypes.entrySet()) {
+    for (Map.Entry<ExcludeType, ? extends Collection<String>> entry : excludeTypes.entrySet()) {
       Set<String> currentExcluded = excludedClassNames.get(entry.getKey());
       currentExcluded.addAll(entry.getValue());
     }

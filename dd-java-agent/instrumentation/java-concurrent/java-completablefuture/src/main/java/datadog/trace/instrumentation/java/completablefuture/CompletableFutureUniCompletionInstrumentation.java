@@ -10,11 +10,11 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -73,7 +73,7 @@ public class CompletableFutureUniCompletionInstrumentation extends Instrumenter.
   }
 
   @Override
-  public Map<ExcludeType, Set<String>> excludedClasses() {
+  public Map<ExcludeType, ? extends Collection<String>> excludedClasses() {
     if (!enabled) {
       return Collections.emptyMap();
     }
@@ -105,8 +105,8 @@ public class CompletableFutureUniCompletionInstrumentation extends Instrumenter.
       // This is not a subclass of UniCompletion and doesn't have a dependent CompletableFuture
       // "java.util.concurrent.CompletableFuture$Signaller",
     };
-    Set<String> excludedClasses = new HashSet<>(Arrays.asList(classes));
-    EnumMap<ExcludeType, Set<String>> excludedTypes = new EnumMap(ExcludeType.class);
+    List<String> excludedClasses = Arrays.asList(classes);
+    EnumMap<ExcludeType, Collection<String>> excludedTypes = new EnumMap<>(ExcludeType.class);
     excludedTypes.put(ExcludeType.RUNNABLE, excludedClasses);
     excludedTypes.put(ExcludeType.FORK_JOIN_TASK, excludedClasses);
     excludedTypes.put(ExcludeType.FUTURE, excludedClasses);

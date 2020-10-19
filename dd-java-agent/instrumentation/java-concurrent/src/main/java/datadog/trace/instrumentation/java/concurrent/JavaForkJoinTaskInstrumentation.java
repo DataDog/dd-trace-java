@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
@@ -17,11 +18,10 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.Exc
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.context.TraceScope;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ForkJoinTask;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
@@ -59,7 +59,7 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Default
 
   @Override
   public Map<String, String> contextStoreForAll() {
-    return Collections.singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
+    return singletonMap("java.util.concurrent.ForkJoinTask", State.class.getName());
   }
 
   @Override
@@ -72,14 +72,13 @@ public final class JavaForkJoinTaskInstrumentation extends Instrumenter.Default
   }
 
   @Override
-  public Map<ExcludeType, Set<String>> excludedClasses() {
-    return Collections.<ExcludeType, Set<String>>singletonMap(
+  public Map<ExcludeType, ? extends Collection<String>> excludedClasses() {
+    return singletonMap(
         RUNNABLE_FUTURE,
-        new HashSet<>(
-            Arrays.asList(
-                "java.util.concurrent.ForkJoinTask$AdaptedCallable",
-                "java.util.concurrent.ForkJoinTask$AdaptedRunnable",
-                "java.util.concurrent.ForkJoinTask$AdaptedRunnableAction")));
+        Arrays.asList(
+            "java.util.concurrent.ForkJoinTask$AdaptedCallable",
+            "java.util.concurrent.ForkJoinTask$AdaptedRunnable",
+            "java.util.concurrent.ForkJoinTask$AdaptedRunnableAction"));
   }
 
   public static final class Exec {
