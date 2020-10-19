@@ -33,13 +33,22 @@ class GitLabInfo extends CIProviderInfo {
     ciPipelineId = System.getenv(GITLAB_PIPELINE_ID);
     ciPipelineName = System.getenv(GITLAB_PIPELINE_NAME);
     ciPipelineNumber = System.getenv(GITLAB_PIPELINE_NUMBER);
-    ciPipelineUrl = System.getenv(GITLAB_PIPELINE_URL);
+    ciPipelineUrl = buildPipelineUrl();
     ciJobUrl = System.getenv(GITLAB_JOB_URL);
     ciWorkspacePath = expandTilde(System.getenv(GITLAB_WORKSPACE_PATH));
     gitRepositoryUrl = filterSensitiveInfo(System.getenv(GITLAB_GIT_REPOSITORY_URL));
     gitCommit = System.getenv(GITLAB_GIT_COMMIT);
     gitBranch = normalizeRef(System.getenv(GITLAB_GIT_BRANCH));
     gitTag = normalizeRef(System.getenv(GITLAB_GIT_TAG));
+  }
+
+  private String buildPipelineUrl() {
+    final String pipelineUrl = System.getenv(GITLAB_PIPELINE_URL);
+    if (pipelineUrl == null || pipelineUrl.isEmpty()) {
+      return null;
+    }
+
+    return pipelineUrl.replace("/-/pipelines/", "/pipelines/");
   }
 
   @Override
