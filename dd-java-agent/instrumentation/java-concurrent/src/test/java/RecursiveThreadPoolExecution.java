@@ -25,7 +25,6 @@ public class RecursiveThreadPoolExecution implements Runnable {
     }
     AgentSpan span = startSpan(String.valueOf(depth));
     try (AgentScope scope = activateSpan(span)) {
-      scope.setAsyncPropagation(true);
       executor.execute(new RecursiveThreadPoolExecution(executor, maxDepth, depth + 1));
     } finally {
       span.finish();

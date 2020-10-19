@@ -18,7 +18,6 @@ public class TracingListener implements ITestListener {
   public void onTestStart(final ITestResult result) {
     final AgentSpan span = startSpan("testng.test");
     final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
 
     DECORATE.afterStart(span);
     DECORATE.onTestStart(span, result);

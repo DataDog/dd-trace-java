@@ -232,7 +232,6 @@ class OpenTelemetryTest extends AgentTestRunner {
     setup:
     def span = tracer.spanBuilder("some name").startSpan()
     TraceScope scope = tracer.withSpan(span)
-    scope.setAsyncPropagation(true)
 
     expect:
     tracer.currentSpan.delegate == span.delegate

@@ -10,10 +10,9 @@ import spock.lang.Shared
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static org.junit.Assume.assumeTrue
 
-@Requires({!System.getProperty("java.version").startsWith("1.7")})
+@Requires({ !System.getProperty("java.version").startsWith("1.7") })
 class JettyExecutorInstrumentationTest extends AgentTestRunner {
 
   @Shared
@@ -34,7 +33,6 @@ class JettyExecutorInstrumentationTest extends AgentTestRunner {
       @Override
       @Trace(operationName = "parent")
       void run() {
-        activeScope().setAsyncPropagation(true)
         // this child will have a span
         m(pool, new JavaAsyncChild())
         // this child won't
@@ -58,9 +56,9 @@ class JettyExecutorInstrumentationTest extends AgentTestRunner {
 
     // Unfortunately, there's no simple way to test the cross product of methods/pools.
     where:
-    name                     | method              | poolImpl
-    "execute Runnable"       | executeRunnable     | new MonitoredQueuedThreadPool(8)
-    "execute Runnable"       | executeRunnable     | new QueuedThreadPool(8)
-    "execute Runnable"       | executeRunnable     | new ReservedThreadExecutor(Executors.newSingleThreadExecutor(), 1)
+    name               | method          | poolImpl
+    "execute Runnable" | executeRunnable | new MonitoredQueuedThreadPool(8)
+    "execute Runnable" | executeRunnable | new QueuedThreadPool(8)
+    "execute Runnable" | executeRunnable | new ReservedThreadExecutor(Executors.newSingleThreadExecutor(), 1)
   }
 }

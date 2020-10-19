@@ -3,10 +3,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
-  activeScope,
-  activeSpan
-}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 import scala.concurrent.duration._
 
@@ -40,7 +37,6 @@ class AkkaActors {
   @Trace
   def basicTell(): Unit = {
     try {
-      activeScope().setAsyncPropagation(true)
       howdyGreeter ! WhoToGreet("Akka")
       howdyGreeter ! Greet
     } finally {
@@ -51,7 +47,6 @@ class AkkaActors {
   @Trace
   def basicAsk(): Unit = {
     try {
-      activeScope().setAsyncPropagation(true)
       howdyGreeter ! WhoToGreet("Akka")
       howdyGreeter ? Greet
     } finally {
@@ -62,7 +57,6 @@ class AkkaActors {
   @Trace
   def basicForward(): Unit = {
     try {
-      activeScope().setAsyncPropagation(true)
       helloGreeter ! WhoToGreet("Akka")
       helloGreeter ? Greet
     } finally {

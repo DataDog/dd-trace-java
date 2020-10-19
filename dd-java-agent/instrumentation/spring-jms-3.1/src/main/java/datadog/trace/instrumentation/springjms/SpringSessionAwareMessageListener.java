@@ -79,9 +79,7 @@ public final class SpringSessionAwareMessageListener extends Instrumenter.Defaul
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onReceive(span, message);
 
-      final AgentScope scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
-      return scope;
+      return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

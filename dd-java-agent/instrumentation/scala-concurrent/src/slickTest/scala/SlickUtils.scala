@@ -3,10 +3,7 @@ import datadog.trace.agent.test.AgentTestRunner.{
   blockUntilChildSpansFinished
 }
 import datadog.trace.api.Trace
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
-  activeScope,
-  activeSpan
-}
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.core.DDSpan
 import slick.jdbc.H2Profile.api._
 
@@ -31,7 +28,6 @@ class SlickUtils {
 
   @Trace
   def setup(): DDSpan = {
-    activeScope().setAsyncPropagation(true)
     Await.result(
       database.run(
         sqlu"""CREATE ALIAS IF NOT EXISTS SLEEP FOR "java.lang.Thread.sleep(long)""""
@@ -44,7 +40,6 @@ class SlickUtils {
   @Trace
   def startQuery(query: String): Future[Vector[Int]] = {
     try {
-      activeScope().setAsyncPropagation(true)
       database.run(sql"#$query".as[Int])
     } finally {
       blockUntilChildSpansFinished(1)

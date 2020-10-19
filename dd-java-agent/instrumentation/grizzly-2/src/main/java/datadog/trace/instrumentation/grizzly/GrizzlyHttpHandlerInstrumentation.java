@@ -81,7 +81,6 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Default {
       DECORATE.onRequest(span, request);
 
       final AgentScope scope = activateSpan(span);
-      scope.setAsyncPropagation(true);
 
       request.setAttribute(DD_SPAN_ATTRIBUTE, span);
       request.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());

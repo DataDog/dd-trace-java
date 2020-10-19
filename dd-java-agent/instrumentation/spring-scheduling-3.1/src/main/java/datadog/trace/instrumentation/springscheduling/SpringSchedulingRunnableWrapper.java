@@ -22,7 +22,6 @@ public class SpringSchedulingRunnableWrapper implements Runnable {
 
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.onRun(span, runnable);
-      scope.setAsyncPropagation(true);
 
       try {
         runnable.run();

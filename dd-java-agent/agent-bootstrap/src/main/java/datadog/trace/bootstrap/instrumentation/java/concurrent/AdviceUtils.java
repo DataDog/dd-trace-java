@@ -22,9 +22,7 @@ public class AdviceUtils {
     if (state != null) {
       final TraceScope.Continuation continuation = state.getAndResetContinuation();
       if (continuation != null) {
-        final TraceScope scope = continuation.activate();
-        scope.setAsyncPropagation(true);
-        return scope;
+        return continuation.activate();
       }
     }
     return null;

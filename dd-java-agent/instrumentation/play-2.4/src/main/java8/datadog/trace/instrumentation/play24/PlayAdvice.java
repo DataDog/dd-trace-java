@@ -41,12 +41,8 @@ public class PlayAdvice {
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, req);
 
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
-
     req = RequestHelper.withTag(req, "_dd_HasPlayRequestSpan", "true");
-
-    return scope;
+    return activateSpan(span);
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

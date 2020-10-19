@@ -40,7 +40,6 @@ public class TracingSubscriber<T>
     try (final AgentScope scope = activateSpan(downstreamSpan)) {
       final TraceScope downstreamScope = activeScope();
       if (downstreamScope != null) {
-        downstreamScope.setAsyncPropagation(true);
         // create a hard reference to the trace that we don't want reported until we are done
         continuation.set(downstreamScope.capture());
       } else {
@@ -63,7 +62,6 @@ public class TracingSubscriber<T>
     this.subscription = subscription;
 
     try (final AgentScope scope = activateSpan(downstreamSpan)) {
-      scope.setAsyncPropagation(true);
       delegate.onSubscribe(this);
     }
   }
@@ -71,7 +69,6 @@ public class TracingSubscriber<T>
   @Override
   public void onNext(final T t) {
     try (final AgentScope scope = activateSpan(downstreamSpan)) {
-      scope.setAsyncPropagation(true);
       delegate.onNext(t);
     }
   }
@@ -81,11 +78,9 @@ public class TracingSubscriber<T>
     if (current != null) {
       // releases our reference to the trace
       final TraceScope scope = current.activate();
-      scope.setAsyncPropagation(true);
       return new UnifiedScope(scope);
     } else {
       final AgentScope scope = activateSpan(downstreamSpan);
-      scope.setAsyncPropagation(true);
       return new UnifiedScope(scope);
     }
   }
@@ -111,7 +106,6 @@ public class TracingSubscriber<T>
   @Override
   public void request(final long n) {
     try (final AgentScope scope = activateSpan(upstreamSpan)) {
-      scope.setAsyncPropagation(true);
       subscription.request(n);
     }
   }
@@ -119,7 +113,6 @@ public class TracingSubscriber<T>
   @Override
   public void cancel() {
     try (final AgentScope scope = activateSpan(upstreamSpan)) {
-      scope.setAsyncPropagation(true);
       final TraceScope.Continuation current = continuation.getAndSet(null);
       if (current != null) {
         current.cancel();

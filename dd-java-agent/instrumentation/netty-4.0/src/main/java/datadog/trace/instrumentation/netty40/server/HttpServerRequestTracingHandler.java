@@ -27,7 +27,6 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
         ctx.fireChannelRead(msg); // superclass does not throw
       } else {
         try (final AgentScope scope = activateSpan(span)) {
-          scope.setAsyncPropagation(true);
           ctx.fireChannelRead(msg); // superclass does not throw
         }
       }
@@ -45,8 +44,6 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, ctx.channel());
       DECORATE.onRequest(span, request);
-
-      scope.setAsyncPropagation(true);
 
       ctx.channel().attr(AttributeKeys.SERVER_ATTRIBUTE_KEY).set(span);
 

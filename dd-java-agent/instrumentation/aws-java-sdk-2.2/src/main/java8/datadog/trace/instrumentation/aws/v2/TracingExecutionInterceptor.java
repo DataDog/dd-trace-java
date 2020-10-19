@@ -56,8 +56,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
     // This scope will be closed by AwsHttpClientInstrumentation since ExecutionInterceptor API
     // doesn't provide a way to run code in the same thread after transmission has been scheduled.
-    final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
+    activateSpan(span);
   }
 
   @Override

@@ -138,7 +138,6 @@ public final class KafkaProducerInstrumentation extends Instrumenter.Default {
       if (callback != null) {
         if (parent != null) {
           try (final AgentScope scope = activateSpan(parent)) {
-            scope.setAsyncPropagation(true);
             callback.onCompletion(metadata, exception);
           }
         } else {

@@ -62,7 +62,6 @@ public class Servlet2Advice {
     DECORATE.onRequest(span, httpServletRequest);
 
     final AgentScope scope = activateSpan(span);
-    scope.setAsyncPropagation(true);
 
     httpServletRequest.setAttribute(DD_SPAN_ATTRIBUTE, span);
     httpServletRequest.setAttribute(

@@ -96,7 +96,6 @@ class PendingTraceTest extends DDSpecification {
   def "trace is still reported when unfinished continuation discarded"() {
     when:
     def scope = tracer.activateSpan(rootSpan)
-    scope.setAsyncPropagation(true)
     scope.capture()
     scope.close()
     rootSpan.finish()

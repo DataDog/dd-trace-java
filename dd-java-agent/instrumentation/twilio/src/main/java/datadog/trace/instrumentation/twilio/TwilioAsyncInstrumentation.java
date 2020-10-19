@@ -107,11 +107,7 @@ public class TwilioAsyncInstrumentation extends Instrumenter.Default {
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 
-      final AgentScope scope = activateSpan(span);
-      // Enable async propagation, so the newly spawned task will be associated back with this
-      // original trace.
-      scope.setAsyncPropagation(true);
-      return scope;
+      return activateSpan(span);
     }
 
     /** Method exit instrumentation. */
