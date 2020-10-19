@@ -1,6 +1,8 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.core.DDSpan
+import io.netty.util.concurrent.DefaultEventExecutor
+import io.netty.util.concurrent.DefaultThreadFactory
 
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CountDownLatch
@@ -134,20 +136,7 @@ class RejectedExecutionTest extends AgentTestRunner {
     testClosure()
 
     then:
-    TEST_WRITER.waitForTraces(1)
-    TEST_WRITER.size() == 1
-    List<DDSpan> trace = TEST_WRITER.get(0)
-    trace.size() == 2
-    DDSpan parent = trace.find {
-      it.getOperationName() == "parent"
-    }
-    DDSpan child = trace.find {
-      it.getOperationName() == "asyncChild"
-    }
-    parent != null
-    child != null
-    parent.getParentId() == DDId.ZERO
-    parent.getSpanId() == child.getParentId()
+    expectParentChildTrace()
 
 
     where:
@@ -162,6 +151,54 @@ class RejectedExecutionTest extends AgentTestRunner {
       //  method enter/exit instrumentation points.
       //new ThreadPoolExecutor.DiscardOldestPolicy()
     ]
+  }
+
+  def "trace reported with swallowing netty rejected execution handler" () {
+    setup:
+    DefaultEventExecutor executor = new DefaultEventExecutor(null, new DefaultThreadFactory(DefaultEventExecutor),
+    1, handler)
+    CountDownLatch latch = new CountDownLatch(1)
+    // this task will block the executor thread ensuring the next task gets enqueued
+    executor.submit({
+      latch.await()
+    })
+    // this will sit in the queue
+    executor.submit({})
+
+    when:
+    runUnderTrace("parent") {
+      activeScope().setAsyncPropagation(true)
+      // must be rejected because the queue will be full until some
+      // time after the first task is released
+      executor.submit((Runnable) new JavaAsyncChild(true, false))
+      latch.countDown()
+    }
+
+    then:
+    expectParentChildTrace()
+
+    where:
+    handler << [
+      new SwallowingRejectedExecutionHandler()
+    ]
+  }
+
+  def expectParentChildTrace() {
+    TEST_WRITER.waitForTraces(1)
+    TEST_WRITER.size() == 1
+    List<DDSpan> trace = TEST_WRITER.get(0)
+    assert trace.size() == 2
+    DDSpan parent = trace.find {
+      it.getOperationName() == "parent"
+    }
+    DDSpan child = trace.find {
+      it.getOperationName() == "asyncChild"
+    }
+    assert parent != null
+    assert child != null
+    assert parent.getParentId() == DDId.ZERO
+    assert parent.getSpanId() == child.getParentId()
+    return true
   }
 
   def setupShutdownExecutor(RejectedExecutionHandler rejectedExecutionHandler) {

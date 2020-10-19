@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.java.concurrent;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.hasInterface;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
@@ -34,7 +36,8 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Defaul
             "java.util.concurrent.ThreadPoolExecutor$DiscardPolicy",
             "java.util.concurrent.ThreadPoolExecutor$DiscardOldestPolicy",
             "java.util.concurrent.ThreadPoolExecutor$CallerRunsPolicy")
-        .or(hasInterface(named("java.util.concurrent.RejectedExecutionHandler")));
+        .or(hasInterface(named("java.util.concurrent.RejectedExecutionHandler")))
+        .or(hasInterface(nameEndsWith("netty.util.concurrent.RejectedExecutionHandler")));
   }
 
   @Override
@@ -50,9 +53,10 @@ public class RejectedExecutionHandlerInstrumentation extends Instrumenter.Defaul
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
     return Collections.singletonMap(
         isMethod()
-            .and(named("rejectedExecution"))
-            .and(takesArgument(0, named("java.lang.Runnable")))
-            .and(takesArgument(1, named("java.util.concurrent.ThreadPoolExecutor"))),
+            // JDK or netty
+            .and(namedOneOf("rejectedExecution", "rejected"))
+            // must not constrain or use second parameter
+            .and(takesArgument(0, named("java.lang.Runnable"))),
         getClass().getName() + "$Reject");
   }
 
