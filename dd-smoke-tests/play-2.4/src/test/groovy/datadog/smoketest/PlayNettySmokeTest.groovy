@@ -56,7 +56,7 @@ class PlayNettySmokeTest extends AbstractServerSmokeTest {
 
   @Override
   File createTemporaryFile() {
-    return new File("${buildDirectory}/tmp/trace-structure-play-2.5-netty.out")
+    return new File("${buildDirectory}/tmp/trace-structure-play-2.4-netty.out")
   }
 
   @Shared

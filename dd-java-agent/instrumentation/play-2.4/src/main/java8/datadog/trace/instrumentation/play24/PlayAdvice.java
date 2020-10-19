@@ -21,8 +21,14 @@ import scala.concurrent.Future;
 
 public class PlayAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope onEnter(@Advice.Argument(0) final Request req) {
+  public static AgentScope onEnter(@Advice.Argument(value = 0, readOnly = false) Request req) {
     final AgentSpan span;
+
+    // If we have already added a `play.request` span, then don't do it again
+    if (req.tags().contains("_dd_HasPlayRequestSpan")) {
+      return null;
+    }
+
     if (activeSpan() == null) {
       final Context extractedContext = propagate().extract(req.headers(), GETTER);
       span = startSpan(PLAY_REQUEST, extractedContext);
@@ -37,6 +43,9 @@ public class PlayAdvice {
 
     final AgentScope scope = activateSpan(span);
     scope.setAsyncPropagation(true);
+
+    req = RequestHelper.withTag(req, "_dd_HasPlayRequestSpan", "true");
+
     return scope;
   }
 
@@ -47,6 +56,11 @@ public class PlayAdvice {
       @Advice.Thrown final Throwable throwable,
       @Advice.Argument(0) final Request req,
       @Advice.Return(readOnly = false) final Future<Result> responseFuture) {
+
+    if (playControllerScope == null) {
+      return;
+    }
+
     final AgentSpan playControllerSpan = playControllerScope.span();
 
     // Call onRequest on return after tags are populated.
