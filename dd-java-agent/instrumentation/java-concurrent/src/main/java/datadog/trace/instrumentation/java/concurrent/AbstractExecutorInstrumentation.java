@@ -45,9 +45,6 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
       PERMITTED_EXECUTORS_PREFIXES = Collections.emptyList();
     } else {
       final String[] whitelist = {
-        "com.google.common.util.concurrent.AbstractListeningExecutorService",
-        "com.google.common.util.concurrent.MoreExecutors$ListeningDecorator",
-        "com.google.common.util.concurrent.MoreExecutors$ScheduledListeningDecorator",
         "io.netty.channel.epoll.EpollEventLoop",
         "io.netty.channel.epoll.EpollEventLoopGroup",
         "io.netty.channel.MultithreadEventLoopGroup",
@@ -64,8 +61,6 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
         "io.netty.util.concurrent.SingleThreadEventExecutor",
         "java.util.concurrent.AbstractExecutorService",
         "java.util.concurrent.CompletableFuture$ThreadPerTaskExecutor",
-        "java.util.concurrent.Executors$DelegatedExecutorService",
-        "java.util.concurrent.Executors$FinalizableDelegatedExecutorService",
         "java.util.concurrent.ThreadPoolExecutor",
         "kotlinx.coroutines.scheduling.CoroutineScheduler",
         "org.eclipse.jetty.util.thread.QueuedThreadPool",

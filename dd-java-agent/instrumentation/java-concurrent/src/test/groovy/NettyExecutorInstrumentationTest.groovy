@@ -83,6 +83,26 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
 
     where:
     name                     | method              | poolImpl
+// TODO flaky
+//    "execute Runnable"       | executeRunnable     | new UnorderedThreadPoolEventExecutor(1)
+//    "submit Runnable"        | submitRunnable      | new UnorderedThreadPoolEventExecutor(1)
+//    "submit Callable"        | submitCallable      | new UnorderedThreadPoolEventExecutor(1)
+//    "invokeAll"              | invokeAll           | new UnorderedThreadPoolEventExecutor(1)
+//    "invokeAll with timeout" | invokeAllTimeout    | new UnorderedThreadPoolEventExecutor(1)
+//    "invokeAny"              | invokeAny           | new UnorderedThreadPoolEventExecutor(1)
+//    "invokeAny with timeout" | invokeAnyTimeout    | new UnorderedThreadPoolEventExecutor(1)
+//    "schedule Runnable"      | scheduleRunnable    | new UnorderedThreadPoolEventExecutor(1)
+//    "schedule Callable"      | scheduleCallable    | new UnorderedThreadPoolEventExecutor(1)
+
+    "execute Runnable"       | executeRunnable     | defaultEventExecutorGroup
+    "submit Runnable"        | submitRunnable      | defaultEventExecutorGroup
+    "submit Callable"        | submitCallable      | defaultEventExecutorGroup
+    "invokeAll"              | invokeAll           | defaultEventExecutorGroup
+    "invokeAll with timeout" | invokeAllTimeout    | defaultEventExecutorGroup
+    "invokeAny"              | invokeAny           | defaultEventExecutorGroup
+    "invokeAny with timeout" | invokeAnyTimeout    | defaultEventExecutorGroup
+    "schedule Runnable"      | scheduleRunnable    | defaultEventExecutorGroup
+    "schedule Callable"      | scheduleCallable    | defaultEventExecutorGroup
 
     "execute Runnable"       | executeRunnable     | defaultEventExecutorGroup.next()
     "submit Runnable"        | submitRunnable      | defaultEventExecutorGroup.next()
@@ -104,6 +124,16 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
     "schedule Runnable"      | scheduleRunnable    | defaultEventLoopGroup.next()
     "schedule Callable"      | scheduleCallable    | defaultEventLoopGroup.next()
 
+    "execute Runnable"       | executeRunnable     | defaultEventLoopGroup
+    "submit Runnable"        | submitRunnable      | defaultEventLoopGroup
+    "submit Callable"        | submitCallable      | defaultEventLoopGroup
+    "invokeAll"              | invokeAll           | defaultEventLoopGroup
+    "invokeAll with timeout" | invokeAllTimeout    | defaultEventLoopGroup
+    "invokeAny"              | invokeAny           | defaultEventLoopGroup
+    "invokeAny with timeout" | invokeAnyTimeout    | defaultEventLoopGroup
+    "schedule Runnable"      | scheduleRunnable    | defaultEventLoopGroup
+    "schedule Callable"      | scheduleCallable    | defaultEventLoopGroup
+
     "execute Runnable"       | executeRunnable     | nioEventLoopGroup.next()
     "submit Runnable"        | submitRunnable      | nioEventLoopGroup.next()
     "submit Callable"        | submitCallable      | nioEventLoopGroup.next()
@@ -113,6 +143,16 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAny with timeout" | invokeAnyTimeout    | nioEventLoopGroup.next()
     "schedule Runnable"      | scheduleRunnable    | nioEventLoopGroup.next()
     "schedule Callable"      | scheduleCallable    | nioEventLoopGroup.next()
+
+    "execute Runnable"       | executeRunnable     | nioEventLoopGroup
+    "submit Runnable"        | submitRunnable      | nioEventLoopGroup
+    "submit Callable"        | submitCallable      | nioEventLoopGroup
+    "invokeAll"              | invokeAll           | nioEventLoopGroup
+    "invokeAll with timeout" | invokeAllTimeout    | nioEventLoopGroup
+    "invokeAny"              | invokeAny           | nioEventLoopGroup
+    "invokeAny with timeout" | invokeAnyTimeout    | nioEventLoopGroup
+    "schedule Runnable"      | scheduleRunnable    | nioEventLoopGroup
+    "schedule Callable"      | scheduleCallable    | nioEventLoopGroup
 
     "execute Runnable"       | executeRunnable     | epollExecutor()
     "submit Runnable"        | submitRunnable      | epollExecutor()
@@ -124,6 +164,16 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
     "schedule Runnable"      | scheduleRunnable    | epollExecutor()
     "schedule Callable"      | scheduleCallable    | epollExecutor()
 
+    "execute Runnable"       | executeRunnable     | epollEventLoopGroup
+    "submit Runnable"        | submitRunnable      | epollEventLoopGroup
+    "submit Callable"        | submitCallable      | epollEventLoopGroup
+    "invokeAll"              | invokeAll           | epollEventLoopGroup
+    "invokeAll with timeout" | invokeAllTimeout    | epollEventLoopGroup
+    "invokeAny"              | invokeAny           | epollEventLoopGroup
+    "invokeAny with timeout" | invokeAnyTimeout    | epollEventLoopGroup
+    "schedule Runnable"      | scheduleRunnable    | epollEventLoopGroup
+    "schedule Callable"      | scheduleCallable    | epollEventLoopGroup
+
     // ignore deprecation
     "execute Runnable"       | executeRunnable     | localEventLoopGroup.next()
     "submit Runnable"        | submitRunnable      | localEventLoopGroup.next()
@@ -134,6 +184,16 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
     "invokeAny with timeout" | invokeAnyTimeout    | localEventLoopGroup.next()
     "schedule Runnable"      | scheduleRunnable    | localEventLoopGroup.next()
     "schedule Callable"      | scheduleCallable    | localEventLoopGroup.next()
+
+    "execute Runnable"       | executeRunnable     | localEventLoopGroup
+    "submit Runnable"        | submitRunnable      | localEventLoopGroup
+    "submit Callable"        | submitCallable      | localEventLoopGroup
+    "invokeAll"              | invokeAll           | localEventLoopGroup
+    "invokeAll with timeout" | invokeAllTimeout    | localEventLoopGroup
+    "invokeAny"              | invokeAny           | localEventLoopGroup
+    "invokeAny with timeout" | invokeAnyTimeout    | localEventLoopGroup
+    "schedule Runnable"      | scheduleRunnable    | localEventLoopGroup
+    "schedule Callable"      | scheduleCallable    | localEventLoopGroup
 
   }
 
@@ -181,6 +241,11 @@ class NettyExecutorInstrumentationTest extends AgentTestRunner {
 
     where:
     name                     | method              | poolImpl
+// TODO flaky
+//    "submit Runnable"        | submitRunnable      | new UnorderedThreadPoolEventExecutor(1)
+//    "submit Callable"        | submitCallable      | new UnorderedThreadPoolEventExecutor(1)
+//    "schedule Runnable"      | scheduleRunnable    | new UnorderedThreadPoolEventExecutor(1)
+//    "schedule Callable"      | scheduleCallable    | new UnorderedThreadPoolEventExecutor(1)
 
     "submit Runnable"        | submitRunnable      | defaultEventExecutorGroup.next()
     "submit Callable"        | submitCallable      | defaultEventExecutorGroup.next()
