@@ -446,7 +446,7 @@ public class DDSpanContext implements AgentSpan.Context {
             .append(spanId)
             .append(", p_id=")
             .append(parentId)
-            .append("] trace=")
+            .append(" ] trace=")
             .append(getServiceName())
             .append("/")
             .append(getOperationName())

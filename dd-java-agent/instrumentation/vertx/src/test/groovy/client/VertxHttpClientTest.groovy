@@ -28,8 +28,12 @@ class VertxHttpClientTest extends HttpClientTest {
     def request = httpClient.request(HttpMethod.valueOf(method), uri.port, uri.host, "$uri")
     headers.each { request.putHeader(it.key, it.value) }
     request.handler { response ->
-      callback?.call()
-      future.complete(response)
+      try {
+        callback?.call()
+        future.complete(response)
+      } catch (Exception e) {
+        future.completeExceptionally(e)
+      }
     }
     request.end()
 
