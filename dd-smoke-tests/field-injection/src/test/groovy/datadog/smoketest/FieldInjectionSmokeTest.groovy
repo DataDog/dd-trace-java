@@ -33,9 +33,8 @@ class FieldInjectionSmokeTest extends Specification {
       new HashSet<>([fieldName(ForkJoinTask)]))
     testedTypesAndExpectedFields.put(RecursiveTask.getName(),
       new HashSet<>([fieldName(ForkJoinTask)]))
-    // TODO - want rid of the Runnable field
     testedTypesAndExpectedFields.put(FutureTask.getName(),
-      new HashSet<>([fieldName(RunnableFuture), fieldName(Runnable)]))
+      new HashSet<>([fieldName(RunnableFuture)]))
     String jar = System.getProperty("datadog.smoketest.fieldinjection.shadowJar.path")
     List<String> command = new ArrayList<>()
     command.add(javaPath())
