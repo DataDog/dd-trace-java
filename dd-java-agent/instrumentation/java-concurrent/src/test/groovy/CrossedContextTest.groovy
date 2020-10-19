@@ -5,7 +5,6 @@ import io.netty.channel.ThreadPerChannelEventLoop
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.oio.OioEventLoopGroup
 import io.netty.util.concurrent.DefaultEventExecutor
-import io.netty.util.concurrent.UnorderedThreadPoolEventExecutor
 import org.apache.tomcat.util.threads.TaskQueue
 import spock.lang.Shared
 
@@ -133,8 +132,9 @@ class CrossedContextTest extends AgentTestRunner {
       new ThreadPerChannelEventLoop(new OioEventLoopGroup()),
       new DefaultEventExecutor(),
       new NioEventLoopGroup(10),
-      new DefaultEventLoopGroup(10),
-      new UnorderedThreadPoolEventExecutor(10)
+      new DefaultEventLoopGroup(10)
+      // flaky
+      // new UnorderedThreadPoolEventExecutor(10)
     ]
   }
 
