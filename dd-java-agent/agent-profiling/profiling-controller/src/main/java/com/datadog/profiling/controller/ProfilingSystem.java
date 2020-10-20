@@ -15,6 +15,8 @@
  */
 package com.datadog.profiling.controller;
 
+import static datadog.trace.util.AgentThreadFactory.delayedAgentThread;
+
 import datadog.trace.core.util.SystemAccess;
 import datadog.trace.util.AgentThreadFactory;
 import java.time.Duration;
@@ -127,8 +129,13 @@ public final class ProfilingSystem {
       // which makes it crash if JFR is run before 'main' starts.
       // See https://bugs.openjdk.java.net/browse/JDK-8227011 and
       // https://bugs.openjdk.java.net/browse/JDK-8233197.
-      executorService.schedule(
-          this::startProfilingRecording, startupDelay.toMillis(), TimeUnit.MILLISECONDS);
+      final Thread thread =
+          delayedAgentThread(
+              "dd-profiler-startup",
+              this::startProfilingRecording,
+              startupDelay.toMillis(),
+              TimeUnit.MILLISECONDS);
+      thread.start();
     }
   }
 

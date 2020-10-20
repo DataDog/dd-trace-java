@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** A {@link ThreadFactory} implementation that starts all agent {@link Thread}s as daemons. */
@@ -35,5 +36,32 @@ public final class AgentThreadFactory implements ThreadFactory {
     thread.setDaemon(true);
     thread.setContextClassLoader(null);
     return thread;
+  }
+
+  /**
+   * Constructs a delayed agent {@code Thread} as a daemon with a null ContextClassLoader.
+   *
+   * @param threadName name of the new thread.
+   * @param runnable work to run on the new thread.
+   * @param initialDelay delay before starting work.
+   */
+  public static Thread delayedAgentThread(
+      final String threadName,
+      final Runnable runnable,
+      final long initialDelay,
+      final TimeUnit unit) {
+    return newAgentThread(
+        threadName,
+        new Runnable() {
+          @Override
+          public void run() {
+            try {
+              Thread.sleep(unit.toMillis(initialDelay));
+            } catch (final InterruptedException e) {
+              // drop-through and start the work
+            }
+            runnable.run();
+          }
+        });
   }
 }
