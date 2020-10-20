@@ -1,12 +1,11 @@
 package datadog.trace.util;
 
-import static datadog.trace.util.AgentThreadFactory.TASK_SCHEDULER;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import java.lang.ref.WeakReference;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.SneakyThrows;
@@ -14,7 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public final class AgentTaskScheduler {
-  public static final AgentTaskScheduler INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER);
+  public static final AgentTaskScheduler INSTANCE = new AgentTaskScheduler("dd-task-scheduler");
 
   private static final long SHUTDOWN_WAIT_MILLIS = 5_000;
 
@@ -33,12 +32,12 @@ public final class AgentTaskScheduler {
   }
 
   private final DelayQueue<PeriodicTask<?>> workQueue = new DelayQueue<>();
-  private final ThreadFactory threadFactory;
+  private final String threadPrefix;
   private volatile Thread worker;
   private volatile boolean shutdown;
 
-  public AgentTaskScheduler(final ThreadFactory threadFactory) {
-    this.threadFactory = threadFactory;
+  public AgentTaskScheduler(final String threadPrefix) {
+    this.threadPrefix = threadPrefix;
   }
 
   public <T> void weakScheduleAtFixedRate(
@@ -66,7 +65,7 @@ public final class AgentTaskScheduler {
         if (!shutdown && worker == null) {
           prepareWorkQueue();
           try {
-            worker = threadFactory.newThread(new Worker());
+            worker = newAgentThread(threadPrefix + "-worker", new Worker());
             // register hook after worker is assigned, but before we start it
             Runtime.getRuntime().addShutdownHook(new Shutdown());
             worker.start();

@@ -7,9 +7,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class AgentThreadFactory implements ThreadFactory {
   public static final ThreadGroup AGENT_THREAD_GROUP = new ThreadGroup("dd-trace-java");
 
-  public static final AgentThreadFactory TASK_SCHEDULER =
-      new AgentThreadFactory("dd-task-scheduler");
-
   private final AtomicInteger threadCount = new AtomicInteger(0);
   private final String threadPrefix;
 
@@ -28,7 +25,7 @@ public final class AgentThreadFactory implements ThreadFactory {
   }
 
   /**
-   * Constructs a new agent {@code Thread} with a null ContextClassLoader.
+   * Constructs a new agent {@code Thread} as a daemon with a null ContextClassLoader.
    *
    * @param threadName name of the new thread.
    * @param runnable work to run on the new thread.
