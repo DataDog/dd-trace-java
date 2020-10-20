@@ -1,5 +1,7 @@
 package com.datadog.profiling.agent;
 
+import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
+
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerFactory;
@@ -95,6 +97,7 @@ public class ProfilingAgent {
     private final WeakReference<ProfileUploader> uploaderRef;
 
     private ShutdownHook(final ProfilingSystem profiler, final ProfileUploader uploader) {
+      super(AGENT_THREAD_GROUP, "dd-profiler-shutdown-hook");
       profilerRef = new WeakReference<>(profiler);
       uploaderRef = new WeakReference<>(uploader);
     }

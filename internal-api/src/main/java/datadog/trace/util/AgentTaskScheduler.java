@@ -1,5 +1,6 @@
 package datadog.trace.util;
 
+import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -67,7 +68,7 @@ public final class AgentTaskScheduler {
           try {
             worker = newAgentThread(threadPrefix + "-worker", new Worker());
             // register hook after worker is assigned, but before we start it
-            Runtime.getRuntime().addShutdownHook(new Shutdown());
+            Runtime.getRuntime().addShutdownHook(new ShutdownHook());
             worker.start();
           } catch (final IllegalStateException e) {
             shutdown = true; // couldn't add hook, JVM is shutting down
@@ -101,7 +102,11 @@ public final class AgentTaskScheduler {
     return "periodic task " + task.getClass().getSimpleName() + " with target " + target.get();
   }
 
-  private final class Shutdown extends Thread {
+  private final class ShutdownHook extends Thread {
+    ShutdownHook() {
+      super(AGENT_THREAD_GROUP, threadPrefix + "-shutdown-hook");
+    }
+
     @Override
     @SneakyThrows
     public void run() {
