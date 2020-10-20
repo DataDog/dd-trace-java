@@ -9,12 +9,19 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 final class ConfigConverter {
+
+  private static final Pattern COMMA_SEPARATED =
+      Pattern.compile("(([^,:]+:[^,:]*,)*([^,:]+:[^,:]*),?)?");
+  private static final Pattern SPACE_SEPARATED = Pattern.compile("((\\S+:\\S*)\\s+)*(\\S+:\\S*)?");
+  private static final Pattern ILLEGAL_SPACE_SEPARATED = Pattern.compile("(:\\S+:)+");
+
   private static final ValueOfLookup LOOKUP = new ValueOfLookup();
 
   /**
@@ -55,20 +62,34 @@ final class ConfigConverter {
   @NonNull
   static Map<String, String> parseMap(final String str, final String settingName) {
     // If we ever want to have default values besides an empty map, this will need to change.
-    if (str == null || str.trim().isEmpty()) {
+    if (str == null) {
       return Collections.emptyMap();
     }
-    if (!str.matches("(([^,:]+:[^,:]*,)*([^,:]+:[^,:]*),?)?")) {
-      log.warn(
-          "Invalid config for {}: '{}'. Must match 'key1:value1,key2:value2'.", settingName, str);
+    String trimmed = str.trim();
+    if (trimmed.isEmpty()) {
       return Collections.emptyMap();
     }
+    if (COMMA_SEPARATED.matcher(trimmed).matches()) {
+      return parseMap(str, settingName, ",");
+    }
+    if (SPACE_SEPARATED.matcher(trimmed).matches()
+        && !ILLEGAL_SPACE_SEPARATED.matcher(trimmed).find()) {
+      return parseMap(str, settingName, "\\s+");
+    }
+    log.warn(
+        "Invalid config for {}: '{}'. Must match 'key1:value1,key2:value2' or 'key1:value1 key2:value2'.",
+        settingName,
+        str);
+    return Collections.emptyMap();
+  }
 
-    final String[] tokens = str.split(",", -1);
+  private static Map<String, String> parseMap(
+      final String str, final String settingName, final String separator) {
+    final String[] tokens = str.split(separator);
     final Map<String, String> map = newHashMap(tokens.length);
 
     for (final String token : tokens) {
-      final String[] keyValue = token.split(":", -1);
+      final String[] keyValue = token.split(":", 2);
       if (keyValue.length == 2) {
         final String key = keyValue[0].trim();
         final String value = keyValue[1].trim();

@@ -118,7 +118,7 @@ class ConfigTest extends DDSpecification {
   private static final DD_PROFILING_API_KEY_VERY_OLD_ENV = "DD_PROFILING_APIKEY"
   private static final DD_PROFILING_TAGS_ENV = "DD_PROFILING_TAGS"
   private static final DD_PROFILING_PROXY_PASSWORD_ENV = "DD_PROFILING_PROXY_PASSWORD"
-  
+
   def "specify overrides via properties"() {
     setup:
     def prop = new Properties()
@@ -890,25 +890,34 @@ class ConfigTest extends DDSpecification {
     propConfig.headerTags == map
 
     where:
-    mapString                         | map
-    "a:1, a:2, a:3"                   | [a: "3"]
-    "a:b,c:d,e:"                      | [a: "b", c: "d"]
+    mapString                                                     | map
+    "a:1, a:2, a:3"                                               | [a: "3"]
+    "a:b,c:d,e:"                                                  | [a: "b", c: "d"]
+    // space separated
+    "a:1  a:2  a:3"                                               | [a: "3"]
+    "a:b c:d e:"                                                  | [a: "b", c: "d"]
     // More different string variants:
-    "a:"                              | [:]
-    "a:a;"                            | [a: "a;"]
-    "a:1, a:2, a:3"                   | [a: "3"]
-    "a:b,c:d,e:"                      | [a: "b", c: "d"]
-    "key 1!:va|ue_1,"                 | ["key 1!": "va|ue_1"]
-    " key1 :value1 ,\t key2:  value2" | [key1: "value1", key2: "value2"]
+    "a:"                                                          | [:]
+    "a:a;"                                                        | [a: "a;"]
+    "a:1, a:2, a:3"                                               | [a: "3"]
+    "a:1  a:2  a:3"                                               | [a: "3"]
+    "a:b,c:d,e:"                                                  | [a: "b", c: "d"]
+    "a:b c:d e:"                                                  | [a: "b", c: "d"]
+    "key 1!:va|ue_1,"                                             | ["key 1!": "va|ue_1"]
+    "key 1!:va|ue_1 "                                             | ["key 1!": "va|ue_1"]
+    " key1 :value1 ,\t key2:  value2"                             | [key1: "value1", key2: "value2"]
+    "a:b,c,d"                                                     | [a: "b,c,d"]
+    "dyno:web.1 dynotype:web buildpackversion:dev appname:******" | ["dyno": "web.1", "dynotype": "web", "buildpackversion": "dev", "appname": "******"]
     // Invalid strings:
-    ""                                | [:]
-    "1"                               | [:]
-    "a"                               | [:]
-    "a,1"                             | [:]
-    "in:val:id"                       | [:]
-    "a:b:c:d"                         | [:]
-    "a:b,c,d"                         | [:]
-    "!a"                              | [:]
+    ""                                                            | [:]
+    "1"                                                           | [:]
+    "a"                                                           | [:]
+    "a,1"                                                         | [:]
+    "in:val:id"                                                   | [:]
+    "a:b:c:d"                                                     | [:]
+    "!a"                                                          | [:]
+    // ambiguous - is properties are space separated they must be trimmed
+    "key1 :value1  \t key2:  value2"                              | [:]
   }
 
   def "verify integer range configs on tracer"() {
