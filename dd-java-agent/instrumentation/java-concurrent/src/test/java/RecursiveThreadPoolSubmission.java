@@ -25,6 +25,7 @@ public class RecursiveThreadPoolSubmission implements Runnable {
     }
     AgentSpan span = startSpan(String.valueOf(depth));
     try (AgentScope scope = activateSpan(span)) {
+      scope.setAsyncPropagation(true);
       executor.submit(new RecursiveThreadPoolSubmission(executor, maxDepth, depth + 1));
     } finally {
       span.finish();

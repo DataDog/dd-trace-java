@@ -79,7 +79,6 @@ class CustomScopeManagerTest extends DDSpecification {
       .withTag(DDTags.SERVICE_NAME, "someService")
       .start()
     coreTracer.activateSpan(((OTSpan) testSpan).getDelegate())
-    coreTracer.activeScope().setAsyncPropagation(false)
 
     then:
     coreTracer.activeSpan() != null
@@ -121,7 +120,6 @@ class CustomScopeManagerTest extends DDSpecification {
     Scope scope = tracer.buildSpan("someOperation")
       .withTag(DDTags.SERVICE_NAME, "someService")
       .startActive(true)
-    ((TraceScope) scope).setAsyncPropagation(false)
 
     then:
     scope instanceof TraceScope
@@ -169,7 +167,6 @@ class CustomScopeManagerTest extends DDSpecification {
     tracer.buildSpan("someOperation")
       .withTag(DDTags.SERVICE_NAME, "someService")
       .startActive(true)
-    coreTracer.activeScope().setAsyncPropagation(false)
 
     then:
     !coreTracer.activeScope().isAsyncPropagating()

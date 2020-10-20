@@ -26,7 +26,9 @@ public abstract class HttpServerTestAdvice {
         return null;
       } else {
         final AgentSpan span = startSpan("TEST_SPAN").setTag(DDTags.RESOURCE_NAME, "ServerEntry");
-        return activateSpan(span);
+        final AgentScope scope = activateSpan(span);
+        scope.setAsyncPropagation(true);
+        return scope;
       }
     }
 

@@ -44,6 +44,7 @@ public class TracedOnSubscribe<T> implements Observable.OnSubscribe<T> {
     afterStart(span);
 
     try (final AgentScope scope = activateSpan(span)) {
+      scope.setAsyncPropagation(true);
       delegate.call(new TracedSubscriber(span, subscriber, decorator));
     }
   }

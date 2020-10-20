@@ -58,6 +58,7 @@ public class AsyncHandlerWrapper implements AsyncHandler {
 
     if (continuation != null) {
       try (final TraceScope scope = continuation.activate()) {
+        scope.setAsyncPropagation(true);
         return delegate.onCompleted();
       }
     } else {
@@ -73,6 +74,7 @@ public class AsyncHandlerWrapper implements AsyncHandler {
 
     if (continuation != null) {
       try (final TraceScope scope = continuation.activate()) {
+        scope.setAsyncPropagation(true);
         delegate.onThrowable(throwable);
       }
     } else {

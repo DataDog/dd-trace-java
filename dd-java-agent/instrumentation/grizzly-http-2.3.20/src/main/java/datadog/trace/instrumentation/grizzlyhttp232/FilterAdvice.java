@@ -20,6 +20,7 @@ public class FilterAdvice {
     }
     AgentScope scope =
         activateSpan((AgentSpan) ctx.getAttributes().getAttribute(DD_SPAN_ATTRIBUTE));
+    scope.setAsyncPropagation(true);
     return scope;
   }
 

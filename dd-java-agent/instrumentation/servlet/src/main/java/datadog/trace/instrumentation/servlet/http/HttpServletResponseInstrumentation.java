@@ -92,7 +92,9 @@ public final class HttpServletResponseInstrumentation extends Instrumenter.Defau
 
       span.setTag(DDTags.RESOURCE_NAME, "HttpServletResponse." + method);
 
-      return activateSpan(span);
+      final AgentScope scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

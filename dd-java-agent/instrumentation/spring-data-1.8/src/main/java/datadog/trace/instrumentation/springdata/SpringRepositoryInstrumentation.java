@@ -112,6 +112,7 @@ public final class SpringRepositoryInstrumentation extends Instrumenter.Default 
       DECORATOR.onOperation(span, invokedMethod);
 
       final AgentScope scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
 
       Object result = null;
       try {

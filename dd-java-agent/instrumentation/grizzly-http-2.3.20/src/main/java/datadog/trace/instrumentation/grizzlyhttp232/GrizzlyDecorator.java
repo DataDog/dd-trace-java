@@ -81,6 +81,7 @@ public class GrizzlyDecorator
     AgentSpan span =
         startSpan(GRIZZLY_REQUEST, propagate().extract(httpHeader, ExtractAdapter.GETTER));
     AgentScope scope = activateSpan(span);
+    scope.setAsyncPropagation(true);
     DECORATE.afterStart(span);
     ctx.getAttributes().setAttribute(DD_SPAN_ATTRIBUTE, span);
     ctx.getAttributes().setAttribute(DD_RESPONSE_ATTRIBUTE, httpResponse);

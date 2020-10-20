@@ -40,6 +40,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
         ctx.sendUpstream(msg); // superclass does not throw
       } else {
         try (final AgentScope scope = activateSpan(span)) {
+          scope.setAsyncPropagation(true);
           ctx.sendUpstream(msg); // superclass does not throw
         }
       }
@@ -57,6 +58,8 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, ctx.getChannel());
       DECORATE.onRequest(span, request);
+
+      scope.setAsyncPropagation(true);
 
       channelTraceContext.setServerSpan(span);
 

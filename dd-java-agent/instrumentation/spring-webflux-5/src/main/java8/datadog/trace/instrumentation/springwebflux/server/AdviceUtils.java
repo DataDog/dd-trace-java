@@ -109,6 +109,7 @@ public class AdviceUtils {
     @Override
     public void onSubscribe(final Subscription s) {
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         subscriber.onSubscribe(s);
       }
     }
@@ -116,6 +117,7 @@ public class AdviceUtils {
     @Override
     public void onNext(final T t) {
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         subscriber.onNext(t);
       }
     }

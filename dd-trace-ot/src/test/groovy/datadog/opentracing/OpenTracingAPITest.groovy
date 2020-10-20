@@ -228,7 +228,6 @@ class OpenTracingAPITest extends DDSpecification {
     Scope scope = tracer.buildSpan("someOperation")
       .withTag(DDTags.SERVICE_NAME, "someService")
       .startActive(true)
-    ((TraceScope) scope).setAsyncPropagation(false)
 
     then:
     scope instanceof TraceScope
@@ -269,7 +268,6 @@ class OpenTracingAPITest extends DDSpecification {
     Scope outer = tracer.buildSpan("someOperation")
       .withTag(DDTags.SERVICE_NAME, "someService")
       .startActive(true)
-    ((TraceScope) outer).setAsyncPropagation(false)
 
     then:
     outer instanceof TraceScope

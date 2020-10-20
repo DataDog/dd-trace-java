@@ -16,6 +16,7 @@ import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 /**
  * Test executor instrumentation for Akka specific classes.
  * This is to large extent a copy of ExecutorInstrumentationTest.
@@ -44,6 +45,7 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
       @Override
       @Trace(operationName = "parent")
       void run() {
+        activeScope().setAsyncPropagation(true)
         // this child will have a span
         m(pool, new AkkaAsyncChild())
         // this child won't
@@ -88,7 +90,7 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
     "invoke ForkJoinTask"  | akkaInvokeForkJoinTask  | new ForkJoinExecutorConfigurator.AkkaForkJoinPool(2, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true)
   }
 
-  def "dispatcher propagates context"() {
+  def "dispatcher propagates context" () {
     setup:
     ActorSystem actorSystem = ActorSystem.create("test", ConfigFactory.defaultApplication())
     def dispatcher = actorSystem.dispatchers().defaultGlobalDispatcher()
@@ -97,6 +99,7 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
       @Override
       @Trace(operationName = "parent")
       void run() {
+        activeScope().setAsyncPropagation(true)
         // this child will have a span
         dispatcher.execute(new AkkaAsyncChild())
         // this child won't
@@ -127,6 +130,7 @@ class AkkaExecutorInstrumentationTest extends AgentTestRunner {
       @Override
       @Trace(operationName = "parent")
       void run() {
+        activeScope().setAsyncPropagation(true)
         try {
           for (int i = 0; i < 20; ++i) {
             // Our current instrumentation instrumentation does not behave very well

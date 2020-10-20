@@ -15,6 +15,7 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 
 class RejectedExecutionTest extends AgentTestRunner {
 
@@ -152,10 +153,10 @@ class RejectedExecutionTest extends AgentTestRunner {
     ]
   }
 
-  def "trace reported with swallowing netty rejected execution handler"() {
+  def "trace reported with swallowing netty rejected execution handler" () {
     setup:
     DefaultEventExecutor executor = new DefaultEventExecutor(null, new DefaultThreadFactory(DefaultEventExecutor),
-      1, handler)
+    1, handler)
     CountDownLatch latch = new CountDownLatch(1)
     // this task will block the executor thread ensuring the next task gets enqueued
     executor.submit({
@@ -166,6 +167,7 @@ class RejectedExecutionTest extends AgentTestRunner {
 
     when:
     runUnderTrace("parent") {
+      activeScope().setAsyncPropagation(true)
       // must be rejected because the queue will be full until some
       // time after the first task is released
       executor.submit((Runnable) new JavaAsyncChild(true, false))
@@ -211,6 +213,7 @@ class RejectedExecutionTest extends AgentTestRunner {
 
     return {
       runUnderTrace("parent") {
+        activeScope().setAsyncPropagation(true)
         pool.submit({})
       }
     }
@@ -234,6 +237,7 @@ class RejectedExecutionTest extends AgentTestRunner {
 
     return {
       runUnderTrace("parent") {
+        activeScope().setAsyncPropagation(true)
         // must be rejected because the queue will be full until some
         // time after the first task is released
         pool.submit((Runnable) new JavaAsyncChild(true, false))

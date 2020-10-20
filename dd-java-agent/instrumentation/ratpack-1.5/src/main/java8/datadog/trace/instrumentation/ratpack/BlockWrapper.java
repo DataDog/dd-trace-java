@@ -21,6 +21,7 @@ public class BlockWrapper implements Block {
   @Override
   public void execute() throws Exception {
     try (final AgentScope scope = activateSpan(span)) {
+      scope.setAsyncPropagation(true);
       delegate.execute();
     }
   }

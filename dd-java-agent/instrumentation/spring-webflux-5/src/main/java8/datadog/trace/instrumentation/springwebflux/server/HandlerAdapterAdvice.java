@@ -39,6 +39,7 @@ public class HandlerAdapterAdvice {
       span.setTag("handler.type", handlerType);
 
       scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
     }
 
     final AgentSpan parentSpan = exchange.getAttribute(AdviceUtils.PARENT_SPAN_ATTRIBUTE);

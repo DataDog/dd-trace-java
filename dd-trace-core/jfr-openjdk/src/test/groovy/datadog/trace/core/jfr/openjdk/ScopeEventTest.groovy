@@ -144,6 +144,7 @@ class ScopeEventTest extends DDSpecification {
     setup:
     AgentSpan span = builder.start()
     AgentScope parentScope = tracer.activateSpan(span)
+    parentScope.setAsyncPropagation(true)
     TraceScope.Continuation continuation = ((TraceScope) parentScope).capture()
     def recording = JfrHelper.startRecording()
 

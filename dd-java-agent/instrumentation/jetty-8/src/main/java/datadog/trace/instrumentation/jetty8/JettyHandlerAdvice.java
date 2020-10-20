@@ -41,6 +41,7 @@ public class JettyHandlerAdvice {
     DECORATE.onRequest(span, req);
 
     final AgentScope scope = activateSpan(span);
+    scope.setAsyncPropagation(true);
     req.setAttribute(DD_SPAN_ATTRIBUTE, span);
     req.setAttribute(CorrelationIdentifier.getTraceIdKey(), GlobalTracer.get().getTraceId());
     req.setAttribute(CorrelationIdentifier.getSpanIdKey(), GlobalTracer.get().getSpanId());

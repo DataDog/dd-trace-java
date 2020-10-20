@@ -105,7 +105,9 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
       DECORATE.onConnection(span, request);
       DECORATE.onRequest(span, request);
 
-      return activateSpan(span);
+      final AgentScope scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
+      return scope;
     }
 
     public static void finishSpan(final AgentSpan span, final HttpResponse response) {

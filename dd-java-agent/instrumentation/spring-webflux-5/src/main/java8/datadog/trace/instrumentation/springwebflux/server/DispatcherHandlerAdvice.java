@@ -35,7 +35,9 @@ public class DispatcherHandlerAdvice {
     DECORATE.afterStart(span);
     exchange.getAttributes().put(AdviceUtils.SPAN_ATTRIBUTE, span);
 
-    return activateSpan(span);
+    final AgentScope scope = activateSpan(span);
+    scope.setAsyncPropagation(true);
+    return scope;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

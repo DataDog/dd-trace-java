@@ -41,6 +41,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     DECORATE.afterStart(span);
 
     final AgentScope scope = activateSpan(span);
+    scope.setAsyncPropagation(true);
 
     final ServerCall.Listener<ReqT> result;
     try {
@@ -104,6 +105,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
               .setTag("message.type", message.getClass().getName());
       DECORATE.afterStart(span);
       final AgentScope scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
       try {
         delegate().onMessage(message);
       } catch (final Throwable e) {
@@ -122,6 +124,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onHalfClose() {
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         delegate().onHalfClose();
         scope.setAsyncPropagation(false);
       } catch (final Throwable e) {
@@ -136,6 +139,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     public void onCancel() {
       // Finishes span.
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         delegate().onCancel();
         span.setTag("canceled", true);
         scope.setAsyncPropagation(false);
@@ -152,6 +156,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     public void onComplete() {
       // Finishes span.
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         delegate().onComplete();
         scope.setAsyncPropagation(false);
       } catch (final Throwable e) {
@@ -166,6 +171,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onReady() {
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         delegate().onReady();
         scope.setAsyncPropagation(false);
       } catch (final Throwable e) {

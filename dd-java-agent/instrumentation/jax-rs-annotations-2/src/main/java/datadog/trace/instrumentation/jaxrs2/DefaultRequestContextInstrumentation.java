@@ -48,6 +48,7 @@ public class DefaultRequestContextInstrumentation extends AbstractRequestContext
         }
 
         final AgentScope scope = activateSpan(span);
+        scope.setAsyncPropagation(true);
 
         DECORATE.afterStart(span);
         DECORATE.onJaxRsSpan(span, parent, filterClass, method);

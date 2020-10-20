@@ -93,6 +93,7 @@ public class TracingPublishers {
     @Override
     public void subscribe(final CoreSubscriber<? super T> actual) {
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         delegate.subscribe(wrapSubscriber(span, actual));
       }
     }
@@ -115,6 +116,7 @@ public class TracingPublishers {
     @Override
     protected void subscribe(final CoreSubscriber<? super T>[] subscribers) {
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         for (final CoreSubscriber<? super T> subscriber : subscribers) {
           delegate.subscribe(wrapSubscriber(span, subscriber));
         }
@@ -142,6 +144,7 @@ public class TracingPublishers {
     @Override
     public void subscribe(final CoreSubscriber<? super T> actual) {
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         delegate.subscribe(wrapSubscriber(span, actual));
       }
     }
@@ -164,6 +167,7 @@ public class TracingPublishers {
     @Override
     public void subscribe(final CoreSubscriber<? super T> actual) {
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         delegate.subscribe(wrapSubscriber(span, actual));
       }
     }
@@ -181,6 +185,7 @@ public class TracingPublishers {
     @Override
     public void subscribe(final CoreSubscriber<? super T> actual) {
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         delegate.subscribe(wrapSubscriber(span, actual));
       }
     }

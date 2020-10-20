@@ -33,6 +33,7 @@ public class TracingListener implements TestExecutionListener {
             methodSource -> {
               final AgentSpan span = startSpan("junit.test");
               final AgentScope scope = activateSpan(span);
+              scope.setAsyncPropagation(true);
 
               DECORATE.afterStart(span);
               DECORATE.onTestStart(span, methodSource);

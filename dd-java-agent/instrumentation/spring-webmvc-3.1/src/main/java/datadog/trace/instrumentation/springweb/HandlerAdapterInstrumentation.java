@@ -91,7 +91,9 @@ public final class HandlerAdapterInstrumentation extends Instrumenter.Default {
       DECORATE.afterStart(span);
       DECORATE.onHandle(span, handler);
 
-      return activateSpan(span);
+      final AgentScope scope = activateSpan(span);
+      scope.setAsyncPropagation(true);
+      return scope;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

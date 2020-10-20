@@ -25,6 +25,7 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static org.junit.Assume.assumeTrue
 
 class ExecutorInstrumentationTest extends AgentTestRunner {
@@ -69,6 +70,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
       @Override
       @Trace(operationName = "parent")
       void run() {
+        activeScope().setAsyncPropagation(true)
         // this child will have a span
         m(pool, new JavaAsyncChild())
         // this child won't
@@ -218,6 +220,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
       @Override
       @Trace(operationName = "parent")
       void run() {
+        activeScope().setAsyncPropagation(true)
         m(pool, w(child))
       }
     }.run()
@@ -254,6 +257,7 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
       @Override
       @Trace(operationName = "parent")
       void run() {
+        activeScope().setAsyncPropagation(true)
         try {
           for (int i = 0; i < 20; ++i) {
             final JavaAsyncChild child = new JavaAsyncChild(false, true)

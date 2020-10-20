@@ -38,6 +38,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
             .setTag(InstrumentationTags.DD_MEASURED, true);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
+      scope.setAsyncPropagation(true);
 
       final ClientCall<ReqT, RespT> result;
       try {
@@ -81,6 +82,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
     @Override
     public void sendMessage(final ReqT message) {
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         super.sendMessage(message);
       } catch (final Throwable e) {
         DECORATE.onError(span, e);
@@ -107,6 +109,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
               .setTag("message.type", message.getClass().getName());
       DECORATE.afterStart(messageSpan);
       final AgentScope scope = activateSpan(messageSpan);
+      scope.setAsyncPropagation(true);
       try {
         delegate().onMessage(message);
       } catch (final Throwable e) {
@@ -124,6 +127,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
       DECORATE.onClose(span, status);
       // Finishes span.
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         delegate().onClose(status, trailers);
       } catch (final Throwable e) {
         DECORATE.onError(span, e);
@@ -137,6 +141,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
     @Override
     public void onReady() {
       try (final AgentScope scope = activateSpan(span)) {
+        scope.setAsyncPropagation(true);
         delegate().onReady();
       } catch (final Throwable e) {
         DECORATE.onError(span, e);

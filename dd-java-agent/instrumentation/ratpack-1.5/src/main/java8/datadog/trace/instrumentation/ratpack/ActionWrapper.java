@@ -21,6 +21,7 @@ public class ActionWrapper<T> implements Action<T> {
   @Override
   public void execute(final T t) throws Exception {
     try (final AgentScope scope = activateSpan(span)) {
+      scope.setAsyncPropagation(true);
       delegate.execute(t);
     }
   }

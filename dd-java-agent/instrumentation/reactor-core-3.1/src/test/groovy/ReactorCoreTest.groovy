@@ -381,6 +381,8 @@ class ReactorCoreTest extends AgentTestRunner {
 
     AgentScope scope = activateSpan(span)
     try {
+      scope.setAsyncPropagation(true)
+
       def publisher = publisherSupplier()
       // Read all data from publisher
       if (publisher instanceof Mono) {
@@ -400,6 +402,7 @@ class ReactorCoreTest extends AgentTestRunner {
   def cancelUnderTrace(def publisherSupplier) {
     final AgentSpan span = startSpan("publisher-parent")
     AgentScope scope = activateSpan(span)
+    scope.setAsyncPropagation(true)
 
     def publisher = publisherSupplier()
     publisher.subscribe(new Subscriber<Integer>() {
