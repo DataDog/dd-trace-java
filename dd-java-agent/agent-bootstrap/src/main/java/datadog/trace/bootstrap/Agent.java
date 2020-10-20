@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap;
 
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
@@ -152,7 +154,8 @@ public class Agent {
        * This seems to resolve this problem.
        */
       final Thread thread =
-          new Thread(
+          newAgentThread(
+              "dd-agent-startup-" + getName(),
               new Runnable() {
                 @Override
                 public void run() {
@@ -163,8 +166,6 @@ public class Agent {
                   }
                 }
               });
-      thread.setName("dd-agent-startup-" + getName());
-      thread.setDaemon(true);
       thread.start();
     }
 
