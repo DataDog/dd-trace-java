@@ -107,6 +107,9 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
   }
 
   private String getInjectionTarget(TypeDescription typeDescription) {
+    // precondition: typeDescription must be a sub type of the key class
+    // verifying this isn't free so the caller (in the same package) is trusted
+
     // The flag takes 3 values:
     // true: the key type is a class, so should be the injection target
     // false: the key type is an interface, so we need to find the class
@@ -129,7 +132,6 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
         KEY_TYPE_IS_CLASS.put(keyType, true);
         return keyType;
       }
-      boolean implementsInterface = false;
       for (TypeDescription.Generic iface : superClass.getInterfaces()) {
         String interfaceName = iface.asRawType().getTypeName();
         if (keyType.equals(interfaceName)) {
@@ -139,12 +141,8 @@ final class ShouldInjectFieldsMatcher implements AgentBuilder.RawMatcher {
             keyTypeIsClass = false;
           }
           implementingClass = superClassName;
-          implementsInterface = true;
           break;
         }
-      }
-      if (!implementsInterface) {
-        break;
       }
       superClass = superClass.getSuperClass();
     }

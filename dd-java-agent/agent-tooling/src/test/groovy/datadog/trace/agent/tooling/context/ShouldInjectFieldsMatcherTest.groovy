@@ -1,0 +1,70 @@
+package datadog.trace.agent.tooling.context
+
+import datadog.trace.agent.tooling.AgentTooling
+import datadog.trace.test.util.DDSpecification
+import net.bytebuddy.agent.builder.AgentBuilder
+import net.bytebuddy.utility.JavaModule
+import spock.lang.Shared
+
+import java.security.ProtectionDomain
+
+class ShouldInjectFieldsMatcherTest extends DDSpecification {
+
+  @Shared
+  def typePool =
+    AgentTooling.poolStrategy()
+      .typePool(AgentTooling.locationStrategy().classFileLocator(this.class.classLoader, null), this.class.classLoader)
+
+  def "should inject only into #keyType when #klass is transformed"() {
+    setup:
+    AgentBuilder.RawMatcher matcher = ShouldInjectFieldsMatcher.of(keyType, "java.lang.String")
+
+    when:
+    boolean matches = matcher.matches(
+      typePool.describe(klass).resolve(),
+      getClass().getClassLoader(),
+      Mock(JavaModule),
+      // need to transform the class to add a marker interface
+      // to be able to test the non-null case
+      null,
+      Mock(ProtectionDomain)
+    )
+
+    then:
+    ((klass == keyType) && matches) || ((klass != keyType) && !matches)
+
+    where:
+    keyType                             | klass
+    "java.util.concurrent.ForkJoinTask" | "java.util.concurrent.ForkJoinTask"
+    "java.util.concurrent.ForkJoinTask" | "java.util.concurrent.RecursiveTask"
+    "java.util.concurrent.ForkJoinTask" | "datadog.trace.agent.test.ARecursiveTask"
+  }
+
+  def "should inject only into #expected when #klass implementing #keyType is transformed"() {
+    setup:
+    AgentBuilder.RawMatcher matcher = ShouldInjectFieldsMatcher.of(keyType, "java.lang.String")
+
+    when:
+    boolean matches = matcher.matches(
+      typePool.describe(klass).resolve(),
+      getClass().getClassLoader(),
+      Mock(JavaModule),
+      // need to transform the class to add a marker interface
+      // to be able to test the non-null case
+      null,
+      Mock(ProtectionDomain)
+    )
+
+    then:
+    ((klass == expected) && matches) || ((klass != expected) && !matches)
+
+    where:
+    keyType                               | klass                                                                   | expected
+    "java.util.concurrent.RunnableFuture" | "java.util.concurrent.FutureTask"                                       | "java.util.concurrent.FutureTask"
+    "java.util.concurrent.RunnableFuture" | "java.util.concurrent.ScheduledThreadPoolExecutor\$ScheduledFutureTask" | "java.util.concurrent.FutureTask"
+    "java.util.concurrent.RunnableFuture" | "java.util.concurrent.ExecutorCompletionService\$QueueingFuture"        | "java.util.concurrent.FutureTask"
+    // tests the case where a class in the hierarchy does not implement the target interface but subclasses something which does
+    "java.util.concurrent.RunnableFuture" | "datadog.trace.agent.test.LeafFutureTask"                               | "java.util.concurrent.FutureTask"
+  }
+
+}
