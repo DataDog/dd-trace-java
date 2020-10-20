@@ -69,7 +69,10 @@ jobs:
 
       - save_cache:
           key: dd-trace-java-v1-{{ .Branch }}-{{ .Revision }}
-          paths: ~/.gradle
+          paths:
+            - ~/.gradle
+            - ~/.sbt
+            - ~/.cache/coursier/v1
 
 
   default_test_job: &default_test_job
