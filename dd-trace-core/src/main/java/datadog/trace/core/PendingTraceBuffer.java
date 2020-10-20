@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_MONITOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import java.util.concurrent.TimeUnit;
@@ -15,7 +16,7 @@ class PendingTraceBuffer implements AutoCloseable {
 
   private final MpscBlockingConsumerArrayQueue<PendingTrace> queue =
       new MpscBlockingConsumerArrayQueue<>(BUFFER_SIZE);
-  private final Thread worker = newAgentThread("dd-trace-monitor", new Worker());
+  private final Thread worker = newAgentThread(TRACE_MONITOR, new Worker());
 
   private volatile boolean closed = false;
 

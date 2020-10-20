@@ -1,9 +1,11 @@
 package datadog.trace.util;
 
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
@@ -13,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public final class AgentTaskScheduler {
-  public static final AgentTaskScheduler INSTANCE = new AgentTaskScheduler("dd-task-scheduler");
+  public static final AgentTaskScheduler INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER);
 
   private static final long SHUTDOWN_WAIT_MILLIS = 5_000;
 
@@ -32,12 +34,12 @@ public final class AgentTaskScheduler {
   }
 
   private final DelayQueue<PeriodicTask<?>> workQueue = new DelayQueue<>();
-  private final String threadPrefix;
+  private final AgentThread agentThread;
   private volatile Thread worker;
   private volatile boolean shutdown;
 
-  public AgentTaskScheduler(final String threadPrefix) {
-    this.threadPrefix = threadPrefix;
+  public AgentTaskScheduler(final AgentThread agentThread) {
+    this.agentThread = agentThread;
   }
 
   public <T> void weakScheduleAtFixedRate(
@@ -65,7 +67,7 @@ public final class AgentTaskScheduler {
         if (!shutdown && worker == null) {
           prepareWorkQueue();
           try {
-            worker = newAgentThread(threadPrefix + "-worker", new Worker());
+            worker = newAgentThread(agentThread, new Worker());
             // register hook after worker is assigned, but before we start it
             Runtime.getRuntime().addShutdownHook(new ShutdownHook());
             worker.start();
@@ -103,7 +105,7 @@ public final class AgentTaskScheduler {
 
   private final class ShutdownHook extends Thread {
     ShutdownHook() {
-      super(AGENT_THREAD_GROUP, threadPrefix + "-shutdown-hook");
+      super(AGENT_THREAD_GROUP, agentThread.threadName() + "-shutdown-hook");
     }
 
     @Override
@@ -114,7 +116,7 @@ public final class AgentTaskScheduler {
         t.interrupt();
         try {
           t.join(SHUTDOWN_WAIT_MILLIS);
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
           // continue shutdown...
         }
       }

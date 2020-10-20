@@ -1,5 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -74,7 +75,7 @@ public class TraceProcessingWorker implements AutoCloseable {
             dispatcher,
             flushInterval,
             timeUnit);
-    this.serializerThread = newAgentThread("dd-trace-processor", serializingHandler);
+    this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
   }
 
   public void start() {

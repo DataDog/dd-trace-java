@@ -15,6 +15,8 @@
  */
 package com.datadog.profiling.uploader;
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
+
 import com.datadog.profiling.controller.RecordingData;
 import com.datadog.profiling.controller.RecordingType;
 import com.datadog.profiling.uploader.util.PidHelper;
@@ -184,7 +186,7 @@ public final class ProfileUploader {
             60,
             TimeUnit.SECONDS,
             new SynchronousQueue<>(),
-            new AgentThreadFactory("dd-profiler-http-dispatcher"));
+            new AgentThreadFactory(PROFILER_HTTP_DISPATCHER));
     // Reusing connections causes non daemon threads to be created which causes agent to prevent app
     // from exiting. See https://github.com/square/okhttp/issues/4029 for some details.
     final ConnectionPool connectionPool =

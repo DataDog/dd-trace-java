@@ -1,7 +1,11 @@
 package datadog.trace.bootstrap;
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_STARTUP;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_STARTUP;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_STARTUP;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
+import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.instrument.Instrumentation;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
@@ -122,7 +126,7 @@ public class Agent {
           agentInstallerClass.getMethod("registerClassLoadCallback", String.class, Runnable.class);
       registerCallbackMethod.invoke(null, "java.util.logging.LogManager", callback);
     } catch (final Exception ex) {
-      log.error("Error registering callback for " + callback.getName(), ex);
+      log.error("Error registering callback for {}", callback.agentThread(), ex);
     }
   }
 
@@ -134,7 +138,7 @@ public class Agent {
           agentInstallerClass.getMethod("registerClassLoadCallback", String.class, Runnable.class);
       registerCallbackMethod.invoke(null, "javax.management.MBeanServerBuilder", callback);
     } catch (final Exception ex) {
-      log.error("Error registering callback for " + callback.getName(), ex);
+      log.error("Error registering callback for {}", callback.agentThread(), ex);
     }
   }
 
@@ -155,21 +159,21 @@ public class Agent {
        */
       final Thread thread =
           newAgentThread(
-              "dd-agent-startup-" + getName(),
+              agentThread(),
               new Runnable() {
                 @Override
                 public void run() {
                   try {
                     execute();
                   } catch (final Exception e) {
-                    log.error("Failed to run class loader callback {}", getName(), e);
+                    log.error("Failed to run {}", agentThread(), e);
                   }
                 }
               });
       thread.start();
     }
 
-    public abstract String getName();
+    public abstract AgentThread agentThread();
 
     public abstract void execute();
   }
@@ -180,8 +184,8 @@ public class Agent {
     }
 
     @Override
-    public String getName() {
-      return "jmxfetch";
+    public AgentThread agentThread() {
+      return JMX_STARTUP;
     }
 
     @Override
@@ -196,8 +200,8 @@ public class Agent {
     }
 
     @Override
-    public String getName() {
-      return "datadog-tracer";
+    public AgentThread agentThread() {
+      return TRACE_STARTUP;
     }
 
     @Override
@@ -212,8 +216,8 @@ public class Agent {
     }
 
     @Override
-    public String getName() {
-      return "datadog-profiler";
+    public AgentThread agentThread() {
+      return PROFILER_STARTUP;
     }
 
     @Override

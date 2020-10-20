@@ -1,5 +1,6 @@
 package datadog.trace.agent.jmxfetch;
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_COLLECTOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
@@ -92,7 +93,7 @@ public class JMXFetch {
 
     final Thread thread =
         newAgentThread(
-            "dd-jmx-collector",
+            JMX_COLLECTOR,
             new Runnable() {
               @Override
               public void run() {
