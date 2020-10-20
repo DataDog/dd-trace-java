@@ -21,8 +21,8 @@ excludedClassesCoverage += [
   "datadog.trace.util.AgentTaskScheduler",
   "datadog.trace.util.AgentTaskScheduler.PeriodicTask",
   "datadog.trace.util.AgentTaskScheduler.Shutdown",
-  "datadog.trace.util.DaemonThreadFactory",
-  "datadog.trace.util.DaemonThreadFactory.1",
+  "datadog.trace.util.AgentThreadFactory",
+  "datadog.trace.util.AgentThreadFactory.1",
 ]
 
 dependencies {
