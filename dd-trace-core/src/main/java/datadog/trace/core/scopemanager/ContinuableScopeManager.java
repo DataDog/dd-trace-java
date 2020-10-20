@@ -1,5 +1,7 @@
 package datadog.trace.core.scopemanager;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+
 import com.timgroup.statsd.StatsDClient;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
@@ -134,7 +136,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     boolean asyncPropagation =
         overrideAsyncPropagation
             ? isAsyncPropagating
-            : active == null || active.isAsyncPropagating();
+            : active == null ? DEFAULT_ASYNC_PROPAGATING : active.isAsyncPropagating();
     final ContinuableScope scope =
         new ContinuableScope(this, continuation, span, source, asyncPropagation);
     scopeStack().push(scope);
@@ -415,7 +417,7 @@ public class ContinuableScopeManager implements AgentScopeManager {
     @Override
     public AgentScope activate() {
       final boolean overrideAsyncPropagation = true;
-      final boolean isAsyncPropagating = true;
+      final boolean isAsyncPropagating = DEFAULT_ASYNC_PROPAGATING;
       if (used.compareAndSet(false, true)) {
         final AgentScope scope =
             scopeManager.handleSpan(
