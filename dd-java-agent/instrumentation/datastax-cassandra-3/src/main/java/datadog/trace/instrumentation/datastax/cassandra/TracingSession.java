@@ -20,7 +20,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.util.DaemonThreadFactory;
+import datadog.trace.util.AgentThreadFactory;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -29,7 +29,7 @@ import java.util.concurrent.Executors;
 public class TracingSession implements Session {
 
   private static final ExecutorService EXECUTOR_SERVICE =
-      Executors.newCachedThreadPool(new DaemonThreadFactory("dd-cassandra-session-executor"));
+      Executors.newCachedThreadPool(new AgentThreadFactory("dd-cassandra-session-executor"));
 
   private final Session session;
 

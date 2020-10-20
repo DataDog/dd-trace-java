@@ -1,6 +1,6 @@
 package datadog.exceptions.instrumentation;
 
-import static datadog.trace.util.DaemonThreadFactory.AGENT_THREAD_GROUP;
+import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.datadog.profiling.exceptions.ExceptionProfiling;
 import com.datadog.profiling.exceptions.ExceptionSampleEvent;

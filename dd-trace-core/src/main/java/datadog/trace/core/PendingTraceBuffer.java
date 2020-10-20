@@ -1,6 +1,6 @@
 package datadog.trace.core;
 
-import static datadog.trace.util.DaemonThreadFactory.TRACE_MONITOR;
+import static datadog.trace.util.AgentThreadFactory.TRACE_MONITOR;
 
 import java.util.concurrent.TimeUnit;
 import org.jctools.queues.MessagePassingQueue;
