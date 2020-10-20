@@ -137,7 +137,7 @@ public final class FieldBackedProvider implements InstrumentationContextProvider
             builder =
                 builder
                     .type(safeHasSuperType(named(entry.getKey())), classLoaderMatcher)
-                    .and(SafeToInjectFieldsMatcher.of(entry.getKey(), entry.getValue()))
+                    .and(ShouldInjectFieldsMatcher.of(entry.getKey(), entry.getValue()))
                     .and(Default.NOT_DECORATOR_MATCHER)
                     .transform(
                         fieldInjector.fieldAccessTransformer(entry.getKey(), entry.getValue()));

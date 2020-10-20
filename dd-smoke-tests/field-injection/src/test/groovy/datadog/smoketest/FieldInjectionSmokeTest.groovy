@@ -61,12 +61,8 @@ class FieldInjectionSmokeTest extends Specification {
       if (line.startsWith("___FIELD___")) {
         String[] parts = line.split(":")
         foundTypesAndFields.compute(parts[1],
-          { String type, Set<String> fields ->
-            if (null == fields) {
-              fields = new HashSet<>()
-            }
-            return fields
-          }).add(parts[2])
+          { String type, Set<String> fields -> null == fields ? new HashSet<>() : fields })
+          .add(parts[2])
       }
     }
     assert testedTypesAndExpectedFields == foundTypesAndFields
