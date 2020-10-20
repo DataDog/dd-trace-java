@@ -27,7 +27,7 @@ public final class AgentThreadFactory implements ThreadFactory {
 
   @Override
   public Thread newThread(final Runnable runnable) {
-    return newAgentThread(runnable, threadPrefix + threadCount.incrementAndGet());
+    return newAgentThread(threadPrefix + threadCount.incrementAndGet(), runnable);
   }
 
   /**
@@ -35,7 +35,7 @@ public final class AgentThreadFactory implements ThreadFactory {
    *
    * @param threadPrefix used to prefix all thread names.
    */
-  public static Thread newAgentThread(final Runnable runnable, final String threadPrefix) {
+  public static Thread newAgentThread(final String threadPrefix, final Runnable runnable) {
     final Thread thread = new Thread(AGENT_THREAD_GROUP, runnable, threadPrefix);
     thread.setDaemon(true);
     thread.setContextClassLoader(null);
