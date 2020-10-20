@@ -7,9 +7,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class AgentThreadFactory implements ThreadFactory {
   public static final ThreadGroup AGENT_THREAD_GROUP = new ThreadGroup("dd-trace-java");
 
-  public static final AgentThreadFactory TRACE_MONITOR = new AgentThreadFactory("dd-trace-monitor");
-  public static final AgentThreadFactory TRACE_PROCESSOR =
-      new AgentThreadFactory("dd-trace-processor");
   public static final AgentThreadFactory TASK_SCHEDULER =
       new AgentThreadFactory("dd-task-scheduler");
 
