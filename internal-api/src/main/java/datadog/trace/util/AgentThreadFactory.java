@@ -9,20 +9,22 @@ public final class AgentThreadFactory implements ThreadFactory {
 
   // known agent threads
   public enum AgentThread {
-    TASK_SCHEDULER,
-    TRACE_STARTUP,
-    TRACE_MONITOR,
-    TRACE_PROCESSOR,
-    TRACE_CASSANDRA_ASYNC_SESSION,
-    JMX_STARTUP,
-    JMX_COLLECTOR,
-    PROFILER_STARTUP,
-    PROFILER_RECORDING_STARTUP,
-    PROFILER_RECORDING_SCHEDULER,
-    PROFILER_HTTP_DISPATCHER;
+    TASK_SCHEDULER("dd-task-scheduler"),
+    TRACE_STARTUP("dd-agent-startup-datadog-tracer"),
+    TRACE_MONITOR("dd-trace-monitor"),
+    TRACE_PROCESSOR("dd-trace-processor"),
+    TRACE_CASSANDRA_ASYNC_SESSION("dd-cassandra-session-executor"),
+    JMX_STARTUP("dd-agent-startup-jmxfetch"),
+    JMX_COLLECTOR("dd-jmx-collector"),
+    PROFILER_STARTUP("dd-agent-startup-datadog-profiler"),
+    PROFILER_RECORDING_STARTUP("dd-profiler-recording-startup"),
+    PROFILER_RECORDING_SCHEDULER("dd-profiler-recording-scheduler"),
+    PROFILER_HTTP_DISPATCHER("dd-profiler-http-dispatcher");
 
-    public String threadName() {
-      return "dd-" + name().toLowerCase().replace('_', '-');
+    public final String threadName;
+
+    AgentThread(final String threadName) {
+      this.threadName = threadName;
     }
   }
 
@@ -49,7 +51,7 @@ public final class AgentThreadFactory implements ThreadFactory {
    * @param runnable work to run on the new thread.
    */
   public static Thread newAgentThread(final AgentThread agentThread, final Runnable runnable) {
-    final Thread thread = new Thread(AGENT_THREAD_GROUP, runnable, agentThread.threadName());
+    final Thread thread = new Thread(AGENT_THREAD_GROUP, runnable, agentThread.threadName);
     thread.setDaemon(true);
     thread.setContextClassLoader(null);
     return thread;

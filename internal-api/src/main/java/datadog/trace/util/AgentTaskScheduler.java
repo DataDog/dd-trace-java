@@ -105,7 +105,7 @@ public final class AgentTaskScheduler {
 
   private final class ShutdownHook extends Thread {
     ShutdownHook() {
-      super(AGENT_THREAD_GROUP, agentThread.threadName() + "-shutdown-hook");
+      super(AGENT_THREAD_GROUP, agentThread.threadName + "-shutdown-hook");
     }
 
     @Override
