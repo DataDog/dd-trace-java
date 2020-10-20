@@ -9,7 +9,6 @@ import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -108,13 +107,16 @@ public final class AgentTaskScheduler {
     }
 
     @Override
-    @SneakyThrows
     public void run() {
       shutdown = true;
       final Thread t = worker;
       if (t != null) {
         t.interrupt();
-        t.join(SHUTDOWN_WAIT_MILLIS);
+        try {
+          t.join(SHUTDOWN_WAIT_MILLIS);
+        } catch (InterruptedException e) {
+          // continue shutdown...
+        }
       }
     }
   }
