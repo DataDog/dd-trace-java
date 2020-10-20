@@ -1,7 +1,6 @@
 package datadog.trace.util;
 
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 
 /** A {@link ThreadFactory} implementation that starts all agent {@link Thread}s as daemons. */
 public final class AgentThreadFactory implements ThreadFactory {
@@ -10,14 +9,16 @@ public final class AgentThreadFactory implements ThreadFactory {
   // known agent threads
   public enum AgentThread {
     TASK_SCHEDULER("dd-task-scheduler"),
+
     TRACE_STARTUP("dd-agent-startup-datadog-tracer"),
     TRACE_MONITOR("dd-trace-monitor"),
     TRACE_PROCESSOR("dd-trace-processor"),
     TRACE_CASSANDRA_ASYNC_SESSION("dd-cassandra-session-executor"),
+
     JMX_STARTUP("dd-agent-startup-jmxfetch"),
     JMX_COLLECTOR("dd-jmx-collector"),
+
     PROFILER_STARTUP("dd-agent-startup-datadog-profiler"),
-    PROFILER_RECORDING_STARTUP("dd-profiler-recording-startup"),
     PROFILER_RECORDING_SCHEDULER("dd-profiler-recording-scheduler"),
     PROFILER_HTTP_DISPATCHER("dd-profiler-http-dispatcher");
 
@@ -55,32 +56,5 @@ public final class AgentThreadFactory implements ThreadFactory {
     thread.setDaemon(true);
     thread.setContextClassLoader(null);
     return thread;
-  }
-
-  /**
-   * Constructs a delayed agent {@code Thread} as a daemon with a null ContextClassLoader.
-   *
-   * @param agentThread the agent thread to create.
-   * @param runnable work to run on the new thread.
-   * @param initialDelay delay before starting work.
-   */
-  public static Thread delayedAgentThread(
-      final AgentThread agentThread,
-      final Runnable runnable,
-      final long initialDelay,
-      final TimeUnit unit) {
-    return newAgentThread(
-        agentThread,
-        new Runnable() {
-          @Override
-          public void run() {
-            try {
-              Thread.sleep(unit.toMillis(initialDelay));
-            } catch (final InterruptedException e) {
-              // drop-through and start the work
-            }
-            runnable.run();
-          }
-        });
   }
 }

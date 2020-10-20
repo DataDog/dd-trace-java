@@ -189,7 +189,7 @@ public class LogManagerSetter {
   }
 
   private static boolean isProfilingStarted(final boolean wait) {
-    return isThreadStarted("dd-profiler-recording-startup", wait);
+    return isThreadStarted("dd-profiler-recording-scheduler", wait);
   }
 
   private static boolean isTracerInstalled(final boolean wait) {
