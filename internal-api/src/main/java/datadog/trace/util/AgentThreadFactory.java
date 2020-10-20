@@ -30,10 +30,11 @@ public final class AgentThreadFactory implements ThreadFactory {
   /**
    * Constructs a new agent {@code Thread} with a null ContextClassLoader.
    *
-   * @param threadPrefix used to prefix all thread names.
+   * @param threadName name of the new thread.
+   * @param runnable work to run on the new thread.
    */
-  public static Thread newAgentThread(final String threadPrefix, final Runnable runnable) {
-    final Thread thread = new Thread(AGENT_THREAD_GROUP, runnable, threadPrefix);
+  public static Thread newAgentThread(final String threadName, final Runnable runnable) {
+    final Thread thread = new Thread(AGENT_THREAD_GROUP, runnable, threadName);
     thread.setDaemon(true);
     thread.setContextClassLoader(null);
     return thread;
