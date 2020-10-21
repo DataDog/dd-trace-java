@@ -10,7 +10,7 @@ class Scala213PromiseTest extends AbstractPromiseTest<Promise<Boolean>, Future<S
 
   @Override
   Future<String> map(Promise<Boolean> promise, Closure<String> callback) {
-    return PromiseUtils.map(promise, callback)
+    return PromiseUtils.map(promise, callback) as Future<String>
   }
 
   @Override
@@ -30,6 +30,6 @@ class Scala213PromiseTest extends AbstractPromiseTest<Promise<Boolean>, Future<S
 
   @Override
   boolean picksUpCompletingScope() {
-    return false
+    return true
   }
 }
