@@ -1,5 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_PROCESSOR;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.core.DDSpan;
@@ -7,7 +9,6 @@ import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
 import datadog.trace.core.processor.TraceProcessor;
-import datadog.trace.util.DaemonThreadFactory;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -74,7 +75,7 @@ public class TraceProcessingWorker implements AutoCloseable {
             dispatcher,
             flushInterval,
             timeUnit);
-    this.serializerThread = DaemonThreadFactory.TRACE_PROCESSOR.newThread(serializingHandler);
+    this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
   }
 
   public void start() {

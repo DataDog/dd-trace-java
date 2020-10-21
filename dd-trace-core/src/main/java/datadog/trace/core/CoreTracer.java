@@ -1,5 +1,7 @@
 package datadog.trace.core;
 
+import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
+
 import com.timgroup.statsd.NoOpStatsDClient;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
@@ -798,7 +800,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     private final WeakReference<CoreTracer> reference;
 
     private ShutdownHook(final CoreTracer tracer) {
-      super("dd-tracer-shutdown-hook");
+      super(AGENT_THREAD_GROUP, "dd-tracer-shutdown-hook");
       reference = new WeakReference<>(tracer);
     }
 

@@ -1,15 +1,16 @@
 package datadog.trace.util;
 
-import static datadog.trace.util.DaemonThreadFactory.TASK_SCHEDULER;
+import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.trace.util.AgentThreadFactory.AgentThread;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -33,12 +34,12 @@ public final class AgentTaskScheduler {
   }
 
   private final DelayQueue<PeriodicTask<?>> workQueue = new DelayQueue<>();
-  private final ThreadFactory threadFactory;
+  private final AgentThread agentThread;
   private volatile Thread worker;
   private volatile boolean shutdown;
 
-  public AgentTaskScheduler(final ThreadFactory threadFactory) {
-    this.threadFactory = threadFactory;
+  public AgentTaskScheduler(final AgentThread agentThread) {
+    this.agentThread = agentThread;
   }
 
   public <T> void weakScheduleAtFixedRate(
@@ -66,9 +67,9 @@ public final class AgentTaskScheduler {
         if (!shutdown && worker == null) {
           prepareWorkQueue();
           try {
-            worker = threadFactory.newThread(new Worker());
+            worker = newAgentThread(agentThread, new Worker());
             // register hook after worker is assigned, but before we start it
-            Runtime.getRuntime().addShutdownHook(new Shutdown());
+            Runtime.getRuntime().addShutdownHook(new ShutdownHook());
             worker.start();
           } catch (final IllegalStateException e) {
             shutdown = true; // couldn't add hook, JVM is shutting down
@@ -102,15 +103,22 @@ public final class AgentTaskScheduler {
     return "periodic task " + task.getClass().getSimpleName() + " with target " + target.get();
   }
 
-  private final class Shutdown extends Thread {
+  private final class ShutdownHook extends Thread {
+    ShutdownHook() {
+      super(AGENT_THREAD_GROUP, agentThread.threadName + "-shutdown-hook");
+    }
+
     @Override
-    @SneakyThrows
     public void run() {
       shutdown = true;
       final Thread t = worker;
       if (t != null) {
         t.interrupt();
-        t.join(SHUTDOWN_WAIT_MILLIS);
+        try {
+          t.join(SHUTDOWN_WAIT_MILLIS);
+        } catch (final InterruptedException e) {
+          // continue shutdown...
+        }
       }
     }
   }

@@ -1,5 +1,7 @@
 package datadog.trace.agent.jmxfetch;
 
+import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_COLLECTOR;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
 
 import datadog.trace.api.Config;
@@ -90,7 +92,8 @@ public class JMXFetch {
     final AppConfig appConfig = configBuilder.build();
 
     final Thread thread =
-        new Thread(
+        newAgentThread(
+            JMX_COLLECTOR,
             new Runnable() {
               @Override
               public void run() {
@@ -111,8 +114,7 @@ public class JMXFetch {
                 }
               }
             });
-    thread.setName("dd-jmx-collector");
-    thread.setDaemon(true);
+    thread.setContextClassLoader(JMXFetch.class.getClassLoader());
     thread.start();
   }
 
