@@ -1,0 +1,52 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
+// These will be propagated to the `sbt` build via properties
+def playVersion = "2.7.5"
+def scalaVersion = System.getProperty("scala.version", /* default = */ "2.13.2")
+
+apply from: "$rootDir/gradle/java.gradle"
+spotless {
+  groovy {
+    excludeJava()
+    greclipse().configFile(project.rootProject.rootDir.path + '/gradle/enforcement/spotless-groovy.properties')
+  }
+}
+
+description = 'Play Integration 2.7 Tests.'
+
+dependencies {
+  testCompile project(':dd-smoke-tests')
+}
+
+def appDir = "$projectDir/application"
+// define the task that builds the play project
+task sbtStage(type:Exec) {
+  workingDir "$appDir"
+  commandLine './sbt', "-Dplay.version=$playVersion", "-Dscala.version=$scalaVersion", "-Ddatadog.smoketest.builddir=$buildDir", 'stage'
+  outputs.dir("$buildDir/target")
+  inputs.dir("$appDir/app")
+  inputs.dir("$appDir/conf")
+  inputs.dir("$appDir/project")
+}
+
+tasks.compileTestGroovy {
+  dependsOn 'sbtStage'
+  outputs.upToDateWhen {
+    !sbtStage.didWork
+  }
+}
+
+spotless {
+  java {
+    target fileTree("$appDir/app") {
+      include "**/*.java"
+    }
+  }
+  scala {
+    target fileTree("$appDir/app") {
+      include "**/*.scala"
+    }
+  }
+}
