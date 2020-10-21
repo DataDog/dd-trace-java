@@ -7,9 +7,12 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 
 object PromiseUtils {
 
-  private val fjp = ExecutionContext.fromExecutorService(ForkJoinPool.commonPool())
-  private val tpe = ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
-  private val stpe = ExecutionContext.fromExecutorService(Executors.newScheduledThreadPool(5))
+  private val fjp =
+    ExecutionContext.fromExecutorService(ForkJoinPool.commonPool())
+  private val tpe =
+    ExecutionContext.fromExecutorService(Executors.newCachedThreadPool())
+  private val stpe =
+    ExecutionContext.fromExecutorService(Executors.newScheduledThreadPool(5))
 
   def newPromise[T](): Promise[T] = Promise.apply()
 
@@ -17,15 +20,24 @@ object PromiseUtils {
     promise.future.map(v => callable.call(v))
   }
 
-  def mapInForkJoinPool[T](promise: Promise[T], callable: Closure[T]): Future[T] = {
+  def mapInForkJoinPool[T](
+      promise: Promise[T],
+      callable: Closure[T]
+  ): Future[T] = {
     promise.future.map(v => callable.call(v))(fjp)
   }
 
-  def mapInThreadPool[T](promise: Promise[T], callable: Closure[T]): Future[T] = {
+  def mapInThreadPool[T](
+      promise: Promise[T],
+      callable: Closure[T]
+  ): Future[T] = {
     promise.future.map(v => callable.call(v))(tpe)
   }
 
-  def mapInScheduledThreadPool[T](promise: Promise[T], callable: Closure[T]): Future[T] = {
+  def mapInScheduledThreadPool[T](
+      promise: Promise[T],
+      callable: Closure[T]
+  ): Future[T] = {
     promise.future.map(v => callable.call(v))(stpe)
   }
 
