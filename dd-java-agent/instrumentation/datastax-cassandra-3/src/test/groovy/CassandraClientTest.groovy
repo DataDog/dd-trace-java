@@ -105,9 +105,10 @@ class CassandraClientTest extends AgentTestRunner {
         }
       }
       trace(3) {
+        sortSpansByStart()
         basicSpan(it, "parent")
-        basicSpan(it, "callbackListener", span(0))
         cassandraSpan(it, statement, keyspace, renameService, span(0))
+        basicSpan(it, "callbackListener", span(0))
       }
     }
 
