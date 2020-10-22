@@ -15,6 +15,7 @@ import org.asynchttpclient.AsyncCompletionHandler
 import org.asynchttpclient.AsyncHttpClient
 import org.asynchttpclient.DefaultAsyncHttpClientConfig
 import org.asynchttpclient.Response
+import spock.lang.AutoCleanup
 import spock.lang.Retry
 import spock.lang.Shared
 import spock.lang.Timeout
@@ -32,8 +33,11 @@ import static org.asynchttpclient.Dsl.asyncHttpClient
 class Netty41ClientTest extends HttpClientTest {
 
   @Shared
-  def clientConfig = DefaultAsyncHttpClientConfig.Builder.newInstance().setRequestTimeout(TimeUnit.SECONDS.toMillis(10).toInteger())
+  def clientConfig = DefaultAsyncHttpClientConfig.Builder.newInstance()
+    .setRequestTimeout(TimeUnit.SECONDS.toMillis(10).toInteger())
+    .setMaxRequestRetry(0)
   @Shared
+  @AutoCleanup
   AsyncHttpClient asyncHttpClient = asyncHttpClient(clientConfig)
 
   @Override
@@ -64,6 +68,7 @@ class Netty41ClientTest extends HttpClientTest {
 
   @Override
   boolean testRedirects() {
+    // with followRedirect=true, the client generates an extra request span
     false
   }
 
@@ -79,7 +84,7 @@ class Netty41ClientTest extends HttpClientTest {
 
   def "connection error (unopened port)"() {
     given:
-    def uri = new URI("http://localhost:$UNUSABLE_PORT/")
+    def uri = new URI("http://127.0.0.1:$UNUSABLE_PORT/")
 
     when:
     runUnderTrace("parent") {
@@ -103,7 +108,7 @@ class Netty41ClientTest extends HttpClientTest {
           errored true
           tags {
             "$Tags.COMPONENT" "netty"
-            errorTags AbstractChannel.AnnotatedConnectException, "Connection refused: localhost/127.0.0.1:$UNUSABLE_PORT"
+            errorTags AbstractChannel.AnnotatedConnectException, "Connection refused: /127.0.0.1:$UNUSABLE_PORT"
             defaultTags()
           }
         }

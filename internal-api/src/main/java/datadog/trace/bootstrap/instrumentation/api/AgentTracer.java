@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+
 import datadog.trace.api.DDId;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
@@ -35,7 +37,7 @@ public class AgentTracer {
   }
 
   public static AgentScope activateSpan(final AgentSpan span) {
-    return get().activateSpan(span, ScopeSource.INSTRUMENTATION, false);
+    return get().activateSpan(span, ScopeSource.INSTRUMENTATION, DEFAULT_ASYNC_PROPAGATING);
   }
 
   public static AgentScope activateSpan(final AgentSpan span, final boolean isAsyncPropagating) {

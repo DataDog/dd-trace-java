@@ -9,8 +9,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.extern.slf4j.Slf4j;
 
 /** List writer used by tests mostly */
+@Slf4j
 public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Writer {
   private final TraceProcessor processor = new TraceProcessor();
   private final List<CountDownLatch> latches = new ArrayList<>();
@@ -47,8 +49,9 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
       latches.add(latch);
     }
     if (!latch.await(20, TimeUnit.SECONDS)) {
-      throw new TimeoutException(
-          "Timeout waiting for " + number + " trace(s). ListWriter.size() == " + size());
+      String msg = "Timeout waiting for " + number + " trace(s). ListWriter.size() == " + size();
+      log.warn(msg);
+      throw new TimeoutException(msg);
     }
   }
 
@@ -62,7 +65,9 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
         return;
       }
       if (!latch.await(20, TimeUnit.SECONDS)) {
-        throw new TimeoutException("Timeout waiting for span to be reported: " + span);
+        String msg = "Timeout waiting for span to be reported: " + span;
+        log.warn(msg);
+        throw new TimeoutException(msg);
       }
     }
   }

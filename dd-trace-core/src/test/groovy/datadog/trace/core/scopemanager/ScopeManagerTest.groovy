@@ -142,6 +142,7 @@ class ScopeManagerTest extends DDSpecification {
     setup:
     def span = tracer.buildSpan("test").start()
     def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
+    scope.setAsyncPropagation(false)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
 
     expect:
@@ -167,6 +168,7 @@ class ScopeManagerTest extends DDSpecification {
     def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
     scope.setAsyncPropagation(true)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
+    assert continuation != null
 
     when:
     continuation.cancel()
@@ -185,6 +187,7 @@ class ScopeManagerTest extends DDSpecification {
     def scopeRef = new AtomicReference<AgentScope>(tracer.activateSpan(span))
     scopeRef.get().setAsyncPropagation(true)
     def continuation = concurrent ? scopeRef.get().captureConcurrent() : scopeRef.get().capture()
+    assert continuation != null
     scopeRef.get().close()
 
     expect:
@@ -212,6 +215,7 @@ class ScopeManagerTest extends DDSpecification {
     def scope = (ContinuableScopeManager.ContinuableScope) tracer.activateSpan(span)
     scope.setAsyncPropagation(true)
     def continuation = concurrent ? scope.captureConcurrent() : scope.capture()
+    assert continuation != null
     scope.close()
     span.finish()
 
@@ -355,7 +359,7 @@ class ScopeManagerTest extends DDSpecification {
 
     where:
     concurrent << [false, true]
- }
+  }
 
   def "DDScope put in threadLocal after continuation activation"() {
     setup:
