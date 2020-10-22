@@ -107,14 +107,7 @@ public abstract class AgentTestRunner extends DDSpecification {
 
     configureLoggingLevels();
 
-    TEST_WRITER =
-        new ListWriter() {
-          @Override
-          public boolean add(final List<DDSpan> trace) {
-            final boolean result = super.add(trace);
-            return result;
-          }
-        };
+    TEST_WRITER = new ListWriter();
 
     STATS_D_CLIENT = new DetachedMockFactory().Mock(StatsDClient.class);
     TEST_TRACER =
@@ -169,11 +162,17 @@ public abstract class AgentTestRunner extends DDSpecification {
     return true;
   }
 
+  /** Override to set config before the agent is installed */
+  protected void configurePreAgent() {}
+
   @BeforeClass
-  public static synchronized void agentSetup() {
+  public synchronized void agentSetup() {
     if (null != activeTransformer) {
       throw new IllegalStateException("transformer already in place: " + activeTransformer);
     }
+
+    configurePreAgent();
+
     assert ServiceLoader.load(Instrumenter.class, AgentTestRunner.class.getClassLoader())
             .iterator()
             .hasNext()
@@ -197,6 +196,9 @@ public abstract class AgentTestRunner extends DDSpecification {
     assert getTestTracer().activeSpan() == null
         : "Span is active before test has started: " + getTestTracer().activeSpan();
     log.debug("Starting test: '{}'", getSpecificationContext().getCurrentIteration().getName());
+
+    configurePreAgent();
+
     new MockUtil().attachMock(STATS_D_CLIENT, this);
     getTestTracer().flush();
     TEST_WRITER.start();
@@ -285,7 +287,7 @@ public abstract class AgentTestRunner extends DDSpecification {
     }
   }
 
-  public static class TestRunnerListener implements AgentBuilder.Listener {
+  public static class TestRunnerListener extends AgentBuilder.Listener.Adapter {
     private static final List<AgentTestRunner> activeTests = new CopyOnWriteArrayList<>();
 
     public void activateTest(final AgentTestRunner testRunner) {
@@ -322,13 +324,6 @@ public abstract class AgentTestRunner extends DDSpecification {
     }
 
     @Override
-    public void onIgnored(
-        final TypeDescription typeDescription,
-        final ClassLoader classLoader,
-        final JavaModule module,
-        final boolean loaded) {}
-
-    @Override
     public void onError(
         final String typeName,
         final ClassLoader classLoader,
@@ -345,18 +340,9 @@ public abstract class AgentTestRunner extends DDSpecification {
       }
     }
 
-    @Override
-    public void onComplete(
-        final String typeName,
-        final ClassLoader classLoader,
-        final JavaModule module,
-        final boolean loaded) {}
-
     /** Used to signal that a transformation was intentionally aborted and is not an error. */
     public static class AbortTransformationException extends RuntimeException {
-      public AbortTransformationException() {
-        super();
-      }
+      public AbortTransformationException() {}
 
       public AbortTransformationException(final String message) {
         super(message);

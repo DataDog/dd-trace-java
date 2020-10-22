@@ -7,11 +7,6 @@ import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.matcher.ElementMatcher
 
 class DefaultInstrumenterTest extends DDSpecification {
-  def setup() {
-    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
-    assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
-  }
-
   def "default enabled"() {
     setup:
     def target = new TestDefaultInstrumenter("test")

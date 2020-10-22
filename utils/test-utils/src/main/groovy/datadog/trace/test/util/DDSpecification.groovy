@@ -6,7 +6,6 @@ import net.bytebuddy.dynamic.ClassFileLocator
 import net.bytebuddy.dynamic.Transformer
 import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
-import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Specification
 
 import java.lang.reflect.Constructor
@@ -35,8 +34,10 @@ abstract class DDSpecification extends Specification {
   @Rule
   public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
 
-  @Rule
-  protected final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
+  // Intentionally not using the RestoreSystemProperties @Rule because this needs to save properties
+  // in the BeforeClass stage instead of Before stage.  Even manually calling before()/after
+  // doesn't work because the properties object is not cloned for each invocation
+  private static Properties ORIGINAL_SYSTEM_PROPERTIES
 
   static void makeConfigInstanceModifiable() {
     if (isConfigInstanceModifiable) {
@@ -68,11 +69,39 @@ abstract class DDSpecification extends Specification {
     isConfigInstanceModifiable = true
   }
 
+  private void saveProperties() {
+    ORIGINAL_SYSTEM_PROPERTIES = new Properties()
+    ORIGINAL_SYSTEM_PROPERTIES.putAll(System.properties)
+  }
+
+  private void restoreProperties() {
+    Properties copy = new Properties()
+    copy.putAll(ORIGINAL_SYSTEM_PROPERTIES)
+    System.setProperties(copy)
+  }
+
+  void setupSpec() {
+    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+
+    saveProperties()
+  }
+
   void cleanupSpec() {
+    restoreProperties()
+
+    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+
     rebuildConfig()
   }
 
   void setup() {
+    restoreProperties()
+
+    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+
     rebuildConfig()
   }
 
