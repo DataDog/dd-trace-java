@@ -80,8 +80,10 @@ public class PlayAdvice {
     // span finished in RequestCompleteCallback
 
     final AgentSpan rootSpan = activeSpan();
-    // set the resource name on the upstream akka/netty span
-    DECORATE.onRequest(rootSpan, req);
+    // set the resource name on the upstream akka/netty span if there is one
+    if (rootSpan != null) {
+      DECORATE.onRequest(rootSpan, req);
+    }
   }
 
   // Unused method for muzzle to allow only 2.4-2.5
