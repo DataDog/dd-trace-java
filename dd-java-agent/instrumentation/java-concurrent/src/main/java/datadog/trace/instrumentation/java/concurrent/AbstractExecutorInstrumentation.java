@@ -45,30 +45,12 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
       PERMITTED_EXECUTORS_PREFIXES = Collections.emptyList();
     } else {
       final String[] whitelist = {
-        "io.netty.channel.epoll.EpollEventLoop",
-        "io.netty.channel.epoll.EpollEventLoopGroup",
-        "io.netty.channel.MultithreadEventLoopGroup",
-        "io.netty.channel.nio.NioEventLoop",
-        "io.netty.channel.nio.NioEventLoopGroup",
-        "io.netty.channel.SingleThreadEventLoop",
-        "io.netty.util.concurrent.AbstractEventExecutor",
-        "io.netty.util.concurrent.AbstractEventExecutorGroup",
-        "io.netty.util.concurrent.AbstractScheduledEventExecutor",
-        "io.netty.util.concurrent.DefaultEventExecutor",
-        "io.netty.util.concurrent.DefaultEventExecutorGroup",
-        "io.netty.util.concurrent.GlobalEventExecutor",
-        "io.netty.util.concurrent.MultithreadEventExecutorGroup",
-        "io.netty.util.concurrent.SingleThreadEventExecutor",
-        "java.util.concurrent.AbstractExecutorService",
-        "java.util.concurrent.CompletableFuture$ThreadPerTaskExecutor",
-        "java.util.concurrent.ThreadPoolExecutor",
         "kotlinx.coroutines.scheduling.CoroutineScheduler",
-        "org.eclipse.jetty.util.thread.QueuedThreadPool",
-        "org.eclipse.jetty.util.thread.ReservedThreadExecutor",
-        "org.glassfish.grizzly.threadpool.GrizzlyExecutorService",
         "play.api.libs.streams.Execution$trampoline$",
         "scala.concurrent.Future$InternalCallbackExecutor$",
         "scala.concurrent.impl.ExecutionContextImpl",
+        "org.eclipse.jetty.util.thread.QueuedThreadPool",
+        "org.eclipse.jetty.util.thread.ReservedThreadExecutor"
       };
 
       final Set<String> executors = new HashSet<>(Config.get().getTraceExecutors());
