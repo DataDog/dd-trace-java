@@ -1,11 +1,11 @@
 package datadog.trace.instrumentation.scala.concurrent;
 
 import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.safeHasSuperType;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -40,10 +40,7 @@ public final class ExecutionContextInstrumentation extends Instrumenter.Default 
 
   @Override
   public ElementMatcher<? super TypeDescription> typeMatcher() {
-    return namedOneOf(
-        "play.api.libs.streams.Execution$trampoline$",
-        "scala.concurrent.Future$InternalCallbackExecutor$",
-        "scala.concurrent.impl.ExecutionContextImpl");
+    return safeHasSuperType(named("scala.concurrent.ExecutionContext"));
   }
 
   @Override

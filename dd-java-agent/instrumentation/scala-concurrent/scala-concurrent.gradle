@@ -6,7 +6,7 @@ muzzle {
   pass {
     group = 'org.scala-lang'
     module = "scala-library"
-    versions = "[2.8,2.12)"
+    versions = "[2.8,)"
     assertInverse = true
   }
 }
