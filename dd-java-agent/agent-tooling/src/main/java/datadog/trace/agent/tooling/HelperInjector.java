@@ -208,6 +208,11 @@ public class HelperInjector implements Transformer {
   }
 
   private static void deleteTempDir(final File file) {
+    assert file.isDirectory() : "Temp dir not a directory.";
+    File[] contents = file.listFiles();
+    assert contents != null : "Temp dir contents is null.";
+    assert contents.length == 0 : "Temp dir is not empty.";
+
     // Not using Files.delete for deleting the directory because failures
     // create Exceptions which may prove expensive.  Instead using the
     // older File API which simply returns a boolean.
