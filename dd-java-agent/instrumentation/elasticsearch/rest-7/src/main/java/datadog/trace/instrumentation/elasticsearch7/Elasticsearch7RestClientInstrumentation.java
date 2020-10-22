@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.elasticsearch7;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.elasticsearch.ElasticsearchRestClientDecorator.DECORATE;
@@ -29,6 +30,15 @@ public class Elasticsearch7RestClientInstrumentation extends Instrumenter.Defaul
 
   public Elasticsearch7RestClientInstrumentation() {
     super("elasticsearch", "elasticsearch-rest", "elasticsearch-rest-7");
+  }
+
+  // this is required to make sure ES7 instrumentation won't apply to previous releases
+  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("org.elasticsearch.client.RestClient$InternalRequest");
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override
