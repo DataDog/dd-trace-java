@@ -1,6 +1,6 @@
 package datadog.trace.core.util
 
-import datadog.trace.agent.test.utils.ConfigUtils
+
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assume
 import org.junit.Rule
@@ -11,7 +11,6 @@ import java.lang.management.ManagementFactory
 
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED
-import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 
 class SystemAccessTest extends DDSpecification {
   @Rule
@@ -26,10 +25,9 @@ class SystemAccessTest extends DDSpecification {
 
   def "Test cpu time"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty(PREFIX + PROFILING_ENABLED, profilingEnabled.toString())
-      System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, healthMetricsEnabled.toString())
-    }
+    injectSysConfig(PROFILING_ENABLED, profilingEnabled.toString())
+    injectSysConfig(HEALTH_METRICS_ENABLED, healthMetricsEnabled.toString())
+
     if (providerEnabled) {
       SystemAccess.enableJmx()
     } else {
@@ -71,10 +69,8 @@ class SystemAccessTest extends DDSpecification {
 
   def "Test get current process id"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty(PREFIX + PROFILING_ENABLED, profilingEnabled.toString())
-      System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, healthMetricsEnabled.toString())
-    }
+    injectSysConfig(PROFILING_ENABLED, profilingEnabled.toString())
+    injectSysConfig(HEALTH_METRICS_ENABLED, healthMetricsEnabled.toString())
     if (providerEnabled) {
       SystemAccess.enableJmx()
     } else {
@@ -106,10 +102,8 @@ class SystemAccessTest extends DDSpecification {
 
   def "Test getVMArguments"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty(PREFIX + PROFILING_ENABLED, profilingEnabled.toString())
-      System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, healthMetricsEnabled.toString())
-    }
+    injectSysConfig(PROFILING_ENABLED, profilingEnabled.toString())
+    injectSysConfig(HEALTH_METRICS_ENABLED, healthMetricsEnabled.toString())
     if (providerEnabled) {
       SystemAccess.enableJmx()
     } else {
@@ -148,10 +142,8 @@ class SystemAccessTest extends DDSpecification {
     Assume.assumeFalse(vmVersion == "1.7")
     Assume.assumeFalse(vmVersion == "1.8" && vmVendor.contains("IBM"))
 
-    ConfigUtils.updateConfig {
-      System.setProperty(PREFIX + PROFILING_ENABLED, profilingEnabled.toString())
-      System.setProperty(PREFIX + HEALTH_METRICS_ENABLED, healthMetricsEnabled.toString())
-    }
+    injectSysConfig(PROFILING_ENABLED, profilingEnabled.toString())
+    injectSysConfig(HEALTH_METRICS_ENABLED, healthMetricsEnabled.toString())
     if (providerEnabled) {
       SystemAccess.enableJmx()
     } else {

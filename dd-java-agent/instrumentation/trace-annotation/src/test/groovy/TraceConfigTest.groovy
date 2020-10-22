@@ -50,19 +50,14 @@ class TraceConfigTest extends AgentTestRunner {
 
   def "test configuration #value"() {
     setup:
-    ConfigUtils.updateConfig {
-      if (value) {
-        System.properties.setProperty("dd.trace.methods", value)
-      } else {
-        System.clearProperty("dd.trace.methods")
-      }
+    if (value) {
+      injectSysConfig("dd.trace.methods", value)
+    } else {
+      removeSysConfig("dd.trace.methods")
     }
 
     expect:
     new TraceConfigInstrumentation().classMethodsToTrace == expected
-
-    cleanup:
-    System.clearProperty("dd.trace.methods")
 
     where:
     value                                                           | expected

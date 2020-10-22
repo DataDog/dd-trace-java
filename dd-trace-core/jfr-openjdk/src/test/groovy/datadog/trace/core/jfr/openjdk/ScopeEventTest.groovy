@@ -1,6 +1,5 @@
 package datadog.trace.core.jfr.openjdk
 
-
 import datadog.trace.api.DDId
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.ProfilingConfig

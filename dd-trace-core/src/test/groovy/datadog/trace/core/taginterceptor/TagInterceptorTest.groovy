@@ -1,6 +1,6 @@
 package datadog.trace.core.taginterceptor
 
-import datadog.trace.agent.test.utils.ConfigUtils
+
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
@@ -388,9 +388,7 @@ class TagInterceptorTest extends DDSpecification {
 
   def "disable decorator via config"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.trace.${decorator}.enabled", "$enabled")
-    }
+    injectSysConfig("dd.trace.${decorator}.enabled", "$enabled")
 
     tracer = CoreTracer.builder()
       .serviceName("some-service")
@@ -405,11 +403,6 @@ class TagInterceptorTest extends DDSpecification {
     then:
     span.getServiceName() == enabled ? "other-service" : "some-service"
 
-    cleanup:
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace.${decorator}.enabled")
-    }
-
     where:
     decorator                                               | enabled
     ServiceNameTagInterceptor.getSimpleName().toLowerCase() | true
@@ -420,9 +413,7 @@ class TagInterceptorTest extends DDSpecification {
 
   def "disabling service decorator does not disable split by tags"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.trace." + ServiceNameTagInterceptor.getSimpleName().toLowerCase() + ".enabled", "false")
-    }
+    injectSysConfig("dd.trace." + ServiceNameTagInterceptor.getSimpleName().toLowerCase() + ".enabled", "false")
 
     tracer = CoreTracer.builder()
       .serviceName("some-service")
@@ -436,11 +427,6 @@ class TagInterceptorTest extends DDSpecification {
 
     then:
     span.getServiceName() == expected
-
-    cleanup:
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace." + ServiceNameTagInterceptor.getSimpleName().toLowerCase() + ".enabled")
-    }
 
     where:
     tag                 | name          | expected

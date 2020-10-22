@@ -52,12 +52,10 @@ class ConfiguredTraceAnnotationsTest extends AgentTestRunner {
 
   def "test configuration #value"() {
     setup:
-    ConfigUtils.updateConfig {
-      if (value) {
-        System.properties.setProperty("dd.trace.annotations", value)
-      } else {
-        System.clearProperty("dd.trace.annotations")
-      }
+    if (value) {
+      injectSysConfig("dd.trace.annotations", value)
+    } else {
+      removeSysConfig("dd.trace.annotations")
     }
 
     expect:

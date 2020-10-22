@@ -1,6 +1,5 @@
 package datadog.trace.test.util
 
-
 import net.bytebuddy.agent.ByteBuddyAgent
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.dynamic.ClassFileLocator
@@ -83,9 +82,21 @@ abstract class DDSpecification extends Specification {
     rebuildConfig()
   }
 
+  void removeSysConfig(String name) {
+    String prefixedName = name.startsWith("dd.") ? name : "dd." + name
+    System.clearProperty(prefixedName)
+    rebuildConfig()
+  }
+
   void injectEnvConfig(String name, String value) {
     String prefixedName = name.startsWith("DD_") ? name : "DD_" + name
     environmentVariables.set(prefixedName, value)
+    rebuildConfig()
+  }
+
+  void removeEnvConfig(String name) {
+    String prefixedName = name.startsWith("DD_") ? name : "DD_" + name
+    environmentVariables.clear(prefixedName)
     rebuildConfig()
   }
 
