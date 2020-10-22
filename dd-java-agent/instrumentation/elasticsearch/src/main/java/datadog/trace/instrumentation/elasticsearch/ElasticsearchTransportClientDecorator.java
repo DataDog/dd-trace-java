@@ -67,8 +67,14 @@ public class ElasticsearchTransportClientDecorator extends DatabaseClientDecorat
 
   public AgentSpan onRequest(final AgentSpan span, final Class action, final Class request) {
     if (action != null) {
-      span.setTag(DDTags.RESOURCE_NAME, action.getSimpleName());
-      span.setTag("elasticsearch.action", action.getSimpleName());
+      String actionName = action.getSimpleName();
+      // ES 7.9 internally changes PutMappingAction to AutoPutMappingAction for
+      // documents with unmapped fields; reverse this to get the original action
+      if ("AutoPutMappingAction".equals(actionName)) {
+        actionName = "PutMappingAction";
+      }
+      span.setTag(DDTags.RESOURCE_NAME, actionName);
+      span.setTag("elasticsearch.action", actionName);
     }
     if (request != null) {
       span.setTag("elasticsearch.request", request.getSimpleName());
