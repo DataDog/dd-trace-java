@@ -46,8 +46,10 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Def
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    Map<ElementMatcher<MethodDescription>, String> transformations = new HashMap<>(4);
+    Map<ElementMatcher<MethodDescription>, String> transformations = new HashMap<>(8);
     transformations.put(isConstructor(), getClass().getName() + "$Construct");
+    transformations.put(
+        isMethod().and(named("submitWithValue")), getClass().getName() + "$SubmitWithValue");
     transformations.put(isMethod().and(named("run")), getClass().getName() + "$Run");
     transformations.put(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
     return unmodifiableMap(transformations);
@@ -101,6 +103,30 @@ public final class PromiseTransformationInstrumentation extends Instrumenter.Def
       State state = InstrumentationContext.get(Transformation.class, State.class).get(task);
       if (null != state) {
         state.closeContinuation();
+      }
+    }
+
+    /** Promise.Transformation was introduced in scala 2.13 */
+    private static void muzzleCheck(final Transformation callback) {
+      callback.submitWithValue(null);
+    }
+  }
+
+  public static final class SubmitWithValue {
+    @Advice.OnMethodEnter
+    public static <F, T> void beforeExecute(@Advice.This Transformation<F, T> task) {
+      // about to enter an ExecutionContext so capture the scope if necessary
+      // (this used to happen automatically when the RunnableInstrumentation
+      // was relied on, and happens anyway if the ExecutionContext is backed
+      // by a wrapping Executor (e.g. FJP, ScheduledThreadPoolExecutor)
+      State state = InstrumentationContext.get(Transformation.class, State.class).get(task);
+      if (null == state) {
+        final TraceScope scope = activeScope();
+        if (scope != null) {
+          state = State.FACTORY.create();
+          state.captureAndSetContinuation(scope);
+          InstrumentationContext.get(Transformation.class, State.class).put(task, state);
+        }
       }
     }
 

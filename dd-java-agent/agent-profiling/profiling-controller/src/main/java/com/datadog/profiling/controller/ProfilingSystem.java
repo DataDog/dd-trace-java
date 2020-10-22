@@ -15,8 +15,10 @@
  */
 package com.datadog.profiling.controller;
 
-import com.datadog.profiling.util.ProfilingThreadFactory;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_RECORDING_SCHEDULER;
+
 import datadog.trace.core.util.SystemAccess;
+import datadog.trace.util.AgentThreadFactory;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -75,8 +77,7 @@ public final class ProfilingSystem {
         startupDelayRandomRange,
         uploadPeriod,
         isStartingFirst,
-        Executors.newScheduledThreadPool(
-            1, new ProfilingThreadFactory("dd-profiler-recording-scheduler")),
+        Executors.newScheduledThreadPool(1, new AgentThreadFactory(PROFILER_RECORDING_SCHEDULER)),
         ThreadLocalRandom.current());
   }
 

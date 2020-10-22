@@ -281,6 +281,13 @@ def isTestingInstrumentation(Project project) {
   return ["junit-4.10", "testng-6.4", "junit-5.3"].contains(project.name)
 }
 
+// This is slightly complicated because we need to dereference symlinks to make sure
+// we are considering same JVM implementation
+def currentJavaHome = new File(System.getProperty("java.home")).toPath().toRealPath()
+if (currentJavaHome.endsWith("jre")) {
+  currentJavaHome = currentJavaHome.parent
+}
+
 // Disable default test tasks if current JVM doesn't match version requirements
 tasks.withType(Test).configureEach {
   if (name.endsWith("Generated")) {
@@ -289,6 +296,7 @@ tasks.withType(Test).configureEach {
 
   // Always run all tests that are runnable on JVM used for compilation
   onlyIf { isJavaVersionAllowed(JavaVersion.current()) }
+  it.executable = "$currentJavaHome/bin/java"
 }
 
 // Generate tests tasks for all provided JVMs
@@ -302,12 +310,6 @@ for (def env : System.getenv().entrySet()) {
   def javaPath = "$javaHome/bin/java"
   def javaVersion = getJavaExecutableVersion(javaPath)
 
-  // This is slightly complicated because we need to dereference symlinks to make sure
-  // we are considering same JVM implementation
-  def currentJavaHome = new File(System.getProperty("java.home")).toPath().toRealPath()
-  if (currentJavaHome.endsWith("jre")) {
-    currentJavaHome = currentJavaHome.parent
-  }
   if (currentJavaHome == new File(javaHome).toPath().toRealPath()) {
     // Skip JVM implementation we are running gradle on
     continue
