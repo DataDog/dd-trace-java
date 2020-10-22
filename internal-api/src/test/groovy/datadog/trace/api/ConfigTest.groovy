@@ -5,8 +5,6 @@ import datadog.trace.bootstrap.config.provider.ConfigConverter
 import datadog.trace.bootstrap.config.provider.ConfigProvider
 import datadog.trace.test.util.DDSpecification
 import org.junit.Rule
-import org.junit.contrib.java.lang.system.EnvironmentVariables
-import org.junit.contrib.java.lang.system.RestoreSystemProperties
 
 import static datadog.trace.api.Config.AGENT_HOST
 import static datadog.trace.api.Config.AGENT_PORT_LEGACY
@@ -86,10 +84,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 
 class ConfigTest extends DDSpecification {
-  @Rule
-  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
-  @Rule
-  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
   @Rule
   public final FixedCapturedEnvironment fixedCapturedEnvironment = new FixedCapturedEnvironment()
 
@@ -1026,9 +1020,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "set-in-properties"
-
-    cleanup:
-    System.clearProperty(PREFIX + CONFIGURATION_FILE)
   }
 
   def "verify fallback to properties file has lower priority than system property"() {
@@ -1041,10 +1032,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "set-in-system"
-
-    cleanup:
-    System.clearProperty(PREFIX + CONFIGURATION_FILE)
-    System.clearProperty(PREFIX + SERVICE_NAME)
   }
 
   def "verify fallback to properties file has lower priority than env var"() {
@@ -1057,10 +1044,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == "set-in-env"
-
-    cleanup:
-    System.clearProperty(PREFIX + CONFIGURATION_FILE)
-    System.clearProperty(PREFIX + SERVICE_NAME)
   }
 
   def "verify fallback to DD_SERVICE"() {
@@ -1083,9 +1066,6 @@ class ConfigTest extends DDSpecification {
 
     then:
     config.serviceName == 'unnamed-java-app'
-
-    cleanup:
-    System.clearProperty(PREFIX + CONFIGURATION_FILE)
   }
 
   def "get analytics sample rate"() {

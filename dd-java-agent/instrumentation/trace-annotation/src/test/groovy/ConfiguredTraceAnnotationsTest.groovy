@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.trace_annotation.TraceAnnotationsInstrumentation
 import dd.test.trace.annotation.SayTracedHello
@@ -10,14 +9,10 @@ import static datadog.trace.instrumentation.trace_annotation.TraceAnnotationsIns
 
 class ConfiguredTraceAnnotationsTest extends AgentTestRunner {
 
-  static {
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.trace.annotations", "package.Class\$Name;${OuterClass.InterestingMethod.name}")
-    }
-  }
-
-  def specCleanup() {
-    System.clearProperty("dd.trace.annotations")
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.trace.annotations", "package.Class\$Name;${OuterClass.InterestingMethod.name}")
   }
 
   def "test disabled nr annotation"() {

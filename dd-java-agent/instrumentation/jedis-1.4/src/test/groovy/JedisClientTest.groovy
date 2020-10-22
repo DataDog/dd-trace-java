@@ -8,7 +8,6 @@ import spock.lang.Shared
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
-import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class JedisClientTest extends AgentTestRunner {
@@ -26,19 +25,22 @@ class JedisClientTest extends AgentTestRunner {
   @Shared
   Jedis jedis = new Jedis("localhost", port)
 
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    
+    // This setting should have no effect since decorator returns null for the instance.
+    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
+  }
+
   def setupSpec() {
     println "Using redis: $redisServer.args"
     redisServer.start()
-
-    // This setting should have no effect since decorator returns null for the instance.
-    System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
   }
 
   def cleanupSpec() {
     redisServer.stop()
 //    jedis.close()  // not available in the early version we're using.
-
-    System.clearProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE)
   }
 
   def setup() {

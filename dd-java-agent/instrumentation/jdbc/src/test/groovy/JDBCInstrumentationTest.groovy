@@ -25,10 +25,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 class JDBCInstrumentationTest extends AgentTestRunner {
-  static {
-    System.setProperty("dd.integration.jdbc-datasource.enabled", "true")
-  }
-
   @Shared
   def dbName = "jdbcUnitTest"
 
@@ -140,6 +136,13 @@ class JDBCInstrumentationTest extends AgentTestRunner {
       ds = createC3P0DS(dbType, jdbcUrl)
     }
     return ds
+  }
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.integration.jdbc-datasource.enabled", "true")
   }
 
   def setupSpec() {

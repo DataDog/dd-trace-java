@@ -15,13 +15,16 @@ import io.opentelemetry.trace.TracingContextUtils
 import spock.lang.Subject
 
 class OpenTelemetryTest extends AgentTestRunner {
-  static {
-    System.setProperty("dd.integration.opentelemetry-beta.enabled", "true")
-  }
-
   @Subject
   def tracer = OpenTelemetry.tracerProvider.get("test-inst")
   def httpPropagator = OpenTelemetry.getPropagators().httpTextFormat
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.integration.opentelemetry-beta.enabled", "true")
+  }
 
   def "test span tags"() {
     setup:

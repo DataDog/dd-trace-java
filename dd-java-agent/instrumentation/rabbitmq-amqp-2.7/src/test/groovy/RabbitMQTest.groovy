@@ -32,11 +32,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 // It is fine to run on CI because CI provides rabbitmq externally, not through testcontainers
 @Requires({ "true" == System.getenv("CI") || jvm.java8Compatible })
 class RabbitMQTest extends AgentTestRunner {
-
-  static {
-    System.setProperty("dd.amqp.e2e.duration.enabled", "true")
-  }
-
   /*
     Note: type here has to stay undefined, otherwise tests will fail in CI in Java 7 because
     'testcontainers' are built for Java 8 and Java 7 cannot load this class.
@@ -53,6 +48,13 @@ class RabbitMQTest extends AgentTestRunner {
   ConnectionFactory factory = new ConnectionFactory(host: rabbitmqAddress.hostName, port: rabbitmqAddress.port)
   Connection conn = factory.newConnection()
   Channel channel = conn.createChannel()
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    
+    injectSysConfig("dd.amqp.e2e.duration.enabled", "true")
+  }
 
   def setupSpec() {
 

@@ -13,10 +13,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
-  static {
-    System.setProperty("dd.integration.jdbc-datasource.enabled", "true")
-  }
-
   @Shared
   def dbName = "scalikejdbcUnitTest"
 
@@ -119,6 +115,13 @@ class ScalikeJDBCInstrumentationTest extends AgentTestRunner {
     return ds
   }
 
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.integration.jdbc-datasource.enabled", "true")
+  }
+  
   def setupSpec() {
     prepareConnectionPoolDatasources()
   }

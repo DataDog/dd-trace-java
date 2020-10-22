@@ -31,10 +31,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 
 class KafkaClientTest extends AgentTestRunner {
-  static {
-    System.setProperty("dd.kafka.e2e.duration.enabled", "true")
-  }
-
   static final SHARED_TOPIC = "shared.topic"
 
   @Rule
@@ -42,6 +38,13 @@ class KafkaClientTest extends AgentTestRunner {
 
   @Shared
   boolean expectE2EDuration = Boolean.valueOf(System.getProperty("dd.kafka.e2e.duration.enabled"))
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    
+    injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
+  }
 
   def "test kafka produce and consume"() {
     setup:

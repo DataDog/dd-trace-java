@@ -1,6 +1,5 @@
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper
 import datadog.trace.core.DDSpan
@@ -29,12 +28,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScop
 import static org.junit.Assume.assumeTrue
 
 class ExecutorInstrumentationTest extends AgentTestRunner {
-  static {
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.trace.executors", "ExecutorInstrumentationTest\$CustomThreadPoolExecutor")
-    }
-  }
-
   @Shared
   def executeRunnable = { e, c -> e.execute((Runnable) c) }
   @Shared
@@ -59,6 +52,13 @@ class ExecutorInstrumentationTest extends AgentTestRunner {
   def scheduleRunnable = { e, c -> e.schedule((Runnable) c, 10, TimeUnit.MILLISECONDS) }
   @Shared
   def scheduleCallable = { e, c -> e.schedule((Callable) c, 10, TimeUnit.MILLISECONDS) }
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.trace.executors", "ExecutorInstrumentationTest\$CustomThreadPoolExecutor")
+  }
 
   def "#poolImpl '#name' propagates"() {
     setup:

@@ -1,11 +1,7 @@
 package datadog.trace.core.util
 
-
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assume
-import org.junit.Rule
-import org.junit.contrib.java.lang.system.EnvironmentVariables
-import org.junit.contrib.java.lang.system.RestoreSystemProperties
 
 import java.lang.management.ManagementFactory
 
@@ -13,12 +9,6 @@ import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED
 
 class SystemAccessTest extends DDSpecification {
-  @Rule
-  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
-
-  @Rule
-  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
-
   def cleanup() {
     SystemAccess.disableJmx()
   }

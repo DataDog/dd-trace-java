@@ -2,14 +2,8 @@ package datadog.trace.api.env
 
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.DDSpecification
-import org.junit.Rule
-import org.junit.contrib.java.lang.system.RestoreSystemProperties
 
 class CapturedEnvironmentTest extends DDSpecification {
-
-  @Rule
-  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
-
   def "non autodetected service.name with null command"() {
     setup:
     System.clearProperty("sun.java.command")

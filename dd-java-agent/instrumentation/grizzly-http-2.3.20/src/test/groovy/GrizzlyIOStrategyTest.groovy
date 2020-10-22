@@ -8,8 +8,11 @@ import org.glassfish.jersey.server.ResourceConfig
 
 abstract class GrizzlyIOStrategyTest extends GrizzlyTest {
 
-  static {
-    System.setProperty("dd.integration.grizzly-http.enabled", "true")
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.integration.grizzly-http.enabled", "true")
   }
 
   @Override

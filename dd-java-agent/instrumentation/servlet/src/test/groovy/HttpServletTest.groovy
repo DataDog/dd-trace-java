@@ -8,8 +8,11 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class HttpServletTest extends AgentTestRunner {
-  static {
-    System.setProperty("dd.integration.servlet-service.enabled", "true")
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.integration.servlet-service.enabled", "true")
   }
 
   def req = Mock(HttpServletRequest) {
