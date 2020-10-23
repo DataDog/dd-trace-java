@@ -5,6 +5,7 @@ import datadog.trace.instrumentation.elasticsearch.ElasticsearchRestClientDecora
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseListener;
 
+/** This class is identical to version 6's instrumentation. */
 public class RestResponseListener implements ResponseListener {
 
   private final ResponseListener listener;

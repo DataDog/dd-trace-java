@@ -18,10 +18,7 @@ import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 import org.elasticsearch.action.support.replication.ReplicationResponse;
 
-/**
- * Most of this class is identical to version 5's instrumentation, but they changed an interface to
- * an abstract class, so the bytecode isn't directly compatible.
- */
+/** This class is identical to version 6's instrumentation. */
 public class TransportActionListener<T extends ActionResponse> implements ActionListener<T> {
 
   private final ActionListener<T> listener;

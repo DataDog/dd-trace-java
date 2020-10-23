@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.elasticsearch7_3;
 
+import static datadog.trace.agent.tooling.ClassLoaderMatcher.hasClassesNamed;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.elasticsearch.ElasticsearchTransportClientDecorator.DECORATE;
@@ -8,6 +9,7 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -23,15 +25,21 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
 
-/**
- * Most of this class is identical to version 5's instrumentation, but they changed an interface to
- * an abstract class, so the bytecode isn't directly compatible.
- */
+/** This class is identical to version 6's instrumentation, except Action is now ActionType. */
 @AutoService(Instrumenter.class)
 public class Elasticsearch73TransportClientInstrumentation extends Instrumenter.Default {
 
   public Elasticsearch73TransportClientInstrumentation() {
     super("elasticsearch", "elasticsearch-transport", "elasticsearch-transport-7");
+  }
+
+  // this is required to make sure ES7 instrumentation won't apply to previous releases
+  static final ElementMatcher<ClassLoader> CLASS_LOADER_MATCHER =
+      hasClassesNamed("org.elasticsearch.action.ActionType");
+
+  @Override
+  public ElementMatcher<ClassLoader> classLoaderMatcher() {
+    return CLASS_LOADER_MATCHER;
   }
 
   @Override
@@ -54,6 +62,7 @@ public class Elasticsearch73TransportClientInstrumentation extends Instrumenter.
     return singletonMap(
         isMethod()
             .and(named("execute"))
+            .and(takesArguments(3))
             .and(takesArgument(0, named("org.elasticsearch.action.ActionType")))
             .and(takesArgument(1, named("org.elasticsearch.action.ActionRequest")))
             .and(takesArgument(2, named("org.elasticsearch.action.ActionListener"))),
