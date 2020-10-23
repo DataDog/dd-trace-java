@@ -173,8 +173,13 @@ jobs:
     steps:
       - setup_code
 
-      # We are not running with a cache here because it gets very big and ends up taking more time
-      # restoring/saving than the actual increase in time it takes just downloading the artifacts each time.
+      # We are not running with a separate cache of all muzzle artifacts here because it gets very big and
+      # ends up taking more time restoring/saving than the actual increase in time it takes just
+      # downloading the artifacts each time.
+      #
+      # Let's at least restore the build cache to have something to start from.
+      - restore_cache:
+          <<: *cache_keys
 
       - run:
           name: Gather muzzle tasks
