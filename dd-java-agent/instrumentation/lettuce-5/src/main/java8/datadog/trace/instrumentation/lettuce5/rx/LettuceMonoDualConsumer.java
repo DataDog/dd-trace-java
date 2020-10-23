@@ -1,10 +1,13 @@
 package datadog.trace.instrumentation.lettuce5.rx;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.REDIS_QUERY;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.context.TraceScope;
 import io.lettuce.core.protocol.RedisCommand;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -17,20 +20,32 @@ public class LettuceMonoDualConsumer<R, T, U extends Throwable>
   private AgentSpan span = null;
   private final RedisCommand command;
   private final boolean finishSpanOnClose;
+  private final AgentSpan parentSpan;
 
   public LettuceMonoDualConsumer(final RedisCommand command, final boolean finishSpanOnClose) {
     this.command = command;
     this.finishSpanOnClose = finishSpanOnClose;
+    parentSpan = activeSpan();
   }
 
   @Override
   public void accept(final R r) {
-    span = startSpan(REDIS_QUERY);
-    DECORATE.afterStart(span);
-    DECORATE.onCommand(span, command);
-    if (finishSpanOnClose) {
-      DECORATE.beforeFinish(span);
-      span.finish();
+    TraceScope parentScope = null;
+    try {
+      if (parentSpan != null) {
+        parentScope = activateSpan(parentSpan);
+      }
+      span = startSpan(REDIS_QUERY);
+      DECORATE.afterStart(span);
+      DECORATE.onCommand(span, command);
+      if (finishSpanOnClose) {
+        DECORATE.beforeFinish(span);
+        span.finish();
+      }
+    } finally {
+      if (parentScope != null) {
+        parentScope.close();
+      }
     }
   }
 

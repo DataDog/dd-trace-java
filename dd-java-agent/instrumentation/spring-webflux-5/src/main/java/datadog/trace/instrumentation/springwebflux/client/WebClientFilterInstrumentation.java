@@ -30,9 +30,11 @@ public class WebClientFilterInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SpringWebfluxHttpClientDecorator",
       packageName + ".HttpHeadersInjectAdapter",
+      packageName + ".SpringWebfluxHttpClientDecorator",
+      packageName + ".TraceWebClientSubscriber",
       packageName + ".WebClientTracingFilter",
+      packageName + ".WebClientTracingFilter$MonoWebClientTrace",
     };
   }
 
