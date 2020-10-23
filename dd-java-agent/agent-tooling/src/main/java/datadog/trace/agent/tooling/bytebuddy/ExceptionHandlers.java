@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ExceptionLogger;
 import net.bytebuddy.ClassFileVersion;
 import net.bytebuddy.asm.Advice.ExceptionHandler;
@@ -33,13 +34,26 @@ public class ExceptionHandlers {
             public Size apply(final MethodVisitor mv, final Implementation.Context context) {
               final String name = context.getInstrumentedType().getName();
               final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+              final boolean exitOnFailure = Config.get().isInternalExitOnFailure();
+              final String logMethod = exitOnFailure ? "error" : "debug";
 
-              // writes the following bytecode:
+              // Writes the following bytecode if exitOnFailure is false:
+              //
               // try {
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
-              //     .debug("exception in instrumentation", t);
+              //     .debug("Failed to handle exception in instrumentation for ...", t);
               // } catch (Throwable t2) {
               // }
+              //
+              // And the following bytecode if exitOnFailure is true:
+              //
+              // try {
+              //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
+              //     .error("Failed to handle exception in instrumentation for ...", t);
+              //   System.exit(1);
+              // } catch (Throwable t2) {
+              // }
+              //
               final Label logStart = new Label();
               final Label logEnd = new Label();
               final Label eatException = new Label();
@@ -70,9 +84,13 @@ public class ExceptionHandlers {
               mv.visitMethodInsn(
                   Opcodes.INVOKEINTERFACE,
                   LOGGER_NAME,
-                  "debug",
+                  logMethod,
                   "(Ljava/lang/String;Ljava/lang/Throwable;)V",
                   true);
+              if (exitOnFailure) {
+                mv.visitInsn(Opcodes.ICONST_1);
+                mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/System", "exit", "(I)V", false);
+              }
               mv.visitLabel(logEnd);
               mv.visitJumpInsn(Opcodes.GOTO, handlerExit);
 

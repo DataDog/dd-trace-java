@@ -32,5 +32,7 @@ public final class GeneralConfig {
   public static final String HEALTH_METRICS_STATSD_PORT = "trace.health.metrics.statsd.port";
   public static final String PERF_METRICS_ENABLED = "trace.perf.metrics.enabled";
 
+  public static final String INTERNAL_EXIT_ON_FAILURE = "trace.internal.exit.on.failure";
+
   private GeneralConfig() {}
 }

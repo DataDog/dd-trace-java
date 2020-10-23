@@ -382,6 +382,8 @@ public class Config {
 
   @Getter private final IdGenerationStrategy idGenerationStrategy;
 
+  @Getter private final boolean internalExitOnFailure;
+
   private final ConfigProvider configProvider;
 
   // Read order: System Properties -> Env Variables, [-> properties file], [-> default value]
@@ -693,6 +695,9 @@ public class Config {
         configProvider.getBoolean(TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR, true);
 
     debugEnabled = isDebugMode();
+
+    internalExitOnFailure =
+        configProvider.getBoolean(GeneralConfig.INTERNAL_EXIT_ON_FAILURE, false);
 
     // Setting this last because we have a few places where this can come from
     apiKey = tmpApiKey;
