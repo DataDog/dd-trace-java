@@ -6,7 +6,7 @@ import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.matcher.ElementMatcher
 
-class DefaultInstrumenterTest extends DDSpecification {
+class DefaultInstrumenterForkedTest extends DDSpecification {
   def "default enabled"() {
     setup:
     def target = new TestDefaultInstrumenter("test")
