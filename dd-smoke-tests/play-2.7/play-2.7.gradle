@@ -31,16 +31,10 @@ task sbtStage(type:Exec) {
   inputs.dir("$appDir/project")
 }
 
-// Have this disabled by default until we sort out reliable dependency downloads in CI
-def enabled = project.rootProject.hasProperty("runSbtTests")
-tasks.withType(Test).configureEach {
-  onlyIf { enabled }
-
-  if (enabled) {
-    dependsOn 'sbtStage'
-    outputs.upToDateWhen {
-      !sbtStage.didWork
-    }
+compileTestGroovy {
+  dependsOn 'sbtStage'
+  outputs.upToDateWhen {
+    !sbtStage.didWork
   }
 }
 
