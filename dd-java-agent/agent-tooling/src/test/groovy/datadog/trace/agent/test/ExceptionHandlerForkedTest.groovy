@@ -8,10 +8,6 @@ class ExceptionHandlerForkedTest extends BaseExceptionHandlerTest {
   }
 
   @Override
-  protected void resetConfig() {
-  }
-
-  @Override
   protected int expectedFailureExitStatus() {
     return 0
   }
