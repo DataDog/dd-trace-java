@@ -5,7 +5,6 @@ import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.dynamic.ClassFileLocator
 import net.bytebuddy.dynamic.Transformer
 import org.junit.Rule
-import org.junit.contrib.java.lang.system.EnvironmentVariables
 import spock.lang.Specification
 
 import java.lang.reflect.Constructor
@@ -32,7 +31,7 @@ abstract class DDSpecification extends Specification {
   private static isConfigInstanceModifiable = false
 
   @Rule
-  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
+  public final ResetControllableEnvironmentVariables environmentVariables = new ResetControllableEnvironmentVariables()
 
   // Intentionally not using the RestoreSystemProperties @Rule because this needs to save properties
   // in the BeforeClass stage instead of Before stage.  Even manually calling before()/after
@@ -82,6 +81,8 @@ abstract class DDSpecification extends Specification {
     Properties copy = new Properties()
     copy.putAll(originalSystemProperties)
     System.setProperties(copy)
+
+    environmentVariables?.reset()
   }
 
   void setupSpec() {
@@ -103,6 +104,17 @@ abstract class DDSpecification extends Specification {
   }
 
   void setup() {
+    restoreProperties()
+
+    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
+    assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
+
+    if (isConfigInstanceModifiable) {
+      rebuildConfig()
+    }
+  }
+
+  void cleanup() {
     restoreProperties()
 
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()

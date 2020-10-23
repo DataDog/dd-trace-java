@@ -18,12 +18,15 @@ import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 
 class TagInterceptorTest extends DDSpecification {
-  def writer = new ListWriter()
-  def tracer = CoreTracer.builder().writer(writer).build()
-  def span = SpanFactory.newSpanOf(tracer)
+  def writer
+  def tracer
+  def span
 
   def setup() {
     injectSysConfig(SPLIT_BY_TAGS, "sn.tag1,sn.tag2")
+    writer = new ListWriter()
+    tracer = CoreTracer.builder().writer(writer).build()
+    span = SpanFactory.newSpanOf(tracer)
   }
 
   def "adding span personalisation using Decorators"() {
