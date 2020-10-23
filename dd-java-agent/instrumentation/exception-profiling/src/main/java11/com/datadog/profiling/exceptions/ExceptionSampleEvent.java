@@ -36,9 +36,27 @@ public class ExceptionSampleEvent extends Event {
      * Writing these tests in java seems like would introduce more noise.
      */
     type = e.getClass().getName();
-    message = e.getMessage();
-    stackDepth = e.getStackTrace().length;
+    message = getMessage(e);
+    stackDepth = getStackDepth(e);
     this.sampled = sampled;
     this.firstOccurrence = firstOccurrence;
+  }
+
+  private static String getMessage(Throwable t) {
+    try {
+      return t.getMessage();
+    } catch (Throwable ignored) {
+      // apparently there might be exceptions throwing at least NPE when trying to get the message
+    }
+    return null;
+  }
+
+  private static int getStackDepth(Throwable t) {
+    try {
+      return t.getStackTrace().length;
+    } catch (Throwable ignored) {
+      // be defensive about exceptions choking on a call to getStackTrace()
+    }
+    return 0;
   }
 }
