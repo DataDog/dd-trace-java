@@ -21,8 +21,8 @@ import static net.bytebuddy.matcher.ElementMatchers.none
 abstract class DDSpecification extends Specification {
   private static final String CONFIG = "datadog.trace.api.Config"
 
-  private static Field CONFIG_INSTANCE_FIELD
-  private static Constructor CONFIG_CONSTRUCTOR
+  private static Field configInstanceField
+  private static Constructor configConstructor
 
   static {
     makeConfigInstanceModifiable()
@@ -37,7 +37,7 @@ abstract class DDSpecification extends Specification {
   // Intentionally not using the RestoreSystemProperties @Rule because this needs to save properties
   // in the BeforeClass stage instead of Before stage.  Even manually calling before()/after
   // doesn't work because the properties object is not cloned for each invocation
-  private static Properties ORIGINAL_SYSTEM_PROPERTIES
+  private static Properties originalSystemProperties
 
   static void makeConfigInstanceModifiable() {
     if (isConfigInstanceModifiable) {
@@ -61,22 +61,26 @@ abstract class DDSpecification extends Specification {
       }
       .installOn(instrumentation)
 
-    Class configClass = Class.forName(CONFIG)
-    CONFIG_INSTANCE_FIELD = configClass.getDeclaredField("INSTANCE")
-    CONFIG_CONSTRUCTOR = configClass.getDeclaredConstructor()
-    CONFIG_CONSTRUCTOR.setAccessible(true)
-
-    isConfigInstanceModifiable = true
+    try {
+      Class configClass = Class.forName(CONFIG)
+      configInstanceField = configClass.getDeclaredField("INSTANCE")
+      configConstructor = configClass.getDeclaredConstructor()
+      configConstructor.setAccessible(true)
+      isConfigInstanceModifiable = true
+    } catch (ReflectiveOperationException e) {
+      println("Config will not be modifiable")
+      e.printStackTrace()
+    }
   }
 
   private void saveProperties() {
-    ORIGINAL_SYSTEM_PROPERTIES = new Properties()
-    ORIGINAL_SYSTEM_PROPERTIES.putAll(System.properties)
+    originalSystemProperties = new Properties()
+    originalSystemProperties.putAll(System.properties)
   }
 
   private void restoreProperties() {
     Properties copy = new Properties()
-    copy.putAll(ORIGINAL_SYSTEM_PROPERTIES)
+    copy.putAll(originalSystemProperties)
     System.setProperties(copy)
   }
 
@@ -93,7 +97,9 @@ abstract class DDSpecification extends Specification {
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
-    rebuildConfig()
+    if (isConfigInstanceModifiable) {
+      rebuildConfig()
+    }
   }
 
   void setup() {
@@ -102,28 +108,38 @@ abstract class DDSpecification extends Specification {
     assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
     assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
 
-    rebuildConfig()
+    if (isConfigInstanceModifiable) {
+      rebuildConfig()
+    }
   }
 
   void injectSysConfig(String name, String value) {
+    checkConfigTransformation()
+
     String prefixedName = name.startsWith("dd.") ? name : "dd." + name
     System.setProperty(prefixedName, value)
     rebuildConfig()
   }
 
   void removeSysConfig(String name) {
+    checkConfigTransformation()
+
     String prefixedName = name.startsWith("dd.") ? name : "dd." + name
     System.clearProperty(prefixedName)
     rebuildConfig()
   }
 
   void injectEnvConfig(String name, String value) {
+    checkConfigTransformation()
+
     String prefixedName = name.startsWith("DD_") ? name : "DD_" + name
     environmentVariables.set(prefixedName, value)
     rebuildConfig()
   }
 
   void removeEnvConfig(String name) {
+    checkConfigTransformation()
+
     String prefixedName = name.startsWith("DD_") ? name : "DD_" + name
     environmentVariables.clear(prefixedName)
     rebuildConfig()
@@ -133,13 +149,21 @@ abstract class DDSpecification extends Specification {
    * Reset the global configuration. Please note that Runtime ID is preserved to the pre-existing value.
    */
   synchronized static void rebuildConfig() {
-    // Ensure the class was re-transformed properly in DDSpecification.makeConfigInstanceModifiable()
-    assert Modifier.isPublic(CONFIG_INSTANCE_FIELD.getModifiers())
-    assert Modifier.isStatic(CONFIG_INSTANCE_FIELD.getModifiers())
-    assert Modifier.isVolatile(CONFIG_INSTANCE_FIELD.getModifiers())
-    assert !Modifier.isFinal(CONFIG_INSTANCE_FIELD.getModifiers())
+    checkConfigTransformation()
 
-    def newConfig = CONFIG_CONSTRUCTOR.newInstance()
-    CONFIG_INSTANCE_FIELD.set(null, newConfig)
+    def newConfig = configConstructor.newInstance()
+    configInstanceField.set(null, newConfig)
+  }
+
+  private static void checkConfigTransformation() {
+    // Ensure the class was re-transformed properly in DDSpecification.makeConfigInstanceModifiable()
+
+    assert isConfigInstanceModifiable
+    assert configInstanceField != null
+    assert configConstructor != null
+    assert Modifier.isPublic(configInstanceField.getModifiers())
+    assert Modifier.isStatic(configInstanceField.getModifiers())
+    assert Modifier.isVolatile(configInstanceField.getModifiers())
+    assert !Modifier.isFinal(configInstanceField.getModifiers())
   }
 }
