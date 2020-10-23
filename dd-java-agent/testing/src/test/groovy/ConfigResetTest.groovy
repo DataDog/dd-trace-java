@@ -1,8 +1,8 @@
+import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.Config
-import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
-class ConfigResetTest extends DDSpecification {
+class ConfigResetTest extends AgentTestRunner {
 
   @Shared
   def sharedInstance = new ShouldBeConstructedWithoutConfig()

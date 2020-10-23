@@ -42,8 +42,6 @@ class RabbitMQTest extends AgentTestRunner {
   def defaultRabbitMQPort = 5672
   @Shared
   InetSocketAddress rabbitmqAddress = new InetSocketAddress("127.0.0.1", defaultRabbitMQPort)
-  @Shared
-  boolean expectE2EDuration = Boolean.valueOf(System.getProperty("dd.amqp.e2e.duration.enabled"))
 
   ConnectionFactory factory = new ConnectionFactory(host: rabbitmqAddress.hostName, port: rabbitmqAddress.port)
   Connection conn = factory.newConnection()
@@ -52,7 +50,7 @@ class RabbitMQTest extends AgentTestRunner {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    
+
     injectSysConfig("dd.amqp.e2e.duration.enabled", "true")
   }
 
@@ -213,7 +211,7 @@ class RabbitMQTest extends AgentTestRunner {
         trace(1) {
           // TODO - test with and without feature enabled once Config is easier to control
           rabbitSpan(it, resource, true, publishSpan,
-            null, null, setTimestamp, expectE2EDuration)
+            null, null, setTimestamp)
         }
       }
     }
@@ -281,7 +279,7 @@ class RabbitMQTest extends AgentTestRunner {
       trace(1) {
         // TODO - test with and without feature enabled once Config is easier to control
         rabbitSpan(it, "basic.deliver <generated>", true, publishSpan, error,
-          error.message, false, expectE2EDuration)
+          error.message, false)
       }
     }
 
@@ -352,7 +350,7 @@ class RabbitMQTest extends AgentTestRunner {
     Throwable exception = null,
     String errorMsg = null,
     Boolean expectTimestamp = false,
-    Boolean expectE2eDuration = false
+    Boolean expectE2eDuration = true
   ) {
     trace.span {
       serviceName "rabbitmq"

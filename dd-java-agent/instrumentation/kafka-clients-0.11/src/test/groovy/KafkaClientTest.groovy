@@ -19,7 +19,6 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import spock.lang.Shared
 import spock.lang.Unroll
 
 import java.util.concurrent.LinkedBlockingQueue
@@ -36,13 +35,10 @@ class KafkaClientTest extends AgentTestRunner {
   @Rule
   KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, SHARED_TOPIC)
 
-  @Shared
-  boolean expectE2EDuration = Boolean.valueOf(System.getProperty("dd.kafka.e2e.duration.enabled"))
-
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
-    
+
     injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
   }
 
@@ -136,9 +132,8 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
-            if (expectE2EDuration) {
-              "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+
             defaultTags(true)
           }
         }
@@ -243,9 +238,8 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
-            if (expectE2EDuration) {
-              "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+
             defaultTags(true)
           }
         }
@@ -344,9 +338,8 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.TOMBSTONE" true
             // TODO - test with and without feature enabled once Config is easier to control
-            if (expectE2EDuration) {
-              "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+
             defaultTags(true)
           }
         }
@@ -427,9 +420,8 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
-            if (expectE2EDuration) {
-              "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            
             defaultTags(true)
           }
         }
