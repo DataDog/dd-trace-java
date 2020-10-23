@@ -10,7 +10,7 @@ import org.junit.Rule
 import org.junit.contrib.java.lang.system.EnvironmentVariables
 import org.junit.contrib.java.lang.system.RestoreSystemProperties
 
-class DefaultInstrumenterTest extends DDSpecification {
+class DefaultInstrumenterForkedTest extends DDSpecification {
 
   @Rule
   public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()

@@ -2,7 +2,7 @@ package datadog.trace.agent.test
 
 import ch.qos.logback.classic.Level
 
-class ExceptionHandlerTest extends BaseExceptionHandlerTest {
+class ExceptionHandlerForkedTest extends BaseExceptionHandlerTest {
   @Override
   protected void changeConfig() {
   }

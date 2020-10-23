@@ -3,11 +3,7 @@ package datadog.trace.agent.test
 import ch.qos.logback.classic.Level
 import datadog.trace.agent.test.utils.ConfigUtils
 
-class ExceptionHandlerExitOnFailureTest extends BaseExceptionHandlerTest {
-  static {
-    makeConfigInstanceModifiable()
-  }
-
+class ExceptionHandlerExitOnFailureForkedTest extends BaseExceptionHandlerTest {
   @Override
   protected void changeConfig() {
     ConfigUtils.updateConfig {
