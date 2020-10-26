@@ -32,5 +32,7 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 11
+      - name: Set JDK 11 home
+        run: echo JAVA_11_HOME=${{ env.JAVA_HOME }} >> $GITHUB_ENV
       - name: Run  muzzle
         run: ./gradlew ${{ matrix.module }}:muzzle --no-daemon
