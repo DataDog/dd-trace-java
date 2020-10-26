@@ -96,3 +96,15 @@ shadowJar {
   }
 }
 
+// Source: https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/master/instrumentation/instrumentation.gradle#L96-L104
+tasks.register("enumerate") {
+  group = "Help"
+  description = "List all available instrumentation modules"
+  doFirst {
+    subprojects
+      .findAll { it.plugins.hasPlugin("muzzle") }
+      .collect { it.path }
+      .each { println it }
+  }
+}
+
