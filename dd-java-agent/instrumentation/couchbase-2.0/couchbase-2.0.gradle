@@ -34,7 +34,7 @@ muzzle {
   fail {
     group = 'com.couchbase.client'
     module = 'couchbase-client'
-    versions = "(,)"
+    versions = "[,]"
   }
 }
 

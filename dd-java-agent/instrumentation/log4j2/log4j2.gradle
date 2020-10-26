@@ -15,13 +15,13 @@ muzzle {
   pass {
     group = 'org.apache.logging.log4j'
     module = 'log4j-core'
-    versions = '(,)'
+    versions = '[,]'
   }
 
   pass {
     group = 'org.apache.logging.log4j'
     module = 'log4j-api'
-    versions = '(,)'
+    versions = '[,]'
   }
 }
 

@@ -14,8 +14,7 @@ muzzle {
   fail {
     group = "org.elasticsearch.client"
     module = "rest"
-    versions = "(,)"
-    assertInverse = true
+    versions = "[,]"
   }
 }
 
