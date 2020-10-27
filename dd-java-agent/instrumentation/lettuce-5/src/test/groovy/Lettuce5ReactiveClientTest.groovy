@@ -385,12 +385,14 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
       reactiveCommands.set("a", "1")
         .then(reactiveCommands.get("a")) // The get here is reported separately
         .subscribe()
+
+      blockUntilChildSpansFinished(2)
     }
 
     then:
-    assertTraces(2) {
+    assertTraces(1) {
       sortSpansByStart()
-      trace(2) {
+      trace(3) {
         span {
           operationName "test-parent"
           resourceName "test-parent"
@@ -441,6 +443,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
         .then(reactiveCommands.get("a"))
         .subscribeOn(Schedulers.newParallel("test"))
         .subscribe()
+
+      blockUntilChildSpansFinished(2)
     }
 
     then:
