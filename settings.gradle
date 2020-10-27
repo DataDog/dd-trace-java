@@ -16,6 +16,15 @@ gradleEnterprise {
   }
 }
 
+// Don't pollute the dependency cache with the build cache
+if (isCI) {
+  buildCache {
+    local {
+      directory = "$rootDir/workspace/build-cache"
+    }
+  }
+}
+
 rootProject.name = 'dd-trace-java'
 
 // external apis

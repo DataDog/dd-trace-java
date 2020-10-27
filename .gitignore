@@ -62,3 +62,7 @@ replay_pid*
 
 # Magic for local JMC built
 /vendor/jmc-libs
+
+# CircleCI #
+############
+_circle_ci_cache_*

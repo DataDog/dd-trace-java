@@ -30,7 +30,3 @@ libraryDependencies ++= Seq (
   otGroup % "opentracing-api" % otVersion,
   otGroup % "opentracing-util" % otVersion
 )
-
-csrConfiguration ~= { conf =>
-  conf.withParallelDownloads(1)
-}

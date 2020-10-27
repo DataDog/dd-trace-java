@@ -24,7 +24,7 @@ def appDir = "$projectDir/application"
 // define the task that builds the play project
 task sbtStage(type:Exec) {
   workingDir "$appDir"
-  commandLine './sbt', "-Dplay.version=$playVersion", "-Dscala.version=$scalaVersion", "-Ddatadog.smoketest.builddir=$buildDir", 'stage'
+  commandLine './sbt', "-Dsbt.ivy=true", "-Dplay.version=$playVersion", "-Dscala.version=$scalaVersion", "-Ddatadog.smoketest.builddir=$buildDir", 'stage'
   outputs.dir("$buildDir/target")
   inputs.dir("$appDir/app")
   inputs.dir("$appDir/conf")

@@ -6,14 +6,45 @@ defaults: &defaults
   docker:
     - image: &default_container datadog/dd-trace-java-docker-build:latest
 
+# The caching setup of the build dependencies is somewhat involved because of how CircleCI works.
+#
+# 1) Caches are immutable, so you can not reuse a cache key (the save will simply be ignored)
+# 2) You can only use the built in environment variables in the cache keys via {{ .Environment.variableName }}
+#
+# To work around that, unique cache key information is written to files and the file hash is used to select
+# the appropriate cache to restore/save.
+#
+# The basic scheme is to write a unique date that rolls over daily (UTC is used here), for the main branch
+# and the _circle_ci_cache_base_id, which is used as fallback for new PR branches. For a PR branch, the
+# branch name, PR number, and the rolling cache id is used to save the cache, and will be a starting point
+# for new commits.
+#
+# The cache is also saved using the unique git revision to enable the dependent build steps to get a fully populated
+# cache to work from.
 cache_keys: &cache_keys
   keys:
-    # Rev the version when the cache gets too big
-    - dd-trace-java-v1-{{ .Branch }}-{{ .Revision }}
-    - dd-trace-java-v1-{{ .Branch }}
+    # Rev the version when the cache gets too big, and don't forget to change the save_cache steps
+    # Dependent steps will find this cache
+    - dd-trace-java-v2-{{ .Branch }}-{{ .Revision }}
+    # New branch commits will find this cache
+    - dd-trace-java-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}
+    # New branches fall back on main build caches
+    - dd-trace-java-v2-master-{{ checksum "_circle_ci_cache_base_id" }}
+
+save_cache_paths: &save_cache_paths
+  paths:
+    # Cached dependencies and wrappers for gradle
+    - ~/.gradle
+    # Cached launchers and compilers for sbt
+    - ~/.sbt
+    # Cached dependencies for sbt handled by ivy
+    - ~/.ivy2
+    # Cached dependencies for sbt handled by coursier
+    - ~/.cache/coursier
 
 parameters:
   gradle_flags:
+    # Using no-daemon is important for the caches to be in a consistent state
     type: string
     default: "--stacktrace --no-daemon"
 
@@ -32,6 +63,20 @@ commands:
               git fetch -u origin ${FETCH_REFS}
               git checkout "pr/${CIRCLE_PR_NUMBER}/merge"
             fi
+
+            # Have the caches rotate every day ("Year-Month-Day")
+            BASE_CACHE_ID=$(date -u +"%Y-%m-%d")
+            if [ "$CIRCLE_BRANCH" == "master" ];
+            then
+              # If we're on a the main branch, then start from a rolling cache id
+              echo "${BASE_CACHE_ID}" >| _circle_ci_cache_id
+            else
+              # If we're on a PR branch, then we use the name of the branch and the PR number as a
+              # stable identifier for the branch cache that we add the rolling cache id to
+              echo "${CIRCLE_BRANCH}-${CIRCLE_PR_NUMBER}-${BASE_CACHE_ID}" >| _circle_ci_cache_id
+            fi
+            # Have new branches start from the main rolling cache id
+            echo "${BASE_CACHE_ID}" >| _circle_ci_cache_base_id
       - attach_workspace:
           at: .
 
@@ -48,7 +93,7 @@ jobs:
       - run:
           name: Build Project
           command: >-
-            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx1G -Xms64M' -Ddatadog.forkedMaxHeapSize=1G -Ddatadog.forkedMinHeapSize=64M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M' -Ddatadog.forkedMaxHeapSize=2G -Ddatadog.forkedMinHeapSize=64M"
             ./gradlew clean :dd-java-agent:shadowJar compileTestGroovy compileLatestDepTestGroovy compileTestScala compileLatestDepTestScala compileTestJava compileLatestDepTestJava
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
@@ -68,12 +113,12 @@ jobs:
             - workspace
 
       - save_cache:
-          key: dd-trace-java-v1-{{ .Branch }}-{{ .Revision }}
-          paths:
-            - ~/.gradle
-            - ~/.sbt
-            - ~/.cache/coursier/v1
+          key: dd-trace-java-v2-{{ .Branch }}-{{ .Revision }}
+          <<: *save_cache_paths
 
+      - save_cache:
+          key: dd-trace-java-v2-{{ .Branch }}-{{ checksum "_circle_ci_cache_id" }}
+          <<: *save_cache_paths
 
   default_test_job: &default_test_job
     <<: *defaults
@@ -101,7 +146,7 @@ jobs:
       - run:
           name: Run Tests
           command: >-
-            GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
             ./gradlew <<# parameters.prefixTestTask>>testJava<</ parameters.prefixTestTask>><< parameters.testTask >>
             << pipeline.parameters.gradle_flags >>
             --max-workers=6
@@ -144,7 +189,7 @@ jobs:
       - run:
           name: Build Project
           command: >-
-            GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
+            GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
             ./gradlew build -PskipTests
             << pipeline.parameters.gradle_flags >>
             --max-workers=8
@@ -154,8 +199,8 @@ jobs:
           command: |
             mvn_local_repo=$(mvn help:evaluate -Dexpression=settings.localRepository -q -DforceStdout)
             rm -rf "${mvn_local_repo}/com/datadoghq"
-            export GRADLE_OPTS="-Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
-            ./gradlew install << pipeline.parameters.gradle_flags >> --max-workers=8
+            export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xmx2G -Xms64M' -Ddatadog.forkedMaxHeapSize=4G -Ddatadog.forkedMinHeapSize=64M"
+            ./gradlew install << pipeline.parameters.gradle_flags >> --max-workers=6
             cd test-published-dependencies
             ../gradlew check
 
@@ -257,3 +302,16 @@ workflows:
           filters:
             branches:
               ignore: master
+
+  daily:
+    triggers:
+      - schedule:
+          # Run this job at 00:05 UTC daily
+          cron: "5 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      # This will rebuild a main cache with a new timestamp based on the cache for the last revision
+      - build
