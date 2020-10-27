@@ -62,7 +62,7 @@ dependencies {
   testCompile project(':dd-smoke-tests')
 }
 
-tasks.withType(Test).configureEach {
+compileTestGroovy {
   dependsOn 'stagePlayBinaryDist'
   outputs.upToDateWhen {
     !stagePlayBinaryDist.didWork
