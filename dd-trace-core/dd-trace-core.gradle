@@ -45,7 +45,7 @@ dependencies {
   testCompile project(':dd-java-agent:testing')
   // So this should be picked up as a transitive dependency from ':dd-java-agent:testing', but we have
   // intermittent failures in CI, so better safe than sorry
-  testCompile project(':utils:test-utils')
+  //testCompile project(':utils:test-utils')
   testCompile group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
   testCompile group: 'com.github.stefanbirkner', name: 'system-rules', version: '1.19.0'
   testCompile group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.8.20'
