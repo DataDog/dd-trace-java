@@ -192,10 +192,11 @@ abstract class HttpClientTest extends AgentTestRunner {
     status == 200
     // only one trace (client).
     assertTraces(1) {
+      sortSpansByStart()
       trace(size(3)) {
         basicSpan(it, "parent")
-        basicSpan(it, "child", span(0))
         clientSpan(it, span(0), method)
+        basicSpan(it, "child", span(0))
       }
     }
 

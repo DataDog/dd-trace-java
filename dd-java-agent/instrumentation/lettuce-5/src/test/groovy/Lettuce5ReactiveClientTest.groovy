@@ -2,7 +2,6 @@ import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.core.DDSpan
 import io.lettuce.core.ClientOptions
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulConnection
@@ -386,14 +385,14 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
       reactiveCommands.set("a", "1")
         .then(reactiveCommands.get("a")) // The get here is reported separately
         .subscribe()
+
+      blockUntilChildSpansFinished(2)
     }
 
     then:
-    assertTraces(2) {
+    assertTraces(1) {
       sortSpansByStart()
-      DDSpan parentSpan
-      trace(2) {
-        parentSpan = span(0)
+      trace(3) {
         span {
           operationName "test-parent"
           resourceName "test-parent"
@@ -404,7 +403,7 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
           }
         }
         span {
-          childOf parentSpan
+          childOf span(0)
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -418,10 +417,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
             defaultTags()
           }
         }
-      }
-      trace(1) {
         span {
-          childOf parentSpan
+          childOf span(0)
           serviceName "redis"
           operationName "redis.query"
           spanType DDSpanTypes.REDIS
@@ -446,6 +443,8 @@ class Lettuce5ReactiveClientTest extends AgentTestRunner {
         .then(reactiveCommands.get("a"))
         .subscribeOn(Schedulers.newParallel("test"))
         .subscribe()
+
+      blockUntilChildSpansFinished(2)
     }
 
     then:

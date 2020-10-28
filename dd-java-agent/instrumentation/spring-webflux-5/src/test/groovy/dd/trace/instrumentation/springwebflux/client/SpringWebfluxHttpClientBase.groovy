@@ -31,9 +31,10 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
       .uri(uri)
       .headers { h -> headers.forEach({ key, value -> h.add(key, value) }) }
       .exchange()
+      .doAfterSuccessOrError { res, ex ->
+        callback?.call()
+      }
       .block()
-
-    callback?.call()
 
     if (hasParent) {
       blockUntilChildSpansFinished(callback ? 3 : 2)
@@ -102,13 +103,8 @@ abstract class SpringWebfluxHttpClientBase extends HttpClientTest {
     false
   }
 
-
   boolean testRemoteConnection() {
     // FIXME: figure out how to configure timeouts.
-    false
-  }
-
-  boolean testCallbackWithParent() {
     false
   }
 
