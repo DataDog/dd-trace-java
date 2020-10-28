@@ -9,10 +9,13 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.BitSet;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecorator {
+
+  private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getHttpClientErrorStatuses();
 
   protected abstract String method(REQUEST request);
 
@@ -85,6 +88,9 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
       final int status = status(response);
       if (status != 0) {
         span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.get(status));
+      }
+      if (CLIENT_ERROR_STATUSES.get(status)) {
+        span.setError(true);
       }
     }
     return span;

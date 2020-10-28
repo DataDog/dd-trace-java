@@ -95,20 +95,23 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     if (status) {
       1 * span.setTag(Tags.HTTP_STATUS, status)
     }
+    if (error) {
+      1 * span.setError(true)
+    }
     0 * _
 
     where:
-    status | resp
-    200    | [status: 200]
-    399    | [status: 399]
-    400    | [status: 400]
-    499    | [status: 499]
-    500    | [status: 500]
-    500    | [status: 500]
-    500    | [status: 500]
-    600    | [status: 600]
-    null   | [status: null]
-    null   | null
+    status | resp           | error
+    200    | [status: 200]  | false
+    399    | [status: 399]  | false
+    400    | [status: 400]  | true
+    499    | [status: 499]  | true
+    500    | [status: 500]  | false
+    500    | [status: 500]  | false
+    500    | [status: 500]  | false
+    600    | [status: 600]  | false
+    null   | [status: null] | false
+    null   | null           | false
   }
 
   def "test assert null span"() {

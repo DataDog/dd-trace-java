@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.servlet.dispatcher;
 
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -9,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.BitSet;
 import javax.servlet.ServletException;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
@@ -17,6 +19,7 @@ public class RequestDispatcherDecorator extends BaseDecorator {
   public static final RequestDispatcherDecorator DECORATE = new RequestDispatcherDecorator();
   public static final CharSequence JAVA_WEB_SERVLET_DISPATCHER =
       UTF8BytesString.createConstant("java-web-servlet-dispatcher");
+  private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
 
   private static final MethodHandle STATUS_CODE_METHOD;
 
@@ -69,8 +72,12 @@ public class RequestDispatcherDecorator extends BaseDecorator {
 
         if (throwable != null && status == HttpServletResponse.SC_OK) {
           span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.get(500));
+          span.setError(true);
         } else {
           span.setTag(Tags.HTTP_STATUS, HTTP_STATUSES.get(status));
+          if (SERVER_ERROR_STATUSES.get(status)) {
+            span.setError(true);
+          }
         }
 
         if (status == 404) {

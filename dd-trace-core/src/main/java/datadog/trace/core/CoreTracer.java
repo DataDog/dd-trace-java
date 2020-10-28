@@ -1,6 +1,9 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static datadog.trace.api.DDTags.RESOURCE_NAME;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.ERROR;
+import static datadog.trace.core.DDSpanContext.toBoolean;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.timgroup.statsd.NoOpStatsDClient;
@@ -21,6 +24,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
@@ -664,6 +668,18 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           if (value instanceof CharSequence) {
             return withSpanType((CharSequence) value);
           }
+          break;
+        case ERROR:
+          if (toBoolean(value)) {
+            return withErrorFlag();
+          }
+          break;
+        case RESOURCE_NAME:
+        case Tags.DB_STATEMENT:
+          if (null != value) {
+            return withResourceName(String.valueOf(value));
+          }
+          break;
         default:
           Map<String, Object> tagMap = tags;
           if (tagMap == null) {
@@ -674,8 +690,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           } else {
             tagMap.put(tag, value);
           }
-          return this;
       }
+      return this;
     }
 
     /**

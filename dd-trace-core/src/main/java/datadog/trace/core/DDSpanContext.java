@@ -1,6 +1,8 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.RESOURCE_NAME;
 import static datadog.trace.api.DDTags.SPAN_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.ERROR;
 
 import datadog.trace.api.DDId;
 import datadog.trace.api.DDTags;
@@ -354,13 +356,31 @@ public class DDSpanContext implements AgentSpan.Context {
    * @param tag the tag-name
    * @param value the value of the tag. tags with null values are ignored.
    */
-  public void setTag(final String tag, final Object value) {
+  public void setTag(final String tag, final CharSequence value) {
     // intercept tags we represent as fields but used to store in a weakly typed map
     switch (tag) {
       case SPAN_TYPE:
-        if (value instanceof CharSequence) {
-          this.spanType = (CharSequence) value;
-        }
+        this.spanType = value;
+        break;
+      case RESOURCE_NAME:
+        this.resourceName = value;
+        break;
+      default:
+        setTag(tag, (Object) value);
+    }
+  }
+
+  /**
+   * Add a tag to the span. Tags are not propagated to the children
+   *
+   * @param tag the tag-name
+   * @param value the value of the tag. tags with null values are ignored.
+   */
+  public void setTag(final String tag, final Object value) {
+    // intercept tags we represent as fields but used to store in a weakly typed map
+    switch (tag) {
+      case ERROR:
+        setErrorFlag(toBoolean(value));
         break;
       default:
         synchronized (unsafeTags) {
@@ -476,5 +496,12 @@ public class DDSpanContext implements AgentSpan.Context {
       s.append(" tags=").append(new TreeMap<>(unsafeTags));
     }
     return s.toString();
+  }
+
+  static boolean toBoolean(Object value) {
+    if (value instanceof Boolean) {
+      return (boolean) value;
+    }
+    return Boolean.parseBoolean(String.valueOf(value));
   }
 }

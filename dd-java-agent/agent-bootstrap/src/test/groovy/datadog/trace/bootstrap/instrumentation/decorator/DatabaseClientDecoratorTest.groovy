@@ -68,7 +68,7 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
     decorator.onStatement(span, statement)
 
     then:
-    1 * span.setTag(Tags.DB_STATEMENT, statement)
+    1 * span.setResourceName(statement)
     0 * _
 
     where:
