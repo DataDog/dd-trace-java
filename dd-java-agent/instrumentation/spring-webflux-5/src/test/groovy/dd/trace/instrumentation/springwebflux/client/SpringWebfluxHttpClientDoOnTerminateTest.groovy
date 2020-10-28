@@ -3,13 +3,11 @@ package dd.trace.instrumentation.springwebflux.client
 import org.springframework.http.HttpMethod
 import org.springframework.web.reactive.function.client.ClientResponse
 import org.springframework.web.reactive.function.client.WebClient
-import spock.lang.Ignore
 import spock.lang.Timeout
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 @Timeout(5)
-@Ignore
 class SpringWebfluxHttpClientDoOnTerminateTest extends SpringWebfluxHttpClientBase {
 
   @Override

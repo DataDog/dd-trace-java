@@ -9,7 +9,7 @@ import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscriber;
 import reactor.core.publisher.Hooks;
 
-public class MonoTerminalOperatorAdvices {
+public class TerminalSubscriberAdvices {
   public static class OnSubscribeAdvice {
     @Advice.OnMethodEnter
     public static void onSubscribe(@Advice.This final Subscriber thiz) {

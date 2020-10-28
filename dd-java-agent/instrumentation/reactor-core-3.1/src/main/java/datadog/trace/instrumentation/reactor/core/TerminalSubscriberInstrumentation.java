@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.reactor.core;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -14,14 +15,16 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(Instrumenter.class)
-public class MonoTerminalOperatorInstrumentation extends Instrumenter.Default {
-  public MonoTerminalOperatorInstrumentation() {
+public class TerminalSubscriberInstrumentation extends Instrumenter.Default {
+  public TerminalSubscriberInstrumentation() {
     super("reactor-core");
   }
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("reactor.core.publisher.MonoPeekTerminal$MonoTerminalPeekSubscriber");
+    return namedOneOf(
+        "reactor.core.publisher.MonoPeekTerminal$MonoTerminalPeekSubscriber",
+        "reactor.core.publisher.FluxPeek$PeekSubscriber");
   }
 
   @Override
@@ -34,10 +37,10 @@ public class MonoTerminalOperatorInstrumentation extends Instrumenter.Default {
     final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
     transformers.put(
         isMethod().and(named("onSubscribe")),
-        packageName + ".MonoTerminalOperatorAdvices$OnSubscribeAdvice");
+        packageName + ".TerminalSubscriberAdvices$OnSubscribeAdvice");
     transformers.put(
         isMethod().and(named("onNext").or(named("onError")).or(named("onComplete"))),
-        packageName + ".MonoTerminalOperatorAdvices$OnNextAndCompleteAndErrorAdvice");
+        packageName + ".TerminalSubscriberAdvices$OnNextAndCompleteAndErrorAdvice");
     return transformers;
   }
 }
