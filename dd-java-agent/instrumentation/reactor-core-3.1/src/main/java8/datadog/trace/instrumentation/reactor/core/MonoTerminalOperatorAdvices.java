@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscriber;
+import reactor.core.publisher.Hooks;
 
 public class MonoTerminalOperatorAdvices {
   public static class OnSubscribeAdvice {
@@ -20,6 +21,10 @@ public class MonoTerminalOperatorAdvices {
       final ContextStore<Subscriber, AgentSpan> contextStore =
           InstrumentationContext.get(Subscriber.class, AgentSpan.class);
       contextStore.put(thiz, span);
+    }
+
+    public static void muzzleCheck() {
+      Hooks.resetOnEachOperator();
     }
   }
 
@@ -42,6 +47,10 @@ public class MonoTerminalOperatorAdvices {
       if (scope != null) {
         scope.close();
       }
+    }
+
+    public static void muzzleCheck() {
+      Hooks.resetOnEachOperator();
     }
   }
 }
