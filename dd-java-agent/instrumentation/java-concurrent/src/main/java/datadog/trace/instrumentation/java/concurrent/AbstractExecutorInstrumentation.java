@@ -45,7 +45,6 @@ public abstract class AbstractExecutorInstrumentation extends Instrumenter.Defau
       PERMITTED_EXECUTORS_PREFIXES = Collections.emptyList();
     } else {
       final String[] whitelist = {
-        "kotlinx.coroutines.scheduling.CoroutineScheduler",
         "play.api.libs.streams.Execution$trampoline$",
         "scala.concurrent.Future$InternalCallbackExecutor$",
         "scala.concurrent.impl.ExecutionContextImpl",

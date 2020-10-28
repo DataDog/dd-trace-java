@@ -5,6 +5,9 @@ dependencies {
   implementation project(':dd-java-agent:instrumentation:java-concurrent')
   testCompile project(':dd-trace-api')
 
+  compileOnly 'org.jetbrains.kotlin:kotlin-stdlib-common:1.3.72'
+  compileOnly 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.7'
+
   testCompile deps.kotlin
   testCompile deps.coroutines
 
