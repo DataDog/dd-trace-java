@@ -28,7 +28,6 @@ import static CompletionListener.OPERATION_NAME
 import static CompletionListener.SERVICE_NAME
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
-import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 import static net.spy.memcached.ConnectionFactoryBuilder.Protocol.BINARY
 
 // Do not run tests locally on Java7 since testcontainers are not compatible with Java7
@@ -56,6 +55,14 @@ class SpymemcachedTest extends AgentTestRunner {
   @Shared
   InetSocketAddress memcachedAddress = new InetSocketAddress("127.0.0.1", defaultMemcachedPort)
 
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    
+    // This setting should have no effect since decorator returns null for the instance.
+    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
+  }
+
   def setupSpec() {
 
     /*
@@ -73,17 +80,12 @@ class SpymemcachedTest extends AgentTestRunner {
         memcachedContainer.getMappedPort(defaultMemcachedPort)
       )
     }
-
-    // This setting should have no effect since decorator returns null for the instance.
-    System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
   }
 
   def cleanupSpec() {
     if (memcachedContainer) {
       memcachedContainer.stop()
     }
-
-    System.clearProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE)
   }
 
   ReentrantLock queueLock

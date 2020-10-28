@@ -1,13 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.DefaultURIDataAdapter
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter
 
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 
 class HttpServerDecoratorTest extends ServerDecoratorTest {
@@ -40,12 +38,11 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
   def "test url handling for #url"() {
     setup:
+    injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "$tagQueryString")
     def decorator = newDecorator()
 
     when:
-    withConfigOverride(HTTP_SERVER_TAG_QUERY_STRING, "$tagQueryString") {
-      decorator.onRequest(span, req)
-    }
+    decorator.onRequest(span, req)
 
     then:
     if (expectedUrl) {

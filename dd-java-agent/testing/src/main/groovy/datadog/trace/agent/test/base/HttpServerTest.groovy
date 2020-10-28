@@ -36,9 +36,9 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.SERVLET_ASYNC_TIMEOUT_ERROR
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
@@ -309,12 +309,13 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
 
   def "test tag query string for #endpoint"() {
     setup:
+    injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
     def request = request(endpoint, method, body).build()
-    Response response = withConfigOverride("http.server.tag.query-string", "true") {
-      client.newCall(request).execute()
-    }
 
-    expect:
+    when:
+    Response response = client.newCall(request).execute()
+
+    then:
     response.code() == endpoint.status
     response.body().string() == endpoint.body
 
@@ -532,12 +533,13 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
   def "test timeout"() {
     setup:
     assumeTrue(testTimeout())
+    injectSysConfig(SERVLET_ASYNC_TIMEOUT_ERROR, "false")
     def request = request(TIMEOUT, method, body).build()
-    def response = withConfigOverride(SERVLET_ASYNC_TIMEOUT_ERROR, "false", {
-      client.newCall(request).execute()
-    })
 
-    expect:
+    when:
+    def response = client.newCall(request).execute()
+
+    then:
     response.code() == 500
     response.body().contentLength() == 0
 

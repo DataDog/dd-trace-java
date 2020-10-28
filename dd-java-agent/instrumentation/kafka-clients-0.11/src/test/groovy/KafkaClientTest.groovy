@@ -1,5 +1,5 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.api.Config
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -19,30 +19,28 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import spock.lang.Shared
 import spock.lang.Unroll
 
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.ConfigDefaults.DEFAULT_KAFKA_CLIENT_PROPAGATION_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 
 class KafkaClientTest extends AgentTestRunner {
-  static {
-    System.setProperty("dd.kafka.e2e.duration.enabled", "true")
-  }
-
   static final SHARED_TOPIC = "shared.topic"
 
   @Rule
   KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, SHARED_TOPIC)
 
-  @Shared
-  boolean expectE2EDuration = Boolean.valueOf(System.getProperty("dd.kafka.e2e.duration.enabled"))
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.kafka.e2e.duration.enabled", "true")
+  }
 
   def "test kafka produce and consume"() {
     setup:
@@ -134,9 +132,8 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
-            if (expectE2EDuration) {
-              "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+
             defaultTags(true)
           }
         }
@@ -241,9 +238,8 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
-            if (expectE2EDuration) {
-              "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+
             defaultTags(true)
           }
         }
@@ -342,9 +338,8 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.TOMBSTONE" true
             // TODO - test with and without feature enabled once Config is easier to control
-            if (expectE2EDuration) {
-              "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+
             defaultTags(true)
           }
         }
@@ -425,9 +420,8 @@ class KafkaClientTest extends AgentTestRunner {
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             // TODO - test with and without feature enabled once Config is easier to control
-            if (expectE2EDuration) {
-              "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
-            }
+            "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
+            
             defaultTags(true)
           }
         }
@@ -479,9 +473,8 @@ class KafkaClientTest extends AgentTestRunner {
 
     when:
     String message = "Testing without headers"
-    withConfigOverride(Config.KAFKA_CLIENT_PROPAGATION_ENABLED, value) {
-      kafkaTemplate.send(SHARED_TOPIC, message)
-    }
+    injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_PROPAGATION_ENABLED, value)
+    kafkaTemplate.send(SHARED_TOPIC, message)
 
     then:
     // check that the message was received

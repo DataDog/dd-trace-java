@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-import datadog.trace.agent.test.utils.ConfigUtils
+
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -161,10 +161,8 @@ class BaseDecoratorTest extends DDSpecification {
 
   def "test analytics rate enabled:#enabled, integration:#integName, sampleRate:#sampleRate"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.properties.setProperty("dd.${integName}.analytics.enabled", "true")
-      System.properties.setProperty("dd.${integName}.analytics.sample-rate", "$sampleRate")
-    }
+    injectSysConfig("dd.${integName}.analytics.enabled", "true")
+    injectSysConfig("dd.${integName}.analytics.sample-rate", "$sampleRate")
 
     when:
     BaseDecorator dec = newDecorator(enabled)
@@ -172,10 +170,6 @@ class BaseDecoratorTest extends DDSpecification {
     then:
     dec.traceAnalyticsEnabled == expectedEnabled
     dec.traceAnalyticsSampleRate == (Float) expectedRate
-
-    cleanup:
-    System.clearProperty("dd.${integName}.analytics.enabled")
-    System.clearProperty("dd.${integName}.analytics.sample-rate")
 
     where:
     enabled | integName | sampleRate | expectedEnabled | expectedRate

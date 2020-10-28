@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import dd.test.trace.annotation.SayTracedHello
@@ -7,12 +6,6 @@ import dd.test.trace.annotation.SayTracedHello
 import java.util.concurrent.Callable
 
 class TraceAnnotationsTest extends AgentTestRunner {
-
-  static {
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace.annotations")
-    }
-  }
 
   def "test simple case annotations"() {
     setup:

@@ -1,8 +1,8 @@
 package datadog.trace.core.jfr.openjdk
 
-import datadog.trace.agent.test.utils.ConfigUtils
-import datadog.trace.api.Config
 import datadog.trace.api.DDId
+import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.ProfilingConfig
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
@@ -12,8 +12,6 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.util.SystemAccess
 import datadog.trace.test.util.DDSpecification
-import org.junit.Rule
-import org.junit.contrib.java.lang.system.RestoreSystemProperties
 import spock.lang.Requires
 
 import java.time.Duration
@@ -22,9 +20,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
 
 @Requires({ jvm.java11Compatible })
 class ScopeEventTest extends DDSpecification {
-  @Rule
-  public RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
-
   private static final Duration SLEEP_DURATION = Duration.ofSeconds(1)
 
   def writer = new ListWriter()
@@ -54,9 +49,7 @@ class ScopeEventTest extends DDSpecification {
 
   def "Scope event is written with thread CPU time"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
-    }
+    injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 
@@ -83,9 +76,7 @@ class ScopeEventTest extends DDSpecification {
 
   def "Scope event is written without thread CPU time - profiling enabled"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.${Config.PROFILING_ENABLED}", "true")
-    }
+    injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "true")
     SystemAccess.disableJmx()
     def recording = JfrHelper.startRecording()
 
@@ -112,10 +103,8 @@ class ScopeEventTest extends DDSpecification {
 
   def "Scope event is written without thread CPU time - profiling disabled"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.${Config.PROFILING_ENABLED}", "false")
-      System.setProperty("dd.${Config.HEALTH_METRICS_ENABLED}", "false")
-    }
+    injectSysConfig(ProfilingConfig.PROFILING_ENABLED, "false")
+    injectSysConfig(GeneralConfig.HEALTH_METRICS_ENABLED, "false")
     SystemAccess.enableJmx()
     def recording = JfrHelper.startRecording()
 

@@ -1,6 +1,6 @@
 package datadog.trace.core.taginterceptor
 
-import datadog.trace.agent.test.utils.ConfigUtils
+
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.sampling.PrioritySampling
@@ -18,21 +18,16 @@ import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 
 class TagInterceptorTest extends DDSpecification {
-  static {
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.$SPLIT_BY_TAGS", "sn.tag1,sn.tag2")
-    }
-  }
+  def writer
+  def tracer
+  def span
 
-  def cleanupSpec() {
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.$SPLIT_BY_TAGS")
-    }
+  def setup() {
+    injectSysConfig(SPLIT_BY_TAGS, "sn.tag1,sn.tag2")
+    writer = new ListWriter()
+    tracer = CoreTracer.builder().writer(writer).build()
+    span = SpanFactory.newSpanOf(tracer)
   }
-
-  def writer = new ListWriter()
-  def tracer = CoreTracer.builder().writer(writer).build()
-  def span = SpanFactory.newSpanOf(tracer)
 
   def "adding span personalisation using Decorators"() {
     setup:
@@ -396,9 +391,7 @@ class TagInterceptorTest extends DDSpecification {
 
   def "disable decorator via config"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.trace.${decorator}.enabled", "$enabled")
-    }
+    injectSysConfig("dd.trace.${decorator}.enabled", "$enabled")
 
     tracer = CoreTracer.builder()
       .serviceName("some-service")
@@ -413,11 +406,6 @@ class TagInterceptorTest extends DDSpecification {
     then:
     span.getServiceName() == enabled ? "other-service" : "some-service"
 
-    cleanup:
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace.${decorator}.enabled")
-    }
-
     where:
     decorator                                               | enabled
     ServiceNameTagInterceptor.getSimpleName().toLowerCase() | true
@@ -428,9 +416,7 @@ class TagInterceptorTest extends DDSpecification {
 
   def "disabling service decorator does not disable split by tags"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.trace." + ServiceNameTagInterceptor.getSimpleName().toLowerCase() + ".enabled", "false")
-    }
+    injectSysConfig("dd.trace." + ServiceNameTagInterceptor.getSimpleName().toLowerCase() + ".enabled", "false")
 
     tracer = CoreTracer.builder()
       .serviceName("some-service")
@@ -444,11 +430,6 @@ class TagInterceptorTest extends DDSpecification {
 
     then:
     span.getServiceName() == expected
-
-    cleanup:
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace." + ServiceNameTagInterceptor.getSimpleName().toLowerCase() + ".enabled")
-    }
 
     where:
     tag                 | name          | expected

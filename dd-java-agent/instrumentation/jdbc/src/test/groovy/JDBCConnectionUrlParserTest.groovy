@@ -1,10 +1,10 @@
+import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo
-import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
 import static datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser.parse
 
-class JDBCConnectionUrlParserTest extends DDSpecification {
+class JDBCConnectionUrlParserTest extends AgentTestRunner {
 
   @Shared
   def stdProps = {

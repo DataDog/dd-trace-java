@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.AgentTestRunner
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.trace_annotation.TraceConfigInstrumentation
 
@@ -7,16 +6,10 @@ import java.util.concurrent.Callable
 
 class TraceConfigTest extends AgentTestRunner {
 
-  static {
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.trace.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call]")
-    }
-  }
-
-  def specCleanup() {
-    ConfigUtils.updateConfig {
-      System.clearProperty("dd.trace.methods")
-    }
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.trace.methods", "package.ClassName[method1,method2];${ConfigTracedCallable.name}[call]")
   }
 
   class ConfigTracedCallable implements Callable<String> {
@@ -50,19 +43,14 @@ class TraceConfigTest extends AgentTestRunner {
 
   def "test configuration #value"() {
     setup:
-    ConfigUtils.updateConfig {
-      if (value) {
-        System.properties.setProperty("dd.trace.methods", value)
-      } else {
-        System.clearProperty("dd.trace.methods")
-      }
+    if (value) {
+      injectSysConfig("dd.trace.methods", value)
+    } else {
+      removeSysConfig("dd.trace.methods")
     }
 
     expect:
     new TraceConfigInstrumentation().classMethodsToTrace == expected
-
-    cleanup:
-    System.clearProperty("dd.trace.methods")
 
     where:
     value                                                           | expected

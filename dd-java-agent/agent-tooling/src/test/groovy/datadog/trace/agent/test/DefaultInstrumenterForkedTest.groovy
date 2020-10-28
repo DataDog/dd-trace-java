@@ -1,27 +1,12 @@
 package datadog.trace.agent.test
 
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.matcher.ElementMatcher
-import org.junit.Rule
-import org.junit.contrib.java.lang.system.EnvironmentVariables
-import org.junit.contrib.java.lang.system.RestoreSystemProperties
 
 class DefaultInstrumenterForkedTest extends DDSpecification {
-
-  @Rule
-  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties()
-  @Rule
-  public final EnvironmentVariables environmentVariables = new EnvironmentVariables()
-
-  def setup() {
-    assert System.getenv().findAll { it.key.startsWith("DD_") }.isEmpty()
-    assert System.getProperties().findAll { it.key.toString().startsWith("dd.") }.isEmpty()
-  }
-
   def "default enabled"() {
     setup:
     def target = new TestDefaultInstrumenter("test")
@@ -58,7 +43,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
   def "default disabled can override to enabled"() {
     setup:
-    System.setProperty("dd.integration.test.enabled", "$enabled")
+    injectSysConfig("integration.test.enabled", "$enabled")
     def target = new TestDefaultInstrumenter("test") {
       @Override
       protected boolean defaultEnabled() {
@@ -77,13 +62,13 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
   def "configure default sys prop as #value"() {
     setup:
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.integrations.enabled", value)
-    }
+    injectSysConfig("integrations.enabled", value)
+
+    when:
     def target = new TestDefaultInstrumenter("test")
     target.instrument(new AgentBuilder.Default())
 
-    expect:
+    then:
     target.enabled == enabled
     target.applyCalled == enabled
 
@@ -96,8 +81,7 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
   def "configure default env var as #value"() {
     setup:
-    environmentVariables.set("DD_INTEGRATIONS_ENABLED", value)
-    ConfigUtils.resetConfig()
+    injectEnvConfig("DD_INTEGRATIONS_ENABLED", value)
     def target = new TestDefaultInstrumenter("test")
     target.instrument(new AgentBuilder.Default())
 
@@ -114,8 +98,8 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
   def "configure sys prop enabled for #value when default is disabled"() {
     setup:
-    System.setProperty("dd.integrations.enabled", "false")
-    System.setProperty("dd.integration.${value}.enabled", "true")
+    injectSysConfig("integrations.enabled", "false")
+    injectSysConfig("integration.${value}.enabled", "true")
     def target = new TestDefaultInstrumenter(name, altName)
     target.instrument(new AgentBuilder.Default())
 
@@ -136,12 +120,14 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
 
   def "configure env var enabled for #value when default is disabled"() {
     setup:
-    environmentVariables.set("DD_INTEGRATIONS_ENABLED", "false")
-    environmentVariables.set("DD_INTEGRATION_${value}_ENABLED", "true")
+    injectEnvConfig("DD_INTEGRATIONS_ENABLED", "false")
+    injectEnvConfig("DD_INTEGRATION_${value}_ENABLED", "true")
+
+    when:
     def target = new TestDefaultInstrumenter(name, altName)
     target.instrument(new AgentBuilder.Default())
 
-    expect:
+    then:
     System.getenv("DD_INTEGRATION_${value}_ENABLED") == "true"
     target.enabled == enabled
     target.applyCalled == enabled

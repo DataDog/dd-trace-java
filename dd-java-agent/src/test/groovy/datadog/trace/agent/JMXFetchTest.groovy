@@ -80,7 +80,7 @@ class JMXFetchTest extends Specification {
 
     cleanup:
     names.each {
-      System.clearProperty("dd.integration.${it}.enabled")
+      System.clearProperty("dd.jmxfetch.${it}.enabled")
     }
 
     where:

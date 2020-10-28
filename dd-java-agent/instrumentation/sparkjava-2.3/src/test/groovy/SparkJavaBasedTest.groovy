@@ -10,9 +10,11 @@ import spock.lang.Shared
 
 class SparkJavaBasedTest extends AgentTestRunner {
 
-  static {
-    System.setProperty("dd.integration.jetty.enabled", "true")
-    System.setProperty("dd.integration.sparkjava.enabled", "true")
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.integration.jetty.enabled", "true")
+    injectSysConfig("dd.integration.sparkjava.enabled", "true")
   }
 
   @Shared

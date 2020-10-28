@@ -20,16 +20,11 @@ import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Statement
 
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 
 class JDBCInstrumentationTest extends AgentTestRunner {
-  static {
-    System.setProperty("dd.integration.jdbc-datasource.enabled", "true")
-  }
-
   @Shared
   def dbName = "jdbcUnitTest"
 
@@ -143,6 +138,13 @@ class JDBCInstrumentationTest extends AgentTestRunner {
     return ds
   }
 
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.integration.jdbc-datasource.enabled", "true")
+  }
+
   def setupSpec() {
     prepareConnectionPoolDatasources()
   }
@@ -161,14 +163,15 @@ class JDBCInstrumentationTest extends AgentTestRunner {
   @Unroll
   def "basic statement with #connection.getClass().getCanonicalName() on #driver generates spans"() {
     setup:
+    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService")
+
+    when:
     Statement statement = connection.createStatement()
     ResultSet resultSet = runUnderTrace("parent") {
-      withConfigOverride(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "$renameService") {
-        return statement.executeQuery(query)
-      }
+      return statement.executeQuery(query)
     }
 
-    expect:
+    then:
     resultSet.next()
     resultSet.getInt(1) == 3
     assertTraces(1) {

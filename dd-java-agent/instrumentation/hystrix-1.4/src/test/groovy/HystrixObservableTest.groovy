@@ -19,9 +19,13 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 @Retry
 @Timeout(10)
 class HystrixObservableTest extends AgentTestRunner {
-  static {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
     // Disable so failure testing below doesn't inadvertently change the behavior.
     System.setProperty("hystrix.command.default.circuitBreaker.enabled", "false")
+
     // hack to guarantee that that extra tags is enabled since it can't be guaranteed that
     // the Config singleton will not be initialised before this block runs.
     HystrixDecorator.DECORATE = new HystrixDecorator(true)

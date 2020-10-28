@@ -21,10 +21,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 // TODO: Figure out a better way to test with OSGi included.
 class GlassFishServerTest extends HttpServerTest<GlassFish> {
 
-//  static {
-//    System.setProperty("dd.integration.grizzly.enabled", "true")
-//  }
-
   @Override
   URI buildAddress() {
     return new URI("http://localhost:$port/$context/")

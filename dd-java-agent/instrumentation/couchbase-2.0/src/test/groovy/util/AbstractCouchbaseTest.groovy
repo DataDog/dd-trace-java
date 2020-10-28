@@ -25,7 +25,6 @@ import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
-import static datadog.trace.bootstrap.config.provider.SystemPropertiesConfigSource.PREFIX
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 abstract class AbstractCouchbaseTest extends AgentTestRunner {
@@ -60,6 +59,14 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
   @Shared
   CouchbaseMock mock
 
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    // This setting should have no effect since decorator returns null for the instance.
+    injectSysConfig(DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
+  }
+
   def setupSpec() {
     mock = new CouchbaseMock("127.0.0.1", port, 1, 1)
     mock.httpServer.register("/query", new QueryServer())
@@ -69,8 +76,6 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
     mock.createBucket(convert(bucketCouchbase))
     mock.createBucket(convert(bucketMemcache))
 
-    // This setting should have no effect since decorator returns null for the instance.
-    System.setProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE, "true")
   }
 
   private static BucketConfiguration convert(BucketSettings bucketSettings) {
@@ -85,8 +90,6 @@ abstract class AbstractCouchbaseTest extends AgentTestRunner {
 
   def cleanupSpec() {
     mock?.stop()
-
-    System.clearProperty(PREFIX + DB_CLIENT_HOST_SPLIT_BY_INSTANCE)
   }
 
   protected DefaultCouchbaseEnvironment.Builder envBuilder(BucketSettings bucketSettings) {

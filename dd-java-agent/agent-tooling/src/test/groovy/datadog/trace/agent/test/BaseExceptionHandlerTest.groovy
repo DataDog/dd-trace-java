@@ -68,10 +68,11 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
     testAppender.stop()
     transformer.reset(ByteBuddyAgent.getInstrumentation(), AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
 
-    resetConfig()
   }
 
   def setup() {
+    changeConfig()
+    
     exitStatus = new AtomicInteger(0)
 
     defaultSecurityManager = System.securityManager
@@ -83,8 +84,6 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
   }
 
   abstract protected void changeConfig()
-
-  abstract protected void resetConfig()
 
   abstract protected int expectedFailureExitStatus()
 

@@ -6,8 +6,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import spock.lang.Shared
 
-import static datadog.trace.agent.test.utils.ConfigUtils.withConfigOverride
-
 class HttpClientDecoratorTest extends ClientDecoratorTest {
 
   @Shared
@@ -17,12 +15,11 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
 
   def "test onRequest"() {
     setup:
+    injectSysConfig(Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService")
     def decorator = newDecorator()
 
     when:
-    withConfigOverride(Config.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN, "$renameService") {
-      decorator.onRequest(span, req)
-    }
+    decorator.onRequest(span, req)
 
     then:
     if (req) {
@@ -46,12 +43,11 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
 
   def "test url handling for #url"() {
     setup:
+    injectSysConfig(Config.HTTP_CLIENT_TAG_QUERY_STRING, "$tagQueryString")
     def decorator = newDecorator()
 
     when:
-    withConfigOverride(Config.HTTP_CLIENT_TAG_QUERY_STRING, "$tagQueryString") {
-      decorator.onRequest(span, req)
-    }
+    decorator.onRequest(span, req)
 
     then:
     if (expectedUrl) {

@@ -11,13 +11,16 @@ import spock.lang.Shared
 
 class GrizzlyAsyncHttpClientTest extends HttpClientTest {
 
-  static {
-    System.setProperty("dd.integration.grizzly-client.enabled", "true")
-  }
-
   @AutoCleanup
   @Shared
   def client = new AsyncHttpClient()
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.integration.grizzly-client.enabled", "true")
+  }
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {

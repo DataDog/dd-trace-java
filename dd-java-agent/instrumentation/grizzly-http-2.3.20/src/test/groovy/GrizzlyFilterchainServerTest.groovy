@@ -1,5 +1,4 @@
 import datadog.trace.agent.test.base.HttpServerTest
-
 import datadog.trace.instrumentation.grizzlyhttp232.GrizzlyDecorator
 import org.glassfish.grizzly.filterchain.BaseFilter
 import org.glassfish.grizzly.filterchain.FilterChain
@@ -35,13 +34,15 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static org.glassfish.grizzly.memory.Buffers.wrap
 
 class GrizzlyFilterchainServerTest extends HttpServerTest<HttpServer> {
-
-  static {
-    System.setProperty("dd.integration.grizzly-filterchain.enabled", "true")
-  }
-
   private TCPNIOTransport transport
   private TCPNIOServerConnection serverConnection
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+
+    injectSysConfig("dd.integration.grizzly-filterchain.enabled", "true")
+  }
 
   @Override
   HttpServer startServer(int port) {

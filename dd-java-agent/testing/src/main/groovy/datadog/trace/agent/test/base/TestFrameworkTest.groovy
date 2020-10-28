@@ -2,7 +2,6 @@ package datadog.trace.agent.test.base
 
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.decorator.TestDecorator
@@ -12,11 +11,11 @@ import spock.lang.Unroll
 @Unroll
 abstract class TestFrameworkTest extends AgentTestRunner {
 
-  static {
-    ConfigUtils.updateConfig {
-      System.setProperty("dd.integration.junit.enabled", "true")
-      System.setProperty("dd.integration.testng.enabled", "true")
-    }
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.integration.junit.enabled", "true")
+    injectSysConfig("dd.integration.testng.enabled", "true")
   }
 
   void testSpan(TraceAssert trace, int index, final String testSuite, final String testName, final String testStatus, final Map<String, String> testTags = null, final Throwable exception = null) {

@@ -43,7 +43,6 @@ dependencies {
   compile deps.okio
 
   testCompile project(":dd-java-agent:testing")
-  testCompile group: 'com.github.stefanbirkner', name: 'system-rules', version: '1.19.0'
 
   ot31CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-api', version: '0.31.0'
   ot31CompatabilityTestCompile group: 'io.opentracing', name: 'opentracing-util', version: '0.31.0'
