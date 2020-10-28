@@ -79,7 +79,6 @@ public class KotlinProbeInstrumentation extends Instrumenter.Default {
         @Advice.Return(readOnly = false) kotlin.coroutines.Continuation retVal) {
       if (!(retVal instanceof CoroutineWrapper)) {
         retVal = new CoroutineWrapper(retVal);
-        ;
       }
     }
   }

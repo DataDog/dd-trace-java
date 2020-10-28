@@ -8,11 +8,11 @@ class KotlinCoroutineInstrumentationTest extends AgentTestRunner {
   static dispatchersToTest = [
     Dispatchers.Default,
     Dispatchers.IO,
-    // Dispatchers.Unconfined,
+    //Dispatchers.Unconfined,
     ThreadPoolDispatcherKt.newSingleThreadContext("Single-Thread"),
-    ThreadPoolDispatcherKt.newFixedThreadPoolContext(2, "8-Fixed-Thread-Pool"),
+    ThreadPoolDispatcherKt.newFixedThreadPoolContext(2, "2-Fixed-Thread-Pool"),
     ThreadPoolDispatcherKt.newFixedThreadPoolContext(8, "8-Fixed-Thread-Pool"),
-    ]
+  ]
 
   def "kotlin traced across channels"() {
     setup:
