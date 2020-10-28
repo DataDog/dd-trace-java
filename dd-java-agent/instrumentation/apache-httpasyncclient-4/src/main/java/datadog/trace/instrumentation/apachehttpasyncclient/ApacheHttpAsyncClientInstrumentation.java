@@ -17,7 +17,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.context.TraceScope;
 import java.io.IOException;
 import java.util.Map;
@@ -85,7 +84,7 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
 
       final TraceScope parentScope = activeScope();
       final AgentSpan clientSpan = startSpan(HTTP_REQUEST);
-      clientSpan.setTag(InstrumentationTags.DD_MEASURED, true);
+      clientSpan.setMeasured(true);
       DECORATE.afterStart(clientSpan);
 
       requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);

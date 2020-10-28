@@ -17,6 +17,7 @@ import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies
 import static datadog.trace.core.serialization.msgpack.Util.integerToStringBuffer;
 import static datadog.trace.core.serialization.msgpack.Util.writeLongAsString;
 
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanData;
 import datadog.trace.core.TagsAndBaggageConsumer;
@@ -124,11 +125,25 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeUTF8(ERROR);
       writable.writeInt(span.getError());
       /* 11 */
-      writable.writeUTF8(METRICS);
-      writable.writeMap(span.getMetrics(), CONSTANT_KEYS);
+      writeMetrics(span, writable);
       /* 12 */
       writable.writeUTF8(META);
       span.processTagsAndBaggage(metaWriter.withWritable(writable));
+    }
+  }
+
+  private static void writeMetrics(DDSpanData span, Writable writable) {
+    writable.writeUTF8(METRICS);
+    Map<CharSequence, Number> metrics = span.getMetrics();
+    int elementCount = metrics.size() + (span.isMeasured() ? 1 : 0);
+    writable.startMap(elementCount);
+    if (span.isMeasured()) {
+      writable.writeUTF8(InstrumentationTags.DD_MEASURED);
+      writable.writeInt(1);
+    }
+    for (Map.Entry<CharSequence, Number> metric : metrics.entrySet()) {
+      writable.writeString(metric.getKey(), CONSTANT_KEYS);
+      writable.writeObject(metric.getValue(), NO_CACHING);
     }
   }
 

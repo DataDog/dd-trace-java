@@ -108,6 +108,12 @@ public class DDSpan implements AgentSpan, DDSpanData {
     return this;
   }
 
+  @Override
+  public AgentSpan setMeasured(boolean measured) {
+    context.setMeasured(measured);
+    return this;
+  }
+
   /**
    * Check if the span is the root parent. It means that the traceId is the same as the spanId. In
    * the context of distributed tracing this will return true if an only if this is the application
@@ -402,16 +408,17 @@ public class DDSpan implements AgentSpan, DDSpanData {
   }
 
   @Override
+  public boolean isMeasured() {
+    return context.isMeasured();
+  }
+
+  @Override
   public Map<String, String> getBaggage() {
     return Collections.unmodifiableMap(context.getBaggageItems());
   }
 
   @Override
   public String toString() {
-    return new StringBuilder()
-        .append(context.toString())
-        .append(", duration_ns=")
-        .append(durationNano)
-        .toString();
+    return context.toString() + ", duration_ns=" + durationNano;
   }
 }

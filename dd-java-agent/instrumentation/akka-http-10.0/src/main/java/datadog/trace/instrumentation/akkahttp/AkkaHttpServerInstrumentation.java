@@ -17,7 +17,6 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.context.TraceScope;
 import java.util.HashMap;
@@ -99,7 +98,7 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
     public static AgentScope createSpan(final HttpRequest request) {
       final AgentSpan.Context extractedContext = propagate().extract(request, GETTER);
       final AgentSpan span = startSpan(AKKA_REQUEST, extractedContext);
-      span.setTag(InstrumentationTags.DD_MEASURED, true);
+      span.setMeasured(true);
 
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, request);

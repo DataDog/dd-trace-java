@@ -10,7 +10,6 @@ import static datadog.trace.instrumentation.netty41.client.NettyResponseInjectAd
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.context.TraceScope;
 import datadog.trace.instrumentation.netty41.AttributeKeys;
 import io.netty.channel.ChannelHandlerContext;
@@ -42,7 +41,7 @@ public class HttpClientRequestTracingHandler extends ChannelOutboundHandlerAdapt
     ctx.channel().attr(AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY).set(activeSpan());
 
     final AgentSpan span = startSpan(NETTY_CLIENT_REQUEST);
-    span.setTag(InstrumentationTags.DD_MEASURED, true);
+    span.setMeasured(true);
     try (final AgentScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);

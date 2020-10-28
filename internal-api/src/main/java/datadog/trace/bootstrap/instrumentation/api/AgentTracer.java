@@ -381,6 +381,11 @@ public class AgentTracer {
     }
 
     @Override
+    public AgentSpan setMeasured(boolean measured) {
+      return this;
+    }
+
+    @Override
     public MutableSpan getRootSpan() {
       return this;
     }

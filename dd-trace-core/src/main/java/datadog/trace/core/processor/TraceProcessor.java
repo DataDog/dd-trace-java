@@ -7,7 +7,6 @@ import datadog.trace.core.processor.rule.AnalyticsSampleRateRule;
 import datadog.trace.core.processor.rule.DBStatementRule;
 import datadog.trace.core.processor.rule.ErrorRule;
 import datadog.trace.core.processor.rule.HttpStatusErrorRule;
-import datadog.trace.core.processor.rule.MarkSpanForMetricCalculationRule;
 import datadog.trace.core.processor.rule.ResourceNameRule;
 import datadog.trace.core.processor.rule.URLAsResourceNameRule;
 import java.util.ArrayList;
@@ -25,7 +24,6 @@ public class TraceProcessor {
         new HttpStatusErrorRule(),
         new URLAsResourceNameRule(),
         new AnalyticsSampleRateRule(),
-        new MarkSpanForMetricCalculationRule(),
       };
 
   private final List<Rule> rules;

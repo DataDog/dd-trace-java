@@ -23,6 +23,8 @@ public interface DDSpanData {
 
   int getError();
 
+  boolean isMeasured();
+
   Map<CharSequence, Number> getMetrics();
 
   Map<String, String> getBaggage();

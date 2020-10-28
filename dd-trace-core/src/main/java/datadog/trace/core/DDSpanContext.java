@@ -68,6 +68,8 @@ public class DDSpanContext implements AgentSpan.Context {
   private volatile CharSequence spanType;
   /** True indicates that the span reports an error */
   private volatile boolean errorFlag;
+
+  private volatile boolean measuredFlag;
   /**
    * When true, the samplingPriority cannot be changed. This prevents the sampling flag from
    * changing after the context has propagated.
@@ -202,7 +204,19 @@ public class DDSpanContext implements AgentSpan.Context {
   }
 
   public void setErrorFlag(final boolean errorFlag) {
-    this.errorFlag = errorFlag;
+    if (errorFlag != this.errorFlag) {
+      this.errorFlag = errorFlag;
+    }
+  }
+
+  public boolean isMeasured() {
+    return measuredFlag;
+  }
+
+  public void setMeasured(boolean measured) {
+    if (measured != measuredFlag) {
+      measuredFlag = measured;
+    }
   }
 
   public CharSequence getSpanType() {
