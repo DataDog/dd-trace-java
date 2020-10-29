@@ -21,7 +21,7 @@ ext {
     jnr_unixsocket: "0.28",
     commons       : "3.2",
     mockito       : '3.5.10',
-    testcontainers: '1.12.2',
+    testcontainers: '1.15.0-rc2',
     jmc           : "8.0.0-SNAPSHOT",
     autoservice   : "1.0-rc7"
   ]
