@@ -2,9 +2,12 @@ package datadog.trace.agent.tooling.bytebuddy;
 
 import static net.bytebuddy.agent.builder.AgentBuilder.PoolStrategy;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
+import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
+import datadog.trace.agent.tooling.AgentTooling;
+import datadog.trace.api.Function;
+import datadog.trace.bootstrap.WeakCache;
 import java.lang.ref.WeakReference;
+import java.util.concurrent.ConcurrentMap;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.annotation.AnnotationList;
 import net.bytebuddy.description.method.MethodDescription;
@@ -56,23 +59,16 @@ public class DDCachingPoolStrategy implements PoolStrategy {
    *   <li>Allow for quick fast path equivalence check of composite keys
    * </ul>
    */
-  final Cache<ClassLoader, WeakReference<ClassLoader>> loaderRefCache =
-      CacheBuilder.newBuilder()
-          .weakKeys()
-          .concurrencyLevel(CONCURRENCY_LEVEL)
-          .initialCapacity(LOADER_CAPACITY / 2)
-          .maximumSize(LOADER_CAPACITY)
-          .build();
+  final WeakCache<ClassLoader, WeakReference<ClassLoader>> loaderRefCache =
+      AgentTooling.newWeakCache(LOADER_CAPACITY);
 
   /**
    * Single shared Type.Resolution cache -- uses a composite key -- conceptually of loader & name
    */
-  final Cache<TypeCacheKey, TypePool.Resolution> sharedResolutionCache =
-      CacheBuilder.newBuilder()
-          .softValues()
+  final ConcurrentMap<TypeCacheKey, TypePool.Resolution> sharedResolutionCache =
+      new ConcurrentLinkedHashMap.Builder<TypeCacheKey, TypePool.Resolution>()
+          .maximumWeightedCapacity(TYPE_CAPACITY)
           .concurrencyLevel(CONCURRENCY_LEVEL)
-          .initialCapacity(TYPE_CAPACITY)
-          .maximumSize(TYPE_CAPACITY)
           .build();
 
   /** Fast path for bootstrap */
@@ -86,12 +82,15 @@ public class DDCachingPoolStrategy implements PoolStrategy {
       return createCachingTypePool(bootstrapCacheProvider, classFileLocator);
     }
 
-    WeakReference<ClassLoader> loaderRef = loaderRefCache.getIfPresent(classLoader);
-
-    if (loaderRef == null) {
-      loaderRef = new WeakReference<>(classLoader);
-      loaderRefCache.put(classLoader, loaderRef);
-    }
+    WeakReference<ClassLoader> loaderRef =
+        loaderRefCache.computeIfAbsent(
+            classLoader,
+            new Function<ClassLoader, WeakReference<ClassLoader>>() {
+              @Override
+              public WeakReference<ClassLoader> apply(ClassLoader input) {
+                return new WeakReference<>(input);
+              }
+            });
 
     final int loaderHash = classLoader.hashCode();
     return createCachingTypePool(loaderHash, loaderRef, classFileLocator);
@@ -116,10 +115,6 @@ public class DDCachingPoolStrategy implements PoolStrategy {
       final TypePool.CacheProvider cacheProvider, final ClassFileLocator classFileLocator) {
     return new TypePool.Default.WithLazyResolution(
         cacheProvider, classFileLocator, TypePool.Default.ReaderMode.FAST);
-  }
-
-  final long approximateSize() {
-    return sharedResolutionCache.size();
   }
 
   /**
@@ -205,12 +200,12 @@ public class DDCachingPoolStrategy implements PoolStrategy {
 
     private final int loaderHash;
     private final WeakReference<ClassLoader> loaderRef;
-    private final Cache<TypeCacheKey, TypePool.Resolution> sharedResolutionCache;
+    private final ConcurrentMap<TypeCacheKey, TypePool.Resolution> sharedResolutionCache;
 
     SharedResolutionCacheAdapter(
         final int loaderHash,
         final WeakReference<ClassLoader> loaderRef,
-        final Cache<TypeCacheKey, TypePool.Resolution> sharedResolutionCache) {
+        final ConcurrentMap<TypeCacheKey, TypePool.Resolution> sharedResolutionCache) {
       this.loaderHash = loaderHash;
       this.loaderRef = loaderRef;
       this.sharedResolutionCache = sharedResolutionCache;
@@ -219,7 +214,7 @@ public class DDCachingPoolStrategy implements PoolStrategy {
     @Override
     public TypePool.Resolution find(final String className) {
       final TypePool.Resolution existingResolution =
-          sharedResolutionCache.getIfPresent(new TypeCacheKey(loaderHash, loaderRef, className));
+          sharedResolutionCache.get(new TypeCacheKey(loaderHash, loaderRef, className));
       if (existingResolution != null) {
         return existingResolution;
       }
