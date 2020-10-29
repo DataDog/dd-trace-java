@@ -5,8 +5,6 @@ import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
 import datadog.trace.bootstrap.WeakCache;
 import datadog.trace.bootstrap.WeakCache.Provider;
 import datadog.trace.bootstrap.WeakMap;
-import java.util.Iterator;
-import java.util.ServiceLoader;
 
 /**
  * This class contains class references for objects shared by the agent installer as well as muzzle
@@ -27,18 +25,26 @@ public class AgentTooling {
     }
   }
 
-  private static <K, V> Provider loadWeakCacheProvider() {
-    final Iterator<Provider> providers =
-        ServiceLoader.load(Provider.class, AgentInstaller.class.getClassLoader()).iterator();
-    if (providers.hasNext()) {
-      final Provider provider = providers.next();
-      if (providers.hasNext()) {
-        throw new IllegalStateException(
-            "Only one implementation of WeakCache.Provider suppose to be in classpath");
+  private static Provider loadWeakCacheProvider() {
+    ClassLoader classLoader = AgentInstaller.class.getClassLoader();
+    Class<Provider> providerClass;
+
+    String version = System.getProperty("java.version");
+    try {
+      if (version == null || version.startsWith("1.7")) {
+        providerClass =
+            (Class<Provider>)
+                classLoader.loadClass("datadog.trace.agent.tooling.CLHMWeakCache$Provider");
+      } else {
+        providerClass =
+            (Class<Provider>)
+                classLoader.loadClass("datadog.trace.agent.tooling.CaffeineWeakCache$Provider");
       }
-      return provider;
+
+      return providerClass.getDeclaredConstructor().newInstance();
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("Can't load implementation of WeakCache.Provider", e);
     }
-    throw new IllegalStateException("Can't load implementation of WeakCache.Provider");
   }
 
   private static final long DEFAULT_CACHE_CAPACITY = 32;
