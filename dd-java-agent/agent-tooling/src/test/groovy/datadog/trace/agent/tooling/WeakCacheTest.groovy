@@ -1,8 +1,7 @@
 package datadog.trace.agent.tooling
 
+import datadog.trace.api.Function
 import spock.lang.Specification
-
-import java.util.concurrent.Callable
 
 class WeakCacheTest extends Specification {
   def supplier = new CounterSupplier()
@@ -68,11 +67,11 @@ class WeakCacheTest extends Specification {
     weakCacheFor1elem.cache.size() == 1
   }
 
-  class CounterSupplier implements Callable<Integer> {
+  class CounterSupplier implements Function<String, Integer> {
     def counter = 0
 
     @Override
-    Integer call() {
+    Integer apply(String ignored) {
       counter = counter + 1
       return counter
     }

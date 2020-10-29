@@ -1,19 +1,15 @@
 package datadog.trace.bootstrap;
 
-import java.util.concurrent.Callable;
+import datadog.trace.api.Function;
 
 public interface WeakCache<K, V> {
-  interface Provider<K, V> {
-    WeakCache<K, V> newWeakCache();
-
-    WeakCache<K, V> newWeakCache(final long maxSize);
+  interface Provider {
+    <K, V> WeakCache<K, V> newWeakCache(long maxSize);
   }
 
   V getIfPresent(final K key);
 
-  V getIfPresentOrCompute(final K key, final Callable<? extends V> loader);
-
-  V get(final K key, final Callable<? extends V> loader);
+  V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction);
 
   void put(final K key, final V value);
 }
