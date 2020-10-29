@@ -41,13 +41,14 @@ public class AgentTooling {
     throw new IllegalStateException("Can't load implementation of WeakCache.Provider");
   }
 
+  private static final long DEFAULT_CACHE_CAPACITY = 32;
   private static final Provider weakCacheProvider = loadWeakCacheProvider();
 
   private static final DDLocationStrategy LOCATION_STRATEGY = new DDLocationStrategy();
   private static final DDCachingPoolStrategy POOL_STRATEGY = new DDCachingPoolStrategy();
 
   public static <K, V> WeakCache<K, V> newWeakCache() {
-    return weakCacheProvider.newWeakCache();
+    return newWeakCache(DEFAULT_CACHE_CAPACITY);
   }
 
   public static <K, V> WeakCache<K, V> newWeakCache(final long maxSize) {
