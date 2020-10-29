@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jms;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
@@ -62,7 +61,7 @@ public final class JMSDecorator extends ClientDecorator {
 
   public void onConsume(final AgentSpan span, final Message message) {
     span.setTag(DDTags.RESOURCE_NAME, "Consumed from " + toResourceName(message, null));
-    span.setTag(InstrumentationTags.DD_MEASURED, true);
+    span.setMeasured(true);
   }
 
   public void onReceive(final AgentSpan span, final Method method) {
@@ -76,7 +75,7 @@ public final class JMSDecorator extends ClientDecorator {
   public void onProduce(
       final AgentSpan span, final Message message, final Destination destination) {
     span.setTag(DDTags.RESOURCE_NAME, "Produced for " + toResourceName(message, destination));
-    span.setTag(InstrumentationTags.DD_MEASURED, true);
+    span.setMeasured(true);
   }
 
   private static final String TIBCO_TMP_PREFIX = "$TMP$";

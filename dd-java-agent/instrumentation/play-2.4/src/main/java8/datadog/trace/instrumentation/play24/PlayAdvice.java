@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.play24.PlayHttpServerDecorator.PLAY_
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import net.bytebuddy.asm.Advice;
 import play.api.mvc.Action;
@@ -37,7 +36,7 @@ public class PlayAdvice {
       // Do not extract the context.
       span = startSpan(PLAY_REQUEST);
     }
-    span.setTag(InstrumentationTags.DD_MEASURED, true);
+    span.setMeasured(true);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, req);
 

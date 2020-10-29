@@ -22,7 +22,6 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -99,7 +98,7 @@ public class GoogleHttpClientInstrumentation extends Instrumenter.Default {
       }
 
       final AgentSpan span = state.getSpan();
-      span.setTag(InstrumentationTags.DD_MEASURED, true);
+      span.setMeasured(true);
 
       try (final AgentScope scope = activateSpan(span)) {
         DECORATE.afterStart(span);

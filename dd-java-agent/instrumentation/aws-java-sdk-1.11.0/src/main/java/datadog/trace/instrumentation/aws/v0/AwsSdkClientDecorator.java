@@ -10,7 +10,6 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
 import java.net.URI;
@@ -58,7 +57,7 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
     span.setTag("aws.endpoint", request.getEndpoint().toString());
 
     span.setTag(DDTags.RESOURCE_NAME, cache.getQualifiedName(awsOperation, awsServiceName));
-    span.setTag(InstrumentationTags.DD_MEASURED, true);
+    span.setMeasured(true);
 
     if (contextStore != null) {
       final RequestMeta requestMeta = contextStore.get(originalRequest);

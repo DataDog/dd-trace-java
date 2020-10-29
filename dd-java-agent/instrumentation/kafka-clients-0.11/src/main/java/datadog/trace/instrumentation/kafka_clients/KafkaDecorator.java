@@ -13,7 +13,6 @@ import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
@@ -81,7 +80,7 @@ public class KafkaDecorator extends ClientDecorator {
           CONSUMER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, CONSUMER_PREFIX));
       span.setTag(PARTITION, record.partition());
       span.setTag(OFFSET, record.offset());
-      span.setTag(InstrumentationTags.DD_MEASURED, true);
+      span.setMeasured(true);
       // TODO - do we really need both? This mechanism already adds a lot of... baggage.
       // check to not record a duration if the message was sent from an old Kafka client
       if (record.timestampType() != TimestampType.NO_TIMESTAMP_TYPE) {
@@ -121,7 +120,7 @@ public class KafkaDecorator extends ClientDecorator {
       span.setTag(
           DDTags.RESOURCE_NAME,
           PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));
-      span.setTag(InstrumentationTags.DD_MEASURED, true);
+      span.setMeasured(true);
     }
   }
 }

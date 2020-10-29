@@ -15,9 +15,21 @@ import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 import java.util.concurrent.atomic.AtomicInteger
 
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
 import static datadog.trace.common.writer.ddagent.TraceGenerator.generateRandomTraces
 import static org.junit.Assert.assertEquals
-import static org.msgpack.core.MessageFormat.*
+import static org.msgpack.core.MessageFormat.FLOAT32
+import static org.msgpack.core.MessageFormat.FLOAT64
+import static org.msgpack.core.MessageFormat.INT16
+import static org.msgpack.core.MessageFormat.INT32
+import static org.msgpack.core.MessageFormat.INT64
+import static org.msgpack.core.MessageFormat.INT8
+import static org.msgpack.core.MessageFormat.NEGFIXINT
+import static org.msgpack.core.MessageFormat.POSFIXINT
+import static org.msgpack.core.MessageFormat.UINT16
+import static org.msgpack.core.MessageFormat.UINT32
+import static org.msgpack.core.MessageFormat.UINT64
+import static org.msgpack.core.MessageFormat.UINT8
 
 class TraceMapperV05PayloadTest extends DDSpecification {
 
@@ -45,7 +57,8 @@ class TraceMapperV05PayloadTest extends DDSpecification {
         Collections.emptyMap(),
         Collections.emptyMap(),
         Collections.emptyMap(),
-        UUID.randomUUID().toString()
+        UUID.randomUUID().toString(),
+        false
       )))
     }
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize)
@@ -83,7 +96,8 @@ class TraceMapperV05PayloadTest extends DDSpecification {
       Collections.emptyMap(),
       Collections.emptyMap(),
       Collections.emptyMap(),
-      UUID.randomUUID().toString()))
+      UUID.randomUUID().toString(),
+      false))
     int traceSize = calculateSize(repeatedTrace)
     int tracesRequiredToOverflowBody = traceMapper.messageBufferSize() / traceSize
     List<List<DDSpanData>> traces = new ArrayList<>(tracesRequiredToOverflowBody)
@@ -262,7 +276,11 @@ class TraceMapperV05PayloadTest extends DDSpecification {
                 default:
                   Assert.fail("Unexpected type in metrics values: " + format)
               }
-              metrics.put(key, n)
+              if (DD_MEASURED.toString() == key) {
+                assert ((n == 1) && expectedSpan.isMeasured()) || !expectedSpan.isMeasured()
+              } else {
+                metrics.put(key, n)
+              }
             }
             for (Map.Entry<String, Number> metric : metrics.entrySet()) {
               if (metric.getValue() instanceof Double) {

@@ -64,7 +64,8 @@ class TraceGenerator {
       metrics,
       baggage,
       tags,
-      "type-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100))
+      "type-" + ThreadLocalRandom.current().nextInt(lowCardinality ? 1 : 100),
+      ThreadLocalRandom.current().nextBoolean())
   }
 
   private static String randomString(int maxLength) {
@@ -100,6 +101,7 @@ class TraceGenerator {
     private final Map<String, String> baggage
     private final Map<String, Object> tags
     private final String type
+    private final boolean measured
 
     PojoSpan(
       String serviceName,
@@ -114,7 +116,8 @@ class TraceGenerator {
       Map<String, Number> metrics,
       Map<String, String> baggage,
       Map<String, Object> tags,
-      String type) {
+      String type,
+      boolean measured) {
       this.serviceName = UTF8BytesString.create(serviceName)
       this.operationName = UTF8BytesString.create(operationName)
       this.resourceName = UTF8BytesString.create(resourceName)
@@ -128,6 +131,7 @@ class TraceGenerator {
       this.baggage = baggage
       this.tags = tags
       this.type = type
+      this.measured = measured
     }
 
     @Override
@@ -173,6 +177,11 @@ class TraceGenerator {
     @Override
     int getError() {
       return error
+    }
+
+    @Override
+    boolean isMeasured() {
+      return measured
     }
 
     @Override

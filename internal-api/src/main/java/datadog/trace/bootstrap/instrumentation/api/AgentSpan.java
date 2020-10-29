@@ -41,6 +41,8 @@ public interface AgentSpan extends MutableSpan {
   @Override
   AgentSpan setError(boolean error);
 
+  AgentSpan setMeasured(boolean measured);
+
   AgentSpan setErrorMessage(String errorMessage);
 
   AgentSpan addThrowable(Throwable throwable);

@@ -115,14 +115,18 @@ class TraceProcessorTest extends DDSpecification {
   }
 
   def "convert _dd.measured to metric"() {
-    setup:
-    span.setTag(InstrumentationTags.DD_MEASURED, true)
+    when:
+    span.setMeasured(true)
+
+    then:
+    span.isMeasured()
 
     when:
     processor.onTraceComplete(trace)
 
     then:
-    span.metrics.get(InstrumentationTags.DD_MEASURED) == 1
+    span.isMeasured()
+    span.metrics.get(InstrumentationTags.DD_MEASURED) == null
     span.tags.get(InstrumentationTags.DD_MEASURED) == null
   }
 }

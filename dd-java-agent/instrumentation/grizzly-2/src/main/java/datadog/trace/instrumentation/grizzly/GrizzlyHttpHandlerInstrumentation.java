@@ -19,7 +19,6 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan.Context;
-import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -75,7 +74,7 @@ public class GrizzlyHttpHandlerInstrumentation extends Instrumenter.Default {
 
       final Context parentContext = propagate().extract(request, GETTER);
       final AgentSpan span = startSpan(GRIZZLY_REQUEST, parentContext);
-      span.setTag(InstrumentationTags.DD_MEASURED, true);
+      span.setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, request);
       DECORATE.onRequest(span, request);

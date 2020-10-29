@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_COMMAND;
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MESSAGE_SIZE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
@@ -83,7 +82,7 @@ public class TracedDelegatingConsumer implements Consumer {
       final AgentSpan span =
           startSpan(AMQP_COMMAND, context)
               .setTag(MESSAGE_SIZE, body == null ? 0 : body.length)
-              .setTag(DD_MEASURED, true);
+              .setMeasured(true);
       CONSUMER_DECORATE.afterStart(span);
       CONSUMER_DECORATE.onDeliver(span, queue, envelope);
       final long spanStartTime = NANOSECONDS.toMillis(span.getStartTime());
