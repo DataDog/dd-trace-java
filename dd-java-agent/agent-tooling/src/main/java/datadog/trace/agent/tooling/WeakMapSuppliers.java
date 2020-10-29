@@ -1,6 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import com.blogspot.mydailyjava.weaklockfree.WeakConcurrentMap;
+import datadog.trace.api.Function;
 import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Task;
@@ -92,13 +93,13 @@ class WeakMapSuppliers {
       }
 
       @Override
-      public V computeIfAbsent(final K key, final ValueSupplier<? super K, ? extends V> supplier) {
+      public V computeIfAbsent(final K key, final Function<? super K, ? extends V> supplier) {
         V value = map.get(key);
         if (null == value) {
           synchronized (locks[key.hashCode() & (locks.length - 1)]) {
             value = map.get(key);
             if (null == value) {
-              value = supplier.get(key);
+              value = supplier.apply(key);
               map.put(key, value);
             }
           }
