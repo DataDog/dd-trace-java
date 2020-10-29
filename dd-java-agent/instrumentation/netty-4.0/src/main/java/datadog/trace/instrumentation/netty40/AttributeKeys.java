@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.netty40;
 
+import datadog.trace.api.Function;
 import datadog.trace.bootstrap.WeakMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.context.TraceScope;
@@ -12,14 +13,13 @@ import java.util.concurrent.ConcurrentMap;
 public class AttributeKeys {
   private static final WeakMap<ClassLoader, ConcurrentMap<String, AttributeKey<?>>> map =
       WeakMap.Implementation.DEFAULT.get();
-  private static final WeakMap.ValueSupplier<ClassLoader, ConcurrentMap<String, AttributeKey<?>>>
-      mapSupplier =
-          new WeakMap.ValueSupplier<ClassLoader, ConcurrentMap<String, AttributeKey<?>>>() {
-            @Override
-            public ConcurrentMap<String, AttributeKey<?>> get(final ClassLoader ignore) {
-              return new ConcurrentHashMap<>();
-            }
-          };
+  private static final Function<ClassLoader, ConcurrentMap<String, AttributeKey<?>>> mapSupplier =
+      new Function<ClassLoader, ConcurrentMap<String, AttributeKey<?>>>() {
+        @Override
+        public ConcurrentMap<String, AttributeKey<?>> apply(final ClassLoader ignore) {
+          return new ConcurrentHashMap<>();
+        }
+      };
 
   public static final AttributeKey<TraceScope.Continuation>
       PARENT_CONNECT_CONTINUATION_ATTRIBUTE_KEY =

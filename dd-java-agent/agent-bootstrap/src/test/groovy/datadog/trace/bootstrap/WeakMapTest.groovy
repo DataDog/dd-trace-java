@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap
 
+import datadog.trace.api.Function
 import spock.lang.Specification
 
 class WeakMapTest extends Specification {
@@ -39,12 +40,12 @@ class WeakMapTest extends Specification {
     supplier.counter == 2
   }
 
-  class CounterSupplier implements WeakMap.ValueSupplier<String, Integer> {
+  class CounterSupplier implements Function<String, Integer> {
 
     def counter = 0
 
     @Override
-    Integer get(String ignored) {
+    Integer apply(String ignored) {
       counter = counter + 1
       return counter
     }
