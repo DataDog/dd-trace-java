@@ -31,6 +31,7 @@ import datadog.trace.core.jfr.DDNoopScopeEventFactory;
 import datadog.trace.core.jfr.DDScopeEventFactory;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
+import datadog.trace.core.processor.TraceProcessor;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.TagContext;
@@ -104,6 +105,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   private final Recording traceWriteTimer;
   private final IdGenerationStrategy idGenerationStrategy;
   private final PendingTrace.Factory pendingTraceFactory;
+  private final TraceProcessor traceProcessor = new TraceProcessor();
 
   /**
    * JVM shutdown callback, keeping a reference to it to remove this if DDTracer gets destroyed
@@ -425,6 +427,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     }
 
     if (!writtenTrace.isEmpty()) {
+      writtenTrace = traceProcessor.onTraceComplete(writtenTrace);
       final DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
       setSamplingPriorityIfNecessary(rootSpan);
 
