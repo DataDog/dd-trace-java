@@ -117,6 +117,10 @@ public class DDCachingPoolStrategy implements PoolStrategy {
         cacheProvider, classFileLocator, TypePool.Default.ReaderMode.FAST);
   }
 
+  final long approximateSize() {
+    return sharedResolutionCache.size();
+  }
+
   /**
    * TypeCacheKey is key for the sharedResolutionCache. Conceptually, it is a mix of ClassLoader &
    * class name.
