@@ -45,9 +45,7 @@ public final class NewTaskFor {
     if (null != NEW_TASK_FOR_RUNNABLE && executor instanceof AbstractExecutorService) {
       try {
         return (RunnableFuture<Void>) NEW_TASK_FOR_RUNNABLE.invoke(executor, runnable, null);
-      } catch (Throwable t) {
-        log.debug("failed to invoke newTaskFor on {}", executor, t);
-      }
+      } catch (Throwable ignore ) { }
     }
     return new FutureTask<>(runnable, null);
   }
