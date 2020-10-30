@@ -5,12 +5,14 @@ import datadog.trace.agent.tooling.bytebuddy.DDLocationStrategy;
 import datadog.trace.bootstrap.WeakCache;
 import datadog.trace.bootstrap.WeakCache.Provider;
 import datadog.trace.bootstrap.WeakMap;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * This class contains class references for objects shared by the agent installer as well as muzzle
  * (both compile and runtime). Extracted out from AgentInstaller to begin separating some of the
  * logic out.
  */
+@Slf4j
 public class AgentTooling {
 
   static {
@@ -35,10 +37,12 @@ public class AgentTooling {
         providerClass =
             (Class<Provider>)
                 classLoader.loadClass("datadog.trace.agent.tooling.CLHMWeakCache$Provider");
+        log.debug("Using CLHMWeakCache Provider");
       } else {
         providerClass =
             (Class<Provider>)
                 classLoader.loadClass("datadog.trace.agent.tooling.CaffeineWeakCache$Provider");
+        log.debug("Using CaffeineWeakCache Provider");
       }
 
       return providerClass.getDeclaredConstructor().newInstance();
