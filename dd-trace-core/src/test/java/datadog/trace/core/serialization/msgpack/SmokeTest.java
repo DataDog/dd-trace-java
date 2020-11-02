@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import datadog.trace.core.serialization.ByteBufferConsumer;
+import datadog.trace.core.serialization.Codec;
 import datadog.trace.core.serialization.EncodingCache;
 import datadog.trace.core.serialization.EncodingCachingStrategies;
 import datadog.trace.core.serialization.Mapper;
@@ -58,8 +59,8 @@ public class SmokeTest {
   public void testWriteMessage() {
     final Foo message = Foo.create();
     ByteBuffer buffer = ByteBuffer.allocate(1024);
-    MsgPacker packer =
-        new MsgPacker(
+    MsgPackWriter packer =
+        new MsgPackWriter(
             Codec.INSTANCE,
             new ByteBufferConsumer() {
               @Override

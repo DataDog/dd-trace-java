@@ -16,7 +16,7 @@ import datadog.trace.core.monitor.HealthMetrics
 import datadog.trace.core.monitor.Monitoring
 import datadog.trace.core.serialization.ByteBufferConsumer
 import datadog.trace.core.serialization.Mapper
-import datadog.trace.core.serialization.msgpack.MsgPacker
+import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Retry
 import spock.lang.Timeout
@@ -719,7 +719,7 @@ class DDAgentWriterCombinedTest extends DDSpecification {
   static int calculateSize(List<DDSpan> trace, Mapper<List<DDSpan>> mapper) {
     ByteBuffer buffer = ByteBuffer.allocate(1024)
     AtomicInteger size = new AtomicInteger()
-    def packer = new MsgPacker(new ByteBufferConsumer() {
+    def packer = new MsgPackWriter(new ByteBufferConsumer() {
       @Override
       void accept(int messageCount, ByteBuffer buffy) {
         size.set(buffy.limit() - buffy.position() - 1)

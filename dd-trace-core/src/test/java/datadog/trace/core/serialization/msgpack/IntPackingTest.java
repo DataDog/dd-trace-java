@@ -99,7 +99,7 @@ public class IntPackingTest {
   public void packLongs() {
     ByteBuffer buffer = ByteBuffer.allocate(input.length * 9 + 10);
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -136,7 +136,7 @@ public class IntPackingTest {
     }
     ByteBuffer buffer = ByteBuffer.allocate(input.length * 5 + 10);
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {

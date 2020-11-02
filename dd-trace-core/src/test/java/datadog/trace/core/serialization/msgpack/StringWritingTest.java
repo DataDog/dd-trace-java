@@ -144,8 +144,8 @@ public class StringWritingTest {
 
   @Test
   public void testSerialiseTextMapWithCache() {
-    MsgPacker packer =
-        new MsgPacker(
+    MsgPackWriter packer =
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffer) {
@@ -168,8 +168,8 @@ public class StringWritingTest {
 
   @Test
   public void testSerialiseTextMapWithoutCache() {
-    MsgPacker packer =
-        new MsgPacker(
+    MsgPackWriter packer =
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffer) {
