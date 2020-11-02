@@ -1,17 +1,18 @@
 package datadog.trace.common.writer.ddagent;
 
-import static datadog.trace.core.serialization.msgpack.EncodingCachingStrategies.NO_CACHING;
-import static datadog.trace.core.serialization.msgpack.Util.integerToStringBuffer;
-import static datadog.trace.core.serialization.msgpack.Util.writeLongAsString;
+import static datadog.trace.core.serialization.EncodingCachingStrategies.NO_CACHING;
+import static datadog.trace.core.serialization.Util.integerToStringBuffer;
+import static datadog.trace.core.serialization.Util.writeLongAsString;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanData;
 import datadog.trace.core.StringTables;
 import datadog.trace.core.TagsAndBaggageConsumer;
-import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
-import datadog.trace.core.serialization.msgpack.Mapper;
-import datadog.trace.core.serialization.msgpack.Packer;
-import datadog.trace.core.serialization.msgpack.Writable;
+import datadog.trace.core.serialization.ByteBufferConsumer;
+import datadog.trace.core.serialization.Mapper;
+import datadog.trace.core.serialization.Writable;
+import datadog.trace.core.serialization.WritableFormatter;
+import datadog.trace.core.serialization.msgpack.MsgPacker;
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
@@ -28,7 +29,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
   private static final DictionaryFull DICTIONARY_FULL = new DictionaryFull();
 
   private final ByteBuffer[] dictionary = new ByteBuffer[1];
-  private final Packer dictionaryWriter;
+  private final WritableFormatter dictionaryWriter;
   private final DictionaryMapper dictionaryMapper = new DictionaryMapper();
   private final Map<Object, Integer> encoding = new HashMap<>();
 
@@ -40,7 +41,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   public TraceMapperV0_5(final int bufferSize) {
     this.dictionaryWriter =
-        new Packer(
+        new MsgPacker(
             new ByteBufferConsumer() {
               @Override
               public void accept(final int messageCount, final ByteBuffer buffer) {

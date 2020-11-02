@@ -6,8 +6,8 @@ import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
-import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
-import datadog.trace.core.serialization.msgpack.Packer
+import datadog.trace.core.serialization.ByteBufferConsumer
+import datadog.trace.core.serialization.msgpack.MsgPacker
 import datadog.trace.test.util.DDSpecification
 import org.msgpack.core.MessageFormat
 import org.msgpack.core.MessagePack
@@ -26,7 +26,7 @@ class DDSpanSerializationTest extends DDSpecification {
     def span = DDSpan.create(0, context)
     def buffer = ByteBuffer.allocate(1024)
     CaptureBuffer capture = new CaptureBuffer()
-    def packer = new Packer(capture, buffer)
+    def packer = new MsgPacker(capture, buffer)
     packer.format(Collections.singletonList(span), new TraceMapperV0_4())
     packer.flush()
     def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
@@ -75,7 +75,7 @@ class DDSpanSerializationTest extends DDSpecification {
     def span = DDSpan.create(0, context)
     def buffer = ByteBuffer.allocate(1024)
     CaptureBuffer capture = new CaptureBuffer()
-    def packer = new Packer(capture, buffer)
+    def packer = new MsgPacker(capture, buffer)
     def traceMapper = new TraceMapperV0_5()
     packer.format(Collections.singletonList(span), traceMapper)
     packer.flush()
@@ -145,7 +145,7 @@ class DDSpanSerializationTest extends DDSpecification {
     def span = DDSpan.create(0, context)
     def buffer = ByteBuffer.allocate(1024)
     CaptureBuffer capture = new CaptureBuffer()
-    def packer = new Packer(capture, buffer)
+    def packer = new MsgPacker(capture, buffer)
     packer.format(Collections.singletonList(span), new TraceMapperV0_4())
     packer.flush()
     def unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(capture.bytes))
@@ -214,7 +214,7 @@ class DDSpanSerializationTest extends DDSpecification {
     def span = DDSpan.create(0, context)
     def buffer = ByteBuffer.allocate(1024)
     CaptureBuffer capture = new CaptureBuffer()
-    def packer = new Packer(capture, buffer)
+    def packer = new MsgPacker(capture, buffer)
     def mapper = new TraceMapperV0_5()
     packer.format(Collections.singletonList(span), mapper)
     packer.flush()

@@ -1,4 +1,4 @@
-package datadog.trace.core.serialization.msgpack;
+package datadog.trace.core.serialization;
 
 // TODO @FunctionalInterface
 public interface EncodingCache {

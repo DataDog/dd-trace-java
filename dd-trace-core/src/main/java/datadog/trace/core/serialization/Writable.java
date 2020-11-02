@@ -1,4 +1,4 @@
-package datadog.trace.core.serialization.msgpack;
+package datadog.trace.core.serialization;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.ByteBuffer;

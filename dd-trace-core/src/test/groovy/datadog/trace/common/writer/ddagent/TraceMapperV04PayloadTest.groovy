@@ -2,8 +2,8 @@ package datadog.trace.common.writer.ddagent
 
 
 import datadog.trace.core.DDSpanData
-import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
-import datadog.trace.core.serialization.msgpack.Packer
+import datadog.trace.core.serialization.ByteBufferConsumer
+import datadog.trace.core.serialization.msgpack.MsgPacker
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
 import org.msgpack.core.MessageFormat
@@ -37,7 +37,7 @@ class TraceMapperV04PayloadTest extends DDSpecification {
     List<List<DDSpanData>> traces = generateRandomTraces(traceCount, lowCardinality)
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4()
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
-    Packer packer = new Packer(verifier, ByteBuffer.allocate(bufferSize))
+    MsgPacker packer = new MsgPacker(verifier, ByteBuffer.allocate(bufferSize))
     when:
     boolean tracesFitInBuffer = true
     try {
