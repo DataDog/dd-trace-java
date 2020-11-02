@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.serialization.ByteBufferConsumer;
+import datadog.trace.core.serialization.Codec;
 import datadog.trace.core.serialization.EncodingCachingStrategies;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.MessageFormatter;
@@ -19,12 +20,12 @@ import org.junit.Test;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 
-public class MsgPackerTest {
+public class MsgPackWriterTest {
 
   @Test(expected = BufferOverflowException.class)
   public void testOverflow() {
     MessageFormatter packer =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffer) {}
@@ -54,8 +55,8 @@ public class MsgPackerTest {
             put("foo", "abcd");
           }
         };
-    MsgPacker packer =
-        new MsgPacker(
+    MsgPackWriter packer =
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffer) {
@@ -81,7 +82,7 @@ public class MsgPackerTest {
   public void testWriteBinary() {
     final byte[] data = new byte[] {1, 2, 3, 4};
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -112,7 +113,7 @@ public class MsgPackerTest {
   public void testWriteBinaryAsObject() {
     final byte[] data = new byte[] {1, 2, 3, 4};
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -143,7 +144,7 @@ public class MsgPackerTest {
   public void testWriteByteBuffer() {
     final byte[] data = new byte[] {1, 2, 3, 4};
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -174,7 +175,7 @@ public class MsgPackerTest {
   public void testWriteByteBufferAsObject() {
     final byte[] data = new byte[] {1, 2, 3, 4};
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -204,7 +205,7 @@ public class MsgPackerTest {
   @Test
   public void testWriteNull() {
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -232,7 +233,7 @@ public class MsgPackerTest {
   @Test
   public void testWriteBooleanAsObject() {
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -260,7 +261,7 @@ public class MsgPackerTest {
   @Test
   public void testWriteBoolean() {
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -289,7 +290,7 @@ public class MsgPackerTest {
   public void testWriteCharArray() {
     final String data = "xyz";
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -318,7 +319,7 @@ public class MsgPackerTest {
   public void testWriteUTF8ByteString() {
     final UTF8BytesString utf8BytesString = UTF8BytesString.create("xyz");
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -347,7 +348,7 @@ public class MsgPackerTest {
   public void testWriteBooleanArray() {
     final boolean[] data = new boolean[] {true, false, true, true};
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -379,7 +380,7 @@ public class MsgPackerTest {
   public void testWriteFloatArray() {
     final float[] data = new float[] {0.1f, 0.2f, 0.3f, 0.4f};
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -411,7 +412,7 @@ public class MsgPackerTest {
   public void testWriteDoubleArray() {
     final double[] data = new double[] {0.1f, 0.2f, 0.3f, 0.4f};
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -443,7 +444,7 @@ public class MsgPackerTest {
   public void testWriteLongArray() {
     final long[] data = new long[] {1, 2, 3, 4};
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -475,7 +476,7 @@ public class MsgPackerTest {
   public void testWriteIntArray() {
     final int[] data = new int[] {1, 2, 3, 4};
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -507,7 +508,7 @@ public class MsgPackerTest {
   public void testWriteShortArray() {
     final short[] data = new short[] {1, 2, 3, 4};
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -539,7 +540,7 @@ public class MsgPackerTest {
   public void testWriteLongBoxed() {
     final long data = 1234L;
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -568,7 +569,7 @@ public class MsgPackerTest {
   public void testWriteLongPrimitive() {
     final long data = 1234L;
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -597,7 +598,7 @@ public class MsgPackerTest {
   public void testWriteIntBoxed() {
     final int data = 1234;
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -626,7 +627,7 @@ public class MsgPackerTest {
   public void testWriteIntPrimitive() {
     final int data = 1234;
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -655,7 +656,7 @@ public class MsgPackerTest {
   public void testWriteShortBoxed() {
     final short data = 1234;
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -684,7 +685,7 @@ public class MsgPackerTest {
   public void testUnknownObject() {
     final Object data = Codec.INSTANCE;
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
@@ -713,7 +714,7 @@ public class MsgPackerTest {
   public void testWriteObjectArray() {
     final Object[] data = new Object[] {"foo", "bar"};
     MessageFormatter messageFormatter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {

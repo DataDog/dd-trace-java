@@ -1,11 +1,12 @@
-package datadog.trace.core.serialization.msgpack;
+package datadog.trace.core.serialization.protobuf;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.UnknownFieldSet;
 import datadog.trace.core.serialization.ByteBufferConsumer;
-import datadog.trace.core.serialization.EncodingCache;
-import datadog.trace.core.serialization.EncodingCachingStrategies;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.Writable;
 import java.io.IOException;
@@ -20,27 +21,9 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.msgpack.core.MessagePack;
-import org.msgpack.core.MessageUnpacker;
 
 @RunWith(Parameterized.class)
 public class StringWritingTest {
-
-  private static final EncodingCache NO_CACHE = EncodingCachingStrategies.NO_CACHING;
-
-  private static final Map<CharSequence, byte[]> MEMOISATION = new HashMap<>();
-  private static final EncodingCache CACHE =
-      new EncodingCache() {
-        @Override
-        public byte[] encode(CharSequence s) {
-          byte[] utf8 = MEMOISATION.get(s);
-          if (utf8 == null) {
-            utf8 = ((String) s).getBytes(StandardCharsets.UTF_8);
-            MEMOISATION.put(s, utf8);
-          }
-          return utf8;
-        }
-      };
 
   private final List<Map<String, String>> maps;
   private final ByteBuffer buffer = ByteBuffer.allocate(10 << 10);
@@ -143,9 +126,9 @@ public class StringWritingTest {
   }
 
   @Test
-  public void testSerialiseTextMapWithCache() {
-    MsgPackWriter packer =
-        new MsgPackWriter(
+  public void testSerialiseTextMap() {
+    ProtobufWriter packer =
+        new ProtobufWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffer) {
@@ -159,31 +142,7 @@ public class StringWritingTest {
           new Mapper<Map<String, String>>() {
             @Override
             public void map(Map<String, String> m, Writable p) {
-              p.writeMap(m, CACHE);
-            }
-          });
-    }
-    packer.flush();
-  }
-
-  @Test
-  public void testSerialiseTextMapWithoutCache() {
-    MsgPackWriter packer =
-        new MsgPackWriter(
-            new ByteBufferConsumer() {
-              @Override
-              public void accept(int messageCount, ByteBuffer buffer) {
-                testBufferContents(buffer);
-              }
-            },
-            buffer);
-    for (Map<String, String> map : maps) {
-      packer.format(
-          map,
-          new Mapper<Map<String, String>>() {
-            @Override
-            public void map(Map<String, String> m, Writable p) {
-              p.writeMap(m, NO_CACHE);
+              p.writeMap(m, null);
             }
           });
     }
@@ -198,19 +157,29 @@ public class StringWritingTest {
 
   private void testBufferContents(ByteBuffer buffer) {
     try {
-      MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-      int length = unpacker.unpackArrayHeader();
-      assertEquals(maps.size(), length);
+      UnknownFieldSet parsed = UnknownFieldSet.parseFrom(ByteString.copyFrom(buffer));
+      assertTrue(parsed.hasField(maps.size()));
+      assertFalse(parsed.hasField(maps.size() + 1));
+      int mapIndex = 1;
       for (Map<String, String> map : maps) {
-        int mapSize = unpacker.unpackMapHeader();
-        assertEquals(map.size(), mapSize);
-        int pos = 0;
-        while (pos++ < mapSize) {
-          String key = unpacker.unpackString();
-          String expectedValue = map.get(key);
-          assertNotNull(expectedValue);
-          assertEquals(expectedValue, unpacker.unpackString());
+        UnknownFieldSet.Field part = parsed.getField(mapIndex);
+        List<ByteString> mapPart = part.getLengthDelimitedList();
+        assertEquals(1, mapPart.size());
+        UnknownFieldSet recoveredMap = UnknownFieldSet.parseFrom(mapPart.get(0));
+        assertTrue(recoveredMap.hasField(map.size() * 2));
+        assertFalse(recoveredMap.hasField(map.size() * 2 + 1));
+        int mapField = 1;
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+          UnknownFieldSet.Field key = recoveredMap.getField(mapField);
+          UnknownFieldSet.Field value = recoveredMap.getField(mapField + 1);
+          assertEquals(
+              key.getLengthDelimitedList().get(0).toString(StandardCharsets.UTF_8), entry.getKey());
+          assertEquals(
+              value.getLengthDelimitedList().get(0).toString(StandardCharsets.UTF_8),
+              entry.getValue());
+          mapField += 2;
         }
+        ++mapIndex;
       }
     } catch (IOException e) {
       Assert.fail(e.getMessage());
