@@ -73,6 +73,8 @@ public interface AgentSpan extends MutableSpan {
 
     DDId getSpanId();
 
+    boolean isRemote();
+
     AgentTrace getTrace();
 
     Iterable<Map.Entry<String, String>> baggageItems();

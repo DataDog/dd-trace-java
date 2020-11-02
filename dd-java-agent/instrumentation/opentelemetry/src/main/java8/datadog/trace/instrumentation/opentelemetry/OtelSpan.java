@@ -1,18 +1,15 @@
 package datadog.trace.instrumentation.opentelemetry;
 
 import datadog.trace.api.DDTags;
-import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import io.opentelemetry.common.AttributeValue;
-import io.opentelemetry.trace.EndSpanOptions;
-import io.opentelemetry.trace.Event;
-import io.opentelemetry.trace.Span;
-import io.opentelemetry.trace.SpanContext;
-import io.opentelemetry.trace.Status;
-import java.util.Map;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.StatusCode;
 import java.util.concurrent.TimeUnit;
 
-public class OtelSpan implements Span, MutableSpan {
+public final class OtelSpan implements Span {
   private final AgentSpan delegate;
   private final TypeConverter converter;
 
@@ -22,75 +19,89 @@ public class OtelSpan implements Span, MutableSpan {
   }
 
   @Override
-  public void setAttribute(final String key, final String value) {
+  public Span setAttribute(final String key, final String value) {
     delegate.setTag(key, value);
+    return this;
   }
 
   @Override
-  public void setAttribute(final String key, final long value) {
+  public Span setAttribute(final String key, final long value) {
     delegate.setTag(key, value);
+    return this;
   }
 
   @Override
-  public void setAttribute(final String key, final double value) {
+  public Span setAttribute(final String key, final double value) {
     delegate.setTag(key, value);
+    return this;
   }
 
   @Override
-  public void setAttribute(final String key, final boolean value) {
+  public Span setAttribute(final String key, final boolean value) {
     delegate.setTag(key, value);
+    return this;
   }
 
   @Override
-  public void setAttribute(final String key, final AttributeValue value) {
-    switch (value.getType()) {
-      case LONG:
-        delegate.setTag(key, value.getLongValue());
-        break;
-      case DOUBLE:
-        delegate.setTag(key, value.getDoubleValue());
-        break;
-      case STRING:
-        delegate.setTag(key, value.getStringValue());
-        break;
-      case BOOLEAN:
-        delegate.setTag(key, value.getBooleanValue());
-        break;
-      default:
-        // Unsupported.... Ignoring.
-    }
+  public <T> Span setAttribute(AttributeKey<T> attributeKey, T t) {
+    delegate.setTag(attributeKey.getKey(), t);
+    return this;
   }
 
   @Override
-  public void addEvent(final String name) {}
+  public Span addEvent(final String name) {
+    return this;
+  }
 
   @Override
-  public void addEvent(final String name, final long timestamp) {}
+  public Span addEvent(String name, long timestamp, TimeUnit unit) {
+    return this;
+  }
 
   @Override
-  public void addEvent(final String name, final Map<String, AttributeValue> attributes) {}
+  public Span addEvent(String s, Attributes attributes) {
+    return this;
+  }
 
   @Override
-  public void addEvent(
-      final String name, final Map<String, AttributeValue> attributes, final long timestamp) {}
+  public Span addEvent(String name, Attributes attributes, long timestamp, TimeUnit unit) {
+    return this;
+  }
 
   @Override
-  public void addEvent(final Event event) {}
-
-  @Override
-  public void addEvent(final Event event, final long timestamp) {}
-
-  @Override
-  public void setStatus(final Status status) {
-    if (!status.isOk()) {
+  public Span setStatus(StatusCode statusCode) {
+    if (statusCode == StatusCode.ERROR) {
       delegate.setError(true);
-      delegate.setTag(DDTags.ERROR_MSG, status.getDescription());
     }
+    return this;
   }
 
   @Override
-  public void updateName(final String name) {
+  public Span setStatus(StatusCode statusCode, String s) {
+    if (statusCode == StatusCode.ERROR) {
+      delegate.setError(true);
+      delegate.setTag(DDTags.ERROR_MSG, s);
+    }
+    return this;
+  }
+
+  @Override
+  public Span recordException(Throwable throwable) {
+    delegate.addThrowable(throwable);
+    return this;
+  }
+
+  @Override
+  public Span recordException(Throwable throwable, Attributes attributes) {
+    attributes.forEach(this::setAttribute);
+    delegate.addThrowable(throwable);
+    return this;
+  }
+
+  @Override
+  public Span updateName(final String name) {
     delegate.setResourceName(name);
+    return this;
   }
 
   @Override
@@ -99,16 +110,12 @@ public class OtelSpan implements Span, MutableSpan {
   }
 
   @Override
-  public void end(final EndSpanOptions endOptions) {
-    if (endOptions.getEndTimestamp() > 0) {
-      delegate.finish(TimeUnit.NANOSECONDS.toMicros(endOptions.getEndTimestamp()));
-    } else {
-      delegate.finish();
-    }
+  public void end(long timestamp, TimeUnit unit) {
+    delegate.finish(unit.toMicros(timestamp));
   }
 
   @Override
-  public SpanContext getContext() {
+  public SpanContext getSpanContext() {
     return converter.toSpanContext(delegate.context());
   }
 
@@ -119,120 +126,5 @@ public class OtelSpan implements Span, MutableSpan {
 
   public AgentSpan getDelegate() {
     return delegate;
-  }
-
-  @Override
-  public long getStartTime() {
-    return delegate.getStartTime();
-  }
-
-  @Override
-  public long getDurationNano() {
-    return delegate.getDurationNano();
-  }
-
-  @Override
-  public CharSequence getOperationName() {
-    return delegate.getOperationName();
-  }
-
-  @Override
-  public MutableSpan setOperationName(final CharSequence serviceName) {
-    return delegate.setOperationName(serviceName);
-  }
-
-  @Override
-  public String getServiceName() {
-    return delegate.getServiceName();
-  }
-
-  @Override
-  public MutableSpan setServiceName(final String serviceName) {
-    return delegate.setServiceName(serviceName);
-  }
-
-  @Override
-  public CharSequence getResourceName() {
-    return delegate.getResourceName();
-  }
-
-  @Override
-  public MutableSpan setResourceName(final CharSequence resourceName) {
-    return delegate.setResourceName(resourceName);
-  }
-
-  @Override
-  public Integer getSamplingPriority() {
-    return delegate.getSamplingPriority();
-  }
-
-  @Override
-  public MutableSpan setSamplingPriority(final int newPriority) {
-    return delegate.setSamplingPriority(newPriority);
-  }
-
-  @Override
-  public String getSpanType() {
-    return delegate.getSpanType();
-  }
-
-  @Override
-  public MutableSpan setSpanType(final CharSequence type) {
-    return delegate.setSpanType(type);
-  }
-
-  @Override
-  public Map<String, Object> getTags() {
-    return delegate.getTags();
-  }
-
-  @Override
-  public MutableSpan setTag(final String tag, final String value) {
-    return delegate.setTag(tag, value);
-  }
-
-  @Override
-  public MutableSpan setTag(final String tag, final boolean value) {
-    return delegate.setTag(tag, value);
-  }
-
-  @Override
-  public MutableSpan setTag(final String tag, final Number value) {
-    return delegate.setTag(tag, value);
-  }
-
-  @Override
-  public MutableSpan setMetric(final CharSequence metric, final int value) {
-    return delegate.setMetric(metric, value);
-  }
-
-  @Override
-  public MutableSpan setMetric(final CharSequence metric, final long value) {
-    return delegate.setMetric(metric, value);
-  }
-
-  @Override
-  public MutableSpan setMetric(final CharSequence metric, final double value) {
-    return delegate.setMetric(metric, value);
-  }
-
-  @Override
-  public Boolean isError() {
-    return delegate.isError();
-  }
-
-  @Override
-  public MutableSpan setError(final boolean value) {
-    return delegate.setError(value);
-  }
-
-  @Override
-  public MutableSpan getRootSpan() {
-    return delegate.getRootSpan();
-  }
-
-  @Override
-  public MutableSpan getLocalRootSpan() {
-    return delegate.getLocalRootSpan();
   }
 }

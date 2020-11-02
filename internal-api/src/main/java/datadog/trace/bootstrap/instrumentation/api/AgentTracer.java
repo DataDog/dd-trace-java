@@ -523,6 +523,11 @@ public class AgentTracer {
     }
 
     @Override
+    public boolean isRemote() {
+      return false;
+    }
+
+    @Override
     public AgentTrace getTrace() {
       return NoopAgentTrace.INSTANCE;
     }

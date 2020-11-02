@@ -583,7 +583,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // Builder attributes
     private Map<String, Object> tags;
     private long timestampMicro;
-    private Object parent;
+    private AgentSpan.Context parent;
     private String serviceName;
     private String resourceName;
     private boolean errorFlag;
@@ -701,7 +701,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
       // TagContext, DDSpanContext, AgentSpan.Context
-      Object parentContext = parent;
+      AgentSpan.Context parentContext = parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
         final AgentSpan activeSpan = scopeManager.activeSpan();
@@ -735,6 +735,13 @@ public class CoreTracer implements AgentTracer.TracerAPI {
           parentSpanId = extractedContext.getSpanId();
           samplingPriority = extractedContext.getSamplingPriority();
           baggage = extractedContext.getBaggage();
+        } else if (parentContext != null) {
+          // Propagate generic external trace
+          DDId tid = parentContext.getTraceId();
+          traceId = tid == DDId.ZERO ? IdGenerationStrategy.RANDOM.generate() : tid;
+          parentSpanId = parentContext.getSpanId();
+          samplingPriority = PrioritySampling.UNSET;
+          baggage = null;
         } else {
           // Start a new trace
           traceId = IdGenerationStrategy.RANDOM.generate();

@@ -1,29 +1,41 @@
 import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.api.DDId
 import datadog.trace.api.DDTags
-import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.api.sampling.PrioritySampling
-import datadog.trace.context.TraceScope
 import datadog.trace.core.propagation.ExtractedContext
-import io.grpc.Context
-import io.opentelemetry.OpenTelemetry
+import datadog.trace.instrumentation.opentelemetry.OtelContextPropagators
+import datadog.trace.instrumentation.opentelemetry.OtelTracer
+import datadog.trace.instrumentation.opentelemetry.TypeConverter
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.api.common.Attributes
+import io.opentelemetry.api.trace.PropagatedSpan
+import io.opentelemetry.api.trace.Span
+import io.opentelemetry.api.trace.SpanContext
+import io.opentelemetry.api.trace.TraceFlags
+import io.opentelemetry.api.trace.TraceState
+import io.opentelemetry.context.Context
 import io.opentelemetry.context.Scope
-import io.opentelemetry.context.propagation.HttpTextFormat
-import io.opentelemetry.trace.Span
-import io.opentelemetry.trace.Status
-import io.opentelemetry.trace.TracingContextUtils
+import io.opentelemetry.context.propagation.TextMapPropagator
+import spock.lang.Ignore
 import spock.lang.Subject
+
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 class OpenTelemetryTest extends AgentTestRunner {
   @Subject
-  def tracer = OpenTelemetry.tracerProvider.get("test-inst")
-  def httpPropagator = OpenTelemetry.getPropagators().httpTextFormat
+  def tracer = OpenTelemetry.get().getTracerProvider().get("test-inst")
+  def propagator = OpenTelemetry.getGlobalPropagators().textMapPropagator
 
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
 
     injectSysConfig("dd.integration.opentelemetry-beta.enabled", "true")
+  }
+
+  def setup() {
+    assert tracer instanceof OtelTracer
+    assert propagator instanceof OtelContextPropagators.OtelTextMapPropagator
   }
 
   def "test span tags"() {
@@ -44,9 +56,7 @@ class OpenTelemetryTest extends AgentTestRunner {
     }
 
     expect:
-    result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan == result.delegate
-    tracer.currentSpan == null
+    Span.current() == Span.getInvalid()
 
     when:
     result.end()
@@ -94,20 +104,16 @@ class OpenTelemetryTest extends AgentTestRunner {
 
   def "test span exception"() {
     setup:
-    def builder = tracer.spanBuilder("some name")
-    def result = builder.startSpan()
-    result.setStatus(Status.UNKNOWN)
-    result.setAttribute(DDTags.ERROR_MSG, (String) exception.message)
-    result.setAttribute(DDTags.ERROR_TYPE, (String) exception.class.name)
-    final StringWriter errorString = new StringWriter()
-    exception.printStackTrace(new PrintWriter(errorString))
-    result.setAttribute(DDTags.ERROR_STACK, errorString.toString())
+    def result = tracer.spanBuilder("some name").startSpan()
+    if (attributes) {
+      result.recordException(exception, attributes)
+    } else {
+      result.recordException(exception)
+    }
 
     expect:
-    result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan == result.delegate
-    (result as MutableSpan).isError() == (exception != null)
-    tracer.currentSpan == null
+    result.delegate.isError()
+    !Span.current().spanContext.isValid()
 
     when:
     result.end()
@@ -122,6 +128,9 @@ class OpenTelemetryTest extends AgentTestRunner {
           errored true
           tags {
             errorTags(exception.class)
+            if (attributes) {
+              "foo" "bar"
+            }
             defaultTags()
           }
           metrics {
@@ -133,23 +142,29 @@ class OpenTelemetryTest extends AgentTestRunner {
 
     where:
     exception = new Exception()
+    attributes << [null, Attributes.builder().put("foo", "bar").build()]
   }
 
   def "test span links"() {
     setup:
+    TypeConverter converter = tracer.converter
     def builder = tracer.spanBuilder("some name")
     if (parentId) {
-      builder.setParent(tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(parentId), 0, null, [:], [:])))
+      def spanContext = converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(parentId), 0, null, [:], [:]))
+      def parent = PropagatedSpan.create(spanContext)
+      assert parent.spanContext.remote
+      def ctx = parent.storeInContext(Context.root())
+      builder.setParent(ctx)
     }
     if (linkId) {
-      builder.addLink(tracer.converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(linkId), 0, null, [:], [:])))
+      def spanContext = converter.toSpanContext(new ExtractedContext(DDId.ONE, DDId.from(linkId), 0, null, [:], [:]))
+      builder.addLink(spanContext)
     }
     def result = builder.startSpan()
 
     expect:
-    result instanceof MutableSpan
-    (result as MutableSpan).localRootSpan == result.delegate
-    tracer.currentSpan == null
+    !result.spanContext.remote
+    !Span.current().spanContext.isValid()
 
     when:
     result.end()
@@ -185,93 +200,119 @@ class OpenTelemetryTest extends AgentTestRunner {
     2        | 3      | 2
   }
 
+  def "test independent SpanContext"() {
+    setup:
+    def builder = tracer.spanBuilder("some name")
+    def spanContext = SpanContext.create("00000000000000000000000000000001", "0000000000000001", TraceFlags.default, TraceState.default)
+    builder.addLink(spanContext)
+    def result = builder.startSpan()
+
+    expect:
+    spanContext.isValid()
+    !result.spanContext.remote
+    !Span.current().spanContext.isValid()
+
+    when:
+    result.end()
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          traceDDId(DDId.ONE)
+          parentDDId(DDId.ONE)
+          operationName "test-inst"
+          resourceName "some name"
+          errored false
+          tags {
+            defaultTags(true)
+          }
+          metrics {
+            defaultMetrics()
+          }
+        }
+      }
+    }
+  }
+
   def "test scope"() {
     setup:
     def span = tracer.spanBuilder("some name").startSpan()
-    def scope = tracer.withSpan(span)
+    def scope = span.storeInContext(Context.current()).makeCurrent()
 
     expect:
-    scope instanceof TraceScope
-    tracer.currentSpan.delegate == scope.delegate.span()
+    Span.current().delegate == activeSpan()
+
+    when:
+    def child = tracer.spanBuilder("some name").startSpan()
+
+    then:
+    child.delegate.traceId == span.delegate.traceId
+    child.delegate.parentId == span.delegate.spanId
 
     when:
     scope.close()
 
     then:
-    tracer.currentSpan == null
+    !Span.current().spanContext.isValid()
 
     cleanup:
+    child.end()
     span.end()
   }
 
   def "test closing scope when not on top"() {
     when:
     Span firstSpan = tracer.spanBuilder("someOperation").startSpan()
-    Scope firstScope = tracer.withSpan(firstSpan)
+    Scope firstScope = firstSpan.storeInContext(Context.current()).makeCurrent()
 
     Span secondSpan = tracer.spanBuilder("someOperation").startSpan()
-    Scope secondScope = tracer.withSpan(secondSpan)
+    Scope secondScope = secondSpan.storeInContext(Context.current()).makeCurrent()
 
     firstSpan.end()
     firstScope.close()
 
+    // OpenTelemetry will log a warning and continue closing the first scope resulting in an empty context.
+
     then:
-    tracer.currentSpan.delegate == secondScope.delegate.span()
+    !Span.current().spanContext.valid
+
+    // This results in our context being out of sync.
+    secondSpan.delegate == activeSpan()
+
     1 * STATS_D_CLIENT.incrementCounter("scope.close.error")
-    1 * STATS_D_CLIENT.incrementCounter("scope.user.close.error")
     0 * _
 
     when:
     secondSpan.end()
     secondScope.close()
 
-    then:
-    tracer.currentSpan == null
-    0 * _
+    // Closing the scopes out of order results in the previous context being restored.
 
+    then:
+    Span.current().delegate == firstSpan.delegate
+
+    // This results in our context being out of sync.
+    activeSpan() == null
+    0 * _
   }
 
+  @Ignore
   def "test continuation"() {
-    setup:
-    def span = tracer.spanBuilder("some name").startSpan()
-    TraceScope scope = tracer.withSpan(span)
-    scope.setAsyncPropagation(true)
-
-    expect:
-    tracer.currentSpan.delegate == span.delegate
-
-    when:
-    def continuation = scope.capture()
-
-    then:
-    continuation instanceof TraceScope.Continuation
-
-    when:
-    scope.close()
-
-    then:
-    tracer.currentSpan == null
-
-    when:
-    scope = continuation.activate()
-
-    then:
-    tracer.currentSpan.delegate == span.delegate
-
-    cleanup:
-    scope.close()
-    span.end()
+    // continuations are currently not supported with OTel.
+    throw new UnsupportedOperationException()
   }
 
   def "test inject extract"() {
     setup:
     def span = tracer.spanBuilder("some name").startSpan()
-    def context = TracingContextUtils.withSpan(span, Context.current())
-    def textMap = [:]
+    def context = span.storeInContext(Context.current())
+    Map<String, String> textMap = [:]
 
     when:
+    Span.fromContext(context).spanContext.isValid()
     span.delegate.samplingPriority = contextPriority
-    httpPropagator.inject(context, textMap, new TextMapSetter())
+    propagator.inject(context, textMap, new TextMapSetter())
 
     then:
     textMap == [
@@ -281,13 +322,13 @@ class OpenTelemetryTest extends AgentTestRunner {
     ]
 
     when:
-    def extractedContext = httpPropagator.extract(context, textMap, new TextMapGetter())
-    def extract = TracingContextUtils.getSpanWithoutDefault(extractedContext)
+    def extractedContext = propagator.extract(context, textMap, new TextMapGetter())
+    def extract = Span.fromContext(extractedContext)
 
     then:
-    extract.context.traceId == span.context.traceId
-    extract.context.spanId == span.context.spanId
-    extract.context.delegate.samplingPriority == propagatedPriority
+    extract.spanContext.remote
+    extract.spanContext.traceIdAsHexString == span.spanContext.traceIdAsHexString
+    extract.spanContext.spanIdAsHexString == span.spanContext.spanIdAsHexString
 
     cleanup:
     span.end()
@@ -301,14 +342,19 @@ class OpenTelemetryTest extends AgentTestRunner {
     PrioritySampling.USER_DROP    | PrioritySampling.USER_DROP
   }
 
-  static class TextMapGetter implements HttpTextFormat.Getter<Map<String, String>> {
+  static class TextMapGetter implements TextMapPropagator.Getter<Map<String, String>> {
+    @Override
+    Iterable<String> keys(Map<String, String> carrier) {
+      return carrier.keySet()
+    }
+
     @Override
     String get(Map<String, String> carrier, String key) {
       return carrier.get(key)
     }
   }
 
-  static class TextMapSetter implements HttpTextFormat.Setter<Map<String, String>> {
+  static class TextMapSetter implements TextMapPropagator.Setter<Map<String, String>> {
     @Override
     void set(Map<String, String> carrier, String key, String value) {
       carrier.put(key, value)

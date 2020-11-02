@@ -44,6 +44,11 @@ public class TagContext implements AgentSpan.Context {
   }
 
   @Override
+  public boolean isRemote() {
+    return true;
+  }
+
+  @Override
   public AgentTrace getTrace() {
     return AgentTracer.NoopAgentTrace.INSTANCE;
   }

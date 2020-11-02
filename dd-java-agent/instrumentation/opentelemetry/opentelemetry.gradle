@@ -3,37 +3,36 @@ ext {
 }
 
 // Made this a variable so we can easily update to latest releases.
-def otelVersion = '0.3.0'
+def otelVersion = '0.11.0'
 
 muzzle {
   pass {
     module = 'opentelemetry-api'
     group = 'io.opentelemetry'
-    versions = "[$otelVersion,0.8.0)"
+    versions = "[$otelVersion,]"
     assertInverse = true
-    // I have no idea why gradle doesn't respect the version range above
-    // but I also have no time to figure it out for an instrumentation
-    // that is experimental
     skipVersions = ['0.2.2', '0.2.3', '0.9.0']
   }
 }
 
 apply from: "$rootDir/gradle/java.gradle"
 
-apply plugin: 'org.unbroken-dome.test-sets'
-
-testSets {
-  latestDepTest {
-    dirName = 'test'
-  }
-}
+// Can't have a latest test until a new version is released.
+//apply plugin: 'org.unbroken-dome.test-sets'
+//
+//testSets {
+//  latestDepTest {
+//    dirName = 'test'
+//  }
+//}
 
 dependencies {
   compileOnly group: 'io.opentelemetry', name: 'opentelemetry-api', version: otelVersion
+  main_java8CompileOnly group: 'io.opentelemetry', name: 'opentelemetry-api', version: otelVersion
 
-  compileOnly group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.2'
-  compileOnly group: 'com.google.auto.value', name: 'auto-value-annotations', version: '1.6.6'
+  main_java8CompileOnly group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.2'
+  main_java8CompileOnly group: 'com.google.auto.value', name: 'auto-value-annotations', version: '1.6.6'
 
   testCompile group: 'io.opentelemetry', name: 'opentelemetry-api', version: otelVersion
-  latestDepTestCompile group: 'io.opentelemetry', name: 'opentelemetry-api', version: '0.7+'
+  //  latestDepTestCompile group: 'io.opentelemetry', name: 'opentelemetry-api', version: '0.7+'
 }

@@ -1,48 +1,120 @@
 package datadog.trace.instrumentation.opentelemetry;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.api.DDId;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTrace;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import io.opentelemetry.context.Scope;
-import io.opentelemetry.trace.Span;
-import io.opentelemetry.trace.SpanContext;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.TraceFlags;
+import io.opentelemetry.api.trace.TraceState;
+import java.util.Map;
 
 // Centralized place to do conversions
-public class TypeConverter {
+public final class TypeConverter {
+  private final ContextStore<SpanContext, AgentSpan.Context> spanContextStore;
+
+  public TypeConverter(ContextStore<SpanContext, AgentSpan.Context> spanContextStore) {
+    this.spanContextStore = spanContextStore;
+  }
+
   // TODO maybe add caching to reduce new objects being created
 
-  public AgentSpan toAgentSpan(final Span span) {
+  // static to allow direct access from context advice.
+  public static AgentSpan toAgentSpan(final Span span) {
+    if (span == null) {
+      return null;
+    }
     if (span instanceof OtelSpan) {
       return ((OtelSpan) span).getDelegate();
     }
-    return null == span ? null : AgentTracer.NoopAgentSpan.INSTANCE;
+    if (span.getSpanContext().isValid()) {
+      // TODO: PropagatedSpan which we don't have a good representation for.
+      throw new UnsupportedOperationException();
+    }
+
+    return AgentTracer.NoopAgentSpan.INSTANCE;
   }
 
-  public Span toSpan(final AgentSpan agentSpan) {
+  Span toSpan(final AgentSpan agentSpan) {
     if (agentSpan == null) {
       return null;
     }
     return new OtelSpan(agentSpan, this);
   }
 
-  public Scope toScope(final AgentScope scope) {
-    if (scope == null) {
-      return null;
-    }
-    return new OtelScope(scope);
-  }
-
-  public SpanContext toSpanContext(final AgentSpan.Context context) {
+  SpanContext toSpanContext(final AgentSpan.Context context) {
     if (context == null) {
       return null;
     }
-    return new OtelSpanContext(context);
+    SpanContext spanContext;
+    if (context.isRemote()) {
+      spanContext =
+          SpanContext.createFromRemoteParent(
+              context.getTraceId().toHexStringPadded(32),
+              context.getSpanId().toHexStringPadded(16),
+              TraceFlags.getSampled(),
+              TraceState.getDefault());
+    } else {
+      spanContext =
+          SpanContext.create(
+              context.getTraceId().toHexStringPadded(32),
+              context.getSpanId().toHexStringPadded(16),
+              TraceFlags.getSampled(),
+              TraceState.getDefault());
+    }
+    spanContextStore.put(spanContext, context);
+    return spanContext;
   }
 
-  public AgentSpan.Context toContext(final SpanContext spanContext) {
-    if (spanContext instanceof OtelSpanContext) {
-      return ((OtelSpanContext) spanContext).getDelegate();
+  AgentSpan.Context toAgentSpanContext(final SpanContext spanContext) {
+    AgentSpan.Context context = spanContextStore.get(spanContext);
+    if (context == null) {
+      if (spanContext.isValid()) {
+        context = new OtelSpanContext(spanContext);
+      } else {
+        context = AgentTracer.NoopContext.INSTANCE;
+      }
+      spanContextStore.put(spanContext, context);
     }
-    return null == spanContext ? null : AgentTracer.NoopContext.INSTANCE;
+    return context;
+  }
+
+  private static final class OtelSpanContext implements AgentSpan.Context {
+    private final DDId traceId;
+    private final DDId spanId;
+    private final boolean isRemote;
+
+    public OtelSpanContext(SpanContext spanContext) {
+      traceId = DDId.fromHex(spanContext.getTraceIdAsHexString().substring(16));
+      spanId = DDId.fromHex(spanContext.getSpanIdAsHexString());
+      isRemote = spanContext.isRemote();
+    }
+
+    @Override
+    public DDId getTraceId() {
+      return traceId;
+    }
+
+    @Override
+    public DDId getSpanId() {
+      return spanId;
+    }
+
+    @Override
+    public boolean isRemote() {
+      return isRemote;
+    }
+
+    @Override
+    public AgentTrace getTrace() {
+      return null;
+    }
+
+    @Override
+    public Iterable<Map.Entry<String, String>> baggageItems() {
+      return null;
+    }
   }
 }

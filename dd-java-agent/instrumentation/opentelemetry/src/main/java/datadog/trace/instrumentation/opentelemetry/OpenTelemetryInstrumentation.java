@@ -1,13 +1,17 @@
 package datadog.trace.instrumentation.opentelemetry;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers.implementsInterface;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.returns;
+import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import io.opentelemetry.context.propagation.ContextPropagators;
-import io.opentelemetry.trace.TracerProvider;
-import java.util.HashMap;
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import io.opentelemetry.api.OpenTelemetryBuilder;
+import io.opentelemetry.api.trace.SpanContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -30,7 +34,7 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Default {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
-    return named("io.opentelemetry.OpenTelemetry");
+    return implementsInterface(named("io.opentelemetry.api.OpenTelemetryBuilder"));
   }
 
   @Override
@@ -38,50 +42,39 @@ public class OpenTelemetryInstrumentation extends Instrumenter.Default {
     return new String[] {
       packageName + ".OtelScope",
       packageName + ".OtelSpan",
-      packageName + ".OtelSpan$1", // switch statement
-      packageName + ".OtelSpanContext",
       packageName + ".OtelTracer",
-      packageName + ".OtelTracer$1", // switch statement
       packageName + ".OtelTracerProvider",
-      packageName + ".OtelTracer$SpanBuilder",
+      packageName + ".OtelTracer$OtelSpanBuilder",
       packageName + ".OtelContextPropagators",
       packageName + ".OtelContextPropagators$1", // switch statement
-      packageName + ".OtelContextPropagators$OtelHttpTextFormat",
+      packageName + ".OtelContextPropagators$OtelTextMapPropagator",
       packageName + ".OtelContextPropagators$OtelSetter",
       packageName + ".OtelContextPropagators$OtelGetter",
       packageName + ".TypeConverter",
+      packageName + ".TypeConverter$OtelSpanContext"
     };
   }
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
-        named("getTracerProvider").and(returns(named("io.opentelemetry.trace.TracerProvider"))),
-        OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
-    transformers.put(
-        named("getPropagators")
-            .and(returns(named("io.opentelemetry.context.propagation.ContextPropagators"))),
-        OpenTelemetryInstrumentation.class.getName() + "$ContextPropagatorsAdvice");
-    return transformers;
+    return singletonMap(
+        named("build").and(takesNoArguments()),
+        OpenTelemetryInstrumentation.class.getName() + "$BuilderAdvice");
   }
 
-  public static class TracerProviderAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void returnProvider(@Advice.Return(readOnly = false) TracerProvider result) {
-      result = OtelTracerProvider.INSTANCE;
-    }
+  @Override
+  public Map<String, String> contextStore() {
+    return singletonMap(
+        "io.opentelemetry.api.trace.SpanContext", AgentSpan.Context.class.getName());
   }
 
-  public static class ContextPropagatorsAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void returnProvider(@Advice.Return(readOnly = false) ContextPropagators result) {
-      result = OtelContextPropagators.INSTANCE;
-    }
-
-    // Muzzle doesn't detect the advice method's argument type, so we have to help it a bit.
-    public static void muzzleCheck(final ContextPropagators propagators) {
-      propagators.getHttpTextFormat();
+  public static class BuilderAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void beforeBuild(@Advice.This OpenTelemetryBuilder builder) {
+      ContextStore<SpanContext, AgentSpan.Context> spanContextStore =
+          InstrumentationContext.get(SpanContext.class, AgentSpan.Context.class);
+      builder.setTracerProvider(new OtelTracerProvider(spanContextStore));
+      builder.setPropagators(new OtelContextPropagators(spanContextStore));
     }
   }
 }

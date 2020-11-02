@@ -1,15 +1,19 @@
 package datadog.trace.instrumentation.opentelemetry;
 
+import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import io.opentelemetry.trace.Tracer;
-import io.opentelemetry.trace.TracerProvider;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.TracerProvider;
 
-public class OtelTracerProvider implements TracerProvider {
-  public static final OtelTracerProvider INSTANCE = new OtelTracerProvider();
+public final class OtelTracerProvider implements TracerProvider {
 
-  private final TypeConverter converter = new TypeConverter();
+  private final TypeConverter converter;
 
-  private OtelTracerProvider() {}
+  public OtelTracerProvider(ContextStore<SpanContext, AgentSpan.Context> spanContextStore) {
+    converter = new TypeConverter(spanContextStore);
+  }
 
   @Override
   public Tracer get(final String instrumentationName) {
