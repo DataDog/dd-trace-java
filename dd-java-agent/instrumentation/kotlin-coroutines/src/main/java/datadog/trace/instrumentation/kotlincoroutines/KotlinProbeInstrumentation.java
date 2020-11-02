@@ -137,17 +137,12 @@ public class KotlinProbeInstrumentation extends Instrumenter.Default {
   public static class CoroutineContextWrapper
       implements CoroutineContext, CoroutineContext.Element {
     private final CoroutineContext proxy;
-    private TraceScope currentScope;
-    private TraceScope.Continuation currentContinuation;
-    // private TraceScope previousScope;
-    // private TraceScope.Continuation previousContinuation;
+    private TraceScope.Continuation continuation;
+    private TraceScope scope;
 
     public CoroutineContextWrapper(CoroutineContext proxy) {
       this.proxy = proxy;
-      currentScope = activeScope();
-      if (currentScope != null) {
-        currentContinuation = activeScope().capture();
-      }
+      scope = activeScope();
     }
 
     @Override
@@ -187,19 +182,14 @@ public class KotlinProbeInstrumentation extends Instrumenter.Default {
       return TraceScopeKey.INSTANCE;
     }
 
-    // Actual tracing context-switch logic
     public void tracingSuspend() {
-      if (currentScope != null) {
-        currentContinuation = currentScope.capture();
-      }
-      currentScope = activeScope();
+      continuation = scope.capture();
+      scope = continuation.activate();
     }
 
     public void tracingResume() {
-      if (currentContinuation != null) {
-        currentScope = currentContinuation.activate();
-        currentScope.setAsyncPropagation(true);
-      }
+      continuation = scope.capture();
+      scope = continuation.activate();
     }
   }
 }

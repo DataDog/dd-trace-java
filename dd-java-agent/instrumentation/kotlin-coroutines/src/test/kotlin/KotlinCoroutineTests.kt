@@ -1,7 +1,6 @@
 
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeScope
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource
 import java.util.concurrent.TimeUnit
@@ -26,7 +25,7 @@ import kotlinx.coroutines.yield
 class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
   val tracer: AgentTracer.TracerAPI = AgentTracer.get()
 
-  @Trace
+  @Trace(operationName = "tracedAcrossChannels")
   fun tracedAcrossChannels(): Int = runTest {
     val producer = produce {
       repeat(3) {
@@ -47,7 +46,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
     7
   }
 
-  @Trace
+  @Trace(operationName = "tracePreventedByCancellation")
   fun tracePreventedByCancellation(): Int {
 
     kotlin.runCatching {
@@ -67,7 +66,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
     return 2
   }
 
-  @Trace
+  @Trace(operationName = "tracedAcrossThreadsWithNested")
   fun tracedAcrossThreadsWithNested(): Int = runTest {
     val goodDeferred = async { 1 }
 
@@ -79,7 +78,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
     2
   }
 
-  @Trace
+  @Trace(operationName = "traceWithDeferred")
   fun traceWithDeferred(): Int = runTest {
 
     val keptPromise = CompletableDeferred<Boolean>()
@@ -112,7 +111,7 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
   /**
    * @return Number of expected spans in the trace
    */
-  @Trace
+  @Trace(operationName = "tracedWithDeferredFirstCompletions")
   fun tracedWithDeferredFirstCompletions(): Int = runTest {
 
     val children = listOf(
@@ -185,13 +184,13 @@ class KotlinCoroutineTests(private val dispatcher: CoroutineDispatcher) {
     span.finish()
   }
 
-  @Trace
+  @Trace(operationName = "tracedChild")
   fun tracedChild(opName: String) {
     activeSpan().setSpanName(opName)
   }
 
   private fun <T> runTest(asyncPropagation: Boolean = true, block: suspend CoroutineScope.() -> T): T {
-    activeScope().setAsyncPropagation(asyncPropagation)
+    // activeScope().setAsyncPropagation(asyncPropagation) //it's true by default
     return runBlocking(dispatcher, block = block)
   }
 }
