@@ -4,8 +4,9 @@ import datadog.trace.core.DDSpanData;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
-import datadog.trace.core.serialization.msgpack.ByteBufferConsumer;
-import datadog.trace.core.serialization.msgpack.Packer;
+import datadog.trace.core.serialization.ByteBufferConsumer;
+import datadog.trace.core.serialization.WritableFormatter;
+import datadog.trace.core.serialization.msgpack.MsgPacker;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -21,7 +22,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
 
   private Recording batchTimer;
   private TraceMapper traceMapper;
-  private Packer packer;
+  private WritableFormatter packer;
 
   public PayloadDispatcher(DDAgentApi api, HealthMetrics healthMetrics, Monitoring monitoring) {
     this.api = api;
@@ -60,7 +61,7 @@ public class PayloadDispatcher implements ByteBufferConsumer {
         this.batchTimer =
             monitoring.newTimer(
                 "tracer.trace.buffer.fill.time", "endpoint:" + traceMapper.endpoint());
-        this.packer = new Packer(this, ByteBuffer.allocate(traceMapper.messageBufferSize()));
+        this.packer = new MsgPacker(this, ByteBuffer.allocate(traceMapper.messageBufferSize()));
         batchTimer.start();
       }
     }

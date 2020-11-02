@@ -3,12 +3,16 @@ package datadog.trace.core.serialization.msgpack;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.serialization.ByteBufferConsumer;
+import datadog.trace.core.serialization.EncodingCache;
+import datadog.trace.core.serialization.Mapper;
+import datadog.trace.core.serialization.WritableFormatter;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
 /** Not thread-safe (use one per thread). */
-public class Packer implements Writable, MessageFormatter {
+public class MsgPacker implements WritableFormatter {
 
   private static final boolean IS_JVM_9_OR_LATER =
       !System.getProperty("java.version").startsWith("1.");
@@ -60,7 +64,7 @@ public class Packer implements Writable, MessageFormatter {
   private final boolean manualReset;
   private int messageCount = 0;
 
-  public Packer(Codec codec, ByteBufferConsumer sink, ByteBuffer buffer, boolean manualReset) {
+  public MsgPacker(Codec codec, ByteBufferConsumer sink, ByteBuffer buffer, boolean manualReset) {
     this.codec = codec;
     this.sink = sink;
     this.buffer = buffer;
@@ -68,15 +72,15 @@ public class Packer implements Writable, MessageFormatter {
     this.manualReset = manualReset;
   }
 
-  public Packer(Codec codec, ByteBufferConsumer sink, ByteBuffer buffer) {
+  public MsgPacker(Codec codec, ByteBufferConsumer sink, ByteBuffer buffer) {
     this(codec, sink, buffer, false);
   }
 
-  public Packer(ByteBufferConsumer sink, ByteBuffer buffer) {
+  public MsgPacker(ByteBufferConsumer sink, ByteBuffer buffer) {
     this(Codec.INSTANCE, sink, buffer);
   }
 
-  public Packer(ByteBufferConsumer sink, ByteBuffer buffer, boolean manualReset) {
+  public MsgPacker(ByteBufferConsumer sink, ByteBuffer buffer, boolean manualReset) {
     this(Codec.INSTANCE, sink, buffer, manualReset);
   }
 
@@ -127,10 +131,12 @@ public class Packer implements Writable, MessageFormatter {
     }
   }
 
+  @Override
   public int messageCount() {
     return messageCount;
   }
 
+  @Override
   public void reset() {
     buffer.position(MAX_ARRAY_HEADER_SIZE);
     initBuffer();
@@ -176,7 +182,7 @@ public class Packer implements Writable, MessageFormatter {
     } else if (null == value) {
       writeNull();
     } else {
-      Writer writer = codec.get(value.getClass());
+      MsgPackWriter writer = codec.get(value.getClass());
       writer.write(value, this, encodingCache);
     }
   }

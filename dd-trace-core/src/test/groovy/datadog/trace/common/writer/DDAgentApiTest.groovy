@@ -13,8 +13,8 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.SpanFactory
 import datadog.trace.core.monitor.Monitoring
-import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
-import datadog.trace.core.serialization.msgpack.Packer
+import datadog.trace.core.serialization.ByteBufferConsumer
+import datadog.trace.core.serialization.msgpack.MsgPacker
 import datadog.trace.test.util.DDSpecification
 import org.msgpack.jackson.dataformat.MessagePackFactory
 import spock.lang.Shared
@@ -375,7 +375,7 @@ class DDAgentApiTest extends DDSpecification {
   Payload prepareTraces(String agentVersion, List<List<DDSpan>> traces) {
     ByteBuffer buffer = ByteBuffer.allocate(1 << 20)
     Traces traceCapture = new Traces()
-    def packer = new Packer(traceCapture, buffer)
+    def packer = new MsgPacker(traceCapture, buffer)
     def traceMapper = agentVersion.equals("v0.5/traces")
       ? new TraceMapperV0_5()
       : new TraceMapperV0_4()

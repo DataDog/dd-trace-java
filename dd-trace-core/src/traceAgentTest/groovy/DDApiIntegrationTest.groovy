@@ -12,8 +12,8 @@ import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.monitor.Monitoring
-import datadog.trace.core.serialization.msgpack.ByteBufferConsumer
-import datadog.trace.core.serialization.msgpack.Packer
+import datadog.trace.core.serialization.ByteBufferConsumer
+import datadog.trace.core.serialization.msgpack.MsgPacker
 import datadog.trace.test.util.DDSpecification
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.startupcheck.MinimumDurationRunningStartupCheckStrategy
@@ -199,7 +199,7 @@ class DDApiIntegrationTest extends DDSpecification {
   Payload prepareRequest(List<List<DDSpan>> traces, TraceMapper traceMapper) {
     ByteBuffer buffer = ByteBuffer.allocate(1 << 20)
     Traces traceCapture = new Traces()
-    def packer = new Packer(traceCapture, buffer)
+    def packer = new MsgPacker(traceCapture, buffer)
     for (trace in traces) {
       packer.format(trace, traceMapper)
     }

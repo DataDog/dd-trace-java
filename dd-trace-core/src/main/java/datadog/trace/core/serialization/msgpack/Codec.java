@@ -1,29 +1,31 @@
 package datadog.trace.core.serialization.msgpack;
 
+import datadog.trace.core.serialization.EncodingCache;
+import datadog.trace.core.serialization.EncodingCachingStrategies;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 
-public final class Codec extends ClassValue<Writer<?>> {
+public final class Codec extends ClassValue<MsgPackWriter<?>> {
 
   public static final Codec INSTANCE = new Codec();
 
-  private final Map<Class<?>, Writer<?>> config;
+  private final Map<Class<?>, MsgPackWriter<?>> config;
 
-  public Codec(Map<Class<?>, Writer<?>> config) {
+  public Codec(Map<Class<?>, MsgPackWriter<?>> config) {
     this.config = config;
   }
 
   @SuppressWarnings("unchecked")
   public Codec() {
-    this(Collections.<Class<?>, Writer<?>>emptyMap());
+    this(Collections.<Class<?>, MsgPackWriter<?>>emptyMap());
   }
 
   @Override
-  protected Writer<?> computeValue(Class<?> clazz) {
-    Writer<?> writer = config.get(clazz);
+  protected MsgPackWriter<?> computeValue(Class<?> clazz) {
+    MsgPackWriter<?> writer = config.get(clazz);
     if (null != writer) {
       return writer;
     }
@@ -89,10 +91,10 @@ public final class Codec extends ClassValue<Writer<?>> {
     return DefaultWriter.INSTANCE;
   }
 
-  private static final class IntArrayWriter implements Writer<int[]> {
+  private static final class IntArrayWriter implements MsgPackWriter<int[]> {
 
     @Override
-    public void write(int[] value, Packer packer, EncodingCache encodingCache) {
+    public void write(int[] value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeArrayHeader(value.length);
       for (int i : value) {
         packer.writeInt(i);
@@ -100,10 +102,10 @@ public final class Codec extends ClassValue<Writer<?>> {
     }
   }
 
-  private static final class ShortArrayWriter implements Writer<short[]> {
+  private static final class ShortArrayWriter implements MsgPackWriter<short[]> {
 
     @Override
-    public void write(short[] value, Packer packer, EncodingCache encodingCache) {
+    public void write(short[] value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeArrayHeader(value.length);
       for (short i : value) {
         packer.writeInt(i);
@@ -111,26 +113,26 @@ public final class Codec extends ClassValue<Writer<?>> {
     }
   }
 
-  private static final class ByteArrayWriter implements Writer<byte[]> {
+  private static final class ByteArrayWriter implements MsgPackWriter<byte[]> {
 
     @Override
-    public void write(byte[] value, Packer packer, EncodingCache encodingCache) {
+    public void write(byte[] value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeBinary(value, 0, value.length);
     }
   }
 
-  private static final class ByteBufferWriter implements Writer<ByteBuffer> {
+  private static final class ByteBufferWriter implements MsgPackWriter<ByteBuffer> {
 
     @Override
-    public void write(ByteBuffer buffer, Packer packer, EncodingCache encodingCache) {
+    public void write(ByteBuffer buffer, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeBinary(buffer);
     }
   }
 
-  private static final class BooleanArrayWriter implements Writer<boolean[]> {
+  private static final class BooleanArrayWriter implements MsgPackWriter<boolean[]> {
 
     @Override
-    public void write(boolean[] value, Packer packer, EncodingCache encodingCache) {
+    public void write(boolean[] value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeArrayHeader(value.length);
       for (boolean i : value) {
         packer.writeBoolean(i);
@@ -138,10 +140,10 @@ public final class Codec extends ClassValue<Writer<?>> {
     }
   }
 
-  private static final class DoubleArrayWriter implements Writer<double[]> {
+  private static final class DoubleArrayWriter implements MsgPackWriter<double[]> {
 
     @Override
-    public void write(double[] value, Packer packer, EncodingCache encodingCache) {
+    public void write(double[] value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeArrayHeader(value.length);
       for (double i : value) {
         packer.writeDouble(i);
@@ -149,10 +151,10 @@ public final class Codec extends ClassValue<Writer<?>> {
     }
   }
 
-  private static final class FloatArrayWriter implements Writer<float[]> {
+  private static final class FloatArrayWriter implements MsgPackWriter<float[]> {
 
     @Override
-    public void write(float[] value, Packer packer, EncodingCache encodingCache) {
+    public void write(float[] value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeArrayHeader(value.length);
       for (float i : value) {
         packer.writeFloat(i);
@@ -160,10 +162,10 @@ public final class Codec extends ClassValue<Writer<?>> {
     }
   }
 
-  private static final class LongArrayWriter implements Writer<long[]> {
+  private static final class LongArrayWriter implements MsgPackWriter<long[]> {
 
     @Override
-    public void write(long[] value, Packer packer, EncodingCache encodingCache) {
+    public void write(long[] value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeArrayHeader(value.length);
       for (long i : value) {
         packer.writeLong(i);
@@ -171,10 +173,10 @@ public final class Codec extends ClassValue<Writer<?>> {
     }
   }
 
-  private static final class CollectionWriter implements Writer<Collection<?>> {
+  private static final class CollectionWriter implements MsgPackWriter<Collection<?>> {
 
     @Override
-    public void write(Collection<?> collection, Packer packer, EncodingCache encodingCache) {
+    public void write(Collection<?> collection, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeArrayHeader(collection.size());
       for (Object value : collection) {
         packer.writeObject(value, encodingCache);
@@ -182,10 +184,10 @@ public final class Codec extends ClassValue<Writer<?>> {
     }
   }
 
-  private static final class ObjectArrayWriter implements Writer<Object[]> {
+  private static final class ObjectArrayWriter implements MsgPackWriter<Object[]> {
 
     @Override
-    public void write(Object[] array, Packer packer, EncodingCache encodingCache) {
+    public void write(Object[] array, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeArrayHeader(array.length);
       for (Object value : array) {
         packer.writeObject(value, encodingCache);
@@ -193,87 +195,88 @@ public final class Codec extends ClassValue<Writer<?>> {
     }
   }
 
-  private static final class MapWriter implements Writer<Map<? extends CharSequence, Object>> {
+  private static final class MapWriter
+      implements MsgPackWriter<Map<? extends CharSequence, Object>> {
 
     @Override
     public void write(
-        Map<? extends CharSequence, Object> value, Packer packer, EncodingCache encodingCache) {
+        Map<? extends CharSequence, Object> value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeMap(value, encodingCache);
     }
   }
 
-  private static final class DoubleWriter implements Writer<Double> {
+  private static final class DoubleWriter implements MsgPackWriter<Double> {
 
     @Override
-    public void write(Double value, Packer packer, EncodingCache encodingCache) {
+    public void write(Double value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeDouble(value);
     }
   }
 
-  private static final class BooleanWriter implements Writer<Boolean> {
+  private static final class BooleanWriter implements MsgPackWriter<Boolean> {
 
     @Override
-    public void write(Boolean value, Packer packer, EncodingCache encodingCache) {
+    public void write(Boolean value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeBoolean(value);
     }
   }
 
-  private static final class FloatWriter implements Writer<Float> {
+  private static final class FloatWriter implements MsgPackWriter<Float> {
 
     @Override
-    public void write(Float value, Packer packer, EncodingCache encodingCache) {
+    public void write(Float value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeFloat(value);
     }
   }
 
-  private static final class IntWriter implements Writer<Integer> {
+  private static final class IntWriter implements MsgPackWriter<Integer> {
 
     @Override
-    public void write(Integer value, Packer packer, EncodingCache encodingCache) {
+    public void write(Integer value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeInt(value);
     }
   }
 
-  private static final class ShortWriter implements Writer<Short> {
+  private static final class ShortWriter implements MsgPackWriter<Short> {
 
     @Override
-    public void write(Short value, Packer packer, EncodingCache encodingCache) {
+    public void write(Short value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeInt(value);
     }
   }
 
-  private static final class LongWriter implements Writer<Long> {
+  private static final class LongWriter implements MsgPackWriter<Long> {
 
     @Override
-    public void write(Long value, Packer packer, EncodingCache encodingCache) {
+    public void write(Long value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeLong(value);
     }
   }
 
-  private static final class CharSequenceWriter implements Writer<CharSequence> {
+  private static final class CharSequenceWriter implements MsgPackWriter<CharSequence> {
 
     public static final CharSequenceWriter INSTANCE = new CharSequenceWriter();
 
     @Override
-    public void write(CharSequence value, Packer packer, EncodingCache encodingCache) {
+    public void write(CharSequence value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeString(value, encodingCache);
     }
   }
 
-  private static final class CharArrayWriter implements Writer<char[]> {
+  private static final class CharArrayWriter implements MsgPackWriter<char[]> {
 
     @Override
-    public void write(char[] value, Packer packer, EncodingCache encodingCache) {
+    public void write(char[] value, MsgPacker packer, EncodingCache encodingCache) {
       packer.writeString(CharBuffer.wrap(value), EncodingCachingStrategies.NO_CACHING);
     }
   }
 
-  private static final class DefaultWriter implements Writer<Object> {
+  private static final class DefaultWriter implements MsgPackWriter<Object> {
 
     public static final DefaultWriter INSTANCE = new DefaultWriter();
 
     @Override
-    public void write(Object value, Packer packer, EncodingCache encodingCache) {
+    public void write(Object value, MsgPacker packer, EncodingCache encodingCache) {
       CharSequenceWriter.INSTANCE.write(
           String.valueOf(value), packer, EncodingCachingStrategies.NO_CACHING);
     }

@@ -1,5 +1,8 @@
 package datadog.trace.core.serialization.msgpack;
 
+import datadog.trace.core.serialization.ByteBufferConsumer;
+import datadog.trace.core.serialization.Mapper;
+import datadog.trace.core.serialization.Writable;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.InvalidMarkException;
@@ -10,7 +13,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class VerifyThatPackerDoesNotThrowInvalidMarkException {
+public class VerifyThatMsgPackerDoesNotThrowInvalidMarkException {
 
   @Parameterized.Parameters
   public static Object[][] bufferSizes() {
@@ -19,15 +22,15 @@ public class VerifyThatPackerDoesNotThrowInvalidMarkException {
 
   private final int bufferSize;
 
-  public VerifyThatPackerDoesNotThrowInvalidMarkException(int bufferSize) {
+  public VerifyThatMsgPackerDoesNotThrowInvalidMarkException(int bufferSize) {
     this.bufferSize = bufferSize;
   }
 
   @Test
   public void provokeInvalidMarkException() {
     ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
-    Packer packer =
-        new Packer(
+    MsgPacker packer =
+        new MsgPacker(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffer) {}

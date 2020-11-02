@@ -1,4 +1,4 @@
-package datadog.trace.core.serialization.msgpack;
+package datadog.trace.core.serialization;
 
 public interface MessageFormatter {
   <T> boolean format(T message, Mapper<T> mapper);
