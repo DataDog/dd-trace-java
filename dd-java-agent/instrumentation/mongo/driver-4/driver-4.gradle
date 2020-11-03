@@ -8,6 +8,9 @@ muzzle {
   pass {
     group = "org.mongodb"
     module = "mongodb-driver-core"
+    // this instrumentation is backwards compatible with early versions of the new API that shipped in 3.7
+    // the legacy API instrumented in driver-3.1 continues to be shipped in 4.x, but doesn't conflict here
+    // because they are triggered by different types: MongoClientSettings(new) vs MongoClientOptions(legacy)
     versions = "[3.7,)"
     assertInverse = true
   }
