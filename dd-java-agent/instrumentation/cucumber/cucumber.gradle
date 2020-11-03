@@ -1,0 +1,16 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'cucumber'
+    module = 'cucumber'
+    versions = '[6.8,7)'
+    assertInverse = true
+  }
+}
+
+dependencies {
+  compileOnly group: 'io.cucumber', name: 'cucumber-java', version: '6.8.1'
+
+  testCompile group: 'io.cucumber', name: 'cucumber-java', version: '6.8.1'
+}
