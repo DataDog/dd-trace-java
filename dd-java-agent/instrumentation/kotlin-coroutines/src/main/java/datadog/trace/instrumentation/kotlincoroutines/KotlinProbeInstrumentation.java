@@ -12,6 +12,7 @@ import java.util.Map;
 import kotlin.coroutines.Continuation;
 import kotlin.coroutines.CoroutineContext;
 import kotlin.jvm.functions.Function2;
+import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
@@ -134,15 +135,20 @@ public class KotlinProbeInstrumentation extends Instrumenter.Default {
     }
   }
 
+  @Slf4j
   public static class CoroutineContextWrapper
       implements CoroutineContext, CoroutineContext.Element {
     private final CoroutineContext proxy;
     private TraceScope.Continuation continuation;
     private TraceScope scope;
+    private final TraceScope originalScope;
+    private TraceScope.Continuation originalContinuation;
 
     public CoroutineContextWrapper(CoroutineContext proxy) {
       this.proxy = proxy;
-      scope = activeScope();
+      // activateSpan(startSpan("kotlin.coroutine")).setAsyncPropagation(true);
+      originalScope = scope = activeScope();
+      log.debug("wrapping scope: '{}'; proxy: '{}'", scope, proxy);
     }
 
     @Override
@@ -183,13 +189,32 @@ public class KotlinProbeInstrumentation extends Instrumenter.Default {
     }
 
     public void tracingSuspend() {
-      continuation = scope.capture();
-      scope = continuation.activate();
+      //continuation.cancel();
+      //scope.close();
+      // activeScope().capture().cancel();
+      final TraceScope activeScope = activeScope();
+      log.debug(
+          "suspend '{}'; scope: '{}'; continuation '{}'; proxy: '{}'",
+          this,
+          scope,
+          continuation,
+          proxy);
+
+      // scope.close();
+      // scope = activeScope;
+      //originalScope.close();
+      originalContinuation.cancel();
+
     }
 
     public void tracingResume() {
       continuation = scope.capture();
+      if (originalContinuation == null) {
+        originalContinuation = continuation;
+      }
+      log.debug("resume: scope: '{}' captured; continuation: '{}'", scope, continuation);
       scope = continuation.activate();
+      log.debug("continuation: '{}' activated; new scope {}", continuation, scope);
     }
   }
 }
