@@ -10,7 +10,7 @@ import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
 
 class FixedSizeCacheTest extends DDSpecification {
-  def "fixed size should store and retrieve values"() {
+  def "fixed size should computeIfAbsent and retrieve values"() {
     setup:
     def fsCache = DDCaches.newFixedSizeCache(15)
     def creationCount = new AtomicInteger(0)
@@ -38,6 +38,75 @@ class FixedSizeCacheTest extends DDSpecification {
     null                      | null           | 3     // do nothing
   }
 
+  def "fixed size should get values if present"() {
+    setup:
+    def fsCache = DDCaches.newFixedSizeCache(15)
+    def creationCount = new AtomicInteger(0)
+    def tvc = new TVC(creationCount)
+    def tk1 = new TKey(1, 1, "one")
+    def tk6 = new TKey(6, 6, "six")
+    def tk10 = new TKey(10, 10, "ten")
+    // insert some values that happen to be the chain of hashes 1 -> 6 -> 10
+    fsCache.computeIfAbsent(tk1, tvc)
+    fsCache.computeIfAbsent(tk6, tvc)
+    fsCache.computeIfAbsent(tk10, tvc)
+
+    expect:
+    fsCache.getIfPresent(tk) == value
+    creationCount.get() == 3
+
+    where:
+    tk                        | value
+    new TKey(1, 1, "one")     | "one_value"
+    new TKey(6, 6, "six")     | "six_value"
+    new TKey(10, 10, "ten")   | "ten_value"
+    new TKey(1, 11, "eleven") | null
+    null                      | null
+  }
+
+  def "fixed size put values"() {
+    setup:
+    def fsCache = DDCaches.newFixedSizeCache(15)
+    def creationCount = new AtomicInteger(0)
+    def tvc = new TVC(creationCount)
+
+    expect:
+    fsCache.put(null, "value") == null
+    fsCache.getIfPresent(null) == null
+
+    when:
+    def tk1 = new TKey(1, 1, "one")
+    fsCache.put(tk1, "put_one")
+
+    then:
+    fsCache.getIfPresent(tk1) == "put_one"
+
+    when:
+    def tk6 = new TKey(6, 6, "six")
+    fsCache.computeIfAbsent(tk6, tvc)
+
+    then:
+    fsCache.getIfPresent(tk6) == "six_value"
+
+    when: "overwrite value in second slot"
+    def oldValue = fsCache.put(tk6, "put_six")
+
+    then:
+    oldValue == "six_value"
+    fsCache.getIfPresent(tk6) == "put_six"
+    fsCache.computeIfAbsent(tk6, tvc) == "put_six"
+
+    when: "put value in first slot when all slots used"
+    def tk10 = new TKey(10, 10, "ten")
+    fsCache.computeIfAbsent(tk10, tvc)
+    def tk11 = new TKey(1, 11, "eleven")
+    def slotValue = fsCache.put(tk11, "put_eleven")
+
+    then:
+    slotValue == null //slot was occupied but equality failed
+    fsCache.getIfPresent(tk11) == "put_eleven"
+  }
+
   def "chm cache should store and retrieve values"() {
     setup:
     def fsCache = DDCaches.newUnboundedCache(15)
@@ -63,6 +132,64 @@ class FixedSizeCacheTest extends DDSpecification {
     new TKey(1, 11, "eleven") | "eleven_value" | 4
     new TKey(4, 4, "four")    | "four_value"   | 4
     null                      | null           | 3
+  }
+
+  def "chm cache should get values if present"() {
+    def fsCache = DDCaches.newUnboundedCache(15)
+    def creationCount = new AtomicInteger(0)
+    def tvc = new TVC(creationCount)
+    def tk1 = new TKey(1, 1, "one")
+    def tk6 = new TKey(6, 6, "six")
+    def tk10 = new TKey(10, 10, "ten")
+    // insert some values that happen to be the chain of hashes 1 -> 6 -> 10
+    fsCache.computeIfAbsent(tk1, tvc)
+    fsCache.computeIfAbsent(tk6, tvc)
+    fsCache.computeIfAbsent(tk10, tvc)
+
+    expect:
+    fsCache.getIfPresent(tk) == value
+    creationCount.get() == 3
+
+    where:
+    tk                        | value
+    new TKey(1, 1, "one")     | "one_value"
+    new TKey(6, 6, "six")     | "six_value"
+    new TKey(10, 10, "ten")   | "ten_value"
+    new TKey(1, 11, "eleven") | null
+    null                      | null
+  }
+
+  def "chm cahce put values"() {
+    setup:
+    def fsCache = DDCaches.newUnboundedCache(15)
+    def creationCount = new AtomicInteger(0)
+    def tvc = new TVC(creationCount)
+
+    expect:
+    fsCache.put(null, "value") == null
+    fsCache.getIfPresent(null) == null
+
+    when:
+    def tk1 = new TKey(1, 1, "one")
+    fsCache.put(tk1, "put_one")
+
+    then:
+    fsCache.getIfPresent(tk1) == "put_one"
+
+    when:
+    def tk6 = new TKey(6, 6, "six")
+    fsCache.computeIfAbsent(tk6, tvc)
+
+    then:
+    fsCache.getIfPresent(tk6) == "six_value"
+
+    when:
+    def oldValue = fsCache.put(tk6, "put_six")
+
+    then:
+    oldValue == "six_value"
+    fsCache.getIfPresent(tk6) == "put_six"
+    fsCache.computeIfAbsent(tk6, tvc) == "put_six"
   }
 
   def "should handle concurrent usage"() {

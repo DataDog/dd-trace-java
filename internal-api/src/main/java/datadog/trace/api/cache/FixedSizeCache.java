@@ -99,6 +99,60 @@ final class FixedSizeCache<K, V> implements DDCache<K, V> {
     return value;
   }
 
+  @Override
+  public V getIfPresent(K key) {
+    if (key == null) {
+      return null;
+    }
+
+    int h = key.hashCode();
+    for (int i = 1; i <= 3; i++) {
+      int pos = h & mask;
+      Node<K, V> current = elements[pos];
+      if (current != null && key.equals(current.key)) {
+        // we found a cached key, so use that value
+        return current.value;
+      }
+      // slot was occupied by someone else, so try another slot
+      h = rehash(h);
+    }
+    return null;
+  }
+
+  @Override
+  public V put(K key, V value) {
+    if (key == null) {
+      return null;
+    }
+
+    int h = key.hashCode();
+
+    // insert at the first position unless we find another empty slot
+    int insertPos = h & mask;
+    boolean foundEmptyPosition = false;
+
+    // try to find a slot or a match 3 times
+    for (int i = 1; i <= 3; i++) {
+      int pos = h & mask;
+      Node<K, V> current = elements[pos];
+      if (current == null && !foundEmptyPosition) {
+        insertPos = pos;
+        foundEmptyPosition = true;
+      } else if (current != null && key.equals(current.key)) {
+        // we found a cached key, so overwrite that position
+        elements[pos] = new Node<>(key, value);
+
+        // current is no longer in the array
+        return current.value;
+      }
+      // slot was occupied by someone else, so try another slot
+      h = rehash(h);
+    }
+
+    elements[insertPos] = new Node<>(key, value);
+    return null;
+  }
+
   private V createAndStoreValue(K key, Function<K, ? extends V> creator, int pos) {
     V value = creator.apply(key);
     Node<K, V> node = new Node<>(key, value);
