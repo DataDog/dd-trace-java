@@ -85,9 +85,31 @@ class SLCompatHelper extends LoggerHelper {
 
     buf.append(message);
 
+    if (settings.embedException) {
+      embedException(buf, t);
+    }
+
     settings.printStream.println(buf.toString());
-    if (t != null) {
+    if (!settings.embedException && t != null) {
       t.printStackTrace(settings.printStream);
+    }
+  }
+
+  private void embedException(StringBuilder buf, Throwable t) {
+    if (t != null) {
+      buf.append(" [exception:");
+      buf.append(t.toString());
+      buf.append("][stack:[");
+      boolean empty = true;
+      for (StackTraceElement element : t.getStackTrace()) {
+        if (!empty) {
+          buf.append(",");
+        } else {
+          empty = false;
+        }
+        buf.append(element.toString());
+      }
+      buf.append("]]");
     }
   }
 }

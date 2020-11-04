@@ -97,6 +97,24 @@ class SLCompatHelperTest extends Specification {
     outputStream.toString() == "[$thread] ERROR foo - log\n${NoStackException.getName()}: wrong\n"
   }
 
+  def "test logging with an embedded exception in the message"() {
+    setup:
+    def outputStream = new ByteArrayOutputStream()
+    def printStream = new PrintStream(outputStream, true)
+    def props = new Properties()
+    props.setProperty(SLCompatSettings.Keys.EMBED_EXCEPTION, "true")
+    def settings = new SLCompatSettings(props, new Properties(), printStream)
+    def helper = new SLCompatHelper("foo", settings)
+    try {
+      throw new IOException("wrong")
+    } catch(Exception exception) {
+      helper.log(LogLevel.ERROR, "log", exception)
+    }
+
+    expect:
+    outputStream.toString() ==~ /^.* ERROR foo - log \[exception:java\.io\.IOException: wrong\]\[stack:\[.*\]\]\n$/
+  }
+
   def "test logging without thread name and with time"() {
     setup:
     def outputStream = new ByteArrayOutputStream()
