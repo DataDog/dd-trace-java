@@ -1,0 +1,25 @@
+
+apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'org.unbroken-dome.test-sets'
+
+testSets {
+  latestDepTest {
+    dirName = 'test'
+  }
+}
+
+muzzle {
+  pass {
+    group = 'com.aerospike'
+    module = 'aerospike-client'
+    versions = "[4,)"
+  }
+}
+
+dependencies {
+  compileOnly group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
+
+  testCompile group: 'com.aerospike', name: 'aerospike-client', version: '4.0.0'
+  latestDepTestCompile group: 'com.aerospike', name: 'aerospike-client', version: '+'
+}
