@@ -1,3 +1,7 @@
+ext {
+  minJavaVersionForTests = JavaVersion.VERSION_1_8
+}
+
 // Made this a variable so we can easily update to latest releases.
 def otelVersion = '0.3.0'
 
