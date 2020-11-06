@@ -112,7 +112,7 @@ class SLCompatHelperTest extends Specification {
     }
 
     expect:
-    outputStream.toString() ==~ /^.* ERROR foo - log \[exception:java\.io\.IOException: wrong\]\[stack:\[.*\]\]\n$/
+    outputStream.toString() ==~ /^.* ERROR foo - log \[exception:java\.io\.IOException: wrong\. at .*\]\n$/
   }
 
   def "test logging without thread name and with time"() {
