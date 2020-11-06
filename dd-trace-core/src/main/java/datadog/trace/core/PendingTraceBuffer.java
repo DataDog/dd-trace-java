@@ -4,6 +4,7 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_MONITOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 
@@ -51,6 +52,7 @@ class PendingTraceBuffer implements AutoCloseable {
     }
   }
 
+  @Slf4j
   private final class Worker implements Runnable {
 
     @Override
@@ -74,6 +76,11 @@ class PendingTraceBuffer implements AutoCloseable {
             pendingTrace.write();
           } else {
             // Trace is too new.  Requeue it and sleep to avoid a hot loop.
+            if (log.isDebugEnabled()) {
+              log.debug(
+                  "t_id={} -> enqueued from trace buffer.",
+                  pendingTrace.getRootSpan().getTraceId().toLong());
+            }
             enqueue(pendingTrace);
             Thread.sleep(SLEEP_TIME_MS);
           }
