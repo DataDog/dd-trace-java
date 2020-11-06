@@ -224,6 +224,7 @@ public class PendingTrace implements AgentTrace {
     } else {
       if (isRootSpan) {
         // Finished root with pending work ... delay write
+        log.debug("t_id={} -> enqueued from root span.", traceId);
         pendingTraceBuffer.enqueue(this);
       } else {
         int partialFlushMinSpans = tracer.getPartialFlushMinSpans();
@@ -232,6 +233,7 @@ public class PendingTrace implements AgentTrace {
           partialFlush();
         } else if (rootSpanWritten.get()) {
           // Late arrival span ... delay write
+          log.debug("t_id={} -> enqueued from late span.", traceId);
           pendingTraceBuffer.enqueue(this);
         }
       }

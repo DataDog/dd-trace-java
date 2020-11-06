@@ -577,7 +577,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
     // Builder attributes
     private Map<String, Object> tags;
     private long timestampMicro;
-    private Object parent;
+    private AgentSpan.Context parent;
     private String serviceName;
     private String resourceName;
     private boolean errorFlag;
@@ -700,9 +700,7 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
       final DDSpanContext context;
 
-      // FIXME [API] parentContext should be an interface implemented by ExtractedContext,
-      // TagContext, DDSpanContext, AgentSpan.Context
-      Object parentContext = parent;
+      AgentSpan.Context parentContext = parent;
       if (parentContext == null && !ignoreScope) {
         // use the Scope as parent unless overridden or ignored.
         final AgentSpan activeSpan = scopeManager.activeSpan();
