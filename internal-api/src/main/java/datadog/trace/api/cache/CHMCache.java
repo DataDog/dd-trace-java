@@ -12,24 +12,6 @@ final class CHMCache<K, V> implements DDCache<K, V> {
   }
 
   @Override
-  public V put(K key, V value) {
-    if (null == key) {
-      return null;
-    }
-
-    return chm.put(key, value);
-  }
-
-  @Override
-  public V getIfPresent(K key) {
-    if (null == key) {
-      return null;
-    }
-
-    return chm.get(key);
-  }
-
-  @Override
   public V computeIfAbsent(K key, Function<K, ? extends V> func) {
     if (null == key) {
       return null;
