@@ -136,7 +136,7 @@ class SLCompatHelperTest extends Specification {
     def printStream = new PrintStream(outputStream, true)
     def props = new Properties()
     def dateTimeFormatter = SLCompatSettings.DTFormatter.create(dateTFS)
-    def settings = new SLCompatSettings(props, props, warnS, showB, printStream, showS, showL, showT, dateTimeFormatter, showDT, LogLevel.INFO)
+    def settings = new SLCompatSettings(props, props, warnS, showB, printStream, showS, showL, showT, dateTimeFormatter, showDT, LogLevel.INFO, false)
     def helper = new SLCompatHelper("foo.bar", settings)
     helper.log(level, 0, 4711, "thread", "log", null)
 
