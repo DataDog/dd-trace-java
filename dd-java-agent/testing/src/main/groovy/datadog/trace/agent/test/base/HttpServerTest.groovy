@@ -30,6 +30,7 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRE
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.UNKNOWN
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
@@ -127,6 +128,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     PATH_PARAM("path/123/param", 200, "123"),
     AUTH_REQUIRED("authRequired", 200, null),
     LOGIN("login", 302, null),
+    UNKNOWN("", 451, null), // This needs to have a valid status code
 
     private final String path
     final String query
@@ -166,7 +168,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     private static final Map<String, ServerEndpoint> PATH_MAP = values().collectEntries { [it.path, it] }
 
     static ServerEndpoint forPath(String path) {
-      return PATH_MAP.get(path)
+      def endpoint = PATH_MAP.get(path)
+      return endpoint != null ? endpoint : UNKNOWN
     }
   }
 
@@ -183,7 +186,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   static <T> T controller(ServerEndpoint endpoint, Closure<T> closure) {
     assert activeSpan() != null: "Controller should have a parent span."
     assert activeScope().asyncPropagating: "Scope should be propagating async."
-    if (endpoint == NOT_FOUND) {
+    if (endpoint == NOT_FOUND || endpoint == UNKNOWN) {
       return closure()
     }
     return runUnderTrace("controller", closure)
