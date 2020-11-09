@@ -270,14 +270,17 @@ public abstract class AgentTestRunner extends DDSpecification {
     ListWriterAssert.assertTraces(TEST_WRITER, size, ignoreAdditionalTraces, spec);
   }
 
-  @SneakyThrows
   public static void blockUntilChildSpansFinished(final int numberOfSpans) {
-    final AgentSpan span = getTestTracer().activeSpan();
+    blockUntilChildSpansFinished(getTestTracer().activeSpan(), numberOfSpans);
+  }
+
+  @SneakyThrows
+  public static void blockUntilChildSpansFinished(final AgentSpan span, final int numberOfSpans) {
     final long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
     if (span instanceof DDSpan) {
       final PendingTrace pendingTrace = ((DDSpan) span).context().getTrace();
 
-      while (pendingTrace.size() < numberOfSpans) {
+      while (pendingTrace.completedSpans() < numberOfSpans) {
         if (System.currentTimeMillis() > deadline) {
           throw new TimeoutException(
               "Timed out waiting for child spans.  Received: " + pendingTrace.size());

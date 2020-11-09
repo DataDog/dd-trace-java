@@ -65,6 +65,8 @@ public class PendingTrace implements AgentTrace {
 
   // We must maintain a separate count because ConcurrentLinkedDeque.size() is a linear operation.
   private final AtomicInteger completedSpanCount = new AtomicInteger(0);
+  // This is used during testing, and is protected by synchronization
+  private int writtenSpanCount = 0;
 
   private final AtomicInteger pendingReferenceCount = new AtomicInteger(0);
 
@@ -274,6 +276,7 @@ public class PendingTrace implements AgentTrace {
               it.remove();
             }
             tracer.write(trace);
+            writtenSpanCount += size;
             return size;
           }
         }
@@ -284,5 +287,12 @@ public class PendingTrace implements AgentTrace {
 
   public int size() {
     return completedSpanCount.get();
+  }
+
+  // Used for testing
+  public int completedSpans() {
+    synchronized (this) {
+      return writtenSpanCount + size();
+    }
   }
 }
