@@ -1,73 +1,67 @@
+import java.util.concurrent.Semaphore
+
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import datadog.trace.agent.test.AgentTestRunner.blockUntilChildSpansFinished
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.{
+  activateSpan,
   activeScope,
-  activeSpan
+  activeSpan,
+  startSpan
 }
 
 import scala.concurrent.duration._
 
-// ! == send-message
-object AkkaActors {
-  val system: ActorSystem = ActorSystem("helloAkka")
-
-  val printer: ActorRef = system.actorOf(Receiver.props, "receiverActor")
-
-  val howdyGreeter: ActorRef =
-    system.actorOf(Greeter.props("Howdy", printer), "howdyGreeter")
-
+class AkkaActors extends AutoCloseable {
+  val system: ActorSystem = ActorSystem("akka-actors-test")
+  val receiver: ActorRef =
+    system.actorOf(Receiver.props, "receiver")
   val forwarder: ActorRef =
-    system.actorOf(Forwarder.props(printer), "forwarderActor")
-  val helloGreeter: ActorRef =
-    system.actorOf(Greeter.props("Hello", forwarder), "helloGreeter")
+    system.actorOf(Forwarder.props(receiver), "forwarder")
+  val tellGreeter: ActorRef =
+    system.actorOf(Greeter.props("Howdy", receiver), "tell-greeter")
+  val askGreeter: ActorRef =
+    system.actorOf(Greeter.props("Hi-diddly-ho", receiver), "ask-greeter")
+  val forwardGreeter: ActorRef =
+    system.actorOf(Greeter.props("Hello", forwarder), "forward-greeter")
 
-  @Trace
-  def tracedChild(opName: String): Unit = {
-    activeSpan().setSpanName(opName)
+  override def close(): Unit = {
+    system.terminate()
   }
-}
 
-class AkkaActors {
-
-  import AkkaActors._
   import Greeter._
 
-  implicit val timeout: Timeout = 5.minutes
+  implicit val timeout: Timeout = 10.seconds
+
+  private val actors =
+    Map("tell" -> tellGreeter, "ask" -> askGreeter, "forward" -> forwardGreeter)
+
+  def block(name: String): Semaphore = {
+    val barrier = new Semaphore(0)
+    actors(name) ! Block(barrier)
+    barrier
+  }
 
   @Trace
-  def basicTell(): Unit = {
-    try {
-      activeScope().setAsyncPropagation(true)
-      howdyGreeter ! WhoToGreet("Akka")
-      howdyGreeter ! Greet
-    } finally {
-      blockUntilChildSpansFinished(1)
+  def send(name: String, who: String): Unit = {
+    val actor = actors(name)
+    activeScope().setAsyncPropagation(true)
+    activeSpan().setSpanName(name)
+    actor ! WhoToGreet(who)
+    if (name == "ask") {
+      actor ? Greet
+    } else {
+      actor ! Greet
     }
   }
 
   @Trace
-  def basicAsk(): Unit = {
-    try {
-      activeScope().setAsyncPropagation(true)
-      howdyGreeter ! WhoToGreet("Akka")
-      howdyGreeter ? Greet
-    } finally {
-      blockUntilChildSpansFinished(1)
-    }
-  }
-
-  @Trace
-  def basicForward(): Unit = {
-    try {
-      activeScope().setAsyncPropagation(true)
-      helloGreeter ! WhoToGreet("Akka")
-      helloGreeter ? Greet
-    } finally {
-      blockUntilChildSpansFinished(1)
-    }
+  def leak(who: String, leak: String): Unit = {
+    activeScope().setAsyncPropagation(true)
+    activeSpan().setSpanName("leak all the things")
+    tellGreeter ! WhoToGreet(who)
+    tellGreeter ! Leak(leak)
   }
 }
 
@@ -75,24 +69,30 @@ object Greeter {
   def props(message: String, receiverActor: ActorRef): Props =
     Props(new Greeter(message, receiverActor))
 
+  final case class Block(barrier: Semaphore)
   final case class WhoToGreet(who: String)
-
   case object Greet
-
+  final case class Leak(leak: String)
 }
 
 class Greeter(message: String, receiverActor: ActorRef) extends Actor {
-
   import Greeter._
   import Receiver._
 
   var greeting = ""
 
   def receive = {
+    case Block(barrier) =>
+      barrier.acquire()
     case WhoToGreet(who) =>
       greeting = s"$message, $who"
     case Greet =>
       receiverActor ! Greeting(greeting)
+    case Leak(leak) =>
+      val span = startSpan(greeting)
+      span.setResourceName(leak)
+      activateSpan(span)
+      span.finish()
   }
 }
 
@@ -100,7 +100,6 @@ object Receiver {
   def props: Props = Props[Receiver]
 
   final case class Greeting(greeting: String)
-
 }
 
 class Receiver extends Actor with ActorLogging {
@@ -109,9 +108,13 @@ class Receiver extends Actor with ActorLogging {
 
   def receive = {
     case Greeting(greeting) => {
-      AkkaActors.tracedChild(greeting)
+      tracedChild(greeting)
     }
+  }
 
+  @Trace
+  def tracedChild(opName: String): Unit = {
+    activeSpan().setSpanName(opName)
   }
 }
 
