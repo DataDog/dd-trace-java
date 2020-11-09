@@ -1,11 +1,8 @@
 package datadog.trace.agent.test.base
 
 import ch.qos.logback.classic.Level
-import datadog.trace.agent.test.AgentTestRunner
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.utils.OkHttpUtils
-import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
@@ -14,7 +11,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
 import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
@@ -22,8 +18,6 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import spock.lang.Shared
 import spock.lang.Unroll
-
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 import static datadog.trace.agent.test.asserts.TraceAssert.assertTrace
@@ -45,7 +39,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static org.junit.Assume.assumeTrue
 
 @Unroll
-abstract class HttpServerTest<SERVER> extends AgentTestRunner {
+abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
   public static final Logger SERVER_LOGGER = LoggerFactory.getLogger("http-server")
   static {
@@ -53,49 +47,7 @@ abstract class HttpServerTest<SERVER> extends AgentTestRunner {
   }
 
   @Shared
-  SERVER server
-  @Shared
-  OkHttpClient client = OkHttpUtils.client()
-  @Shared
-  ServerSocket socket = PortUtils.randomOpenSocket()
-  @Shared
-  int port = -1
-  @Shared
-  URI address = null
-
-  URI buildAddress() {
-    return new URI("http://localhost:$port/")
-  }
-
-  @Shared
   String component = component()
-
-  def setupSpec() {
-    // Set up other shared variables
-    port = socket.getLocalPort()
-    address = buildAddress()
-    // Wait with closing the socket until right before we start the server
-    socket.close()
-    PortUtils.waitForPortToClose(port, 5, TimeUnit.SECONDS)
-    server = startServer(port)
-    PortUtils.waitForPortToOpen(port, 5, TimeUnit.SECONDS)
-    println getClass().name + " http server started at: http://localhost:$port/"
-  }
-
-  abstract SERVER startServer(int port)
-
-  def cleanupSpec() {
-    if (server == null) {
-      println getClass().name + " can't stop null server"
-      return
-    }
-    stopServer(server)
-    server = null
-    PortUtils.waitForPortToClose(port, 10, TimeUnit.SECONDS)
-    println getClass().name + " http server stopped at: http://localhost:$port/"
-  }
-
-  abstract void stopServer(SERVER server)
 
   abstract String component()
 

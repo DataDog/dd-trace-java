@@ -4,7 +4,6 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator
-import spock.lang.Retry
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
@@ -25,17 +24,6 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object> 
   boolean testExceptionBody() {
     false
   }
-
-// FIXME: This doesn't work because we don't support bindAndHandle.
-//  @Override
-//  def startServer(int port) {
-//    AkkaHttpTestWebServer.start(port)
-//  }
-//
-//  @Override
-//  void stopServer(Object ignore) {
-//    AkkaHttpTestWebServer.stop()
-//  }
 
   void serverSpan(TraceAssert trace, BigInteger traceID = null, BigInteger parentID = null, String method = "GET", ServerEndpoint endpoint = SUCCESS) {
     trace.span {
@@ -70,7 +58,6 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<Object> 
   }
 }
 
-@Retry
 class AkkaHttpServerInstrumentationTestSync extends AkkaHttpServerInstrumentationTest {
   @Override
   def startServer(int port) {
@@ -83,7 +70,6 @@ class AkkaHttpServerInstrumentationTestSync extends AkkaHttpServerInstrumentatio
   }
 }
 
-@Retry
 class AkkaHttpServerInstrumentationTestAsync extends AkkaHttpServerInstrumentationTest {
   @Override
   def startServer(int port) {
@@ -93,5 +79,22 @@ class AkkaHttpServerInstrumentationTestAsync extends AkkaHttpServerInstrumentati
   @Override
   void stopServer(Object ignore) {
     AkkaHttpTestAsyncWebServer.stop()
+  }
+}
+
+class AkkaHttpServerInstrumentationTestBindAndHandle extends AkkaHttpServerInstrumentationTest {
+  @Override
+  def startServer(int port) {
+    AkkaHttpTestWebServer.start(port)
+  }
+
+  @Override
+  void stopServer(Object ignore) {
+    AkkaHttpTestWebServer.stop()
+  }
+
+  @Override
+  boolean redirectHasBody() {
+    return true
   }
 }

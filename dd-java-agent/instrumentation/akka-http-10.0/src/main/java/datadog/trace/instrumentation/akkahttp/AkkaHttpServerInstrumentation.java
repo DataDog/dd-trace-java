@@ -7,29 +7,39 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.AKKA_REQUEST;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders.GETTER;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import akka.NotUsed;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
-import akka.stream.Materializer;
+import akka.http.scaladsl.settings.ServerSettings;
+import akka.stream.Attributes;
+import akka.stream.BidiShape;
+import akka.stream.Inlet;
+import akka.stream.Outlet;
+import akka.stream.javadsl.BidiFlow;
+import akka.stream.scaladsl.Flow;
+import akka.stream.stage.AbstractInHandler;
+import akka.stream.stage.AbstractOutHandler;
+import akka.stream.stage.GraphStage;
+import akka.stream.stage.GraphStageLogic;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.context.TraceScope;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
 import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import scala.Function1;
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.Future;
-import scala.runtime.AbstractFunction1;
 
 @Slf4j
 @AutoService(Instrumenter.class)
@@ -46,11 +56,13 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      AkkaHttpServerInstrumentation.class.getName() + "$DatadogWrapperHelper",
-      AkkaHttpServerInstrumentation.class.getName() + "$DatadogSyncWrapper",
-      AkkaHttpServerInstrumentation.class.getName() + "$DatadogAsyncWrapper",
-      AkkaHttpServerInstrumentation.class.getName() + "$DatadogAsyncWrapper$1",
-      AkkaHttpServerInstrumentation.class.getName() + "$DatadogAsyncWrapper$2",
+      getClass().getName() + "$DatadogWrapperHelper",
+      getClass().getName() + "$DatadogServerRequestResponseFlowWrapper",
+      getClass().getName() + "$DatadogServerRequestResponseFlowWrapper$1",
+      getClass().getName() + "$DatadogServerRequestResponseFlowWrapper$1$1",
+      getClass().getName() + "$DatadogServerRequestResponseFlowWrapper$1$2",
+      getClass().getName() + "$DatadogServerRequestResponseFlowWrapper$1$3",
+      getClass().getName() + "$DatadogServerRequestResponseFlowWrapper$1$4",
       packageName + ".AkkaHttpServerHeaders",
       packageName + ".AkkaHttpServerDecorator",
       packageName + ".UriAdapter",
@@ -59,38 +71,20 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
 
   @Override
   public Map<? extends ElementMatcher<? super MethodDescription>, String> transformers() {
-    // Instrumenting akka-streams bindAndHandle api was previously attempted.
-    // This proved difficult as there was no clean way to close the async scope
-    // in the graph logic after the user's request handler completes.
-    //
-    // Instead, we're instrumenting the bindAndHandle function helpers by
-    // wrapping the scala functions with our own handlers.
-    final Map<ElementMatcher<? super MethodDescription>, String> transformers = new HashMap<>();
-    transformers.put(
-        named("bindAndHandleSync").and(takesArgument(0, named("scala.Function1"))),
-        AkkaHttpServerInstrumentation.class.getName() + "$AkkaHttpSyncAdvice");
-    transformers.put(
-        named("bindAndHandleAsync").and(takesArgument(0, named("scala.Function1"))),
-        AkkaHttpServerInstrumentation.class.getName() + "$AkkaHttpAsyncAdvice");
-    return transformers;
+    return singletonMap(
+        named("bindAndHandle").and(takesArgument(0, named("akka.stream.scaladsl.Flow"))),
+        getClass().getName() + "$AkkaHttpBindAndHandleAdvice");
   }
 
-  public static class AkkaHttpSyncAdvice {
+  public static class AkkaHttpBindAndHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void wrapHandler(
+    public static void enter(
         @Advice.Argument(value = 0, readOnly = false)
-            Function1<HttpRequest, HttpResponse> handler) {
-      handler = new DatadogSyncWrapper(handler);
-    }
-  }
-
-  public static class AkkaHttpAsyncAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void wrapHandler(
-        @Advice.Argument(value = 0, readOnly = false)
-            Function1<HttpRequest, Future<HttpResponse>> handler,
-        @Advice.Argument(value = 7) final Materializer materializer) {
-      handler = new DatadogAsyncWrapper(handler, materializer.executionContext());
+            Flow<HttpRequest, HttpResponse, NotUsed> handler,
+        @Advice.Argument(value = 4, readOnly = false) ServerSettings settings) {
+      final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed> wrapper =
+          BidiFlow.fromGraph(new DatadogServerRequestResponseFlowWrapper(settings));
+      handler = wrapper.reversed().join(handler.asJava()).asScala();
     }
   }
 
@@ -113,10 +107,6 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
       DECORATE.onResponse(span, response);
       DECORATE.beforeFinish(span);
 
-      final TraceScope scope = activeScope();
-      if (scope != null) {
-        scope.setAsyncPropagation(false);
-      }
       span.finish();
     }
 
@@ -125,79 +115,177 @@ public final class AkkaHttpServerInstrumentation extends Instrumenter.Default {
       span.setTag(Tags.HTTP_STATUS, 500);
       DECORATE.beforeFinish(span);
 
-      final TraceScope scope = activeScope();
-      if (scope != null) {
-        scope.setAsyncPropagation(false);
-      }
       span.finish();
     }
   }
 
-  public static class DatadogSyncWrapper extends AbstractFunction1<HttpRequest, HttpResponse> {
-    private final Function1<HttpRequest, HttpResponse> userHandler;
+  public static class DatadogServerRequestResponseFlowWrapper
+      extends GraphStage<BidiShape<HttpResponse, HttpResponse, HttpRequest, HttpRequest>> {
+    private final Inlet<HttpRequest> requestInlet = Inlet.create("Datadog.server.requestIn");
+    private final Outlet<HttpRequest> requestOutlet = Outlet.create("Datadog.server.requestOut");
+    private final Inlet<HttpResponse> responseInlet = Inlet.create("Datadog.server.responseIn");
+    private final Outlet<HttpResponse> responseOutlet = Outlet.create("Datadog.server.responseOut");
+    private final BidiShape<HttpResponse, HttpResponse, HttpRequest, HttpRequest> shape =
+        BidiShape.of(responseInlet, responseOutlet, requestInlet, requestOutlet);
 
-    public DatadogSyncWrapper(final Function1<HttpRequest, HttpResponse> userHandler) {
-      this.userHandler = userHandler;
+    private final int pipeliningLimit;
+    private final AgentScope DUMMY_SCOPE;
+
+    public DatadogServerRequestResponseFlowWrapper(final ServerSettings settings) {
+      this.pipeliningLimit = settings.getPipeliningLimit();
+      AgentSpan span = new AgentTracer.NoopAgentSpan();
+      // Create a dummy scope that we can store in the queue if we can't create a scope
+      DUMMY_SCOPE = activateSpan(span, false);
+      DUMMY_SCOPE.close();
     }
 
     @Override
-    public HttpResponse apply(final HttpRequest request) {
-      final AgentScope scope = DatadogWrapperHelper.createSpan(request);
-      try {
-        final HttpResponse response = userHandler.apply(request);
-        scope.close();
-        DatadogWrapperHelper.finishSpan(scope.span(), response);
-        return response;
-      } catch (final Throwable t) {
-        scope.close();
-        DatadogWrapperHelper.finishSpan(scope.span(), t);
-        throw t;
-      }
-    }
-  }
-
-  public static class DatadogAsyncWrapper
-      extends AbstractFunction1<HttpRequest, Future<HttpResponse>> {
-    private final Function1<HttpRequest, Future<HttpResponse>> userHandler;
-    private final ExecutionContext executionContext;
-
-    public DatadogAsyncWrapper(
-        final Function1<HttpRequest, Future<HttpResponse>> userHandler,
-        final ExecutionContext executionContext) {
-      this.userHandler = userHandler;
-      this.executionContext = executionContext;
+    public BidiShape<HttpResponse, HttpResponse, HttpRequest, HttpRequest> shape() {
+      return shape;
     }
 
     @Override
-    public Future<HttpResponse> apply(final HttpRequest request) {
-      final AgentScope scope = DatadogWrapperHelper.createSpan(request);
-      Future<HttpResponse> futureResponse = null;
-      try {
-        futureResponse = userHandler.apply(request);
-      } catch (final Throwable t) {
-        scope.close();
-        DatadogWrapperHelper.finishSpan(scope.span(), t);
-        throw t;
-      }
-      final Future<HttpResponse> wrapped =
-          futureResponse.transform(
-              new AbstractFunction1<HttpResponse, HttpResponse>() {
+    public Attributes initialAttributes() {
+      return Attributes.name("DatadogServerRequestResponseFlowWrapper");
+    }
+
+    @Override
+    public GraphStageLogic createLogic(final Attributes inheritedAttributes) throws Exception {
+      return new GraphStageLogic(shape) {
+        {
+          // The request/response is guaranteed to be in order according to the docs at
+          // https://doc.akka.io/docs/akka-http/current/server-side/low-level-api.html#request-response-cycle
+          // and there can never be more outstanding requests than the pipeliningLimit
+          // that this connection was created with. This means that we can safely
+          // close the span at the front of the queue when we receive the response
+          // from the user code, since it will match up to the request for that span.
+          final Queue<AgentScope> scopes = new ArrayBlockingQueue<>(pipeliningLimit);
+
+          // This is where the request comes in from the server and TCP layer
+          setHandler(
+              requestInlet,
+              new AbstractInHandler() {
                 @Override
-                public HttpResponse apply(final HttpResponse response) {
-                  DatadogWrapperHelper.finishSpan(scope.span(), response);
-                  return response;
+                public void onPush() throws Exception {
+                  final HttpRequest request = grab(requestInlet);
+                  final AgentScope scope = DatadogWrapperHelper.createSpan(request);
+                  if (scope != null) {
+                    scopes.add(scope);
+                  } else {
+                    scopes.add(DUMMY_SCOPE);
+                  }
+                  push(requestOutlet, request);
+                  // Since we haven't instrumented the akka stream state machine, we can't rely
+                  // on spans and scopes being propagated during the push and pull of the
+                  // element. Instead we let the scope leak intentionally here and clean it
+                  // up when the user response comes back, or in the actor message processing
+                  // instrumentation that drives this state machine.
                 }
-              },
-              new AbstractFunction1<Throwable, Throwable>() {
+
                 @Override
-                public Throwable apply(final Throwable t) {
-                  DatadogWrapperHelper.finishSpan(scope.span(), t);
-                  return t;
+                public void onUpstreamFinish() throws Exception {
+                  // We will not receive any more requests from the server and TCP layer so stop
+                  // sending them
+                  complete(requestOutlet);
                 }
-              },
-              executionContext);
-      scope.close();
-      return wrapped;
+
+                @Override
+                public void onUpstreamFailure(final Throwable ex) throws Exception, Exception {
+                  // We will not receive any more requests from the server and TCP layer so stop
+                  // sending them
+                  fail(requestOutlet, ex);
+                }
+              });
+
+          // This is where the requests goes out to the user code
+          setHandler(
+              requestOutlet,
+              new AbstractOutHandler() {
+                @Override
+                public void onPull() throws Exception {
+                  pull(requestInlet);
+                }
+
+                @Override
+                public void onDownstreamFinish() throws Exception {
+                  // We can not send out any more requests to the user code so stop receiving them
+                  cancel(requestInlet);
+                }
+              });
+
+          // This is where the response comes back from the user code
+          setHandler(
+              responseInlet,
+              new AbstractInHandler() {
+                @Override
+                public void onPush() throws Exception {
+                  final HttpResponse response = grab(responseInlet);
+                  final AgentScope scope = scopes.poll();
+                  if (scope != null && scope != DUMMY_SCOPE) {
+                    DatadogWrapperHelper.finishSpan(scope.span(), response);
+                    // Check if the active scope is still the scope from when the request came in,
+                    // and close it. If it's not, then it will be cleaned up actor message
+                    // processing instrumentation that drives this state machine
+                    TraceScope activeScope = activeScope();
+                    if (activeScope == scope) {
+                      scope.close();
+                    }
+                  }
+                  push(responseOutlet, response);
+                }
+
+                @Override
+                public void onUpstreamFinish() throws Exception {
+                  // We will not receive any more responses from the user code, so clean up any
+                  // remaining spans
+                  AgentScope scope = scopes.poll();
+                  while (scope != null) {
+                    if (scope != DUMMY_SCOPE) {
+                      scope.span().finish();
+                    }
+                    scope = scopes.poll();
+                  }
+                  completeStage();
+                }
+
+                @Override
+                public void onUpstreamFailure(final Throwable ex) throws Exception {
+                  AgentScope scope = scopes.poll();
+                  if (scope != null && scope != DUMMY_SCOPE) {
+                    // Mark the span as failed
+                    DatadogWrapperHelper.finishSpan(scope.span(), ex);
+                  }
+                  // We will not receive any more responses from the user code, so clean up any
+                  // remaining spans
+                  scope = scopes.poll();
+                  while (scope != null) {
+                    if (scope != DUMMY_SCOPE) {
+                      scope.span().finish();
+                    }
+                    scope = scopes.poll();
+                  }
+                  fail(responseOutlet, ex);
+                }
+              });
+
+          // This is where the response goes back to the server and TCP layer
+          setHandler(
+              responseOutlet,
+              new AbstractOutHandler() {
+                @Override
+                public void onPull() throws Exception {
+                  pull(responseInlet);
+                }
+
+                @Override
+                public void onDownstreamFinish() throws Exception {
+                  // We can not send out any more responses to the server and TCP layer so stop
+                  // receiving them
+                  cancel(responseInlet);
+                }
+              });
+        }
+      };
     }
   }
 }
