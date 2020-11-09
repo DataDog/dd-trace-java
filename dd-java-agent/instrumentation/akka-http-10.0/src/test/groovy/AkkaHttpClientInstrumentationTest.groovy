@@ -2,24 +2,28 @@ import akka.actor.ActorSystem
 import akka.http.javadsl.Http
 import akka.http.javadsl.model.HttpMethods
 import akka.http.javadsl.model.HttpRequest
+import akka.http.javadsl.model.HttpResponse
 import akka.http.javadsl.model.headers.RawHeader
+import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.stream.ActorMaterializer
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator
-import org.junit.Ignore
+import java.util.concurrent.CompletionStage
+import scala.compat.java8.FutureConverters
 import spock.lang.Shared
 import spock.lang.Timeout
 
-@Ignore // Ignore this test until akka actor messaging is fixed
 @Timeout(5)
-class AkkaHttpClientInstrumentationTest extends HttpClientTest {
+abstract class AkkaHttpClientInstrumentationTest extends HttpClientTest {
 
   @Shared
   ActorSystem system = ActorSystem.create()
   @Shared
   ActorMaterializer materializer = ActorMaterializer.create(system)
+
+  abstract CompletionStage<HttpResponse> doRequest(HttpRequest request)
 
   @Override
   int doRequest(String method, URI uri, Map<String, String> headers, Closure callback) {
@@ -29,19 +33,16 @@ class AkkaHttpClientInstrumentationTest extends HttpClientTest {
 
     def response
     try {
-      response = Http.get(system)
-        .singleRequest(request, materializer)
-      //.whenComplete { result, error ->
-      // FIXME: Callback should be here instead.
-      //  callback?.call()
-      //}
+      response = doRequest(request)
+        .whenComplete { result, error ->
+          callback?.call()
+        }
         .toCompletableFuture()
         .get()
     } finally {
-      // FIXME: remove this when callback above works.
+      // Since the spans are completed in an async callback, we need to wait here
       blockUntilChildSpansFinished(1)
     }
-    callback?.call()
     return response.status().intValue()
   }
 
@@ -93,5 +94,22 @@ class AkkaHttpClientInstrumentationTest extends HttpClientTest {
 
     where:
     renameService << [false, true]
+  }
+}
+
+class AkkaHttpJavaClientInstrumentationTest extends AkkaHttpClientInstrumentationTest {
+  @Override
+  CompletionStage<HttpResponse> doRequest(HttpRequest request) {
+    return Http.get(system).singleRequest(request, materializer)
+  }
+}
+
+class AkkaHttpScalaClientInstrumentationTest extends AkkaHttpClientInstrumentationTest {
+  @Override
+  CompletionStage<HttpResponse> doRequest(HttpRequest request) {
+    def http = akka.http.scaladsl.Http.apply(system)
+    def sRequest = (akka.http.scaladsl.model.HttpRequest) request
+    def f = http.singleRequest(sRequest, http.defaultClientHttpsContext(), (ConnectionPoolSettings) ConnectionPoolSettings.apply(system), system.log(), materializer)
+    return FutureConverters.toJava(f)
   }
 }
