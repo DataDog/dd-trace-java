@@ -1,18 +1,15 @@
 package datadog.trace.common.writer.ddagent;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static datadog.trace.core.http.OkHttpUtils.buildHttpClient;
+import static datadog.trace.core.http.OkHttpUtils.prepareRequest;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
-import datadog.common.container.ContainerInfo;
 import datadog.trace.api.RatelimitedLogger;
-import datadog.trace.common.writer.ddagent.unixdomainsockets.UnixDomainSocketFactory;
-import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.monitor.Counter;
 import datadog.trace.core.monitor.Monitoring;
 import datadog.trace.core.monitor.Recording;
-import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -22,13 +19,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.AbstractExecutorService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.ConnectionSpec;
-import okhttp3.Dispatcher;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -39,24 +31,16 @@ import okio.BufferedSink;
 /** The API pointing to a DD agent */
 @Slf4j
 public class DDAgentApi {
-  private static final String DATADOG_META_LANG = "Datadog-Meta-Lang";
-  private static final String DATADOG_META_LANG_VERSION = "Datadog-Meta-Lang-Version";
-  private static final String DATADOG_META_LANG_INTERPRETER = "Datadog-Meta-Lang-Interpreter";
-  private static final String DATADOG_META_LANG_INTERPRETER_VENDOR =
-      "Datadog-Meta-Lang-Interpreter-Vendor";
-  private static final String DATADOG_META_TRACER_VERSION = "Datadog-Meta-Tracer-Version";
-  private static final String DATADOG_CONTAINER_ID = "Datadog-Container-ID";
+  private static final String DATADOG_CLIENT_COMPUTED_STATS = "Datadog-Client-Computed-Stats";
   private static final String X_DATADOG_TRACE_COUNT = "X-Datadog-Trace-Count";
   private static final String V3_ENDPOINT = "v0.3/traces";
   private static final String V4_ENDPOINT = "v0.4/traces";
   private static final String V5_ENDPOINT = "v0.5/traces";
   private static final long NANOSECONDS_BETWEEN_ERROR_LOG = TimeUnit.MINUTES.toNanos(5);
-  private static final String WILL_NOT_LOG_FOR_MESSAGE = "(Will not log errors for 5 minutes)";
 
   private final List<DDAgentResponseListener> responseListeners = new ArrayList<>();
   private final String[] endpoints;
 
-  private long previousErrorLogNanos = System.nanoTime() - NANOSECONDS_BETWEEN_ERROR_LOG;
   private boolean logNextSuccess = false;
   private long totalTraces = 0;
   private long receivedTraces = 0;
@@ -90,6 +74,7 @@ public class DDAgentApi {
   private final String agentUrl;
   private final String unixDomainSocketPath;
   private final long timeoutMillis;
+  private final boolean metricsReportingEnabled;
   private OkHttpClient httpClient;
   private HttpUrl tracesUrl;
   private String detectedVersion = null;
@@ -102,10 +87,12 @@ public class DDAgentApi {
       final String unixDomainSocketPath,
       final long timeoutMillis,
       final boolean enableV05Endpoint,
+      final boolean metricsReportingEnabled,
       final Monitoring monitoring) {
     this.agentUrl = agentUrl;
     this.unixDomainSocketPath = unixDomainSocketPath;
     this.timeoutMillis = timeoutMillis;
+    this.metricsReportingEnabled = metricsReportingEnabled;
     this.endpoints =
         enableV05Endpoint
             ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
@@ -120,7 +107,7 @@ public class DDAgentApi {
       final String unixDomainSocketPath,
       final long timeoutMillis,
       final Monitoring monitoring) {
-    this(agentUrl, unixDomainSocketPath, timeoutMillis, true, monitoring);
+    this(agentUrl, unixDomainSocketPath, timeoutMillis, true, false, monitoring);
   }
 
   public void addResponseListener(final DDAgentResponseListener listener) {
@@ -155,6 +142,7 @@ public class DDAgentApi {
     try {
       final Request request =
           prepareRequest(tracesUrl)
+              .addHeader(DATADOG_CLIENT_COMPUTED_STATS, metricsReportingEnabled ? "true" : "")
               .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.representativeCount()))
               .put(new MsgPackRequestBody(payload))
               .build();
@@ -330,79 +318,6 @@ public class DDAgentApi {
       }
     }
     return null;
-  }
-
-  private static OkHttpClient buildHttpClient(
-      final String scheme, final String unixDomainSocketPath, final long timeoutMillis) {
-    OkHttpClient.Builder builder = new OkHttpClient.Builder();
-    if (unixDomainSocketPath != null) {
-      builder = builder.socketFactory(new UnixDomainSocketFactory(new File(unixDomainSocketPath)));
-    }
-
-    if (!"https".equals(scheme)) {
-      // force clear text when using http to avoid failures for JVMs without TLS
-      builder = builder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
-    }
-
-    return builder
-        .connectTimeout(timeoutMillis, MILLISECONDS)
-        .writeTimeout(timeoutMillis, MILLISECONDS)
-        .readTimeout(timeoutMillis, MILLISECONDS)
-
-        // We don't do async so this shouldn't matter, but just to be safe...
-        .dispatcher(new Dispatcher(RejectingExecutorService.INSTANCE))
-        .build();
-  }
-
-  /** {@link ExecutorService} that always rejects requests. */
-  private static final class RejectingExecutorService extends AbstractExecutorService {
-    static final RejectingExecutorService INSTANCE = new RejectingExecutorService();
-
-    @Override
-    public void execute(final Runnable command) {
-      throw new RejectedExecutionException("Unexpected request to execute async task");
-    }
-
-    @Override
-    public void shutdown() {}
-
-    @Override
-    public List<Runnable> shutdownNow() {
-      return Collections.emptyList();
-    }
-
-    @Override
-    public boolean isShutdown() {
-      return true;
-    }
-
-    @Override
-    public boolean isTerminated() {
-      return true;
-    }
-
-    @Override
-    public boolean awaitTermination(final long timeout, final TimeUnit unit) {
-      return true;
-    }
-  }
-
-  private static Request.Builder prepareRequest(final HttpUrl url) {
-    final Request.Builder builder =
-        new Request.Builder()
-            .url(url)
-            .addHeader(DATADOG_META_LANG, "java")
-            .addHeader(DATADOG_META_LANG_VERSION, DDTraceCoreInfo.JAVA_VERSION)
-            .addHeader(DATADOG_META_LANG_INTERPRETER, DDTraceCoreInfo.JAVA_VM_NAME)
-            .addHeader(DATADOG_META_LANG_INTERPRETER_VENDOR, DDTraceCoreInfo.JAVA_VM_VENDOR)
-            .addHeader(DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
-
-    final String containerId = ContainerInfo.get().getContainerId();
-    if (containerId == null) {
-      return builder;
-    } else {
-      return builder.addHeader(DATADOG_CONTAINER_ID, containerId);
-    }
   }
 
   String detectEndpointAndBuildClient() {

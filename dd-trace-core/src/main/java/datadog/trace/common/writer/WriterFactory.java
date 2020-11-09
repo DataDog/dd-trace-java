@@ -71,6 +71,7 @@ public class WriterFactory {
             unixDomainSocket,
             TimeUnit.SECONDS.toMillis(config.getAgentTimeout()),
             Config.get().isTraceAgentV05Enabled(),
+            Config.get().isTracerMetricsEnabled(),
             monitoring);
 
     final String prioritizationType = config.getPrioritizationType();

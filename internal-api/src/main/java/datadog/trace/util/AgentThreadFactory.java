@@ -15,6 +15,8 @@ public final class AgentThreadFactory implements ThreadFactory {
     TRACE_PROCESSOR("dd-trace-processor"),
     TRACE_CASSANDRA_ASYNC_SESSION("dd-cassandra-session-executor"),
 
+    METRICS_AGGREGATOR("dd-metrics-aggregator"),
+
     JMX_STARTUP("dd-agent-startup-jmxfetch"),
     JMX_COLLECTOR("dd-jmx-collector"),
 

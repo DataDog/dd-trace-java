@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static datadog.trace.common.metrics.MetricsAggregatorFactory.createMetricsAggregator;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
 
 import com.timgroup.statsd.NoOpStatsDClient;
@@ -21,6 +22,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScopeManager;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ScopeSource;
+import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.Writer;
@@ -88,6 +90,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
   final Sampler sampler;
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final AgentScopeManager scopeManager;
+
+  final MetricsAggregator metricsAggregator;
 
   /** A set of tags that are added only to the application's root span */
   private final Map<String, String> localRootSpanTags;
@@ -237,6 +241,8 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     pendingTraceFactory = new PendingTrace.Factory(this, PENDING_TRACE_BUFFER);
     this.writer.start();
+
+    this.metricsAggregator = createMetricsAggregator(config);
 
     shutdownCallback = new ShutdownHook(this);
     try {
@@ -428,6 +434,9 @@ public class CoreTracer implements AgentTracer.TracerAPI {
 
     if (!writtenTrace.isEmpty()) {
       writtenTrace = traceProcessor.onTraceComplete(writtenTrace);
+
+      metricsAggregator.publish(writtenTrace);
+
       final DDSpan rootSpan = writtenTrace.get(0).getLocalRootSpan();
       setSamplingPriorityIfNecessary(rootSpan);
 

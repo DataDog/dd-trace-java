@@ -3,28 +3,41 @@ package datadog.trace.core.serialization;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
+import java.util.EnumSet;
 import java.util.Map;
 
 public abstract class WritableFormatter implements Writable, MessageFormatter {
 
+  public enum Feature {
+    MANUAL_RESET,
+    RESIZEABLE,
+    SINGLE_MESSAGE
+  }
+
   protected final Codec codec;
 
   private final ByteBufferConsumer sink;
-  protected final ByteBuffer buffer;
-  private final boolean manualReset;
   private final int maxArrayHeaderSize;
+
+  private final boolean resizeable;
+  private final boolean manualReset;
+  private final boolean writeArray;
+
+  protected ByteBuffer buffer;
   protected int messageCount = 0;
 
   protected WritableFormatter(
       Codec codec,
       ByteBufferConsumer sink,
       ByteBuffer buffer,
-      boolean manualReset,
+      EnumSet<Feature> features,
       int maxArrayHeaderSize) {
     this.codec = codec;
     this.sink = sink;
     this.buffer = buffer;
-    this.manualReset = manualReset;
+    this.manualReset = features.contains(Feature.MANUAL_RESET);
+    this.resizeable = features.contains(Feature.RESIZEABLE);
+    this.writeArray = !features.contains(Feature.SINGLE_MESSAGE);
     this.maxArrayHeaderSize = maxArrayHeaderSize;
     initBuffer();
   }
@@ -64,7 +77,10 @@ public abstract class WritableFormatter implements Writable, MessageFormatter {
     } catch (BufferOverflowException e) {
       // go back to the last successfully written message
       buffer.reset();
-      if (!manualReset) {
+      if (resizeable) {
+        this.buffer = resize(this.buffer);
+        return format(message, mapper);
+      } else if (!manualReset) {
         if (buffer.position() == maxArrayHeaderSize) {
           throw e;
         }
@@ -88,14 +104,14 @@ public abstract class WritableFormatter implements Writable, MessageFormatter {
   @Override
   public void flush() {
     buffer.flip();
-    writeHeader();
+    writeHeader(writeArray);
     sink.accept(messageCount, buffer.slice());
     if (!manualReset) {
       reset();
     }
   }
 
-  protected abstract void writeHeader();
+  protected abstract void writeHeader(boolean array);
 
   // NOTE - implementations pulled up to this level should
   // not write directly to the buffer
@@ -123,5 +139,12 @@ public abstract class WritableFormatter implements Writable, MessageFormatter {
       ValueWriter writer = codec.get(value.getClass());
       writer.write(value, this, encodingCache);
     }
+  }
+
+  private static ByteBuffer resize(ByteBuffer oldBuffer) {
+    ByteBuffer newBuffer = ByteBuffer.allocate(oldBuffer.capacity() * 2);
+    oldBuffer.flip();
+    newBuffer.put(oldBuffer);
+    return newBuffer;
   }
 }

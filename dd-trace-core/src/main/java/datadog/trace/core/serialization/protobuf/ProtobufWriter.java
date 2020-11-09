@@ -11,6 +11,7 @@ import datadog.trace.core.serialization.WritableFormatter;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.EnumSet;
 import java.util.Map;
 
 /**
@@ -285,7 +286,12 @@ public class ProtobufWriter extends WritableFormatter {
 
   public ProtobufWriter(
       Codec codec, ByteBufferConsumer sink, ByteBuffer buffer, boolean manualReset) {
-    super(codec, sink, buffer, manualReset, 0);
+    super(
+        codec,
+        sink,
+        buffer,
+        manualReset ? EnumSet.of(Feature.MANUAL_RESET) : EnumSet.noneOf(Feature.class),
+        0);
     this.root = new Context(buffer);
     this.active = root;
     stack.push(active);
@@ -356,7 +362,7 @@ public class ProtobufWriter extends WritableFormatter {
   }
 
   @Override
-  protected void writeHeader() {
+  protected void writeHeader(boolean writeArray) {
     buffer.position(0);
   }
 

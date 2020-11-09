@@ -59,6 +59,7 @@ public class DDAgentWriter implements Writer {
     int flushFrequencySeconds = 1;
     Monitoring monitoring = Monitoring.DISABLED;
     boolean traceAgentV05Enabled = Config.get().isTraceAgentV05Enabled();
+    boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
   }
 
   @lombok.Builder
@@ -74,7 +75,8 @@ public class DDAgentWriter implements Writer {
       final int flushFrequencySeconds,
       final Prioritization prioritization,
       final Monitoring monitoring,
-      final boolean traceAgentV05Enabled) {
+      final boolean traceAgentV05Enabled,
+      final boolean metricsReportingEnabled) {
     if (agentApi != null) {
       api = agentApi;
     } else {
@@ -84,6 +86,7 @@ public class DDAgentWriter implements Writer {
               unixDomainSocket,
               timeoutMillis,
               traceAgentV05Enabled,
+              metricsReportingEnabled,
               monitoring);
     }
     this.healthMetrics = healthMetrics;
