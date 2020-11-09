@@ -80,6 +80,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
       try (final AgentScope scope = activateSpan(span)) {
         // Using async propagate here breaks the tests which use InProcessTransport.
         // It also seems logical to not need it at all, so removing it.
+        scope.setAsyncPropagation(false);
         delegate().close(status, trailers);
       } catch (final Throwable e) {
         DECORATE.onError(span, e);

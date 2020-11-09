@@ -69,6 +69,7 @@ public class TracingClientInterceptor implements ClientInterceptor {
 
       try (final AgentScope scope = activateSpan(span)) {
         // Don't async propagate otherwise the span gets tied up with a timeout handler.
+        scope.setAsyncPropagation(false);
         super.start(new TracingClientCallListener<>(span, responseListener), headers);
       } catch (final Throwable e) {
         DECORATE.onError(span, e);
