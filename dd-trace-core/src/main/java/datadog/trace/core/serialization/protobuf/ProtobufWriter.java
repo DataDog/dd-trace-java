@@ -20,11 +20,25 @@ import java.util.Map;
  */
 public class ProtobufWriter extends WritableFormatter {
 
+  // any integer type including booleans
   private static final int VARINT = 0;
+  // doubles
   private static final int FIXED_64 = 1;
+  // strings, binary, arrays (i.e. repeated fields), embedded structs (i.e. messages)
   private static final int LENGTH_DELIMITED = 2;
+  // floats
   private static final int FIXED_32 = 5;
 
+  /**
+   * Protobuf models embedded structures in the same way it does strings: as a sequence of bytes
+   * prefixed by a varint encoded length. This means that protobuf can't be written using streaming
+   * techniques, because the length in bytes of an embedded structure can't be known until it has
+   * been serialised, and calculating the length is almost as expensive as actually doing the
+   * serialisation. One option (which rules out streaming entirely) is to write messages backwards.
+   * The approach taken is to serialise embedded structures in the top level of a stack of buffers,
+   * and when the top of the stack is popped, the contents of the popped stack frame is written as a
+   * binary string into the top of the parent stack frame.
+   */
   private class Context implements Writable {
     private final ByteBuffer buffer;
     private int elementCount = Integer.MAX_VALUE;
