@@ -1,4 +1,4 @@
-package datadog.trace.core.serialization.msgpack;
+package datadog.trace.core.serialization.protobuf;
 
 import datadog.trace.core.serialization.ByteBufferConsumer;
 import datadog.trace.core.serialization.Mapper;
@@ -13,7 +13,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
-public class VerifyThatMsgPackerDoesNotThrowInvalidMarkException {
+public class VerifyThatProtobufFormatterDoesNotThrowInvalidMarkException {
 
   @Parameterized.Parameters
   public static Object[][] bufferSizes() {
@@ -22,15 +22,15 @@ public class VerifyThatMsgPackerDoesNotThrowInvalidMarkException {
 
   private final int bufferSize;
 
-  public VerifyThatMsgPackerDoesNotThrowInvalidMarkException(int bufferSize) {
+  public VerifyThatProtobufFormatterDoesNotThrowInvalidMarkException(int bufferSize) {
     this.bufferSize = bufferSize;
   }
 
   @Test
   public void provokeInvalidMarkException() {
     ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
-    MsgPacker packer =
-        new MsgPacker(
+    ProtobufWriter formatter =
+        new ProtobufWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffer) {}
@@ -50,7 +50,7 @@ public class VerifyThatMsgPackerDoesNotThrowInvalidMarkException {
         byte[] message = new byte[ThreadLocalRandom.current().nextInt(0, bufferSize * 2)];
         position = buffer.position();
         length = message.length;
-        packer.format(message, mapper);
+        formatter.format(message, mapper);
       } catch (BufferOverflowException e) {
         // acceptable, need to be able to handle data larger than the limit
       } catch (InvalidMarkException e) {

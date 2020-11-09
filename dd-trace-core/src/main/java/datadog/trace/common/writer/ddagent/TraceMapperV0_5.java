@@ -12,7 +12,7 @@ import datadog.trace.core.serialization.ByteBufferConsumer;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.Writable;
 import datadog.trace.core.serialization.WritableFormatter;
-import datadog.trace.core.serialization.msgpack.MsgPacker;
+import datadog.trace.core.serialization.msgpack.MsgPackWriter;
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
@@ -41,7 +41,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
   public TraceMapperV0_5(final int bufferSize) {
     this.dictionaryWriter =
-        new MsgPacker(
+        new MsgPackWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(final int messageCount, final ByteBuffer buffer) {

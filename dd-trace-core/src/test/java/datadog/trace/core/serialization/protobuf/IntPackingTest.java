@@ -1,21 +1,17 @@
-package datadog.trace.core.serialization.msgpack;
+package datadog.trace.core.serialization.protobuf;
 
-import static org.junit.Assert.assertEquals;
+import static datadog.trace.core.serialization.protobuf.CompactRepeatedFieldHelper.verifyCompactVarints;
 
 import datadog.trace.core.serialization.ByteBufferConsumer;
 import datadog.trace.core.serialization.EncodingCachingStrategies;
 import datadog.trace.core.serialization.Mapper;
 import datadog.trace.core.serialization.MessageFormatter;
 import datadog.trace.core.serialization.Writable;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ThreadLocalRandom;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.msgpack.core.MessagePack;
-import org.msgpack.core.MessageUnpacker;
 
 @RunWith(Parameterized.class)
 public class IntPackingTest {
@@ -90,30 +86,19 @@ public class IntPackingTest {
         }
       },
       {random(100)},
-      {random(10_000)},
-      {random(100_000)},
+      {random(1000)}
     };
   }
 
   @Test
   public void packLongs() {
-    ByteBuffer buffer = ByteBuffer.allocate(input.length * 9 + 10);
+    final ByteBuffer buffer = ByteBuffer.allocate(input.length * 10 + 5);
     MessageFormatter messageFormatter =
-        new MsgPackWriter(
+        new ProtobufWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
-                try {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  assertEquals(1, unpacker.unpackArrayHeader());
-                  assertEquals(1, messageCount);
-                  assertEquals(input.length, unpacker.unpackArrayHeader());
-                  for (long i : input) {
-                    assertEquals(i, unpacker.unpackLong());
-                  }
-                } catch (IOException e) {
-                  Assert.fail(e.getMessage());
-                }
+                verifyCompactVarints(input, buffy);
               }
             },
             buffer);
@@ -134,23 +119,13 @@ public class IntPackingTest {
     for (int i = 0; i < input.length; ++i) {
       asInts[i] = (int) input[i];
     }
-    ByteBuffer buffer = ByteBuffer.allocate(input.length * 5 + 10);
+    final ByteBuffer buffer = ByteBuffer.allocate(input.length * 5 + 10);
     MessageFormatter messageFormatter =
-        new MsgPackWriter(
+        new ProtobufWriter(
             new ByteBufferConsumer() {
               @Override
               public void accept(int messageCount, ByteBuffer buffy) {
-                try {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  assertEquals(1, unpacker.unpackArrayHeader());
-                  assertEquals(1, messageCount);
-                  assertEquals(asInts.length, unpacker.unpackArrayHeader());
-                  for (int i : asInts) {
-                    assertEquals(i, unpacker.unpackInt());
-                  }
-                } catch (IOException e) {
-                  Assert.fail(e.getMessage());
-                }
+                verifyCompactVarints(asInts, buffy);
               }
             },
             buffer);

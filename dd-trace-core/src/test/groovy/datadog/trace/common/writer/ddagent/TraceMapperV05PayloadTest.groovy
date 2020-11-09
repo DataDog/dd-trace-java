@@ -3,7 +3,7 @@ package datadog.trace.common.writer.ddagent
 import datadog.trace.api.DDId
 import datadog.trace.core.DDSpanData
 import datadog.trace.core.serialization.ByteBufferConsumer
-import datadog.trace.core.serialization.msgpack.MsgPacker
+import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.test.util.DDSpecification
 import org.junit.Assert
 import org.msgpack.core.MessageFormat
@@ -67,7 +67,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     flushedTraces.remove(traces.size() - 1)
     PayloadVerifier verifier = new PayloadVerifier(flushedTraces, traceMapper)
     // 100KB body
-    MsgPacker packer = new MsgPacker(verifier, ByteBuffer.allocate(100 * 1024))
+    MsgPackWriter packer = new MsgPackWriter(verifier, ByteBuffer.allocate(100 * 1024))
     when:
     for (List<DDSpanData> trace : traces) {
       packer.format(trace, traceMapper)
@@ -110,7 +110,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     // need space for the overflowing buffer, the dictionary, and two small array headers
     PayloadVerifier verifier = new PayloadVerifier(flushedTraces, traceMapper, (2 << 20) + dictionarySize + 1 + 1 + 5)
     // 2MB body
-    MsgPacker packer = new MsgPacker(verifier, ByteBuffer.allocate(2 << 20))
+    MsgPackWriter packer = new MsgPackWriter(verifier, ByteBuffer.allocate(2 << 20))
     when:
     for (List<DDSpanData> trace : traces) {
       packer.format(trace, traceMapper)
@@ -124,7 +124,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
     List<List<DDSpanData>> traces = generateRandomTraces(traceCount, lowCardinality)
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize)
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper)
-    MsgPacker packer = new MsgPacker(verifier, ByteBuffer.allocate(bufferSize))
+    MsgPackWriter packer = new MsgPackWriter(verifier, ByteBuffer.allocate(bufferSize))
     when:
     boolean tracesFitInBuffer = true
     try {
@@ -333,7 +333,7 @@ class TraceMapperV05PayloadTest extends DDSpecification {
   static int calculateSize(List<DDSpanData> trace) {
     ByteBuffer buffer = ByteBuffer.allocate(1024)
     AtomicInteger size = new AtomicInteger()
-    def packer = new MsgPacker(new ByteBufferConsumer() {
+    def packer = new MsgPackWriter(new ByteBufferConsumer() {
       @Override
       void accept(int messageCount, ByteBuffer buffy) {
         size.set(buffy.limit() - buffy.position() - 1)

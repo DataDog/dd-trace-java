@@ -5,7 +5,7 @@ import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.DDSpan
 import datadog.trace.core.SpanFactory
 import datadog.trace.core.serialization.ByteBufferConsumer
-import datadog.trace.core.serialization.msgpack.MsgPacker
+import datadog.trace.core.serialization.msgpack.MsgPackWriter
 import datadog.trace.test.util.DDSpecification
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
@@ -19,7 +19,7 @@ class TraceMapperTest extends DDSpecification {
     TraceMapper traceMapper = new TraceMapperV0_5()
     List<DDSpan> spans = trace
     CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer()
-    MsgPacker packer = new MsgPacker(sink, ByteBuffer.allocate(1024))
+    MsgPackWriter packer = new MsgPackWriter(sink, ByteBuffer.allocate(1024))
     packer.format(trace, traceMapper)
     packer.flush()
 
