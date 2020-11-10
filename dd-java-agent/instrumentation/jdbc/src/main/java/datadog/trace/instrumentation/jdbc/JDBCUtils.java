@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.jdbc;
 
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.ExceptionLogger;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
@@ -11,34 +10,41 @@ import java.sql.Statement;
 public abstract class JDBCUtils {
   private static Field c3poField = null;
 
-  // Cache if the class's isWrapperFor() or unwrap() methods are abstract
-  // Using classnames to avoid the need for a WeakMap
-  public static final DDCache<String, Boolean> ABSTRACT_UNWRAP = DDCaches.newFixedSizeCache(64);
+  // Cache if the class's isWrapperFor() or unwrap() methods are usable
+  private static final ClassValue<Boolean> CAN_UNWRAP =
+      new ClassValue<Boolean>() {
+        @Override
+        protected Boolean computeValue(Class<?> type) {
+          // DB drivers compiled before JDK 1.6 do not implement java.sql.Wrapper methods and throw
+          // AbstractMethodError when called
+          // h2 before v1.3.168 and jdts.jdbc up to version 1.3 are in this category
+          // Additionally h2, instead of returning "false" in versions 1.3.169+, throws an exception
+          // so those classes are hardcoded below
+          try {
+            return !"org.h2.jdbc.JdbcConnection".equals(type.getName())
+                && !"org.h2.jdbcx.JdbcXAConnection.PooledJdbcConnection".equals(type.getName())
+                && !"org.h2.jdbc.JdbcPreparedStatement".equals(type.getName())
+                && !"org.h2.jdbc.JdbcCallableStatement".equals(type.getName())
+                && !Modifier.isAbstract(type.getMethod("isWrapperFor", Class.class).getModifiers())
+                && !Modifier.isAbstract(type.getMethod("unwrap", Class.class).getModifiers());
+          } catch (NoSuchMethodException ignored) {
+          }
+          return false;
+        }
+      };
 
   public static PreparedStatement unwrappedStatement(PreparedStatement statement) {
-    Boolean abstractUnwrap = ABSTRACT_UNWRAP.getIfPresent(statement.getClass().getName());
-
-    if (abstractUnwrap == null) {
-      return tryUnwrap(statement);
-    } else {
-      return statement;
-    }
-  }
-
-  private static PreparedStatement tryUnwrap(PreparedStatement statement) {
-    try {
-      // technically this could be recursive. In practice, one level is enough
-      if (statement.isWrapperFor(PreparedStatement.class)) {
-        return statement.unwrap(PreparedStatement.class);
+    if (CAN_UNWRAP.get(statement.getClass())) {
+      try {
+        // technically this could be recursive. In practice, one level is enough
+        // Recursive would require cycle checking
+        if (statement.isWrapperFor(PreparedStatement.class)) {
+          return statement.unwrap(PreparedStatement.class);
+        }
+      } catch (Exception ignored) {
+        // note that we will not even call this method unless it has been shown not to
+        // throw AbstractMethodError
       }
-    } catch (AbstractMethodError e) {
-      ABSTRACT_UNWRAP.put(statement.getClass().getName(), true);
-
-      // perhaps wrapping isn't supported?
-      // ex: org.h2.jdbc.JdbcConnection v1.3.175
-      // or: jdts.jdbc which always throws `AbstractMethodError` (at least up to version 1.3)
-      // Stick with original statement.
-    } catch (Exception ignored) {
     }
 
     return statement;
@@ -59,9 +65,7 @@ public abstract class JDBCUtils {
         }
       }
 
-      Boolean abstractUnwrap = ABSTRACT_UNWRAP.getIfPresent(connection.getClass().getName());
-
-      if (abstractUnwrap == null) {
+      if (CAN_UNWRAP.get(connection.getClass())) {
         return tryUnwrap(connection);
       } else {
         return connection;
@@ -81,13 +85,9 @@ public abstract class JDBCUtils {
       } else {
         return connection;
       }
-    } catch (AbstractMethodError e) {
-      ABSTRACT_UNWRAP.put(connection.getClass().getName(), true);
-      // perhaps wrapping isn't supported?
-      // ex: org.h2.jdbc.JdbcConnection v1.3.175
-      // or: jdts.jdbc which always throws `AbstractMethodError` (at least up to version 1.3)
-      // Stick with original connection.
     } catch (Exception ignored) {
+      // note that we will not even call this method unless it has been shown not to
+      // throw AbstractMethodError
     }
 
     // Attempt to work around c3po delegating to an connection that doesn't support
